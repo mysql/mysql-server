@@ -17,12 +17,9 @@
 
 #include "current_thd.h"
 #include "log.h"
+#include "sql_class.h"                          // THD
 #include "sql_plugin.h"                         // my_plugin_foreach
-
-extern int initialize_audit_plugin(st_plugin_int *plugin);
-extern int finalize_audit_plugin(st_plugin_int *plugin);
-
-#ifndef EMBEDDED_LIBRARY
+#include "sql_rewrite.h"                        // mysql_rewrite_query
 
 struct st_mysql_event_generic
 {
@@ -250,6 +247,128 @@ void mysql_audit_release(THD *thd)
   thd->audit_class_plugins.clear();
   thd->audit_class_mask.clear();
   thd->audit_class_mask.resize(MYSQL_AUDIT_CLASS_MASK_SIZE);
+}
+
+
+void mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
+{
+  if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
+  {
+    MYSQL_LEX_STRING sql_command, ip, host, external_user;
+    LEX_CSTRING query= EMPTY_CSTR;
+    static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
+    char user_buff[MAX_USER_HOST_SIZE + 1];
+    const char *user= user_buff;
+    size_t userlen= make_user_name(thd->security_context(), user_buff);
+    time_t time= (time_t) thd->start_time.tv_sec;
+    int error_code= 0;
+
+    if (thd)
+    {
+      if (!thd->rewritten_query.length())
+        mysql_rewrite_query(thd);
+      if (thd->rewritten_query.length())
+      {
+        query.str= thd->rewritten_query.ptr();
+        query.length= thd->rewritten_query.length();
+      }
+      else
+        query= thd->query();
+      Security_context *sctx= thd->security_context();
+      LEX_CSTRING sctx_host= sctx->host();
+      LEX_CSTRING sctx_ip= sctx->ip();
+      LEX_CSTRING sctx_external_user= sctx->external_user();
+      ip.str= (char *) sctx_ip.str;
+      ip.length= sctx_ip.length;
+      host.str= (char *) sctx_host.str;
+      host.length= sctx_host.length;
+      external_user.str= (char *) sctx_external_user.str;
+      external_user.length= sctx_external_user.length;
+      sql_command.str= (char *) sql_statement_names[thd->lex->sql_command].str;
+      sql_command.length= sql_statement_names[thd->lex->sql_command].length;
+    }
+    else
+    {
+      ip= empty;
+      host= empty;
+      external_user= empty;
+      sql_command= empty;
+    }
+    const CHARSET_INFO *clientcs= thd ? thd->variables.character_set_client
+      : global_system_variables.character_set_client;
+
+    mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
+                       error_code, time, user, userlen, cmd, cmdlen, query.str,
+                       query.length, clientcs,
+                       static_cast<ha_rows>(0), /* general_rows */
+                       sql_command, host, external_user, ip);
+
+  }
+}
+
+
+void mysql_audit_general(THD *thd, uint event_subtype,
+                         int error_code, const char *msg)
+{
+  if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
+  {
+    time_t time= my_time(0);
+    size_t msglen= msg ? strlen(msg) : 0;
+    size_t userlen;
+    const char *user;
+    char user_buff[MAX_USER_HOST_SIZE];
+    LEX_CSTRING query= EMPTY_CSTR;
+    const CHARSET_INFO *query_charset= thd->charset();
+    MYSQL_LEX_STRING ip, host, external_user, sql_command;
+    ha_rows rows;
+    Security_context *sctx;
+    LEX_CSTRING sctx_host, sctx_ip, sctx_external_user;
+    static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
+
+    if (thd)
+    {
+      if (!thd->rewritten_query.length())
+        mysql_rewrite_query(thd);
+      if (thd->rewritten_query.length())
+      {
+        query.str= thd->rewritten_query.ptr();
+        query.length= thd->rewritten_query.length();
+        query_charset= thd->rewritten_query.charset();
+      }
+      else
+        query= thd->query();
+      user= user_buff;
+      userlen= make_user_name(thd->security_context(), user_buff);
+      sctx= thd->security_context();
+      rows= thd->get_stmt_da()->current_row_for_condition();
+      sctx_ip= sctx->ip();
+      ip.str= (char *) sctx_ip.str;
+      ip.length= sctx_ip.length;
+      sctx_host= sctx->host();
+      host.str= (char *) sctx_host.str;
+      host.length= sctx_host.length;
+      sctx_external_user= sctx->external_user();
+      external_user.str= (char *) sctx_external_user.str;
+      external_user.length= sctx_external_user.length;
+      sql_command.str= (char *) sql_statement_names[thd->lex->sql_command].str;
+      sql_command.length= sql_statement_names[thd->lex->sql_command].length;
+    }
+    else
+    {
+      user= 0;
+      userlen= 0;
+      ip= empty;
+      host= empty;
+      external_user= empty;
+      sql_command= empty;
+      rows= 0;
+    }
+
+    mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, event_subtype,
+                       error_code, time, user, userlen, msg, msglen,
+                       query.str, query.length, query_charset, rows,
+                       sql_command, host, external_user, ip);
+  }
 }
 
 
@@ -488,39 +607,9 @@ static void event_class_dispatch(THD *thd, unsigned int event_class,
 }
 
 
-#else /* EMBEDDED_LIBRARY */
-
-
-void mysql_audit_acquire_plugins(THD *thd, uint event_class)
+/**  There's at least one active audit plugin tracking the general events */
+bool is_any_audit_plugin_active(THD *thd __attribute__((unused)))
 {
+  return (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK);
 }
 
-
-void mysql_audit_initialize()
-{
-}
-
-
-void mysql_audit_finalize()
-{
-}
-
-
-int initialize_audit_plugin(st_plugin_int *plugin)
-{
-  return 1;
-}
-
-
-int finalize_audit_plugin(st_plugin_int *plugin)
-{
-  return 0;
-}
-
-
-void mysql_audit_release(THD *thd)
-{
-}
-
-
-#endif /* EMBEDDED_LIBRARY */

@@ -23,7 +23,6 @@
 
 #include "item_subselect.h"
 
-#include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum_max
 #include "opt_trace.h"           // OPT_TRACE_TRANSFORM
@@ -781,7 +780,7 @@ bool Query_result_scalar_subquery::send_data(List<Item> &items)
   Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
   if (it->assigned())
   {
-    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
+    my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
     DBUG_RETURN(true);
   }
   if (unit->offset_limit_cnt)
@@ -1102,7 +1101,7 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
     if (thd->lex->describe)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
-      sprintf(warn_buff, ER(ER_SELECT_REDUCED), select->select_number);
+      sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);
       push_warning(thd, Sql_condition::SL_NOTE,
 		   ER_SELECT_REDUCED, warn_buff);
     }
@@ -2133,7 +2132,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
 	if (thd->lex->describe)
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
-	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select->select_number);
+	  sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);
 	  push_warning(thd, Sql_condition::SL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
@@ -3293,7 +3292,7 @@ bool subselect_indexsubquery_engine::exec()
       err= tl->materialize_derived(thd);
     err|= tl->cleanup_derived();
     if (err)
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);            /* purecov: inspected */
 
     tab->materialized= true;
   }

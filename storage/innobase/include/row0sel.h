@@ -275,7 +275,7 @@ row_search_max_autoinc(
 	dict_index_t*	index,		/*!< in: index to search */
 	const char*	col_name,	/*!< in: autoinc column name */
 	ib_uint64_t*	value)		/*!< out: AUTOINC value read */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** A structure for caching column values for prefetched rows */
 struct sel_buf_t{

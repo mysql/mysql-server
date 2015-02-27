@@ -17,7 +17,7 @@
 #include "table_trigger_dispatcher.h"
 
 #include "auth_common.h"            // check_global_access
-#include "current_thd.h"
+#include "psi_memory_key.h"
 #include "sp_head.h"                // sp_head
 #include "sql_parse.h"              // create_default_definer
 #include "sql_show.h"               // append_definer
@@ -239,7 +239,7 @@ bool Table_trigger_dispatcher::create_trigger(
     push_warning_printf(thd,
                         Sql_condition::SL_NOTE,
                         ER_NO_SUCH_USER,
-                        ER(ER_NO_SUCH_USER),
+                        ER_THD(thd, ER_NO_SUCH_USER),
                         lex->definer->user.str,
                         lex->definer->host.str);
 
@@ -353,7 +353,7 @@ bool Table_trigger_dispatcher::drop_trigger(THD *thd,
     return false;
 
   DBUG_ASSERT (!*trigger_found);
-  my_message(ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST), MYF(0));
+  my_error(ER_TRG_DOES_NOT_EXIST, MYF(0));
 
   return true;
 }

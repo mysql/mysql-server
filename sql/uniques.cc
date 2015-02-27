@@ -30,13 +30,15 @@
   deletes in disk order.
 */
 
-#include "sql_sort.h"
+#include "uniques.h"                            // Unique
+
+#include "malloc_allocator.h"
 #include "my_tree.h"                            // element_count
 #include "opt_costmodel.h"
-#include "uniques.h"                            // Unique
-#include "sql_base.h"                           // TEMP_PREFIX
 #include "priority_queue.h"
-#include "malloc_allocator.h"
+#include "psi_memory_key.h"
+#include "sql_base.h"                           // TEMP_PREFIX
+#include "sql_sort.h"
 
 #include <algorithm>
 

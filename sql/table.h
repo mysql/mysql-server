@@ -899,15 +899,9 @@ private:
   */
   bool truncated_value;
 public:
-  Blob_mem_storage() :truncated_value(false)
-  {
-    init_alloc_root(key_memory_blob_mem_storage,
-                    &storage, MAX_FIELD_VARCHARLENGTH, 0);
-  }
-  ~ Blob_mem_storage()
-  {
-    free_root(&storage, MYF(0));
-  }
+  Blob_mem_storage();
+  ~Blob_mem_storage();
+
   void reset()
   {
     free_root(&storage, MYF(MY_MARK_BLOCKS_FREE));
@@ -1906,8 +1900,11 @@ struct TABLE_LIST
   {
     DBUG_ASSERT(is_view_or_derived() && uses_materialization());
     DBUG_ASSERT(db != view_db.str && table_name != view_name.str);
-    db= view_db.str;
-    db_length= view_db.length;
+    if (is_view())
+    {
+      db= view_db.str;
+      db_length= view_db.length;
+    }
     table_name= view_name.str;
     table_name_length= view_name.length;
   }

@@ -62,9 +62,11 @@ slave_ignored_err_throttle(window_size,
 #include "sql_digest.h"
 #include "rpl_gtid.h"
 
+extern "C" {
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
+}
 
 using std::min;
 using std::max;
@@ -4764,7 +4766,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         clear_all_errors(thd, const_cast<Relay_log_info*>(rli)); /* Can ignore query */
       else
       {
-        rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER, ER(ER_ERROR_ON_MASTER),
+        rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER,
+                    ER_THD(thd, ER_ERROR_ON_MASTER),
                     expected_error, thd->query().str);
         thd->is_slave_error= 1;
       }
@@ -4818,7 +4821,8 @@ compare_errors:
         !ignored_error_code(actual_error) &&
         !ignored_error_code(expected_error))
     {
-      rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR, ER(ER_INCONSISTENT_ERROR),
+      rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR,
+                  ER_THD(thd, ER_INCONSISTENT_ERROR),
                   ER_THD(thd, expected_error), expected_error,
                   (actual_error ?
                    thd->get_stmt_da()->message_text() :
@@ -6342,7 +6346,7 @@ error:
     else
     {
       sql_errno=ER_UNKNOWN_ERROR;
-      err=ER(sql_errno);       
+      err=ER_THD(thd, sql_errno);
     }
     rli->report(ERROR_LEVEL, sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
@@ -6362,7 +6366,7 @@ Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
                 print_slave_db_safe(remember_db));
 
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER(ER_SLAVE_FATAL_ERROR), buf);
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR), buf);
     return 1;
   }
 
@@ -8394,7 +8398,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
                                   opt_slave_sql_verify_checksum)) ||
       lev->get_type_code() != binary_log::NEW_LOAD_EVENT)
   {
-    rli->report(ERROR_LEVEL, ER_FILE_CORRUPT, ER(ER_FILE_CORRUPT),
+    rli->report(ERROR_LEVEL, ER_FILE_CORRUPT, ER_THD(thd, ER_FILE_CORRUPT),
                 fname);
     goto err;
   }
@@ -8686,7 +8690,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   if (buf == NULL)
   {
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER(ER_SLAVE_FATAL_ERROR), "Not enough memory");
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR), "Not enough memory");
     return 1;
   }
 
@@ -11662,14 +11666,14 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                   table_list->table_id.id());
 
       if (thd->slave_thread)
-        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
-                    ER(ER_SLAVE_FATAL_ERROR), buf);
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR), buf);
       else
         /* 
           For the cases in which a 'BINLOG' statement is set to 
           execute in a user session 
          */
-        my_printf_error(ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR), 
+        my_printf_error(ER_SLAVE_FATAL_ERROR, ER_THD(thd, ER_SLAVE_FATAL_ERROR),
                         MYF(0), buf);
     } 
     
@@ -12639,7 +12643,7 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
   }
    
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
-              ER(ER_SLAVE_INCIDENT),
+              ER_THD(thd, ER_SLAVE_INCIDENT),
               description(),
               message_length > 0 ? message : "<none>");
   DBUG_RETURN(1);

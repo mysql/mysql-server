@@ -286,7 +286,7 @@ row_merge_insert_index_tuples(
 
 /******************************************************//**
 Encode an index record. */
-static __attribute__((nonnull))
+static
 void
 row_merge_buf_encode(
 /*=================*/
@@ -323,7 +323,7 @@ row_merge_buf_encode(
 /******************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */
-static __attribute__((malloc, nonnull))
+static __attribute__((malloc))
 row_merge_buf_t*
 row_merge_buf_create_low(
 /*=====================*/
@@ -905,7 +905,7 @@ respectively */
 
 /**********************************************************************//**
 Merge sort the tuple buffer in main memory. */
-static __attribute__((nonnull(4,5)))
+static
 void
 row_merge_tuple_sort(
 /*=================*/
@@ -4003,7 +4003,7 @@ row_merge_rename_tables_dict(
 /*********************************************************************//**
 Create and execute a query graph for creating an index.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_merge_create_index_graph(
 /*=========================*/

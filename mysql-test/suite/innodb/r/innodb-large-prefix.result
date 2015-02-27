@@ -1,5 +1,3 @@
-SET @innodb_large_prefix_orig = @@innodb_large_prefix;
-SET GLOBAL innodb_large_prefix = 1;
 #
 # Bug #12699505 MEMORY LEAK IN ROW_CREATE_INDEX_FOR_MYSQL()
 #
@@ -45,4 +43,3 @@ a	b
 6	
 7	
 DROP TABLE t2;
-SET GLOBAL innodb_large_prefix = @innodb_large_prefix_orig;

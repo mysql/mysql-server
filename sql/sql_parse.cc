@@ -26,6 +26,7 @@
 #include "opt_explain.h"      // mysql_explain_other
 #include "opt_trace.h"        // Opt_trace_start
 #include "partition_info.h"   // partition_info
+#include "psi_memory_key.h"
 #include "probes_mysql.h"     // MYSQL_COMMAND_START
 #include "rpl_filter.h"       // rpl_filter
 #include "rpl_group_replication.h" // group_replication_start
@@ -53,6 +54,7 @@
 #include "sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
 #include "sql_reload.h"       // reload_acl_and_cache
 #include "sql_rename.h"       // mysql_rename_tables
+#include "sql_rewrite.h"      // mysql_rewrite_query
 #include "sql_select.h"       // handle_query
 #include "sql_show.h"         // find_schema_table
 #include "sql_table.h"        // mysql_create_table
@@ -1114,7 +1116,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     Security_context save_security_ctx(*(thd->security_context()));
 
     auth_rc= acl_authenticate(thd, packet_length);
+#ifndef EMBEDDED_LIBRARY
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
+#endif
     if (auth_rc)
     {
       *thd->security_context()= save_security_ctx;
@@ -1124,7 +1128,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_error(ER_ACCESS_DENIED_CHANGE_USER_ERROR, MYF(0),
                thd->security_context()->user().str,
                thd->security_context()->host_or_ip().str,
-               (thd->password ? ER(ER_YES) : ER(ER_NO)));
+               (thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
       thd->killed= THD::KILL_CONNECTION;
       error=true;
     }
@@ -1219,10 +1223,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->protocol->end_statement();
       query_cache.end_of_result(thd);
 
+#ifndef EMBEDDED_LIBRARY
       mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
                           thd->get_stmt_da()->is_error() ?
                           thd->get_stmt_da()->mysql_errno() : 0,
                           command_name[command].str);
+#endif
 
       size_t length= static_cast<size_t>(packet_end - beginning_of_next_stmt);
 
@@ -1314,7 +1320,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Check given table name length. */
     if (arg_length >= packet_length || arg_length > NAME_LEN)
     {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
       break;
     }
     thd->convert_string(&table_name, system_charset_info,
@@ -1598,7 +1604,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_eof(thd);
       break;
     default:
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
       break;
     }
     break;
@@ -1617,7 +1623,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_DELAYED_INSERT: // INSERT DELAYED has been removed.
   case COM_END:
   default:
-    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
     break;
   }
 
@@ -1634,6 +1640,7 @@ done:
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
   query_cache.end_of_result(thd);
 
+#ifndef EMBEDDED_LIBRARY
   if (!thd->is_error() && !thd->killed_errno())
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
 
@@ -1641,6 +1648,7 @@ done:
                       thd->get_stmt_da()->is_error() ?
                       thd->get_stmt_da()->mysql_errno() : 0,
                       command_name[command].str);
+#endif
 
   log_slow_statement(thd);
 
@@ -1904,7 +1912,7 @@ bool sp_process_definer(THD *thd)
     push_warning_printf(thd,
                         Sql_condition::SL_NOTE,
                         ER_NO_SUCH_USER,
-                        ER(ER_NO_SUCH_USER),
+                        ER_THD(thd, ER_NO_SUCH_USER),
                         lex->definer->user.str,
                         lex->definer->host.str);
   }
@@ -2190,7 +2198,7 @@ mysql_execute_command(THD *thd)
       if (all_tables_not_ok(thd, all_tables))
       {
         /* we warn the slave SQL thread */
-        my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+        my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
         DBUG_RETURN(0);
       }
       
@@ -2218,7 +2226,7 @@ mysql_execute_command(THD *thd)
         all_tables_not_ok(thd, all_tables))
     {
       /* we warn the slave SQL thread */
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       DBUG_RETURN(0);
     }
     /* 
@@ -2764,7 +2772,7 @@ case SQLCOM_PREPARE:
           {
             push_warning_printf(thd, Sql_condition::SL_NOTE,
                                 ER_TABLE_EXISTS_ERROR,
-                                ER(ER_TABLE_EXISTS_ERROR),
+                                ER_THD(thd, ER_TABLE_EXISTS_ERROR),
                                 create_info.alias);
             my_ok(thd);
           }
@@ -2920,24 +2928,19 @@ end_with_restore_list:
     switch (res)
     {
       case 1: //GROUP_REPLICATION_CONFIGURATION_ERROR
-        my_message(ER_GROUP_REPLICATION_CONFIGURATION,
-                   ER(ER_GROUP_REPLICATION_CONFIGURATION), MYF(0));
+        my_error(ER_GROUP_REPLICATION_CONFIGURATION, MYF(0));
         goto error;
       case 2: //GROUP_REPLICATION_ALREADY_RUNNING
-        my_message(ER_GROUP_REPLICATION_RUNNING,
-                   ER(ER_GROUP_REPLICATION_RUNNING), MYF(0));
+        my_error(ER_GROUP_REPLICATION_RUNNING, MYF(0));
         goto error;
       case 3: //GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR
-        my_message(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR,
-                   ER(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR), MYF(0));
+        my_error(ER_GROUP_REPLICATION_APPLIER_INIT_ERROR, MYF(0));
         goto error;
       case 4: //GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR
-        my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR,
-                   ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR), MYF(0));
+        my_error(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR, MYF(0));
         goto error;
       case 5: //GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
-        my_message(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR,
-                   ER(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR), MYF(0));
+        my_error(ER_GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR, MYF(0));
         goto error;
     }
     my_ok(thd);
@@ -2950,14 +2953,12 @@ end_with_restore_list:
     res= group_replication_stop();
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
-      my_message(ER_GROUP_REPLICATION_CONFIGURATION,
-                 ER(ER_GROUP_REPLICATION_CONFIGURATION), MYF(0));
+      my_error(ER_GROUP_REPLICATION_CONFIGURATION, MYF(0));
       goto error;
     }
     if (res == 6) //GROUP_REPLICATION_APPLIER_THREAD_TIMEOUT
     {
-      my_message(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT,
-                 ER(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT), MYF(0));
+      my_error(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT, MYF(0));
       goto error;
     }
     my_ok(thd);
@@ -2988,8 +2989,7 @@ end_with_restore_list:
   if (thd->locked_tables_mode ||
       thd->in_active_multi_stmt_transaction() || thd->global_read_lock.is_acquired())
   {
-    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     goto error;
   }
 
@@ -3236,7 +3236,7 @@ end_with_restore_list:
       if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
           !opt_local_infile)
       {
-	my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND), MYF(0));
+	my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
 	goto error;
       }
     }
@@ -3381,7 +3381,7 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
@@ -3405,7 +3405,7 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
@@ -3421,7 +3421,7 @@ end_with_restore_list:
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
       res= 1;
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
@@ -3456,7 +3456,7 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
     if (!db_stmt_db_ok(thd, lex->name.str))
     {
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
       break;
     }
 #endif
@@ -3637,7 +3637,7 @@ end_with_restore_list:
             hostname_requires_resolving(user->host.str))
           push_warning(thd, Sql_condition::SL_WARNING,
                        ER_WARN_HOSTNAME_WONT_WORK,
-                       ER(ER_WARN_HOSTNAME_WONT_WORK));
+                       ER_THD(thd, ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
         DBUG_ASSERT(user->host.str != 0);
 
@@ -3693,8 +3693,7 @@ end_with_restore_list:
     {
       if (lex->columns.elements || (lex->type && lex->type != TYPE_ENUM_PROXY))
       {
-	my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
-                   MYF(0));
+	my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
         goto error;
       }
       else
@@ -4032,7 +4031,8 @@ end_with_restore_list:
         if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
           push_warning(thd, Sql_condition::SL_WARNING,
-                       ER_PROC_AUTO_GRANT_FAIL, ER(ER_PROC_AUTO_GRANT_FAIL));
+                       ER_PROC_AUTO_GRANT_FAIL,
+                       ER_THD(thd, ER_PROC_AUTO_GRANT_FAIL));
         thd->clear_error();
       }
 
@@ -4219,7 +4219,8 @@ end_with_restore_list:
           if (lex->drop_if_exists)
           {
             push_warning_printf(thd, Sql_condition::SL_NOTE,
-                                ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+                                ER_SP_DOES_NOT_EXIST,
+                                ER_THD(thd, ER_SP_DOES_NOT_EXIST),
                                 "FUNCTION (UDF)", lex->spname->m_name.str);
             res= FALSE;
             my_ok(thd);
@@ -4273,7 +4274,7 @@ end_with_restore_list:
       {
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_PROC_AUTO_REVOKE_FAIL,
-                     ER(ER_PROC_AUTO_REVOKE_FAIL));
+                     ER_THD(thd, ER_PROC_AUTO_REVOKE_FAIL));
         /* If this happens, an error should have been reported. */
         goto error;
       }
@@ -4289,7 +4290,8 @@ end_with_restore_list:
 	{
           res= write_bin_log(thd, true, thd->query().str, thd->query().length);
 	  push_warning_printf(thd, Sql_condition::SL_NOTE,
-			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+			      ER_SP_DOES_NOT_EXIST,
+                              ER_THD(thd, ER_SP_DOES_NOT_EXIST),
                               SP_COM_STRING(lex), lex->spname->m_qname.str);
           if (!res)
             my_ok(thd);
@@ -4491,8 +4493,7 @@ end_with_restore_list:
       if (update_password_only &&
           !strcmp(thd->security_context()->priv_user().str,""))
       {
-        my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
-                   MYF(0));
+        my_error(ER_PASSWORD_ANONYMOUS_USER, MYF(0));
         goto error;
       }
     }
@@ -4746,7 +4747,8 @@ bool check_stack_overrun(THD *thd, long margin,
     */
     char* ebuff= new (std::nothrow) char[MYSQL_ERRMSG_SIZE];
     if (ebuff) {
-      my_snprintf(ebuff, MYSQL_ERRMSG_SIZE, ER(ER_STACK_OVERRUN_NEED_MORE),
+      my_snprintf(ebuff, MYSQL_ERRMSG_SIZE,
+                  ER_THD(thd, ER_STACK_OVERRUN_NEED_MORE),
                   stack_used, my_thread_stack_size, margin);
       my_message(ER_STACK_OVERRUN_NEED_MORE, ebuff, MYF(ME_FATALERROR));
       delete [] ebuff;
@@ -5051,10 +5053,12 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
         }
       }
 
+#ifndef EMBEDDED_LIBRARY
       /* Audit_log notification when general log is disabled */
       if (!opt_general_log && !opt_general_log_raw)
         mysql_audit_general_log(thd, command_name[COM_QUERY].str,
                                 command_name[COM_QUERY].length);
+#endif
     }
 
     if (!err)
@@ -5440,8 +5444,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   {
     if (table->sel)
     {
-      my_message(ER_DERIVED_MUST_HAVE_ALIAS,
-                 ER(ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
+      my_error(ER_DERIVED_MUST_HAVE_ALIAS, MYF(0));
       DBUG_RETURN(0);
     }
     if (!(alias_str= (char*) thd->memdup(alias_str,table->table.length+1)))
@@ -6084,8 +6087,16 @@ public:
   {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
-    /* Kill only if non super thread and non slave thread */
-    if (!(thd_to_kill->security_context()->check_access(SUPER_ACL))
+    /* Kill only if non super thread and non slave thread.
+       If an account has not yet been assigned to the security context of the
+       thread we cannot tell if the account is super user or not. In this case
+       we cannot kill that thread. In offline mode, after the account is
+       assigned to this thread and it turns out it is not super user thread,
+       the authentication for this thread will fail and the thread will be
+       terminated.
+    */
+    if (thd_to_kill->security_context()->has_account_assigned()
+  && !(thd_to_kill->security_context()->check_access(SUPER_ACL))
 	&& thd_to_kill->killed != THD::KILL_CONNECTION
 	&& !thd_to_kill->slave_thread)
       thd_to_kill->awake(THD::KILL_CONNECTION);
@@ -6498,7 +6509,8 @@ bool check_host_name(const LEX_CSTRING &str)
 {
   const char *name= str.str;
   const char *end= str.str + str.length;
-  if (check_string_byte_length(str, ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+  if (check_string_byte_length(str, ER_THD(current_thd, ER_HOSTNAME),
+                               HOSTNAME_LENGTH))
     return TRUE;
 
   while (name != end)

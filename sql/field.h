@@ -23,7 +23,6 @@
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "binary_log_funcs.h"                   // my_time_binary_length
 #include "handler.h"                            // column_format_type
-#include "mysqld.h"                             // system_charset_info
 #include "mysqld_error.h"                       // ER_*
 #include "sql_error.h"                          // Sql_condition
 #include "sql_string.h"                         // String
@@ -3615,9 +3614,8 @@ public:
                   l_char_length <= 16777215 ? 3 : 4;
     }
   }
-  Field_blob(uint32 packlength_arg)
-    :Field_longstr((uchar*) 0, 0, (uchar*) "", 0, NONE, "temp", system_charset_info),
-    packlength(packlength_arg) {}
+  explicit Field_blob(uint32 packlength_arg);
+
   /* Note that the default copy constructor is used, in clone() */
   enum_field_types type() const { return MYSQL_TYPE_BLOB;}
   bool match_collation_to_optimize_range() const { return true; }

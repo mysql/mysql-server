@@ -85,10 +85,10 @@ When one supplies long data for a placeholder:
 
 #include "sql_prepare.h"
 #include "auth_common.h"        // insert_precheck
-#include "current_thd.h"
 #include "log.h"                // query_logger
 #include "opt_trace.h"          // Opt_trace_array
 #include "probes_mysql.h"       // MYSQL_QUERY_EXEC_START
+#include "psi_memory_key.h"
 #include "set_var.h"            // set_var_base
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
@@ -106,6 +106,8 @@ When one supplies long data for a placeholder:
 #include "transaction.h"        // trans_rollback_implicit
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
 #include "binlog.h"
+#include "sql_audit.h"          // mysql_global_audit_mask
+
 
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
@@ -1247,15 +1249,15 @@ int Sql_cmd_update::mysql_test_update(THD *thd)
     DBUG_RETURN(1);
 
   if (select->setup_tables(thd, table_list, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                  /* purecov: inspected */
 
   if (table_list->is_view())
   {
     if (table_list->resolve_derived(thd, false))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                /* purecov: inspected */
 
     if (select->merge_derived(thd, table_list))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                /* purecov: inspected */
   }
 
   if (!table_list->is_updatable())
@@ -1458,15 +1460,15 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
 
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                /* purecov: inspected */
 
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                /* purecov: inspected */
 
   while ((var= it++))
   {
     if (var->light_check(thd))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);              /* purecov: inspected */
   }
 
   DBUG_RETURN(false);
@@ -1496,16 +1498,16 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
 
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                /* purecov: inspected */
 
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                /* purecov: inspected */
 
   while ((item= it++))
   {
     if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
         item->check_cols(1))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);              /* purecov: inspected */
   }
 
   DBUG_RETURN(false);
@@ -1755,8 +1757,10 @@ bool Sql_cmd_delete_multi::prepared_statement_test(THD *thd)
   lex->set_current_select(lex->select_lex);
   if (add_item_to_list(thd, new Item_null()))
   {
+    /* purecov: begin inspected */
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
     return true;
+    /* purecov: end */
   }
 
   if (multi_delete_precheck(thd, tables))
@@ -1946,7 +1950,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_CREATE_VIEW:
     if (lex->create_view_mode == VIEW_ALTER)
     {
-      my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
+      my_error(ER_UNSUPPORTED_PS, MYF(0));
       goto error;
     }
     res= mysql_test_create_view(stmt);
@@ -2015,7 +2019,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
       )
     {
       /* All other statements are not supported yet. */
-      my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
+      my_error(ER_UNSUPPORTED_PS, MYF(0));
       goto error;
     }
     break;
@@ -2041,7 +2045,7 @@ static bool init_param_array(Prepared_statement *stmt)
     if (stmt->param_count > (uint) UINT_MAX16)
     {
       /* Error code to be defined in 5.0 */
-      my_message(ER_PS_MANY_PARAM, ER(ER_PS_MANY_PARAM), MYF(0));
+      my_error(ER_PS_MANY_PARAM, MYF(0));
       return TRUE;
     }
     Item_param **to;
@@ -2337,6 +2341,8 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   SELECT_LEX *sl= lex->all_selects_list;
   DBUG_ENTER("reinit_stmt_before_use");
 
+  // Default to READ access for every field that is resolved
+  thd->mark_used_columns= MARK_COLUMNS_READ;
   /*
     We have to update "thd" pointer in LEX, all its units and in LEX::result,
     since statements which belong to trigger body are associated with TABLE
@@ -2851,7 +2857,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, size_t packet_length)
     /* Error will be sent in execute call */
     stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
-    sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
+    sprintf(stmt->last_error, ER_THD(thd, ER_WRONG_ARGUMENTS),
             "mysqld_stmt_send_long_data");
     DBUG_VOID_RETURN;
   }
@@ -3186,6 +3192,7 @@ Prepared_statement::set_db(const LEX_CSTRING &db_arg)
   global THD state management to the caller.
 ***************************************************************************/
 
+
 /**
   Parse statement text, validate the statement, and prepare it for execution.
 
@@ -3276,6 +3283,10 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   thd->m_digest= &digest;
 
   enable_digest_if_any_plugin_needs_it(thd, &parser_state);
+#ifndef EMBEDDED_LIBRARY
+  if (is_any_audit_plugin_active(thd))
+    parser_state.m_input.m_compute_digest= true;
+#endif
 
   error= parse_sql(thd, &parser_state, NULL) ||
     thd->is_error() ||
@@ -3286,10 +3297,6 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
     invoke_post_parse_rewrite_plugins(thd, true);
     error= init_param_array(this);
   }
-
-  thd->m_digest= parent_digest;
-
-  thd->m_statement_psi= parent_locker;
 
   lex->set_trg_event_type_for_tables();
 
@@ -3413,8 +3420,15 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
         query_logger.general_log_write(thd, COM_STMT_PREPARE,
                                        m_query_string.str,
                                        m_query_string.length);
+
+      /* audit plugins can return an error */
+      error |= thd->is_error();
     }
   }
+  thd->m_digest= parent_digest;
+
+  thd->m_statement_psi= parent_locker;
+
   DBUG_RETURN(error);
 }
 

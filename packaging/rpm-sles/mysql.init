@@ -52,6 +52,10 @@ PROG=/usr/bin/mysqld_safe
 # Lock directory
 lockfile=/var/lock/subsys/mysql
 
+# Support for extra options passed to mysqld
+command=$1 && shift
+extra_opts="$@"
+
 get_option () {
     local section=$1
     local option=$2
@@ -73,7 +77,7 @@ install_db () {
     logfile=$(get_option mysqld_safe log-error "/var/log/mysql/mysqld.log")
 
     # Restore log, dir, perms and SELinux contexts
-    [ -d "$datadir" ] || install -d -m 0750 -omysql -gmysql "$datadir" || return 1
+    [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || return 1
 
     [ -e $logfile ] || touch $logfile || return 1
     chmod 0640 $logfile
@@ -87,7 +91,7 @@ install_db () {
     [ -d "$datadir/mysql" ] && return 0
 
     # Create initial db
-    /usr/bin/mysql_install_db --datadir="$datadir" --user=mysql
+    /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
     return $?
 }
 
@@ -152,7 +156,7 @@ start () {
 	rc_failed 6 ; rc_status -v ; rc_exit
     fi
 
-    $PROG --basedir=/usr --datadir="$datadir" --pid-file="$pidfile" >/dev/null 2>&1 &
+    $PROG --basedir=/usr --datadir="$datadir" --pid-file="$pidfile" $extra_opts >/dev/null 2>&1 &
     if pinger $! ; then
 	echo -n "Starting service MySQL:"
 	touch $lockfile
@@ -232,7 +236,7 @@ status () {
    rc_status -v
 }  
 
-case "$1" in
+case "$command" in
     start  ) start   ;;
     stop   ) stop    ;;
     restart) restart ;;

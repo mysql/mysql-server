@@ -22,10 +22,10 @@
 #include "sql_delete.h"
 
 #include "binlog.h"                   // mysql_bin_log
-#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "opt_explain.h"              // Modification_plan
 #include "opt_trace.h"                // Opt_trace_object
+#include "psi_memory_key.h"
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // open_normal_and_derived_tables
 #include "sql_optimizer.h"            // optimize_cond
@@ -128,8 +128,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
   const_cond= (!conds || conds->const_item());
   if (safe_update && const_cond)
   {
-    my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-               ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -309,8 +308,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     if (safe_update && !using_limit)
     {
       free_underlaid_joins(thd, select_lex);
-      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-                 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
       DBUG_RETURN(TRUE);
     }
   }
@@ -602,10 +600,10 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
   TABLE_LIST *const table_list= select->get_table_list();
 
   if (select->setup_tables(thd, table_list, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);            /* purecov: inspected */
 
   if (table_list->is_view() && select->resolve_derived(thd, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);            /* purecov: inspected */
 
   if (!table_list->is_updatable())
   {
@@ -648,7 +646,7 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
 
     DBUG_ASSERT(!select->group_list.elements);
     if (select->setup_ref_array(thd))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                     /* purecov: inspected */
     if (setup_order(thd, select->ref_pointer_array, &tables,
                     fields, all_fields, select->order_list.first))
       DBUG_RETURN(true);
@@ -690,8 +688,6 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
   Delete multiple tables from join 
 ***************************************************************************/
 
-#define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
-
 extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
 {
   handler *file= (handler*)arg;
@@ -725,7 +721,7 @@ int Sql_cmd_delete_multi::mysql_multi_delete_prepare(THD *thd,
     lex->query_tables also point on local list of DELETE SELECT_LEX
   */
   if (select->setup_tables(thd, lex->query_tables, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);               /* purecov: inspected */
 
   if (select->derived_table_count)
   {
@@ -920,7 +916,7 @@ bool Query_result_delete::initialize_tables(JOIN *join)
     if (!(*tempfile++= new Unique(refpos_order_cmp,
                                   (void *) table->file,
                                   table->file->ref_length,
-                                  MEM_STRIP_BUF_SIZE)))
+                                  thd->variables.sortbuff_size)))
       DBUG_RETURN(true);                     /* purecov: inspected */
     *(table_ptr++)= table;
   }

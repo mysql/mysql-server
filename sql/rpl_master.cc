@@ -24,6 +24,7 @@
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "log.h"                                // sql_print_information
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include "psi_memory_key.h"
 #include "rpl_binlog_sender.h"                  // Binlog_sender
 #include "rpl_filter.h"                         // binlog_filter
 #include "rpl_handler.h"                        // RUN_HOOK
@@ -535,8 +536,7 @@ int reset_master(THD* thd)
 {
   if (!mysql_bin_log.is_open())
   {
-    my_message(ER_FLUSH_MASTER_BINLOG_CLOSED,
-               ER(ER_FLUSH_MASTER_BINLOG_CLOSED), MYF(0));
+    my_error(ER_FLUSH_MASTER_BINLOG_CLOSED, MYF(0));
     return 1;
   }
 

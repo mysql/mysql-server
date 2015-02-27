@@ -22,6 +22,7 @@
 #include <m_ctype.h>
 #include "item_timefunc.h"   // INTERNAL_FORMAT
 #include "current_thd.h"
+#include "psi_memory_key.h"
 
 
 	/* Some functions to calculate dates */
@@ -696,7 +697,7 @@ bool datetime_with_no_zero_in_date_to_timeval(THD *thd,
   }
 
   my_bool in_dst_time_gap;
-  if (!(tm->tv_sec= TIME_to_timestamp(current_thd, ltime, &in_dst_time_gap)))
+  if (!(tm->tv_sec= TIME_to_timestamp(thd, ltime, &in_dst_time_gap)))
   {
     /*
       Date was outside of the supported timestamp range.
@@ -752,7 +753,7 @@ bool datetime_to_timeval(THD *thd, const MYSQL_TIME *ltime,
 {
   return
     check_date(ltime, non_zero_date(ltime), TIME_NO_ZERO_IN_DATE, warnings) ||
-    datetime_with_no_zero_in_date_to_timeval(current_thd, ltime, tm, warnings);
+    datetime_with_no_zero_in_date_to_timeval(thd, ltime, tm, warnings);
 }
 
 
@@ -1236,18 +1237,18 @@ void make_truncated_value_warning(THD *thd,
   }
   if (field_name)
     cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                       ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                        type_str, val.ptr(), field_name,
                        (ulong) thd->get_stmt_da()->current_row_for_condition());
   else
   {
     if (time_type > MYSQL_TIMESTAMP_ERROR)
       cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                         ER(ER_TRUNCATED_WRONG_VALUE),
+                         ER_THD(thd, ER_TRUNCATED_WRONG_VALUE),
                          type_str, val.ptr());
     else
       cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                         ER(ER_WRONG_VALUE), type_str, val.ptr());
+                         ER_THD(thd, ER_WRONG_VALUE), type_str, val.ptr());
   }
   push_warning(thd, level, ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }
@@ -1359,7 +1360,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
 invalid_date:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_DATETIME_FUNCTION_OVERFLOW,
-                      ER(ER_DATETIME_FUNCTION_OVERFLOW),
+                      ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");
 null_date:
   return 1;

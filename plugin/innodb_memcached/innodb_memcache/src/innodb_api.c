@@ -157,6 +157,40 @@ innodb_api_begin(
 			return(err);
 		}
 
+		/* If MDL is enabled, we need to create mysql handler. */
+		if (engine) {
+			/* Create a "Fake" THD if binlog is enabled */
+			/* For flush_all which request IB_LOCK_TABLE_X
+			lock, we need to add MDL lock. It's because we need
+			to block DMLs from sql layer. */
+			if (conn_data && (engine->enable_binlog
+					  || engine->enable_mdl
+					  || lock_mode == IB_LOCK_TABLE_X)) {
+				if (!conn_data->thd) {
+					conn_data->thd = handler_create_thd(
+						engine->enable_binlog);
+
+					if (!conn_data->thd) {
+						innodb_cb_cursor_close(*crsr);
+						*crsr = NULL;
+						return(DB_ERROR);
+					}
+				}
+
+				if (!conn_data->mysql_tbl) {
+					int lock_type =
+						(lock_mode == IB_LOCK_TABLE_X?
+							HDL_FLUSH : HDL_WRITE);
+					conn_data->mysql_tbl =
+						handler_open_table(
+							conn_data->thd,
+							dbname,
+							name,
+							lock_type);
+				}
+			}
+		}
+
 		err = innodb_cb_cursor_lock(engine, *crsr, lock_mode);
 
 		if (err != DB_SUCCESS) {
@@ -195,30 +229,8 @@ innodb_api_begin(
 				err = innodb_cb_cursor_lock(engine, *idx_crsr,
 						      lock_mode);
 			}
-
-			/* Create a "Fake" THD if binlog is enabled */
-			if (conn_data && (engine->enable_binlog
-					  || engine->enable_mdl)) {
-				if (!conn_data->thd) {
-					conn_data->thd = handler_create_thd(
-						engine->enable_binlog);
-
-					if (!conn_data->thd) {
-						innodb_cb_cursor_close(*crsr);
-						*crsr = NULL;
-						return(DB_ERROR);
-					}
-				}
-
-				if (!conn_data->mysql_tbl) {
-					conn_data->mysql_tbl =
-						handler_open_table(
-							conn_data->thd,
-							dbname,
-							name, HDL_WRITE);
-				}
-			}
 		}
+
 	} else {
 		ib_cb_cursor_new_trx(*crsr, ib_trx);
 

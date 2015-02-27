@@ -48,5 +48,5 @@ extern "C" void sql_alloc_error_handler(void)
   /* Skip writing to the error log to avoid mtr complaints */
   DBUG_EXECUTE_IF("simulate_out_of_memory", return;);
 
-  sql_print_error("%s", ER(ER_OUT_OF_RESOURCES));
+  sql_print_error("%s", ER_DEFAULT(ER_OUT_OF_RESOURCES));
 }

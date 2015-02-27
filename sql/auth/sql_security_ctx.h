@@ -311,6 +311,26 @@ public:
     m_master_access= master_access;
   }
 
+  /**
+    Check if a an account has been assigned to the security context
+
+    The account assigment to the security context is always executed in the
+    following order:
+    1) assign user's name to the context
+    2) assign user's hostname to the context
+    Whilst user name can be null, hostname cannot. This is why we can say that
+    the full account has been assigned to the context when hostname is not
+    equal to empty string. 
+
+    @return Account assignment status 
+      @retval TRUE account has been assigned to the security context
+      @retval FALSE account has not yet been assigned to the security context
+  */
+
+  bool has_account_assigned() const
+  {
+    return m_priv_host[0] != '\0';
+  }
 
   /**
     Check permission against m_master_access

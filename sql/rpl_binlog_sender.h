@@ -64,6 +64,7 @@ private:
   binary_log::enum_binlog_checksum_alg m_event_checksum_alg;
   binary_log::enum_binlog_checksum_alg m_slave_checksum_alg;
   ulonglong m_heartbeat_period;
+  time_t m_last_event_sent_ts;
   /*
     For mysqlbinlog(server_id is 0), it will stop immediately without waiting
     if it already reads all events.

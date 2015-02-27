@@ -2018,12 +2018,64 @@ row_truncate_table_for_mysql(
 
 /**
 Fix the table truncate by applying information parsed from TRUNCATE log.
-Fix-up includes re-creating table (drop and re-create indexes) and for
-single-tablespace re-creating tablespace.
-@return error code or DB_SUCCESS */
-
+Fix-up includes re-creating table (drop and re-create indexes)
+@return	error code or DB_SUCCESS */
 dberr_t
-truncate_t::fixup_tables()
+truncate_t::fixup_tables_in_system_tablespace()
+{
+	dberr_t	err = DB_SUCCESS;
+
+	/* Using the info cached during REDO log scan phase fix the
+	table truncate. */
+
+	for (tables_t::iterator it = s_tables.begin();
+	     it != s_tables.end();) {
+
+		if ((*it)->m_space_id == TRX_SYS_SPACE) {
+			/* Step-1: Drop and re-create indexes. */
+			ib::info() << "Completing truncate for table with "
+				"id (" << (*it)->m_old_table_id << ") "
+				"residing in the system tablespace.";
+
+			err = fil_recreate_table(
+				(*it)->m_space_id,
+				(*it)->m_format_flags,
+				(*it)->m_tablespace_flags,
+				(*it)->m_tablename,
+				**it);
+
+			/* Step-2: Update the SYS_XXXX tables to reflect
+			this new table_id and root_page_no. */
+			table_id_t	new_id;
+
+			dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);
+
+			err = row_truncate_update_sys_tables_during_fix_up(
+				**it, new_id, TRUE,
+				(err == DB_SUCCESS) ? false : true);
+
+			if (err != DB_SUCCESS) {
+				break;
+			}
+
+			os_file_delete(
+				innodb_log_file_key, (*it)->m_log_file_name);
+			UT_DELETE(*it);
+			it = s_tables.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	return(err);
+}
+
+/**
+Fix the table truncate by applying information parsed from TRUNCATE log.
+Fix-up includes re-creating tablespace.
+@return	error code or DB_SUCCESS */
+dberr_t
+truncate_t::fixup_tables_in_non_system_tablespace()
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -2033,16 +2085,21 @@ truncate_t::fixup_tables()
 
 	for (tables_t::iterator it = s_tables.begin(); it != end; ++it) {
 
+		/* All tables in the system tablesapce have already been
+		done and erased from this list. */
+		ut_a((*it)->m_space_id != TRX_SYS_SPACE);
+
 		/* Step-1: Drop tablespace (only for single-tablespace),
 		drop indexes and re-create indexes. */
-
-		ib::info() << "Completing truncate for table with id ("
-			<< (*it)->m_old_table_id << ") residing in space with"
-			" id (" << (*it)->m_space_id << ")";
 
 		if (fsp_is_file_per_table((*it)->m_space_id,
 					  (*it)->m_tablespace_flags)) {
 			/* The table is file_per_table */
+
+			ib::info() << "Completing truncate for table with "
+				"id (" << (*it)->m_old_table_id << ") "
+				"residing in file-per-table tablespace with "
+				"id (" << (*it)->m_space_id << ")";
 
 			if (!fil_space_get((*it)->m_space_id)) {
 
@@ -2080,7 +2137,13 @@ truncate_t::fixup_tables()
 				(*it)->m_tablename,
 				**it, log_get_lsn());
 
-		} else {  /* not file_per_table */
+		} else {
+			/* Table is in a shared tablespace */
+
+			ib::info() << "Completing truncate for table with "
+				"id (" << (*it)->m_old_table_id << ") "
+				"residing in shared tablespace with "
+				"id (" << (*it)->m_space_id << ")";
 
 			/* Temp-tables in temp-tablespace are never restored.*/
 			ut_ad((*it)->m_space_id != srv_tmp_space.space_id());
@@ -2093,8 +2156,8 @@ truncate_t::fixup_tables()
 				**it);
 		}
 
-		/* Step-2: Update the SYS_XXXX tables to reflect new table-id
-		and root_page_no. */
+		/* Step-2: Update the SYS_XXXX tables to reflect new
+		table-id and root_page_no. */
 		table_id_t	new_id;
 
 		dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);

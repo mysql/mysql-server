@@ -33,12 +33,6 @@ call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in 
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 
-SET GLOBAL innodb_file_per_table = 1;
-SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-
 SELECT @@innodb_log_file_size;
 SELECT @@innodb_log_files_in_group;
 

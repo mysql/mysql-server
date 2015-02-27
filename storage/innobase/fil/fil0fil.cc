@@ -3809,10 +3809,14 @@ fil_ibd_open(
 				id, space_name, df_remote.filepath(), flags);
 		}
 
-	} else if (df_default.is_open() && path_in == NULL) {
+	} else if (df_default.is_open()
+		   && path_in == NULL
+		   && (DICT_TF_HAS_DATA_DIR(flags)
+		       || DICT_TF_HAS_SHARED_SPACE(flags))) {
 		/* SYS_DATAFILES record for this tablespace ID
-		was not supplied. Replace whatever was there with
-		this filepath, name and flags. */
+		was not supplied and it should have been.
+		Replace whatever was there with this filepath,
+		name and flags. */
 		dict_replace_tablespace_and_filepath(
 			id, space_name, df_default.filepath(), flags);
 	}

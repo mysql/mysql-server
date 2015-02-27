@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -121,16 +121,14 @@ Rollback a transaction used in MySQL.
 dberr_t
 trx_rollback_for_mysql(
 /*===================*/
-	trx_t*	trx)	/*!< in/out: transaction */
-	__attribute__((nonnull));
+	trx_t*	trx);	/*!< in/out: transaction */
 /*******************************************************************//**
 Rollback the latest SQL statement for MySQL.
 @return error code or DB_SUCCESS */
 dberr_t
 trx_rollback_last_sql_stat_for_mysql(
 /*=================================*/
-	trx_t*	trx)	/*!< in/out: transaction */
-	__attribute__((nonnull));
+	trx_t*	trx);	/*!< in/out: transaction */
 /*******************************************************************//**
 Rollback a transaction to a given savepoint or do a complete rollback.
 @return error code or DB_SUCCESS */
@@ -138,10 +136,9 @@ dberr_t
 trx_rollback_to_savepoint(
 /*======================*/
 	trx_t*		trx,	/*!< in: transaction handle */
-	trx_savept_t*	savept)	/*!< in: pointer to savepoint undo number, if
+	trx_savept_t*	savept);	/*!< in: pointer to savepoint undo number, if
 				partial rollback requested, or NULL for
 				complete rollback */
-	__attribute__((nonnull(1)));
 /*******************************************************************//**
 Rolls back a transaction back to a named savepoint. Modifications after the
 savepoint are undone but InnoDB does NOT release the corresponding locks
@@ -162,7 +159,7 @@ trx_rollback_to_savepoint_for_mysql(
 						information to remove the
 						binlog entries of the queries
 						executed after the savepoint */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Creates a named savepoint. If the transaction is not yet started, starts it.
 If there is already a savepoint of the same name, this call erases that old
@@ -174,11 +171,10 @@ trx_savepoint_for_mysql(
 /*====================*/
 	trx_t*		trx,			/*!< in: transaction handle */
 	const char*	savepoint_name,		/*!< in: savepoint name */
-	int64_t		binlog_cache_pos)	/*!< in: MySQL binlog cache
+	int64_t		binlog_cache_pos);	/*!< in: MySQL binlog cache
 						position corresponding to this
 						connection at the time of the
 						savepoint */
-	__attribute__((nonnull));
 /*******************************************************************//**
 Releases a named savepoint. Savepoints which
 were set after this savepoint are deleted.
@@ -189,7 +185,7 @@ trx_release_savepoint_for_mysql(
 /*============================*/
 	trx_t*		trx,			/*!< in: transaction handle */
 	const char*	savepoint_name)		/*!< in: savepoint name */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Frees savepoint structs starting from savep. */
 void

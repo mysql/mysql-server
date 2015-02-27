@@ -18,6 +18,7 @@
 #include "sql_base.h"
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "current_thd.h"
+#include "psi_memory_key.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
@@ -3632,6 +3633,17 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
   class Locked_tables_list implementation. Declared in sql_class.h
 ************************************************************************/
 
+Locked_tables_list::Locked_tables_list()
+  :m_locked_tables(NULL),
+   m_locked_tables_last(&m_locked_tables),
+   m_reopen_array(NULL),
+   m_locked_tables_count(0)
+{
+  init_sql_alloc(key_memory_locked_table_list,
+                 &m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
+}
+
+
 /**
   Enter LTM_LOCK_TABLES mode.
 
@@ -5655,7 +5667,7 @@ restart:
   {
     reset_statement_timer(thd);
     push_warning(thd, Sql_condition::SL_NOTE, ER_NON_RO_SELECT_DISABLE_TIMER,
-                 ER(ER_NON_RO_SELECT_DISABLE_TIMER));
+                 ER_THD(thd, ER_NON_RO_SELECT_DISABLE_TIMER));
   }
 #endif
 
@@ -8005,7 +8017,7 @@ set_new_item_local_context(THD *thd, Item_ident *item, TABLE_LIST *table_ref)
 {
   Name_resolution_context *context;
   if (!(context= new (thd->mem_root) Name_resolution_context))
-    return true;
+    return true;                /* purecov: inspected */
   context->init();
   context->first_name_resolution_table=
     context->last_name_resolution_table= table_ref;
@@ -8359,7 +8371,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
         if (!(common_field= it++))
         {
           my_error(ER_BAD_FIELD_ERROR, MYF(0), using_field_name_ptr,
-                   current_thd->where);
+                   thd->where);
           DBUG_RETURN(true);
         }
         if (!my_strcasecmp(system_charset_info,
@@ -8883,7 +8895,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     {
       Item *const item= field_iterator.create_item(thd);
       if (!item)
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       DBUG_ASSERT(item->fixed);
       /* cache the table for the Item_fields inserted by expanding stars */
       if (item->type() == Item::FIELD_ITEM && tables->cacheable_table)
@@ -8966,7 +8978,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     meaningful message than ER_BAD_TABLE_ERROR.
   */
   if (!table_name || !*table_name)
-    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
+    my_error(ER_NO_TABLES_USED, MYF(0));
   else
   {
     String tbl_name;
@@ -9057,7 +9069,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(rfield, false) < 0)
     {
-      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
       goto err;
     }
     bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
@@ -9106,7 +9118,7 @@ static bool check_record(THD *thd, List<Item> &fields)
     if (field &&
         field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
     {
-      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
       return true;
     }
   }

@@ -17,7 +17,7 @@
 
 #include "rpl_table_access.h"
 
-#include "current_thd.h"
+#include "current_thd.h" // my_thread_set_THR_THD
 #include "handler.h"     // ha_rollback_trans
 #include "log.h"         // sql_print_warning
 #include "sql_base.h"    // close_thread_tables

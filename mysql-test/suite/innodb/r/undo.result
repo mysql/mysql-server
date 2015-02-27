@@ -1,6 +1,3 @@
-SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = Barracuda;
-SET GLOBAL innodb_large_prefix = 1;
 BEGIN;
 INSERT INTO t0 VALUES(
 repeat('a',10000),repeat('b',10000),repeat('c',10000),

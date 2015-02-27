@@ -20,7 +20,6 @@
 #include "lock.h"                               // lock_tablespace_name
 #include "sql_table.h"                          // write_bin_log
 #include "sql_class.h"                          // THD
-#include "current_thd.h"
 
 
 /**
@@ -137,7 +136,7 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
     if (ts_info->storage_engine != 0)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_USING_OTHER_HANDLER,
-                          ER(ER_WARN_USING_OTHER_HANDLER),
+                          ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
                           ha_resolve_storage_engine_name(hton),
                           ts_info->tablespace_name ? ts_info->tablespace_name
                                                 : ts_info->logfile_group_name);

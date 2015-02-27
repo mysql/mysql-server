@@ -2238,3 +2238,16 @@ SELECT ST_ASTEXT(
 --echo ######################################################################################################
 
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('MULTIPOINT(19 -4,-2 -6,-8 2)'), 1));
+
+--echo ######################################################################################################
+--echo # BUG#20451555 : ASSERTION FAILED: INDEX >= 0 && UNSIGNED(INDEX) < INFO.COUNT
+--echo ######################################################################################################
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_DISJOINT(
+	ST_GEOMFROMTEXT('LINESTRING(-2305843009213693956 4611686018427387906, -33 -92, 78 83)'),
+	ST_GEOMFROMTEXT('MULTILINESTRING((20 100, 31 -97, -46 57, -20 -4),(-71,-4))'));
+
+SELECT ST_DISJOINT(
+	ST_GEOMFROMTEXT('LINESTRING(-2305843009213693956 4611686018427387906, -33 -92, 78 83)'),
+	ST_GEOMFROMTEXT('LINESTRING(20 100, 31 -97, -46 57, -20 -4)'));

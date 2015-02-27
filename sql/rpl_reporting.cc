@@ -16,7 +16,6 @@
 #include "rpl_reporting.h"
 
 #include "log.h"               // sql_print_warning
-#include "mysqld.h"            // current_thd
 #include "sql_class.h"         // THD
 #include "sql_error.h"         // Diagnostics_area
 #include "current_thd.h"

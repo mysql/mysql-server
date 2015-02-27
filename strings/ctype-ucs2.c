@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -2575,19 +2575,17 @@ void my_fill_utf32(const CHARSET_INFO *cs,
                    char *s, size_t slen, int fill)
 {
   char buf[10];
-#ifndef DBUG_OFF
-  uint buflen;
-#endif
   char *e= s + slen;
 
   DBUG_ASSERT((slen % 4) == 0);
-
+  {
 #ifndef DBUG_OFF
-  buflen=
+    uint buflen=
 #endif
-    cs->cset->wc_mb(cs, (my_wc_t) fill, (uchar*) buf,
-                          (uchar*) buf + sizeof(buf));
-  DBUG_ASSERT(buflen == 4);
+      cs->cset->wc_mb(cs, (my_wc_t) fill, (uchar*) buf,
+                      (uchar*) buf + sizeof(buf));
+    DBUG_ASSERT(buflen == 4);
+  }
   while (s < e)
   {
     memcpy(s, buf, 4);

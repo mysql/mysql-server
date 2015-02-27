@@ -64,3 +64,40 @@ SET @@long_query_time= @old_long_query_time;
 SET @@global.log_output= @old_log_output;
 SET @@global.slow_query_log= @old_slow_query_log;
 
+--echo #
+--echo # Bug #18335504 MISSING INFORMATION IN SLOW QUERY LOG FOR SLOW HANDLER STATEMENTS
+--echo #
+
+--echo #Setup
+CREATE TABLE tbl_18335504(a INT, b INT, KEY i1(a));
+INSERT INTO tbl_18335504 VALUES( 30, 1);
+INSERT INTO tbl_18335504 VALUES( 20, 2);
+INSERT INTO tbl_18335504 VALUES( 10, 3);
+
+SET @old_slow_query_log=@@global.slow_query_log;
+SET @old_log_output=@@global.log_output;
+SET @old_long_query_time=@@session.long_query_time;
+
+SET GLOBAL slow_query_log='on';
+SET GLOBAL log_output='table';
+SET SESSION long_query_time=1;
+
+--echo #Execution
+HANDLER tbl_18335504 OPEN;
+HANDLER tbl_18335504 READ FIRST WHERE b = 2 AND 1 > sleep(2);
+HANDLER tbl_18335504 READ i1 FIRST WHERE a = 20 AND 1 > sleep(2);
+
+HANDLER tbl_18335504 READ i1 FIRST WHERE a > 10 AND 1 > sleep(2) LIMIT 5;
+HANDLER tbl_18335504 READ FIRST WHERE b > 1 AND 1 > sleep(2) LIMIT 5;
+
+--echo # rows_sent, rows_examined should be non-zero value
+SELECT sql_text, rows_sent, rows_examined FROM mysql.slow_log WHERE sql_text LIKE '%tbl_18335504%';
+
+HANDLER tbl_18335504 CLOSE;
+
+--echo #Cleanup
+DROP TABLE tbl_18335504;
+
+SET @@global.slow_query_log=@old_slow_query_log;
+SET @@global.log_output=@old_log_output;
+SET @@session.long_query_time=@old_long_query_time;

@@ -49,7 +49,7 @@ install_db () {
     [ -d "$datadir/mysql" ] && exit 0
 
     # Create initial db
-    @bindir@/mysql_install_db --datadir="$datadir" --user=@MYSQLD_USER@
+    @libexecdir@/mysqld --initialize --datadir="$datadir" --user=@MYSQLD_USER@
     exit 0
 }
 install_db

@@ -20,7 +20,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_db.h"
 
-#include "current_thd.h"
+#include "psi_memory_key.h"
 #include "sql_cache.h"                   // query_cache_*
 #include "lock.h"                        // lock_schema_name
 #include "sql_table.h"                   // build_table_filename,
@@ -418,7 +418,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
               get_charset_by_name(pos+1, MYF(0))))
         {
           sql_print_error("Error while loading database options: '%s':",path);
-          sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+          sql_print_error(ER_DEFAULT(ER_UNKNOWN_CHARACTER_SET),pos+1);
           create->default_table_charset= default_charset_info;
         }
       }
@@ -428,7 +428,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
                                                            MYF(0))))
         {
           sql_print_error("Error while loading database options: '%s':",path);
-          sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
+          sql_print_error(ER_DEFAULT(ER_UNKNOWN_COLLATION),pos+1);
           create->default_table_charset= default_charset_info;
         }
       }
@@ -594,7 +594,8 @@ int mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info,
       goto exit;
     }
     push_warning_printf(thd, Sql_condition::SL_NOTE,
-			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
+			ER_DB_CREATE_EXISTS,
+                        ER_THD(thd, ER_DB_CREATE_EXISTS), db);
     error= 0;
     goto not_silent;
   }
@@ -819,7 +820,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
     else
     {
       push_warning_printf(thd, Sql_condition::SL_NOTE,
-			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db.str);
+			  ER_DB_DROP_EXISTS,
+                          ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
       error= false;
       goto update_binlog;
     }
@@ -1549,7 +1551,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     }
     else
     {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      my_error(ER_NO_DB_ERROR, MYF(0));
 
       DBUG_RETURN(TRUE);
     }
@@ -1617,7 +1619,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
              sctx->priv_host().str,
              new_db_file_name.str);
     query_logger.general_log_print(thd, COM_INIT_DB,
-                                   ER(ER_DBACCESS_DENIED_ERROR),
+                                   ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
                                    sctx->priv_user().str,
                                    sctx->priv_host().str,
                                    new_db_file_name.str);
@@ -1635,7 +1637,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
       /* Throw a warning and free new_db_file_name. */
 
       push_warning_printf(thd, Sql_condition::SL_NOTE,
-                          ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR),
+                          ER_BAD_DB_ERROR, ER_THD(thd, ER_BAD_DB_ERROR),
                           new_db_file_name.str);
 
       my_free(new_db_file_name.str);

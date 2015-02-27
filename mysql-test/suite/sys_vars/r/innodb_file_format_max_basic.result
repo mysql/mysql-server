@@ -26,6 +26,8 @@ WHERE variable_name='innodb_file_format_max';
 VARIABLE_NAME	VARIABLE_VALUE
 INNODB_FILE_FORMAT_MAX	Antelope
 SET global innodb_file_format_max='Antelope';
+Warnings:
+Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SELECT @@global.innodb_file_format_max;
 @@global.innodb_file_format_max
 Antelope
@@ -38,6 +40,8 @@ WHERE variable_name='innodb_file_format_max';
 VARIABLE_NAME	VARIABLE_VALUE
 INNODB_FILE_FORMAT_MAX	Antelope
 SET @@global.innodb_file_format_max='Barracuda';
+Warnings:
+Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SELECT @@global.innodb_file_format_max;
 @@global.innodb_file_format_max
 Barracuda
@@ -60,6 +64,8 @@ ERROR 42000: Incorrect argument type to variable 'innodb_file_format_max'
 SET global innodb_file_format_max='Salmon';
 ERROR 42000: Variable 'innodb_file_format_max' can't be set to the value of 'Salmon'
 SET @@global.innodb_file_format_max = @start_global_value;
+Warnings:
+Warning	131	Using innodb_file_format_max is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SELECT @@global.innodb_file_format_max;
 @@global.innodb_file_format_max
 Antelope

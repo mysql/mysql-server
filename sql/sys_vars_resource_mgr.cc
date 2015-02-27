@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 #include "sys_vars_resource_mgr.h"
 #include <set_var.h>
-#include "mysqld.h"
+#include "psi_memory_key.h"
 
 /**
   Returns the member that contains the given key (address).

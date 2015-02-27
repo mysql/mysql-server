@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,16 +43,11 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
-/* key_memory_NET_buff */
-#include "mysqld.h"
 
 #include <algorithm>
 
 using std::min;
 using std::max;
-
-PSI_memory_key key_memory_NET_buff;
-PSI_memory_key key_memory_NET_compress_packet;
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -60,6 +55,13 @@ PSI_memory_key key_memory_NET_compress_packet;
 #define MYSQL_CLIENT
 #endif /*EMBEDDED_LIBRARY */
 
+#ifndef MYSQL_CLIENT
+#include "psi_memory_key.h"
+#else
+#define key_memory_NET_buff 0
+#define key_memory_NET_buff 0
+#define key_memory_NET_compress_packet 0
+#endif
 
 /*
   The following handles the differences when this is linked between the

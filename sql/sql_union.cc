@@ -527,8 +527,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
     {
       if (types.elements != sl->item_list.elements)
       {
-	my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
-		   ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));
+	my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
 	goto err;
       }
       List_iterator_fast<Item> it(sl->item_list);

@@ -59,6 +59,7 @@
 #include "sql_alter.h"                  // Alter_table_ctx
 #include "partition_info.h"             // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
+#include "psi_memory_key.h"
 #include "sql_base.h"                   // wait_while_table_is_used
 #include "sql_cache.h"                  // query_cache
 #include "sql_class.h"                  // THD
@@ -1081,7 +1082,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     else
       push_warning(thd, Sql_condition::SL_WARNING,
                    ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
-                   ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
+                   ER_THD(thd, ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
   }
 
   if ((!is_sub_part) && (error= check_signed_flag(part_info)))
@@ -4561,7 +4562,7 @@ static void fast_end_partition(THD *thd, ulonglong copied,
 
   query_cache.invalidate(thd, table_list, FALSE);
 
-  my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
+  my_snprintf(tmp_name, sizeof(tmp_name), ER_THD(thd, ER_INSERT_INFO),
               (ulong) (copied + deleted),
               (ulong) deleted,
               (ulong) 0);
@@ -6626,10 +6627,10 @@ static void reopen_locked_tables(THD *thd)
 bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
                            bool error)
 {
-  partition_info *part_info= lpt->part_info;
+  partition_info *part_info= lpt->part_info->get_clone();
   THD *thd= lpt->thd;
   TABLE *table= lpt->table;
-  DBUG_ENTER("handle_alter_part_error");
+  DBUG_ENTER("handle_alter_part_end");
   DBUG_ASSERT(table->m_needs_reopen);
 
   /* First clone the part_info to save the log entries. */

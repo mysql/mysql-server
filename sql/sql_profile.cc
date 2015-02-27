@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 
 #include "sql_profile.h"
 #include "my_sys.h"
+#include "psi_memory_key.h"
 #include "sql_show.h"                     // schema_table_store_record
 #include "sql_class.h"                    // THD
 #include "log.h"

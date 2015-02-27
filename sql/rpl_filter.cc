@@ -16,8 +16,8 @@
 #include "rpl_filter.h"
 
 #include "auth_common.h"                // SUPER_ACL
-#include "current_thd.h"
 #include "item.h"                       // Item
+#include "psi_memory_key.h"
 #include "rpl_mi.h"                     // Master_info
 #include "rpl_msr.h"                    // msr_map
 #include "rpl_rli.h"                    // Relay_log_info
@@ -1039,8 +1039,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
 
   if (!mi)
   {
-    my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
-               MYF(0));
+    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
     ret= true;
     goto err;
   }
@@ -1061,7 +1060,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
       init_thread_mask(&thread_mask, mi, 0 /*not inverse*/);
     if (thread_mask & SLAVE_SQL) /* We refuse if any slave thread is running */
     {
-      my_message(ER_SLAVE_SQL_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
+      my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
       ret= true;
       break;
     }

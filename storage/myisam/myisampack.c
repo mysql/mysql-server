@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,18 +15,11 @@
 
 /* Pack MyISAM file */
 
-#ifndef USE_MY_FUNC
-#define USE_MY_FUNC			/* We need at least my_malloc */
-#endif
-
 #include "myisamdef.h"
 #include "my_default.h"
 #include <queues.h>
 #include <my_tree.h>
 #include "mysys_err.h"
-#ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__			/* Skip warnings in getopt.h */
-#endif
 #include <my_getopt.h>
 #include <assert.h>
 
@@ -303,7 +296,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2002-2014 Oracle and/or its affiliates.");
+  puts("Copyright 2002-2015 Oracle and/or its affiliates.");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 

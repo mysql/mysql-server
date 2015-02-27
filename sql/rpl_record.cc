@@ -325,7 +325,8 @@ unpack_row(Relay_log_info const *rli,
         {
           f->set_default();
           push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                              ER_BAD_NULL_ERROR, ER(ER_BAD_NULL_ERROR),
+                              ER_BAD_NULL_ERROR,
+                              ER_THD(current_thd, ER_BAD_NULL_ERROR),
                               f->field_name);
         }
       }
@@ -503,7 +504,7 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
         push_warning_printf(current_thd,
                             Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_FIELD,
-                            ER(ER_NO_DEFAULT_FOR_FIELD),
+                            ER_THD(current_thd, ER_NO_DEFAULT_FOR_FIELD),
                             f->field_name);
       }
     }

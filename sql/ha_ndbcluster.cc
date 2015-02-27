@@ -834,11 +834,12 @@ int ndb_to_mysql_error(const NdbError *ndberr)
     */
     if (ndberr->status == NdbError::TemporaryError)
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
+                          ER_GET_TEMPORARY_ERRMSG,
+                          ER_THD(current_thd, ER_GET_TEMPORARY_ERRMSG),
                           ndberr->code, ndberr->message, "NDB");
     else
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ER_GET_ERRMSG, ER_THD(current_thd, ER_GET_ERRMSG),
                           ndberr->code, ndberr->message, "NDB");
   }
   return error;
@@ -996,7 +997,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                     nonMaskedError.code, nonMaskedError.message);
         push_warning_printf(current_thd, Sql_condition::SL_ERROR,
                             ER_EXCEPTIONS_WRITE_ERROR,
-                            ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
         /* Slave will stop replication. */
         DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
       }
@@ -5413,7 +5414,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
 
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_EXCEPTIONS_WRITE_ERROR,
-                            ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
 
         DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
       }
@@ -5515,7 +5516,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                       err.message);
           push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                               ER_EXCEPTIONS_WRITE_ERROR,
-                              ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
           /* Slave will stop replication. */
           DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
         }
@@ -5563,7 +5564,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                       err.message);
           push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                               ER_EXCEPTIONS_WRITE_ERROR,
-                              ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
           /* Slave will stop replication. */
           DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
         }
@@ -9788,7 +9789,7 @@ int ha_ndbcluster::create(const char *name,
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_ILLEGAL_HA_CREATE_OPTION,
-                            ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                            ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
                             ndbcluster_hton_name,
                             "Index on field "
                             "declared with "
@@ -10181,7 +10182,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
 			  ER_ILLEGAL_HA_CREATE_OPTION,
-			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
+			  ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
 			  ndbcluster_hton_name,
 			  "Ndb does not support non-unique "
 			  "hash based indexes");
@@ -10262,7 +10263,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
                           "Index on field "
                           "declared with "
@@ -16152,7 +16153,7 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
     {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ER_THD(current_thd, ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
                           "LIST, RANGE and HASH partition disabled by default,"
                           " use --new option to enable");

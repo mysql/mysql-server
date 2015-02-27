@@ -791,10 +791,6 @@ dict_get_space_name(
 	ulint		space_id,
 	mem_heap_t*	callers_heap)
 {
-	if (!srv_sys_tablespaces_open) {
-		return(NULL);
-	}
-
 	mtr_t		mtr;
 	dict_table_t*	sys_tablespaces;
 	dict_index_t*	sys_index;
@@ -810,9 +806,12 @@ dict_get_space_name(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	mtr_start(&mtr);
-
 	sys_tablespaces = dict_table_get_low("SYS_TABLESPACES");
+	if (sys_tablespaces == NULL) {
+		ut_a(!srv_sys_tablespaces_open);
+		return(NULL);
+	}
+
 	sys_index = UT_LIST_GET_FIRST(sys_tablespaces->indexes);
 
 	ut_ad(!dict_table_is_comp(sys_tablespaces));
@@ -829,6 +828,8 @@ dict_get_space_name(
 
 	dfield_set_data(dfield, buf, 4);
 	dict_index_copy_types(tuple, sys_index, 1);
+
+	mtr_start(&mtr);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
@@ -884,6 +885,11 @@ dict_update_filepath(
 	ulint		space_id,
 	const char*	filepath)
 {
+	if (!srv_sys_tablespaces_open) {
+		/* Startup procedure is not yet ready for updates. */
+		return(DB_SUCCESS);
+	}
+
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
 
@@ -944,6 +950,13 @@ dict_replace_tablespace_and_filepath(
 	const char*	filepath,
 	ulint		fsp_flags)
 {
+	if (!srv_sys_tablespaces_open) {
+		/* Startup procedure is not yet ready for updates.
+		Return success since this will likely get updated
+		later. */
+		return(DB_SUCCESS);
+	}
+
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
 
@@ -984,6 +997,13 @@ dict_add_filepath(
 	ulint		space_id,
 	const char*	filepath)
 {
+	if (!srv_sys_tablespaces_open) {
+		/* Startup procedure is not yet ready for updates.
+		Return success since this will likely get updated
+		later. */
+		return(DB_SUCCESS);
+	}
+
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
 
@@ -2142,7 +2162,7 @@ Loads definitions for table indexes. Adds them to the data dictionary
 cache.
 @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
 table or DB_UNSUPPORTED if table has unknown index type */
-static __attribute__((nonnull))
+static
 dberr_t
 dict_load_indexes(
 /*==============*/
@@ -2572,15 +2592,17 @@ dict_get_and_save_space_name(
 	}
 
 	/* Read it from the dictionary. */
-	if (!dict_mutex_own) {
-		dict_mutex_enter_for_mysql();
-	}
+	if (srv_sys_tablespaces_open) {
+		if (!dict_mutex_own) {
+			dict_mutex_enter_for_mysql();
+		}
 
-	table->tablespace = dict_get_space_name(
-		table->space, table->heap);
+		table->tablespace = dict_get_space_name(
+			table->space, table->heap);
 
-	if (!dict_mutex_own) {
-		dict_mutex_exit_for_mysql();
+		if (!dict_mutex_own) {
+			dict_mutex_exit_for_mysql();
+		}
 	}
 }
 
@@ -3224,7 +3246,7 @@ dict_load_foreign_cols(
 Loads a foreign key constraint to the dictionary cache. If the referenced
 table is not yet loaded, it is added in the output parameter (fk_tables).
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1), warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 dict_load_foreign(
 /*==============*/

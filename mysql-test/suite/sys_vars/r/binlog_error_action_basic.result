@@ -1,13 +1,13 @@
 SELECT @@GLOBAL.binlog_error_action;
 @@GLOBAL.binlog_error_action
-IGNORE_ERROR
-IGNORE_ERROR Expected
+ABORT_SERVER
+ABORT_SERVER Expected
 SELECT @@SESSION.binlog_error_action;
 ERROR HY000: Variable 'binlog_error_action' is a GLOBAL variable
 SET @start_value= @@global.binlog_error_action;
 SHOW GLOBAL VARIABLES LIKE 'binlog_error_action';
 Variable_name	Value
-binlog_error_action	IGNORE_ERROR
+binlog_error_action	ABORT_SERVER
 SET @@GLOBAL.binlog_error_action=IGNORE_ERROR;
 SELECT @@GLOBAL.binlog_error_action;
 @@GLOBAL.binlog_error_action

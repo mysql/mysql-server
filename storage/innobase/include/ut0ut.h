@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -255,7 +255,7 @@ void
 ut_print_timestamp(
 /*===============*/
 	FILE*	file)	/*!< in: file where to print */
-	UNIV_COLD __attribute__((nonnull));
+	UNIV_COLD;
 
 #ifndef UNIV_INNOCHECKSUM
 
@@ -307,8 +307,7 @@ ut_print_buf_hex(
 /*=============*/
 	std::ostream&	o,	/*!< in/out: output stream */
 	const void*	buf,	/*!< in: memory buffer */
-	ulint		len)	/*!< in: length of the buffer */
-	__attribute__((nonnull));
+	ulint		len);	/*!< in: length of the buffer */
 /*************************************************************//**
 Prints the contents of a memory buffer in hex and ascii. */
 void
@@ -316,8 +315,7 @@ ut_print_buf(
 /*=========*/
 	std::ostream&	o,	/*!< in/out: output stream */
 	const void*	buf,	/*!< in: memory buffer */
-	ulint		len)	/*!< in: length of the buffer */
-	__attribute__((nonnull));
+	ulint		len);	/*!< in: length of the buffer */
 
 #ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */

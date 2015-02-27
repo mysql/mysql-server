@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,11 +151,25 @@ public:
       return EXIT_BAD_VERSION;
 
     /*
-      Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
-      First run mysqlcheck on the system database.
-      Then do the upgrade.
-      And then run mysqlcheck on all tables.
+      Run "mysql_fix_privilege_tables.sql" and "mysqlcheck".
+
+      First, upgrade all tables in the system database and then check
+      them.
+
+      The order is important here because we might encounter really old
+      log tables in CSV engine which have NULLable columns and old TIMESTAMPs.
+      Trying to do REPAIR TABLE on such table prior to upgrading it will fail,
+      because REPAIR will detect old TIMESTAMPs and try to upgrade them to
+      the new ones. In the process it will attempt to create a table with
+      NULLable columns which is not supported by CSV engine nowadays.
+
+      After that, run mysqlcheck on all tables.
     */
+    if (this->run_sql_fix_privilege_tables() != 0)
+    {
+      return EXIT_UPGRADING_QUERIES_ERROR;
+    }
+
     if (this->m_upgrade_systables_only == false)
     {
       this->print_verbose_message("Checking system database.");
@@ -168,11 +182,6 @@ public:
       {
         return this->print_error(EXIT_MYSQL_CHECK_ERROR, "Error during call to mysql_check.");
       }
-    }
-
-    if (this->run_sql_fix_privilege_tables() != 0)
-    {
-      return EXIT_UPGRADING_QUERIES_ERROR;
     }
 
     if (!this->m_upgrade_systables_only)

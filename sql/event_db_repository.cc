@@ -16,7 +16,6 @@
 
 #include "event_db_repository.h"
 
-#include "current_thd.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "key.h"                                // key_copy
 #include "sql_db.h"                        // get_default_db_collation
@@ -696,7 +695,8 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     {
       *event_already_exists= true;
       push_warning_printf(thd, Sql_condition::SL_NOTE,
-                          ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
+                          ER_EVENT_ALREADY_EXISTS,
+                          ER_THD(thd, ER_EVENT_ALREADY_EXISTS),
                           parse_data->name.str);
       ret= 0;
     }
@@ -923,7 +923,7 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   }
 
   push_warning_printf(thd, Sql_condition::SL_NOTE,
-                      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+                      ER_SP_DOES_NOT_EXIST, ER_THD(thd, ER_SP_DOES_NOT_EXIST),
                       "Event", name.str);
   ret= 0;
 

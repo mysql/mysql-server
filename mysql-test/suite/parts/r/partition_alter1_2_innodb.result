@@ -36709,6 +36709,176 @@ TRUNCATE t1;
 # check layout success:    1
 # End usability test (inc/partition_check.inc)
 DROP TABLE t1;
+
+#========================================================================
+#  3.    ALTER TABLE "ALTER"(DROP + ADD) PRIMARY KEY
+#        mleich: I think that an ALTER TABLE statement where a PRIMARY
+#            KEY is dropped and recreated (with different layout) might
+#            be of interest, if the tree containing the table data has
+#            to be reorganized during this operation.
+#========================================================================
+#------------------------------------------------------------------------
+#  3.1   Partitioning function uses the PRIMARY/UNIQUE KEY
+#------------------------------------------------------------------------
+#  3.1.1 DROP and CREATE PRIMARY KEY on different column
+DROP TABLE IF EXISTS t1;
+#----------- PARTITION BY KEY
+CREATE TABLE t1 (
+f_int1 INTEGER NOT NULL,
+f_int2 INTEGER NOT NULL,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+, PRIMARY KEY(f_int1)
+)
+PARTITION BY KEY() PARTITIONS 5;
+INSERT INTO t1(f_int1, f_int2) values(100, 200);
+INSERT INTO t1(f_int1, f_int2) values(200, 300);
+INSERT INTO t1(f_int1, f_int2) values(300, 400);
+INSERT INTO t1(f_int1, f_int2) values(400, 500);
+INSERT INTO t1(f_int1, f_int2) values(500, 100);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+Execute ALTER: Expect Success
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(f_int2, f_int1);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
+  `f_char1` char(20) DEFAULT NULL,
+  `f_char2` char(20) DEFAULT NULL,
+  `f_charbig` varchar(1000) DEFAULT NULL,
+  PRIMARY KEY (`f_int2`,`f_int1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 5 */
+DROP TABLE t1;
+#  3.1.2 Negative test: Try DROP and CREATE PRIMARY KEY INPLACE
+# Expect error for INPLACE ALTER
+DROP TABLE IF EXISTS t1;
+#----------- PARTITION BY KEY
+CREATE TABLE t1 (
+f_int1 INTEGER NOT NULL,
+f_int2 INTEGER NOT NULL,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+, PRIMARY KEY(f_int1)
+)
+PARTITION BY KEY() PARTITIONS 5;
+INSERT INTO t1(f_int1, f_int2) values(100, 200);
+INSERT INTO t1(f_int1, f_int2) values(200, 300);
+INSERT INTO t1(f_int1, f_int2) values(300, 400);
+INSERT INTO t1(f_int1, f_int2) values(400, 500);
+INSERT INTO t1(f_int1, f_int2) values(500, 100);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+Execute ALTER: Expect Error 1845
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(f_int2, f_int1),
+ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
+  `f_char1` char(20) DEFAULT NULL,
+  `f_char2` char(20) DEFAULT NULL,
+  `f_charbig` varchar(1000) DEFAULT NULL,
+  PRIMARY KEY (`f_int1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 5 */
+DROP TABLE t1;
+#  3.1.3 DROP and CREATE UNIQUE KEY on different column
+DROP TABLE IF EXISTS t1;
+#----------- PARTITION BY KEY
+CREATE TABLE t1 (
+f_int1 INTEGER NOT NULL,
+f_int2 INTEGER NOT NULL,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+, UNIQUE KEY ukey1(f_int1)
+)
+PARTITION BY KEY() PARTITIONS 5;
+INSERT INTO t1(f_int1, f_int2) values(100, 200);
+INSERT INTO t1(f_int1, f_int2) values(200, 300);
+INSERT INTO t1(f_int1, f_int2) values(300, 400);
+INSERT INTO t1(f_int1, f_int2) values(400, 500);
+INSERT INTO t1(f_int1, f_int2) values(500, 100);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+Execute ALTER: Expect Success
+ALTER TABLE t1 DROP KEY ukey1, ADD UNIQUE KEY
+ukey2(f_int2, f_int1);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
+  `f_char1` char(20) DEFAULT NULL,
+  `f_char2` char(20) DEFAULT NULL,
+  `f_charbig` varchar(1000) DEFAULT NULL,
+  UNIQUE KEY `ukey2` (`f_int2`,`f_int1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 5 */
+DROP TABLE t1;
+#  3.1.4 Negative test: Try DROP and CREATE UNIQUE KEY INPLACE
+# Expect error for INPLACE ALTER
+DROP TABLE IF EXISTS t1;
+#----------- PARTITION BY KEY
+CREATE TABLE t1 (
+f_int1 INTEGER NOT NULL,
+f_int2 INTEGER NOT NULL,
+f_char1 CHAR(20),
+f_char2 CHAR(20),
+f_charbig VARCHAR(1000)
+, UNIQUE KEY ukey1(f_int1)
+)
+PARTITION BY KEY() PARTITIONS 5;
+INSERT INTO t1(f_int1, f_int2) values(100, 200);
+INSERT INTO t1(f_int1, f_int2) values(200, 300);
+INSERT INTO t1(f_int1, f_int2) values(300, 400);
+INSERT INTO t1(f_int1, f_int2) values(400, 500);
+INSERT INTO t1(f_int1, f_int2) values(500, 100);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+Execute ALTER: Expect Error 1845
+ALTER TABLE t1 DROP KEY ukey1, ADD UNIQUE KEY
+ukey2(f_int2, f_int1), ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f_int1` int(11) NOT NULL,
+  `f_int2` int(11) NOT NULL,
+  `f_char1` char(20) DEFAULT NULL,
+  `f_char2` char(20) DEFAULT NULL,
+  `f_charbig` varchar(1000) DEFAULT NULL,
+  UNIQUE KEY `ukey1` (`f_int1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 5 */
+DROP TABLE t1;
 DROP VIEW  IF EXISTS v1;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t0_aux;

@@ -13,14 +13,8 @@ SET NAMES utf8;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
-# These values can change during the test
-LET $innodb_file_format_orig = `select @@innodb_file_format`;
-LET $innodb_file_per_table_orig = `select @@innodb_file_per_table`;
-LET $innodb_strict_mode_orig = `select @@session.innodb_strict_mode`;
-
---echo # Strict-mode has no affect on CREATE TABLESPACE.
+--echo # Strict-mode has no effect on CREATE TABLESPACE.
 --echo # It rejects all invalid input, as if strict mode is always ON.
-SET SESSION innodb_strict_mode = ON;
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 
 --echo # Neither file_format=antelope nor file_per_table=OFF will prevent
@@ -28,7 +22,6 @@ SHOW VARIABLES LIKE 'innodb_strict_mode';
 --echo # shell that can contain multiple row formats.
 SET GLOBAL innodb_file_format = 'antelope';
 SHOW VARIABLES LIKE 'innodb_file_format';
-SET GLOBAL innodb_file_per_table = ON;
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 
 --echo #
@@ -290,7 +283,6 @@ DROP TABLESPACE `s_DEF`;
 --echo #
 --echo # Make a file-per-table tablespace name and try to use it as a General tablespace
 --echo #
-SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE t_single (a int, b text);
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
@@ -430,9 +422,7 @@ DROP TABLE s_single;
 --echo #
 # Strict mode, file_format and file_per_table should make no difference
 # when using general tabespaces.
-SET GLOBAL innodb_strict_mode = OFF;
-SET GLOBAL innodb_file_format = 'barracuda';
-SET GLOBAL innodb_file_per_table = ON;
+SET innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION
 eval CREATE TABLE t3 (a int, b text) DATA DIRECTORY='$MYSQL_TMP_DIR' TABLESPACE s_def;
@@ -745,7 +735,6 @@ DROP TABLE t_data;
 --echo #
 --echo # Move a table from a Single-Table tablespace into a General Tablespace.
 --echo #
-SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE t_single (a serial key, b text);
 INSERT INTO t_single(b) VALUES(repeat("a short string - ",5));
 INSERT INTO t_single(b) VALUES(repeat("a long string - ",50));
@@ -977,6 +966,8 @@ DROP TABLESPACE s1;
 --echo # Clean-up.
 --echo #
 
+SET GLOBAL innodb_file_per_table=default;
+
 --rmdir $MYSQLD_DATADIR/s1_dir
 --rmdir $MYSQLD_DATADIR/s2_dir
 --rmdir $MYSQLD_DATADIR/s3_dir/s3_subdir
@@ -987,10 +978,6 @@ DROP TABLESPACE s1;
 --rmdir $MYSQL_TMP_DIR/test
 
 --disable_query_log
-EVAL SET GLOBAL innodb_file_format = $innodb_file_format_orig;
-EVAL SET GLOBAL innodb_file_per_table = $innodb_file_per_table_orig;
-EVAL SET SESSION innodb_strict_mode = $innodb_strict_mode_orig;
-
 call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*\.ibd: 'create' returned OS error .*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means mysqld does not have the access rights to the directory. It may also be you have created a subdirectory of the same name as a data file.");

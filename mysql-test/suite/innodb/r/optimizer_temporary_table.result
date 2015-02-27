@@ -4122,5 +4122,54 @@ x
 102
 SET @@optimizer_switch=@optimizer_switch_saved;
 # restart
+set global innodb_monitor_enable = metadata_table_reference_count;
+set global innodb_monitor_reset = metadata_table_reference_count;
+select name, count, status from information_schema.innodb_metrics where name like 'metadata%';
+name	count	status
+metadata_table_handles_opened	0	disabled
+metadata_table_handles_closed	0	disabled
+metadata_table_reference_count	0	enabled
+create table t (a int, b varchar(20)) engine=innodb STATS_PERSISTENT=0;
+create temporary table tt (a int, b varchar(20)) engine=innodb STATS_PERSISTENT=0;
+insert into t values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
+insert into tt values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
+select name, count, status from information_schema.innodb_metrics where name like 'metadata%';
+name	count	status
+metadata_table_handles_opened	0	disabled
+metadata_table_handles_closed	0	disabled
+metadata_table_reference_count	2	enabled
+set big_tables = 1;
+select sql_buffer_result * from t;
+a	b
+1	a
+2	b
+3	c
+3	c
+4	c
+select sql_buffer_result * from tt;
+a	b
+1	a
+2	b
+3	c
+3	c
+4	c
+select name, count, status from information_schema.innodb_metrics where name like 'metadata%';
+name	count	status
+metadata_table_handles_opened	0	disabled
+metadata_table_handles_closed	0	disabled
+metadata_table_reference_count	2	enabled
+drop table t;
+drop table tt;
+select name, count, status from information_schema.innodb_metrics where name like 'metadata%';
+name	count	status
+metadata_table_handles_opened	0	disabled
+metadata_table_handles_closed	0	disabled
+metadata_table_reference_count	0	enabled
+set global innodb_monitor_reset = metadata_table_reference_count;
+set global innodb_monitor_disable = metadata_table_reference_count;
+set global innodb_monitor_enable = default;
+set global innodb_monitor_disable = default;
+set global innodb_monitor_reset = default;
+set global innodb_monitor_reset_all = default;
 drop function func1;
 drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;

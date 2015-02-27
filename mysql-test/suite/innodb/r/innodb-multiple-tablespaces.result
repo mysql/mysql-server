@@ -18,8 +18,6 @@ SET default_storage_engine=InnoDB;
 #      www       WrongFile    WrongFile      WrongFile
 #   nolink       No           Yes, No ISL    No
 #
-set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
 CREATE TABLE yyy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 INSERT INTO yyy VALUES (1, 'yyy');
 CREATE TABLE nyy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
@@ -402,8 +400,6 @@ nolink.ibd.bak
 #    yw              Yes                 Wrong
 #    yy              Yes                 Yes  (both the same file)
 #
-set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
 CREATE TABLE ny (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 INSERT INTO ny VALUES (1, 'ny');
 CREATE TABLE wy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';

@@ -26,7 +26,6 @@
 PSI_mutex_key key_thd_timer_mutex= PSI_NOT_INSTRUMENTED;
 PSI_thread_key key_thread_timer_notifier= PSI_NOT_INSTRUMENTED;
 #endif
-PSI_memory_key key_memory_thd_timer= PSI_NOT_INSTRUMENTED;
 
 namespace my_timer_unittest {
 

@@ -8,7 +8,6 @@ drop database if exists mysqldump_test_db;
 drop database if exists db1;
 drop database if exists db2;
 drop view if exists v1, v2, v3;
-set global innodb_file_format="Barracuda";
 set global innodb_file_per_table=1;
 CREATE TABLE t1(a INT, KEY (a)) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 ENGINE=Innodb;
 INSERT INTO t1 VALUES (1), (2);
@@ -30,7 +29,6 @@ INSERT INTO t1 VALUES (1), (2);
 </database>
 </mysqldump>
 DROP TABLE t1;
-set global innodb_file_format=Antelope;
 SET GLOBAL innodb_file_per_table=1;
 #
 # Bug#2005 Long decimal comparison bug.

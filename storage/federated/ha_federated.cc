@@ -2931,7 +2931,7 @@ error:
   if (remote_error_number != -1 /* error already reported */)
   {
     error_code= remote_error_number;
-    my_error(error_code, MYF(0), ER(error_code));
+    my_error(error_code, MYF(0));
   }
   DBUG_RETURN(error_code);
 }

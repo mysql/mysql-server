@@ -18,7 +18,6 @@ DROP TABLE IF EXISTS tab6;
 
 --echo #set the other madatory flags before test starts
 SET GLOBAL Innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 let $innodb_compression_level = `SELECT @@global.innodb_compression_level`;
 
 --echo #set the compression level=0  (No compress)
@@ -27,7 +26,6 @@ SET global innodb_compression_level=0;
 -- echo #check the compression level and the compressed_pages is default
 SELECT @@innodb_compression_level;
 SELECT @@Innodb_file_per_table;
-SELECT @@innodb_file_format;
 
 -- echo #create table with 1K block size
 CREATE TABLE tab5 (col_1 CHAR (255) ,
@@ -135,6 +133,3 @@ DROP TABLE tab6;
 --disable_query_log
 eval SET GLOBAL innodb_compression_level=$innodb_compression_level;
 --enable_query_log
-SET GLOBAL innodb_file_format='Antelope';
-
-

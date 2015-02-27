@@ -18,6 +18,7 @@
 
 #include "sql_cache.h"         // query_cache_*
 #include "probes_mysql.h"
+#include "psi_memory_key.h"
 #include "sql_show.h"          // append_identifier
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
 #include "sql_table.h"         // prepare_create_field

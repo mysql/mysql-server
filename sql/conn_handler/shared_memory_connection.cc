@@ -22,7 +22,7 @@
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "log.h"                        // sql_print_error
 #include "sql_class.h"                  // THD
-
+#include "psi_memory_key.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // Channel_info_shared_mem implementation

@@ -16,9 +16,11 @@
 #ifndef UNIQUES_INCLUDED
 #define UNIQUES_INCLUDED
 
+#include "my_global.h"
 #include "my_tree.h"            // TREE
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
+#include "sql_sort.h"
 
 class Cost_model_table;
 

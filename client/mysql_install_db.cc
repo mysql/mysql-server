@@ -979,8 +979,14 @@ public:
 
     string create_db("CREATE DATABASE mysql;\n");
     string use_db("USE mysql;\n");
-    write(fh, create_db.c_str(), create_db.length());
-    write(fh, use_db.c_str(), use_db.length());
+    // ssize_t write() may be declared with attribute warn_unused_result
+    size_t w1= write(fh, create_db.c_str(), create_db.length());
+    size_t w2= write(fh, use_db.c_str(), use_db.length());
+    if (w1 != create_db.length() || w2 != use_db.length())
+    {
+      info << "failed." << endl;
+      return false;
+    }
 
     unsigned s= 0;
     s= sizeof(mysql_system_tables)/sizeof(*mysql_system_tables);
@@ -1035,8 +1041,8 @@ public:
          << endl;
     string create_user_cmd;
     m_user->to_sql(&create_user_cmd);
-    write(fh, create_user_cmd.c_str(), create_user_cmd.length());
-    if (errno != 0)
+    w1= write(fh, create_user_cmd.c_str(), create_user_cmd.length());
+    if (w1 !=create_user_cmd.length() || errno != 0)
       return false;
     info << "Creating default proxy " << m_user->user << "@"
          << m_user->host
@@ -1044,8 +1050,8 @@ public:
     Proxy_user proxy_user(m_user->host, m_user->user);
     string create_proxy_cmd;
     proxy_user.to_str(&create_proxy_cmd);
-    write(fh, create_proxy_cmd.c_str(), create_proxy_cmd.length());
-    if (errno != 0)
+    w1= write(fh, create_proxy_cmd.c_str(), create_proxy_cmd.length());
+    if (w1 != create_proxy_cmd.length() || errno != 0)
       return false;
 
 

@@ -28,7 +28,6 @@
 #include "prealloced_array.h"
 #include "tztime.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
-#include "current_thd.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -214,8 +213,7 @@ int check_change_password(THD *thd, const char *host, const char *user,
   if (!thd->slave_thread &&
       !strcmp(thd->security_context()->priv_user().str,""))
   {
-    my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
-               MYF(0));
+    my_error(ER_PASSWORD_ANONYMOUS_USER, MYF(0));
     return(1);
   }
 
@@ -720,7 +718,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (!(acl_user= find_acl_user(host, user, TRUE)))
   {
     mysql_mutex_unlock(&acl_cache->lock);
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     goto end;
   }
 

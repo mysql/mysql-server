@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,9 +87,8 @@ bool
 buf_LRU_free_page(
 /*==============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
-	bool		zip)	/*!< in: true if should remove also the
+	bool		zip);	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
-	__attribute__((nonnull));
 /******************************************************************//**
 Try to free a replaceable block.
 @return true if found and freed */
@@ -100,7 +99,7 @@ buf_LRU_scan_and_free_block(
 	bool		scan_all)	/*!< in: scan whole LRU list
 					if true, otherwise scan only
 					'old' blocks. */
-	__attribute__((nonnull,warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
@@ -137,7 +136,7 @@ buf_block_t*
 buf_LRU_get_free_block(
 /*===================*/
 	buf_pool_t*	buf_pool)	/*!< in/out: buffer pool instance */
-	__attribute__((nonnull,warn_unused_result));
+	__attribute__((warn_unused_result));
 /******************************************************************//**
 Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
@@ -207,10 +206,9 @@ Remove one page from LRU list and put it to free list */
 void
 buf_LRU_free_one_page(
 /*==================*/
-	buf_page_t*	bpage)	/*!< in/out: block, must contain a file page and
+	buf_page_t*	bpage);	/*!< in/out: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
-	__attribute__((nonnull));
 
 /******************************************************************//**
 Adjust LRU hazard pointers if needed. */

@@ -31,6 +31,7 @@
 #include "item_strfunc.h"        // Item_func_geohash
 #include <mysql/service_thd_wait.h>
 #include "parse_tree_helpers.h"  // PT_item_list
+#include "psi_memory_key.h"
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // msr_map
 #include "rpl_rli.h"             // Relay_log_info
@@ -766,7 +767,7 @@ void Item_func::signal_divide_by_null()
   THD *thd= current_thd;
   if (thd->is_strict_mode())
     push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
-                 ER(ER_DIVISION_BY_ZERO));
+                 ER_THD(thd, ER_DIVISION_BY_ZERO));
   null_value= 1;
 }
 
@@ -776,7 +777,7 @@ void Item_func::signal_invalid_argument_for_log()
   THD *thd= current_thd;
   push_warning(thd, Sql_condition::SL_WARNING,
                ER_INVALID_ARGUMENT_FOR_LOGARITHM,
-               ER(ER_INVALID_ARGUMENT_FOR_LOGARITHM));
+               ER_THD(thd, ER_INVALID_ARGUMENT_FOR_LOGARITHM));
   null_value= TRUE;
 }
 
@@ -1337,7 +1338,8 @@ longlong Item_func_signed::val_int_from_str(int *error)
     ErrConvString err(res);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "INTEGER",
                         err.ptr());
   }
   return value;
@@ -1471,7 +1473,7 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 err:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WARN_DATA_OUT_OF_RANGE,
-                      ER(ER_WARN_DATA_OUT_OF_RANGE),
+                      ER_THD(current_thd, ER_WARN_DATA_OUT_OF_RANGE),
                       item_name.ptr(), 1L);
   return dec;
 }
@@ -4212,7 +4214,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   if (error)
   {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
-             u_d->name.str, ER(ER_UNKNOWN_ERROR));
+             u_d->name.str, ER_THD(thd, ER_UNKNOWN_ERROR));
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
@@ -5469,7 +5471,8 @@ longlong Item_func_benchmark::val_int()
       char buff[22];
       llstr(((longlong) loop_count), buff);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                          ER_WRONG_VALUE_FOR_TYPE,
+                          ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
                           "count", buff, "benchmark");
     }
 
@@ -5606,7 +5609,7 @@ longlong Item_func_sleep::val_int()
     }
     else
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          ER(ER_WRONG_ARGUMENTS), "sleep.");
+                          ER_THD(thd, ER_WRONG_ARGUMENTS), "sleep.");
   }
   /*
     On 64-bit OSX mysql_cond_timedwait() waits forever
@@ -7622,8 +7625,7 @@ err:
     key=NO_SUCH_KEY;
     return 0;
   }
-  my_message(ER_FT_MATCHING_KEY_NOT_FOUND,
-             ER(ER_FT_MATCHING_KEY_NOT_FOUND), MYF(0));
+  my_error(ER_FT_MATCHING_KEY_NOT_FOUND, MYF(0));
   return 1;
 }
 

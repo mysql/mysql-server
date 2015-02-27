@@ -165,6 +165,11 @@ set by user, however, it will be adjusted to the newer file format if
 a table of such format is created/opened. */
 char*	innobase_file_format_max		= NULL;
 
+/** Default value of innodb_file_format */
+static const char*	innodb_file_format_default	= "Barracuda";
+/** Default value of innodb_file_format_max */
+static const char*	innodb_file_format_max_default	= "Antelope";
+
 static char*	innobase_file_flush_method		= NULL;
 
 /* This variable can be set in the server configure file, specifying
@@ -545,7 +550,7 @@ static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
 
 static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
   "Use strict mode when evaluating create options.",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
   "Create FTS index with stopword.",
@@ -1482,7 +1487,6 @@ Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
 timeout or a deadlock.
 @return MySQL error code */
-inline
 int
 convert_error_code_to_mysql(
 /*========================*/
@@ -1743,10 +1747,10 @@ Converts an identifier to a table name. */
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len)	/*!< in: length of 'to', in bytes */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len)	/*!< in: length of 'to', in bytes */
 {
 	uint	errors;
 
@@ -1782,10 +1786,10 @@ Converts an identifier to UTF-8. */
 void
 innobase_convert_from_id(
 /*=====================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len)	/*!< in: length of 'to', in bytes */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len)	/*!< in: length of 'to', in bytes */
 {
 	uint	errors;
 
@@ -1853,7 +1857,7 @@ innobase_casedn_str(
 /**********************************************************************//**
 Determines the connection character set.
 @return connection character set */
-CHARSET_INFO*
+const CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	mysql_thd)	/*!< in: MySQL thread handle */
@@ -2928,6 +2932,24 @@ static uint innobase_partition_flags()
 	return(HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK);
 }
 
+/** Deprecation message about InnoDB file format related parameters */
+#define DEPRECATED_FORMAT_PARAMETER(x)					\
+	"Using " x " is deprecated and the parameter"			\
+	" may be removed in future releases."				\
+	" See " REFMAN "innodb-file-format.html"
+
+/** Deprecation message about innodb_file_format */
+static const char*	deprecated_file_format
+	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format");
+/** Deprecation message about innodb_large_prefix */
+static const char*	deprecated_large_prefix
+	= DEPRECATED_FORMAT_PARAMETER("innodb_large_prefix");
+/** Deprecation message about innodb_file_format_check */
+static const char*	deprecated_file_format_check
+	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format_check");
+/** Deprecation message about innodb_file_format_max */
+static const char*	deprecated_file_format_max
+	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format_max");
 
 /*********************************************************************//**
 Opens an InnoDB database.
@@ -3137,6 +3159,14 @@ innobase_init(
 		DBUG_RETURN(innobase_init_abort());
 	}
 
+	if (!innobase_large_prefix) {
+		ib::warn() << deprecated_large_prefix;
+	}
+
+	if (innobase_file_format_name != innodb_file_format_default) {
+		ib::warn() << deprecated_file_format;
+	}
+
 	/* Validate the file format by animal name */
 	if (innobase_file_format_name != NULL) {
 
@@ -3167,6 +3197,7 @@ innobase_init(
 
 	/* Check innobase_file_format_check variable */
 	if (!innobase_file_format_check) {
+		ib::warn() << deprecated_file_format_check;
 
 		/* Set the value to disable checking. */
 		srv_max_file_format_at_startup = UNIV_FORMAT_MAX + 1;
@@ -3175,6 +3206,10 @@ innobase_init(
 
 		/* Set the value to the lowest supported format. */
 		srv_max_file_format_at_startup = UNIV_FORMAT_MIN;
+	}
+
+	if (innobase_file_format_max != innodb_file_format_max_default) {
+		ib::warn() << deprecated_file_format_max;
 	}
 
 	/* Did the user specify a format name that we support?
@@ -11966,6 +12001,14 @@ ha_innobase::records_in_range(
 
 	mem_heap_free(heap);
 
+	DBUG_EXECUTE_IF(
+		"print_btr_estimate_n_rows_in_range_return_value",
+		push_warning_printf(
+			ha_thd(), Sql_condition::SL_WARNING,
+			ER_NO_DEFAULT,
+			"btr_estimate_n_rows_in_range(): %" PRId64, n_rows);
+	);
+
 func_exit:
 
 	m_prebuilt->trx->op_info = (char*)"";
@@ -12026,6 +12069,13 @@ ha_innobase::estimate_rows_upper_bound()
 		/ dict_index_calc_min_rec_len(index);
 
 	m_prebuilt->trx->op_info = "";
+
+        /* Set num_rows less than MERGEBUFF to simulate the case where we do
+        not have enough space to merge the externally sorted file blocks. */
+        DBUG_EXECUTE_IF("set_num_rows_lt_MERGEBUFF",
+                        estimate = 2;
+                        DBUG_SET("-d,set_num_rows_lt_MERGEBUFF");
+                       );
 
 	DBUG_RETURN((ha_rows) estimate);
 }
@@ -15293,6 +15343,9 @@ innodb_file_format_name_update(
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
 
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND, deprecated_file_format);
+
 	format_name = *static_cast<const char*const*>(save);
 
 	if (format_name) {
@@ -15386,6 +15439,9 @@ innodb_file_format_max_update(
 	ut_a(save != NULL);
 	ut_a(var_ptr != NULL);
 
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND, deprecated_file_format_max);
+
 	format_name_in = *static_cast<const char*const*>(save);
 
 	if (!format_name_in) {
@@ -15411,6 +15467,24 @@ innodb_file_format_max_update(
 		ib::info() << "The file format in the system tablespace is now"
 			" set to " << *format_name_out << ".";
 	}
+}
+
+/** Update innodb_large_prefix.
+@param[in,out]	thd	MySQL client connection
+@param[out]	var_ptr	current value
+@param[in]	save	to-be-assigned value */
+static
+void
+innodb_large_prefix_update(
+	THD*		thd,
+	st_mysql_sys_var*,
+	void*		var_ptr,
+	const void*	save)
+{
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND, deprecated_large_prefix);
+
+	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
 }
 
 /*************************************************************//**
@@ -15706,15 +15780,20 @@ innodb_make_page_dirty(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	mtr_t	mtr;
-	ulong	space_id = *static_cast<const ulong*>(save);
+	mtr_t		mtr;
+	ulong		space_id = *static_cast<const ulong*>(save);
+	fil_space_t*	space = fil_space_acquire_silent(space_id);
 
-	mtr_start(&mtr);
-	mtr.set_named_space(space_id);
+	if (space == NULL) {
+		return;
+	}
+
+	mtr.start();
+	mtr.set_named_space(space);
 
 	buf_block_t*	block = buf_page_get(
 		page_id_t(space_id, srv_saved_page_number_debug),
-		univ_page_size, RW_X_LATCH, &mtr);
+		page_size_t(space->flags), RW_X_LATCH, &mtr);
 
 	if (block != NULL) {
 		byte*	page = block->frame;
@@ -15726,7 +15805,8 @@ innodb_make_page_dirty(
 				 fil_page_get_type(page),
 				 MLOG_2BYTES, &mtr);
 	}
-	mtr_commit(&mtr);
+	mtr.commit();
+	fil_space_release(space);
 }
 #endif // UNIV_DEBUG
 /*************************************************************//**
@@ -16960,17 +17040,15 @@ innodb_log_write_ahead_size_update(
 
 /** Update innodb_status_output or innodb_status_output_locks,
 which control InnoDB "status monitor" output to the error log.
-@param[in]	thd	thread handle
-@param[in]	var	system variable
 @param[out]	var_ptr	current value
 @param[in]	save	to-be-assigned value */
 static
 void
 innodb_status_output_update(
-	THD*				thd __attribute__((unused)),
-	struct st_mysql_sys_var*	var __attribute__((unused)),
-	void*				var_ptr __attribute__((unused)),
-	const void*			save __attribute__((unused)))
+	THD*,
+	struct st_mysql_sys_var*,
+	void*				var_ptr,
+	const void*			save)
 {
 	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
 	/* The lock timeout monitor thread also takes care of this
@@ -17112,7 +17190,7 @@ static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
   PLUGIN_VAR_RQCMDARG,
   "File format to use for new tables in .ibd files.",
   innodb_file_format_name_validate,
-  innodb_file_format_name_update, "Antelope");
+  innodb_file_format_name_update, innodb_file_format_default);
 
 /* "innobase_file_format_check" decides whether we would continue
 booting the server if the file format stamped on the system
@@ -17133,7 +17211,7 @@ static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
   PLUGIN_VAR_OPCMDARG,
   "The highest file format in the tablespace.",
   innodb_file_format_max_validate,
-  innodb_file_format_max_update, "Antelope");
+  innodb_file_format_max_update, innodb_file_format_max_default);
 
 static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
@@ -17161,7 +17239,7 @@ static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
 static MYSQL_SYSVAR_BOOL(large_prefix, innobase_large_prefix,
   PLUGIN_VAR_NOCMDARG,
   "Support large index prefix length of REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes.",
-  NULL, NULL, FALSE);
+  NULL, innodb_large_prefix_update, TRUE);
 
 static MYSQL_SYSVAR_BOOL(force_load_corrupted, srv_load_corrupted,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,

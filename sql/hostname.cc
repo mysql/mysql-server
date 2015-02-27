@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include <m_ctype.h>
 #include "log.h"                                // sql_print_warning,
                                                 // sql_print_information
+#include "psi_memory_key.h"
 #include "violite.h"                            // vio_getnameinfo,
                                                 // vio_get_normalized_ip_string
 
@@ -939,9 +940,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
     {
-#ifndef DBUG_OFF
-      bool err_status=
-#endif
+      bool err_status __attribute__((unused));
+      err_status=
         vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
                                      ip_buffer, sizeof (ip_buffer));
       DBUG_ASSERT(!err_status);

@@ -16,6 +16,7 @@
 #include "rpl_rli_pdb.h"
 
 #include "current_thd.h"
+#include "psi_memory_key.h"
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 
 #include "pfs_file_provider.h"
@@ -1328,6 +1329,26 @@ bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k)
       return i > k;
 }
 
+Slave_committed_queue::Slave_committed_queue(const char *log, ulong max, uint n)
+  : circular_buffer_queue<Slave_job_group>(max), inited(false),
+    last_done(key_memory_Slave_job_group_group_relay_log_name)
+{
+  if (max >= (ulong) -1 || !inited_queue)
+    return;
+  else
+    inited= TRUE;
+
+  last_done.resize(n);
+
+  lwm.group_relay_log_name=
+    (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
+                       FN_REFLEN + 1, MYF(0));
+  lwm.group_relay_log_name[0]= 0;
+  lwm.sequence_number= SEQ_UNINIT;
+}
+
+
+
 #ifndef DBUG_OFF
 bool Slave_committed_queue::count_done(Relay_log_info* rli)
 {
@@ -1566,16 +1587,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   const Gtid_specification *gtid_next= &info_thd->variables.gtid_next;
   THD *thd= info_thd;
 
-  if (gtid_next->type == GTID_GROUP)
-  {
-    global_sid_lock->rdlock();
-    gtid_next->to_string(global_sid_map, buff_gtid);
-    global_sid_lock->unlock();
-  }
-  else
-  {
-    buff_gtid[0]= 0;
-  }
+  gtid_next->to_string(global_sid_map, buff_gtid, true);
 
   if (level == ERROR_LEVEL && (!has_temporary_error(thd, err_code) ||
       thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION)))

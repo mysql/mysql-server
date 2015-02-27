@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,15 +18,14 @@
 #define XA_H_INCLUDED
 
 #include "my_global.h"        // ulonglong
-#include "mysql/plugin.h"     // MYSQL_XIDDATASIZE
-#include "mysqld.h"           // server_id
-#include "sql_cmd.h"
+#include "sql_cmd.h"          // enum_sql_command, Sql_cmd
 
 #include <string.h>
 
 class Protocol;
 class THD;
 struct xid_t;
+typedef int64 query_id_t;
 
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
@@ -191,7 +190,12 @@ private:
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
-#define XIDDATASIZE MYSQL_XIDDATASIZE
+
+/*
+ Same as MYSQL_XIDDATASIZE but we do not want to include plugin.h here
+ See compile_time_assert in .cc file.
+*/
+#define XIDDATASIZE 128
 class XID_STATE;
 
 /**
@@ -205,9 +209,6 @@ class XID_STATE;
 typedef struct xid_t
 {
 private:
-  static const uint MYSQL_XID_PREFIX_LEN= 8; // must be a multiple of 8
-  static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
-  static const uint MYSQL_XID_GTRID_LEN= MYSQL_XID_OFFSET + sizeof(my_xid);
 
   /**
     -1 means that the XID is null
@@ -294,18 +295,7 @@ public:
     memcpy(data + gl, b, bqual_length= bl);
   }
 
-  my_xid get_my_xid() const
-  {
-    if (gtrid_length == static_cast<long>(MYSQL_XID_GTRID_LEN) &&
-        bqual_length == 0 &&
-        !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN))
-    {
-      my_xid tmp;
-      memcpy(&tmp, data + MYSQL_XID_OFFSET, sizeof(tmp));
-      return tmp;
-    }
-    return 0;
-  }
+  my_xid get_my_xid() const;
 
   uchar *key()
   {
@@ -348,15 +338,7 @@ private:
     memcpy(this, xid, sizeof(xid->formatID) + xid->key_length());
   }
 
-  void set(my_xid xid)
-  {
-    formatID= 1;
-    memcpy(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN);
-    memcpy(data + MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id));
-    memcpy(data + MYSQL_XID_OFFSET, &xid, sizeof(xid));
-    gtrid_length= MYSQL_XID_GTRID_LEN;
-    bqual_length= 0;
-  }
+  void set(my_xid xid);
 
   bool is_null() const
   {

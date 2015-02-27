@@ -23,12 +23,14 @@
 #include "auth_common.h"       // check_table_access
 #include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
+#include "derror.h"            // ER_THD
 #include "handler.h"           // ha_initalize_handlerton
 #include "item.h"              // Item
 #include "key.h"               // key_copy
 #include "log.h"               // sql_print_error
 #include "mutex_lock.h"        // Mutex_lock
 #include "my_default.h"        // free_defaults
+#include "psi_memory_key.h"
 #include "records.h"           // READ_RECORD
 #include "sql_audit.h"         // mysql_audit_acquire_plugins
 #include "sql_base.h"          // close_mysql_tables
@@ -108,6 +110,12 @@ extern int finalize_audit_plugin(st_plugin_int *plugin);
 extern int initialize_rewrite_pre_parse_plugin(st_plugin_int *plugin);
 extern int initialize_rewrite_post_parse_plugin(st_plugin_int *plugin);
 extern int finalize_rewrite_plugin(st_plugin_int *plugin);
+
+#ifdef EMBEDDED_LIBRARY
+// Dummy implementations for embedded
+int initialize_audit_plugin(st_plugin_int *plugin) { return 1; }
+int finalize_audit_plugin(st_plugin_int *plugin) { return 0; }
+#endif
 
 /*
   The number of elements in both plugin_type_initialize and
@@ -346,7 +354,7 @@ static void report_error(int where_to, uint error, ...)
   if (where_to & REPORT_TO_USER)
   {
     va_start(args, error);
-    my_printv_error(error, ER(error), MYF(0), args);
+    my_printv_error(error, ER_THD(current_thd, error), MYF(0), args);
     va_end(args);
   }
   if (where_to & REPORT_TO_LOG)
@@ -1635,7 +1643,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   }
   mysql_mutex_unlock(&LOCK_plugin);
   if (error > 0)
-    sql_print_error(ER(ER_GET_ERRNO), my_errno);
+    sql_print_error(ER_THD(new_thd, ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
 
@@ -1952,7 +1960,9 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     This hack should be removed when LOCK_plugin is fixed so it
     protects only what it supposed to protect.
   */
+#ifndef EMBEDDED_LIBRARY
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+#endif
 
   mysql_mutex_lock(&LOCK_plugin);
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
@@ -1975,7 +1985,8 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   if (tmp->state == PLUGIN_IS_DISABLED)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_CANT_INITIALIZE_UDF, ER(ER_CANT_INITIALIZE_UDF),
+                        ER_CANT_INITIALIZE_UDF,
+                        ER_THD(thd, ER_CANT_INITIALIZE_UDF),
                         name->str, "Plugin is disabled");
   }
   else
@@ -2080,7 +2091,9 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     This hack should be removed when LOCK_plugin is fixed so it
     protects only what it supposed to protect.
   */
+#ifndef EMBEDDED_LIBRARY
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+#endif
 
   mysql_mutex_lock(&LOCK_plugin);
   if (!(plugin= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)) ||
@@ -2155,7 +2168,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   plugin->state= PLUGIN_IS_DELETED;
   if (plugin->ref_count)
     push_warning(thd, Sql_condition::SL_WARNING,
-                 WARN_PLUGIN_BUSY, ER(WARN_PLUGIN_BUSY));
+                 WARN_PLUGIN_BUSY, ER_THD(thd, WARN_PLUGIN_BUSY));
   else
     reap_needed= true;
   reap_plugins();

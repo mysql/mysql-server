@@ -1593,11 +1593,13 @@ static void warn_if_dir_in_part_elem(THD *thd, partition_element *part_elem)
   {
     if (part_elem->data_file_name)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(thd, WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (part_elem->index_file_name)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(thd, WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     part_elem->data_file_name= part_elem->index_file_name= NULL;
   }
@@ -1900,7 +1902,8 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
                                 SELECT_ACL, &table_list, TRUE))
   {
     my_message(ER_NO_PARTITION_FOR_GIVEN_VALUE,
-               ER(ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), MYF(0));
+               ER_THD(current_thd, ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT),
+               MYF(0));
   }
   else
   {
@@ -3141,7 +3144,7 @@ static bool has_same_column_order(List<Create_field> *create_list,
 {
   Field **f_ptr;
   List_iterator_fast<Create_field> new_field_it;
-  Create_field *new_field;
+  Create_field *new_field= NULL;
   new_field_it.init(*create_list);
 
   for (f_ptr= field_array; *f_ptr; f_ptr++)

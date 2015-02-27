@@ -30,6 +30,7 @@
 #include <mysql/service_my_plugin_log.h>
 #include "sys_vars.h"
 #include "current_thd.h"
+#include "psi_memory_key.h"
 
 #include <fstream>                      /* std::fstream */
 #include <string>                       /* std::string */
@@ -452,7 +453,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
     query_logger.general_log_print(thd, COM_CONNECT,
-                                   ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                                   ER_DEFAULT(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip);
     /*
@@ -460,7 +461,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    sql_print_information(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+    sql_print_information(ER_DEFAULT(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                           mpvio->auth_info.user_name,
                           mpvio->auth_info.host_or_ip);
   }
@@ -469,20 +470,21 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
     my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip,
-             passwd_used ? ER(ER_YES) : ER(ER_NO));
-    query_logger.general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+             passwd_used ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO));
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER_DEFAULT(ER_ACCESS_DENIED_ERROR),
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip,
-                                   passwd_used ? ER(ER_YES) : ER(ER_NO));
+                                   passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
     /*
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    sql_print_information(ER(ER_ACCESS_DENIED_ERROR),
+    sql_print_information(ER_DEFAULT(ER_ACCESS_DENIED_ERROR),
                           mpvio->auth_info.user_name,
                           mpvio->auth_info.host_or_ip,
-                          passwd_used ? ER(ER_YES) : ER(ER_NO));
+                          passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
   }
 }
 
@@ -809,7 +811,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
                               native_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(current_thd, COM_CONNECT,
-                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
+                                   ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -1007,7 +1009,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   DBUG_ENTER ("parse_com_change_user_packet");
   if (passwd >= end)
   {
-    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
     DBUG_RETURN (1);
   }
 
@@ -1026,7 +1028,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   */
   if (db >= end)
   {
-    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
     DBUG_RETURN (1);
   }
 
@@ -1084,7 +1086,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
     client_plugin= ptr + 2;
     if (client_plugin >= end)
     {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
   }
@@ -2302,7 +2304,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
 
       my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0),
                mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
-      sql_print_information(ER(ER_ACCOUNT_HAS_BEEN_LOCKED),
+      sql_print_information(ER_DEFAULT(ER_ACCOUNT_HAS_BEEN_LOCKED),
                             mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
       DBUG_RETURN(1);
     }
@@ -2323,8 +2325,8 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
 
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
-                                     ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      sql_print_information("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+                                     ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      sql_print_information("%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);

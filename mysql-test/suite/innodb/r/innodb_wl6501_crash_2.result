@@ -6,6 +6,9 @@ set global innodb_file_per_table = on;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -40,6 +43,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -77,6 +83,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -113,6 +122,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f))
@@ -149,6 +161,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), index ck(c))
@@ -187,6 +202,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -224,6 +242,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -260,6 +281,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f))
@@ -296,6 +320,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), index ck(c))
@@ -334,6 +361,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -371,6 +401,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -402,6 +435,9 @@ drop table t;
 use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -435,15 +471,19 @@ i	f	c
 1	1.1	a
 2	2.2	b
 drop table t;
-set global innodb_file_format = Antelope;
+set global innodb_file_format = Barracuda;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;
 call mtr.add_suppression("does not exist in the InnoDB internal");
 set global innodb_file_per_table = on;
 "1. Hit crash point on completing drop of all indexes before creation"
 "   of index is commenced."
-use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+set innodb_strict_mode=off;
 create temporary table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -467,9 +507,11 @@ test.t	check	Error	Table 'test.t' doesn't exist
 test.t	check	status	Operation failed
 "2. Hit crash point after data is updated to system-table and"
 "   in-memory dict."
-use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+set innodb_strict_mode=off;
 create temporary table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -491,5 +533,7 @@ check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	Error	Table 'test.t' doesn't exist
 test.t	check	status	Operation failed
-set global innodb_file_format = Antelope;
+set global innodb_file_format = Barracuda;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;

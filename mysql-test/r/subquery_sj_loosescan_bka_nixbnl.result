@@ -3939,6 +3939,40 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 drop table t0, t1, t2;
+#
+# Bug#19695490: CRASH IN CREATE_REF_FOR_KEY ON SELECT + JOIN + UTF8 COLUMN
+#                + DATETIME INDEX.
+#
+CREATE TABLE t1 (
+field1 varchar(255) CHARACTER SET utf8,
+field2 varchar(255) CHARACTER SET utf8
+);
+INSERT INTO t1 VALUES
+('time','time'),
+('lpjdzvkp','lpjdzvkp'),
+('dzvkpai', 'dzvkpai');
+CREATE TABLE t2 ( col_varchar varchar(10));
+CREATE TABLE t3 (
+pk int(11) NOT NULL,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8,
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
+PRIMARY KEY (pk)
+);
+INSERT INTO t3 VALUES (22,'come','h'),
+(23,'time','aaa'),
+(24,'lpjdzvkp','ababa'),
+(25,'d','GGDD');
+SELECT * FROM t1 WHERE (field1, field2) IN (
+SELECT table1.col_varchar_255_utf8_key AS field1,
+table1.col_varchar_255_utf8_key AS field2
+FROM t3 AS table1 LEFT JOIN t2 AS table2
+ON table1.col_varchar_10_utf8_key <=
+table2.col_varchar
+WHERE table1.pk >= 6);
+field1	field2
+time	time
+lpjdzvkp	lpjdzvkp
+DROP TABLE t1,t2,t3;
 create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);
 create table t1 as select * from t0;
@@ -8822,7 +8856,7 @@ WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	alias1	NULL	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	10.00	Using sort_union(col_varchar_key,PRIMARY); Using where; Start temporary
-1	SIMPLE	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	26.53	Range checked for each record (index map: 0x2); End temporary
+1	SIMPLE	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	19.00	Range checked for each record (index map: 0x2); End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`field1` AS `field1` from `test`.`t2` semi join (`test`.`t1` `alias1` join `test`.`t1` `alias2`) where ((`test`.`alias1`.`col_varchar_nokey` = `test`.`t2`.`field1`) and ((`test`.`alias1`.`pk` = 58) or (`test`.`alias1`.`col_varchar_key` = 'o')) and ((`test`.`alias2`.`col_int_key` = `test`.`alias1`.`pk`) or (`test`.`alias2`.`col_int_key` = `test`.`alias1`.`col_int_key`)))
 SELECT *

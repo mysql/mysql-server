@@ -64,7 +64,7 @@ typedef struct user_conn USER_CONN;
   three calling-info parameters.
 */
 extern "C"
-const char *set_thd_proc_info(void *thd_arg, const char *info,
+const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
                               const char *calling_func,
                               const char *calling_file,
                               const unsigned int calling_line);
@@ -72,14 +72,6 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 
-extern "C"
-void set_thd_stage_info(void *thd,
-                        const PSI_stage_info *new_stage,
-                        PSI_stage_info *old_stage,
-                        const char *calling_func,
-                        const char *calling_file,
-                        const unsigned int calling_line);
-                        
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
@@ -179,8 +171,8 @@ extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
 
-extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
-extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
+LEX_CSTRING thd_query_unsafe(THD *thd);
+size_t thd_query_safe(THD *thd, char *buf, size_t buflen);
 
 /**
   @class CSET_STRING
@@ -356,9 +348,6 @@ public:
   ~thd_scheduler() { }
 };
 
-/* Needed to get access to scheduler variables */
-void* thd_get_scheduler_data(THD *thd);
-void thd_set_scheduler_data(THD *thd, void *data);
 PSI_thread* thd_get_psi(THD *thd);
 void thd_set_psi(THD *thd, PSI_thread *psi);
 
@@ -965,15 +954,8 @@ private:
   */
   size_t m_locked_tables_count;
 public:
-  Locked_tables_list()
-    :m_locked_tables(NULL),
-    m_locked_tables_last(&m_locked_tables),
-    m_reopen_array(NULL),
-    m_locked_tables_count(0)
-  {
-    init_sql_alloc(key_memory_locked_table_list,
-                   &m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
-  }
+  Locked_tables_list();
+
   void unlock_locked_tables(THD *thd);
   ~Locked_tables_list()
   {
@@ -3411,37 +3393,7 @@ public:
       @retval false Success
       @retval true  Out-of-memory error
   */
-  bool set_db(const LEX_CSTRING &new_db)
-  {
-    bool result;
-    /*
-      Acquiring mutex LOCK_thd_data as we either free the memory allocated
-      for the database and reallocating the memory for the new db or memcpy
-      the new_db to the db.
-    */
-    mysql_mutex_lock(&LOCK_thd_data);
-    /* Do not reallocate memory if current chunk is big enough. */
-    if (m_db.str && new_db.str && m_db.length >= new_db.length)
-      memcpy(const_cast<char*>(m_db.str), new_db.str, new_db.length+1);
-    else
-    {
-      my_free(const_cast<char*>(m_db.str));
-      m_db= NULL_CSTR;
-      if (new_db.str)
-        m_db.str= my_strndup(key_memory_THD_db,
-                             new_db.str, new_db.length,
-                             MYF(MY_WME | ME_FATALERROR));
-    }
-    m_db.length= m_db.str ? new_db.length : 0;
-    mysql_mutex_unlock(&LOCK_thd_data);
-    result= new_db.str && !m_db.str;
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    if (result)
-      PSI_THREAD_CALL(set_thread_db)(new_db.str,
-                                     static_cast<int>(new_db.length));
-#endif
-    return result;
-  }
+  bool set_db(const LEX_CSTRING &new_db);
 
   /**
     Set the current database; use shallow copy of C-string.
@@ -4542,24 +4494,9 @@ public:
     @retval  Address of the allocated and initialized user_var_entry instance.
     @retval  NULL on allocation error.
   */
-  static user_var_entry *create(THD *thd, const Name_string &name, const CHARSET_INFO *cs)
-  {
-    if (check_column_name(name.ptr()))
-    {
-      my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
-      return NULL;
-    }
-
-    user_var_entry *entry;
-    size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
-                 (name.length() + 1) + extra_size;
-    if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
-                                             size, MYF(MY_WME |
-                                                       ME_FATALERROR))))
-      return NULL;
-    entry->init(thd, name, cs);
-    return entry;
-  }
+  static user_var_entry *create(THD *thd,
+                                const Name_string &name,
+                                const CHARSET_INFO *cs);
 
   /**
     Free all memory used by a user_var_entry instance

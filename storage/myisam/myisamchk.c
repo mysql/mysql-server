@@ -81,7 +81,6 @@ int main(int argc, char **argv)
   my_progname_short= my_progname+dirname_length(my_progname);
 
   myisamchk_init(&check_param);
-  check_param.opt_lock_memory=1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
   get_options(&argc,(char***) &argv);
   myisam_quick_table_bits=decode_bits;
@@ -1089,7 +1088,6 @@ static int myisamchk(MI_CHECK *param, char * filename)
 			    share->pack.header_length),
 			   1,
 			   MYF(MY_WME));
-	lock_memory(param);
 	if ((info->s->options & (HA_OPTION_PACK_RECORD |
 				 HA_OPTION_COMPRESS_RECORD)) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
@@ -1528,7 +1526,6 @@ static int mi_sort_records(MI_CHECK *param,
       goto err;
   info->rec_cache.file=new_file;		/* Use this file for cacheing*/
 
-  lock_memory(param);
   for (key=0 ; key < share->base.keys ; key++)
     share->keyinfo[key].flag|= HA_SORT_ALLOWS_SAME;
 

@@ -19,7 +19,6 @@
 #include "trigger_creation_ctx.h"
 #include "sql_db.h" // get_default_db_collation()
 #include "log.h"
-#include "current_thd.h"
 
 Trigger_creation_ctx *
 Trigger_creation_ctx::create(THD *thd,
@@ -77,7 +76,7 @@ Trigger_creation_ctx::create(THD *thd,
     push_warning_printf(thd,
                         Sql_condition::SL_WARNING,
                         ER_TRG_INVALID_CREATION_CTX,
-                        ER(ER_TRG_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_TRG_INVALID_CREATION_CTX),
                         (const char *) db_name.str,
                         (const char *) table_name.str);
   }

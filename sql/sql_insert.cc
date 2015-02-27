@@ -20,7 +20,6 @@
 #include "sql_insert.h"
 
 #include "auth_common.h"              // check_grant_all_columns
-#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "item.h"                     // Item
 #include "lock.h"                     // mysql_unlock_tables
@@ -829,12 +828,12 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
                      info.stats.touched : info.stats.updated);
     if (thd->lex->is_ignore())
       my_snprintf(buff, sizeof(buff),
-                  ER(ER_INSERT_INFO), (long) info.stats.records,
+                  ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.records - info.stats.copied),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     else
       my_snprintf(buff, sizeof(buff),
-                  ER(ER_INSERT_INFO), (long) info.stats.records,
+                  ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
@@ -955,7 +954,7 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr)
     Column_privilege_tracker column_privilege(thd, SELECT_ACL);
 
     if (tr->join_cond()->fix_fields(thd, NULL))
-      return true;
+      return true;             /* purecov: inspected */
   }
 
   if (tr->nested_join == NULL)
@@ -967,7 +966,7 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr)
   while ((ti= li++))
   {
     if (fix_join_cond_for_insert(thd, ti))
-      return true;
+      return true;             /* purecov: inspected */
   }
   return false;
 }
@@ -995,7 +994,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
   const bool insert_into_view= table_list->is_view();
 
   if (select->setup_tables(thd, table_list, select_insert))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);             /* purecov: inspected */
 
   if (insert_into_view)
   {
@@ -1004,7 +1003,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
       DBUG_RETURN(true);
 
     if (select->merge_derived(thd, table_list))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);           /* purecov: inspected */
 
     /*
       On second preparation, we may need to resolve view condition generated
@@ -1012,7 +1011,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
     */
     if (!select->first_execution && table_list->is_merged() &&
         fix_join_cond_for_insert(thd, table_list))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);           /* purecov: inspected */
   }
 
   if (!table_list->is_updatable())
@@ -2335,12 +2334,12 @@ bool Query_result_insert::send_eof()
   char buff[160];
   if (thd->lex->is_ignore())
     my_snprintf(buff, sizeof(buff),
-                ER(ER_INSERT_INFO), (long) info.stats.records,
+                ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.records - info.stats.copied),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   else
     my_snprintf(buff, sizeof(buff),
-                ER(ER_INSERT_INFO), (long) info.stats.records,
+                ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.deleted+info.stats.updated),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   row_count= info.stats.copied + info.stats.deleted +
@@ -3032,7 +3031,7 @@ bool Sql_cmd_insert::execute(THD *thd)
                       "now "
                       "wait_for signal.continue";
                     DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
                                                        STRING_WITH_LEN(act)));
                   };);
   return res;

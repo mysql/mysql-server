@@ -117,6 +117,7 @@
 #include "opt_statistics.h"      // guess_rec_per_key
 #include "opt_trace.h"           // Opt_trace_array
 #include "partition_info.h"      // partition_info
+#include "psi_memory_key.h"
 #include "sql_partition.h"       // HA_USE_AUTO_PARTITION
 #include "sql_base.h"            // free_io_cache
 #include "sql_class.h"           // THD
@@ -5874,7 +5875,7 @@ if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
             param->thd,
             Sql_condition::SL_WARNING,
             ER_WARN_INDEX_NOT_APPLICABLE,
-            ER(ER_WARN_INDEX_NOT_APPLICABLE),
+            ER_THD(param->thd, ER_WARN_INDEX_NOT_APPLICABLE),
             "range",
             field->table->key_info[param->real_keynr[key_num]].name,
             field->field_name);

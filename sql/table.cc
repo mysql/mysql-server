@@ -28,6 +28,7 @@
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
+#include "psi_memory_key.h"
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_derived.h"                 // mysql_handle_single_derived
@@ -177,7 +178,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
   {
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_NO_CREATION_CTX,
-                        ER(ER_VIEW_NO_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_NO_CREATION_CTX),
                         (const char *) view->db,
                         (const char *) view->table_name);
 
@@ -211,7 +212,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
-                        ER(ER_VIEW_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_INVALID_CREATION_CTX),
                         (const char *) view->db,
                         (const char *) view->table_name);
   }
@@ -3927,7 +3928,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   ER_THD(current_thd, ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
                    table->s->db.str, table->alias,
                    table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
@@ -3937,7 +3938,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
+                   ER_THD(current_thd, ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
                    table->s->db.str, table->s->table_name.str,
                    table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
@@ -4250,6 +4251,18 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
   }
 }
 
+Blob_mem_storage::Blob_mem_storage()
+  : truncated_value(false)
+{
+  init_alloc_root(key_memory_blob_mem_storage,
+                  &storage, MAX_FIELD_VARCHARLENGTH, 0);
+}
+
+Blob_mem_storage::~Blob_mem_storage()
+{
+  free_root(&storage, MYF(0));
+}
+
 
 /**
   Initialize TABLE instance (newly created, or coming either from table
@@ -4428,7 +4441,7 @@ bool TABLE_LIST::merge_underlying_tables(class st_select_lex *select)
     tl->embedding= this;
     tl->join_list= &nested_join->join_list;
     if (nested_join->join_list.push_back(tl))
-      return true;
+      return true;                  /* purecov: inspected */
   }
 
   return false;
@@ -4509,7 +4522,7 @@ bool TABLE_LIST::merge_where(THD *thd)
   */
   set_join_cond(and_conds(join_cond(), condition));
   if (!join_cond())
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   DBUG_RETURN(false);
 }
@@ -4532,23 +4545,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
 
   DBUG_ASSERT(derived->is_prepared());
 
-  if (field_translation)
-  {
-    /*
-      Update items in the field translation after view have been prepared.
-      It's needed because some items in the select list, like
-      IN subquery predicates, might be substituted for optimized ones.
-    */
-    if (is_view())
-    {
-      while ((item= it++))
-      {
-        field_translation[field_count++].item= item;
-      }
-    }
-
-    return false;
-  }
+  DBUG_ASSERT(!field_translation);
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
@@ -4557,7 +4554,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
     (Field_translator *)thd->stmt_arena->alloc(select->item_list.elements *
                                                sizeof(Field_translator));
   if (!transl)
-    return true;
+    return true;                        /* purecov: inspected */
 
   while ((item= it++))
   {
@@ -4596,7 +4593,7 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
   if (table->join_cond())
   {
     if (!(*pcond= table->join_cond()->copy_andor_structure(thd)))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                   /* purecov: inspected */
   }
   if (!table->nested_join)
     DBUG_RETURN(false);
@@ -4607,9 +4604,9 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
       continue;
     Item *cond;
     if (merge_join_conditions(thd, tbl, &cond))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                   /* purecov: inspected */
     if (cond && !(*pcond= and_conds(*pcond, cond)))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                   /* purecov: inspected */
   }
   DBUG_RETURN(false);
 }
@@ -4661,7 +4658,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     if (tbl->is_view() && tbl->prep_check_option(thd, is_cascaded ?
                                                       VIEW_CHECK_CASCADED :
                                                       VIEW_CHECK_NONE))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                  /* purecov: inspected */
   }
 
   if (check_opt_type && !check_option_processed)
@@ -4669,7 +4666,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     if (merge_join_conditions(thd, this, &check_option))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                  /* purecov: inspected */
 
     if (is_cascaded)
     {
@@ -4678,7 +4675,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
         if (tbl->check_option)
         {
           if (!(check_option= and_conds(check_option, tbl->check_option)))
-            DBUG_RETURN(true);
+            DBUG_RETURN(true);            /* purecov: inspected */
         }
       }
     }
@@ -4691,7 +4688,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     thd->where= "check option";
     if (check_option->fix_fields(thd, &check_option) ||
         check_option->check_cols(1))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                  /* purecov: inspected */
     thd->where= save_where;
   }
 
@@ -4731,7 +4728,7 @@ bool TABLE_LIST::prepare_replace_filter(THD *thd)
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     if (merge_join_conditions(thd, this, &replace_filter))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                 /* purecov: inspected */
     for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
     {
       if (tbl->replace_filter)
@@ -4850,14 +4847,14 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
     if (!table->insert_values &&
         !(table->insert_values= (uchar *)alloc_root(mem_root,
                                                     table->s->rec_buff_length)))
-      return true;
+      return true;                       /* purecov: inspected */
   }
   else
   {
     DBUG_ASSERT(view && merge_underlying_list);
     for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
       if (tbl->set_insert_values(mem_root))
-        return true;
+        return true;                     /* purecov: inspected */
   }
   return false;
 }
@@ -5055,7 +5052,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
       {
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_NO_SUCH_USER, 
-                            ER(ER_NO_SUCH_USER),
+                            ER_THD(thd, ER_NO_SUCH_USER),
                             definer.user.str, definer.host.str);
       }
       else
@@ -5075,7 +5072,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
             my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
                      thd->security_context()->priv_user().str,
                      thd->security_context()->priv_host().str,
-                     (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+                     (thd->password ?  ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
         }
         DBUG_RETURN(TRUE);
       }
@@ -5344,7 +5341,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   if (!field->fixed)
   {
     if (field->fix_fields(thd, field_ref))
-      DBUG_RETURN(NULL);
+      DBUG_RETURN(NULL);               /* purecov: inspected */
     field= *field_ref;
   }
   Item *item= new Item_direct_view_ref(context, field_ref,
@@ -5737,7 +5734,7 @@ void TABLE::mark_column_used(THD *thd, Field *field,
      Moreover, in order to evaluate the value of virtual generated column,
      the base columns are also needed to be read.
     */
-    if(field->gcol_info && !field->stored_in_db)
+    if (field->gcol_info && !field->stored_in_db)
     {
       bitmap_fast_test_and_set(write_set, field->field_index);
       Mark_field mark_read_field(MARK_COLUMNS_READ);
@@ -5757,9 +5754,9 @@ void TABLE::mark_column_used(THD *thd, Field *field,
       DBUG_PRINT("warning", ("Found duplicated field"));
       thd->dup_field= field;
     }
-    if (get_fields_in_item_tree)
-      field->flags|= GET_FIXED_FIELDS_FLAG;
-    if(field->gcol_info)
+    DBUG_ASSERT(!get_fields_in_item_tree);
+
+    if (field->gcol_info)
     {
       Mark_field mark_read_field(MARK_COLUMNS_READ);
       field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
@@ -5769,7 +5766,7 @@ void TABLE::mark_column_used(THD *thd, Field *field,
 
   case MARK_COLUMNS_TEMP:
     bitmap_set_bit(read_set, field->field_index);
-    if(field->gcol_info && !field->stored_in_db)
+    if (field->gcol_info && !field->stored_in_db)
     {
       Mark_field mark_fld(MARK_COLUMNS_TEMP);
       field->gcol_info->expr_item->walk(&Item::mark_field_in_map,

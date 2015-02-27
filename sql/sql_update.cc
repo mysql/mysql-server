@@ -23,13 +23,13 @@
 
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
-#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "field.h"                    // Field
 #include "item.h"                     // Item
 #include "key.h"                      // is_key_used
 #include "opt_explain.h"              // Modification_plan
 #include "opt_trace.h"                // Opt_trace_object
+#include "psi_memory_key.h"
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // setup_fields_with_no_wrap
 #include "sql_optimizer.h"            // build_equal_items
@@ -152,7 +152,7 @@ static bool check_fields(THD *thd, List<Item> &items,
     }
     // Save original item for later privilege checking
     if (original_columns && original_columns->push_back(item))
-      return true;
+      return true;                   /* purecov: inspected */
 
     /*
       we make temporary copy of Item_field, to avoid influence of changing
@@ -160,7 +160,7 @@ static bool check_fields(THD *thd, List<Item> &items,
     */
     Item_field *const cloned_field= new Item_field(thd, base_table_field);
     if (!cloned_field)
-      return true;
+      return true;                  /* purecov: inspected */
 
     thd->change_item_tree(it.ref(), cloned_field);
   }
@@ -217,7 +217,7 @@ bool mysql_update_prepare_table(THD *thd, SELECT_LEX *select)
     return true;
 
   if (select->merge_derived(thd, tr))
-    return true;
+    return true;                 /* purecov: inspected */
 
   if (!tr->is_updatable())
   {
@@ -506,7 +506,7 @@ bool mysql_update(THD *thd,
       }
 
       char buff[MYSQL_ERRMSG_SIZE];
-      my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), 0, 0,
+      my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), 0, 0,
                   (ulong) thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 
@@ -521,8 +521,7 @@ bool mysql_update(THD *thd,
     thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
     {
-      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-		 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
       goto exit_without_my_ok;
     }
   }
@@ -1064,7 +1063,7 @@ bool mysql_update(THD *thd,
   if (error < 0)
   {
     char buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
+    my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
                 (ulong) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
@@ -1434,7 +1433,7 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
   */
 
   if (select->setup_tables(thd, table_list, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);             /* purecov: inspected */
 
   /*
     A view's CHECK OPTION is incompatible with semi-join.
@@ -1660,7 +1659,7 @@ bool mysql_multi_update(THD *thd,
   if (unlikely(res))
   {
     /* If we had a another error reported earlier then this will be ignored */
-    (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
+    (*result)->send_error(ER_UNKNOWN_ERROR, ER_THD(thd, ER_UNKNOWN_ERROR));
     (*result)->abort_result_set();
   }
   DBUG_RETURN(res);
@@ -1705,7 +1704,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
 
   if (!tables_to_update)
   {
-    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
+    my_error(ER_NO_TABLES_USED, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -1726,7 +1725,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     // Resolving may be needed for subsequent executions
     if (table_ref->check_option && !table_ref->check_option->fixed &&
         table_ref->check_option->fix_fields(thd, NULL))
-      DBUG_RETURN(1);
+      DBUG_RETURN(1);        /* purecov: inspected */
   }
 
   /*
@@ -2727,7 +2726,7 @@ bool Query_result_update::send_eof()
 
   id= thd->arg_of_last_insert_id_function ?
     thd->first_successful_insert_id_in_prev_stmt : 0;
-  my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
+  my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
               (ulong) found, (ulong) updated,
               (ulong) thd->get_stmt_da()->current_statement_cond_count());
   ::my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,

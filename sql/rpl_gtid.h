@@ -51,11 +51,13 @@ using binary_log::Uuid;
 #endif
 
 
+extern "C" {
 extern PSI_memory_key key_memory_Gtid_set_to_string;
 extern PSI_memory_key key_memory_Owned_gtids_to_string;
 extern PSI_memory_key key_memory_Gtid_state_to_string;
 extern PSI_memory_key key_memory_Group_cache_to_string;
 extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
+}
 
 /**
   This macro is used to check that the given character, pointed to by the
@@ -655,6 +657,11 @@ public:
     that it is held already.
 
     @param sidno The SIDNO.
+    @param need_lock If true, and sid_lock!=NULL, this function will
+    acquire sid_lock before looking up the sid, and then release
+    it. If false, and sid_lock!=NULL, this function will assert the
+    sid_lock is already held. If sid_lock==NULL, nothing is done
+    w.r.t. locking.
     @retval NULL The SIDNO does not exist in this map.
     @retval pointer Pointer to the SID.  The data is shared with this
     Sid_map, so should not be modified.  It is safe to read the data
@@ -3166,8 +3173,9 @@ struct Gtid_specification
     @param sid_map Sid_map to use if the type of this
     Gtid_specification is GTID_GROUP.
     @param buf[out] The buffer
-    @param need_lock If true, will acquire global_sid_lock.rdlock when
-    reading the sid_map.
+    @param need_lock If true, this function acquires global_sid_lock
+    before looking up the sidno in sid_map, and then releases it. If
+    false, this function asserts that the lock is held by the caller.
     @retval The number of characters written.
   */
   int to_string(const Sid_map *sid_map, char *buf, bool need_lock= false) const;

@@ -1056,7 +1056,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno,
+    mi_check_print_error(&param, ER_THD(thd, ER_CANT_LOCK), my_errno,
                          my_strerror(errbuf, sizeof(errbuf), my_errno));
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
@@ -1980,11 +1980,13 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
   {
     if (ha_create_info->data_file_name)
       push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(table_arg->in_use, WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (ha_create_info->index_file_name)
       push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(table_arg->in_use, WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
   }
 

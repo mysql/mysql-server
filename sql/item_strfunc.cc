@@ -293,7 +293,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
       push_warning_printf(current_thd,
         Sql_condition::SL_WARNING,
         ER_WRONG_PARAMETERS_TO_NATIVE_FCT,
-        ER(ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
+        ER_THD(current_thd, ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
     null_value= TRUE;
     return NULL;
   }
@@ -317,7 +317,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
   push_warning_printf(current_thd,
     Sql_condition::SL_WARNING,
     ER_FEATURE_DISABLED,
-    ER(ER_FEATURE_DISABLED),
+    ER_THD(current_thd, ER_FEATURE_DISABLED),
     "sha2", "--with-ssl");
   null_value= TRUE;
   return (String *) NULL;
@@ -367,7 +367,7 @@ void Item_func_sha2::fix_length_and_dec()
     push_warning_printf(current_thd,
       Sql_condition::SL_WARNING,
       ER_WRONG_PARAMETERS_TO_NATIVE_FCT,
-      ER(ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
+      ER_THD(current_thd, ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
   }
 
   CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
@@ -377,7 +377,7 @@ void Item_func_sha2::fix_length_and_dec()
   push_warning_printf(current_thd,
     Sql_condition::SL_WARNING,
     ER_FEATURE_DISABLED,
-    ER(ER_FEATURE_DISABLED),
+    ER_THD(current_thd, ER_FEATURE_DISABLED),
     "sha2", "--with-ssl");
 #endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
 }
@@ -447,7 +447,7 @@ public:
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             WARN_OPTION_IGNORED,
-                            ER(WARN_OPTION_IGNORED), "IV");
+                            ER_THD(thd, WARN_OPTION_IGNORED), "IV");
       }
     }
     return iv_str;
@@ -507,7 +507,7 @@ String *Item_func_as_geojson::val_str_ascii(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
                         func_name(),
                         current_thd->variables.max_allowed_packet);
     null_value= TRUE;
@@ -1338,7 +1338,8 @@ String *Item_func_to_base64::val_str_ascii(String *str)
     {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                          ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                          ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                          func_name(),
                           current_thd->variables.max_allowed_packet);
     }
     return 0;
@@ -1388,7 +1389,8 @@ String *Item_func_from_base64::val_str(String *str)
     {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                          ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                          ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                          func_name(),
                           current_thd->variables.max_allowed_packet);
     }
     return 0;
@@ -1442,7 +1444,8 @@ String *Item_func_concat::val_str(String *str)
       {
 	push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			    ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+			    ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                            func_name(),
 			    current_thd->variables.max_allowed_packet);
 	goto null;
       }
@@ -1647,11 +1650,12 @@ String *Item_func_des_encrypt::val_str(String *str)
 
 error:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          code, ER(code),
-                          "des_encrypt");
+                      code, ER_THD(current_thd, code),
+                      "des_encrypt");
 #else
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
+                      ER_FEATURE_DISABLED,
+                      ER_THD(current_thd, ER_FEATURE_DISABLED),
                       "des_encrypt", "--with-ssl");
 #endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
   null_value=1;
@@ -1726,12 +1730,13 @@ String *Item_func_des_decrypt::val_str(String *str)
 
 error:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          code, ER(code),
-                          "des_decrypt");
+                      code, ER_THD(current_thd, code),
+                      "des_decrypt");
 wrong_key:
 #else
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
+                      ER_FEATURE_DISABLED,
+                      ER_THD(current_thd, ER_FEATURE_DISABLED),
                       "des_decrypt", "--with-ssl");
 #endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
   null_value=1;
@@ -1783,7 +1788,8 @@ String *Item_func_concat_ws::val_str(String *str)
     {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			  ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			  ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+			  ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                          func_name(),
 			  current_thd->variables.max_allowed_packet);
       goto null;
     }
@@ -2031,7 +2037,7 @@ redo:
 	  {
 	    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 				ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-				ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+				ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 				func_name(),
 				current_thd->variables.max_allowed_packet);
 
@@ -2040,15 +2046,25 @@ redo:
           if (!alloced)
           {
             alloced=1;
-            res=copy_if_not_alloced(str,res,res->length()+to_length);
+            if (res->uses_buffer_owned_by(str))
+            {
+              if (tmp_value_res.alloc(res->length() + to_length) ||
+                  tmp_value_res.copy(*res))
+                goto null;
+              res= &tmp_value_res;
+            }
+            else
+              res= copy_if_not_alloced(str, res, res->length() + to_length);
           }
           res->replace((uint) offset,from_length,*res3);
 	  offset+=(int) to_length;
           goto redo;
         }
 skip:
-        if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
-        else ++ptr;
+        if ((l= my_ismbchar(res->charset(), ptr,strend)))
+          ptr+= l;
+        else
+          ++ptr;
     }
   }
   else
@@ -2059,14 +2075,23 @@ skip:
       {
 	push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			    ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+			    ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                            func_name(),
 			    current_thd->variables.max_allowed_packet);
         goto null;
       }
       if (!alloced)
       {
         alloced=1;
-        res=copy_if_not_alloced(str,res,res->length()+to_length);
+        if (res->uses_buffer_owned_by(str))
+        {
+          if (tmp_value_res.alloc(res->length() + to_length) ||
+              tmp_value_res.copy(*res))
+            goto null;
+          res= &tmp_value_res;
+        }
+        else
+          res= copy_if_not_alloced(str, res, res->length() + to_length);
       }
       res->replace((uint) offset,from_length,*res3);
       offset+=(int) to_length;
@@ -2151,11 +2176,20 @@ String *Item_func_insert::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
-  res= copy_if_not_alloced(str, res, orig_len);
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value_res.alloc(orig_len) ||
+        tmp_value_res.copy(*res))
+      goto null;
+    res= &tmp_value_res;
+  }
+  else
+    res= copy_if_not_alloced(str, res, orig_len);
+
   res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:
@@ -2190,7 +2224,15 @@ String *Item_str_conv::val_str(String *str)
   if (multiply == 1)
   {
     size_t len;
-    res= copy_if_not_alloced(str,res,res->length());
+    if (res->uses_buffer_owned_by(str))
+    {
+       if (tmp_value.copy(*res))
+         return error_str();
+       res= &tmp_value;
+    }
+    else
+      res= copy_if_not_alloced(str, res, res->length());
+
     len= converter(collation.collation, (char*) res->ptr(), res->length(),
                                         (char*) res->ptr(), res->length());
     DBUG_ASSERT(len <= res->length());
@@ -2700,6 +2742,7 @@ static size_t calculate_password(String *str, char *buffer)
   if (thd)
     old_passwords= thd->variables.old_passwords;
 
+  push_deprecated_warn_no_replacement(current_thd, "PASSWORD");
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
@@ -2896,7 +2939,15 @@ String *Item_func_encode::val_str(String *str)
   }
 
   null_value= 0;
-  res= copy_if_not_alloced(str, res, res->length());
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value_res.copy(*res))
+      return error_str();
+    res= &tmp_value_res;
+  }
+  else
+    res= copy_if_not_alloced(str, res, res->length());
+
   crypto_transform(res);
   sql_crypt.reinit();
 
@@ -3657,7 +3708,7 @@ MY_LOCALE *Item_func_format::get_locale(Item *item)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_UNKNOWN_LOCALE,
-                        ER(ER_UNKNOWN_LOCALE),
+                        ER_THD(current_thd, ER_UNKNOWN_LOCALE),
                         locale_name ? locale_name->c_ptr_safe() : "NULL");
     lc= &my_locale_en_US;
   }
@@ -4129,7 +4180,7 @@ String *Item_func_repeat::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
@@ -4202,7 +4253,7 @@ String *Item_func_space::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
                         func_name(),
                         current_thd->variables.max_allowed_packet);
     goto err;
@@ -4306,7 +4357,7 @@ String *Item_func_rpad::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
     null_value= true;
     return NULL;
@@ -4427,7 +4478,7 @@ String *Item_func_lpad::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
@@ -4739,7 +4790,8 @@ String *Item_func_weight_string::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        func_name(),
                         current_thd->variables.max_allowed_packet);
     goto nl;
   }
@@ -4940,7 +4992,7 @@ String *Item_char_typecast::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			cast_cs == &my_charset_bin ?
                         "cast_as_binary" : func_name(),
                         current_thd->variables.max_allowed_packet);
@@ -4994,7 +5046,8 @@ String *Item_char_typecast::val_str(String *str)
       ErrConvString err(res);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_TRUNCATED_WRONG_VALUE,
-                          ER(ER_TRUNCATED_WRONG_VALUE), char_type,
+                          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                          char_type,
                           err.ptr());
       res->length((uint) length);
     }
@@ -5106,7 +5159,7 @@ String *Item_load_file::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
@@ -5197,7 +5250,7 @@ String* Item_func_export_set::val_str(String* str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
                         func_name(), static_cast<long>(max_allowed_packet));
     null_value= true;
     return NULL;
@@ -5413,7 +5466,8 @@ longlong Item_func_uncompressed_length::val_int()
   if (res->length() <= 4)
   {
     push_warning(current_thd, Sql_condition::SL_WARNING,
-                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
+                 ER_ZLIB_Z_DATA_ERROR,
+                 ER_THD(current_thd, ER_ZLIB_Z_DATA_ERROR));
     return 0;
   }
 
@@ -5487,7 +5541,8 @@ String *Item_func_compress::val_str(String *str)
 		     (const Bytef*)res->ptr(), res->length())) != Z_OK)
   {
     code= err==Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_BUF_ERROR;
-    push_warning(current_thd, Sql_condition::SL_WARNING, code, ER(code));
+    push_warning(current_thd, Sql_condition::SL_WARNING, code,
+                 ER_THD(current_thd, code));
     null_value= 1;
     return 0;
   }
@@ -5525,7 +5580,8 @@ String *Item_func_uncompress::val_str(String *str)
   if (res->length() <= 4)
   {
     push_warning(current_thd, Sql_condition::SL_WARNING,
-                 ER_ZLIB_Z_DATA_ERROR, ER(ER_ZLIB_Z_DATA_ERROR));
+                 ER_ZLIB_Z_DATA_ERROR,
+                 ER_THD(current_thd, ER_ZLIB_Z_DATA_ERROR));
     goto err;
   }
 
@@ -5535,7 +5591,7 @@ String *Item_func_uncompress::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_TOO_BIG_FOR_UNCOMPRESS,
-			ER(ER_TOO_BIG_FOR_UNCOMPRESS),
+			ER_THD(current_thd, ER_TOO_BIG_FOR_UNCOMPRESS),
                         static_cast<int>(current_thd->variables.
                                          max_allowed_packet));
     goto err;
@@ -5554,7 +5610,8 @@ String *Item_func_uncompress::val_str(String *str)
 
   code= ((err == Z_BUF_ERROR) ? ER_ZLIB_Z_BUF_ERROR :
 	 ((err == Z_MEM_ERROR) ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_DATA_ERROR));
-  push_warning(current_thd, Sql_condition::SL_WARNING, code, ER(code));
+  push_warning(current_thd, Sql_condition::SL_WARNING, code,
+               ER_THD(current_thd, code));
 
 err:
   null_value= 1;

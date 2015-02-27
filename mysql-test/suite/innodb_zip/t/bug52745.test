@@ -1,9 +1,7 @@
 -- source include/have_innodb.inc
 -- source include/have_innodb_zip.inc
 
-let $file_format=`select @@innodb_file_format`;
 let $file_per_table=`select @@innodb_file_per_table`;
-SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE bug52745 (
@@ -104,5 +102,4 @@ SHOW WARNINGS;
 
 DROP TABLE bug52745;
 
-EVAL SET GLOBAL innodb_file_format=$file_format;
 EVAL SET GLOBAL innodb_file_per_table=$file_per_table;

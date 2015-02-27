@@ -429,7 +429,7 @@ that the caller has made the reservation for free extents!
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 buf_block_t*
 btr_page_alloc_low(
 /*===============*/
@@ -1480,7 +1480,7 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
-static __attribute__((nonnull))
+static
 bool
 btr_page_reorganize_block(
 /*======================*/
@@ -2018,7 +2018,7 @@ func_exit:
 Returns TRUE if the insert fits on the appropriate half-page with the
 chosen split_rec.
 @return true if fits */
-static __attribute__((nonnull(1,3,4,6), warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 btr_page_insert_fits(
 /*=================*/
@@ -2192,7 +2192,7 @@ btr_insert_on_non_leaf_level_func(
 /**************************************************************//**
 Attaches the halves of an index page on the appropriate level in an
 index tree. */
-static __attribute__((nonnull))
+static
 void
 btr_attach_half_pages(
 /*==================*/
@@ -2349,7 +2349,7 @@ btr_attach_half_pages(
 /*************************************************************//**
 Determine if a tuple is smaller than any record on the page.
 @return TRUE if smaller */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 btr_page_tuple_smaller(
 /*===================*/

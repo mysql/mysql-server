@@ -211,7 +211,6 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length);
 
-/* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 
 /* Handle the ignored database directories list for SHOW/I_S. */

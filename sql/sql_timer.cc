@@ -18,7 +18,7 @@
 #include "sql_class.h"          /* THD */
 #include "sql_timer.h"          /* thd_timer_set, etc. */
 #include "sql_parse.h"          /* Global_THD_manager, Find_thd_with_id */
-#include "mysqld.h"
+#include "psi_memory_key.h"
 
 struct st_thd_timer_info
 {

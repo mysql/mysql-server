@@ -1,5 +1,4 @@
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
-SET GLOBAL innodb_file_format=Barracuda;
 SELECT * FROM information_schema.innodb_cmp_per_index;
 CREATE TABLE t (
 a INT,
@@ -93,4 +92,3 @@ compress_ops_ok	0
 uncompress_ops	9
 DROP TABLE t;
 SET GLOBAL innodb_cmp_per_index_enabled=default;
-SET GLOBAL innodb_file_format=default;

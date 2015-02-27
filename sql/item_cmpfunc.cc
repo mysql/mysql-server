@@ -6052,6 +6052,8 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
        !(specialflag & SPECIAL_NO_NEW_FUNC))
     {
       String* res2 = args[1]->val_str(&cmp.value2);
+      if (thd->is_error())
+        return true;
       if (!res2)
         return false;				// Null argument
 

@@ -20,6 +20,7 @@
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "log_event.h"                      // Rows_log_event
 #include "mysqld_thd_manager.h"             // Global_THD_manager
+#include "psi_memory_key.h"
 #include "rpl_handler.h"                    // RUN_HOOK
 #include "rpl_mi.h"                         // Master_info
 #include "rpl_rli.h"                        // Relay_log_info
@@ -786,7 +787,7 @@ void check_binlog_cache_size(THD *thd)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
-                          ER(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
+                          ER_THD(thd, ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
                           (ulong) binlog_cache_size,
                           (ulong) max_binlog_cache_size);
     }
@@ -812,7 +813,7 @@ void check_binlog_stmt_cache_size(THD *thd)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX,
-                          ER(ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
+                          ER_THD(thd, ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
                           (ulong) binlog_stmt_cache_size,
                           (ulong) max_binlog_stmt_cache_size);
     }
@@ -2150,7 +2151,7 @@ static bool purge_error_message(THD* thd, int res)
 
   if ((errcode= purge_log_get_error_code(res)) != 0)
   {
-    my_message(errcode, ER(errcode), MYF(0));
+    my_error(errcode, MYF(0));
     return TRUE;
   }
   my_ok(thd);
@@ -2861,8 +2862,7 @@ static int find_uniq_filename(char *name)
   file_info= dir_info->dir_entry;
   for (i= dir_info->number_off_files ; i-- ; file_info++)
   {
-    if (strlen(file_info->name) > length &&
-        memcmp(file_info->name, start, length) == 0 &&
+    if (strncmp(file_info->name, start, length) == 0 &&
 	is_number(file_info->name+length, &number,0))
     {
       set_if_bigger(max_found,(ulong) number);
@@ -2926,9 +2926,10 @@ int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name)
   {
     if (find_uniq_filename(new_name))
     {
-      my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+      my_printf_error(ER_NO_UNIQUE_LOGFILE,
+                      ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
                       MYF(ME_FATALERROR), log_name);
-      sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
+      sql_print_error(ER_DEFAULT(ER_NO_UNIQUE_LOGFILE), log_name);
       return 1;
     }
   }
@@ -3570,7 +3571,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
             THD instance. Therefore, ER(X) cannot be used.
            */
           const char* msg_fmt= (current_thd != NULL) ?
-                               ER(ER_BINLOG_LOGICAL_CORRUPTION) :
+                               ER_THD(current_thd, ER_BINLOG_LOGICAL_CORRUPTION) :
                                ER_DEFAULT(ER_BINLOG_LOGICAL_CORRUPTION);
           my_printf_error(ER_BINLOG_LOGICAL_CORRUPTION,
                           msg_fmt, MYF(0),
@@ -3791,7 +3792,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
 
   if (rit == filename_list.rend())
   {
-    *errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+    *errmsg= ER_THD(current_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
     error= -5;
   }
 
@@ -4637,11 +4638,11 @@ void MYSQL_BIN_LOG::set_write_error(THD *thd, bool is_transactional)
   {
     if (is_transactional)
     {
-      my_message(ER_TRANS_CACHE_FULL, ER(ER_TRANS_CACHE_FULL), MYF(MY_WME));
+      my_error(ER_TRANS_CACHE_FULL, MYF(MY_WME));
     }
     else
     {
-      my_message(ER_STMT_CACHE_FULL, ER(ER_STMT_CACHE_FULL), MYF(MY_WME));
+      my_error(ER_STMT_CACHE_FULL, MYF(MY_WME));
     }
   }
   else
@@ -4908,7 +4909,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
   {
     uint errcode= purge_log_get_error_code(err);
     sql_print_error("Failed to locate old binlog or relay log files");
-    my_message(errcode, ER(errcode), MYF(0));
+    my_error(errcode, MYF(0));
     error= 1;
     goto err;
   }
@@ -4920,7 +4921,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
       if (my_errno == ENOENT) 
       {
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                            ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
+                            ER_LOG_PURGE_NO_FILE,
+                            ER_THD(current_thd, ER_LOG_PURGE_NO_FILE),
                             linfo.log_file_name);
         sql_print_information("Failed to delete file '%s'",
                               linfo.log_file_name);
@@ -4951,7 +4953,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
     if (my_errno == ENOENT) 
     {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
+                          ER_LOG_PURGE_NO_FILE,
+                          ER_THD(current_thd, ER_LOG_PURGE_NO_FILE),
                           index_file_name);
       sql_print_information("Failed to delete file '%s'",
                             index_file_name);
@@ -5376,7 +5379,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       if(!auto_purge)
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_PURGE_LOG_IS_ACTIVE,
-                            ER(ER_WARN_PURGE_LOG_IS_ACTIVE),
+                            ER_THD(thd, ER_WARN_PURGE_LOG_IS_ACTIVE),
                             log_info.log_file_name);
       break;
     }
@@ -5386,7 +5389,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       if(!auto_purge)
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_PURGE_LOG_IN_USE,
-                            ER(ER_WARN_PURGE_LOG_IN_USE),
+                            ER_THD(thd, ER_WARN_PURGE_LOG_IN_USE),
                             log_info.log_file_name,  no_of_threads_locking_log,
                             no_of_log_files_purged, no_of_log_files_to_purge);
       break;
@@ -5608,7 +5611,8 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         if (thd)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
+                              ER_LOG_PURGE_NO_FILE,
+                              ER_THD(thd, ER_LOG_PURGE_NO_FILE),
                               log_info.log_file_name);
         }
         sql_print_information("Failed to execute mysql_file_stat on file '%s'",
@@ -5691,7 +5695,8 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
             if (thd)
             {
               push_warning_printf(thd, Sql_condition::SL_WARNING,
-                                  ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
+                                  ER_LOG_PURGE_NO_FILE,
+                                  ER_THD(thd, ER_LOG_PURGE_NO_FILE),
                                   log_info.log_file_name);
             }
             sql_print_information("Failed to delete file '%s'",
@@ -5840,7 +5845,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
     if(!auto_purge)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_PURGE_LOG_IS_ACTIVE,
-                          ER(ER_WARN_PURGE_LOG_IS_ACTIVE),
+                          ER_THD(thd, ER_WARN_PURGE_LOG_IS_ACTIVE),
                           log_info.log_file_name);
 
   }
@@ -5867,7 +5872,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_PURGE_LOG_IN_USE,
-                        ER(ER_WARN_PURGE_LOG_IN_USE),
+                        ER_THD(thd, ER_WARN_PURGE_LOG_IN_USE),
                         copy_log_in_use, no_of_threads_locking_log,
                         no_of_log_files_purged, no_of_log_files_to_purge);
   }
@@ -6057,7 +6062,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       char errbuf[MYSYS_STRERROR_SIZE];
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
       close_on_error= true;
-      my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE),
+      my_printf_error(ER_ERROR_ON_WRITE,
+                      ER_THD(current_thd, ER_CANT_OPEN_FILE),
                       MYF(ME_FATALERROR), name,
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
       goto end;
@@ -6118,7 +6124,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   if (error)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_printf_error(ER_CANT_OPEN_FILE, ER(ER_CANT_OPEN_FILE), 
+    my_printf_error(ER_CANT_OPEN_FILE, ER_THD(current_thd, ER_CANT_OPEN_FILE),
                     MYF(ME_FATALERROR), file_to_open,
                     error, my_strerror(errbuf, sizeof(errbuf), error));
     close_on_error= true;
@@ -7015,7 +7021,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       if (cache->error)				// Error on read
       {
         char errbuf[MYSYS_STRERROR_SIZE];
-        sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name,
+        sql_print_error(ER_DEFAULT(ER_ERROR_ON_READ), cache->file_name,
                         errno, my_strerror(errbuf, sizeof(errbuf), errno));
         write_error= true; // Don't give more errors
         goto err;
@@ -7031,7 +7037,7 @@ err:
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     write_error= true;
-    sql_print_error(ER(ER_ERROR_ON_WRITE), name,
+    sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name,
                     errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
   thd->commit_error= THD::CE_FLUSH_ERROR;
@@ -7202,7 +7208,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name,
+      sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), index_file_name,
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
@@ -8884,7 +8890,7 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
   {
     push_warning_printf(this, Sql_condition::SL_WARNING,
                         ER_MTS_UPDATED_DBS_GREATER_MAX,
-                        ER(ER_MTS_UPDATED_DBS_GREATER_MAX),
+                        ER_THD(this, ER_MTS_UPDATED_DBS_GREATER_MAX),
                         MAX_DBS_IN_EVENT_MTS);
     return;
   }
@@ -9343,7 +9349,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
              unsafe_type++)
           if (unsafe_flags & (1 << unsafe_type))
             my_error((error= ER_BINLOG_UNSAFE_AND_STMT_ENGINE), MYF(0),
-                     ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+                     ER_THD(current_thd,
+                            LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
       }
       /* log in statement format! */
     }
@@ -9379,7 +9386,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           binlog_unsafe_warning_flags|= unsafe_flags;
           DBUG_PRINT("info", ("Scheduling warning to be issued by "
                               "binlog_query: '%s'",
-                              ER(ER_BINLOG_UNSAFE_STATEMENT)));
+                              ER_THD(current_thd, ER_BINLOG_UNSAFE_STATEMENT)));
           DBUG_PRINT("info", ("binlog_unsafe_warning_flags: 0x%x",
                               binlog_unsafe_warning_flags));
         }
@@ -9399,7 +9406,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           {
             if (flags & (1 << i))
               DBUG_PRINT("info", ("unsafe reason: %s",
-                                  ER(Query_tables_list::binlog_stmt_unsafe_errcode[i])));
+                                  ER_THD(current_thd,
+                                         Query_tables_list::binlog_stmt_unsafe_errcode[i])));
           }
           DBUG_PRINT("info", ("is_row_injection=%d",
                               lex->is_stmt_row_injection()));
@@ -9513,7 +9521,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         table_names.replace(table_names.length()-1, 1, ".", 1);
         push_warning_printf(this, Sql_condition::SL_WARNING,
                             WARN_ON_BLOCKHOLE_IN_RBR,
-                            ER(WARN_ON_BLOCKHOLE_IN_RBR),
+                            ER_THD(this, WARN_ON_BLOCKHOLE_IN_RBR),
                             is_update ? "UPDATE" : "DELETE",
                             table_names.c_ptr());
       }
@@ -9653,9 +9661,10 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
     {
       // Need to print to log so that replication admin knows when users
       // have adjusted their workloads.
-      sql_print_warning("%s", ER(error_code));
+      sql_print_warning("%s", ER_DEFAULT(error_code));
       // Need to print to client so that users can adjust their workload.
-      push_warning(thd, Sql_condition::SL_WARNING, error_code, ER(error_code));
+      push_warning(thd, Sql_condition::SL_WARNING, error_code,
+                   ER_THD(thd, error_code));
     }
     DBUG_RETURN(true);
   }
@@ -10293,9 +10302,9 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
                                         const char* query)
 {
   DBUG_ENTER("print_unsafe_warning_in_log");
-  sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
-          ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-  sql_print_warning(ER(ER_MESSAGE_AND_STATEMENT), buf, query);
+  sprintf(buf, ER_DEFAULT(ER_BINLOG_UNSAFE_STATEMENT),
+          ER_DEFAULT(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+  sql_print_warning(ER_DEFAULT(ER_MESSAGE_AND_STATEMENT), buf, query);
   DBUG_VOID_RETURN;
 }
 
@@ -10422,8 +10431,8 @@ void THD::issue_unsafe_warnings()
     {
       push_warning_printf(this, Sql_condition::SL_NOTE,
                           ER_BINLOG_UNSAFE_STATEMENT,
-                          ER(ER_BINLOG_UNSAFE_STATEMENT),
-                          ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+                          ER_THD(this, ER_BINLOG_UNSAFE_STATEMENT),
+                          ER_THD(this, LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
       if (log_error_verbosity > 1)
       {
         if (unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT)

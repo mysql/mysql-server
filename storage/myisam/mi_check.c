@@ -1610,8 +1610,6 @@ int mi_repair(MI_CHECK *param, MI_INFO *info,
     mi_set_all_keys_active(share->state.key_map, share->base.keys);
   mi_drop_all_indexes(param, info, TRUE);
 
-  lock_memory(param);			/* Everything is alloced */
-
   /* Re-create all keys, which are set in key_map. */
   while (!(error=sort_get_next_record(&sort_param)))
   {
@@ -1884,22 +1882,6 @@ int movepoint(MI_INFO *info, uchar *record, my_off_t oldpos,
   }
   DBUG_RETURN(0);
 } /* movepoint */
-
-
-	/* Tell system that we want all memory for our cache */
-
-void lock_memory(MI_CHECK *param __attribute__((unused)))
-{
-#ifdef SUN_OS				/* Key-cacheing thrases on sun 4.1 */
-  if (param->opt_lock_memory)
-  {
-    int success = mlockall(MCL_CURRENT);	/* or plock(DATLOCK); */
-    if (geteuid() == 0 && success != 0)
-      mi_check_print_warning(param,
-			     "Failed to lock memory. errno %d",my_errno);
-  }
-#endif
-} /* lock_memory */
 
 
 	/* Flush all changed blocks to disk */
@@ -2326,7 +2308,6 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
     ((param->testflag & T_CREATE_MISSING_KEYS) ? info->state->records :
      (ha_rows) (sort_info.filelength/length+1));
   sort_param.key_cmp=sort_key_cmp;
-  sort_param.lock_in_memory=lock_memory;
   sort_param.tmpdir=param->tmpdir;
   sort_param.sort_info=&sort_info;
   sort_param.fix_datafile= (my_bool) (! rep_quick);
@@ -2834,7 +2815,6 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
       sort_param[i].key_write=sort_key_write;
     }
     sort_param[i].key_cmp=sort_key_cmp;
-    sort_param[i].lock_in_memory=lock_memory;
     sort_param[i].tmpdir=param->tmpdir;
     sort_param[i].sort_info=&sort_info;
     sort_param[i].master=0;

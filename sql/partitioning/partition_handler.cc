@@ -27,7 +27,7 @@
 #include "current_thd.h"
 
 // In sql_class.cc:
-extern "C" int thd_binlog_format(const MYSQL_THD thd);
+int thd_binlog_format(const MYSQL_THD thd);
 
 /** operation names for the enum_part_operation. */
 static const char *opt_op_name[]= {"optimize", "analyze", "check", "repair",
@@ -1026,7 +1026,8 @@ bool Partition_helper::print_partition_error(int error, myf errflag)
                       m_table->s->table_name.str,
                       str.c_ptr_safe());
 
-      max_length= (MYSQL_ERRMSG_SIZE - strlen(ER(ER_ROW_IN_WRONG_PARTITION)));
+      max_length= (MYSQL_ERRMSG_SIZE -
+                   strlen(ER_THD(thd, ER_ROW_IN_WRONG_PARTITION)));
       if (str.length() >= max_length)
       {
         str.length(max_length-4);

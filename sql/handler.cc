@@ -31,6 +31,7 @@
 #include "log_event.h"                // Write_rows_log_event
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
+#include "psi_memory_key.h"
 #include "rpl_handler.h"              // RUN_HOOK
 #include "sql_base.h"                 // free_io_cache
 #include "sql_parse.h"                // check_stack_overrun
@@ -1364,7 +1365,7 @@ int ha_prepare(THD *thd)
       else
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+                            ER_ILLEGAL_HA, ER_THD(thd, ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
       ha_info= ha_info->next();
@@ -3417,6 +3418,12 @@ void handler::ha_release_auto_increment()
 }
 
 
+const char *table_case_name(HA_CREATE_INFO *info, const char *name)
+{
+  return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
+}
+
+
 /**
   Construct and emit duplicate key error message using information
   from table's record buffer.
@@ -3465,7 +3472,8 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag)
 
 void print_keydup_error(TABLE *table, KEY *key, myf errflag)
 {
-  print_keydup_error(table, key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
+  print_keydup_error(table, key,
+                     ER_THD(current_thd, ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
 }
 
 
@@ -3936,6 +3944,19 @@ int handler::check_old_types()
     }
     if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
       return HA_ADMIN_NEEDS_ALTER; // obsolete YEAR(2) type
+
+    //Check for old temporal format if avoid_temporal_upgrade is disabled.
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    bool check_temporal_upgrade= !avoid_temporal_upgrade;
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+
+    if (check_temporal_upgrade)
+    {
+      if (((*field)->real_type() == MYSQL_TYPE_TIME) ||
+          ((*field)->real_type() == MYSQL_TYPE_DATETIME) ||
+          ((*field)->real_type() == MYSQL_TYPE_TIMESTAMP))
+        return HA_ADMIN_NEEDS_ALTER;
+    }
   }
   return 0;
 }
@@ -6373,13 +6394,12 @@ end:
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
                                uint *bufsz, uint *flags, Cost_estimate *cost)
 {
+  ha_rows res __attribute__((unused));
   uint def_flags= *flags;
   uint def_bufsz= *bufsz;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-#ifndef DBUG_OFF
-  ha_rows res=
-#endif
+  res=
     h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
                                       &def_flags, cost);
   DBUG_ASSERT(!res);

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries")
+    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts")
 
 
 # Some components like Embedded are optional
@@ -69,14 +69,7 @@ SET(CPACK_COMPONENT_GROUP_DEVEL_DESCRIPTION "Installs C/C++ header files and lib
  SET(CPACK_COMPONENT_SHAREDLIBRARIES_GROUP "Devel")
  SET(CPACK_COMPONENT_SHAREDLIBRARIES_DISPLAY_NAME "Client C API library (shared)")
  SET(CPACK_COMPONENT_SHAREDLIBRARIES_DESCRIPTION "Installs shared client library")
- 
- # Subfeature "Debug binaries" 
- SET(CPACK_COMPONENT_DEBUGBINARIES_GROUP "Devel")
- SET(CPACK_COMPONENT_DEBUGBINARIES_DISPLAY_NAME "Debug binaries")
- SET(CPACK_COMPONENT_DEBUGBINARIES_DESCRIPTION 
-   "Debug/trace versions of executables and libraries" )
- SET(CPACK_COMPONENT_DEBUGBINARIES_WIX_LEVEL 2)
- 
+  
  #Subfeature "Embedded"
  SET(CPACK_COMPONENT_EMBEDDED_GROUP "Devel")
  SET(CPACK_COMPONENT_EMBEDDED_DISPLAY_NAME "Embedded server library")

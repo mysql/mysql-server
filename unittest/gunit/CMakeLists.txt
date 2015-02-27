@@ -339,6 +339,20 @@ SET(SERVER_TESTS
   initialize_password
 )
 
+SET(SQL_GUNIT_LIB_SOURCE 
+  ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc 
+  ${CMAKE_SOURCE_DIR}/sql/mdl.cc 
+  ${CMAKE_SOURCE_DIR}/sql/sql_list.cc 
+  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
+  ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
+  )
+
+IF(WIN32)
+  LIST(APPEND SQL_GUNIT_LIB_SOURCE ${CMAKE_SOURCE_DIR}/sql/named_pipe.cc)
+ENDIF()
+ADD_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
+ADD_DEPENDENCIES(sqlgunitlib GenError)
+
 ## Merging tests into fewer executables saves *a lot* of
 ## link time and disk space ...
 OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)

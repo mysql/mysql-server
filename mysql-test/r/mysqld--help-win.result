@@ -647,6 +647,7 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-statements-history 
  Default startup value for the events_statements_history
  consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-statements-history to disable.)
  --performance-schema-consumer-events-statements-history-long 
  Default startup value for the
  events_statements_history_long consumer.
@@ -657,6 +658,7 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-transactions-history 
  Default startup value for the events_transactions_history
  consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-transactions-history to disable.)
  --performance-schema-consumer-events-transactions-history-long 
  Default startup value for the
  events_transactions_history_long consumer.
@@ -1103,8 +1105,7 @@ The following options may be given as the first argument:
  -s, --symbolic-links 
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
- write to the file. Use 0 (default) to disable synchronous
- flushing
+ write to the file. Use 0 to disable synchronous flushing
  --sync-frm          Sync .frm files to disk on creation
  (Defaults to on; use --skip-sync-frm to disable.)
  --sync-master-info=# 
@@ -1187,7 +1188,7 @@ bind-address *
 binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
-binlog-error-action IGNORE_ERROR
+binlog-error-action ABORT_SERVER
 binlog-format STATEMENT
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0
@@ -1357,10 +1358,10 @@ performance-schema-consumer-events-stages-current FALSE
 performance-schema-consumer-events-stages-history FALSE
 performance-schema-consumer-events-stages-history-long FALSE
 performance-schema-consumer-events-statements-current TRUE
-performance-schema-consumer-events-statements-history FALSE
+performance-schema-consumer-events-statements-history TRUE
 performance-schema-consumer-events-statements-history-long FALSE
 performance-schema-consumer-events-transactions-current TRUE
-performance-schema-consumer-events-transactions-history FALSE
+performance-schema-consumer-events-transactions-history TRUE
 performance-schema-consumer-events-transactions-history-long FALSE
 performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
@@ -1461,7 +1462,7 @@ slave-checkpoint-period 300
 slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
-slave-net-timeout 3600
+slave-net-timeout 60
 slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
@@ -1479,7 +1480,7 @@ sporadic-binlog-dump-fail FALSE
 sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
 symbolic-links FALSE
-sync-binlog 0
+sync-binlog 1
 sync-frm TRUE
 sync-master-info 10000
 sync-relay-log 10000

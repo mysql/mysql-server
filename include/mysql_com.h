@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "binary_log_types.h"
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
+#define FILENAME_CHARSET_MBMAXLEN 5
 #define NAME_CHAR_LEN	64              /* Field/table name length */
 #define USERNAME_CHAR_LENGTH 16
 #ifndef NAME_LEN

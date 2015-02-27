@@ -19,6 +19,7 @@
 #include "sql_class.h"                          // THD
 #include "log.h"
 #include "current_thd.h"
+#include "psi_memory_key.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

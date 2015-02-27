@@ -1360,10 +1360,14 @@ CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_str
 SELECT PASSWORD('plaintext_pwd');
 PASSWORD('plaintext_pwd')
 *F42EC6870C44E0E26316EC1D4A953A4B9C2D8958
+Warnings:
+Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 SET PASSWORD FOR user1@localhost=PASSWORD('auth_xyz@');
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD('auth_xyz@')' at line 1
+Warnings:
+Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
 SET PASSWORD FOR user2@localhost=PASSWORD('gd636@gj');
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD('gd636@gj')' at line 1
+Warnings:
+Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
 
 CREATE USER user4@localhost;
 ALTER USER user4@localhost PASSWORD EXPIRE;
@@ -1605,6 +1609,8 @@ slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `mysql`.* TO 'user3'@'l
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER user1@localhost,user2@localhost,user3@localhost
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS 'auth_string1' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*5BC789A788B4F867BF1B8DB2A6A20ACDF5B32C49' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*F03819CC796CCA4052B8928179B81D18288B05A8' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' PASSWORD EXPIRE ACCOUNT UNLOCK
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK

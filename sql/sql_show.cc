@@ -34,6 +34,7 @@
 #include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "opt_trace.h"                      // fill_optimizer_trace_info
 #include "protocol.h"                       // Protocol
+#include "psi_memory_key.h"
 #include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
 #include "sql_base.h"                       // close_thread_tables
@@ -775,7 +776,7 @@ private:
     {
       m_view_access_denied_message_ptr= m_view_access_denied_message;
       my_snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
-                  ER(ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
+                  ER_THD(current_thd, ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
                   m_sctx->priv_user().str,
                   m_sctx->host_or_ip().str, m_top_view->get_table_name());
     }
@@ -825,7 +826,7 @@ public:
       /* Established behavior: warn if underlying functions are missing. */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_VIEW_INVALID,
-                          ER(ER_VIEW_INVALID),
+                          ER_THD(thd, ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
                           m_top_view->get_table_name());
       is_handled= true;
@@ -1001,7 +1002,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user().str, sctx->host_or_ip().str, dbname);
-    query_logger.general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+    query_logger.general_log_print(thd,COM_INIT_DB,
+                                   ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
                                    sctx->priv_user().str,
                                    sctx->host_or_ip().str, dbname);
     DBUG_RETURN(TRUE);
@@ -1079,9 +1081,9 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   {
     // Setup materialized result table so that we can read the column list
     if (table_list->resolve_derived(thd, false))
-      DBUG_VOID_RETURN;
+      DBUG_VOID_RETURN;                /* purecov: inspected */
     if (table_list->setup_materialized_derived(thd))
-      DBUG_VOID_RETURN;
+      DBUG_VOID_RETURN;                /* purecov: inspected */
   }
   TABLE *table= table_list->table;
 
@@ -2702,7 +2704,7 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
     null_lex_str.length= 0;
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
-    value= (char*) var->value_ptr(current_thd, thd, value_type, &null_lex_str);
+    value= (char*) var->value_ptr(thd, thd, value_type, &null_lex_str);
     *charset= var->charset(thd);
   }
   else
@@ -4069,7 +4071,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_I_S_SKIPPED_TABLE,
-                        ER(ER_WARN_I_S_SKIPPED_TABLE),
+                        ER_THD(thd, ER_WARN_I_S_SKIPPED_TABLE),
                         table_list.db, table_list.table_name);
     return 0;
   }

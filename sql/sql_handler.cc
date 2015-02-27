@@ -54,10 +54,10 @@
 #include "sql_handler.h"
 
 #include "auth_common.h"                        // check_table_access
-#include "current_thd.h"
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // mysql_unlock_tables
 #include "key.h"                                // key_copy
+#include "psi_memory_key.h"
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
 #include "sql_resolver.h"                       // Column_privilege_tracker
@@ -783,7 +783,7 @@ retry:
       break;
     }
     default:
-      my_message(ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA), MYF(0));
+      my_error(ER_ILLEGAL_HA, MYF(0));
       goto err;
     }
 
@@ -800,6 +800,7 @@ retry:
       }
       goto ok;
     }
+    thd->inc_examined_row_count(1);
     if (cond && !cond->val_int())
     {
       if (thd->is_error())
@@ -816,6 +817,7 @@ retry:
       protocol->write();
     }
     num_rows++;
+    thd->inc_sent_row_count(1);
   }
 ok:
   /*

@@ -16,8 +16,8 @@
 
 #include "transaction_info.h"
 
-#include "current_thd.h"
 #include "mysys_err.h"
+#include "psi_memory_key.h"
 #include "sql_class.h"
 
 Transaction_ctx::Transaction_ctx()
@@ -38,17 +38,17 @@ void Transaction_ctx::push_unsafe_rollback_warnings(THD *thd)
   if (m_scope_info[SESSION].has_modified_non_trans_table())
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+                 ER_THD(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK));
 
   if (m_scope_info[SESSION].has_created_temp_table())
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
+                 ER_THD(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
 
   if (m_scope_info[SESSION].has_dropped_temp_table())
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
+                 ER_THD(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
 }
 
 

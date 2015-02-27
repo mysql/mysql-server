@@ -32,7 +32,6 @@
 #include "auth_common.h"
 #include "opt_explain_format.h"
 #include "sql_test.h"            // print_where
-#include "current_thd.h"
 #include "aggregate_check.h"
 
 static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
@@ -844,7 +843,7 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
           !tl->is_mergeable())
       continue;
       if (merge_derived(thd, tl))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
     }
   }
 
@@ -876,9 +875,9 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
         continue;
       DBUG_ASSERT(!tl->is_merged());
       if (tl->resolve_derived(thd, apply_semijoin))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       if (tl->setup_materialized_derived(thd))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       materialized_derived_table_count++;
     }
   }
@@ -1164,7 +1163,7 @@ bool SELECT_LEX::setup_conds(THD *thd)
       if (view->effective_with_check)
       {
         if (view->prepare_check_option(thd))
-          DBUG_RETURN(true);
+          DBUG_RETURN(true);        /* purecov: inspected */
         thd->change_item_tree(&table->check_option, view->check_option);
       }
     }
@@ -2130,7 +2129,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
 
   if (subq_select->ftfunc_list->elements &&
       add_ftfunc_list(subq_select->ftfunc_list))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   // This query block has semi-join nests
   has_sj_nests= true;
@@ -2222,7 +2221,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Add a nested join object to the derived table object
   if (!(derived_table->nested_join=
        (NESTED_JOIN *) thd->mem_calloc(sizeof(NESTED_JOIN))))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
   derived_table->nested_join->join_list.empty();//Should be done by constructor!
 
   // Merge tables from underlying query block into this join nest
@@ -2270,10 +2269,10 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
 
   // Merge the WHERE clause into the outer query block
   if (derived_table->merge_where(thd))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   if (derived_table->create_field_translation(thd))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   // Exclude the derived table query expression from query graph.
   derived_unit->exclude_level();
@@ -2341,7 +2340,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Add any full-text functions from derived table into outer query
   if (derived_select->ftfunc_list->elements &&
       add_ftfunc_list(derived_select->ftfunc_list))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   DBUG_RETURN(false);
 }
@@ -2657,7 +2656,7 @@ bool SELECT_LEX::add_ftfunc_list(List<Item_func_match> *ftfuncs)
   while ((ifm= li++))
   {
     if (ftfunc_list->push_front(ifm))
-      return true;
+      return true;        /* purecov: inspected */
   }
   return false;
 }
@@ -3078,9 +3077,9 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
         overshadows the column reference from the SELECT list.
       */
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
-                          ER(ER_NON_UNIQ_ERROR),
+                          ER_THD(thd, ER_NON_UNIQ_ERROR),
                           ((Item_ident*) order_item)->field_name,
-                          current_thd->where);
+                          thd->where);
     }
   }
 
@@ -3122,6 +3121,17 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */
   ref_pointer_array[el]= order_item;
+  /*
+    If the order_item is a SUM_FUNC_ITEM, when fix_fields is called
+    ref_by is set to order->item which is the address of order_item.
+    But this needs to be address of order_item in the all_fields list.
+    As a result, when it gets replaced with Item_aggregate_ref
+    object in Item::split_sum_func2, we will be able to retrieve the
+    newly created object.
+  */
+  if (order_item->type() == Item::SUM_FUNC_ITEM)
+    ((Item_sum *)order_item)->ref_by= all_fields.head_ref();
+
   /*
     Currently, we assume that this assertion holds. If it turns out
     that it fails for some query, order->item has changed and the old
@@ -3456,7 +3466,7 @@ bool
 validate_gc_assignment(THD * thd, List<Item> *fields,
                        List<Item> *values, TABLE *table)
 {
-  Field **fld;
+  Field **fld= NULL;
   MY_BITMAP *bitmap= table->write_set;
   bool use_table_field= false;
   DBUG_ENTER("validate_gc_assignment");

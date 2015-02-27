@@ -63,13 +63,8 @@ connection default;
 
 set global innodb_compression_level = 0;
 
-let $innodb_file_format = `select @@innodb_file_format`;
-set global innodb_file_format = 'Barracuda';
-
 create table t3 (f1 bigint primary key, f2 longblob, f3 longblob,
   index(f2(10), f3(10))) engine=innodb row_format=compressed;
-
-eval set global innodb_file_format = $innodb_file_format;
 
 insert into t3 values (1, repeat('%', 1000), repeat('+', 30));
 select f1, length(f2), length(f3) from t3;
@@ -107,4 +102,3 @@ check table t3;
 
 # Clean up.
 DROP TABLE t2, t3;
-

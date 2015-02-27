@@ -6,11 +6,9 @@ SET @saved_general_log = @@GLOBAL.general_log;
 SET GLOBAL general_log = OFF;
 USE mysql;
 FLUSH TABLES;
-REPAIR TABLE test.bug49823;
-Table	Op	Msg_type	Msg_text
-test.bug49823	repair	status	OK
 RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
+mysql_upgrade: [Error] 1194: Table 'general_log' is marked as crashed and should be repaired
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK

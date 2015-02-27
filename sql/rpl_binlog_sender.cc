@@ -60,6 +60,7 @@ void Binlog_sender::init()
 
   thd->push_diagnostics_area(&m_diag_area);
   init_heartbeat_period();
+  m_last_event_sent_ts= time(0);
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= &m_linfo;
@@ -404,7 +405,28 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
     if (m_exclude_gtid && (in_exclude_group= skip_event(event_ptr, event_len,
                                                         in_exclude_group)))
     {
-      exclude_group_end_pos= log_pos;
+      /*
+        If we have not send any event from past 'heartbeat_period' time
+        period, then it is time to send a packet before skipping this group.
+       */
+      DBUG_EXECUTE_IF("inject_2sec_sleep_when_skipping_an_event",
+                      {
+                      my_sleep(2000000);
+                      });
+      time_t now= time(0);
+      DBUG_ASSERT(now >= m_last_event_sent_ts);
+      bool time_for_hb_event= ((ulonglong)(now - m_last_event_sent_ts)
+                          >= (ulonglong)(m_heartbeat_period/1000000000UL));
+      if (time_for_hb_event)
+      {
+        if (unlikely(send_heartbeat_event(log_pos)))
+          DBUG_RETURN(1);
+        exclude_group_end_pos= 0;
+      }
+      else
+      {
+        exclude_group_end_pos= log_pos;
+      }
       DBUG_PRINT("info", ("Event of type %s is skipped",
                           Log_event::get_type_str(event_type)));
     }
@@ -475,7 +497,8 @@ bool Binlog_sender::check_event_type(Log_event_type type,
                         return false;
                       };);
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+      sprintf(buf,
+              ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -490,7 +513,8 @@ bool Binlog_sender::check_event_type(Log_event_type type,
     else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
     {
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+      sprintf(buf,
+              ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -508,7 +532,8 @@ bool Binlog_sender::check_event_type(Log_event_type type,
     if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
     {
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER(ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+      sprintf(buf,
+              ER_THD(current_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -662,7 +687,7 @@ int Binlog_sender::check_start_file()
                                                 gtid_state->get_server_sidno(),
                                                 subset_sidno))
     {
-      errmsg= ER(ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
+      errmsg= ER_THD(current_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;
@@ -695,7 +720,7 @@ int Binlog_sender::check_start_file()
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid))
     {
-      errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+      errmsg= ER_THD(current_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;
@@ -1109,6 +1134,7 @@ inline int Binlog_sender::send_packet()
 
   /* Shrink the packet if needed. */
   int ret= shrink_packet() ? 1 : 0;
+  m_last_event_sent_ts= time(0);
   DBUG_RETURN(ret);
 }
 

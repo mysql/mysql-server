@@ -1,2 +1,2 @@
---sync-relay-log-info=1 --relay-log-recovery=1 --innodb_file_format_check=1 --default-storage-engine=MyISAM --innodb-file-per-table=0
+--sync-relay-log-info=1 --relay-log-recovery=1 --default-storage-engine=MyISAM --innodb-file-per-table=0
 --skip-core-file

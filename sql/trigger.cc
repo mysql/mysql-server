@@ -24,7 +24,6 @@
 #include "sql_table.h"            // check_n_cut_mysql50_prefix
 #include "sql_show.h"             // append_identifier
 #include "sql_db.h"               // get_default_db_collation
-#include "current_thd.h"
 
 #include "mysql/psi/mysql_sp.h"
 ///////////////////////////////////////////////////////////////////////////
@@ -60,11 +59,11 @@ public:
         m_trigger_name= &thd->lex->spname->m_name;
       if (m_trigger_name)
         my_snprintf(m_message, sizeof(m_message),
-                    ER(ER_ERROR_IN_TRIGGER_BODY),
+                    ER_THD(thd, ER_ERROR_IN_TRIGGER_BODY),
                     m_trigger_name->str, message);
       else
         my_snprintf(m_message, sizeof(m_message),
-                    ER(ER_ERROR_IN_UNKNOWN_TRIGGER_BODY), message);
+                    ER_THD(thd, ER_ERROR_IN_UNKNOWN_TRIGGER_BODY), message);
       return true;
     }
     return false;
@@ -658,7 +657,7 @@ bool Trigger::parse(THD *thd)
     */
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
+                        ER_TRG_NO_DEFINER, ER_THD(thd, ER_TRG_NO_DEFINER),
                         m_db_name.str,
                         m_trigger_name.str);
 
@@ -759,7 +758,7 @@ void Trigger::print_upgrade_warning(THD *thd)
   push_warning_printf(thd,
     Sql_condition::SL_WARNING,
     ER_WARN_TRIGGER_DOESNT_HAVE_CREATED,
-    ER(ER_WARN_TRIGGER_DOESNT_HAVE_CREATED),
+    ER_THD(thd, ER_WARN_TRIGGER_DOESNT_HAVE_CREATED),
     get_db_name().str,
     get_subject_table_name().str,
     get_trigger_name().str);

@@ -3662,7 +3662,6 @@ SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 DROP TABLE 名字;
 # Test Case : With Dynamic row type
-SET GLOBAL innodb_file_format='Barracuda';
 SET NAMES utf8;
 # Create table : Test with row_type ROW_FORMAT=DYNAMIC  with char,varchar,text columns
 CREATE TABLE articles_1 (
@@ -4884,7 +4883,6 @@ SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 DROP TABLE 名字;
 # Test Case : With compressed row type
-SET GLOBAL innodb_file_format='Barracuda';
 SET NAMES utf8;
 # Create table : Test with row_type ROW_FORMAT=COMPRESSED  with char,varchar,text columns
 CREATE TABLE articles_1 (
@@ -6105,5 +6103,4 @@ MATCH (행운을빈다) AGAINST('니다');
 SELECT * FROM 名字;
 seq	c1	c2	c3	さようなら	j2	j3	행운을빈다	k2	e1
 DROP TABLE 名字;
-SET GLOBAL innodb_file_format = Antelope;
 SET GLOBAL innodb_file_per_table = 1;

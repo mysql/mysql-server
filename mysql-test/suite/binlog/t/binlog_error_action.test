@@ -36,6 +36,8 @@ call mtr.add_suppression("The server was unable to create a new log file *");
 
 let $old=`select @@debug`;
 
+--let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
+
 RESET MASTER;
 
 --echo Test case1
@@ -89,6 +91,7 @@ flush logs;
 
 --echo Test case5
 # Make binlog index readonly and check the behaviour with IGNORE
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --chmod 0444 $INDEX
 --replace_regex /\.[\\\/]master/master/ /errno: 13 - .*\)/errno: 13 - Permission denied)/
 --error 29
@@ -103,6 +106,7 @@ DROP TABLE t1;
 # Make MYSQL_BIN_LOG::open_binlog fail with debug simulation and test
 # the behaviour in case of IGNORE
 SET SESSION debug="+d,fault_injection_updating_index";
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_CANT_OPEN_FILE
 flush logs;
@@ -116,6 +120,7 @@ SET SESSION debug="-d,fault_injection_updating_index";
 # Simulate diskfull during opening of binlog and check for diskfull error
 # behaviour where binlogging impossible error is to continue the server
 # after the error.
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
 --replace_regex /\.[\\\/]master/master/ /Errcode: 28 - .*\)/Errcode: 28 - No space left on device)/
 # error EE_WRITE with error code number 3 is expected.
@@ -125,6 +130,7 @@ SET SESSION debug="-d,simulate_disk_full_on_open_binlog";
 --source include/restart_mysqld.inc
 
 --echo Test case8
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET SESSION debug="+d,fault_injection_init_name";
 --replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_CANT_OPEN_FILE
@@ -137,3 +143,4 @@ SET SESSION debug="-d,fault_injection_init_name";
 
 # Cleanup
 eval SET SESSION debug="$old";
+--eval SET GLOBAL binlog_error_action= $saved_binlog_error_action

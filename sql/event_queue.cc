@@ -18,6 +18,7 @@
 #include "event_data_objects.h"
 #include "event_db_repository.h"
 #include "events.h"
+#include "psi_memory_key.h"
 #include "sql_audit.h"
 #include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
 #include "log.h"        // sql_print_error

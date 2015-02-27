@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -214,9 +214,10 @@ struct SyncDebug {
 
 	/**
 	Construct */
-	SyncDebug()
+	explicit SyncDebug(bool destroy_mutex_at_exit)
 		:
-		m_enabled()
+		m_enabled(),
+		m_destroy_at_exit(destroy_mutex_at_exit)
 	{
 		new (&m_mutex) SyncMutex();
 
@@ -227,7 +228,9 @@ struct SyncDebug {
 	Destructor */
 	~SyncDebug()
 	{
-		m_mutex.destroy();
+		if (m_destroy_at_exit) {
+			m_mutex.destroy();
+		}
 	}
 
 	/**
@@ -392,11 +395,15 @@ public:
 	/** Latching order checks start when this is set true */
 	bool			m_enabled;
 
+	/** Do/Dont destroy mutex at exit */
+	bool			m_destroy_at_exit;
+
 	/** Thread specific data. Protected by m_mutex. */
 	ThreadMap		m_threads;
 };
 
-static SyncDebug syncDebug;
+/** Do not destroy mutex at exit for static objects */
+static SyncDebug syncDebug(false);
 
 /** Report error and abort. */
 

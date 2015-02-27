@@ -494,7 +494,8 @@ err:
     char buff[128];
     strmake(buff, val_begin, min<size_t>(length, sizeof(buff)-1));
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                        ER_WRONG_VALUE_FOR_TYPE,
+                        ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
                         date_time_type, buff, "str_to_date");
   }
   DBUG_RETURN(1);
@@ -2445,7 +2446,7 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_DATETIME_FUNCTION_OVERFLOW,
-                        ER(ER_DATETIME_FUNCTION_OVERFLOW),
+                        ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
                         "time");
     return true;
   }  
@@ -3382,7 +3383,8 @@ null_date:
     char buff[128];
     strmake(buff, val->ptr(), min<size_t>(val->length(), sizeof(buff)-1));
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                        ER_WRONG_VALUE_FOR_TYPE,
+                        ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
                         "datetime", buff, "str_to_date");
   }
   return (null_value= 1);

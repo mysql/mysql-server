@@ -45,6 +45,7 @@
 #include "hostname.h"                    // host_cache_resize
 #include "item_timefunc.h"               // ISO_FORMAT
 #include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
+#include "psi_memory_key.h"
 #include "rpl_info_factory.h"            // Rpl_info_factory
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info
@@ -200,7 +201,7 @@ static Sys_var_mybool Sys_pfs_consumer_events_statements_history(
        "performance_schema_consumer_events_statements_history",
        "Default startup value for the events_statements_history consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_statements_history_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_statements_history_long(
@@ -221,7 +222,7 @@ static Sys_var_mybool Sys_pfs_consumer_events_transactions_history(
        "performance_schema_consumer_events_transactions_history",
        "Default startup value for the events_transactions_history consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_transactions_history_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_transactions_history_long(
@@ -1772,7 +1773,7 @@ static Sys_var_enum Sys_binlog_error_action(
        "When statements cannot be written to the binary log due to a fatal "
        "error, the server can either ignore the error and let the master "
        "continue, or abort.", GLOBAL_VAR(binlog_error_action),
-       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(IGNORE_ERROR));
+       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(ABORT_SERVER));
 
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
@@ -2109,7 +2110,8 @@ check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
   if (val < (longlong) global_system_variables.net_buffer_length)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        WARN_OPTION_BELOW_LIMIT,
+                        ER_THD(thd, WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
   return false;
@@ -2422,7 +2424,8 @@ check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
   if (val > (longlong) global_system_variables.max_allowed_packet)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        WARN_OPTION_BELOW_LIMIT,
+                        ER_THD(thd, WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
   return false;
@@ -2499,9 +2502,10 @@ static Sys_var_mybool Sys_old_alter_table(
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static bool old_passwords_check(sys_var *self  __attribute__((unused)),
-                                THD *thd  __attribute__((unused)),
+                                THD *thd,
                                 set_var *var)
 {
+  push_deprecated_warn_no_replacement(thd, "old_passwords");
   /* 1 used to be old passwords */
   return var->save_result.ulonglong_value == 1;
 }
@@ -2949,8 +2953,8 @@ static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
      requested cache size. See also query_cache_size_arg
   */
   if (query_cache_size != new_cache_size)
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_QC_RESIZE, ER(ER_WARN_QC_RESIZE),
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_QC_RESIZE, ER_THD(thd, ER_WARN_QC_RESIZE),
                         query_cache_size, new_cache_size);
 
   query_cache_size= new_cache_size;
@@ -3190,6 +3194,27 @@ static Sys_var_mybool Sys_slave_preserve_commit_order(
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 #endif
+
+bool Sys_var_charptr::global_update(THD *thd, set_var *var)
+{
+  char *new_val, *ptr= var->save_result.string_value.str;
+  size_t len=var->save_result.string_value.length;
+  if (ptr)
+  {
+    new_val= (char*) my_memdup(key_memory_Sys_var_charptr_value,
+                               ptr, len+1, MYF(MY_WME));
+    if (!new_val) return true;
+    new_val[len]= 0;
+  }
+  else
+    new_val= 0;
+  if (flags & ALLOCATED)
+    my_free(global_var(char*));
+  flags |= ALLOCATED;
+  global_var(char*)= new_val;
+  return false;
+}
+
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
@@ -3560,9 +3585,9 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var)
       }
       else
       {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS,
-                            "%s", ER(ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS));
+        push_warning(thd, Sql_condition::SL_WARNING,
+                     ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS,
+                     ER_THD(thd, ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS));
       }
     }
   }
@@ -3634,7 +3659,7 @@ void unset_removed_sql_modes(sql_mode_t &sql_mode)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_SQL_MODE_NO_EFFECT,
-                          ER(ER_SQL_MODE_NO_EFFECT),
+                          ER_THD(thd, ER_SQL_MODE_NO_EFFECT),
                           "ERROR_FOR_DIVISION_BY_ZERO");
     }
 
@@ -3642,7 +3667,7 @@ void unset_removed_sql_modes(sql_mode_t &sql_mode)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_SQL_MODE_NO_EFFECT,
-                          ER(ER_SQL_MODE_NO_EFFECT),
+                          ER_THD(thd, ER_SQL_MODE_NO_EFFECT),
                           "NO_ZERO_DATE");
     }
 
@@ -3650,7 +3675,7 @@ void unset_removed_sql_modes(sql_mode_t &sql_mode)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_SQL_MODE_NO_EFFECT,
-                          ER(ER_SQL_MODE_NO_EFFECT),
+                          ER_THD(thd, ER_SQL_MODE_NO_EFFECT),
                           "NO_ZERO_IN_DATE");
     }
   }
@@ -3731,7 +3756,7 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_DEPRECATED_SQLMODE,
-                          ER(ER_WARN_DEPRECATED_SQLMODE),
+                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
                           "NO_AUTO_CREATE_USER");
     }
     else
@@ -4048,7 +4073,7 @@ uchar *Sys_var_sql_log_bin::global_value_ptr(THD *thd, LEX_STRING *base)
   if (base != NULL)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_DEPRECATED_SYNTAX,
-                        ER(ER_WARN_DEPRECATED_SYNTAX),
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
                         "@@global.sql_log_bin", "the constant 1 "
                         "(since @@global.sql_log_bin is always equal to 1)");
 
@@ -4976,7 +5001,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
     if (mi != NULL && slave_net_timeout < mi->heartbeat_period)
       push_warning(thd, Sql_condition::SL_WARNING,
                    ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                   ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+                   ER_THD(thd, ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   }
 
   mysql_mutex_unlock(&LOCK_msr_map);
@@ -5003,9 +5028,7 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
   */
   if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
   {
-    my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
-               ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
-               MYF(0));
+    my_error(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE, MYF(0));
     return true;
   }
 
@@ -5070,10 +5093,10 @@ static Sys_var_uint Sys_checkpoint_mts_group(
 
 static Sys_var_uint Sys_sync_binlog_period(
        "sync_binlog", "Synchronously flush binary log to disk after"
-       " every #th write to the file. Use 0 (default) to disable synchronous"
+       " every #th write to the file. Use 0 to disable synchronous"
        " flushing",
        GLOBAL_VAR(sync_binlog_period), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(1), BLOCK_SIZE(1));
 
 static Sys_var_uint Sys_sync_masterinfo_period(
        "sync_master_info", "Synchronously flush master info to disk "
@@ -5394,9 +5417,9 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   }
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-  sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
+  sql_print_information(ER_DEFAULT(ER_GTID_PURGED_WAS_CHANGED),
                         previous_gtid_lost, current_gtid_lost);
-  sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
+  sql_print_information(ER_DEFAULT(ER_GTID_EXECUTED_WAS_CHANGED),
                         previous_gtid_executed, current_gtid_executed);
 
   // Rotate logs to have Previous_gtid_event on last binlog.

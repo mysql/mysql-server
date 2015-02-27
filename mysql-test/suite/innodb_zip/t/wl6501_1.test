@@ -26,8 +26,6 @@
 let $MYSQL_DATA_DIR= `select @@datadir`;
 let $data_directory = data directory='$MYSQL_TMP_DIR/alt_dir';
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-let $innodb_file_format_orig=`select @@innodb_file_format`;
-let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 
 call mtr.add_suppression("InnoDB.*table did not exist in the InnoDB data dictionary.*");
 call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds.*");
@@ -77,8 +75,6 @@ while ($cnt) {
 			index (c2))
 		engine=innodb row_format=compact;
 
-
-	set global innodb_file_format='Barracuda';
 
 	# with row type , key block size = 4K
 	create table t3(c1 int not null,
@@ -447,8 +443,6 @@ while ($cnt) {
 	dec $cnt;
 
 	--disable_query_log
-	eval set global innodb_file_format=$innodb_file_format_orig;
-	eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 	eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 	--enable_query_log
 }

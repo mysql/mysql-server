@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -114,16 +114,14 @@ UNIV_INLINE
 void
 ibuf_mtr_start(
 /*===========*/
-	mtr_t*	mtr)	/*!< out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*	mtr);	/*!< out: mini-transaction */
 /***************************************************************//**
 Commits an insert buffer mini-transaction. */
 UNIV_INLINE
 void
 ibuf_mtr_commit(
 /*============*/
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*	mtr);	/*!< in/out: mini-transaction */
 /*********************************************************************//**
 Initializes an ibuf bitmap page. */
 void
@@ -426,7 +424,7 @@ ibuf_check_bitmap_on_import(
 /*========================*/
 	const trx_t*	trx,		/*!< in: transaction */
 	ulint		space_id)	/*!< in: tablespace identifier */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page

@@ -119,6 +119,8 @@ void test_bootstrap()
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 0;
   param.m_metadata_lock_sizing= 0;
+  param.m_max_digest_length= 0;
+  param.m_max_sql_text_length= 0;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache       = 100;
@@ -190,6 +192,8 @@ PSI * load_perfschema()
   param.m_statement_stack_sizing= 10;
   param.m_memory_class_sizing= 10;
   param.m_metadata_lock_sizing= 10;
+  param.m_max_digest_length= 0;
+  param.m_max_sql_text_length= 1000;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache       = 100;
@@ -1578,6 +1582,8 @@ void test_event_name_index()
   param.m_statement_stack_sizing= 10;
   param.m_memory_class_sizing= 12;
   param.m_metadata_lock_sizing= 10;
+  param.m_max_digest_length= 0;
+  param.m_max_sql_text_length= 1000;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
@@ -1824,6 +1830,8 @@ void test_leaks()
   param.m_digest_sizing= 1000;
   param.m_program_sizing= 1000;
   param.m_statement_stack_sizing= 10;
+  param.m_max_digest_length= 1000;
+  param.m_max_sql_text_length= 1000;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache       = 100;

@@ -24,6 +24,7 @@
 #include "sql_authentication.h"
 #include "sql_time.h"
 #include "sql_plugin.h"                         // lock_plugin_data etc.
+#include "psi_memory_key.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -766,23 +767,26 @@ find_acl_user(const char *host, const char *user, my_bool exact)
 
   mysql_mutex_assert_owner(&acl_cache->lock);
 
-  for (ACL_USER *acl_user= acl_users->begin();
-       acl_user != acl_users->end(); ++acl_user)
+  if (likely(acl_users))
   {
-    DBUG_PRINT("info",("strcmp('%s','%s'), compare_hostname('%s','%s'),",
-                       user, acl_user->user ? acl_user->user : "",
-                       host,
-                       acl_user->host.get_host() ? acl_user->host.get_host() :
-                       ""));
-    if ((!acl_user->user && !user[0]) ||
-        (acl_user->user && !strcmp(user,acl_user->user)))
+    for (ACL_USER *acl_user= acl_users->begin();
+         acl_user != acl_users->end(); ++acl_user)
     {
-      if (exact ? !my_strcasecmp(system_charset_info, host,
-                                 acl_user->host.get_host() ?
-                                 acl_user->host.get_host() : "") :
-          acl_user->host.compare_hostname(host,host))
+      DBUG_PRINT("info",("strcmp('%s','%s'), compare_hostname('%s','%s'),",
+                         user, acl_user->user ? acl_user->user : "",
+                         host,
+                         acl_user->host.get_host() ? acl_user->host.get_host() :
+                         ""));
+      if ((!acl_user->user && !user[0]) ||
+          (acl_user->user && !strcmp(user,acl_user->user)))
       {
-        DBUG_RETURN(acl_user);
+        if (exact ? !my_strcasecmp(system_charset_info, host,
+                                   acl_user->host.get_host() ?
+                                   acl_user->host.get_host() : "") :
+            acl_user->host.compare_hostname(host,host))
+        {
+          DBUG_RETURN(acl_user);
+        }
       }
     }
   }
@@ -1457,6 +1461,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
     if(user.auth_string.str)
       user.auth_string.length= strlen(user.auth_string.str);
+    else
+      user.auth_string= EMPTY_STR;
 
     {
       uint next_field;
@@ -1851,11 +1857,11 @@ void acl_free(bool end)
   delete acl_proxy_users;
   acl_proxy_users= NULL;
   my_hash_free(&acl_check_hosts);
-  plugin_unlock(0, native_password_plugin);
   if (!end)
     acl_cache->clear(1); /* purecov: inspected */
   else
   {
+    plugin_unlock(0, native_password_plugin);
     delete acl_cache;
     acl_cache=0;
   }
@@ -1917,6 +1923,7 @@ my_bool acl_reload(THD *thd)
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message_text());
     }
+    acl_free();
     close_acl_tables(thd);
     DBUG_RETURN(true);
   }
@@ -2286,7 +2293,11 @@ static my_bool grant_reload_procs_priv(THD *thd)
   table.open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, &table, MYSQL_LOCK_IGNORE_TIMEOUT))
+  {
+    my_hash_free(&proc_priv_hash);
+    my_hash_free(&func_priv_hash);
     DBUG_RETURN(TRUE);
+  }
 
   mysql_rwlock_wrlock(&LOCK_grant);
   /* Save a copy of the current hash if we need to undo the grant load */
@@ -2353,7 +2364,10 @@ my_bool grant_reload(THD *thd)
     obtaining LOCK_grant rwlock.
   */
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
+  {
+    my_hash_free(&column_priv_hash);
     goto end;
+  }
 
   mysql_rwlock_wrlock(&LOCK_grant);
   old_column_priv_hash= column_priv_hash;

@@ -319,7 +319,7 @@ DECLARE_THREAD(io_handler_thread)(
 /*********************************************************************//**
 Creates a log file.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 create_log_file(
 /*============*/
@@ -512,7 +512,7 @@ create_log_files_rename(
 /*********************************************************************//**
 Opens a log file.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 open_log_file(
 /*==========*/
@@ -2176,15 +2176,23 @@ files_checked:
 
 		recv_recovery_from_checkpoint_finish();
 
+		/* Fix-up truncate of tables in the system tablespace
+		if server crashed while truncate was active. The non-
+		system tables are done after tablespace discovery. Do
+		this now because this procedure assumes that no pages
+		have changed since redo recovery.  Tablespace discovery
+		can do updates to pages in the system tablespace.*/
+		err = truncate_t::fixup_tables_in_system_tablespace();
+
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
 			/* Open or Create SYS_TABLESPACES and SYS_DATAFILES
 			so that tablespace names and other metadata can be
 			found. */
+			srv_sys_tablespaces_open = true;
 			err = dict_create_or_check_sys_tablespace();
 			if (err != DB_SUCCESS) {
 				return(srv_init_abort(err));
 			}
-			srv_sys_tablespaces_open = true;
 
 			/* The following call is necessary for the insert
 			buffer to work with multiple tablespaces. We must
@@ -2216,7 +2224,7 @@ files_checked:
 
 		/* Fix-up truncate of table if server crashed while truncate
 		was active. */
-		err = truncate_t::fixup_tables();
+		err = truncate_t::fixup_tables_in_non_system_tablespace();
 
 		if (err != DB_SUCCESS) {
 			return(srv_init_abort(err));

@@ -26,7 +26,7 @@
 #include "thr_lock.h"          // thr_lock_type
 #include "discrete_interval.h" // Discrete_interval
 #include "key.h"               // KEY
-#include "mysqld.h"            // lower_case_table_names
+#include "mysqld.h"            // key_map
 #include "sql_const.h"         // SHOW_COMP_OPTION
 #include "sql_list.h"          // SQL_I_List
 #include "sql_plugin_ref.h"    // plugin_ref
@@ -3852,10 +3852,7 @@ const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
 
-inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
-{
-  return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
-}
+const char *table_case_name(HA_CREATE_INFO *info, const char *name);
 
 void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag);

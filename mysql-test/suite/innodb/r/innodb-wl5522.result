@@ -3,10 +3,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 CREATE TABLE t1
 (a INT AUTO_INCREMENT PRIMARY KEY,
 b char(22),
@@ -106,10 +102,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 CREATE TABLE t1(
 c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT) ENGINE=InnoDB;
@@ -1028,5 +1020,4 @@ c1	c2
 42	1
 43	1
 DROP TABLE t1;
-SET GLOBAL INNODB_FILE_FORMAT=Antelope;
 SET GLOBAL INNODB_FILE_PER_TABLE=1;

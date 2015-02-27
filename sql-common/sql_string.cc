@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +29,9 @@ using std::min;
 using std::max;
 
 #ifdef MYSQL_SERVER
+extern "C" {
 PSI_memory_key key_memory_String_value;
+}
 #endif
 
 /*****************************************************************************
@@ -860,6 +862,11 @@ String *copy_if_not_alloced(String *to,String *from, size_t from_length)
   }
   if (to->mem_realloc(from_length, true))
     return from;				// Actually an error
+
+  // from and to should not be overlapping
+  DBUG_ASSERT(!to->uses_buffer_owned_by(from));
+  DBUG_ASSERT(!from->uses_buffer_owned_by(to));
+
   if ((to->m_length= min(from->m_length, from_length)))
     memcpy(to->m_ptr, from->m_ptr, to->m_length);
   to->m_charset=from->m_charset;

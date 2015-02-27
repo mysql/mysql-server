@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -70,8 +70,7 @@ UNIV_INLINE
 btr_search_t*
 btr_search_get_info(
 /*================*/
-	dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull));
+	dict_index_t*	index);	/*!< in: index */
 /*****************************************************************//**
 Creates and initializes a search info struct.
 @return own: search info struct */

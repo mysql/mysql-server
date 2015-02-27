@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -286,10 +286,15 @@ public:
 
 	/**
 	Fix the table truncate by applying information parsed from TRUNCATE log.
-	Fix-up includes re-creating table (drop and re-create
-	indexes) and for single-tablespace re-creating tablespace.
+	Fix-up includes re-creating table (drop and re-create indexes) 
 	@return	error code or DB_SUCCESS */
-	static dberr_t fixup_tables();
+	static dberr_t fixup_tables_in_system_tablespace();
+
+	/**
+	Fix the table truncate by applying information parsed from TRUNCATE log.
+	Fix-up includes re-creating tablespace.
+	@return	error code or DB_SUCCESS */
+	static dberr_t fixup_tables_in_non_system_tablespace();
 
 	/**
 	Check whether a tablespace was truncated during recovery

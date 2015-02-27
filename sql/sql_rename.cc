@@ -27,7 +27,6 @@
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "datadict.h"
 #include "log.h"
-#include "current_thd.h"
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);
@@ -55,8 +54,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
   {
-    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     DBUG_RETURN(1);
   }
 

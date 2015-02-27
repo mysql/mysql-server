@@ -424,6 +424,7 @@ innodb_initialize(
 	UT_LIST_INIT(innodb_eng->conn_data);
 	pthread_mutex_init(&innodb_eng->conn_mutex, NULL);
 	pthread_mutex_init(&innodb_eng->cas_mutex, NULL);
+	pthread_mutex_init(&innodb_eng->flush_mutex, NULL);
 
 	/* Fetch InnoDB specific settings */
 	innodb_eng->meta_info = innodb_config(
@@ -684,6 +685,7 @@ innodb_destroy(
 
 	pthread_mutex_destroy(&innodb_eng->conn_mutex);
 	pthread_mutex_destroy(&innodb_eng->cas_mutex);
+	pthread_mutex_destroy(&innodb_eng->flush_mutex);
 
 	if (innodb_eng->default_engine) {
 		def_eng->engine.destroy(innodb_eng->default_engine, force);
@@ -771,6 +773,8 @@ innodb_conn_init(
 		conn_data->cmd_buf = malloc(1024);
 		conn_data->cmd_buf_len = 1024;
 
+		conn_data->is_flushing = false;
+
 		pthread_mutex_init(&conn_data->curr_conn_mutex, NULL);
 		UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
 	}
@@ -785,6 +789,15 @@ have_conn:
 	}
 
 	LOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
+
+	/* If flush is running, then wait for it complete. */
+	if (conn_data->is_flushing) {
+		/* Request flush_mutex for waiting for flush
+		completed. */
+		pthread_mutex_lock(&engine->flush_mutex);
+		pthread_mutex_unlock(&engine->flush_mutex);
+	}
+
 	conn_data->in_use = true;
 
 	crsr = conn_data->crsr;
@@ -1985,14 +1998,16 @@ connections if "clear_all" is true.
 @return number of connection cleaned */
 static
 bool
-innodb_flush_clean_conn(
-/*====================*/
+innodb_flush_sync_conn(
+/*===================*/
 	innodb_engine_t*	engine,		/*!< in/out: InnoDB memcached
 						engine */
-	const void*		cookie)		/*!< in: connection cookie */
+	const void*		cookie,		/*!< in: connection cookie */
+	bool			flush_flag)	/*!< in: flush is running or not */
 {
 	innodb_conn_data_t*	conn_data = NULL;
 	innodb_conn_data_t*	curr_conn_data;
+	bool			ret = true;
 
 	curr_conn_data = engine->server.cookie->get_engine_specific(cookie);
 	assert(curr_conn_data);
@@ -2002,11 +2017,26 @@ innodb_flush_clean_conn(
 
 	while (conn_data) {
 		if (conn_data != curr_conn_data && (!conn_data->is_stale)) {
-			if (curr_conn_data->thd) {
+			if (conn_data->thd) {
 				handler_thd_attach(conn_data->thd, NULL);
 			}
-			innodb_reset_conn(conn_data, false, true,
-					  engine->enable_binlog);
+			LOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
+			if (flush_flag == false) {
+				conn_data->is_flushing = flush_flag;
+				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
+				conn_data = UT_LIST_GET_NEXT(conn_list, conn_data);
+				continue;
+			}
+			if (!conn_data->in_use) {
+				/* Set flushing flag to conn_data for preventing
+				it is get by other request.  */
+				conn_data->is_flushing = flush_flag;
+				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
+			} else {
+				ret = false;
+				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
+				break;
+			}
 		}
 		conn_data = UT_LIST_GET_NEXT(conn_list, conn_data);
 	}
@@ -2014,7 +2044,8 @@ innodb_flush_clean_conn(
 	if (curr_conn_data->thd) {
 		handler_thd_attach(curr_conn_data->thd, NULL);
 	}
-	return(true);
+
+	return(ret);
 }
 
 /*******************************************************************//**
@@ -2055,6 +2086,9 @@ innodb_flush(
 	new opeartion */
         pthread_mutex_lock(&innodb_eng->conn_mutex);
 
+	/* Lock the flush_mutex for blocking other DMLs. */
+	pthread_mutex_lock(&innodb_eng->flush_mutex);
+
 	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
 
 	if (conn_data) {
@@ -2067,20 +2101,33 @@ innodb_flush(
 				     IB_LOCK_TABLE_X, true, NULL);
 
 	if (!conn_data) {
+		pthread_mutex_unlock(&innodb_eng->flush_mutex);
 		pthread_mutex_unlock(&innodb_eng->conn_mutex);
 		return(ENGINE_SUCCESS);
 	}
 
-	innodb_flush_clean_conn(innodb_eng, cookie);
-
+	/* Commit any previous work on this connection */
 	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_FLUSH, true);
-	meta_info = conn_data->conn_meta;
+
+	if (!innodb_flush_sync_conn(innodb_eng, cookie, true)) {
+		pthread_mutex_unlock(&innodb_eng->flush_mutex);
+		pthread_mutex_unlock(&innodb_eng->conn_mutex);
+		innodb_flush_sync_conn(innodb_eng, cookie, false);
+		return(ENGINE_TMPFAIL);
+	}
 
 	ib_err = innodb_api_flush(innodb_eng, conn_data,
 				  meta_info->col_info[CONTAINER_DB].col_name,
 			          meta_info->col_info[CONTAINER_TABLE].col_name);
 
+	/* Commit work and release the MDL table. */
+	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_FLUSH, true);
+	innodb_conn_clean_data(conn_data, false, false);
+
+        pthread_mutex_unlock(&innodb_eng->flush_mutex);
         pthread_mutex_unlock(&innodb_eng->conn_mutex);
+
+	innodb_flush_sync_conn(innodb_eng, cookie, false);
 
 	return((ib_err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_TMPFAIL);
 }

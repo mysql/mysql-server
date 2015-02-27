@@ -94,8 +94,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
 {
   if (!thd->lex->allow_sum_func)
   {
-    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
-               MYF(0));
+    my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return TRUE;
   }
   /* Set a reference to the nesting set function if there is  any */
@@ -214,8 +213,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     invalid= aggr_level <= max_sum_func_level;
   if (invalid)  
   {
-    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
-               MYF(0));
+    my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return TRUE;
   }
 
@@ -3152,14 +3150,15 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
                                     const void* key2)
 {
   const Item_func_group_concat* grp_item= (Item_func_group_concat*) arg;
-  ORDER **order_item, **end;
+  const ORDER *order_item, *end;
   TABLE *table= grp_item->table;
 
-  for (order_item= grp_item->order, end=order_item+ grp_item->arg_count_order;
+  for (order_item= grp_item->order_array.begin(),
+         end= grp_item->order_array.end();
        order_item < end;
        order_item++)
   {
-    Item *item= *(*order_item)->item;
+    Item *item= *(order_item)->item;
     /*
       If item is a const item then either get_tmp_table_field returns 0
       or it is an item over a const table.
@@ -3179,7 +3178,7 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
                   table->s->null_bytes);
     int res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset);
     if (res)
-      return ((*order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
+      return ((order_item)->direction == ORDER::ORDER_ASC) ? res : -res;
   }
   /*
     We can't return 0 because in that case the tree class would remove this
@@ -3266,7 +3265,8 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
     result->length(old_length + add_length);
     item->warning_for_row= TRUE;
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
+                        ER_CUT_VALUE_GROUP_CONCAT,
+                        ER_THD(current_thd, ER_CUT_VALUE_GROUP_CONCAT),
                         item->row_count);
 
     /**
@@ -3295,7 +3295,7 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
                        String *separator_arg)
   :super(pos), tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
-   order(0),
+   order_array(*my_thread_get_THR_MALLOC()),
    arg_count_order(opt_order_list ? opt_order_list->value.elements : 0),
    arg_count_field(select_list->elements()),
    row_count(0),
@@ -3309,14 +3309,7 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
   quick_group= FALSE;
   arg_count= arg_count_field + arg_count_order;
 
-  /*
-    We need to allocate:
-    args - arg_count_field+arg_count_order
-           (for possible order items in temporare tables)
-    order - arg_count_order
-  */
-  if (!(args= (Item**) sql_alloc(sizeof(Item*) * arg_count +
-                                 sizeof(ORDER*)*arg_count_order)))
+  if (!(args= (Item**) sql_alloc(sizeof(Item*) * arg_count)))
     return;
 
   if (!(orig_args= (Item **) sql_alloc(sizeof(Item *) * arg_count)))
@@ -3325,7 +3318,8 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
     return;
   }
 
-  order= (ORDER**)(args + arg_count);
+  if (order_array.reserve(arg_count_order))
+    return;
 
   /* fill args items of show and sort */
   List_iterator_fast<Item> li(select_list->value);
@@ -3335,15 +3329,16 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
 
   if (arg_count_order)
   {
-    ORDER **order_ptr= order;
     for (ORDER *order_item= opt_order_list->value.first;
          order_item != NULL;
          order_item= order_item->next)
     {
-      (*order_ptr++)= order_item;
+      order_array.push_back(*order_item);
       *arg_ptr= *order_item->item;
-      order_item->item= arg_ptr++;
+      order_array.back().item= arg_ptr++;
     }
+    for (ORDER *ord= order_array.begin(); ord < order_array.end(); ++ord)
+      ord->next= ord != &order_array.back() ? ord + 1 : NULL;
   }
 }
 
@@ -3368,6 +3363,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tree(item->tree),
   unique_filter(item->unique_filter),
   table(item->table),
+  order_array(thd->mem_root),
   context(item->context),
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
@@ -3388,13 +3384,10 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
     such modifications done in this object would not have any effect on the
     object being copied.
   */
-  ORDER *tmp;
-  const size_t order_array_sz= ALIGN_SIZE(sizeof(ORDER *) * arg_count_order);
-  if (!(order= (ORDER **) thd->alloc(order_array_sz +
-                                     sizeof(ORDER) * arg_count_order)))
+  if (order_array.reserve(arg_count_order))
     return;
-  tmp= (ORDER *)((uchar*)order + order_array_sz);
-  for (uint i= 0; i < arg_count_order; i++, tmp++)
+
+  for (uint i= 0; i < arg_count_order; i++)
   {
     /*
       Compiler generated copy constructor is used to
@@ -3402,9 +3395,12 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
       It's also necessary to update ORDER::next pointer
       so that it points to new ORDER element.
     */
-    new (tmp) st_order(*(item->order[i])); 
-    tmp->next= (i + 1 == arg_count_order) ? NULL : (tmp + 1);
-    order[i]= tmp;
+    order_array.push_back(item->order_array[i]);
+  }
+  if (arg_count_order)
+  {
+    for (ORDER *ord= order_array.begin(); ord < order_array.end(); ++ord)
+      ord->next= ord != &order_array.back() ? ord + 1 : NULL;
   }
 }
 
@@ -3442,6 +3438,17 @@ void Item_func_group_concat::cleanup()
       }
     }
     DBUG_ASSERT(tree == 0);
+  }
+  /*
+   As the ORDER structures pointed to by the elements of the
+   'order' array may be modified in find_order_in_list() called
+   from Item_func_group_concat::setup() to point to runtime
+   created objects, we need to reset them back to the original
+   arguments of the function.
+   */
+  for (uint i= 0; i < arg_count_order; i++)
+  {
+    order_array[i].item= &args[arg_count_field + i];
   }
   DBUG_VOID_RETURN;
 }
@@ -3660,7 +3667,7 @@ bool Item_func_group_concat::setup(THD *thd)
   */
   if (arg_count_order &&
       setup_order(thd, Ref_ptr_array(args, arg_count),
-                  context->table_list, list, all_fields, *order))
+                  context->table_list, list, all_fields, order_array.begin()))
     DBUG_RETURN(TRUE);
 
   count_field_types(select_lex, tmp_table_param, all_fields, false, true);
@@ -3764,7 +3771,8 @@ String* Item_func_group_concat::val_str(String* str)
   {
     warning_for_row= true;
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
+                        ER_CUT_VALUE_GROUP_CONCAT,
+                        ER_THD(current_thd, ER_CUT_VALUE_GROUP_CONCAT),
                         row_count);
   }
 
@@ -3791,7 +3799,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
       if (i)
         str->append(',');
       orig_args[i + arg_count_field]->print(str, query_type);
-      if (order[i]->direction == ORDER::ORDER_ASC)
+      if (order_array[i].direction == ORDER::ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else
         str->append(STRING_WITH_LEN(" DESC"));

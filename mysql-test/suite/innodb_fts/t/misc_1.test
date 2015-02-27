@@ -5,9 +5,6 @@
 #------------------------------------------------------------------------------
 # FTS with FK and update cascade
 #-------------------------------------------------------------------------------
---disable_warnings
-drop table if exists t2,t1;
---enable_warnings
 set names utf8;
 
 call mtr.add_suppression("\\[Warning\\] InnoDB: A new Doc ID must be supplied while updating FTS indexed columns.");
@@ -222,11 +219,7 @@ DROP TABLE t2 , t1;
 #------------------------------------------------------------------------------
 # FTS with FK+transactions and UPDATE casecade with transaction
 #-------------------------------------------------------------------------------
---disable_warnings
-DROP TABLE IF EXISTS t2,t1;
---enable_warnings
 
-SET NAMES utf8;
 call mtr.add_suppression("\\[ERROR\\] InnoDB: FTS Doc ID must be larger than 3 for table `test`.`t2`");
 
 # Create FTS table
@@ -437,15 +430,9 @@ DROP TABLE t2 , t1;
 #------------------------------------------------------------------------------
 
 # Save innodb variables
-let $innodb_file_format_orig=`select @@innodb_file_format`;
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-let $innodb_large_prefix_orig=`select @@innodb_large_prefix`;
 
-# Set Innodb file format as feature works for Barracuda file format
-set global innodb_file_format="Barracuda";
 set global innodb_file_per_table=1;
-set global innodb_large_prefix=1;
-set names utf8;
 
 # Create FTS table
 CREATE TABLE t1 (
@@ -594,14 +581,11 @@ SELECT * FROM t1 WHERE MATCH (a,b)
 SELECT * FROM t1 ORDER BY id;
 
 DROP TABLE t1;
-eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
-eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;
 
 #------------------------------------------------------------------------------
 # FTS index with utf8 character testcase
 #------------------------------------------------------------------------------
-set names utf8;
 
 # Create FTS table
 EVAL CREATE TABLE t1 (

@@ -77,8 +77,8 @@
 #include "lock.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_parse.h"                     // is_log_table_write_query
+#include "psi_memory_key.h"
 #include "auth_common.h"                   // SUPER_ACL
-#include "current_thd.h"
 #include <hash.h>
 #include <assert.h>
 

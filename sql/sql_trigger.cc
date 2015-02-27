@@ -19,7 +19,6 @@
 #include "sql_trigger.h"
 
 #include "auth_common.h"              // check_table_access
-#include "current_thd.h"
 #include "sp.h"                       // sp_add_to_query_tables()
 #include "sql_base.h"                 // find_temporary_table()
 #include "sql_table.h"                // build_table_filename()
@@ -353,7 +352,8 @@ bool add_table_for_trigger(THD *thd,
     if (continue_if_not_exist)
     {
       push_warning(thd, Sql_condition::SL_NOTE,
-                   ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST));
+                   ER_TRG_DOES_NOT_EXIST,
+                   ER_THD(thd, ER_TRG_DOES_NOT_EXIST));
 
       *table= NULL;
 
