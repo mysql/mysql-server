@@ -995,9 +995,17 @@ Alternatives are: 'TCP','SOCKET','PIPE','MEMORY'
 #
 # Bug #19011337: UPGRADE TO 5.7 DISABLES USER ACCOUNTS
 #
-CREATE USER B19011337@localhost IDENTIFIED BY 'test';
-GRANT ALL PRIVILEGES on *.* TO B19011337@localhost;
-UPDATE mysql.user SET plugin='' WHERE user='B19011337';
+CREATE TABLE backup_user AS SELECT * FROM mysql.user;
+ALTER TABLE mysql.user ADD COLUMN Password
+char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
+AFTER user;
+ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT 'mysql_native_password';
+ALTER TABLE mysql.user DROP COLUMN password_last_changed;
+ALTER TABLE mysql.user DROP COLUMN password_lifetime;
+ALTER TABLE mysql.user DROP COLUMN account_locked;
+INSERT INTO mysql.user VALUES
+('localhost','B19011337_nhash','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N'),
+('localhost','B19011337_ohash','0f0ea7602c473904','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N');
 call mtr.add_suppression("Some of the user accounts with SUPER");
 call mtr.add_suppression("1. Stop");
 call mtr.add_suppression("2. Run");
@@ -1009,6 +1017,7 @@ FLUSH PRIVILEGES;
 # let's check for the presense of the warning
 # end of check for the presense of the warning
 # repair the user's plugin
+mysql_upgrade: [Warning] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
@@ -1042,13 +1051,21 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-# expect non-empty
-SELECT LENGTH(plugin) <> 0 FROM mysql.user WHERE user='B19011337';
-LENGTH(plugin) <> 0
-1
+test.backup_user                                   OK
+# expect mysql_native_password
+SELECT plugin FROM mysql.user WHERE user='B19011337_nhash';
+plugin
+mysql_native_password
+# expect empty plugin
+SELECT plugin FROM mysql.user WHERE user='B19011337_ohash';
+plugin
+
 # cleanup
-REVOKE ALL PRIVILEGES ON *.* FROM B19011337@localhost;
-DROP USER B19011337@localhost;
+DROP USER B19011337_nhash@localhost;
+DROP USER B19011337_ohash@localhost;
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user SELECT * FROM backup_user;
+DROP TABLE backup_user;
 #
 # BUG#18985579: "CHECK TABLE .. FOR UPGRADE" FAILS TO REPORT
 #                OLD DATETIME FORMAT. 
@@ -1201,6 +1218,8 @@ INSERT INTO mysql.user VALUES
 ('%','user_nat_pass_pn','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,NULL,'','N'),
 ('%','user_nat_pass_wp','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','','N');
 FLUSH PRIVILEGES;
+# check the presents of the warnings in the log file
+# end of check for the presense of the warning
 #Connect using root account - should succeed
 #Connecting user with pre 4.1 hash and empty plugin- should fail
 connect(localhost,user_old_pass_pn,lala,test,MASTER_PORT,MASTER_SOCKET);
@@ -1298,6 +1317,10 @@ mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 test.backup_user                                   OK
+call mtr.add_suppression("User entry 'user_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+call mtr.add_suppression("User entry 'su_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+# check the presents of the warnings in the log file
+# end of check for the presense of the warning
 #Restart the server
 # restart
 #After the update all acl commands should be working fine. Trying out
@@ -1335,6 +1358,71 @@ DROP USER 'su_old_pass_pn'@'%';
 DROP USER 'user_old_pass_wp'@'%';
 DROP USER 'user_nat_pass_pn'@'%';
 DROP USER 'user_nat_pass_wp'@'%';
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user SELECT * FROM backup_user;
+DROP TABLE backup_user;
+#
+# BUG#20614545: USERS WITH OLD-PASSWORD=1 CHANGED TO
+# MYSQL_NATIVE_PASSWORD AFTER UPGRADE
+#
+CREATE TABLE backup_user AS SELECT * FROM mysql.user;
+ALTER TABLE mysql.user ADD COLUMN Password
+char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
+AFTER user;
+ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT 'mysql_native_password';
+ALTER TABLE mysql.user DROP COLUMN password_last_changed;
+ALTER TABLE mysql.user DROP COLUMN password_lifetime;
+ALTER TABLE mysql.user DROP COLUMN account_locked;
+INSERT INTO mysql.user VALUES
+('localhost','B20614545','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'','','N');
+FLUSH PRIVILEGES;
+# check the presents of the warnings in the log file
+# end of check for the presense of the warning
+mysql_upgrade: [Warning] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+test.backup_user                                   OK
+call mtr.add_suppression("User entry 'B20614545'@'localhost' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
+# check the presents of the warnings in the log file
+# end of check for the presense of the warning
+#Restart the server
+# restart
+# expect empty plugin
+SELECT plugin FROM mysql.user WHERE user='B20614545';
+plugin
+
+DROP USER B20614545@localhost;
 TRUNCATE TABLE mysql.user;
 INSERT INTO mysql.user SELECT * FROM backup_user;
 DROP TABLE backup_user;
