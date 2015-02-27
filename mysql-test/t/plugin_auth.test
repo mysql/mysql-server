@@ -137,6 +137,16 @@ DROP DATABASE test_grant_db;
 
 --echo ## GRANT PROXY tests
 
+# Test effect of variabled on the plugin tested here (WL#7724).
+SELECT @@global.check_proxy_users;
+SELECT @@global.mysql_native_password_proxy_users;
+SELECT @@global.sha256_password_proxy_users;
+
+SET @@global.check_proxy_users=ON;
+SET @@global.mysql_native_password_proxy_users=ON;
+SET @@global.sha256_password_proxy_users=ON;
+
+
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
   AS 'grant_plug_dest';
 CREATE USER grant_plug_dest IDENTIFIED BY 'grant_plug_dest_passwd';
@@ -276,6 +286,10 @@ SELECT @@LOCAL.proxy_user;
 connection default;
 --echo # in connection default
 disconnect plug_con;
+
+SET @@global.check_proxy_users=0;
+SET @@global.mysql_native_password_proxy_users=0;
+SET @@global.sha256_password_proxy_users=0;
 
 --echo ## cleanup
 DROP USER plug;
