@@ -505,6 +505,12 @@ dict_table_close(
 
 	--table->n_ref_count;
 
+	/* Intrinsic table is not added to dictionary cache so skip other
+	cache specific actions. */
+	if (dict_table_is_intrinsic(table)) {
+		return;
+	}
+
 	/* Force persistent stats re-read upon next open of the table
 	so that FLUSH TABLE can be used to forcibly fetch stats from disk
 	if they have been manually modified. We reset table->stat_initialized
@@ -518,12 +524,6 @@ dict_table_close(
 	}
 
 	MONITOR_DEC(MONITOR_TABLE_REFERENCE);
-
-	/* Intrinsic table is not added to dictionary table list
-	so skip the next section that try to do that. */
-	if (dict_table_is_intrinsic(table)) {
-		return;
-	}
 
 	ut_ad(dict_lru_validate());
 
