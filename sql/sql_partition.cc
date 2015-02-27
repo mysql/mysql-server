@@ -290,8 +290,7 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
       part_info->num_subparts= num_parts / part_info->num_parts;
     }
   }
-  part_info->set_up_defaults_for_partitioning(
-               table->file->get_partition_handler(), NULL, 0U);
+  part_info->set_up_defaults_for_partitioning(part_handler, NULL, 0U);
   DBUG_RETURN(FALSE);
 }
 

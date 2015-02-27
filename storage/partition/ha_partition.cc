@@ -2047,6 +2047,7 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
   enum legacy_db_type db_type, first_db_type;
 
   DBUG_ASSERT(!m_file);
+  DBUG_ASSERT(!m_engine_array);
   DBUG_ENTER("ha_partition::setup_engine_array");
 
   buff= (uchar *) (m_file_buffer + PAR_ENGINES_OFFSET);
