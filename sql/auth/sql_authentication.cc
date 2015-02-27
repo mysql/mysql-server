@@ -1995,6 +1995,43 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
 }
 
 /**
+Logging connection for the general query log, extracted from
+acl_authenticate() as it's reused at different times based on
+whether proxy users are checked.
+
+@param user                    authentication user name
+@param host                    authentication user host or IP address
+@param auth_as                 privilege user name
+@param db                      default database
+@param thd                     thread handle
+@param command                 type of command(connect or change user)
+*/
+void
+acl_log_connect(const char *user,
+const char *host,
+const char *auth_as,
+const char *db,
+THD *thd,
+enum enum_server_command command)
+{
+  if (strcmp(auth_as, user) && (PROXY_FLAG != *auth_as))
+  {
+    query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
+      user,
+      host,
+      auth_as,
+      db ? db : (char*) "");
+  }
+  else
+  {
+    query_logger.general_log_print(thd, command, (char*) "%s@%s on %s",
+      user,
+      host,
+      db ? db : (char*) "");
+  }
+}
+
+/**
   Perform the handshake, authorize the client and update thd sctx variables.
 
   @param thd                     thread handle
@@ -2090,32 +2127,31 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
 
   Security_context *sctx= thd->security_context();
   const ACL_USER *acl_user= mpvio.acl_user;
+  bool proxy_check= check_proxy_users && !*mpvio.auth_info.authenticated_as;
 
+  DBUG_PRINT("info", ("proxy_check=%s", proxy_check ? "true" : "false"));
+ 
   thd->password= mpvio.auth_info.password_used;  // remember for error messages 
 
+  // reset authenticated_as because flag value received, but server
+  // proxy mapping is disabled:
+  if ((!check_proxy_users) && acl_user && !*mpvio.auth_info.authenticated_as)
+  {
+    DBUG_PRINT("info", ("setting authenticated_as to %s as check_proxy_user is OFF.",
+      mpvio.auth_info.user_name));
+    strcpy(mpvio.auth_info.authenticated_as, acl_user->user ? acl_user->user : "");
+  }
   /*
     Log the command here so that the user can check the log
     for the tried logins and also to detect break-in attempts.
 
     if sctx->user is unset it's protocol failure, bad packet.
   */
-  if (mpvio.auth_info.user_name)
+  if (mpvio.auth_info.user_name && !proxy_check)
   {
-    if (strcmp(mpvio.auth_info.authenticated_as, mpvio.auth_info.user_name))
-    {
-      query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
-                                     mpvio.auth_info.user_name,
-                                     mpvio.auth_info.host_or_ip,
-                                     mpvio.auth_info.authenticated_as,
-                                     mpvio.db.str ? mpvio.db.str : (char*) "");
-    }
-    else
-      query_logger.general_log_print(thd, command, (char*) "%s@%s on %s",
-                                     mpvio.auth_info.user_name,
-                                     mpvio.auth_info.host_or_ip,
-                                     mpvio.db.str ? mpvio.db.str : (char*) "");
+	  acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
+		  mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
   }
-
   if (!mpvio.can_authenticate() && res == CR_OK)
   {
     res= CR_ERROR;
@@ -2143,6 +2179,11 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
       break;
     }
     inc_host_errors(mpvio.ip, &errors);
+	if (mpvio.auth_info.user_name && proxy_check)
+    {
+      acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
+        mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
+    }
     if (!thd->is_error())
       login_failed_error(&mpvio, mpvio.auth_info.password_used);
     DBUG_RETURN (1);
@@ -2160,11 +2201,17 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
     /* check if the user is allowed to proxy as another user */
     {
       Read_lock rlk_guard(&proxy_users_rwlock);
-      proxy_user = acl_find_proxy_user(auth_user, sctx->host().str,
+      proxy_user= acl_find_proxy_user(auth_user, sctx->host().str,
                                        sctx->ip().str,
                                        mpvio.auth_info.authenticated_as,
                                        &is_proxy_user);
     }
+	if (mpvio.auth_info.user_name && proxy_check)
+    {
+      acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
+        mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
+    }
+
     if (is_proxy_user)
     {
       ACL_USER *acl_proxy_user;
@@ -2572,7 +2619,11 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                     pkt_len= 12;
                   }
                   );
-
+  if (mysql_native_password_proxy_users)
+  {
+    *info->authenticated_as= PROXY_FLAG;
+	DBUG_PRINT("info", ("mysql_native_authentication_proxy_users is enabled, setting authenticated_as to NULL"));
+  }
   if (pkt_len == 0) /* no password */
     DBUG_RETURN(mpvio->acl_user->salt_len != 0 ? CR_AUTH_USER_CREDENTIALS : CR_OK);
 
@@ -2746,8 +2797,16 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
       Send OK signal; the authentication might still be rejected based on
       host mask.
     */
-    if (info->auth_string_length == 0)
+	if (info->auth_string_length == 0)
+	{
+      if (sha256_password_proxy_users)
+      {
+        *info->authenticated_as = PROXY_FLAG;
+        DBUG_PRINT("info", ("sha256_password_proxy_users is enabled \
+                             , setting authenticated_as to NULL"));
+      }
       DBUG_RETURN(CR_OK);
+    }
     else
       DBUG_RETURN(CR_ERROR);
   }
@@ -2860,7 +2919,15 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
                      info->auth_string_length);
 
   if (result == 0)
+  {
+    if (sha256_password_proxy_users)
+    {
+      *info->authenticated_as= PROXY_FLAG;
+       DBUG_PRINT("info", ("mysql_native_authentication_proxy_users is enabled \
+						   , setting authenticated_as to NULL"));
+    }
     DBUG_RETURN(CR_OK);
+  }
 
   DBUG_RETURN(CR_ERROR);
 }
