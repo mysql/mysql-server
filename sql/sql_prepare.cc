@@ -2340,6 +2340,8 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   SELECT_LEX *sl= lex->all_selects_list;
   DBUG_ENTER("reinit_stmt_before_use");
 
+  // Default to READ access for every field that is resolved
+  thd->mark_used_columns= MARK_COLUMNS_READ;
   /*
     We have to update "thd" pointer in LEX, all its units and in LEX::result,
     since statements which belong to trigger body are associated with TABLE
