@@ -76,6 +76,7 @@ typedef struct st_key_part_info {	/* Info about a key part */
   */
   uint16 store_length;
   uint16 key_type;
+  /* Fieldnr begins counting from 1 */
   uint16 fieldnr;			/* Fieldnum in UNIREG */
   uint16 key_part_flag;			/* 0 or HA_REVERSE_SORT */
   uint8 type;
