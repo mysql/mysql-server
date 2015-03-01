@@ -334,6 +334,7 @@ Partition_helper::Partition_helper(handler *main_handler)
   :
   m_handler(main_handler),
   m_part_info(),
+  m_tot_parts(),
   m_last_part(),
   m_err_rec(),
   m_ordered(),
