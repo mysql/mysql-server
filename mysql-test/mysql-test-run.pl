@@ -1024,15 +1024,7 @@ sub ignore_option {
 
 # Setup any paths that are $opt_vardir related
 sub set_vardir {
-  my ($vardir)= @_;
-  if(IS_WINDOWS)
-  {
-    $opt_vardir= $vardir;
-  }
-  else
-  {
-    $opt_vardir= realpath($vardir);
-  }
+  ($opt_vardir)= @_;
 
   $path_vardir_trace= $opt_vardir;
   # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
@@ -1486,15 +1478,11 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Set the "var/" directory, the base for everything else
   # --------------------------------------------------------------------------
-  if(defined $ENV{MTR_BINDIR})
-  {
-    $default_vardir= "$ENV{MTR_BINDIR}/mysql-test/var";
-  }
-  else
-  {
-    $default_vardir= "$glob_mysql_test_dir/var";
-  }
-  $default_vardir = realpath $default_vardir unless IS_WINDOWS;
+  my $vardir_location= (defined $ENV{MTR_BINDIR} 
+                          ? "$ENV{MTR_BINDIR}/mysql-test" 
+                          : $glob_mysql_test_dir);
+  $vardir_location= realpath $vardir_location unless IS_WINDOWS;
+  $default_vardir= "$vardir_location/var";
 
   if ( ! $opt_vardir )
   {
