@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1577,7 +1577,8 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Found " << cnt << " records..." << endl;
     ndbout << "Updating..." << endl;
     CHECK(hugoTrans.scanUpdateRecords(pNdb,
-                                      NdbScanOperation::SF_TupScan, cnt) == 0);
+                                      NdbScanOperation::SF_TupScan, cnt) == 0
+          || hugoTrans.getRetryMaxReached());
     ndbout << "Clearing..." << endl;    
     CHECK(hugoTrans.clearTable(pNdb,
                                NdbScanOperation::SF_TupScan, cnt) == 0);
@@ -1684,7 +1685,8 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Found " << cnt << " records..." << endl;
     ndbout << "Updating..." << endl;
     CHECK(hugoTrans.scanUpdateRecords(pNdb,
-                                      NdbScanOperation::SF_TupScan, cnt) == 0);
+                                      NdbScanOperation::SF_TupScan, cnt) == 0
+          || hugoTrans.getRetryMaxReached());
     ndbout << "Clearing..." << endl;    
     CHECK(hugoTrans.clearTable(pNdb,
                                NdbScanOperation::SF_TupScan, cnt) == 0);
@@ -1789,7 +1791,8 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
       if (hugoTrans.getTransaction() != 0)
         hugoTrans.closeTransaction(pNdb);
 
-      if (hugoTrans.scanUpdateRecords(pNdb, NdbScanOperation::SF_TupScan,0)!=0)
+      if (hugoTrans.scanUpdateRecords(pNdb, NdbScanOperation::SF_TupScan,0)!=0
+          && !hugoTrans.getRetryMaxReached())
 	break;
     } while (NdbTick_CurrentMillisecond() < end);
 
