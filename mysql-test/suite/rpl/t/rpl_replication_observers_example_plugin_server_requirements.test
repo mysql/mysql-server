@@ -30,6 +30,3 @@ SET @@GLOBAL.DEBUG= @debug_saved;
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_server_requirements.err
 --let $grep_pattern=replication_observers_example_plugin:validate_plugin_server_requirements=5
 --source include/grep_pattern.inc
-
---let $event_sequence= View_change
---source include/assert_binlog_events.inc

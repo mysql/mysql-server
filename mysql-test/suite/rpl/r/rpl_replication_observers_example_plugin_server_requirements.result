@@ -12,4 +12,3 @@ include/uninstall_replication_observers_example.inc
 Matching lines are:
 replication_observers_example_plugin:validate_plugin_server_requirements=5'
 Occurrences of 'replication_observers_example_plugin:validate_plugin_server_requirements=5' in the input file: 1
-include/assert_binlog_events.inc [View_change]

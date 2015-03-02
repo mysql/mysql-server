@@ -1141,7 +1141,7 @@ protected:
 
   <tr>
     <td>seq_number</td>
-    <td>FILL</td>
+    <td>8 bytes integer</td>
     <td>Variable to identify the next sequence number to be alloted to the certified transaction.</td>
   </tr>
 
@@ -1151,6 +1151,12 @@ protected:
     <td>Map to store the certification info ie. the hash of write_set and the
         snapshot sequence value.
     </td>
+  </tr>
+
+  <tr>
+    <td>written_to_binlog</td>
+    <td>1 byte bool</td>
+    <td>Identifies if the event was already written to the binlog.</td>
   </tr>
 
 */
