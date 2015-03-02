@@ -32,6 +32,8 @@ SET(CONF_SOURCES
 SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 SET(GEN_DIGEST_SOURCES
@@ -117,6 +119,7 @@ SET(SQL_SHARED_SOURCES
   opt_explain_format.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
+  opt_hints.cc
   opt_range.cc
   opt_statistics.cc
   opt_sum.cc 
@@ -124,6 +127,7 @@ SET(SQL_SHARED_SOURCES
   opt_trace2server.cc
   parse_file.cc
   parse_tree_helpers.cc
+  parse_tree_hints.cc
   parse_tree_items.cc
   parse_tree_node_base.cc
   parse_tree_nodes.cc
@@ -177,6 +181,8 @@ SET(SQL_SHARED_SOURCES
   sql_insert.cc
   sql_join_buffer.cc
   sql_lex.cc 
+  sql_lex_hash.cc
+  sql_lex_hints.cc
   sql_list.cc
   sql_load.cc
   sql_locale.cc
@@ -476,10 +482,25 @@ COPY_BISON_OUTPUT(
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
 )
 
+COPY_BISON_OUTPUT(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+)
+
 RUN_BISON(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+  MYSQL
+)
+
+RUN_BISON(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+  HINT_PARSER_
 )
 
 # Gen_lex_hash
@@ -537,7 +558,7 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(dist 
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/make_dist.cmake
-  DEPENDS ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
+  DEPENDS ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc ${CMAKE_BINARY_DIR}/sql/sql_yacc.h ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 

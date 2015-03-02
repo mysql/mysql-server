@@ -1,0 +1,679 @@
+--echo # WL#8017 Infrastructure for Optimizer Hints
+
+CREATE TABLE t1(f1 INT, f2 INT);
+INSERT INTO t1 VALUES
+(1,1),(2,2),(3,3);
+
+CREATE TABLE t2(f1 INT NOT NULL, f2 INT NOT NULL, f3 CHAR(200), KEY(f1, f2));
+INSERT INTO t2 VALUES
+(1,1, 'qwerty'),(1,2, 'qwerty'),(1,3, 'qwerty'),
+(2,1, 'qwerty'),(2,2, 'qwerty'),(2,3, 'qwerty'), (2,4, 'qwerty'),(2,5, 'qwerty'),
+(3,1, 'qwerty'),(3,4, 'qwerty'),
+(4,1, 'qwerty'),(4,2, 'qwerty'),(4,3, 'qwerty'), (4,4, 'qwerty'),
+(1,1, 'qwerty'),(1,2, 'qwerty'),(1,3, 'qwerty'),
+(2,1, 'qwerty'),(2,2, 'qwerty'),(2,3, 'qwerty'), (2,4, 'qwerty'),(2,5, 'qwerty'),
+(3,1, 'qwerty'),(3,4, 'qwerty'),
+(4,1, 'qwerty'),(4,2, 'qwerty'),(4,3, 'qwerty'), (4,4, 'qwerty');
+
+CREATE TABLE t3 (f1 INT NOT NULL, f2 INT, f3 VARCHAR(32),
+                 PRIMARY KEY(f1), KEY f2_idx(f1), KEY f3_idx(f3));
+INSERT INTO t3 VALUES
+(1, 1, 'qwerty'), (2, 1, 'ytrewq'),
+(3, 2, 'uiop'), (4, 2, 'poiu'), (5, 2, 'lkjh'),
+(6, 2, 'uiop'), (7, 2, 'poiu'), (8, 2, 'lkjh'),
+(9, 2, 'uiop'), (10, 2, 'poiu'), (11, 2, 'lkjh'),
+(12, 2, 'uiop'), (13, 2, 'poiu'), (14, 2, 'lkjh');
+INSERT INTO t3 SELECT f1 + 20, f2, f3 FROM t3;
+INSERT INTO t3 SELECT f1 + 40, f2, f3 FROM t3;
+
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+
+
+--echo # NO_RANGE_OPTIMIZATION hint testing
+set optimizer_switch=default;
+
+--echo # Check statistics with no hint
+FLUSH STATUS;
+SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+SHOW STATUS LIKE 'handler_read%';
+
+--echo # Check statistics with hint
+FLUSH STATUS;
+SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+SHOW STATUS LIKE 'handler_read%';
+
+EXPLAIN SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+--echo # Turn off range access for PRIMARY key
+--echo # Should use range access by f2_idx key
+EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+--echo # Turn off range access for PRIMARY & f2_idx keys
+--echo # Should use index access
+EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+--echo # Turn off range access for all keys
+--echo # Should use index access
+EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+--echo # Turn off range access for PRIMARY & f2_idx keys
+--echo # Should use index access
+EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) NO_RANGE_OPTIMIZATION(t3 f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+
+--echo # NO_ICP hint testing
+set optimizer_switch='index_condition_pushdown=on';
+
+EXPLAIN SELECT  f2 FROM
+  (SELECT f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+
+EXPLAIN SELECT /*+ NO_ICP(t3@qb1 f3_idx) */ f2 FROM
+  (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+
+EXPLAIN SELECT /*+ NO_ICP(t3@qb1) */ f2 FROM
+  (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+
+--echo # Expected warning for f1_idx key, unresolved name.
+EXPLAIN SELECT f2 FROM
+  (SELECT /*+ NO_ICP(t3 f3_idx, f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+
+--echo # ICP should still be used.
+EXPLAIN SELECT f2 FROM
+  (SELECT /*+ NO_ICP(t3 f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+
+--echo # BKA & NO_BKA hint testing
+set optimizer_switch=default;
+set optimizer_switch='batched_key_access=off,mrr_cost_based=off';
+
+--echo # Check statistics without hint
+FLUSH STATUS;
+SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+SHOW STATUS LIKE 'handler_read%';
+
+--echo # Check statistics with hint
+FLUSH STATUS;
+SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+SHOW STATUS LIKE 'handler_read%';
+
+EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ BKA(t1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1; 
+
+EXPLAIN SELECT /*+ QB_NAME(QB1) BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+set optimizer_switch='batched_key_access=off,mrr_cost_based=on';
+
+EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ QB_NAME(QB1) BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
+
+EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+set optimizer_switch='mrr=off';
+EXPLAIN SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+--echo # MRR switch should not affect BKA.
+--echo # BKA should be used for table t2.
+EXPLAIN SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+set optimizer_switch='mrr=on';
+
+EXPLAIN SELECT /*+ NO_BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ NO_BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ NO_BKA(t1, t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+EXPLAIN SELECT /*+ QB_NAME(QB1) NO_BKA(t2@QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+--echo # UPDATE|DELETE|INSERT|REPLACE hint testing
+set optimizer_switch='batched_key_access=off,mrr_cost_based=off';
+
+EXPLAIN UPDATE t3
+SET f3 = 'mnbv' WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
+  (SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+    t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
+
+--echo # Turn off range access for PRIMARY key.
+--echo # Range access should be used for f2_idx key.
+EXPLAIN UPDATE /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ t3
+SET f3 = 'mnbv' WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
+  (SELECT /*+ BKA(t2) NO_BNL(t1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+    t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
+
+EXPLAIN DELETE FROM t3
+WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
+  (SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+    t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
+
+--echo # Turn off range access. Range access should not be used.
+--echo # Turn off BNL. BNL should not be used.
+EXPLAIN DELETE /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) NO_BNL(t1@QB1) */ FROM t3
+WHERE f1 > 30 AND f1 < 33 AND (t3.f1, t3.f2, t3.f3) IN
+  (SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+    t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
+
+EXPLAIN INSERT INTO t3(f1, f2, f3)
+(SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+  t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
+
+--echo # Turn off ICP. ICP should not be used.
+EXPLAIN INSERT INTO t3(f1, f2, f3)
+(SELECT /*+ NO_ICP(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+  t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
+
+--echo # Turn off ICP. ICP should not be used.
+EXPLAIN INSERT /*+ NO_ICP(t2@QB1 f1) */ INTO t3(f1, f2, f3)
+(SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+  t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
+
+EXPLAIN REPLACE INTO t3(f1, f2, f3)
+(SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+  t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
+
+--echo # Turn off ICP. ICP should not be used.
+EXPLAIN REPLACE INTO t3(f1, f2, f3)
+(SELECT /*+ NO_ICP(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+  t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1);
+
+--echo # Turn off ICP for nonexistent table. ICP should be used.
+EXPLAIN REPLACE /*+ NO_ICP(t2@qb1) */ INTO t3(f1, f2, f3)
+SELECT /*+ QB_NAME(qb2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+  t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1;
+
+--echo # Turn off ICP. ICP should not be used.
+EXPLAIN REPLACE /*+ NO_ICP(t2@qb1) */ INTO t3(f1, f2, f3)
+SELECT /*+ QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+  t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1;
+
+--echo # Misc tests
+
+--echo # Should issue warning
+EXPLAIN SELECT /*+ QB_NAME(qb1) QB_NAME(qb1 ) */ * FROM t2;
+--echo # Should issue warning
+EXPLAIN SELECT /*+ BKA(@qb1) QB_NAME(qb1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
+
+--echo # Should not crash
+PREPARE stmt1 FROM "SELECT /*+ BKA(t2) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1";
+EXECUTE stmt1;
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+
+--echo # Check use of alias
+EXPLAIN SELECT tbl2.f1, tbl2.f2, tbl2.f3 FROM t1 tbl1,t2 tbl2
+WHERE tbl1.f1=tbl2.f1 AND tbl2.f2 BETWEEN tbl1.f1 and tbl1.f2 and tbl2.f2 + 1 >= tbl1.f1 + 1;
+--echo # Turn on BKA for multiple tables. BKA should be used for tbl2.
+EXPLAIN SELECT /*+ BKA(tbl1, tbl2) */ tbl2.f1, tbl2.f2, tbl2.f3 FROM t1 tbl1,t2 tbl2
+WHERE tbl1.f1=tbl2.f1 AND tbl2.f2 BETWEEN tbl1.f1 and tbl1.f2 and tbl2.f2 + 1 >= tbl1.f1 + 1;
+
+--echo # Print warnings for nonexistent names
+EXPLAIN
+SELECT /*+ BKA(t2) NO_BNL(t1) BKA(t3) NO_RANGE_OPTIMIZATION(t3 idx1) NO_RANGE_OPTIMIZATION(t3) */
+t2.f1, t2.f2, t2.f3 FROM t1,t2 WHERE t1.f1=t2.f1 AND
+t2.f2 BETWEEN t1.f1 AND t1.f2 AND t2.f2 + 1 >= t1.f1 + 1;
+
+--echo # Check illegal syntax
+EXPLAIN SELECT /*+ BKA(qb1 t3@qb1) */ f2 FROM
+  (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
+    WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
+
+--echo # Check illegal syntax
+EXPLAIN SELECT * FROM
+  (SELECT /*+ QB_NAME(qb1) BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
+
+--echo # Check '@qb_name table_name' syntax. BKA should be used for t2.
+EXPLAIN SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1;
+
+--echo # Check that original table name is not recognized if alias is used.
+EXPLAIN SELECT * FROM (SELECT /*+ BKA(t2) */ tb2.f1, tb2.f2, tb2.f3 FROM t1 tb1,t2 tb2
+WHERE tb1.f1=tb2.f1 AND tb2.f2 BETWEEN tb1.f1 and tb1.f2 and tb2.f2 + 1 >= tb1.f1 + 1) AS s1;
+--echo # Table t2 should use BKA.
+EXPLAIN SELECT * FROM (SELECT /*+ BKA(tb2) */ tb2.f1, tb2.f2, tb2.f3 FROM t1 tb1,t2 tb2
+WHERE tb1.f1=tb2.f1 AND tb2.f2 BETWEEN tb1.f1 and tb1.f2 and tb2.f2 + 1 >= tb1.f1 + 1) AS s1;
+
+--echo # Check that PS and conventional statements give the same result.
+FLUSH STATUS;
+SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1;
+SHOW STATUS LIKE 'handler_read%';
+
+PREPARE stmt1 FROM "SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
+WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1";
+
+FLUSH STATUS;
+EXECUTE stmt1;
+SHOW STATUS LIKE 'handler_read%';
+
+FLUSH STATUS;
+EXECUTE stmt1;
+SHOW STATUS LIKE 'handler_read%';
+
+DEALLOCATE PREPARE stmt1;
+
+DROP TABLE t1, t2, t3;
+
+--echo # BNL & NO_BNL hint testing
+
+set optimizer_switch=default;
+set optimizer_switch='block_nested_loop=on';
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 (a INT, b INT);
+INSERT INTO t2 VALUES (1,1),(2,2);
+CREATE TABLE t3 (a INT, b INT);
+INSERT INTO t3 VALUES (1,1),(2,2);
+
+--echo # Check statistics without hint
+FLUSH STATUS;
+SELECT t1.* FROM t1,t2,t3;
+SHOW STATUS LIKE 'handler_read%';
+
+--echo # Check statistics with hint
+FLUSH STATUS;
+SELECT /*+ NO_BNL() */t1.* FROM t1,t2,t3;
+SHOW STATUS LIKE 'handler_read%';
+
+EXPLAIN SELECT t1.* FROM t1,t2,t3;
+EXPLAIN SELECT /*+ NO_BNL() */t1.* FROM t1,t2,t3;
+EXPLAIN SELECT /*+ NO_BNL(t2, t3) */t1.* FROM t1,t2,t3;
+EXPLAIN SELECT /*+ NO_BNL(t1, t3) */t1.* FROM t1,t2,t3;
+
+set optimizer_switch='block_nested_loop=off';
+
+EXPLAIN SELECT t1.* FROM t1,t2,t3;
+EXPLAIN SELECT /*+ BNL() */t1.* FROM t1,t2,t3;
+EXPLAIN SELECT /*+ BNL(t2, t3) */t1.* FROM t1,t2,t3;
+EXPLAIN SELECT /*+ BNL(t1, t3) */t1.* FROM t1,t2,t3;
+EXPLAIN SELECT /*+ BNL(t2) BNL(t3) */t1.* FROM t1,t2,t3;
+
+DROP TABLE t1, t2, t3;
+
+
+--echo # BNL in subquery
+set optimizer_switch = DEFAULT;
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
+CREATE TABLE t2 (a INT, INDEX a (a));
+CREATE TABLE t3 (a INT, b INT, INDEX a (a,b));
+INSERT INTO t1 VALUES (1,10), (2,20), (3,30),  (4,40);
+INSERT INTO t2 VALUES (2), (3), (4), (5);
+INSERT INTO t3 VALUES (10,3), (20,4), (30,5);
+ANALYZE TABLE t1, t2, t3;
+
+SET optimizer_prune_level = 0;
+
+EXPLAIN SELECT /*+ QB_NAME(q) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+
+EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL() */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+
+EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t1, t2) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+
+EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+
+EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+
+EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(t3@subq1,t4@subq1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+
+EXPLAIN SELECT /*+ QB_NAME(q) NO_BNL(@subq1 t3, t4) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT /*+ QB_NAME(subq1) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+
+EXPLAIN SELECT /*+ QB_NAME(q) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
+t2.a IN (SELECT /*+ QB_NAME(subq1)  NO_BNL(t3, t4) */ t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
+
+SET optimizer_prune_level = DEFAULT;
+
+DROP TABLE t1, t2, t3;
+
+--echo # MRR & NO_MRR hint testing
+set optimizer_switch=default;
+
+CREATE TABLE t1
+(
+  f1 int NOT NULL DEFAULT '0',
+  f2 int NOT NULL DEFAULT '0',
+  f3 int NOT NULL DEFAULT '0',
+  INDEX idx1(f2, f3), INDEX idx2(f3)
+);
+
+INSERT INTO t1(f1) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t1(f2, f3) VALUES (3,4), (3,4);
+ANALYZE TABLE t1;
+
+set optimizer_switch='mrr=on,mrr_cost_based=off';
+
+--echo # Check statistics without hint
+FLUSH STATUS;
+SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+SHOW STATUS LIKE 'handler_read%';
+
+--echo # Check statistics with hint
+FLUSH STATUS;
+SELECT /*+ NO_MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+SHOW STATUS LIKE 'handler_read%';
+
+EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--echo # Turn off MRR. MRR should not be used.
+EXPLAIN SELECT /*+ NO_MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--echo # Turn off MRR. MRR should not be used.
+EXPLAIN SELECT /*+ NO_MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--echo # Turn off MRR for unused key. MRR should be used.
+EXPLAIN SELECT /*+ NO_MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+
+set optimizer_switch='mrr=off,mrr_cost_based=off';
+
+EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--echo # Turn on MRR. MRR should be used.
+EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--echo # Turn on MRR. MRR should be used.
+EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--echo # Turn on MRR for unused key. MRR should not be used.
+EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+
+set optimizer_switch='mrr=off,mrr_cost_based=on';
+
+EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--echo # Turn on MRR. MRR should be used.
+EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--echo # Turn on MRR. MRR should be used.
+EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--echo # Turn on MRR for unused key. MRR should not be used.
+EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+
+DROP TABLE t1;
+
+set optimizer_switch=default;
+
+--echo #
+--echo # Duplicate hints
+--echo #
+
+CREATE TABLE t1 (i INT PRIMARY KEY);
+
+SELECT /*+ BKA() BKA() */ 1;
+SELECT /*+ BKA(t1) BKA(t1) */ * FROM t1;
+SELECT /*+ QB_NAME(q1) BKA(t1@q1) BKA(t1@q1) */ * FROM t1;
+SELECT /*+ QB_NAME(q1) NO_ICP(@q1 t1 PRIMARY) NO_ICP(@q1 t1 PRIMARY) */ * FROM t1;
+
+DROP TABLE t1;
+
+--echo # MAX_EXECUTION_TIME hint testing
+
+CREATE TABLE t1 (a INT, b VARCHAR(300));
+INSERT INTO t1 VALUES (1, 'string');
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+
+--error ER_QUERY_TIMEOUT
+SELECT /*+ MAX_EXECUTION_TIME(1) */ * FROM t1 a, t1 b, t1 c;
+
+EXPLAIN SELECT /*+ MAX_EXECUTION_TIME(2) MAX_EXECUTION_TIME(10) */ * FROM t1;
+
+DROP TABLE t1;
+
+
+--echo # WL#8016 Parser for optimizer hints
+
+
+CREATE TABLE t1 (i INT, j INT);
+CREATE INDEX i1 ON t1(i);
+CREATE INDEX i2 ON t1(j);
+
+--echo
+--echo # empty hint comment is ok:
+--echo
+SELECT /*+*/ 1;
+SELECT /*+ */ 1;
+SELECT /*+ * ** / // /* */ 1;
+SELECT /*+ @ */ 1;
+SELECT /*+ @foo */ 1;
+SELECT /*+ foo@bar */ 1;
+SELECT /*+ foo @bar */ 1;
+SELECT /*+ `@` */ 1;
+SELECT /*+ `@foo` */ 1;
+SELECT /*+ `foo@bar` */ 1;
+SELECT /*+ `foo @bar` */ 1;
+SELECT /*+ BKA( @) */ 1;
+SELECT /*+ BKA( @) */ 1;
+SELECT /*+ BKA(t1 @) */ 1;
+
+
+--echo
+--echo # We don't support "*/" inside quoted identifiers (syntax error):
+--echo
+
+--error ER_PARSE_ERROR
+SELECT /*+ BKA(`test*/`) */ 1;
+
+#
+# disabled test because of mysqltest bug #19785832
+# see test_wl8016() at mysql_client_test.c for the workaround
+#
+#--echo # should just warn:
+#SELECT /*+ BKA(`test*/ 1;
+
+--echo
+--echo # valid hint sequences:
+--echo
+SELECT  /*+ NO_ICP() */ 1;
+SELECT  /*+NO_ICP()*/ 1;
+SELECT  /*+ NO_ICP () */ 1;
+SELECT  /*+ NO_ICP (  ) */ 1;
+
+SELECT  /*+ NO_ICP() */ 1 UNION SELECT 1;
+(SELECT /*+ NO_ICP() */ 1) UNION (SELECT 1);
+((SELECT  /* + NO_ICP() */ 1));
+EXPLAIN SELECT /*+ QB_NAME(qb1) */ 1 UNION SELECT /*+ QB_NAME(qb2) */ 1;
+EXPLAIN (SELECT /*+ QB_NAME(qb1) */ 1) UNION (SELECT /*+ QB_NAME(qb2) */ 1);
+
+UPDATE  /*+ NO_ICP() */ t1 SET i = 10;
+INSERT  /*+ NO_ICP() */ INTO t1 VALUES ();
+REPLACE /*+ NO_ICP() */ INTO t1 VALUES ();
+DELETE  /*+ NO_ICP() */ FROM t1 WHERE 1;
+
+SELECT /*+ BKA(t1) */    1 FROM t1;
+SELECT /*+ BKA(a b) */   1 FROM t1 a, t1 b;
+
+SELECT /*+ NO_ICP(i1) */ 1 FROM t1;
+SELECT /*+ NO_ICP(i1 i2) */ 1 FROM t1;
+SELECT /*+ NO_ICP(@qb ident) */ 1 FROM t1;
+
+--echo #
+--echo # test explainable statements for hint support:
+--echo # they should warn with a hint syntax error near "test */"
+--echo #
+
+EXPLAIN SELECT /*+ test */ 1;
+EXPLAIN INSERT /*+ test */ INTO t1 VALUES (10, 10);
+EXPLAIN REPLACE /*+ test */ INTO t1 VALUES (10, 10);
+EXPLAIN UPDATE /*+ test */ t1 SET i = 10 WHERE j = 10;
+EXPLAIN DELETE /*+ test */ FROM t1 WHERE i = 10;
+
+--echo
+--echo # non-alphabetic and non-ASCII identifiers:
+--echo
+
+CREATE INDEX 3rd_index ON t1(i, j);
+SELECT /*+ NO_ICP(3rd_index) */ 1 FROM t1;
+
+CREATE INDEX $index ON t1(j, i);
+SELECT /*+ NO_ICP($index) */ 1 FROM t1;
+
+CREATE TABLE ` quoted name тест` (i INT);
+SELECT /*+ BKA(` quoted name тест`) */ 1 FROM t1;
+SELECT /*+ BKA(` quoted name тест`@`select#1`) */ 1 FROM t1;
+DROP TABLE ` quoted name тест`;
+
+SET SQL_MODE = 'ANSI_QUOTES';
+
+CREATE TABLE " quoted name тест" (i INT);
+SELECT /*+ BKA(" quoted name тест") */ 1 FROM t1;
+SELECT /*+ BKA(" quoted name тест"@"select#1") */ 1 FROM t1;
+
+CREATE TABLE `test1``test2``` (i INT);
+
+SELECT /*+ BKA(`test1``test2```) */ 1;
+SELECT /*+ BKA("test1""test2""") */ 1;
+
+SET SQL_MODE = '';
+--echo # should warn:
+SELECT /*+ BKA(" quoted name тест") */ 1 FROM t1;
+
+DROP TABLE ` quoted name тест`;
+DROP TABLE `test1``test2```;
+
+EXPLAIN SELECT /*+ QB_NAME(`*`) */ 1;
+EXPLAIN SELECT /*+ QB_NAME(`a*`) */ 1;
+EXPLAIN SELECT /*+ QB_NAME(`*b`) */ 1;
+EXPLAIN SELECT /*+ QB_NAME(`a
+b`) */ 1;
+
+--echo # hint syntax error: empty quoted identifier
+EXPLAIN SELECT /*+ QB_NAME(``) */ 1;
+
+SET NAMES utf8;
+EXPLAIN SELECT /*+ QB_NAME(`�``�`) */ 1;
+
+CREATE TABLE tableТ (i INT);
+SELECT /*+ BKA(tableТ) */ 1 FROM t1;
+SELECT /*+ BKA(test@tableТ) */ 1 FROM t1;
+DROP TABLE tableТ;
+
+CREATE TABLE таблица (i INT);
+
+SELECT /*+ BKA(`таблица`) */ 1 FROM t1;
+SELECT /*+ BKA(таблица) */ 1 FROM t1;
+SELECT /*+ BKA(test@таблица) */ 1 FROM t1;
+
+--echo # broken multibyte char, should warn:
+SELECT /*+ NO_ICP(`�`) */ 1 FROM t1;
+
+DROP TABLE таблица;
+
+--echo
+--echo # test the MAX_EXECUTION_TIME hint for SELECT statements:
+--echo
+
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+
+SELECT /*+ MAX_EXECUTION_TIME(4294967296) */ 1 FROM t1;
+
+--error ER_QUERY_TIMEOUT
+SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1;
+--error ER_QUERY_TIMEOUT
+SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1 UNION SELECT 1, 2, 3;
+--error ER_QUERY_TIMEOUT
+(SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1) UNION (SELECT 1, 2, 3);
+--error ER_QUERY_TIMEOUT
+((SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1));
+
+--echo
+--echo # only SELECT statements supports the MAX_EXECUTION_TIME hint (warning):
+--echo
+CREATE TABLE t2 (i INT);
+INSERT /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
+REPLACE /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
+UPDATE /*+ MAX_EXECUTION_TIME(1) */ t2 SET i = 1;
+DELETE /*+ MAX_EXECUTION_TIME(1) */ FROM t2 WHERE i = 1;
+
+--echo
+--echo # derived tables and other subqueries:
+--echo
+
+SELECT * FROM (SELECT /*+ DEBUG_HINT3 */ 1) a;
+SELECT (SELECT /*+ DEBUG_HINT3 */ 1);
+SELECT 1 FROM DUAL WHERE 1 IN (SELECT /*+ DEBUG_HINT3 */ 1);
+
+--echo
+--echo # invalid hint sequences (should warn):
+--echo
+SELECT /*+ 10 */ 1;
+SELECT /*+ NO_ICP() */ 1;
+SELECT /*+ NO_ICP(10) */ 1;
+SELECT /*+ NO_ICP( */ 1;
+SELECT /*+ NO_ICP) */ 1;
+SELECT /*+ NO_ICP(t1 */ 1;
+SELECT /*+ NO_ICP(t1 ( */ 1;
+(SELECT 1) UNION (SELECT /*+ NO_ICP() */ 1);
+
+--echo
+--echo # wrong place for hint, so recognize that stuff as a regular commentary:
+--echo
+
+SELECT 1 FROM /*+ regular commentary, not a hint! */ t1;
+SELECT 1 FROM /*+ #1 */ t1 WHERE /*+ #2 */ 1 /*+ #3 */;
+
+SELECT /*+ NO_ICP() */ 1
+  FROM /*+ regular commentary, not a hint! */ t1;
+
+SELECT /*+ NO_ICP(t1) bad_hint */ 1 FROM t1;
+
+SELECT /*+
+  NO_ICP(@qb ident)
+*/ 1 FROM t1;
+
+SELECT /*+
+  ? bad syntax
+*/ 1;
+
+SELECT
+/*+ ? bad syntax */ 1;
+
+DROP TABLE t1, t2;
+
+--error ER_PARSE_ERROR
+SELECT /*+ 10;
+# PLEASE DON'T INSERT NEW STUFF TREE: WE ARE TESTING UNBALANCED COMMENTARY
+# END OF FILE

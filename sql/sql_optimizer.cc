@@ -42,6 +42,7 @@
 #include "sql_resolver.h"        // subquery_allows_materialization
 #include "sql_test.h"            // print_where
 #include "sql_tmp_table.h"       // get_max_key_and_part_length
+#include "opt_hints.h"           // hint_table_state
 
 #include <algorithm>
 using std::max;
@@ -2798,8 +2799,11 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
   ha_rows rows;
   uint bufsz= 4096;
   uint join_cache_flags= HA_MRR_NO_NULL_ENDPOINTS;
-  const bool bnl_on= join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL);
-  const bool bka_on= join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BKA);
+  const bool bnl_on= hint_table_state(join->thd, tab->table_ref->table,
+                                      BNL_HINT_ENUM, OPTIMIZER_SWITCH_BNL);
+  const bool bka_on= hint_table_state(join->thd, tab->table_ref->table,
+                                      BKA_HINT_ENUM, OPTIMIZER_SWITCH_BKA);
+
   const uint tableno= tab->idx();
   const uint tab_sj_strategy= tab->get_sj_strategy();
   bool use_bka_unique= false;

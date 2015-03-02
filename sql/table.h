@@ -47,6 +47,8 @@ class Index_hint;
 struct Name_resolution_context;
 struct LEX;
 typedef int8 plan_idx;
+class Opt_hints_qb;
+class Opt_hints_table;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -1656,6 +1658,8 @@ struct TABLE_LIST
                      mdl_type_for_dml(lock_type),
                      MDL_TRANSACTION);
     callback_func= 0;
+    opt_hints_table= NULL;
+    opt_hints_qb= NULL;
   }
 
   /// Create a TABLE_LIST object representing a nested join
@@ -2101,6 +2105,11 @@ struct TABLE_LIST
   LEX_CSTRING target_tablespace_name;
   char *schema_table_name;
   char *option;                /* Used by cache index  */
+
+  /** Table level optimizer hints for this table.  */
+  Opt_hints_table *opt_hints_table;
+  /* Hints for query block of this table. */
+  Opt_hints_qb *opt_hints_qb;
 
 private:
   /**

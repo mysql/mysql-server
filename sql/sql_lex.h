@@ -31,6 +31,7 @@
 #include "parse_tree_node_base.h"     // enum_parsing_context
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
 #include "sql_alloc.h"                // Sql_alloc
+#include "sql_chars.h"
 #include "sql_alter.h"                // Alter_info
 #include "sql_connect.h"              // USER_RESOURCES
 #include "sql_data_change.h"          // enum_duplicates
@@ -41,6 +42,7 @@
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
+#include "parse_tree_hints.h"
 
 #ifdef MYSQL_SERVER
 #include "item_func.h"                // Cast_target
@@ -70,6 +72,8 @@ struct sql_digest_state;
 typedef class st_select_lex SELECT_LEX;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
+class Opt_hints_global;
+class Opt_hints_qb;
 
 #ifdef MYSQL_SERVER
 /*
@@ -153,6 +157,7 @@ struct sys_var_with_base
 };
 
 
+#define YYSTYPE_IS_DECLARED 1
 union YYSTYPE;
 typedef YYSTYPE *LEX_YYSTYPE;
 
@@ -1076,6 +1081,9 @@ public:
   table_map select_list_tables;
   table_map outer_join;       ///< Bitmap of all inner tables from outer joins
 
+  Opt_hints_qb *opt_hints_qb;
+
+
   /**
     @note the group_by and order_by lists below will probably be added to the
           constructor when the parser is converted into a true bottom-up design.
@@ -1493,8 +1501,21 @@ enum delete_option_enum {
 };
 
 
-#define YYSTYPE_IS_DECLARED
 union YYSTYPE {
+  /*
+    Hint parser section (sql_hints.yy)
+  */
+  opt_hints_enum hint_type;
+  LEX_CSTRING hint_string;
+  class PT_hint *hint;
+  class PT_hint_list *hint_list;
+  Hint_param_index_list hint_param_index_list;
+  Hint_param_table hint_param_table;
+  Hint_param_table_list hint_param_table_list;
+
+  /*
+    Main parser section (sql_yacc.yy)
+  */
   int  num;
   ulong ulong_num;
   ulonglong ulonglong_number;
@@ -1642,6 +1663,7 @@ union YYSTYPE {
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
+  class PT_hint_list *optimizer_hints;
 };
 
 #endif
@@ -2388,13 +2410,17 @@ enum enum_comment_state
     Not parsing comments.
   */
   NO_COMMENT,
+
   /**
     Parsing comments that need to be preserved.
+    (Copy '/' '*' and '*' '/' sequences to the preprocessed buffer.)
     Typically, these are user comments '/' '*' ... '*' '/'.
   */
   PRESERVE_COMMENT,
+
   /**
     Parsing comments that need to be discarded.
+    (Don't copy '/' '*' '!' and '*' '/' sequences to the preprocessed buffer.)
     Typically, these are special comments '/' '*' '!' ... '*' '/',
     or '/' '*' '!' 'M' 'M' 'm' 'm' 'm' ... '*' '/', where the comment
     markers should not be expanded.
@@ -2903,6 +2929,9 @@ public:
   LEX_ALTER alter_password;
   THD *thd;
   Generated_column *gcol_info;
+
+  /* Optimizer hints */
+  Opt_hints_global *opt_hints_global;
 
   /* maintain a list of used plugins for this LEX */
   typedef Prealloced_array<plugin_ref,
@@ -3542,7 +3571,7 @@ struct st_lex_local: public LEX
 };
 
 
-extern void lex_init(void);
+extern bool lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);

@@ -50,6 +50,7 @@
 
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
+#include "opt_hints.h"
 
 #include <list>
 
@@ -6052,7 +6053,9 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     has not been called, so set the owner handler here as well.
   */
   h= h_arg;
-  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+  
+  if (!hint_key_state(thd, h->table, h->active_index,
+                      MRR_HINT_ENUM, OPTIMIZER_SWITCH_MRR) ||
       mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
   {
     use_default_impl= TRUE;
@@ -6494,7 +6497,14 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
 {
   bool res;
   THD *thd= current_thd;
-  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+
+  const bool mrr_on= hint_key_state(thd, table, keyno, MRR_HINT_ENUM,
+                                    OPTIMIZER_SWITCH_MRR);
+  const bool force_dsmrr_by_hints=
+    hint_key_state(thd, table, keyno, MRR_HINT_ENUM, 0) ||
+    hint_table_state(thd, table, BKA_HINT_ENUM, 0);
+
+  if (!(mrr_on || force_dsmrr_by_hints) ||
       *flags & (HA_MRR_INDEX_ONLY | HA_MRR_SORTED) || // Unsupported by DS-MRR
       (keyno == table->s->primary_key && h->primary_key_is_clustered()) ||
        key_uses_partial_cols(table, keyno) ||
@@ -6516,7 +6526,8 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     c) Since there is an initial setup cost of DS-MRR, so it is only
        considered if at least 50 records will be read.
   */
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED))
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED) &&
+      !force_dsmrr_by_hints)
   {
     /*
       If the storage engine has a database buffer we use this as the
@@ -6539,17 +6550,18 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
     return TRUE;
   
-  bool force_dsmrr;
   /* 
     If @@optimizer_switch has "mrr" on and "mrr_cost_based" off, then set cost
     of DS-MRR to be minimum of DS-MRR and Default implementations cost. This
     allows one to force use of DS-MRR whenever it is applicable without
-    affecting other cost-based choices.
+    affecting other cost-based choices. Note that if MRR or BKA hint is
+    specified, DS-MRR will be used regardless of cost.
   */
-  if ((force_dsmrr=
-       (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) &&
-        !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED))) &&
-      dsmrr_cost.total_cost() > cost->total_cost())
+  const bool force_dsmrr=
+    (force_dsmrr_by_hints ||
+     !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED));
+
+  if (force_dsmrr && dsmrr_cost.total_cost() > cost->total_cost())
     dsmrr_cost= *cost;
 
   if (force_dsmrr || (dsmrr_cost.total_cost() <= cost->total_cost()))

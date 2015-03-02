@@ -125,6 +125,7 @@
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
 #include "uniques.h"             // Unique
+#include "opt_hints.h"           // hint_key_state
 
 using std::min;
 using std::max;
@@ -2795,12 +2796,21 @@ int test_quick_select(THD *thd, key_map keys_to_use,
         Opt_trace_object trace_idx_details(trace);
         trace_idx_details.add_utf8("index", key_info->name);
         KEY_PART_INFO *key_part_info;
+
         if (!keys_to_use.is_set(idx))
         {
           trace_idx_details.add("usable", false).
             add_alnum("cause", "not_applicable");
           continue;
         }
+
+        if (hint_key_state(thd, head, idx, NO_RANGE_HINT_ENUM, 0))
+        {
+          trace_idx_details.add("usable", false).
+            add_alnum("cause", "no_range_optimization hint");
+          continue;
+        }
+
         if (key_info->flags & HA_FULLTEXT)
         {
           trace_idx_details.add("usable", false).

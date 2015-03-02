@@ -74,6 +74,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "item_cmpfunc.h"
 #include "item_geofunc.h"
 #include "sql_plugin.h"                      // plugin_is_ready
+#include "parse_tree_hints.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -431,6 +432,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 #include "parse_tree_items.h"
 
 %}
+
+%yacc
 
 %parse-param { class THD *YYTHD }
 %lex-param { class THD *YYTHD }
@@ -1377,7 +1380,7 @@ END_OF_INPUT
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
         ',' '!' '{' '}' '&' '|' AND_SYM OR_SYM OR_OR_SYM BETWEEN_SYM CASE_SYM
-        THEN_SYM WHEN_SYM DIV_SYM MOD_SYM OR2_SYM AND_AND_SYM DELETE_SYM
+        THEN_SYM WHEN_SYM DIV_SYM MOD_SYM OR2_SYM AND_AND_SYM
 
 %type<NONE> SHOW DESC DESCRIBE describe_command
 
@@ -1491,8 +1494,6 @@ END_OF_INPUT
 
 %type <select_init> select_init
 
-%type <select_init2> select_init2
-
 %type <select> select
 
 %type <param_marker> param_marker
@@ -1531,6 +1532,8 @@ END_OF_INPUT
 %type <insert_query_expression> insert_query_expression
 
 %type <column_row_value_list_pair> insert_from_constructor
+
+%type <optimizer_hints> SELECT_SYM INSERT REPLACE UPDATE_SYM DELETE_SYM
 
 %%
 
@@ -5783,7 +5786,7 @@ opt_part_option:
 create_select:
           SELECT_SYM select_options select_item_list table_expression
           {
-            $$= NEW_PTN PT_create_select($2, $3, $4);
+            $$= NEW_PTN PT_create_select($1, $2, $3, $4);
           }
         ;
 
@@ -8862,11 +8865,11 @@ select:
           }
         ;
 
-/* Need select_init2 for subselects. */
+/* Need first branch for subselects. */
 select_init:
-          SELECT_SYM select_init2
+          SELECT_SYM select_part2 opt_union_clause
           {
-            $$= $2;
+            $$= NEW_PTN PT_select_init2($1, $2, $3);
           }
         | '(' select_paren ')' union_opt
           {
@@ -8877,7 +8880,7 @@ select_init:
 select_paren:
           SELECT_SYM select_part2
           {
-            $$= NEW_PTN PT_select_paren($2);
+            $$= NEW_PTN PT_select_paren($1, $2);
           }
         | '(' select_paren ')' { $$= $2; }
         ;
@@ -8886,16 +8889,9 @@ select_paren:
 select_paren_derived:
           SELECT_SYM select_part2_derived table_expression
           {
-            $$= NEW_PTN PT_select_paren_derived($2, $3);
+            $$= NEW_PTN PT_select_paren_derived($1, $2, $3);
           }
         | '(' select_paren_derived ')' { $$= $2; }
-        ;
-
-select_init2:
-          select_part2 opt_union_clause
-          {
-            $$= NEW_PTN PT_select_init2($1, $2);
-          }
         ;
 
 /*
@@ -10350,7 +10346,7 @@ table_factor:
           }
         | SELECT_SYM select_options select_item_list table_expression
           {
-            $$= NEW_PTN PT_table_factor_select_sym(@$, $2, $3, $4);
+            $$= NEW_PTN PT_table_factor_select_sym(@$, $1, $2, $3, $4);
           }
           /*
             Represents a flattening of the following rules from the SQL:2003
@@ -11167,7 +11163,7 @@ insert_stmt:
           insert_from_constructor      /* #7 */
           opt_insert_update_list       /* #8 */
           {
-            $$= NEW_PTN PT_insert(false, $2, $3, $5, $6,
+            $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $7.column_list, $7.row_value_list,
                                   NULL,
                                   $8.column_list, $8.value_list);
@@ -11185,7 +11181,7 @@ insert_stmt:
             PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list;
             if (one_row == NULL || one_row->push_back(&$8.value_list->value))
               MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_insert(false, $2, $3, $5, $6,
+            $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $8.column_list, one_row,
                                   NULL,
                                   $9.column_list, $9.value_list);
@@ -11199,7 +11195,7 @@ insert_stmt:
           insert_from_subquery         /* #7 */
           opt_insert_update_list       /* #8 */
           {
-            $$= NEW_PTN PT_insert(false, $2, $3, $5, $6,
+            $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $7.column_list, NULL,
                                   $7.insert_query_expression,
                                   $8.column_list, $8.value_list);
@@ -11214,7 +11210,7 @@ replace_stmt:
           opt_use_partition             /* #5 */
           insert_from_constructor       /* #6 */
           {
-            $$= NEW_PTN PT_insert(true, $2, false, $4, $5,
+            $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $6.column_list, $6.row_value_list,
                                   NULL,
                                   NULL, NULL);
@@ -11230,7 +11226,7 @@ replace_stmt:
             PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list;
             if (one_row == NULL || one_row->push_back(&$7.value_list->value))
               MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_insert(true, $2, false, $4, $5,
+            $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $7.column_list, one_row,
                                   NULL,
                                   NULL, NULL);
@@ -11242,7 +11238,7 @@ replace_stmt:
           opt_use_partition             /* #5 */
           insert_from_subquery          /* #6 */
           {
-            $$= NEW_PTN PT_insert(true, $2, false, $4, $5,
+            $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $6.column_list, NULL,
                                   $6.insert_query_expression,
                                   NULL, NULL);
@@ -11443,7 +11439,7 @@ update_stmt:
           opt_order_clause      /* #8 */
           opt_simple_limit      /* #9 */
           {
-            $$= NEW_PTN PT_update($2, $3, $4, $6.column_list, $6.value_list,
+            $$= NEW_PTN PT_update($1, $2, $3, $4, $6.column_list, $6.value_list,
                                   $7, $8, $9);
           }
         ;
@@ -11492,7 +11488,7 @@ delete_stmt:
           opt_order_clause
           opt_simple_limit
           {
-            $$= NEW_PTN PT_delete(YYTHD->mem_root, $2, $4, $5, $6, $7, $8);
+            $$= NEW_PTN PT_delete(YYTHD->mem_root, $1, $2, $4, $5, $6, $7, $8);
           }
         | DELETE_SYM
           opt_delete_options
@@ -11501,7 +11497,7 @@ delete_stmt:
           join_table_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($2, $3, $5, $6);
+            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6);
           }
         | DELETE_SYM
           opt_delete_options
@@ -11511,7 +11507,7 @@ delete_stmt:
           join_table_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($2, $4, $6, $7);
+            $$= NEW_PTN PT_delete($1, $2, $4, $6, $7);
           }
         ;
 
@@ -14495,7 +14491,7 @@ union_option:
 query_specification:
           SELECT_SYM select_part2_derived table_expression
           {
-            $$= NEW_PTN PT_query_specification_select($2, $3);
+            $$= NEW_PTN PT_query_specification_select($1, $2, $3);
           }
         | '(' select_paren_derived ')'
           opt_union_order_or_limit
@@ -14727,7 +14723,7 @@ view_select_aux:
               parsing of Select query (SELECT1) is completed and UNION_CLAUSE
               is not yet parsed. So check for
               Lex->current_select()->master_unit()->first_select()->braces
-              (as its done in "select_init2" for "select_part2" rule) is not
+              (as its done in "PT_select_init2::contextualize()) is not
               done here.
             */
           }
