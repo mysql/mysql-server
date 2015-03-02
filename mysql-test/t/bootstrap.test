@@ -1,116 +1,57 @@
 # Embedded server doesn't support restarting.
 --source include/not_embedded.inc
 
-
-let DDIR=$MYSQL_TMP_DIR/installdb_test;
-let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
-let extra_args=--no-defaults --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
-let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
-let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
-
---echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
+# Prepare MYSQLD_DATADIR and MYSQLD_BOOTSTRAP_CMD.
+# Add the datadir to the bootstrap command.
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let $MYSQLD_BOOTSTRAP_CMD = $MYSQLD_BOOTSTRAP_CMD --datadir=$MYSQLD_DATADIR --default-storage-engine=MyISAM --default-tmp-storage-engine=MyISAM
 
 ###########################################################################
 # 1. Check that --bootstrap reads from stdin
 ###########################################################################
-#--echo # shut server down
-#--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#--shutdown_server
-#--source include/wait_until_disconnected.inc
-#--echo # Server is down
+
+# Stop server
 --source include/shutdown_mysqld.inc
 
-
---echo #
---echo # Try --bootstrap and see if you get a warning
---echo #
-
---echo # create bootstrap file
-write_file $BOOTSTRAP_SQL;
-CREATE DATABASE test;
+--write_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql
 USE test;
 CREATE TABLE t1(a INT);
 EOF
 
+--exec $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
 
---echo # create the empty datadir
---echo $DDIR
-mkdir $DDIR;
-
---echo # try --bootstrap
---exec $MYSQLD $extra_args --bootstrap --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
-
---list_files "$DDIR/test";
-
---echo # delete datadir
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
-
---echo # delete bootstrap file
-remove_file $BOOTSTRAP_SQL;
---echo # delete mysqld log
-remove_file $MYSQLD_LOG;
-
-##############################################################################################################
-
-
-
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql
 
 ###########################################################################
 # 2. Check that --bootstrap of file with SQL error returns error
 ###########################################################################
 
-#--echo # shut server down
-#--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-#--shutdown_server
-#--source include/wait_until_disconnected.inc
-#--echo # Server is down
-
---write_file $BOOTSTRAP_SQL
-CREATE DATABASE test;
+--write_file $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql
 USE test;
 CREATE TABLE t2;
 EOF
 
-#--echo # create the empty datadir
-let DDIR=$MYSQL_TMP_DIR/installdb_test1;
-mkdir $DDIR;
-
 --error 1
---exec $MYSQLD $extra_args --bootstrap --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
---echo # delete datadir
---list_files "$DDIR/test";
+--exec $MYSQLD_BOOTSTRAP_CMD  < $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
 
---remove_file $BOOTSTRAP_SQL
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_error.sql
 
 # Start server
-#--source include/start_mysqld.inc
+--source include/start_mysqld.inc
 
 # Drop t1 from the previous test (1).
-#DROP TABLE t1;
+DROP TABLE t1;
 
 # Table t2 should not exists
-#--error ER_BAD_TABLE_ERROR
-#DROP TABLE t2;
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t2;
 
---perl
-use File::Path 'rmtree';
-$DDIR=$ENV{"DDIR"};
-rmtree([ "$DDIR" ]);
-EOF
 ###########################################################################
 # 3. Bootstrap with a query larger than 2*thd->net.max_packet
 ###########################################################################
 
 # Prepare a long query.
 # NOTE: no need to save max_allowed_packet value as the server will be restarted.
-let DDIR=$MYSQL_TMP_DIR/installdb_test2;
-mkdir $DDIR;
---source include/start_mysqld.inc
 
 SET @@global.max_allowed_packet = 100 * @@global.max_allowed_packet;
 
@@ -123,7 +64,7 @@ CREATE TABLE t1 SELECT 2 AS a, CONCAT(REPEAT('MySQL', @@max_allowed_packet/10), 
 --source include/shutdown_mysqld.inc
 
 --error 1
---exec $MYSQLD $extra_args --bootstrap --datadir=$DDIR < $MYSQLTEST_VARDIR/tmp/long_query.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
+--exec $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/long_query.sql >> $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
 
 --remove_file $MYSQLTEST_VARDIR/tmp/long_query.sql
 

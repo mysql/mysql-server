@@ -79,7 +79,6 @@ a	b
 # Check if link file exists  in MYSQLD_DATADIR
 #
 ---- MYSQLD_DATADIR/test
-db.opt
 t1.frm
 t1.isl
 # Check if tablespace file exists where we specified in DATA DIRECTORY
@@ -214,7 +213,6 @@ WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
-db.opt
 t1.frm
 t1.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -262,7 +260,6 @@ WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
-db.opt
 t1.frm
 t1.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -311,7 +308,6 @@ WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_TMP_DIR/alt_dir/test/t2.ibd
 ---- MYSQLD_DATADIR/test
-db.opt
 t2.frm
 t2.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -362,7 +358,6 @@ path
 MYSQL_TMP_DIR/alt_dir/test/t2.ibd
 MYSQLD_DATADIR/test/t3.ibd
 ---- MYSQLD_DATADIR/test
-db.opt
 t2.frm
 t2.isl
 t3.frm
@@ -403,7 +398,6 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 ---- MYSQLD_DATADIR/test
-db.opt
 ---- MYSQL_TMP_DIR/alt_dir/test
 #
 # Be sure SQL MODE "NO_DIR_IN_CREATE" prevents the use of DATA DIRECTORY
@@ -457,7 +451,6 @@ t1	CREATE TEMPORARY TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
 ---- MYSQLD_DATADIR/test
-db.opt
 ---- MYSQL_TMP_DIR/alt_dir/test
 #
 # Create the remote table via static DDL statements in a stored procedure
@@ -480,7 +473,6 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ---- MYSQLD_DATADIR/test
-db.opt
 t1.frm
 t1.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -508,7 +500,6 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ---- MYSQLD_DATADIR/test
-db.opt
 t1.frm
 t1.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -595,7 +586,6 @@ id	store_name	parts	store_id
 2	HUAWEI	BOLT	40
 3	IBM	NAIL	70
 ---- MYSQLD_DATADIR/test
-db.opt
 emp#p#east.isl
 emp#p#north.isl
 emp#p#west.isl
@@ -664,7 +654,6 @@ id	store_name	parts	store_id
 1	Oracle	NUTT	10
 2	HUAWEI	BOLT	40
 ---- MYSQLD_DATADIR/test
-db.opt
 emp#p#east.isl
 emp#p#north.isl
 emp.frm
@@ -739,7 +728,6 @@ id	store_name	parts	store_id
 2	HUAWEI	BOLT	40
 3	IBM	NAIL	70
 ---- MYSQLD_DATADIR/test
-db.opt
 emp#p#east.isl
 emp#p#north.isl
 emp#p#west.isl
@@ -818,7 +806,6 @@ id	store_name	parts	store_id
 2	HUAWEI	BOLT	40
 3	IBM	NAIL	70
 ---- MYSQLD_DATADIR/test
-db.opt
 emp#p#east.isl
 emp#p#north.isl
 emp#p#west.isl

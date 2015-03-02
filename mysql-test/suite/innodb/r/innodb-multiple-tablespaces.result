@@ -48,7 +48,6 @@ INSERT INTO nolink VALUES (1, 'no link file');
 # Shutdown the server, copy and remove files.
 #
 ---- MYSQLD_DATADIR/test
-db.opt
 nnn.frm
 nnn.isl
 nolink.frm
@@ -106,7 +105,6 @@ yyy.ibd
 # it should still be found. And the ISL file should be re-created.
 # Make a backup of this tablespace to use later.
 ---- MYSQLD_DATADIR/test
-db.opt
 nnn.frm
 nolink.frm
 nwy.frm
@@ -277,7 +275,6 @@ nolink	CREATE TABLE `nolink` (
 # List of files before DROP TABLES
 #
 ---- MYSQLD_DATADIR/test
-db.opt
 nnn.frm
 nolink.frm
 nolink.isl
@@ -351,7 +348,6 @@ DROP TABLE nolink;
 # List of files not deleted by the DROP TABLES
 #
 ---- MYSQLD_DATADIR/test
-db.opt
 wny.ibd
 www.ibd
 wyn.ibd
@@ -377,7 +373,6 @@ yyy.ibd
 # List of files after removing leftover files
 #
 ---- MYSQLD_DATADIR/test
-db.opt
 ---- MYSQL_TMP_DIR/alt_dir/test
 nolink.ibd.bak
 ---- MYSQL_TMP_DIR/new_dir/test
@@ -455,7 +450,6 @@ c1	c2
 # YN; Tablespace found the default directory but not in alt_dir.
 # YY; Found in both default directory and alt-dir.
 ---- MYSQLD_DATADIR/test
-db.opt
 ny.frm
 ny.isl
 wy.frm
@@ -545,7 +539,6 @@ DROP TABLE yn;
 DROP TABLE yw;
 DROP TABLE yy;
 ---- MYSQLD_DATADIR/test
-db.opt
 wy.ibd
 yy.ibd
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -554,7 +547,6 @@ nolink.ibd.bak
 # List of files after DROP TABLES
 #
 ---- MYSQLD_DATADIR/test
-db.opt
 wy.ibd
 yy.ibd
 ---- MYSQL_TMP_DIR/alt_dir/test

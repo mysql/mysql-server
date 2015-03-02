@@ -7,7 +7,7 @@
 --source include/not_embedded.inc
 
 CREATE DATABASE test_user_db;
-USE test_user_db;
+
 --echo ========== test 1.1.3.2 ====================================
 --echo === check contens of components of info ====================
 
@@ -19,7 +19,7 @@ GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 SELECT @@proxy_user;
 SELECT @@external_user;
-insert into mysql.db values('%','test_user_db','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y');
+
 --echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_1_user --password=qa_test_1_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 --exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT -u qa_test_1_user --password=qa_test_1_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 

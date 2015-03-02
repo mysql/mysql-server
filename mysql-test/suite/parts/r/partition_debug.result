@@ -24,7 +24,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -60,7 +59,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -71,7 +69,6 @@ t2.MYD
 t2.MYI
 t2.frm
 # State after crash recovery
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -139,7 +136,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -175,7 +171,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -186,7 +181,6 @@ t2.MYD
 t2.MYI
 t2.frm
 # State after crash recovery
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -254,7 +248,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -290,7 +283,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -301,7 +293,6 @@ t2.MYD
 t2.MYI
 t2.frm
 # State after crash recovery
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -369,7 +360,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -407,7 +397,6 @@ ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sqlx-nnnn_nnnn.MYD
 #sqlx-nnnn_nnnn.MYI
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -416,7 +405,6 @@ t1.frm
 t1.par
 t2.frm
 # State after crash recovery
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -484,7 +472,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -522,7 +509,6 @@ ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sqlx-nnnn_nnnn.MYD
 #sqlx-nnnn_nnnn.MYI
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -531,7 +517,6 @@ t1.frm
 t1.par
 t2.frm
 # State after crash recovery
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -599,7 +584,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -637,7 +621,6 @@ ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sqlx-nnnn_nnnn.MYD
 #sqlx-nnnn_nnnn.MYI
-db.opt
 t1#P#p1.MYD
 t1#P#p1.MYI
 t1.frm
@@ -646,7 +629,6 @@ t2.MYD
 t2.MYI
 t2.frm
 # State after crash recovery
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -714,7 +696,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -752,7 +733,6 @@ ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sqlx-nnnn_nnnn.MYD
 #sqlx-nnnn_nnnn.MYI
-db.opt
 t1#P#p1.MYD
 t1#P#p1.MYI
 t1.frm
@@ -761,7 +741,6 @@ t2.MYD
 t2.MYI
 t2.frm
 # State after crash recovery
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -829,7 +808,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -865,7 +843,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -876,7 +853,6 @@ t2.MYD
 t2.MYI
 t2.frm
 # State after crash recovery
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -944,7 +920,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before crash
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -980,7 +955,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -991,7 +965,6 @@ t2.MYD
 t2.MYI
 t2.frm
 # State after crash recovery
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1059,7 +1032,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1095,7 +1067,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1163,7 +1134,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1199,7 +1169,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1267,7 +1236,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1303,7 +1271,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error on rename of './test/t2' to './test/#sqlx-nnnn_nnnn' (errno: 0 - n/a)
 # State after failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1371,7 +1338,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1407,7 +1373,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1475,7 +1440,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1511,7 +1475,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error on rename of './test/t1#P#p0' to './test/t2' (errno: 0 - n/a)
 # State after failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1579,7 +1542,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1615,7 +1577,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1683,7 +1644,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1719,7 +1679,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error on rename of './test/#sqlx-nnnn_nnnn' to './test/t1#P#p0' (errno: 0 - n/a)
 # State after failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1787,7 +1746,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1823,7 +1781,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1891,7 +1848,6 @@ CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1"), (21, "Original from partition p1"), (22, "Original from partition p1"), (23, "Original from partition p1"), (24, "Original from partition p1");
 # State before failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD
@@ -1927,7 +1883,6 @@ a	b
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 ERROR HY000: Error in DDL log
 # State after failure
-db.opt
 t1#P#p0.MYD
 t1#P#p0.MYI
 t1#P#p1.MYD

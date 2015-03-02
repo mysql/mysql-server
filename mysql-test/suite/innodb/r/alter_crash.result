@@ -49,7 +49,6 @@ ERROR HY000: Lost connection to MySQL server during query
 # Manual recovery end
 # Drop the orphaned original table.
 # Files in datadir after manual recovery.
-db.opt
 t1.frm
 t1.ibd
 SHOW TABLES;
@@ -111,7 +110,6 @@ DROP TABLE t2;
 CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=InnoDB;
 ALTER TABLE t2 ADD PRIMARY KEY (f2, f1);
 DROP TABLE t2;
-db.opt
 # -------------------------
 # End of Testing Scenario 2
 # -------------------------
@@ -130,7 +128,6 @@ ERROR HY000: Lost connection to MySQL server during query
 # Manual recovery end
 # Drop the orphaned original table.
 # Files in datadir after manual recovery.
-db.opt
 t1.frm
 t1.ibd
 SHOW TABLES;

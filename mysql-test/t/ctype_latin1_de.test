@@ -17,7 +17,6 @@ drop table if exists t1;
 --enable_warnings
 
 create table t1 (a char (20) not null, b int not null auto_increment, index (a,b));
-show table status;
 insert into t1 (a) values ('ä'),('ac'),('ae'),('ad'),('Äc'),('aeb');
 insert into t1 (a) values ('üc'),('uc'),('ue'),('ud'),('Ü'),('ueb'),('uf');
 insert into t1 (a) values ('ö'),('oc'),('Öa'),('oe'),('od'),('Öc'),('oeb');

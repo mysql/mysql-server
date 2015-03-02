@@ -47,7 +47,6 @@ INSERT INTO u6 VALUES(2);
 # restart
 DROP TABLE u1,u2,u3,u6;
 # List of files:
-db.opt
 SHOW TABLES;
 Tables_in_test
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES

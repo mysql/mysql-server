@@ -64,7 +64,6 @@ t1	CREATE TABLE `t1` (
   KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -100,7 +99,6 @@ test/t1c3	c3	c2	0
 ALTER TABLE t1 CHANGE c2 c2 INT AFTER c1;
 ALTER TABLE t1 CHANGE c1 c1 INT FIRST;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -135,7 +133,6 @@ test/t1c2	c2	c2	0
 test/t1c3	c3	c2	0
 ALTER TABLE t1 CHANGE C2 c3 INT;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -170,7 +167,6 @@ test/t1c2	c2	c3	0
 test/t1c3	c3	c2	0
 ALTER TABLE t1 CHANGE c3 C INT;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -205,7 +201,6 @@ test/t1c2	c2	C	0
 test/t1c3	c3	c2	0
 ALTER TABLE t1 CHANGE C Cöŀumň_TWO INT;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -247,7 +242,6 @@ ALTER TABLE t1 CHANGE cöĿǖmň_two c3 INT;
 ERROR 42S22: Unknown column 'cöĿǖmň_two' in 't1'
 ALTER TABLE t1 CHANGE cÖĿUMŇ_two c3 INT, RENAME TO t3;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -295,7 +289,6 @@ ERROR 42000: Identifier name '12345678901234567890123456789012345678901234567890
 ALTER TABLE t3 CHANGE c3
 `1234567890123456789012345678901234567890123456789012345678901234` INT;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -332,7 +325,6 @@ ALTER TABLE t3 CHANGE
 `1234567890123456789012345678901234567890123456789012345678901234`
 `倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾ä` INT;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -352,7 +344,6 @@ ALTER TABLE t3 CHANGE
 `倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾Ä`
 c3 INT;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -374,7 +365,6 @@ ALTER TABLE t3 CHANGE c3 😲 INT;
 ERROR HY000: Invalid utf8 character string: '\xF0\x9F\x98\xB2'
 ALTER TABLE t3 RENAME TO t2;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -411,7 +401,6 @@ ON i.TABLE_ID=st.TABLE_ID;
 NAME	NAME
 test/t1	test/t1
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -486,7 +475,6 @@ t1c	CREATE TABLE `t1c` (
   CONSTRAINT `t1c3` FOREIGN KEY (`c3`) REFERENCES `t1p` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -527,7 +515,6 @@ SET foreign_key_checks=0;
 ALTER TABLE t1c DROP INDEX C3;
 ERROR HY000: Cannot drop index 'c3': needed in a foreign key constraint
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -576,7 +563,6 @@ test/t1c2	c2	c3	0
 test/t1c3	c3	c2	0
 ALTER TABLE t1c DROP FOREIGN KEY t1C3;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -622,7 +608,6 @@ ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/t1c2	c2	c3	0
 ALTER TABLE t1c DROP INDEX c2, DROP FOREIGN KEY t1C2;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -665,7 +650,6 @@ INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 ALTER TABLE t1 DROP INDEX c2, CHANGE c3 c2 INT;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -718,7 +702,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -804,7 +787,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -855,7 +837,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -900,7 +881,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -946,7 +926,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1001,7 +980,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1059,7 +1037,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1114,7 +1091,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1161,7 +1137,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1206,7 +1181,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1251,7 +1225,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1302,7 +1275,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1363,7 +1335,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1401,7 +1372,6 @@ FTS_AUX_BEING_DELETED_CACHE.ibd
 FTS_AUX_CONFIG.ibd
 FTS_AUX_DELETED.ibd
 FTS_AUX_DELETED_CACHE.ibd
-db.opt
 sys_foreign.frm
 sys_foreign.ibd
 sys_indexes.frm
@@ -1440,5 +1410,4 @@ ID	FOR_COL_NAME	REF_COL_NAME	POS
 #
 DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 ### files in MYSQL_DATA_DIR/test
-db.opt
 ### files in MYSQL_TMP_DIR/alt_dir/test

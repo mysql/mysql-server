@@ -1,0 +1,18 @@
+# restart
+DROP TABLE t1;
+DROP TABLE t2;
+ERROR 42S02: Unknown table 'test.t2'
+SET @@global.max_allowed_packet = 100 * @@global.max_allowed_packet;
+CREATE TABLE t1 SELECT 2 AS a, CONCAT(REPEAT('MySQL', @@max_allowed_packet/10), ';') AS b;
+SELECT * INTO OUTFILE 'VARDIR/tmp/long_query.sql' FROM t1;
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(1) NOT NULL DEFAULT '0',
+  `b` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT a, LENGTH(b) FROM t1;
+a	LENGTH(b)
+2	2097151
+DROP TABLE t1;

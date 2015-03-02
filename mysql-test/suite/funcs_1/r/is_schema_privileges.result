@@ -63,13 +63,27 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE
 ''@'%'	def	test	ALTER
 ''@'%'	def	test	CREATE TEMPORARY TABLES
 ''@'%'	def	test	LOCK TABLES
-''@'%'	def	test	EXECUTE
 ''@'%'	def	test	CREATE VIEW
 ''@'%'	def	test	SHOW VIEW
 ''@'%'	def	test	CREATE ROUTINE
-''@'%'	def	test	ALTER ROUTINE
 ''@'%'	def	test	EVENT
 ''@'%'	def	test	TRIGGER
+''@'%'	def	test\_%	SELECT
+''@'%'	def	test\_%	INSERT
+''@'%'	def	test\_%	UPDATE
+''@'%'	def	test\_%	DELETE
+''@'%'	def	test\_%	CREATE
+''@'%'	def	test\_%	DROP
+''@'%'	def	test\_%	REFERENCES
+''@'%'	def	test\_%	INDEX
+''@'%'	def	test\_%	ALTER
+''@'%'	def	test\_%	CREATE TEMPORARY TABLES
+''@'%'	def	test\_%	LOCK TABLES
+''@'%'	def	test\_%	CREATE VIEW
+''@'%'	def	test\_%	SHOW VIEW
+''@'%'	def	test\_%	CREATE ROUTINE
+''@'%'	def	test\_%	EVENT
+''@'%'	def	test\_%	TRIGGER
 ###############################################################################
 # Testcase 3.2.15.2-3.2.15.4 INFORMATION_SCHEMA.SCHEMA_PRIVILEGES accessibility
 ###############################################################################

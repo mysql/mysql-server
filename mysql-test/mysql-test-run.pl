@@ -3488,9 +3488,7 @@ sub initialize_servers {
       remove_stale_vardir();
       setup_vardir();
 
-      #mysql_install_db(default_mysqld(), "$opt_vardir/install.db");
-      rmtree("$opt_vardir/data/");
-      mysql_install_db(default_mysqld(), "$opt_vardir/data/");
+      mysql_install_db(default_mysqld(), "$opt_vardir/install.db");
     }
   }
 }
@@ -3580,10 +3578,9 @@ sub mysql_install_db {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--log-syslog=0");
-  #mtr_add_arg($args, "--bootstrap");
-  mtr_add_arg($args, "--initialize-insecure=on");
+  mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
-#  mtr_add_arg($args, "--datadir=%s", $install_datadir);
+  mtr_add_arg($args, "--datadir=%s", $install_datadir);
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
@@ -3651,7 +3648,6 @@ sub mysql_install_db {
 
 
 
-  mtr_add_arg($args, "--datadir=%s", $install_datadir);
   # ----------------------------------------------------------------------
   # Create the bootstrap.sql file
   # ----------------------------------------------------------------------
@@ -3714,13 +3710,6 @@ sub mysql_install_db {
   # Create mtr database
   mtr_tofile($bootstrap_sql_file,
 	     "CREATE DATABASE mtr;\n");
-  mtr_tofile($bootstrap_sql_file,
-	     "CREATE DATABASE test;\n");
-#  mtr_tofile($bootstrap_sql_file,
-#             "GRANT ALL ON test.* TO '*';\n");
-  mtr_tofile($bootstrap_sql_file,
-            "insert into mysql.db values('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y'); \n");
-  
 
   # Add help tables and data for warning detection and supression
   mtr_tofile($bootstrap_sql_file,
@@ -3735,13 +3724,16 @@ sub mysql_install_db {
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
 
-  mtr_add_arg($args, "--init-file=$bootstrap_sql_file");
+  # Create directories mysql and test
+  mkpath("$install_datadir/mysql");
+  mkpath("$install_datadir/test");
+
   if ( My::SafeProcess->run
        (
 	name          => "bootstrap",
 	path          => $exe_mysqld_bootstrap,
 	args          => \$args,
-#	input         => $bootstrap_sql_file,
+	input         => $bootstrap_sql_file,
 	output        => $path_bootstrap_log,
 	error         => $path_bootstrap_log,
 	append        => 1,
@@ -3752,13 +3744,6 @@ sub mysql_install_db {
               "Could not install system database from $bootstrap_sql_file\n" .
 	      "see $path_bootstrap_log for errors");
   }
-  # Create directories mysql and test
-  #mkpath("$install_datadir/mysql");
-#  mkpath("$install_datadir/test");
-#  #remove file db.opt
-#  if ( -e "$install_datadir/test/db.opt" ) {
-#    unlink "$install_datadir/test/db.opt" ;
-#  }
 }
 
 
@@ -6008,8 +5993,7 @@ sub start_servers($) {
       {
 	# Copy datadir from installed system db
 	for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	  #my $install_db= "$path/install.db";
-	  my $install_db= "$path/data/";
+	  my $install_db= "$path/install.db";
 	  copytree($install_db, $datadir)
 	    if -d $install_db;
 	}
@@ -6023,6 +6007,7 @@ sub start_servers($) {
 
       mtr_error("Failed to install system db to '$datadir'")
 	unless -d $datadir;
+
     }
 
     # Create the servers tmpdir

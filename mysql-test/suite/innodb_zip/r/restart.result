@@ -294,7 +294,6 @@ MYSQL_DATA_DIR/s1_restart.ibd
 # Shutdown the server and list the tablespace OS files
 #
 ---- MYSQL_DATA_DIR/test
-db.opt
 t1_restart.frm
 t1_restart.ibd
 t2_restart.frm
@@ -609,7 +608,6 @@ SUBPARTITION BY HASH (c1)
 # Shutdown the server and make a backup of a tablespace
 #
 ---- MYSQL_DATA_DIR/test
-db.opt
 t4_restart.frm
 t4_restart.ibd
 t5_restart.frm
@@ -713,7 +711,6 @@ ERROR 42S01: Table 't55_restart' already exists
 RENAME TABLE t5_restart TO t55_restart;
 ERROR HY000: Error on rename of './test/t5_restart' to './test/t55_restart' (errno: 184 - Tablespace already exists)
 ---- MYSQL_DATA_DIR/test
-db.opt
 t4_restart.frm
 t4_restart.ibd
 t5_restart.frm
@@ -809,7 +806,6 @@ SUBPARTITION BY HASH (c1)
  (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
   SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB)) */
 ---- MYSQL_DATA_DIR/test
-db.opt
 t4_restart.frm
 t4_restart.ibd
 t55_restart.frm
@@ -912,7 +908,6 @@ SUBPARTITION BY HASH (c1)
 # Move the remote tablespaces to a new location and change the ISL files
 #
 ---- MYSQL_DATA_DIR/test
-db.opt
 t4_restart.frm
 t4_restart.ibd
 t55_restart.frm
@@ -941,7 +936,6 @@ t77_restart#p#p1#sp#s3.ibd
 # Moving tablespace 't66_restart' from MYSQL_TMP_DIR/alt_dir to MYSQL_TMP_DIR/new_dir
 # Moving tablespace 't77_restart' from MYSQL_TMP_DIR/alt_dir to MYSQL_TMP_DIR/new_dir
 ---- MYSQL_DATA_DIR/test
-db.opt
 t4_restart.frm
 t4_restart.isl
 t55_restart.frm
@@ -1057,7 +1051,6 @@ SUBPARTITION BY HASH (c1)
 # Move the remote tablespaces back to the default datadir and delete the ISL file.
 #
 ---- MYSQL_DATA_DIR/test
-db.opt
 t4_restart.frm
 t4_restart.isl
 t55_restart.frm
@@ -1086,7 +1079,6 @@ t77_restart#p#p1#sp#s3.ibd
 # Moving 't66_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
 # Moving 't77_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
 ---- MYSQL_DATA_DIR/test
-db.opt
 t4_restart.frm
 t4_restart.ibd
 t55_restart.frm
