@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -142,6 +141,8 @@ public:
 			 int batchsize = 1);
 
   void setRetryMax(int retryMax = 100) { m_retryMax = retryMax; }
+  // XXX only for scanUpdateRecords
+  bool getRetryMaxReached() const { return m_retryMaxReached; }
   
   Uint64 m_latest_gci;
 
@@ -157,6 +158,7 @@ protected:
   NDBT_ResultRow row;
   int m_defaultScanUpdateMethod;
   int m_retryMax;
+  bool m_retryMaxReached;
 
   NDBT_Stats* m_stats_latency;
 
