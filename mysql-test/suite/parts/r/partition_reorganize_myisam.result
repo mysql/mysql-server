@@ -46,6 +46,7 @@ SUBPARTITION BY HASH (store_id)
  (SUBPARTITION sw2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = MyISAM,
   SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = MyISAM)) */
 ---- MYSQLD_DATADIR/test
+db.opt
 emp#P#northeast#SP#ne0.MYD
 emp#P#northeast#SP#ne0.MYI
 emp#P#northeast#SP#ne1.MYD
@@ -120,6 +121,7 @@ SUBPARTITION BY HASH (store_id)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = MyISAM,
   SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = MyISAM)) */
 ---- MYSQLD_DATADIR/test
+db.opt
 emp#P#east#SP#e0.MYD
 emp#P#east#SP#e0.MYI
 emp#P#east#SP#e1.MYD

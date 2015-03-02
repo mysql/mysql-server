@@ -11,6 +11,7 @@ WHERE table_schema IN ('information_schema','mysql','test')
 ORDER BY grantee, table_schema, privilege_type;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 ''@'%'	def	test	ALTER	NO
+''@'%'	def	test	ALTER ROUTINE	NO
 ''@'%'	def	test	CREATE	NO
 ''@'%'	def	test	CREATE ROUTINE	NO
 ''@'%'	def	test	CREATE TEMPORARY TABLES	NO
@@ -18,6 +19,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 ''@'%'	def	test	DELETE	NO
 ''@'%'	def	test	DROP	NO
 ''@'%'	def	test	EVENT	NO
+''@'%'	def	test	EXECUTE	NO
 ''@'%'	def	test	INDEX	NO
 ''@'%'	def	test	INSERT	NO
 ''@'%'	def	test	LOCK TABLES	NO

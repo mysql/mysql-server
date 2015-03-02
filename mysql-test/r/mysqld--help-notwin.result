@@ -1254,8 +1254,8 @@ ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
 init-slave 
-initialize FALSE
-initialize-insecure FALSE
+initialize TRUE
+initialize-insecure TRUE
 interactive-timeout 28800
 internal-tmp-disk-storage-engine INNODB
 join-buffer-size 262144
@@ -1277,7 +1277,7 @@ log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
 log-error stderr
-log-error-verbosity 1
+log-error-verbosity 2
 log-isam myisam.log
 log-output FILE
 log-queries-not-using-indexes FALSE
@@ -1294,7 +1294,7 @@ log-tc tc.log
 log-tc-size 24576
 log-throttle-queries-not-using-indexes 0
 log-timestamps UTC
-log-warnings 0
+log-warnings 1
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1

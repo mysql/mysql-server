@@ -53,6 +53,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+db.opt
 t1#P#p0.ibd
 t1.frm
 SET DEBUG_SYNC='before_open_in_get_all_tables SIGNAL parked WAIT_FOR open';
@@ -75,6 +76,7 @@ Warning	1639	debug sync point wait timed out
 TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_DESCRIPTION	TABLE_ROWS
 test	t1	p0	1	10	1
 test	t1	p10	2	MAXVALUE	3
+db.opt
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
@@ -93,4 +95,5 @@ a
 21
 33
 drop table t1;
+db.opt
 SET DEBUG_SYNC = 'RESET';

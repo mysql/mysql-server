@@ -17,6 +17,7 @@ SELECT * FROM t5980;
 a	b
 1	Create the tablespace
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -40,6 +41,7 @@ a	b
 1	Create the tablespace
 UNLOCK TABLES;
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -85,6 +87,7 @@ a	b	c
 2	Duplicate value since primary key has been dropped	third column added
 UNLOCK TABLES;
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -98,6 +101,7 @@ t5980.ibd.bak2
 #
 DROP TABLE t5980;
 ### files in MYSQL_DATA_DIR/test
+db.opt
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -118,6 +122,7 @@ ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -166,6 +171,7 @@ ALTER TABLE t5980 IMPORT TABLESPACE;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980'
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -242,6 +248,7 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 ### files in MYSQL_DATA_DIR/test
+db.opt
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -256,6 +263,7 @@ SELECT * FROM t5980;
 a	b
 1	Create the tablespace a third time
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -272,6 +280,7 @@ t5980.ibd.bak2
 # restart
 SET GLOBAL innodb_file_per_table=ON;
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -298,6 +307,7 @@ SELECT * FROM t5980;
 a	b
 1	Create the tablespace a third time
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -310,6 +320,7 @@ ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -320,6 +331,7 @@ t5980.ibd.bak2
 # Restore the backup of *.ibd and *.cfg files
 #
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
@@ -343,6 +355,7 @@ t5980	CREATE TABLE `t5980` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -359,6 +372,7 @@ ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
 ERROR HY000: Tablespace has been discarded for table 't5980'
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -385,6 +399,7 @@ test.t5980	check	error	Corrupt
 # The tablespace is still in the discarded state.
 #
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.cfg
 t5980.frm
 t5980.ibd
@@ -423,6 +438,7 @@ test.t5980	check	error	Corrupt
 # Import the tablespace and check it out.
 #
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
@@ -536,6 +552,7 @@ MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 MYSQL_DATA_DIR/test/t5980c.ibd
 MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980a.frm
 t5980a.ibd
 t5980b.frm
@@ -556,6 +573,7 @@ UNLOCK TABLES;
 ALTER TABLE t5980a DISCARD TABLESPACE;
 ALTER TABLE t5980b DISCARD TABLESPACE;
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -607,6 +625,7 @@ MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
 MYSQL_DATA_DIR/test/t5980c.ibd
 MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -704,6 +723,7 @@ Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980bb'
 SET @@sql_mode = @old_sql_mode;
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980aa.frm
 t5980bb.frm
 t5980c.frm
@@ -756,6 +776,7 @@ MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 MYSQL_DATA_DIR/test/t5980aa.ibd
 MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980aa.frm
 t5980bb.frm
 t5980c.frm
@@ -818,6 +839,7 @@ MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 MYSQL_DATA_DIR/test/t5980aa.ibd
 MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -864,6 +886,7 @@ ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -914,6 +937,7 @@ ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
 ERROR HY000: Tablespace has been discarded for table 't5980b'
 ### files in MYSQL_DATA_DIR/test
+db.opt
 t5980a.frm
 t5980b.frm
 t5980c.frm
@@ -933,6 +957,7 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 ### files in MYSQL_DATA_DIR/test
+db.opt
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #
 # Cleanup
