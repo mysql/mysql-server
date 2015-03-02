@@ -27,6 +27,7 @@ HugoTransactions::HugoTransactions(const NdbDictionary::Table& _tab,
 
   m_defaultScanUpdateMethod = 3;
   setRetryMax();
+  m_retryMaxReached = false;
   m_stats_latency = 0;
 
   m_thr_count = 0;
@@ -405,12 +406,14 @@ HugoTransactions::scanUpdateRecords(Ndb* pNdb,
   int retryAttempt = 0;
   int check, a;
   NdbScanOperation *pOp;
+  m_retryMaxReached = false;
 
   while (true){
 restart:
     if (retryAttempt++ >= m_retryMax){
       g_err << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!, line: " << __LINE__ << endl;
+      m_retryMaxReached = true;
       return NDBT_FAILED;
     }
 
