@@ -32,7 +32,6 @@
 #include "log.h"              // sql_print_error
 #include "opt_trace.h"        // Opt_trace_object
 #include "sql_base.h"         // fill_record
-#include "sql_derived.h"      // mysql_derived_materialize
 #include "sql_join_buffer.h"  // st_cache_field
 #include "sql_optimizer.h"    // JOIN
 #include "sql_show.h"         // get_schema_tables_result

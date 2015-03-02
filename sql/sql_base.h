@@ -66,8 +66,7 @@ typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 /**
   This flag is used in function get_all_tables() which fills
   I_S tables with data which are retrieved from frm files and storage engine.
-  The flag means that we need to open a view using
-  open_normal_and_derived_tables() function.
+  The flag means that we need to open a view.
 */
 #define OPEN_VIEW_FULL         OPEN_VIEW_ONLY*2
 /**
@@ -287,7 +286,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       uint flags);
 bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy);
-/* open_and_lock_tables with optional derived handling */
+/* open_and_lock_tables */
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
                           Prelocking_strategy *prelocking_strategy);
 /* simple open_and_lock_tables for single table */
@@ -469,7 +468,7 @@ inline TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
 }
 
 
-/* open_and_lock_tables with derived handling */
+// open_and_lock_tables with default prelocking strategy
 inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
