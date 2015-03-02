@@ -5422,6 +5422,8 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
 
+ANALYZE TABLE t1, t2;
+
 SET @old_depth=@@optimizer_search_depth;
 SET optimizer_search_depth=4;
 
@@ -5563,58 +5565,6 @@ eval $query;
 DROP TABLE t1;
 
 --echo # End of test for bug#13838810.
-
---echo #
---echo # BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
---echo # --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
---echo #
-
-CREATE TABLE t1 (
-  col_int_key INT(11) NOT NULL,
-  col_datetime_key DATETIME NOT NULL,
-  col_varchar_key VARCHAR(1) NOT NULL,
-  col_varchar_nokey VARCHAR(1) NOT NULL,
-  KEY col_int_key (col_int_key),
-  KEY col_datetime_key (col_datetime_key),
-  KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-
-INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
-INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
-
-CREATE TABLE t2 (
-  col_int_key INT(11) NOT NULL,
-  col_datetime_key DATETIME NOT NULL,
-  col_varchar_key VARCHAR(1) NOT NULL,
-  col_varchar_nokey VARCHAR(1) NOT NULL,
-  KEY col_int_key (col_int_key),
-  KEY col_datetime_key (col_datetime_key),
-  KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-
-INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
-
-SET @old_depth=@@optimizer_search_depth;
-SET optimizer_search_depth=4;
-
-let $query=SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-  SELECT alias1.col_datetime_key
-  FROM t1 AS alias1
-    LEFT JOIN t1 as alias3
-      STRAIGHT_JOIN ( t2 AS alias4
-        JOIN t1 AS alias5
-        ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-      ON alias5.col_int_key < alias4.col_int_key
-    ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-
-eval EXPLAIN $query;
-eval $query;
-
-DROP TABLE t1,t2;
-SET @@optimizer_search_depth=@old_depth;
 
 --echo #
 --echo # Bug#13845930: Segfault in st_join_table::and_with_condition
