@@ -118,6 +118,9 @@ SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
 ERROR HY000: Can't find FULLTEXT index matching the column list
 DROP TABLE t1;
 create table t1 (a varchar(10), key(a), fulltext (a)) ENGINE = InnoDB;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 select * from t1 where a like "abc%";
 a
@@ -131,7 +134,6 @@ a
 test
 select * from t1 where match a against ("te*" in boolean mode)+0;
 a
-test
 drop table t1;
 # 
 # Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
