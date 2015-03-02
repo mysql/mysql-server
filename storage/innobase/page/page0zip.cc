@@ -1732,7 +1732,7 @@ page_zip_fields_decode(
 /**********************************************************************//**
 Populate the sparse page directory from the dense directory.
 @return TRUE on success, FALSE on failure */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 ibool
 page_zip_dir_decode(
 /*================*/

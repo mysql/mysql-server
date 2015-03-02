@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,17 +29,8 @@
 #include "pfs_global.h"
 #include "sql_string.h"
 #include "pfs_setup_object.h"
+#include "pfs_buffer_container.h"
 #include <string.h>
-
-/** EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM circular buffer. */
-PFS_program *program_array= NULL;
-
-/** Max size of the program array. */
-ulong program_max= 0;
-/** Number of stored program instanes lost. */
-ulong program_lost= 0;
-/** True when program array is full. */
-bool program_full;
 
 LF_HASH program_hash;
 static bool program_hash_inited= false;
@@ -50,41 +41,17 @@ static bool program_hash_inited= false;
 */
 int init_program(const PFS_global_param *param)
 {
-  /*
-    Allocate memory for program_array based on
-    performance_schema_max_program_instances value.
-  */
-  program_max= param->m_program_sizing;
-  program_lost= 0;
-  program_full= false;
-
-  if (program_max == 0)
-    return 0;
-
-  program_array=
-    PFS_MALLOC_ARRAY(program_max, PFS_program,
-                     MYF(MY_ZEROFILL));
-  if (unlikely(program_array == NULL))
+  if (global_program_container.init(param->m_program_sizing))
     return 1;
 
-  PFS_program *pfs= program_array;
-  PFS_program *pfs_last= program_array + program_max;
-
-  for (; pfs < pfs_last ; pfs++)
-  {
-    pfs->reset_data();
-  }
-
+  reset_esms_by_program();
   return 0;
 }
 
 /** Cleanup table EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM. */
 void cleanup_program(void)
 {
-  /*  Free memory allocated to program_array. */
-  pfs_free(program_array);
-  program_array= NULL;
-  program_max= 0;
+  global_program_container.cleanup();
 }
 
 C_MODE_START
@@ -108,13 +75,12 @@ C_MODE_END
   Initialize the program hash.
   @return 0 on success
 */
-int init_program_hash(void)
+int init_program_hash(const PFS_global_param *param)
 {
-  if ((! program_hash_inited) && (program_max > 0))
+  if ((! program_hash_inited) && (param->m_program_sizing != 0))
   {
     lf_hash_init(&program_hash, sizeof(PFS_program*), LF_HASH_UNIQUE,
                  0, 0, program_hash_get_key, &my_charset_bin);
-    program_hash.size= program_max;
     program_hash_inited= true;
   }
   return 0;
@@ -170,19 +136,14 @@ void PFS_program::reset_data()
   m_stmt_stat.reset();
 }
 
+static void fct_reset_esms_by_program(PFS_program *pfs)
+{
+  pfs->reset_data();
+}
+
 void reset_esms_by_program()
 {
-  if (program_array == NULL)
-    return;
-
-  PFS_program *pfs= program_array;
-  PFS_program *pfs_last= program_array + program_max;
-
-  /* Reset statistics in program_array. */
-  for (; pfs < pfs_last ; pfs++)
-  {
-    pfs->reset_data();
-  }
+  global_program_container.apply_all(fct_reset_esms_by_program);
 }
 
 static LF_PINS* get_program_hash_pins(PFS_thread *thread)
@@ -204,17 +165,14 @@ find_or_create_program(PFS_thread *thread,
                       const char *schema_name,
                       uint schema_name_length)
 {
-  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
-
   bool is_enabled, is_timed;
-
-  if (program_array == NULL || program_max == 0 ||
-      object_name_length ==0 || schema_name_length == 0)
-    return NULL;
 
   LF_PINS *pins= get_program_hash_pins(thread);
   if (unlikely(pins == NULL))
+  {
+    global_program_container.m_lost++;
     return NULL;
+  }
 
   /* Prepare program key */
   PFS_program_key key;
@@ -226,8 +184,6 @@ find_or_create_program(PFS_thread *thread,
   PFS_program *pfs= NULL;
   uint retry_count= 0;
   const uint retry_max= 3;
-  ulong index= 0;
-  ulong attempts= 0;
   pfs_dirty_state dirty_state;
 
 search:
@@ -245,12 +201,6 @@ search:
 
   lf_hash_search_unpin(pins);
 
-  if(program_full)
-  {
-    program_lost++;
-    return NULL;
-  }
-
   /*
     First time while inserting this record to program array we need to
     find out if it is enabled and timed.
@@ -261,54 +211,48 @@ search:
                       &is_enabled, &is_timed);
 
   /* Else create a new record in program stat array. */
-  while (++attempts <= program_max)
+  pfs= global_program_container.allocate(& dirty_state);
+  if (pfs != NULL)
   {
-    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % program_max;
-    pfs= program_array + index;
+    /* Do the assignments. */
+    memcpy(pfs->m_key.m_hash_key, key.m_hash_key, key.m_key_length);
+    pfs->m_key.m_key_length= key.m_key_length;
+    pfs->m_type= object_type;
 
-    if (pfs->m_lock.free_to_dirty(& dirty_state))
+    pfs->m_object_name= pfs->m_key.m_hash_key + 1;
+    pfs->m_object_name_length= object_name_length;
+    pfs->m_schema_name= pfs->m_object_name + object_name_length + 1;
+    pfs->m_schema_name_length= schema_name_length;
+    pfs->m_enabled= is_enabled;
+    pfs->m_timed= is_timed;
+
+    /* Insert this record. */
+    pfs->m_lock.dirty_to_allocated(& dirty_state);
+    int res= lf_hash_insert(&program_hash, pins, &pfs);
+
+    if (likely(res == 0))
     {
-      /* Do the assignments. */
-      memcpy(pfs->m_key.m_hash_key, key.m_hash_key, key.m_key_length);
-      pfs->m_key.m_key_length= key.m_key_length;
-      pfs->m_type= object_type;
-
-      pfs->m_object_name= pfs->m_key.m_hash_key + 1;
-      pfs->m_object_name_length= object_name_length;
-      pfs->m_schema_name= pfs->m_object_name + object_name_length + 1;
-      pfs->m_schema_name_length= schema_name_length;
-      pfs->m_enabled= is_enabled;
-      pfs->m_timed= is_timed;
-
-      /* Insert this record. */
-      pfs->m_lock.dirty_to_allocated(& dirty_state);
-      int res= lf_hash_insert(&program_hash, pins, &pfs);
-
-      if (likely(res == 0))
-      {
-        return pfs;
-      }
-
-      pfs->m_lock.allocated_to_free();
-
-      if (res > 0)
-      {
-        /* Duplicate insert by another thread */
-        if (++retry_count > retry_max)
-        {
-          /* Avoid infinite loops */
-          program_lost++;
-          return NULL;
-        }
-        goto search;
-      }
-      /* OOM in lf_hash_insert */
-      program_lost++;
-      return NULL;
+      return pfs;
     }
+
+    global_program_container.deallocate(pfs);
+
+    if (res > 0)
+    {
+      /* Duplicate insert by another thread */
+      if (++retry_count > retry_max)
+      {
+        /* Avoid infinite loops */
+        global_program_container.m_lost++;
+        return NULL;
+      }
+       goto search;
+    }
+    /* OOM in lf_hash_insert */
+    global_program_container.m_lost++;
+    return NULL;
   }
-  program_lost++;
-  program_full= true;
+
   return NULL;
 }
 
@@ -341,8 +285,7 @@ void drop_program(PFS_thread *thread,
 
     lf_hash_delete(&program_hash, pins,
                    key.m_hash_key, key.m_key_length);
-    pfs->m_lock.allocated_to_free();
-    program_full= false;
+    global_program_container.deallocate(pfs);
   }
 
   lf_hash_search_unpin(pins);

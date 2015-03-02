@@ -38,9 +38,9 @@ public:
   bool is_running();
   int set_retrieved_certification_info(View_change_log_event *view_change_event);
   bool get_connection_status_info(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info);
-  bool get_group_members_info(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
+  bool get_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
   bool get_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* info);
-  uint get_members_number_info();
+  unsigned int get_members_number_info();
 
 private:
   std::string plugin_name;
@@ -62,80 +62,9 @@ bool is_group_replication_running();
 int set_group_replication_retrieved_certification_info(View_change_log_event *view_change_event);
 
 bool get_group_replication_connection_status_info(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info);
-bool get_group_replication_group_members_info(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
+bool get_group_replication_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
 bool get_group_replication_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* info);
-uint get_group_replication_members_number_info();
-
-
-/*
-  Server access methods and variables exported to plugin through
-  include/mysql/group_replication_priv.h
-*/
-/**
-  Returns if the server engine initialization as ended or not.
-
-  @return is the server ready
-    @retval false     not ready
-    @retval true      ready
-*/
-bool is_server_engine_ready();
-
-/**
-  Returns the server hostname, port and uuid.
-
-  @param[out] hostname
-  @param[out] port
-  @param[out] uuid
-*/
-void get_server_host_port_uuid(char **hostname, uint *port, char** uuid);
-
-/**
-  Returns a struct containing all server startup information needed to evaluate
-  if one has conditions to proceed executing master-master replication.
-
-  @param[out] requirements
- */
-void get_server_startup_prerequirements(Trans_context_info& requirements);
-
-/**
-  Returns the server GTID_EXECUTED encoded as a binary string.
-
-  @note Memory allocated to encoded_gtid_executed must be release by caller.
-
-  @param[out] encoded_gtid_executed binary string
-  @param[out] length                binary string length
-*/
-bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
-                                      uint *length);
-#if !defined(DBUG_OFF)
-/**
-  Returns a text representation of a encoded GTID set.
-
-  @note Memory allocated to returned pointer must be release by caller.
-
-  @param[in] encoded_gtid_set      binary string
-  @param[in] length                binary string length
-
-  @return a pointer to text representation of the encoded set
-*/
-char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, uint length);
-#endif
-
-
-/**
-  Add thread to Global_THD_manager singleton.
-
-  @param[in] thd  The thread
-*/
-void global_thd_manager_add_thd(THD *thd);
-
-
-/**
-  Remove thread from Global_THD_manager singleton.
-
-  @param[in] thd  The thread
-*/
-void global_thd_manager_remove_thd(THD *thd);
+unsigned int get_group_replication_members_number_info();
 
 
 #endif /* RPL_GROUP_REPLICATION_INCLUDED */

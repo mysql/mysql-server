@@ -44,3 +44,25 @@ ERROR HY000: Variable 'sql_slave_skip_counter' is a GLOBAL variable and should b
 SET @@local.sql_slave_skip_counter = 13;
 ERROR HY000: Variable 'sql_slave_skip_counter' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@global.sql_slave_skip_counter = 0;
+SET @@global.enforce_gtid_consistency = on;
+SET @@global.gtid_mode = off_permissive;
+set global sql_slave_skip_counter= 1;
+set global sql_slave_skip_counter= 0;
+SET @@global.gtid_mode = on_permissive;
+set global sql_slave_skip_counter= 1;
+set global sql_slave_skip_counter= 0;
+SET @@global.gtid_mode = on;
+set global sql_slave_skip_counter= 1;
+ERROR HY000: sql_slave_skip_counter can not be set when the server is running with @@GLOBAL.GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction
+select @@global.sql_slave_skip_counter;
+@@global.sql_slave_skip_counter
+0
+set global sql_slave_skip_counter= 0;
+ERROR HY000: sql_slave_skip_counter can not be set when the server is running with @@GLOBAL.GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction
+select @@global.sql_slave_skip_counter;
+@@global.sql_slave_skip_counter
+0
+SET @@global.gtid_mode = on_permissive;
+SET @@global.gtid_mode = off_permissive;
+SET @@global.gtid_mode = off;
+SET @@global.enforce_gtid_consistency = off;

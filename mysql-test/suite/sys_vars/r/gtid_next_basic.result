@@ -23,6 +23,18 @@ set session gtid_next = "ANONYMOUS";
 select @@session.gtid_next;
 @@session.gtid_next
 ANONYMOUS
+ROLLBACK;
+set session gtid_next=default;
+select @@session.gtid_next;
+@@session.gtid_next
+AUTOMATIC
+ROLLBACK;
+set session gtid_next=NULL;
+ERROR 42000: Variable 'gtid_next' can't be set to the value of 'NULL'
+select @@session.gtid_next;
+@@session.gtid_next
+AUTOMATIC
+ROLLBACK;
 set session gtid_next = @start_global_value;
 select @@session.gtid_next;
 @@session.gtid_next

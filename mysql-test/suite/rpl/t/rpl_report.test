@@ -4,10 +4,12 @@
 source include/master-slave.inc;
 
 connection slave;
+--disable_warnings
 select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_host';
 select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_port';
 select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_user';
 select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_password';
+--enable_warnings
 query_vertical show global variables like 'report_host';
 query_vertical show global variables like 'report_port';
 query_vertical show global variables like 'report_user';

@@ -20,10 +20,11 @@
    sql_mode contains 'only_full_group_by'.
 */
 
-#include "sql_select.h"
+#include "aggregate_check.h"
+
 #include "opt_trace.h"
 #include "sql_base.h"
-#include "aggregate_check.h"
+#include "sql_select.h"
 
 
 /**
@@ -208,12 +209,12 @@ err:
   if (select->group_list.elements)
   {
     code= ER_WRONG_FIELD_WITH_GROUP;        // old code
-    text= ER(ER_WRONG_FIELD_WITH_GROUP_V2); // new text
+    text= ER_THD(thd, ER_WRONG_FIELD_WITH_GROUP_V2); // new text
   }
   else
   {
     code= ER_MIX_OF_GROUP_FUNC_AND_FIELDS;        // old code
-    text= ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2); // new text
+    text= ER_THD(thd, ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2); // new text
   }
   my_printf_error(code, text, MYF(0), number_in_list, place,
                   failed_ident->full_name());

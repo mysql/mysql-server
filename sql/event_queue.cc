@@ -18,6 +18,7 @@
 #include "event_data_objects.h"
 #include "event_db_repository.h"
 #include "events.h"
+#include "psi_memory_key.h"
 #include "sql_audit.h"
 #include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
 #include "log.h"        // sql_print_error
@@ -732,9 +733,10 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info 
   waiting_on_cond= FALSE;
 
   /*
-    This will free the lock so we need to relock. Not the best thing to
-    do but we need to obey cond_wait()
+    Need to unlock before exit_cond, so we need to relock.
+    Not the best thing to do but we need to obey cond_wait()
   */
+  unlock_data(src_func, src_line);
   thd->exit_cond(NULL, src_func, src_file, src_line);
   lock_data(src_func, src_line);
 

@@ -1,3 +1,4 @@
+--source include/have_mysqld_safe.inc
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
@@ -30,10 +31,7 @@ EOF
 #Remove the temp file
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqld_path_file.inc
 
-# 2) Insert a check if mysqld_safe is existing.
---file_exists $MYSQLD_SAFE
-
-# 3) Shutdown mysqld which is started by mtr.
+# 2) Shutdown mysqld which is started by mtr.
 --let $_server_id= `SELECT @@server_id`
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 --exec echo "wait" > $_expect_file_name
@@ -41,21 +39,21 @@ EOF
 --source include/wait_until_disconnected.inc
 
 
-# 4) Run the mysqld_safe script with exec.
---exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
+# 3) Run the mysqld_safe script with exec.
+--exec sh $MYSQLD_SAFE --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-error=$MYSQLTEST_VARDIR/log/err.log --basedir=$MYSQL_BASEDIR --ledir=$mysqld_path --datadir=$MYSQLD_DATADIR --secure-file-priv=$MYSQLTEST_VARDIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --timezone=SYSTEM --log-output=file --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk < /dev/null > /dev/null 2>&1 &
 
 # mysqld_safe takes some time to start mysqld
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-# 5) Reconnect to mysqld again
+# 4) Reconnect to mysqld again
 connection default;
 
-# 6) Execute some SQL 
+# 5) Execute some SQL
 --exec $MYSQL -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root -e "SHOW DATABASES" 2>&1
 
-# 7) Kill mysqld, which must be restarted now automaticly by mysqld_safe 
+# 6) Kill mysqld, which must be restarted now automaticly by mysqld_safe
 --exec sh $MYSQL_TEST_DIR/t/mysqld_safe.sh $MYSQL_PIDFILE 2>&1
 
 # mysqld_safe takes some time to restart mysqld
@@ -63,16 +61,16 @@ connection default;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-# 8) Execute some SQL
+# 7) Execute some SQL
 --exec $MYSQL -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root -e "SHOW DATABASES" 2>&1
 
-# 9) Shutdown mysqld with mysqladmin
+# 8) Shutdown mysqld with mysqladmin
 --exec $MYSQLADMIN -h localhost -S $MYSQL_SOCKET -P $MYSQL_PORT -u root shutdown 2>&1
 
 # Delay introduced - mysqld_safe takes some time to restart mysqld
 --source include/wait_until_disconnected.inc
 
-# 10) Restart mysqld of mtr
+# 9) Restart mysqld of mtr
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc

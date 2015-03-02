@@ -329,7 +329,7 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
     push_warning_printf(thd,
                         Sql_condition::SL_WARNING,
                         ER_SR_INVALID_CREATION_CTX,
-                        ER(ER_SR_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_SR_INVALID_CREATION_CTX),
                         (const char *) db_name,
                         (const char *) sr_name);
   }
@@ -1419,8 +1419,7 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
       is_deterministic= ptr[0] == 'N' ? FALSE : TRUE;
       if (!is_deterministic)
       {
-        my_message(ER_BINLOG_UNSAFE_ROUTINE,
-                   ER(ER_BINLOG_UNSAFE_ROUTINE), MYF(0));
+        my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
         ret= SP_INTERNAL_ERROR;
         goto err;
       }

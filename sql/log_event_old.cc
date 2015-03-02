@@ -33,7 +33,9 @@
 using std::min;
 using std::max;
 
+extern "C" {
 PSI_memory_key key_memory_log_event_old;
+}
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,16 @@
 */
 
 #include "pfs_instr_class.h"
+extern thread_local_key_t THR_PFS_VG;   // global_variables
+extern thread_local_key_t THR_PFS_SV;   // session_variables
+extern thread_local_key_t THR_PFS_VBT;  // variables_by_thread
+extern thread_local_key_t THR_PFS_SG;   // global_status
+extern thread_local_key_t THR_PFS_SS;   // session_status
+extern thread_local_key_t THR_PFS_SBT;  // status_by_thread
+extern thread_local_key_t THR_PFS_SBU;  // status_by_user
+extern thread_local_key_t THR_PFS_SBH;  // status_by_host
+extern thread_local_key_t THR_PFS_SBA;  // status_by_account
+
 class Field;
 struct PFS_engine_table_share;
 struct time_normalizer;
@@ -31,6 +41,36 @@ struct time_normalizer;
   @addtogroup Performance_schema_engine
   @{
 */
+
+/**
+  Store and retrieve table state information during a query.
+*/
+class PFS_table_context
+{
+public:
+  PFS_table_context(ulonglong current_version, bool restore, thread_local_key_t key);
+  PFS_table_context(ulonglong current_version, ulong map_size, bool restore, thread_local_key_t key);
+~PFS_table_context(void);
+
+  bool initialize(void);
+  bool is_initialized(void) { return m_initialized; }
+  ulonglong current_version(void) { return m_current_version; }
+  ulonglong last_version(void) { return m_last_version; }
+  bool versions_match(void) { return m_last_version == m_current_version; }
+  void set_item(ulong n);
+  bool is_item_set(ulong n);
+  thread_local_key_t m_thr_key;
+
+private:
+  ulonglong m_current_version;
+  ulonglong m_last_version;
+  ulong *m_map;
+  ulong m_map_size;
+  ulong m_word_size;
+  bool m_restore;
+  bool m_initialized;
+  ulong m_last_item;
+};
 
 /**
   An abstract PERFORMANCE_SCHEMA table.
@@ -378,6 +418,13 @@ struct PFS_simple_index
 
   /**
     Set this index at a given position.
+    @param index an index
+  */
+  void set_at(uint index)
+  { m_index= index; }
+
+  /**
+    Set this index at a given position.
     @param other a position
   */
   void set_at(const struct PFS_simple_index *other)
@@ -411,6 +458,15 @@ struct PFS_double_index
   PFS_double_index(uint index_1, uint index_2)
     : m_index_1(index_1), m_index_2(index_2)
   {}
+
+  /**
+    Set this index at a given position.
+  */
+  void set_at(uint index_1, uint index_2)
+  {
+    m_index_1= index_1;
+    m_index_2= index_2;
+  }
 
   /**
     Set this index at a given position.
@@ -452,6 +508,16 @@ struct PFS_triple_index
   PFS_triple_index(uint index_1, uint index_2, uint index_3)
     : m_index_1(index_1), m_index_2(index_2), m_index_3(index_3)
   {}
+
+  /**
+    Set this index at a given position.
+  */
+  void set_at(uint index_1, uint index_2, uint index_3)
+  {
+    m_index_1= index_1;
+    m_index_2= index_2;
+    m_index_3= index_3;
+  }
 
   /**
     Set this index at a given position.

@@ -132,11 +132,20 @@ This flag prevents older engines from attempting to open the table and
 allows InnoDB to update_create_info() accordingly. */
 #define DICT_TF_WIDTH_DATA_DIR		1
 
+/** Width of the SHARED tablespace flag.
+It is used to identify tables that exist inside a shared general tablespace.
+If a table is created with the TABLESPACE=tsname option, an older engine will
+not be able to find that table. This flag prevents older engines from attempting
+to open the table and allows InnoDB to quickly find the tablespace. */
+
+#define DICT_TF_WIDTH_SHARED_SPACE	1
+
 /** Width of all the currently known table flags */
-#define DICT_TF_BITS	(DICT_TF_WIDTH_COMPACT		\
-			+ DICT_TF_WIDTH_ZIP_SSIZE	\
-			+ DICT_TF_WIDTH_ATOMIC_BLOBS	\
-			+ DICT_TF_WIDTH_DATA_DIR)
+#define DICT_TF_BITS	(DICT_TF_WIDTH_COMPACT			\
+			+ DICT_TF_WIDTH_ZIP_SSIZE		\
+			+ DICT_TF_WIDTH_ATOMIC_BLOBS		\
+			+ DICT_TF_WIDTH_DATA_DIR		\
+			+ DICT_TF_WIDTH_SHARED_SPACE)
 
 /** A mask of all the known/used bits in table flags */
 #define DICT_TF_BIT_MASK	(~(~0 << DICT_TF_BITS))
@@ -152,9 +161,12 @@ allows InnoDB to update_create_info() accordingly. */
 /** Zero relative shift position of the DATA_DIR field */
 #define DICT_TF_POS_DATA_DIR		(DICT_TF_POS_ATOMIC_BLOBS	\
 					+ DICT_TF_WIDTH_ATOMIC_BLOBS)
-/** Zero relative shift position of the start of the UNUSED bits */
-#define DICT_TF_POS_UNUSED		(DICT_TF_POS_DATA_DIR		\
+/** Zero relative shift position of the SHARED TABLESPACE field */
+#define DICT_TF_POS_SHARED_SPACE	(DICT_TF_POS_DATA_DIR		\
 					+ DICT_TF_WIDTH_DATA_DIR)
+/** Zero relative shift position of the start of the UNUSED bits */
+#define DICT_TF_POS_UNUSED		(DICT_TF_POS_SHARED_SPACE	\
+					+ DICT_TF_WIDTH_SHARED_SPACE)
 
 /** Bit mask of the COMPACT field */
 #define DICT_TF_MASK_COMPACT				\
@@ -172,6 +184,10 @@ allows InnoDB to update_create_info() accordingly. */
 #define DICT_TF_MASK_DATA_DIR				\
 		((~(~0 << DICT_TF_WIDTH_DATA_DIR))	\
 		<< DICT_TF_POS_DATA_DIR)
+/** Bit mask of the SHARED_SPACE field */
+#define DICT_TF_MASK_SHARED_SPACE			\
+		((~(~0 << DICT_TF_WIDTH_SHARED_SPACE))	\
+		<< DICT_TF_POS_SHARED_SPACE)
 
 /** Return the value of the COMPACT field */
 #define DICT_TF_GET_COMPACT(flags)			\
@@ -189,6 +205,10 @@ allows InnoDB to update_create_info() accordingly. */
 #define DICT_TF_HAS_DATA_DIR(flags)			\
 		((flags & DICT_TF_MASK_DATA_DIR)	\
 		>> DICT_TF_POS_DATA_DIR)
+/** Return the value of the SHARED_SPACE field */
+#define DICT_TF_HAS_SHARED_SPACE(flags)			\
+		((flags & DICT_TF_MASK_SHARED_SPACE)	\
+		>> DICT_TF_POS_SHARED_SPACE)
 /** Return the contents of the UNUSED bits */
 #define DICT_TF_GET_UNUSED(flags)			\
 		(flags >> DICT_TF_POS_UNUSED)
@@ -292,8 +312,7 @@ dict_mem_table_add_col(
 	const char*	name,	/*!< in: column name, or NULL */
 	ulint		mtype,	/*!< in: main datatype */
 	ulint		prtype,	/*!< in: precise type */
-	ulint		len)	/*!< in: precision */
-	__attribute__((nonnull(1)));
+	ulint		len);	/*!< in: precision */
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
 void
@@ -302,8 +321,7 @@ dict_mem_table_col_rename(
 	dict_table_t*	table,	/*!< in/out: table */
 	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
-	const char*	to)	/*!< in: new column name */
-	__attribute__((nonnull));
+	const char*	to);	/*!< in: new column name */
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
@@ -1153,6 +1171,10 @@ struct dict_table_t {
 
 	/** NULL or the directory path specified by DATA DIRECTORY. */
 	char*					data_dir_path;
+
+	/** NULL or the tablespace name that this table is assigned to,
+	specified by the TABLESPACE option.*/
+	id_name_t				tablespace;
 
 	/** Space where the clustered index of the table is placed. */
 	unsigned				space:32;

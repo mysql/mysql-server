@@ -1,0 +1,167 @@
+--echo #
+--echo # WL#6986 : Make switching of index due to order by limit cost based
+--echo #
+
+--echo # Testcase for Bug#16522053
+
+CREATE TABLE t1 (
+  pk INT PRIMARY KEY AUTO_INCREMENT,
+  i INT,
+  j INT,
+  INDEX (i),
+  INDEX (j)
+);
+
+INSERT INTO t1 (i,j) VALUES (1,1);
+
+let $1=7;
+set @d=1;
+while ($1)
+{
+  eval INSERT INTO t1 (i,j) SELECT i+@d, j+@d from t1;
+  eval set @d=@d*2;
+  dec $1;
+}
+
+ANALYZE TABLE t1;
+
+let $query= SELECT * FROM t1
+            WHERE i<100 AND j<10
+            ORDER BY i LIMIT 5;
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t1;
+
+CREATE TABLE t0 (
+  i0 INTEGER NOT NULL
+);
+
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL,
+  INDEX k1 (i1),
+  INDEX k2 (i1,i2)
+) ENGINE=InnoDB;
+
+INSERT INTO t1
+SELECT a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0,
+       (a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0) % 1000,
+       (a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0) % 1000
+FROM t0 AS a0, t0 AS a1;
+
+CREATE TABLE t2 (
+  pk INTEGER PRIMARY KEY,
+  i1 INTEGER NOT NULL,
+  INDEX k1 (i1)
+) ENGINE=InnoDB;
+
+INSERT INTO t2
+SELECT a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0,
+              (a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0) % 500
+  FROM t0 AS a0, t0 AS a1;
+
+ANALYZE TABLE t1,t2;
+
+--echo # Query should use index to optimize the ORDER BY LIMIT
+
+let query=
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
+WHERE t1.pk > 7000 and t1.i1 > 2
+ORDER BY t1.i1 LIMIT 2;
+
+eval EXPLAIN $query;
+
+--echo # Query should not make the switch to use index to
+--echo # optimize ORDER BY LIMIT. So should be using filesort
+
+let query=
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
+WHERE t1.pk > 7000 and t1.i1 > 2
+ORDER BY t1.i1 LIMIT 5;
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Changing range condition on i1 should make
+--echo # key on i1 get picked to give the order
+
+let query=
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
+WHERE t1.pk > 7000 and t1.i1 > 800
+ORDER BY t1.i1 LIMIT 5;
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Use range condition only on pk to see if switch
+--echo # happens just for ORDER BY LIMIT
+--echo # Should not happen unless range results in too
+--echo # many records
+
+let query=
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
+WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
+
+eval EXPLAIN $query;
+eval $query;
+
+let query=
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
+WHERE t1.pk > 1000 ORDER BY t1.i1 LIMIT 5;
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # check if switch happens when the index for order 
+--echo # by is non-covering
+
+let query=
+SELECT t1.i1,t1.i2 FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1 
+WHERE t1.pk > 100 ORDER BY t1.i1 LIMIT 5;
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Reduce the fanout for table t2 and check
+--echo # that index for order by is not choosen
+
+let query=
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
+WHERE t1.pk > 7000 and t2.pk = 100 ORDER BY t1.i1 LIMIT 5;
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Increase the fanout to see if index gets choosen
+--echo # for order by for which range scan was choosen
+--echo # earlier
+
+INSERT INTO t2
+SELECT a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0 + 1,
+              (a0.i0 + 10*a1.i0 + 100*a0.i0 + 1000*a1.i0) % 500
+  FROM t0 AS a0, t0 AS a1;
+
+ANALYZE TABLE t2;
+
+let query=
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
+WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Check if the index for order by is used when
+--echo # force index is done on order by
+
+let query=
+SELECT * FROM t1 FORCE INDEX FOR ORDER BY (k2) STRAIGHT_JOIN t2 ON
+t1.i1=t2.i1 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t0, t1, t2;
+

@@ -1,5 +1,3 @@
-set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
 CREATE TABLE t1(c1 INT NOT NULL, c2 INT, PRIMARY KEY(c1)) Engine=InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -34,9 +32,6 @@ SET DEBUG='+d,ib_row_merge_buf_add_two';
 CREATE UNIQUE INDEX ui ON bug13861218(c1);
 SET DEBUG='-d,ib_row_merge_buf_add_two';
 DROP TABLE bug13861218;
-set global innodb_file_per_table=1;
-set global innodb_file_format=Antelope;
-set global innodb_file_format_max=Antelope;
 #
 # Bug #17657223	EXCESSIVE TEMPORARY FILE USAGE IN ALTER TABLE
 #

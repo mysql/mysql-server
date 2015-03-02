@@ -107,10 +107,8 @@ drop table t2;
 # fresh insert with BLOBs
 #
 set global innodb_compression_level = 0;
-set global innodb_file_format = 'Barracuda';
 create table t3 (f1 bigint primary key, f2 longblob, f3 longblob,
 index(f2(10), f3(10))) engine=innodb row_format=compressed;
-set global innodb_file_format = Antelope;
 # Kill and restart
 select f1, length(f2), length(f3) from t3;
 f1	length(f2)	length(f3)

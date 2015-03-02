@@ -28,8 +28,6 @@
 
 static PSI_thread_key thread_key;
 static PSI_thread_info thread_info= { &thread_key, "setup", PSI_FLAG_GLOBAL };
-static PSI_memory_key memory_key;
-static PSI_memory_info memory_info= { &memory_key, "internal_buffers", PSI_FLAG_GLOBAL };
 
 const char* pfs_category= "performance_schema";
 
@@ -94,24 +92,6 @@ void install_default_setup(PSI_bootstrap *boot)
     insert_setup_object(OBJECT_TYPE_TRIGGER, &IS_db, &percent, false, false);
     /* Enable every other sp. */
     insert_setup_object(OBJECT_TYPE_TRIGGER, &percent, &percent, true, true);
-  }
-
-  psi->register_memory(pfs_category, &memory_info, 1);
-  PFS_memory_class *memory_class= find_memory_class(memory_key);
-  if (memory_class != NULL)
-  {
-    /*
-      The memory instrumentation can not report its own usage,
-      this is done explicitly.
-    */
-    PFS_memory_stat *event_name_array;
-    uint index= memory_class->m_event_name_index;
-    event_name_array= global_instr_class_memory_array;
-    PFS_memory_stat *stat= & event_name_array[index];
-
-    stat->m_alloc_count= pfs_allocated_memory_count;
-    stat->m_alloc_size= pfs_allocated_memory_size;
-    stat->m_used= true;
   }
 
   psi->delete_current_thread();

@@ -1441,8 +1441,8 @@ public:
   /* Cache for the left item. */
   Item *lval_cache;
 
-  cmp_item_datetime(Item *warn_item_arg)
-    :thd(current_thd), warn_item(warn_item_arg), lval_cache(0) {}
+  cmp_item_datetime(Item *warn_item_arg);
+
   void store_value(Item *item);
   int cmp(Item *arg);
   int compare(const cmp_item *ci) const;

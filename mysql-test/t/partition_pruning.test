@@ -1,17 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Partition pruning tests. Currently we only detect which partitions to
 # prune, so the test is EXPLAINs.
 #
--- source include/have_partition.inc
-
---disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
---enable_warnings
+--source include/no_valgrind_without_big.inc
+--source include/have_partition.inc
+let $verify_without_partitions=0;
 
 --echo #
 --echo # Bug#53806: Wrong estimates for range query in partitioned MyISAM table
@@ -26,8 +19,13 @@ PARTITION p3 VALUES LESS THAN (4),
 PARTITION p4 VALUES LESS THAN (5),
 PARTITION p5 VALUES LESS THAN (6),
 PARTITION max VALUES LESS THAN MAXVALUE);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 
 INSERT INTO t1 VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7),(8);
+ANALYZE TABLE t1;
 
 --replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 12 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 1;
@@ -49,78 +47,117 @@ PARTITION p3 VALUES LESS THAN (4),
 PARTITION p4 VALUES LESS THAN (5),
 PARTITION p5 VALUES LESS THAN (6),
 PARTITION max VALUES LESS THAN MAXVALUE);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 
 INSERT INTO t1 VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7),(8);
 
 SELECT * FROM t1 WHERE a < 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 1;
 SELECT * FROM t1 WHERE a < 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 2;
 SELECT * FROM t1 WHERE a < 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 3;
 SELECT * FROM t1 WHERE a < 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 4;
 SELECT * FROM t1 WHERE a < 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 5;
 SELECT * FROM t1 WHERE a < 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 6;
 SELECT * FROM t1 WHERE a < 7;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 7;
 SELECT * FROM t1 WHERE a <= 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 1;
 SELECT * FROM t1 WHERE a <= 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 2;
 SELECT * FROM t1 WHERE a <= 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 3;
 SELECT * FROM t1 WHERE a <= 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 4;
 SELECT * FROM t1 WHERE a <= 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 5;
 SELECT * FROM t1 WHERE a <= 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 6;
 SELECT * FROM t1 WHERE a <= 7;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 7;
 SELECT * FROM t1 WHERE a = 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 1;
 SELECT * FROM t1 WHERE a = 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 2;
 SELECT * FROM t1 WHERE a = 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 3;
 SELECT * FROM t1 WHERE a = 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 4;
 SELECT * FROM t1 WHERE a = 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 5;
 SELECT * FROM t1 WHERE a = 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 6;
 SELECT * FROM t1 WHERE a = 7;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 7;
 SELECT * FROM t1 WHERE a >= 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 1;
 SELECT * FROM t1 WHERE a >= 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 2;
 SELECT * FROM t1 WHERE a >= 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 3;
 SELECT * FROM t1 WHERE a >= 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 4;
 SELECT * FROM t1 WHERE a >= 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 5;
 SELECT * FROM t1 WHERE a >= 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 6;
 SELECT * FROM t1 WHERE a >= 7;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 7;
 SELECT * FROM t1 WHERE a > 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 1;
 SELECT * FROM t1 WHERE a > 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 2;
 SELECT * FROM t1 WHERE a > 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 3;
 SELECT * FROM t1 WHERE a > 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 4;
 SELECT * FROM t1 WHERE a > 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 5;
 SELECT * FROM t1 WHERE a > 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 6;
 SELECT * FROM t1 WHERE a > 7;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 7;
 DROP TABLE t1;
 
@@ -132,68 +169,102 @@ PARTITION p2 VALUES LESS THAN (3),
 PARTITION p3 VALUES LESS THAN (4),
 PARTITION p4 VALUES LESS THAN (5),
 PARTITION max VALUES LESS THAN MAXVALUE);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 
 INSERT INTO t1 VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7);
 
 SELECT * FROM t1 WHERE a < 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 1;
 SELECT * FROM t1 WHERE a < 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 2;
 SELECT * FROM t1 WHERE a < 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 3;
 SELECT * FROM t1 WHERE a < 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 4;
 SELECT * FROM t1 WHERE a < 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 5;
 SELECT * FROM t1 WHERE a < 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 6;
 SELECT * FROM t1 WHERE a <= 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 1;
 SELECT * FROM t1 WHERE a <= 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 2;
 SELECT * FROM t1 WHERE a <= 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 3;
 SELECT * FROM t1 WHERE a <= 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 4;
 SELECT * FROM t1 WHERE a <= 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 5;
 SELECT * FROM t1 WHERE a <= 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 6;
 SELECT * FROM t1 WHERE a = 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 1;
 SELECT * FROM t1 WHERE a = 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 2;
 SELECT * FROM t1 WHERE a = 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 3;
 SELECT * FROM t1 WHERE a = 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 4;
 SELECT * FROM t1 WHERE a = 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 5;
 SELECT * FROM t1 WHERE a = 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 6;
 SELECT * FROM t1 WHERE a >= 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 1;
 SELECT * FROM t1 WHERE a >= 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 2;
 SELECT * FROM t1 WHERE a >= 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 3;
 SELECT * FROM t1 WHERE a >= 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 4;
 SELECT * FROM t1 WHERE a >= 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 5;
 SELECT * FROM t1 WHERE a >= 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 6;
 SELECT * FROM t1 WHERE a > 1;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 1;
 SELECT * FROM t1 WHERE a > 2;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 2;
 SELECT * FROM t1 WHERE a > 3;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 3;
 SELECT * FROM t1 WHERE a > 4;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 4;
 SELECT * FROM t1 WHERE a > 5;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 5;
 SELECT * FROM t1 WHERE a > 6;
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 6;
 DROP TABLE t1;
 
@@ -216,9 +287,11 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 INSERT INTO t1 VALUES ('0000-00-00'), ('0000-01-02'), ('0001-01-01'),
       ('1001-00-00'), ('1001-01-01'), ('1002-00-00'), ('2001-01-01');
+ANALYZE TABLE t1;
 --source include/partition_date_range.inc
 --echo # test without index
 ALTER TABLE t1 DROP KEY a;
+ANALYZE TABLE t1;
 --source include/partition_date_range.inc
 DROP TABLE t1;
 
@@ -236,9 +309,11 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 INSERT INTO t1 VALUES ('0000-00-00'), ('0000-01-02'), ('0001-01-01'),
       ('1001-00-00'), ('1001-01-01'), ('1002-00-00'), ('2001-01-01');
+ANALYZE TABLE t1;
 --source include/partition_date_range.inc
 --echo # test without index
 ALTER TABLE t1 DROP KEY a;
+ANALYZE TABLE t1;
 --source include/partition_date_range.inc
 DROP TABLE t1;
 --echo # TO_SECONDS, test of LIST and index
@@ -255,9 +330,11 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 INSERT INTO t1 VALUES ('0000-00-00'), ('0000-01-02'), ('0001-01-01'),
       ('1001-00-00'), ('1001-01-01'), ('1002-00-00'), ('2001-01-01');
+ANALYZE TABLE t1;
 --source include/partition_date_range.inc
 --echo # test without index
 ALTER TABLE t1 DROP KEY a;
+ANALYZE TABLE t1;
 --source include/partition_date_range.inc
 DROP TABLE t1;
 SET sql_mode = default;
@@ -279,63 +356,107 @@ CREATE TABLE t1 (
  PARTITION p20090403 VALUES LESS THAN (TO_DAYS('2009-04-04')),
  PARTITION p20090404 VALUES LESS THAN (TO_DAYS('2009-04-05')),
  PARTITION p20090405 VALUES LESS THAN MAXVALUE);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
   (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-02 23:59:59'),
   (1, '2009-04-03'), (2, '2009-04-03'), (1, '2009-04-04'), (2, '2009-04-04'),
   (1, '2009-04-05'), (1, '2009-04-06'), (1, '2009-04-07');
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-02 23:59:58' AS DATETIME);
 DROP TABLE t1;
@@ -351,63 +472,107 @@ CREATE TABLE t1 (
  PARTITION p20090403 VALUES LESS THAN (TO_DAYS('2009-04-04')),
  PARTITION p20090404 VALUES LESS THAN (TO_DAYS('2009-04-05')),
  PARTITION p20090405 VALUES LESS THAN MAXVALUE);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
   (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-03'), (2, '2009-04-03'),
   (1, '2009-04-04'), (2, '2009-04-04'), (1, '2009-04-05'), (1, '2009-04-06'),
   (1, '2009-04-07');
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-02 23:59:58' AS DATETIME);
 DROP TABLE t1;
@@ -422,63 +587,107 @@ CREATE TABLE t1 (
  PARTITION p20090403 VALUES LESS THAN (TO_DAYS('2009-04-04')),
  PARTITION p20090404 VALUES LESS THAN (TO_DAYS('2009-04-05')),
  PARTITION p20090405 VALUES LESS THAN MAXVALUE);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
   (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-02 23:59:59'),
   (1, '2009-04-03'), (2, '2009-04-03'), (1, '2009-04-04'), (2, '2009-04-04'),
   (1, '2009-04-05'), (1, '2009-04-06'), (1, '2009-04-07');
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-02 23:59:58' AS DATETIME);
 DROP TABLE t1;
@@ -493,63 +702,107 @@ CREATE TABLE t1 (
  PARTITION p20090403 VALUES LESS THAN (TO_DAYS('2009-04-04')),
  PARTITION p20090404 VALUES LESS THAN (TO_DAYS('2009-04-05')),
  PARTITION p20090405 VALUES LESS THAN MAXVALUE);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
   (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-03'), (2, '2009-04-03'),
   (1, '2009-04-04'), (2, '2009-04-04'), (1, '2009-04-05'), (1, '2009-04-06'),
   (1, '2009-04-07');
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b <= '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b >= '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b > '2009-04-03';
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1
   WHERE b > CAST('2009-04-02 23:59:58' AS DATETIME);
 DROP TABLE t1;
@@ -564,8 +817,13 @@ CREATE TABLE t1 (
  PARTITION p20090403 VALUES LESS THAN (TO_DAYS('2009-04-04')),
  PARTITION p20090404 VALUES LESS THAN (TO_DAYS('2009-04-05')),
  PARTITION p20090405 VALUES LESS THAN MAXVALUE);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 INSERT INTO t1 VALUES (1, '2009-01-01'), (2, NULL);
 --echo # test with an invalid date, which lead to item->null_value is set.
+--replace_column 10 #
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-99' AS DATETIME);
 DROP TABLE t1;
 
@@ -583,13 +841,22 @@ PARTITION BY RANGE (to_days(b))
 (PARTITION p0 VALUES LESS THAN (733681) COMMENT = 'LESS THAN 2008-10-01',
  PARTITION p1 VALUES LESS THAN (733712) COMMENT = 'LESS THAN 2008-11-01',
  PARTITION pX VALUES LESS THAN MAXVALUE);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 SELECT a,b FROM t1 WHERE b >= '2008-12-01' AND b < '2009-12-00';
 DROP TABLE t1;
 
-# Check if we can infer from condition on partition fields that 
+# Check if we can infer from condition on partition fields that
 # no records will match.
 create table t1 ( a int not null) partition by hash(a) partitions 2;
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1),(2),(3);
+--replace_column 10 #
 explain select * from t1 where a=5 and a=6;
 drop table t1;
 
@@ -597,10 +864,17 @@ drop table t1;
 create table t1 (
   a int(11) not null
 ) partition by hash (a) partitions 2;
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1),(2),(3);
 
+--replace_column 10 #
 explain partitions select * from t1 where a=1;
+--replace_column 10 #
 explain partitions select * from t1 where a=2;
+--replace_column 10 #
 explain partitions select * from t1 where a=1 or a=2;
 
 # Partitioning over several fields
@@ -608,26 +882,41 @@ create table t2 (
   a int not null,
   b int not null
 ) partition by key(a,b) partitions 2;
+if ($verify_without_partitions)
+{
+ALTER TABLE t2 REMOVE PARTITIONING;
+}
 insert into t2 values (1,1),(2,2),(3,3);
 
+--replace_column 10 #
 explain partitions select * from t2 where a=1;
+--replace_column 10 #
 explain partitions select * from t2 where b=1;
 
+--replace_column 10 #
 explain partitions select * from t2 where a=1 and b=1;
 
-# RANGE(expr) partitioning 
+# RANGE(expr) partitioning
 create table t3 (
   a int
 )
-partition by range (a*1) ( 
+partition by range (a*1) (
   partition p0 values less than (10),
   partition p1 values less than (20)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t3 REMOVE PARTITIONING;
+}
 insert into t3 values (5),(15);
 
+--replace_column 10 #
 explain partitions select * from t3 where a=11;
+--replace_column 10 #
 explain partitions select * from t3 where a=10;
+--replace_column 10 #
 explain partitions select * from t3 where a=20;
+--replace_column 10 #
 explain partitions select * from t3 where a=30;
 
 # LIST(expr) partitioning
@@ -635,57 +924,77 @@ create table t4 (a int not null, b int not null) partition by LIST (a+b) (
   partition p0 values in (12),
   partition p1 values in (14)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t4 REMOVE PARTITIONING;
+}
 insert into t4 values (10,2), (10,4);
 
 # empty OR one
+--replace_column 10 #
 explain partitions select * from t4 where (a=10 and b=1) or (a=10 and b=2);
 
 # empty OR one OR empty
-explain partitions select * from t4 
+--replace_column 10 #
+explain partitions select * from t4
   where (a=10 and b=1) or (a=10 and b=2) or (a=10 and b = 3);
 
 # one OR empty OR one
+--replace_column 10 #
 explain partitions select * from t4 where (a=10 and b=2) or (a=10 and b=3)
   or (a=10 and b = 4);
 
 # empty OR full
+--replace_column 10 #
 explain partitions select * from t4 where (a=10 and b=1) or a=11;
 
 # one OR full
+--replace_column 10 #
 explain partitions select * from t4 where (a=10 and b=2) or a=11;
 
 drop table t1, t2, t3, t4;
 
 # LIST(expr)/HASH subpartitioning.
-create table t5 (a int not null, b int not null, 
-                 c int not null, d int not null) 
+create table t5 (a int not null, b int not null,
+                 c int not null, d int not null)
 partition by LIST(a+b) subpartition by HASH (c+d) subpartitions 2
 (
   partition p0 values in (12),
   partition p1 values in (14)
 );
- 
+if ($verify_without_partitions)
+{
+ALTER TABLE t5 REMOVE PARTITIONING;
+}
+
 insert into t5 values (10,2,0,0), (10,4,0,0), (10,2,0,1), (10,4,0,1);
+--replace_column 10 #
 explain partitions select * from t5;
 
 # empty OR one OR empty
+--replace_column 10 #
 explain partitions select * from t5
   where (a=10 and b=1) or (a=10 and b=2) or (a=10 and b = 3);
 
 # one OR empty OR one
+--replace_column 10 #
 explain partitions select * from t5 where (a=10 and b=2) or (a=10 and b=3)
   or (a=10 and b = 4);
 
 # conditions on subpartitions only
+--replace_column 10 #
 explain partitions select * from t5 where (c=1 and d=1);
+--replace_column 10 #
 explain partitions select * from t5 where (c=2 and d=1);
 
 # mixed partition/subpartitions.
-explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or 
+--replace_column 10 #
+explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or
 (c=2 and d=1);
 
 # same as above
-explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or 
+--replace_column 10 #
+explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or
 (b=2 and c=2 and d=1);
 
 # LIST(field) partitioning, interval analysis.
@@ -696,21 +1005,36 @@ create table t6 (a int not null) partition by LIST(a) (
   partition p7 values in (7),
   partition p9 values in (9)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t6 REMOVE PARTITIONING;
+}
 insert into t6 values (1),(3),(5);
 
+--replace_column 10 #
 explain partitions select * from t6 where a <  1;
+--replace_column 10 #
 explain partitions select * from t6 where a <= 1;
+--replace_column 10 #
 explain partitions select * from t6 where a >  9;
+--replace_column 10 #
 explain partitions select * from t6 where a >= 9;
 
+--replace_column 10 #
 explain partitions select * from t6 where a > 0 and a < 5;
+--replace_column 10 #
 explain partitions select * from t6 where a > 5 and a < 12;
+--replace_column 10 #
 explain partitions select * from t6 where a > 3 and a < 8 ;
 
+--replace_column 10 #
 explain partitions select * from t6 where a >= 0 and a <= 5;
+--replace_column 10 #
 explain partitions select * from t6 where a >= 5 and a <= 12;
+--replace_column 10 #
 explain partitions select * from t6 where a >= 3 and a <= 8;
 
+--replace_column 10 #
 explain partitions select * from t6 where a > 3 and a < 5;
 
 drop table t6;
@@ -722,21 +1046,36 @@ create table t6 (a int unsigned not null) partition by LIST(a) (
   partition p7 values in (7),
   partition p9 values in (9)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t6 REMOVE PARTITIONING;
+}
 insert into t6 values (1),(3),(5);
 
+--replace_column 10 #
 explain partitions select * from t6 where a <  1;
+--replace_column 10 #
 explain partitions select * from t6 where a <= 1;
+--replace_column 10 #
 explain partitions select * from t6 where a >  9;
+--replace_column 10 #
 explain partitions select * from t6 where a >= 9;
 
+--replace_column 10 #
 explain partitions select * from t6 where a > 0 and a < 5;
+--replace_column 10 #
 explain partitions select * from t6 where a > 5 and a < 12;
+--replace_column 10 #
 explain partitions select * from t6 where a > 3 and a < 8 ;
 
+--replace_column 10 #
 explain partitions select * from t6 where a >= 0 and a <= 5;
+--replace_column 10 #
 explain partitions select * from t6 where a >= 5 and a <= 12;
+--replace_column 10 #
 explain partitions select * from t6 where a >= 3 and a <= 8;
 
+--replace_column 10 #
 explain partitions select * from t6 where a > 3 and a < 5;
 
 # RANGE(field) partitioning, interval analysis.
@@ -747,35 +1086,62 @@ create table t7 (a int not null) partition by RANGE(a) (
   partition p70 values less than (70),
   partition p90 values less than (90)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t7 REMOVE PARTITIONING;
+}
 insert into t7 values (10),(30),(50);
 
 # leftmost intervals
+--replace_column 10 #
 explain partitions select * from t7 where a < 5;
+--replace_column 10 #
 explain partitions select * from t7 where a < 9;
+--replace_column 10 #
 explain partitions select * from t7 where a <= 9;
+--replace_column 10 #
 explain partitions select * from t7 where a = 9;
+--replace_column 10 #
 explain partitions select * from t7 where a >= 9;
+--replace_column 10 #
 explain partitions select * from t7 where a > 9;
+--replace_column 10 #
 explain partitions select * from t7 where a < 10;
+--replace_column 10 #
 explain partitions select * from t7 where a <= 10;
+--replace_column 10 #
 explain partitions select * from t7 where a = 10;
+--replace_column 10 #
 explain partitions select * from t7 where a >= 10;
+--replace_column 10 #
 explain partitions select * from t7 where a > 10;
 
 #rightmost intervals
+--replace_column 10 #
 explain partitions select * from t7 where a < 89;
+--replace_column 10 #
 explain partitions select * from t7 where a <= 89;
+--replace_column 10 #
 explain partitions select * from t7 where a = 89;
+--replace_column 10 #
 explain partitions select * from t7 where a > 89;
+--replace_column 10 #
 explain partitions select * from t7 where a >= 89;
+--replace_column 10 #
 explain partitions select * from t7 where a < 90;
+--replace_column 10 #
 explain partitions select * from t7 where a <= 90;
+--replace_column 10 #
 explain partitions select * from t7 where a = 90;
+--replace_column 10 #
 explain partitions select * from t7 where a > 90;
+--replace_column 10 #
 explain partitions select * from t7 where a >= 90;
+--replace_column 10 #
 explain partitions select * from t7 where a > 91;
 
 # misc intervals
+--replace_column 10 #
 explain partitions select * from t7 where a > 11 and a < 29;
 
 drop table t7;
@@ -787,35 +1153,62 @@ create table t7 (a int unsigned not null) partition by RANGE(a) (
   partition p70 values less than (70),
   partition p90 values less than (90)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t7 REMOVE PARTITIONING;
+}
 insert into t7 values (10),(30),(50);
 
 # leftmost intervals
+--replace_column 10 #
 explain partitions select * from t7 where a < 5;
+--replace_column 10 #
 explain partitions select * from t7 where a < 9;
+--replace_column 10 #
 explain partitions select * from t7 where a <= 9;
+--replace_column 10 #
 explain partitions select * from t7 where a = 9;
+--replace_column 10 #
 explain partitions select * from t7 where a >= 9;
+--replace_column 10 #
 explain partitions select * from t7 where a > 9;
+--replace_column 10 #
 explain partitions select * from t7 where a < 10;
+--replace_column 10 #
 explain partitions select * from t7 where a <= 10;
+--replace_column 10 #
 explain partitions select * from t7 where a = 10;
+--replace_column 10 #
 explain partitions select * from t7 where a >= 10;
+--replace_column 10 #
 explain partitions select * from t7 where a > 10;
 
 #rightmost intervals
+--replace_column 10 #
 explain partitions select * from t7 where a < 89;
+--replace_column 10 #
 explain partitions select * from t7 where a <= 89;
+--replace_column 10 #
 explain partitions select * from t7 where a = 89;
+--replace_column 10 #
 explain partitions select * from t7 where a > 89;
+--replace_column 10 #
 explain partitions select * from t7 where a >= 89;
+--replace_column 10 #
 explain partitions select * from t7 where a < 90;
+--replace_column 10 #
 explain partitions select * from t7 where a <= 90;
+--replace_column 10 #
 explain partitions select * from t7 where a = 90;
+--replace_column 10 #
 explain partitions select * from t7 where a > 90;
+--replace_column 10 #
 explain partitions select * from t7 where a >= 90;
+--replace_column 10 #
 explain partitions select * from t7 where a > 91;
 
 # misc intervals
+--replace_column 10 #
 explain partitions select * from t7 where a > 11 and a < 29;
 
 # LIST(monontonic_func) partitioning
@@ -824,8 +1217,13 @@ create table t8 (a date not null) partition by RANGE(YEAR(a)) (
   partition p1 values less than (1990),
   partition p2 values less than (2000)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t8 REMOVE PARTITIONING;
+}
 insert into t8 values ('1985-05-05'),('1995-05-05');
 
+--replace_column 10 #
 explain partitions select * from t8 where a < '1980-02-02';
 
 # LIST(strict_monotonic_func) partitioning
@@ -834,9 +1232,15 @@ create table t9 (a date not null) partition by RANGE(TO_DAYS(a)) (
   partition p1 values less than (732468), -- 2005-06-06
   partition p2 values less than (732664)  -- 2005-12-19
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t9 REMOVE PARTITIONING;
+}
 insert into t9 values ('2005-05-05'), ('2005-04-04');
 
+--replace_column 10 #
 explain partitions select * from t9 where a <  '2004-12-19';
+--replace_column 10 #
 explain partitions select * from t9 where a <= '2004-12-19';
 
 drop table t5,t6,t7,t8,t9;
@@ -845,7 +1249,7 @@ drop table t5,t6,t7,t8,t9;
 #
 # Not supported after bug#18198 is fixed
 #
-#create table t1 (a enum('a','b','c','d') default 'a') 
+#create table t1 (a enum('a','b','c','d') default 'a')
 #  partition by hash (ascii(a)) partitions 2;
 #insert into t1 values ('a'),('b'),('c');
 #explain partitions select * from t1 where a='b';
@@ -862,46 +1266,72 @@ partition by range (a1) (
   partition p1 values less than (6),
   partition p2 values less than (9)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1),(2),(3);
+--replace_column 10 #
 explain partitions select * from t1 where a1 > 3;
+--replace_column 10 #
 explain partitions select * from t1 where a1 >= 3;
 
+--replace_column 10 #
 explain partitions select * from t1 where a1 < 3 and a1 > 3;
 drop table t1;
 
 #
-create table t3 (a int, b int) 
+create table t3 (a int, b int)
   partition by list(a) subpartition by hash(b) subpartitions 4 (
     partition p0 values in (1),
     partition p1 values in (2),
     partition p2 values in (3),
     partition p3 values in (4)
   );
+if ($verify_without_partitions)
+{
+ALTER TABLE t3 REMOVE PARTITIONING;
+}
 insert into t3 values (1,1),(2,2),(3,3);
 
+--replace_column 10 #
 explain partitions select * from t3 where a=2 or b=1;
+--replace_column 10 #
 explain partitions select * from t3 where a=4 or b=2;
+--replace_column 10 #
 explain partitions select * from t3 where (a=2 or b=1) and (a=4 or b=2) ;
 drop table t3;
 
 # Test for NULLs
 create table t1 (a int) partition by hash(a) partitions 2;
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1),(2);
+--replace_column 10 #
 explain partitions select * from t1 where a is null;
 
 # this uses both partitions
+--replace_column 10 #
 explain partitions select * from t1 where a is not null;
 drop table t1;
 
 # Join tests
 create table t1 (a int not null, b int not null, key(a), key(b))
   partition by hash(a) partitions 4;
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1,1),(2,2),(3,3),(4,4);
 
-explain partitions 
-select * from t1 x, t1 y 
+--replace_column 10 #
+explain partitions
+select * from t1 x, t1 y
 where x.b = y.b and (x.a=1 or x.a=2) and (y.a=2 or y.a=3);
 
+--replace_column 10 #
 explain partitions
 select * from t1 x, t1 y where x.a = y.a and (x.a=1 or x.a=2);
 
@@ -909,24 +1339,38 @@ drop table t1;
 
 # Tests for "short ranges"
 create table t1 (a int) partition by hash(a) partitions 20;
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1),(2),(3);
+--replace_column 10 #
 explain partitions select * from t1 where a >  1 and a < 3;
+--replace_column 10 #
 explain partitions select * from t1 where a >= 1 and a < 3;
+--replace_column 10 #
 explain partitions select * from t1 where a >  1 and a <= 3;
+--replace_column 10 #
 explain partitions select * from t1 where a >= 1 and a <= 3;
 drop table t1;
 
-create table t1 (a int, b int) 
- partition by list(a) subpartition by hash(b) subpartitions 20 
+create table t1 (a int, b int)
+ partition by list(a) subpartition by hash(b) subpartitions 20
 (
   partition p0 values in (0),
   partition p1 values in (1),
   partition p2 values in (2),
   partition p3 values in (3)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1,1),(2,2),(3,3);
 
+--replace_column 10 #
 explain partitions select * from t1 where b >  1 and b < 3;
+--replace_column 10 #
 explain partitions select * from t1 where b >  1 and b < 3 and (a =1 or a =2);
 drop table t1;
 
@@ -939,11 +1383,17 @@ create table t1 (a int) partition by list(a) (
   partition p0 values in (1,2),
   partition p1 values in (3,4)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
 
 --echo # This won't do any table access
 --let $q = update t1 set a=100 where a=5
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -952,7 +1402,9 @@ show status like 'Handler_external_lock';
 
 --echo # ... as compared to this, which will scan both partitions
 --let $q = update t1 set a=100 where a+1=5+1
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -961,7 +1413,9 @@ show status like 'Handler_external_lock';
 
 --echo # This will only scan partition p1
 --let $q = update t1 set a=3 where a=4
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -970,7 +1424,9 @@ show status like 'Handler_external_lock';
 
 --echo # This will only scan partition p1 but with a LIMIT
 --let $q = update t1 set a=4 where a=3 LIMIT 2
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -982,7 +1438,9 @@ select * from t1;
 
 --echo # Same as above for DELETE:
 --let $q = delete from t1 where a=5
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -990,7 +1448,9 @@ show status like 'Handler_read_rnd_next';
 show status like 'Handler_external_lock';
 
 --let $q = delete from t1 where a+1=5+1
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -999,7 +1459,9 @@ show status like 'Handler_external_lock';
 
 --echo # Will only delete from p0
 --let $q = delete from t1 where a=1
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -1015,7 +1477,9 @@ create table t2 like t1;
 insert into t2 select * from t1;
 
 --let $q = update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -1023,7 +1487,9 @@ show status like 'Handler_read_rnd_next';
 show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -1031,7 +1497,9 @@ show status like 'Handler_read_rnd_next';
 show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -1039,7 +1507,9 @@ show status like 'Handler_read_rnd_next';
 show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -1071,19 +1541,24 @@ drop table t2;
 CREATE TABLE `t2` (
   `a` int(11) default NULL,
   `b` int(11) default NULL
-) 
+)
 PARTITION BY RANGE (a) (
 PARTITION p0 VALUES LESS THAN (200),
 PARTITION p1 VALUES LESS THAN (400),
 PARTITION p2 VALUES LESS THAN (600),
 PARTITION p3 VALUES LESS THAN (800),
 PARTITION p4 VALUES LESS THAN (1001));
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 
 CREATE TABLE `t3` (
   `a` int(11) default NULL,
   `b` int(11) default NULL
 );
 
+--replace_column 10 #
 explain partitions insert into t2 select a,1 from t1 where a < 200;
 insert into t2 select a,1 from t1 where a < 200;
 insert into t2 select a,2 from t1 where a >= 200 and a < 400;
@@ -1092,56 +1567,80 @@ insert into t2 select a,4 from t1 where a >= 600 and a < 800;
 insert into t2 select a,5 from t1 where a >= 800 and a < 1001;
 
 --let $q =  select * from t2
+--replace_column 10 #
 --eval explain partitions $q
+--replace_column 10 #
 --eval explain partitions insert into t3 $q
+--replace_column 10 #
 --eval explain extended   insert into t3 $q
 --let $q =  select * from t2 where a < 801 and a > 200
+--replace_column 10 #
 --eval explain partitions $q
+--replace_column 10 #
 --eval explain partitions insert into t3 $q
 --let $q =  select * from t2 where a < 801 and a > 800
+--replace_column 10 #
 --eval explain partitions $q
+--replace_column 10 #
 --eval explain partitions insert into t3 $q
 --let $q =  select * from t2 where a > 600
+--replace_column 10 #
 --eval explain partitions $q
+--replace_column 10 #
 --eval explain partitions insert into t3 $q
 --let $q =  select * from t2 where a > 600 and b = 1
+--replace_column 10 #
 --eval explain partitions $q
+--replace_column 10 #
 --eval explain partitions insert into t3 $q
 --let $q =  select * from t2 where a > 600 and b = 4
+--replace_column 10 #
 --eval explain partitions $q
+--replace_column 10 #
 --eval explain partitions insert into t3 $q
 --let $q =  select * from t2 where a > 600 and b = 5
+--replace_column 10 #
 --eval explain partitions $q
+--replace_column 10 #
 --eval explain partitions insert into t3 $q
 --let $q =  select * from t2 where b = 5
+--replace_column 10 #
 --eval explain partitions $q
+--replace_column 10 #
 --eval explain partitions insert into t3 $q
 
 DROP TABLE t3;
 
 --let $q = update t2 set b = 100 where b = 6
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 --let $q = update t2 set a = 1002 where a = 1001
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 --let $q = update t2 set b = 6 where a = 600
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 --let $q = update t2 set b = 6 where a > 600 and a < 800
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 --let $q = delete from t2 where a > 600
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -1152,13 +1651,17 @@ CREATE TABLE `t2` (
   `a` int(11) default NULL,
   `b` int(11) default NULL,
   index (b)
-) 
+)
 PARTITION BY RANGE (a) (
 PARTITION p0 VALUES LESS THAN (200),
 PARTITION p1 VALUES LESS THAN (400),
 PARTITION p2 VALUES LESS THAN (600),
 PARTITION p3 VALUES LESS THAN (800),
 PARTITION p4 VALUES LESS THAN (1001));
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 
 insert into t2 select a,1 from t1 where a < 100;
 insert into t2 select a,2 from t1 where a >= 200 and a < 300;
@@ -1170,66 +1673,117 @@ insert into t2 select a,7 from t1 where a >= 700 and a < 800;
 insert into t2 select a,8 from t1 where a >= 800 and a < 900;
 insert into t2 select a,9 from t1 where a >= 900 and a < 1001;
 
+ANALYZE TABLE t2;
+--replace_column 10 #
 explain partitions select * from t2;
 # not using indexes
+--replace_column 10 #
 explain partitions select * from t2 where a = 101;
+--replace_column 10 #
 explain partitions select * from t2 where a = 550;
+--replace_column 10 #
 explain partitions select * from t2 where a = 833;
+--replace_column 10 #
 explain partitions select * from t2 where (a = 100 OR a = 900);
+--replace_column 10 #
 explain partitions select * from t2 where (a > 100 AND a < 600);
+--replace_column 10 #
 explain partitions select * from t2 where b = 4;
 
+--replace_column 10 #
 explain extended select * from t2 where b = 6;
+--replace_column 10 #
 explain partitions select * from t2 where b = 6;
 
+--replace_column 10 #
 explain extended select * from t2 where b in (1,3,5);
+--replace_column 10 #
 explain partitions select * from t2 where b in (1,3,5);
 
+--replace_column 10 #
 explain extended select * from t2 where b in (2,4,6);
+--replace_column 10 #
 explain partitions select * from t2 where b in (2,4,6);
 
+--replace_column 10 #
 explain extended select * from t2 where b in (7,8,9);
+--replace_column 10 #
 explain partitions select * from t2 where b in (7,8,9);
 
+--replace_column 10 #
 explain extended select * from t2 where b > 5;
+--replace_column 10 #
 explain partitions select * from t2 where b > 5;
 
+--replace_column 10 #
 explain extended select * from t2 where b > 5 and b < 8;
+--replace_column 10 #
 explain partitions select * from t2 where b > 5 and b < 8;
 
+--replace_column 10 #
 explain extended select * from t2 where b > 5 and b < 7;
+--replace_column 10 #
 explain partitions select * from t2 where b > 5 and b < 7;
 
+--replace_column 10 #
 explain extended select * from t2 where b > 0 and b < 5;
+--replace_column 10 #
 explain partitions select * from t2 where b > 0 and b < 5;
 
 --let $q = update t2 set a = 111 where b = 10
+--replace_column 10 #
 --eval explain extended $q
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
 --let $q = update t2 set a = 111 where b in (5,6)
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
 --let $q = update t2 set a = 222 where b = 7
+
+let $use_optimizer_trace=0;
+if ($use_optimizer_trace)
+{
+SET @@optimizer_trace="enabled=on";
+}
+--replace_column 10 #
 --eval explain partitions $q
+if ($use_optimizer_trace)
+{
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET @@optimizer_trace="enabled=off";
+}
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
---let $q = delete from t2 where b = 7
+--let $q = delete from t2 where b = 8
+--replace_column 10 #
 --eval explain extended $q
+if ($use_optimizer_trace)
+{
+SET @@optimizer_trace="enabled=on";
+}
+--replace_column 10 #
 --eval explain partitions $q
+if ($use_optimizer_trace)
+{
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET @@optimizer_trace="enabled=off";
+}
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
 show status like 'Handler_read_key';
 --let $q = delete from t2 where b > 5
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -1238,6 +1792,7 @@ show status like 'Handler_read_key';
 show status like 'Handler_read_prev';
 show status like 'Handler_read_next';
 --let $q = delete from t2 where b < 5 or b > 3
+--replace_column 10 #
 --eval explain partitions $q
 flush status;
 --eval $q
@@ -1248,9 +1803,9 @@ show status like 'Handler_read_next';
 
 drop table t1, t2;
 
-# BUG#18025 
+# BUG#18025
 #  part1: mediumint columns
-create table t1 ( f_int1 mediumint, f_int2 integer) 
+create table t1 ( f_int1 mediumint, f_int2 integer)
 partition by list(mod(f_int1,4)) (
   partition p_3 values in (-3),
   partition p_2 values in (-2),
@@ -1260,8 +1815,12 @@ partition by list(mod(f_int1,4)) (
   partition p2 values in (2),
   partition p3 values in (3)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 
-insert into t1 values (9, 9), (8, 8), (7, 7), (6, 6), (5, 5), 
+insert into t1 values (9, 9), (8, 8), (7, 7), (6, 6), (5, 5),
                       (4, 4), (3, 3), (2, 2), (1, 1);
 select * from t1 where f_int1 between 5 and 15 order by f_int1;
 
@@ -1289,9 +1848,14 @@ create table t1 (f_int1 integer) partition by list(abs(mod(f_int1,2)))
   partition part2 values in (1),
   partition part4 values in (null)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 set f_int1 = null;
 
 select * from t1 where f_int1 is null;
+--replace_column 10 #
 explain partitions select * from t1 where f_int1 is null;
 drop table t1;
 
@@ -1299,20 +1863,25 @@ drop table t1;
 # BUG#18558
 #
 create table t1 (a int not null, b int not null)
-partition by list(a) 
-  subpartition by hash(b) subpartitions 4 
+partition by list(a)
+  subpartition by hash(b) subpartitions 4
 (
   partition p0 values in (1),
   partition p1 values in (2),
   partition p2 values in (3)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1,1),(1,2),(1,3),(1,4),
   (2,1),(2,2),(2,3),(2,4);
+--replace_column 10 #
 explain partitions select * from t1 where a=1 AND (b=1 OR b=2);
 drop table t1;
 
 create table t1 (a int, b int not null)
-partition by list(a) 
+partition by list(a)
   subpartition by hash(b) subpartitions 2
 (
   partition p0 values in (1),
@@ -1320,13 +1889,21 @@ partition by list(a)
   partition p2 values in (3),
   partition pn values in (NULL)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (1,1),(1,2),(1,3),(1,4),
   (2,1),(2,2),(2,3),(2,4), (NULL,1);
 
+--replace_column 10 #
 explain partitions select * from t1 where a IS NULL AND (b=1 OR b=2);
 
+--replace_column 10 #
 explain partitions select * from t1 where (a IS NULL or a < 1) AND (b=1 OR b=2);
+--replace_column 10 #
 explain partitions select * from t1 where (a IS NULL or a < 2) AND (b=1 OR b=2);
+--replace_column 10 #
 explain partitions select * from t1 where (a IS NULL or a <= 1) AND (b=1 OR b=2);
 
 drop table t1;
@@ -1337,19 +1914,29 @@ create table t1 ( a int)  partition by list (MOD(a, 10))
    partition p4 values in (4), partition p5 values in (5),
    partition p6 values in (6), partition pn values in (NULL)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (NULL), (0),(1),(2),(3),(4),(5),(6);
+--replace_column 10 #
 explain partitions select * from t1 where a is null or a < 2;
 drop table t1;
 
 # Testcase from BUG#18751
-create table t1 (s1 int) partition by list (s1) 
-  (partition p1 values in (0), 
-   partition p2 values in (1), 
+create table t1 (s1 int) partition by list (s1)
+  (partition p1 values in (0),
+   partition p2 values in (1),
    partition p3 values in (null));
- 
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
+
 insert into t1 values (0),(1),(null);
- 
+
 select count(*) from t1 where s1 < 0 or s1 is null;
+--replace_column 10 #
 explain partitions select count(*) from t1 where s1 < 0 or s1 is null;
 drop table t1;
 
@@ -1362,6 +1949,10 @@ drop table t1;
 create table t1 (a char(32) primary key)
 partition by key()
 partitions 100;
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values ('na');
 select * from t1;
 select * from t1 where a like 'n%';
@@ -1370,8 +1961,13 @@ drop table t1;
 
 # BUG#19055 Crashes for varchar_col=NUMBER or varchar_col IS NULL
 create table t1 (s1 varchar(15)) partition by key (s1);
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 select * from t1 where s1 = 0 or s1 is null;
 insert into t1 values ('aa'),('bb'),('0');
+--replace_column 10 #
 explain partitions select * from t1 where s1 = 0 or s1 is null;
 drop table t1;
 
@@ -1383,10 +1979,15 @@ create table t2 (a int, b int)
   subpartition by HASH(b) subpartitions 40
 ( partition p_0_long_partition_name values in(1),
   partition p_1_long_partition_name values in(2));
+if ($verify_without_partitions)
+{
+ALTER TABLE t2 REMOVE PARTITIONING;
+}
 
 insert into t2 values (1,1),(2,2);
 
 --vertical_results
+--replace_column 10 #
 explain partitions select * from t2;
 --horizontal_results
 drop table t2;
@@ -1394,6 +1995,7 @@ drop table t2;
 
 # BUG#20484 "Partitions: crash with explain and union"
 create table t1 (s1 int);
+--replace_column 10 #
 explain partitions select 1 from t1 union all select 2;
 drop table t1;
 
@@ -1406,19 +2008,29 @@ create table t1 (a bigint unsigned not null) partition by range(a) (
   partition p3 values less than (18446744073709551000),
   partition p4 values less than (18446744073709551614)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (5),(15),(105),(1005);
 insert into t1 values (18446744073709551000+1);
 insert into t1 values (18446744073709551614-1);
 
+--replace_column 10 #
 explain partitions select * from t1 where a < 10;
-explain partitions select * from t1 
+--replace_column 10 #
+explain partitions select * from t1
   where a >= 18446744073709551000-1 and a <= 18446744073709551000+1;
 
-explain partitions select * from t1 
+--replace_column 10 #
+explain partitions select * from t1
   where a between 18446744073709551001 and 18446744073709551002;
 
+--replace_column 10 #
 explain partitions select * from t1 where a = 18446744073709551000;
+--replace_column 10 #
 explain partitions select * from t1 where a = 18446744073709551613;
+--replace_column 10 #
 explain partitions select * from t1 where a = 18446744073709551614;
 drop table t1;
 #
@@ -1437,6 +2049,10 @@ drop table t1;
   partition p1 values less than (128),
   partition p2 values less than (255)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 
 create table t2 (a int)
   partition by range(a+0) (
@@ -1444,40 +2060,63 @@ create table t2 (a int)
   partition p1 values less than (128),
   partition p2 values less than (255)
 );
-  
+if ($verify_without_partitions)
+{
+ALTER TABLE t2 REMOVE PARTITIONING;
+}
+
 insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
 insert into t2 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+--replace_column 10 #
 explain partitions select * from t1 where a=0;
+--replace_column 10 #
 explain partitions select * from t2 where a=0;
+--replace_column 10 #
 explain partitions select * from t1 where a=0xFE;
+--replace_column 10 #
 explain partitions select * from t2 where a=0xFE;
+--replace_column 10 #
 explain partitions select * from t1 where a > 0xFE AND a <= 0xFF;
+--replace_column 10 #
 explain partitions select * from t2 where a > 0xFE AND a <= 0xFF;
+--replace_column 10 #
 explain partitions select * from t1 where a >= 0xFE AND a <= 0xFF;
+--replace_column 10 #
 explain partitions select * from t2 where a >= 0xFE AND a <= 0xFF;
+--replace_column 10 #
 explain partitions select * from t1 where a < 64 AND a >= 63;
+--replace_column 10 #
 explain partitions select * from t2 where a < 64 AND a >= 63;
+--replace_column 10 #
 explain partitions select * from t1 where a <= 64 AND a >= 63;
+--replace_column 10 #
 explain partitions select * from t2 where a <= 64 AND a >= 63;
 drop table t1;
 drop table t2;
-  
+
 create table t1(a bigint unsigned not null) partition by range(a+0) (
   partition p1 values less than (10),
   partition p2 values less than (20),
   partition p3 values less than (2305561538531885056),
   partition p4 values less than (2305561538531950591)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 
 insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
 insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
 
-explain partitions select * from t1 where 
+--replace_column 10 #
+explain partitions select * from t1 where
   a >= 2305561538531885056-10 and a <= 2305561538531885056-8;
 
-explain partitions select * from t1 where 
+--replace_column 10 #
+explain partitions select * from t1 where
   a > 0xFFFFFFFFFFFFFFEC and a < 0xFFFFFFFFFFFFFFEE;
 
+--replace_column 10 #
 explain partitions select * from t1 where a>=0 and a <= 0xFFFFFFFFFFFFFFFF;
 drop table t1;
 
@@ -1487,25 +2126,35 @@ create table t1 (a bigint) partition by range(a+0) (
   partition p3 values less than (10),
   partition p4 values less than (1000)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 insert into t1 values (-15),(-5),(5),(15),(-15),(-5),(5),(15);
+--replace_column 10 #
 explain partitions select * from t1 where a>-2 and a <=0;
 drop table t1;
 
 
 #
 # BUG#27927 Partition pruning not optimal with TO_DAYS function
-# 
+#
 
 CREATE TABLE t1 ( recdate  DATETIME NOT NULL )
 PARTITION BY RANGE( TO_DAYS(recdate) ) (
   PARTITION p0 VALUES LESS THAN ( TO_DAYS('2007-03-08') ),
   PARTITION p1 VALUES LESS THAN ( TO_DAYS('2007-04-01') )
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 INSERT INTO t1 VALUES ('2007-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-07 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-08 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-15 12:00:00');
 -- echo must use p0 only:
+--replace_column 10 #
 explain partitions select * from t1 where recdate < '2007-03-08 00:00:00';
 
 drop table t1;
@@ -1514,18 +2163,23 @@ PARTITION BY RANGE( YEAR(recdate) ) (
   PARTITION p0 VALUES LESS THAN (2006),
   PARTITION p1 VALUES LESS THAN (2007)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t1 REMOVE PARTITIONING;
+}
 INSERT INTO t1 VALUES ('2005-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2005-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2006-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2006-03-01 12:00:00');
 
 -- echo must use p0 only:
+--replace_column 10 #
 explain partitions select * from t1 where recdate < '2006-01-01 00:00:00';
 drop table t1;
 
--- echo # 
+-- echo #
 -- echo # BUG#33730 Full table scan instead selected partitions for query more than 10 partitions
--- echo # 
+-- echo #
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int)
@@ -1534,10 +2188,16 @@ create table t1 (a int)
   partition p1 values less than (128),
   partition p2 values less than (255)
 );
+if ($verify_without_partitions)
+{
+ALTER TABLE t0 REMOVE PARTITIONING;
+}
 insert into t1 select A.a + 10*B.a from t0 A, t0 B;
 
 # this will use interval_via_walking
+--replace_column 10 #
 explain partitions select * from t1 where a between 10 and 13;
+--replace_column 10 #
 explain partitions select * from t1 where a between 10 and 10+33;
 
 drop table t0, t1;
@@ -1572,20 +2232,36 @@ SELECT * FROM t1 WHERE c1 = 2 AND c2 <= 4;
 SELECT * FROM t1 WHERE c1 = 2 AND c2 = 4;
 SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 4;
 SELECT * FROM t1 WHERE c1 = 2 AND c2 > 4;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 < 1;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 <= 1;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 = 1;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 >= 1;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 > 1;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 < 3;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 <= 3;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 <= 3;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 = 3;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 3;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 > 3;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 < 4;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 <= 4;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 = 4;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 4;
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 > 4;
 DROP TABLE t1;

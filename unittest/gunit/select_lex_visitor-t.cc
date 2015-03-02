@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include "current_thd.h"
 #include "parsertest.h"
 #include "test_utils.h"
 #include "select_lex_visitor.h"
@@ -138,6 +139,35 @@ TEST_F(SelectLexVisitorTest, SelectLex)
 TEST_F(SelectLexVisitorTest, InsertList)
 {
   SELECT_LEX *select_lex= parse("INSERT INTO t VALUES (1, 2, 3)", 0);
+  ASSERT_FALSE(select_lex == NULL);
+
+  Remembering_visitor visitor;
+  thd()->lex->accept(&visitor);
+  ASSERT_EQ(3U, visitor.seen_items.size());
+  EXPECT_EQ(1, visitor.seen_items[0]);
+  EXPECT_EQ(2, visitor.seen_items[1]);
+  EXPECT_EQ(3, visitor.seen_items[2]);
+}
+
+
+TEST_F(SelectLexVisitorTest, InsertList2)
+{
+  SELECT_LEX *select_lex= parse("INSERT INTO t VALUES (1, 2), (3, 4)", 0);
+  ASSERT_FALSE(select_lex == NULL);
+
+  Remembering_visitor visitor;
+  thd()->lex->accept(&visitor);
+  ASSERT_EQ(4U, visitor.seen_items.size());
+  EXPECT_EQ(1, visitor.seen_items[0]);
+  EXPECT_EQ(2, visitor.seen_items[1]);
+  EXPECT_EQ(3, visitor.seen_items[2]);
+  EXPECT_EQ(4, visitor.seen_items[3]);
+}
+
+
+TEST_F(SelectLexVisitorTest, InsertSet)
+{
+  SELECT_LEX *select_lex= parse("INSERT INTO t SET a=1, b=2, c=3", 0);
   ASSERT_FALSE(select_lex == NULL);
 
   Remembering_visitor visitor;

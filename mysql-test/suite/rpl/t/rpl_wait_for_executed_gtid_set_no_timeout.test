@@ -7,12 +7,12 @@
 #
 
 --let $rpl_gtid_utils= 1
---source include/master-slave.inc
 --source include/have_log_bin.inc
 --source include/have_gtid.inc
+--source include/master-slave.inc
 
 connection slave;
---let $master_uuid= query_get_value(select SOURCE_UUID from performance_schema.replication_connection_status, SOURCE_UUID, 1)
+--let $master_uuid= query_get_value(select SOURCE_UUID from performance_schema.replication_connection_status WHERE service_state = 'ON', SOURCE_UUID, 1)
 --connection master
 
 --let $uuid= 8a94f357-aab4-11df-86ab-c80aa9429560

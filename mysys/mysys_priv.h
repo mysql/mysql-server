@@ -28,7 +28,7 @@ C_MODE_START
 
 extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
-  key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
+  key_THR_LOCK_charset, key_THR_LOCK_heap,
   key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
   key_THR_LOCK_open, key_THR_LOCK_threads,
@@ -40,7 +40,11 @@ extern PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
   key_THR_COND_threads;
 
+C_MODE_END
+
 #endif /* HAVE_PSI_INTERFACE */
+
+C_MODE_START
 
 extern PSI_stage_info stage_waiting_for_table_level_lock;
 
@@ -54,13 +58,9 @@ extern PSI_file_key key_file_proc_meminfo;
 #endif /* HAVE_LINUX_LARGE_PAGES */
 extern PSI_file_key key_file_charset;
 
-C_MODE_END
-
 #endif /* HAVE_PSI_INTERFACE */
 
 /* These keys are always defined. */
-
-C_MODE_START
 
 extern PSI_memory_key key_memory_array_buffer;
 extern PSI_memory_key key_memory_charset_file;

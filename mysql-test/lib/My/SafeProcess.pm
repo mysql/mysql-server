@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2015 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -140,6 +140,9 @@ sub new {
   my $shutdown = delete($opts{'shutdown'});
   my $user_data= delete($opts{'user_data'});
   my $envs     = delete($opts{'envs'});
+  my $daemon_mode = delete($opts{'daemon_mode'});
+  my $pid_file= delete($opts{'pid_file'})
+                  if defined $daemon_mode && $daemon_mode == 1;
 
 #  if (defined $host) {
 #    $safe_script=  "lib/My/SafeProcess/safe_process_cpcd.pl";
@@ -188,6 +191,8 @@ sub new {
 			  error     => $error,
                           append    => $opts{append},
 			  args      => \@safe_args,
+                          pid_file  => $pid_file
+
 			 );
 
   my $name     = delete($opts{'name'}) || "SafeProcess$pid";

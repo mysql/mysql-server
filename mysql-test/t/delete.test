@@ -333,7 +333,7 @@ DROP TABLE t1;
 #
 # Bug#27525: table not found when using multi-table-deletes with aliases over
 #            several databas
-# Bug#21148: MULTI-DELETE fails to resolve a table by alias if it's from a
+# Bug#21148: MULTI-DELETE fails to resolve a table by alias if it is from a
 #            different database
 #
 
@@ -713,3 +713,120 @@ INSERT INTO t1 SET z=1;
 INSERT INTO t2 VALUES('a');
 DELETE FROM t2 WHERE 1 = a;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#20086791 ASSERT `! IS_SET()` IN DIAGNOSTICS_AREA::SET_OK_STATUS
+--echo #              ON DELETE (ER_SUBQUERY..)
+--echo #
+
+SET sql_mode='';
+
+CREATE TABLE t1 (
+  col_int_key int,
+  pk integer auto_increment,
+  col_datetime_key datetime,
+  /*Indices*/
+  key (col_int_key ),
+  primary key (pk),
+  key (col_datetime_key )
+) ENGINE=memory;
+
+CREATE TABLE t2 (
+  col_varchar_key varchar (1),
+  col_date_key date,
+  pk integer auto_increment,
+  /*Indices*/
+  key (col_varchar_key ),
+  key (col_date_key ),
+  primary key (pk)
+) ENGINE=memory;
+
+INSERT INTO t2 VALUES
+('v',  '2002-05-01', NULL) ,
+('d',  '2001-01-01', NULL) 
+;
+
+
+CREATE TABLE t3 (
+  pk integer auto_increment,
+  col_int_key int,
+  col_varchar_key varchar (1),
+  /*Indices*/
+  primary key (pk),
+  key (col_int_key ),
+  key (col_varchar_key )) 
+ENGINE=memory;
+
+INSERT INTO t3 VALUES
+(NULL, 3, 'n') ,
+(NULL, 1, 'r') 
+;
+
+CREATE TABLE t4 (
+  pk integer auto_increment,
+  col_varchar_key varchar (1),
+  col_int_key int,
+  /*Indices*/
+  primary key (pk),
+  key (col_varchar_key ),
+  key (col_int_key )
+) ENGINE=memory;
+
+CREATE TABLE t5 (
+  col_datetime_key datetime,
+  pk integer auto_increment,
+  col_int_key int,
+  /*Indices*/
+  key (col_datetime_key ),
+  primary key (pk),
+  key (col_int_key )) 
+ENGINE=memory;
+
+INSERT INTO t5 VALUES
+('2007-10-01', NULL, 8) ,
+('2002-10-01', NULL, 3) 
+;
+
+DELETE OUTR1.* FROM t2 AS OUTR1 
+JOIN t3 AS OUTR2 
+ON ( OUTR1 . col_varchar_key = OUTR2 . col_varchar_key ) 
+WHERE OUTR1 . col_varchar_key NOT IN
+ ( SELECT  INNR1 . col_varchar_key AS y FROM t5 AS INNR2
+   RIGHT JOIN t4 AS INNR1 ON ( INNR2 . pk < INNR1 . col_int_key )
+   WHERE INNR1 . col_int_key <= INNR1 . col_int_key
+     AND OUTR2 . col_int_key >= 3  );
+
+DELETE QUICK  
+FROM OUTR1.* USING t2 AS OUTR1 
+LEFT OUTER JOIN t1 AS OUTR2 
+ON ( OUTR1 . col_date_key = OUTR2 . col_datetime_key ) 
+WHERE OUTR1 . pk NOT IN ( SELECT 2 UNION  SELECT 7 );
+
+--error ER_SUBQUERY_NO_1_ROW
+DELETE    OUTR1.* 
+FROM t2 AS OUTR1
+  LEFT JOIN t1 AS OUTR2 
+  ON ( OUTR1 . pk = OUTR2 . col_int_key )
+WHERE OUTR1 . pk <> (
+  SELECT DISTINCT INNR1 . col_int_key AS y
+  FROM t5 AS INNR1 WHERE OUTR1 . pk <= 5
+  ORDER BY INNR1 . col_datetime_key
+);
+
+DROP TABLE t1, t2, t3, t4, t5;
+
+SET sql_mode=default;
+
+--echo # Bug#20450013 assertion 'select_lex::having_cond() == __null ...
+
+CREATE TABLE t1(a TEXT, FULLTEXT (a));
+CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+
+let $query=
+DELETE FROM t1 USING v1,t1;
+
+eval explain $query;
+eval $query;
+
+DROP VIEW v1;
+DROP TABLE t1;

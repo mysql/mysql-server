@@ -15,8 +15,8 @@
 --source ../include/start_server_common.inc
 
 # Values of variables server variables
-show variables like "performance_schema_max_program_instances";
-show variables like "performance_schema_max_statement_stack";
+show global variables like "performance_schema_max_program_instances";
+show global variables like "performance_schema_max_statement_stack";
 
 --echo ##################### 
 --echo # Setup

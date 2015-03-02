@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ bool Set_signal_information::set_item(enum_condition_item_name name, Item *item)
 }
 
 
-void Sql_cmd_common_signal::assign_defaults(
+void Sql_cmd_common_signal::assign_defaults(THD *thd,
                                     Sql_condition *cond,
                                     bool set_level_code,
                                     Sql_condition::enum_severity_level level,
@@ -86,7 +86,7 @@ void Sql_cmd_common_signal::assign_defaults(
     cond->m_mysql_errno= sqlcode;
   }
   if (! cond->message_text())
-    cond->set_message_text(ER(sqlcode));
+    cond->set_message_text(ER_THD(thd, sqlcode));
 }
 
 void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond)
@@ -115,19 +115,19 @@ void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond)
   if (is_sqlstate_warning(sqlstate))
   {
     /* SQLSTATE class "01": warning. */
-    assign_defaults(cond, set_defaults,
+    assign_defaults(thd, cond, set_defaults,
                     Sql_condition::SL_WARNING, ER_SIGNAL_WARN);
   }
   else if (is_sqlstate_not_found(sqlstate))
   {
     /* SQLSTATE class "02": not found. */
-    assign_defaults(cond, set_defaults,
+    assign_defaults(thd, cond, set_defaults,
                     Sql_condition::SL_ERROR, ER_SIGNAL_NOT_FOUND);
   }
   else
   {
     /* other SQLSTATE classes : error. */
-    assign_defaults(cond, set_defaults,
+    assign_defaults(thd, cond, set_defaults,
                     Sql_condition::SL_ERROR, ER_SIGNAL_EXCEPTION);
   }
 }

@@ -420,4 +420,7 @@
 #define HAVE_SYS_TYPES_H 1
 #define SIZEOF_CHAR 1
 
+/* For --secure-file-priv */
+#cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
+
 #endif

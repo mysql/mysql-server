@@ -1,0 +1,245 @@
+# Test for InnoDB memcached support for utf8 charset
+# To make sure it handles utf8 as same as MYSQL.
+
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+source include/have_innodb.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+--enable_query_log
+
+--enable_connect_log
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "|");
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+			       "c1", "c2,c21,c22,c23,c24,c25", "c3", "c4", "c5", "PRIMARY");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1        (c1 VARCHAR(32),
+			c2 VARCHAR(40),
+			c21 VARCHAR(40),
+			c22 VARCHAR(40),
+			c23 VARCHAR(40),
+			c24 VARCHAR(40),
+			c25 VARCHAR(40),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB DEFAULT CHARSET UTF8;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
+INSERT INTO t1 VALUES ('M', 'München', 'Süd', '4', 'ÜÖÄßüöä', '4567', '2012', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SHOW CREATE TABLE t1;
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+
+SELECT SLEEP(2);
+
+# Test get by key.
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11216" ],
+  'connect_timeout' => 20,
+  'select_timeout' =>20
+};
+print "Here the memcached results with D,B,M,C:\n";
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("M");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+
+# Test set/get by key.
+# Here we test if the key is an invalid utf8 string,
+# and if the key exceed the column length.
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11216" ],
+  'connect_timeout' => 20,
+  'select_timeout' =>20
+};
+
+# Test for normal utf8 key.
+print "Here the memcached results after set:\n";
+$val = $memd->set("Ü","Ülzen|City|5|üöäßÜÖÄ|5678|2012");
+$val = $memd->get("Ü");
+if ($val) { print "$val\n"; }
+
+# Test for invalid utf8 key.
+# The key will be truncated from the invalid byte.
+$key = "\x5f\xee\x39\x67\x6d";
+$val = $memd->set($key,"Beijing|City|6|fffffffff|6789|2012");
+$key2 = "\x5f";
+$val = $memd->get($key2);
+if ($val) { print "$val\n"; }
+
+# Test key with all invalid bytes, which result the truncated length is 0
+# It will be truncated to a empty string, and inserted into the table.
+$key = "\xee\x5f\x39\x67\x6d";
+$val = $memd->set($key,"Shanghai|City|7|fffffffff|7890|2012");
+$key2 = "\xee\x5f\x39\x67\x6d";
+$val = $memd->get($key2);
+if ($val) { print "$val\n"; }
+
+# Test key exceed the column length.
+# It will be truncated to column length, and inserted into the table.
+$val = $memd->set("0123456789012345678901234567890123456789","Wuhan|City|8|eeeeeeeee|8901|2012");
+$val = $memd->get("01234567890123456789012345678901");
+if ($val) { print "$val\n"; }
+
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+
+DROP TABLE t1;
+
+UNINSTALL PLUGIN daemon_memcached;
+
+##############################################################################
+# Dup test for CHAR(32) key.
+##############################################################################
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1        (c1 CHAR(32),
+			c2 CHAR(40),
+			c21 CHAR(40),
+			c22 CHAR(40),
+			c23 CHAR(40),
+			c24 CHAR(40),
+			c25 CHAR(40),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB DEFAULT CHARSET UTF8;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City','1', 'dddddddddddddd', '1234', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2012', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
+INSERT INTO t1 VALUES ('M', 'München', 'Süd', '4', 'ÜÖÄßüöä', '4567', '2012', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SHOW CREATE TABLE t1;
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+
+SELECT SLEEP(2);
+
+# Test get by key.
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11216" ],
+  'connect_timeout' => 20,
+  'select_timeout' =>20
+};
+print "Here the memcached results with D,B,M,C:\n";
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("M");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+
+# Test set/get by key.
+# Here we test if the key is an invalid utf8 string,
+# and if the key exceed the column length.
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11216" ],
+  'connect_timeout' => 20,
+  'select_timeout' =>20
+};
+
+# Test for normal utf8 key.
+print "Here the memcached results after set:\n";
+$val = $memd->set("Ü","Ülzen|City|5|üöäßÜÖÄ|5678|2012");
+$val = $memd->get("Ü");
+if ($val) { print "$val\n"; }
+
+# Test for invalid utf8 key.
+# The key will be truncated from the invalid byte.
+$key = "\x5f\xee\x39\x67\x6d";
+$val = $memd->set($key,"Beijing|City|6|fffffffff|6789|2012");
+$key2 = "\x5f";
+$val = $memd->get($key2);
+if ($val) { print "$val\n"; }
+
+# Test key with all invalid bytes, which result the truncated length is 0
+# It will be truncated to a empty string, and inserted into the table.
+$key = "\xee\x5f\x39\x67\x6d";
+$val = $memd->set($key,"Shanghai|City|7|fffffffff|7890|2012");
+$key2 = "\xee\x5f\x39\x67\x6d";
+$val = $memd->get($key2);
+if ($val) { print "$val\n"; }
+
+# Test key exceed the column length.
+# It will be truncated to column length, and inserted into the table.
+$val = $memd->set("0123456789012345678901234567890123456789","Wuhan|City|8|eeeeeeeee|8901|2012");
+$val = $memd->get("01234567890123456789012345678901");
+if ($val) { print "$val\n"; }
+
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
+
+DROP TABLE t1;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+
+SET @@global.tx_isolation= @tx_isolation;

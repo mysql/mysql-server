@@ -31,16 +31,10 @@ SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: table `test`.`t1` .* Partition.* InnoDB internal");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Table `test`.`t1` .* Partition.* InnoDB internal");
 --echo #
 --echo # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 --echo #
-SET @old_innodb_file_format = @@global.innodb_file_format;
-SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
-SET @old_innodb_strict_mode = @@global.innodb_strict_mode;
-SET @@global.innodb_file_format = Barracuda,
-@@global.innodb_file_per_table = ON,
-@@global.innodb_strict_mode = ON;
 
 --echo # Connection con1
 --connect(con1,localhost,root,,)
@@ -90,13 +84,14 @@ DROP TABLE t1;
 --disconnect con2
 --connection default
 --echo # Connection default
-SET @@global.innodb_strict_mode = @old_innodb_strict_mode;
-SET @@global.innodb_file_format = @old_innodb_file_format;
-SET @@global.innodb_file_per_table = @old_innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = default;
 
 #
 # Bug#32430 - show engine innodb status causes errors
-#
+# This test is not stable, also the tested function explain_filename()
+# is tested in an own unit test instead.
+if (0)
+{
 SET NAMES utf8;
 CREATE TABLE `t``\""e` (a INT, PRIMARY KEY (a))
 ENGINE=InnoDB
@@ -165,3 +160,4 @@ disconnect con1;
 connection default;
 DROP TABLE `t``\""e`;
 SET NAMES DEFAULT;
+}

@@ -4,6 +4,6 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-show variables like 'performance_schema_max_thread_classes';
-show variables like 'performance_schema_max_thread_instances';
+show global variables like 'performance_schema_max_thread_classes';
+show global variables like 'performance_schema_max_thread_instances';
 

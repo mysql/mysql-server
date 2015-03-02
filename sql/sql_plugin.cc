@@ -21,13 +21,16 @@
 #include <mysql/plugin_validate_password.h>
 #include <mysql/plugin_group_replication.h>
 #include "auth_common.h"       // check_table_access
+#include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
+#include "derror.h"            // ER_THD
 #include "handler.h"           // ha_initalize_handlerton
 #include "item.h"              // Item
 #include "key.h"               // key_copy
 #include "log.h"               // sql_print_error
 #include "mutex_lock.h"        // Mutex_lock
 #include "my_default.h"        // free_defaults
+#include "psi_memory_key.h"
 #include "records.h"           // READ_RECORD
 #include "sql_audit.h"         // mysql_audit_acquire_plugins
 #include "sql_base.h"          // close_mysql_tables
@@ -107,6 +110,12 @@ extern int finalize_audit_plugin(st_plugin_int *plugin);
 extern int initialize_rewrite_pre_parse_plugin(st_plugin_int *plugin);
 extern int initialize_rewrite_post_parse_plugin(st_plugin_int *plugin);
 extern int finalize_rewrite_plugin(st_plugin_int *plugin);
+
+#ifdef EMBEDDED_LIBRARY
+// Dummy implementations for embedded
+int initialize_audit_plugin(st_plugin_int *plugin) { return 1; }
+int finalize_audit_plugin(st_plugin_int *plugin) { return 0; }
+#endif
 
 /*
   The number of elements in both plugin_type_initialize and
@@ -294,9 +303,11 @@ public:
   SHOW_TYPE show_type();
   uchar* real_value_ptr(THD *thd, enum_var_type type);
   TYPELIB* plugin_var_typelib(void);
-  uchar* do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  uchar* session_value_ptr(THD *thd, LEX_STRING *base)
-  { return do_value_ptr(thd, OPT_SESSION, base); }
+  uchar* do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type, LEX_STRING *base);
+  uchar* do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
+  { return do_value_ptr(thd, thd, type, base); }
+  uchar* session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
+  { return do_value_ptr(running_thd, target_thd, OPT_SESSION, base); }
   uchar* global_value_ptr(THD *thd, LEX_STRING *base)
   { return do_value_ptr(thd, OPT_GLOBAL, base); }
   bool do_check(THD *thd, set_var *var);
@@ -318,8 +329,8 @@ static int test_plugin_options(MEM_ROOT *, st_plugin_int *,
                                int *, char **);
 static bool register_builtin(st_mysql_plugin *, st_plugin_int *,
                              st_plugin_int **);
-static void unlock_variables(THD *thd, struct system_variables *vars);
-static void cleanup_variables(THD *thd, struct system_variables *vars);
+static void unlock_variables(THD *thd, struct System_variables *vars);
+static void cleanup_variables(THD *thd, struct System_variables *vars);
 static void plugin_vars_free_values(sys_var *vars);
 static bool plugin_var_memalloc_session_update(THD *thd,
                                                st_mysql_sys_var *var,
@@ -327,7 +338,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
 static bool plugin_var_memalloc_global_update(THD *thd,
                                               st_mysql_sys_var *var,
                                               char **dest, const char *value);
-static void plugin_var_memalloc_free(struct system_variables *vars);
+static void plugin_var_memalloc_free(struct System_variables *vars);
 static void restore_pluginvar_names(sys_var *first);
 static void plugin_opt_set_limits(struct my_option *,
                                   const st_mysql_sys_var *);
@@ -343,7 +354,7 @@ static void report_error(int where_to, uint error, ...)
   if (where_to & REPORT_TO_USER)
   {
     va_start(args, error);
-    my_printv_error(error, ER(error), MYF(0), args);
+    my_printv_error(error, ER_THD(current_thd, error), MYF(0), args);
     va_end(args);
   }
   if (where_to & REPORT_TO_LOG)
@@ -1632,7 +1643,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   }
   mysql_mutex_unlock(&LOCK_plugin);
   if (error > 0)
-    sql_print_error(ER(ER_GET_ERRNO), my_errno);
+    sql_print_error(ER_THD(new_thd, ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
   table->m_needs_reopen= TRUE;                  // Force close to free memory
 
@@ -1949,7 +1960,9 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     This hack should be removed when LOCK_plugin is fixed so it
     protects only what it supposed to protect.
   */
+#ifndef EMBEDDED_LIBRARY
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+#endif
 
   mysql_mutex_lock(&LOCK_plugin);
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
@@ -1972,7 +1985,8 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   if (tmp->state == PLUGIN_IS_DISABLED)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_CANT_INITIALIZE_UDF, ER(ER_CANT_INITIALIZE_UDF),
+                        ER_CANT_INITIALIZE_UDF,
+                        ER_THD(thd, ER_CANT_INITIALIZE_UDF),
                         name->str, "Plugin is disabled");
   }
   else
@@ -2077,7 +2091,9 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     This hack should be removed when LOCK_plugin is fixed so it
     protects only what it supposed to protect.
   */
+#ifndef EMBEDDED_LIBRARY
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+#endif
 
   mysql_mutex_lock(&LOCK_plugin);
   if (!(plugin= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)) ||
@@ -2152,7 +2168,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   plugin->state= PLUGIN_IS_DELETED;
   if (plugin->ref_count)
     push_warning(thd, Sql_condition::SL_WARNING,
-                 WARN_PLUGIN_BUSY, ER(WARN_PLUGIN_BUSY));
+                 WARN_PLUGIN_BUSY, ER_THD(thd, WARN_PLUGIN_BUSY));
   else
     reap_needed= true;
   reap_plugins();
@@ -2898,7 +2914,12 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   */
   if (!thd->variables.dynamic_variables_ptr ||
       (uint)offset > thd->variables.dynamic_variables_head)
-    alloc_and_copy_thd_dynamic_variables(thd, global_lock);
+  {
+    if (current_thd == thd) /* TODO WL#6629: Supported for current_thd only. */
+      alloc_and_copy_thd_dynamic_variables(thd, global_lock);
+    else
+      return (uchar*) global_system_variables.dynamic_variables_ptr + offset;
+  }
 
   return (uchar*)thd->variables.dynamic_variables_ptr + offset;
 }
@@ -2994,7 +3015,7 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
 /*
   Unlocks all system variables which hold a reference
 */
-static void unlock_variables(THD *thd, struct system_variables *vars)
+static void unlock_variables(THD *thd, struct System_variables *vars)
 {
   intern_plugin_unlock(NULL, vars->table_plugin);
   intern_plugin_unlock(NULL, vars->temp_table_plugin);
@@ -3009,7 +3030,7 @@ static void unlock_variables(THD *thd, struct system_variables *vars)
   Unlike plugin_vars_free_values() it frees all variables of all plugins,
   it's used on shutdown.
 */
-static void cleanup_variables(THD *thd, struct system_variables *vars)
+static void cleanup_variables(THD *thd, struct System_variables *vars)
 {
   if (thd)
   {
@@ -3153,7 +3174,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
 
 {
   LIST *old_element= NULL;
-  struct system_variables *vars= &thd->variables;
+  struct System_variables *vars= &thd->variables;
   DBUG_ENTER("plugin_var_memalloc_session_update");
 
   if (value)
@@ -3195,7 +3216,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
   @see plugin_var_memalloc_session_update
 */
 
-static void plugin_var_memalloc_free(struct system_variables *vars)
+static void plugin_var_memalloc_free(struct System_variables *vars)
 {
   LIST *next, *root;
   DBUG_ENTER("plugin_var_memalloc_free");
@@ -3296,17 +3317,17 @@ TYPELIB* sys_var_pluginvar::plugin_var_typelib(void)
 }
 
 
-uchar* sys_var_pluginvar::do_value_ptr(THD *thd, enum_var_type type,
+uchar* sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
                                        LEX_STRING *base)
 {
   uchar* result;
 
-  result= real_value_ptr(thd, type);
+  result= real_value_ptr(target_thd, type);
 
   if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_ENUM)
     result= (uchar*) get_type(plugin_var_typelib(), *(ulong*)result);
   else if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_SET)
-    result= (uchar*) set_to_string(thd, 0, *(ulonglong*) result,
+    result= (uchar*) set_to_string(running_thd, 0, *(ulonglong*) result,
                                    plugin_var_typelib()->type_names);
   return result;
 }

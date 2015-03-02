@@ -199,6 +199,6 @@ prepare dump_accounts from
 --enable_query_log
 
 # Make sure all the instrumentation is present
-show status like "performance_schema_memory_classes_lost";
+show global status like "performance_schema_memory_classes_lost";
 
 

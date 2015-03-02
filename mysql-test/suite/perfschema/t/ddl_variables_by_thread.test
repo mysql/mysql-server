@@ -1,0 +1,20 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.variables_by_thread
+  add column foo integer;
+
+-- error ER_WRONG_PERFSCHEMA_USAGE
+truncate table performance_schema.variables_by_thread;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.variables_by_thread
+  ADD INDEX test_index(VARIABLE_NAME);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index
+  ON performance_schema.variables_by_thread(VARIABLE_NAME);
+

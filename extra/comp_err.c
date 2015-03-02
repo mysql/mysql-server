@@ -980,7 +980,7 @@ static struct errors *parse_error_string(char *str, int er_count)
   str= skip_delimiters(str);
   if (*str)
   {
-    fprintf(stderr, "The error line did not end with sql/odbc code!");
+    fprintf(stderr, "The error line did not end with sql/odbc code: '%s'\n", str);
     DBUG_RETURN(0);
   }
 

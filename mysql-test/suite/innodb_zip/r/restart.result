@@ -4,7 +4,6 @@ SET default_storage_engine=InnoDB;
 # Bug#13357607 Compressed file-per-table tablespaces fail to open
 #
 set global innodb_file_per_table=on;
-set global innodb_file_format='Barracuda';
 #
 # Create and insert records into a REDUNDANT row formatted table.
 #
@@ -147,9 +146,9 @@ t6_restart	CREATE TABLE `t6_restart` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (c1)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
- PARTITION p2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB,
+ PARTITION p2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB) */
 SELECT count(*) FROM t6_restart;
 count(*)
 16
@@ -185,14 +184,58 @@ t7_restart	CREATE TABLE `t7_restart` (
 /*!50100 PARTITION BY RANGE (c1)
 SUBPARTITION BY HASH (c1)
 (PARTITION p0 VALUES LESS THAN (10)
- (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
-  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB),
+ (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
- (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
-  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB)) */
+ (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir/' ENGINE = InnoDB)) */
 SELECT count(*) FROM t7_restart;
 count(*)
 16
+#
+# Create and insert records into a table that uses a general tablespace.
+#
+CREATE TABLESPACE s1_restart ADD DATAFILE 's1_restart.ibd';
+CREATE TABLE t8_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+ROW_FORMAT=COMPACT  ENGINE=InnoDB TABLESPACE=s1_restart;
+INSERT INTO t8_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
+INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+SHOW CREATE TABLE t8_restart;
+Table	Create Table
+t8_restart	CREATE TABLE `t8_restart` (
+  `c1` double NOT NULL AUTO_INCREMENT,
+  `c2` char(10) DEFAULT NULL,
+  `c3` varchar(100) DEFAULT NULL,
+  `c4` date DEFAULT NULL,
+  `c5` text,
+  PRIMARY KEY (`c1`)
+) /*!50100 TABLESPACE s1_restart */ ENGINE=InnoDB AUTO_INCREMENT=1000000125 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+SELECT count(*) FROM t8_restart;
+count(*)
+65
+CREATE TABLE t9_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
+ROW_FORMAT=DYNAMIC  ENGINE=InnoDB TABLESPACE=s1_restart;
+INSERT INTO t9_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
+INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
+SHOW CREATE TABLE t9_restart;
+Table	Create Table
+t9_restart	CREATE TABLE `t9_restart` (
+  `c1` double NOT NULL AUTO_INCREMENT,
+  `c2` char(10) DEFAULT NULL,
+  `c3` varchar(100) DEFAULT NULL,
+  `c4` date DEFAULT NULL,
+  `c5` text,
+  PRIMARY KEY (`c1`)
+) /*!50100 TABLESPACE s1_restart */ ENGINE=InnoDB AUTO_INCREMENT=1000000125 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+SELECT count(*) FROM t9_restart;
+count(*)
+65
 #
 # Show these tables in information_schema.
 #
@@ -212,10 +255,13 @@ test/t7_restart#p#p0#sp#s0	8	Barracuda	Dynamic
 test/t7_restart#p#p0#sp#s1	8	Barracuda	Dynamic
 test/t7_restart#p#p1#sp#s2	8	Barracuda	Dynamic
 test/t7_restart#p#p1#sp#s3	8	Barracuda	Dynamic
+test/t8_restart	8	Antelope	Compact
+test/t9_restart	8	Barracuda	Dynamic
 SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 WHERE name LIKE '%restart%' ORDER BY name;
 name	file_format	row_format
+s1_restart	Any	Any
 test/t1_restart	Antelope	Compact or Redundant
 test/t2_restart	Antelope	Compact or Redundant
 test/t3_restart	Barracuda	Compressed
@@ -243,6 +289,7 @@ MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
+MYSQL_DATA_DIR/s1_restart.ibd
 #
 # Shutdown the server and list the tablespace OS files
 #
@@ -261,13 +308,13 @@ t6_restart#p#p0.isl
 t6_restart#p#p1.isl
 t6_restart#p#p2.isl
 t6_restart.frm
-t6_restart.par
 t7_restart#p#p0#sp#s0.isl
 t7_restart#p#p0#sp#s1.isl
 t7_restart#p#p1#sp#s2.isl
 t7_restart#p#p1#sp#s3.isl
 t7_restart.frm
-t7_restart.par
+t8_restart.frm
+t9_restart.frm
 ---- MYSQL_TMP_DIR/alt_dir
 test
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -368,6 +415,26 @@ SUBPARTITION BY HASH (c1)
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB,
   SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir' ENGINE = InnoDB)) */
+SHOW CREATE TABLE t8_restart;
+Table	Create Table
+t8_restart	CREATE TABLE `t8_restart` (
+  `c1` double NOT NULL AUTO_INCREMENT,
+  `c2` char(10) DEFAULT NULL,
+  `c3` varchar(100) DEFAULT NULL,
+  `c4` date DEFAULT NULL,
+  `c5` text,
+  PRIMARY KEY (`c1`)
+) /*!50100 TABLESPACE s1_restart */ ENGINE=InnoDB AUTO_INCREMENT=1000000110 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+SHOW CREATE TABLE t9_restart;
+Table	Create Table
+t9_restart	CREATE TABLE `t9_restart` (
+  `c1` double NOT NULL AUTO_INCREMENT,
+  `c2` char(10) DEFAULT NULL,
+  `c3` varchar(100) DEFAULT NULL,
+  `c4` date DEFAULT NULL,
+  `c5` text,
+  PRIMARY KEY (`c1`)
+) /*!50100 TABLESPACE s1_restart */ ENGINE=InnoDB AUTO_INCREMENT=1000000110 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
 INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
@@ -375,6 +442,8 @@ INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
 INSERT INTO t6_restart (SELECT 0, c2, c3, c4, c5 FROM t6_restart);
 INSERT INTO t7_restart (SELECT 0, c2, c3, c4, c5 FROM t7_restart);
+INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t8_restart);
+INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t9_restart);
 SELECT count(*) FROM t1_restart;
 count(*)
 32
@@ -396,6 +465,12 @@ count(*)
 SELECT count(*) FROM t7_restart;
 count(*)
 32
+SELECT count(*) FROM t8_restart;
+count(*)
+130
+SELECT count(*) FROM t9_restart;
+count(*)
+130
 #
 # Show these tables in information_schema.
 #
@@ -415,10 +490,13 @@ test/t7_restart#p#p0#sp#s0	8	Barracuda	Dynamic
 test/t7_restart#p#p0#sp#s1	8	Barracuda	Dynamic
 test/t7_restart#p#p1#sp#s2	8	Barracuda	Dynamic
 test/t7_restart#p#p1#sp#s3	8	Barracuda	Dynamic
+test/t8_restart	8	Antelope	Compact
+test/t9_restart	8	Barracuda	Dynamic
 SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 WHERE name LIKE '%restart%' ORDER BY name;
 name	file_format	row_format
+s1_restart	Any	Any
 test/t1_restart	Antelope	Compact or Redundant
 test/t2_restart	Antelope	Compact or Redundant
 test/t3_restart	Barracuda	Compressed
@@ -446,9 +524,13 @@ MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
+MYSQL_DATA_DIR/s1_restart.ibd
 DROP TABLE t1_restart;
 DROP TABLE t2_restart;
 DROP TABLE t3_restart;
+DROP TABLE t8_restart;
+DROP TABLE t9_restart;
+DROP TABLESPACE s1_restart;
 #
 # Truncate the remote tablespaces.
 #
@@ -536,13 +618,11 @@ t6_restart#p#p0.isl
 t6_restart#p#p1.isl
 t6_restart#p#p2.isl
 t6_restart.frm
-t6_restart.par
 t7_restart#p#p0#sp#s0.isl
 t7_restart#p#p0#sp#s1.isl
 t7_restart#p#p1#sp#s2.isl
 t7_restart#p#p1#sp#s3.isl
 t7_restart.frm
-t7_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 t5_restart.ibd
 t5_restart.ibd.bak
@@ -639,13 +719,11 @@ t6_restart#p#p0.isl
 t6_restart#p#p1.isl
 t6_restart#p#p2.isl
 t6_restart.frm
-t6_restart.par
 t7_restart#p#p0#sp#s0.isl
 t7_restart#p#p0#sp#s1.isl
 t7_restart#p#p1#sp#s2.isl
 t7_restart#p#p1#sp#s3.isl
 t7_restart.frm
-t7_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 t5_restart.ibd
 t6_restart#p#p0.ibd
@@ -736,13 +814,11 @@ t66_restart#p#p0.isl
 t66_restart#p#p1.isl
 t66_restart#p#p2.isl
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.isl
 t77_restart#p#p0#sp#s1.isl
 t77_restart#p#p1#sp#s2.isl
 t77_restart#p#p1#sp#s3.isl
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 t55_restart.ibd
 t66_restart#p#p0.ibd
@@ -840,13 +916,11 @@ t66_restart#p#p0.isl
 t66_restart#p#p1.isl
 t66_restart#p#p2.isl
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.isl
 t77_restart#p#p0#sp#s1.isl
 t77_restart#p#p1#sp#s2.isl
 t77_restart#p#p1#sp#s3.isl
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 t55_restart.ibd
 t66_restart#p#p0.ibd
@@ -870,13 +944,11 @@ t66_restart#p#p0.isl
 t66_restart#p#p1.isl
 t66_restart#p#p2.isl
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.isl
 t77_restart#p#p0#sp#s1.isl
 t77_restart#p#p1#sp#s2.isl
 t77_restart#p#p1#sp#s3.isl
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/alt_dir/test
 ---- MYSQL_TMP_DIR/new_dir/test
 t4_restart.ibd
@@ -987,13 +1059,11 @@ t66_restart#p#p0.isl
 t66_restart#p#p1.isl
 t66_restart#p#p2.isl
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.isl
 t77_restart#p#p0#sp#s1.isl
 t77_restart#p#p1#sp#s2.isl
 t77_restart#p#p1#sp#s3.isl
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/new_dir/test
 t4_restart.ibd
 t55_restart.ibd
@@ -1017,13 +1087,11 @@ t66_restart#p#p0.ibd
 t66_restart#p#p1.ibd
 t66_restart#p#p2.ibd
 t66_restart.frm
-t66_restart.par
 t77_restart#p#p0#sp#s0.ibd
 t77_restart#p#p0#sp#s1.ibd
 t77_restart#p#p1#sp#s2.ibd
 t77_restart#p#p1#sp#s3.ibd
 t77_restart.frm
-t77_restart.par
 ---- MYSQL_TMP_DIR/new_dir/test
 #
 # Start the server and check tablespaces.

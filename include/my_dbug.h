@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,13 +125,13 @@ extern  const char* _db_get_func_(void);
 #else
 /*
   Avoid popup with abort/retry/ignore buttons. When BUG#31745 is fixed we can
-  call abort() instead of _exit(3) (now it would cause a "test signal" popup).
+  call abort() instead of _exit(2) (now it would cause a "test signal" popup).
 */
 #include <crtdbg.h>
 #define DBUG_ABORT() (_db_flush_(),\
                      (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE),\
                      (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR),\
-                     _exit(3))
+                     _exit(2))
 #endif
 #define DBUG_CHECK_CRASH(func, op) \
   do { char _dbuf_[255]; strxnmov(_dbuf_, sizeof(_dbuf_)-1, (func), (op)); \

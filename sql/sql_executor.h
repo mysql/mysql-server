@@ -469,6 +469,7 @@ public:
   }
 
   void pick_table_access_method(const JOIN_TAB *join_tab);
+  void set_pushed_table_access_method(void);
   void push_index_cond(const JOIN_TAB *join_tab,
                        uint keyno, Opt_trace_object *trace_obj);
 

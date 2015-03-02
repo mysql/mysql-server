@@ -698,7 +698,7 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void
    @param src_file The caller source file name
    @param src_line The caller source line number
 */
-void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
                     const PSI_stage_info *stage, PSI_stage_info *old_stage,
                     const char *src_function, const char *src_file,
                     int src_line);
@@ -719,7 +719,7 @@ void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
    @param src_file The caller source file name
    @param src_line The caller source line number
 */
-void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage,
+void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
                    const char *src_function, const char *src_file,
                    int src_line);
 

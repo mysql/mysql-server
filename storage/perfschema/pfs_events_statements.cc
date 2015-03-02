@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 #include "pfs_user.h"
 #include "pfs_events_statements.h"
 #include "pfs_atomic.h"
+#include "pfs_buffer_container.h"
+#include "pfs_builtin_memory.h"
 #include "m_string.h"
 
 PFS_ALIGNED ulong events_statements_history_long_size= 0;
@@ -44,6 +46,8 @@ PFS_ALIGNED bool events_statements_history_long_full= false;
 PFS_ALIGNED PFS_cacheline_uint32 events_statements_history_long_index;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_events_statements *events_statements_history_long_array= NULL;
+static unsigned char *h_long_stmts_digest_token_array= NULL;
+static char *h_long_stmts_text_array= NULL;
 
 /**
   Initialize table EVENTS_STATEMENTS_HISTORY_LONG.
@@ -51,6 +55,7 @@ PFS_ALIGNED PFS_events_statements *events_statements_history_long_array= NULL;
 */
 int init_events_statements_history_long(uint events_statements_history_long_sizing)
 {
+  uint index;
   events_statements_history_long_size= events_statements_history_long_sizing;
   events_statements_history_long_full= false;
   PFS_atomic::store_u32(&events_statements_history_long_index.m_u32, 0);
@@ -59,23 +64,96 @@ int init_events_statements_history_long(uint events_statements_history_long_sizi
     return 0;
 
   events_statements_history_long_array=
-    PFS_MALLOC_ARRAY(events_statements_history_long_size, PFS_events_statements,
+    PFS_MALLOC_ARRAY(& builtin_memory_statements_history_long,
+                     events_statements_history_long_size, PFS_events_statements,
                      MYF(MY_ZEROFILL));
+  if (events_statements_history_long_array == NULL)
+   {
+     cleanup_events_statements_history_long();
+     return 1;
+   }
 
-  return (events_statements_history_long_array ? 0 : 1);
+  if (pfs_max_digest_length > 0)
+  {
+    h_long_stmts_digest_token_array=
+      PFS_MALLOC_ARRAY(& builtin_memory_statements_history_long_tokens,
+                       events_statements_history_long_size * pfs_max_digest_length,
+                       unsigned char, MYF(MY_ZEROFILL));
+    if (h_long_stmts_digest_token_array == NULL)
+    {
+      cleanup_events_statements_history_long();
+      return 1;
+    }
+  }
+
+  if (pfs_max_sqltext > 0)
+  {
+    h_long_stmts_text_array=
+      PFS_MALLOC_ARRAY(& builtin_memory_statements_history_long_sqltext,
+                       events_statements_history_long_size * pfs_max_sqltext,
+                       char, MYF(MY_ZEROFILL));
+    if (h_long_stmts_text_array == NULL)
+    {
+      cleanup_events_statements_history_long();
+      return 1;
+    }
+  }
+
+  for (index= 0; index < events_statements_history_long_size; index++)
+  {
+    events_statements_history_long_array[index].m_digest_storage.reset(h_long_stmts_digest_token_array
+                                                                       + index * pfs_max_digest_length, pfs_max_digest_length);
+
+    events_statements_history_long_array[index].m_sqltext= h_long_stmts_text_array + index * pfs_max_sqltext;
+  }
+  
+  return 0;
 }
 
 /** Cleanup table EVENTS_STATEMENTS_HISTORY_LONG. */
 void cleanup_events_statements_history_long(void)
 {
-  pfs_free(events_statements_history_long_array);
+  PFS_FREE_ARRAY(& builtin_memory_statements_history_long,
+                 events_statements_history_long_size,
+                 PFS_events_statements,
+                 events_statements_history_long_array);
+
+  PFS_FREE_ARRAY(& builtin_memory_statements_history_long_tokens,
+                 events_statements_history_long_size * pfs_max_digest_length,
+                 unsigned char,
+                 h_long_stmts_digest_token_array);
+
+  PFS_FREE_ARRAY(& builtin_memory_statements_history_long_sqltext,
+                 events_statements_history_long_size * pfs_max_sqltext,
+                 char,
+                 h_long_stmts_text_array);
+
   events_statements_history_long_array= NULL;
+  h_long_stmts_digest_token_array= NULL;
+  h_long_stmts_text_array= NULL;
 }
 
 static inline void copy_events_statements(PFS_events_statements *dest,
-                                      const PFS_events_statements *source)
+                                          const PFS_events_statements *source)
 {
-  memcpy(dest, source, sizeof(PFS_events_statements));
+  /* Copy all attributes except SQL TEXT and DIGEST */
+  memcpy(dest, source, my_offsetof(PFS_events_statements, m_sqltext));
+
+  /* Copy SQL TEXT */
+  int sqltext_length= source->m_sqltext_length;
+
+  if (sqltext_length > 0)
+  {
+    memcpy(dest->m_sqltext, source->m_sqltext, sqltext_length);
+    dest->m_sqltext_length= sqltext_length;
+  }
+  else
+  {
+    dest->m_sqltext_length= 0;
+  }
+
+  /* Copy DIGEST */
+  dest->m_digest_storage.copy(& source->m_digest_storage);
 }
 
 /**
@@ -132,38 +210,36 @@ void insert_events_statements_history_long(PFS_events_statements *statement)
   copy_events_statements(&events_statements_history_long_array[index], statement);
 }
 
+static void fct_reset_events_statements_current(PFS_thread *pfs_thread)
+{
+  PFS_events_statements *pfs_stmt= & pfs_thread->m_statement_stack[0];
+  PFS_events_statements *pfs_stmt_last= pfs_stmt + statement_stack_max;
+
+  for ( ; pfs_stmt < pfs_stmt_last; pfs_stmt++)
+    pfs_stmt->m_class= NULL;
+}
+
 /** Reset table EVENTS_STATEMENTS_CURRENT data. */
 void reset_events_statements_current(void)
 {
-  PFS_thread *pfs_thread= thread_array;
-  PFS_thread *pfs_thread_last= thread_array + thread_max;
+  global_thread_container.apply_all(fct_reset_events_statements_current);
+}
 
-  for ( ; pfs_thread < pfs_thread_last; pfs_thread++)
-  {
-    PFS_events_statements *pfs_stmt= & pfs_thread->m_statement_stack[0];
-    PFS_events_statements *pfs_stmt_last= pfs_stmt + statement_stack_max;
+static void fct_reset_events_statements_history(PFS_thread *pfs_thread)
+{
+  PFS_events_statements *pfs= pfs_thread->m_statements_history;
+  PFS_events_statements *pfs_last= pfs + events_statements_history_per_thread;
 
-    for ( ; pfs_stmt < pfs_stmt_last; pfs_stmt++)
-      pfs_stmt->m_class= NULL;
-  }
+  pfs_thread->m_statements_history_index= 0;
+  pfs_thread->m_statements_history_full= false;
+  for ( ; pfs < pfs_last; pfs++)
+    pfs->m_class= NULL;
 }
 
 /** Reset table EVENTS_STATEMENTS_HISTORY data. */
 void reset_events_statements_history(void)
 {
-  PFS_thread *pfs_thread= thread_array;
-  PFS_thread *pfs_thread_last= thread_array + thread_max;
-
-  for ( ; pfs_thread < pfs_thread_last; pfs_thread++)
-  {
-    PFS_events_statements *pfs= pfs_thread->m_statements_history;
-    PFS_events_statements *pfs_last= pfs + events_statements_history_per_thread;
-
-    pfs_thread->m_statements_history_index= 0;
-    pfs_thread->m_statements_history_full= false;
-    for ( ; pfs < pfs_last; pfs++)
-      pfs->m_class= NULL;
-  }
+  global_thread_container.apply_all(fct_reset_events_statements_history);
 }
 
 /** Reset table EVENTS_STATEMENTS_HISTORY_LONG data. */
@@ -178,70 +254,53 @@ void reset_events_statements_history_long(void)
     pfs->m_class= NULL;
 }
 
+static void fct_reset_events_statements_by_thread(PFS_thread *thread)
+{
+  PFS_account *account= sanitize_account(thread->m_account);
+  PFS_user *user= sanitize_user(thread->m_user);
+  PFS_host *host= sanitize_host(thread->m_host);
+  aggregate_thread_statements(thread, account, user, host);
+}
+
 /** Reset table EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME data. */
 void reset_events_statements_by_thread()
 {
-  PFS_thread *thread= thread_array;
-  PFS_thread *thread_last= thread_array + thread_max;
-  PFS_account *account;
-  PFS_user *user;
-  PFS_host *host;
+  global_thread_container.apply(fct_reset_events_statements_by_thread);
+}
 
-  for ( ; thread < thread_last; thread++)
-  {
-    if (thread->m_lock.is_populated())
-    {
-      account= sanitize_account(thread->m_account);
-      user= sanitize_user(thread->m_user);
-      host= sanitize_host(thread->m_host);
-      aggregate_thread_statements(thread, account, user, host);
-    }
-  }
+static void fct_reset_events_statements_by_account(PFS_account *pfs)
+{
+  PFS_user *user= sanitize_user(pfs->m_user);
+  PFS_host *host= sanitize_host(pfs->m_host);
+  pfs->aggregate_statements(user, host);
 }
 
 /** Reset table EVENTS_STATEMENTS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME data. */
 void reset_events_statements_by_account()
 {
-  PFS_account *pfs= account_array;
-  PFS_account *pfs_last= account_array + account_max;
-  PFS_user *user;
-  PFS_host *host;
+  global_account_container.apply(fct_reset_events_statements_by_account);
+}
 
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-    {
-      user= sanitize_user(pfs->m_user);
-      host= sanitize_host(pfs->m_host);
-      pfs->aggregate_statements(user, host);
-    }
-  }
+static void fct_reset_events_statements_by_user(PFS_user *pfs)
+{
+  pfs->aggregate_statements();
 }
 
 /** Reset table EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME data. */
 void reset_events_statements_by_user()
 {
-  PFS_user *pfs= user_array;
-  PFS_user *pfs_last= user_array + user_max;
+  global_user_container.apply(fct_reset_events_statements_by_user);
+}
 
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-      pfs->aggregate_statements();
-  }
+static void fct_reset_events_statements_by_host(PFS_host *pfs)
+{
+  pfs->aggregate_statements();
 }
 
 /** Reset table EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME data. */
 void reset_events_statements_by_host()
 {
-  PFS_host *pfs= host_array;
-  PFS_host *pfs_last= host_array + host_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-      pfs->aggregate_statements();
-  }
+  global_host_container.apply(fct_reset_events_statements_by_host);
 }
 
 /** Reset table EVENTS_STATEMENTS_GLOBAL_BY_EVENT_NAME data. */

@@ -27,6 +27,10 @@
 
 class MY_LOCALE;
 
+CHARSET_INFO *
+mysqld_collation_get_by_name(const char *name,
+                             CHARSET_INFO *name_cs= system_charset_info);
+
 class Item_str_func :public Item_func
 {
   typedef Item_func super;
@@ -357,6 +361,8 @@ public:
 class Item_func_replace :public Item_str_func
 {
   String tmp_value,tmp_value2;
+  /// Holds result in case we need to allocate our own result buffer.
+  String tmp_value_res;
 public:
   Item_func_replace(const POS &pos, Item *org,Item *find,Item *replace)
     :Item_str_func(pos, org,find,replace)
@@ -370,6 +376,8 @@ public:
 class Item_func_insert :public Item_str_func
 {
   String tmp_value;
+  /// Holds result in case we need to allocate our own result buffer.
+  String tmp_value_res;
 public:
   Item_func_insert(const POS &pos,
                    Item *org, Item *start, Item *length, Item *new_str)
@@ -636,6 +644,14 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
   const char *func_name() const { return "encrypt"; }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_encrypt::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
+
 };
 
 #include "sql_crypt.h"
@@ -646,6 +662,8 @@ class Item_func_encode :public Item_str_func
 private:
   /** Whether the PRNG has already been seeded. */
   bool seeded;
+  /// Holds result in case we need to allocate our own result buffer.
+  String tmp_value_res;
 protected:
   SQL_CRYPT sql_crypt;
 public:
@@ -692,6 +710,13 @@ public:
     call
   */
   virtual const Name_string fully_qualified_func_name() const = 0;
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_sysconst::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -1158,6 +1183,13 @@ public:
     maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
   }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_load_file::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -1389,6 +1421,13 @@ public:
   }
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_func_uuid::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 class Item_func_gtid_subtract: public Item_str_ascii_func

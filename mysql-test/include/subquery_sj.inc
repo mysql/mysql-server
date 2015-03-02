@@ -554,6 +554,44 @@ explain select * from t1 where (a,b) in (select a,b from t2);
 
 drop table t0, t1, t2;
 
+--echo #
+--echo # Bug#19695490: CRASH IN CREATE_REF_FOR_KEY ON SELECT + JOIN + UTF8 COLUMN
+--echo #                + DATETIME INDEX.
+--echo #
+
+CREATE TABLE t1 (
+  field1 varchar(255) CHARACTER SET utf8,
+  field2 varchar(255) CHARACTER SET utf8
+);
+
+INSERT INTO t1 VALUES
+  ('time','time'),
+  ('lpjdzvkp','lpjdzvkp'),
+  ('dzvkpai', 'dzvkpai');
+
+CREATE TABLE t2 ( col_varchar varchar(10));
+
+CREATE TABLE t3 (
+  pk int(11) NOT NULL,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t3 VALUES (22,'come','h'),
+ (23,'time','aaa'),
+ (24,'lpjdzvkp','ababa'),
+ (25,'d','GGDD');
+
+SELECT * FROM t1 WHERE (field1, field2) IN (
+  SELECT table1.col_varchar_255_utf8_key AS field1,
+         table1.col_varchar_255_utf8_key AS field2
+  FROM t3 AS table1 LEFT JOIN t2 AS table2
+       ON table1.col_varchar_10_utf8_key <=
+          table2.col_varchar
+  WHERE table1.pk >= 6);
+
+DROP TABLE t1,t2,t3;
 
 #
 # Primitive SJ-Materialization tests for DECIMAL and DATE
@@ -6688,5 +6726,68 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo #Bug#20119743 ASSERTIONQEP_TAB->USE_ORDER() IN ENUM_NESTED_LOOP_STATE
+--echo #             EVALUATE_JOIN_RECORD
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'x');
+
+CREATE TABLE t2 (
+  col_date_key date DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_date_key (col_date_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t2 VALUES ('2000-12-03', 8, 'x', 'x'),('2008-05-03', 7, 'd', 'd'),
+('2005-12-06', 1, 'r', 'r'),('2000-04-10', 7, 'f', 'f'),
+('2002-11-05', 9, 'y', 'y'),('2000-09-06', NULL, 'u', 'u'),
+(NULL, 1, 'm', 'm'),('2007-06-14', 9, NULL, NULL),
+('2007-11-17', 2, 'o', 'o'),('2009-02-23', 9, 'w', 'w'),
+('2007-01-08', 2, 'm', 'm'), ('2008-06-10', 4, 'q', 'q'),
+('2002-10-20', 0, NULL, NULL),('2008-09-12', 4, 'd', 'd'),
+('2006-06-16', 8, 'g', 'g'),('2004-09-18', NULL, 'x', 'x'),
+('1900-01-01', NULL, 'f', 'f'),('2005-09-13', 0, 'p', 'p'),
+('2007-04-09', NULL, 'j', 'j'),('2000-09-20', 8, 'c', 'c');
+
+CREATE TABLE t3 (
+  pk int(11) NOT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t3 VALUES (1, 'c'),(2, 'c'),(3, 'q'),(4, 'g'),(5, 'e'),(6, 'l'),
+(7, NULL),(8, 'v'),(9, 'c'),(10, 'u'),(11, 'x'),(12, 'x'),(13, 'x'),(14, 'l'),
+(15, 'e'),(16, 's'),(17, 'k'),(18, 'm'),(19, 'x'),(20, 's');
+
+ANALYZE TABLE t1,t2,t3;
+
+let $query1=
+SELECT r1.col_date_key
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+      (SELECT ir2.pk
+       FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+            ON ir2.col_varchar_nokey = ir1.col_varchar_key
+       WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+         AND ir2.pk IN
+             (SELECT iir2.pk
+              FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+                   ON iir2.col_varchar_nokey = iir1.col_varchar_key)) 
+ORDER BY r1.col_date_key;   
+
+--disable_warnings
+eval EXPLAIN $query1;
+--enable_warnings
+eval $query1;
+
+DROP TABLE t1,t2,t3;
 
 # New tests go here.

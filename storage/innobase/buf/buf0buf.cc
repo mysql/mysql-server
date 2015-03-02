@@ -4010,7 +4010,9 @@ loop:
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-		ut_a(++buf_dbg_counter % 5771 || buf_validate());
+		ut_a(fsp_skip_sanity_check(page_id.space())
+		     || ++buf_dbg_counter % 5771
+		     || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		goto loop;
 	} else {
@@ -4376,7 +4378,9 @@ got_block:
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(++buf_dbg_counter % 5771 || buf_validate());
+	ut_a(fsp_skip_sanity_check(page_id.space())
+	     || ++buf_dbg_counter % 5771
+	     || buf_validate());
 	ut_a(buf_block_get_state(fix_block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
@@ -4534,7 +4538,9 @@ buf_page_optimistic_get(
 	mtr_memo_push(mtr, block, fix_type);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(++buf_dbg_counter % 5771 || buf_validate());
+	ut_a(fsp_skip_sanity_check(block->page.id.space())
+	     || ++buf_dbg_counter % 5771
+	     || buf_validate());
 	ut_a(block->page.buf_fix_count > 0);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -4736,7 +4742,9 @@ buf_page_try_get_func(
 
 	mtr_memo_push(mtr, block, fix_type);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(++buf_dbg_counter % 5771 || buf_validate());
+	ut_a(fsp_skip_sanity_check(block->page.id.space())
+	     || ++buf_dbg_counter % 5771
+	     || buf_validate());
 	ut_a(block->page.buf_fix_count > 0);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -5514,10 +5522,6 @@ corrupt:
 
 			buf_page_print(frame, bpage->size,
 				       BUF_PAGE_PRINT_NO_CRASH);
-
-			ib::error() << "Database page corruption on disk"
-				" or a failed file read of page " << bpage->id
-				<< ". You may have to recover from a backup.";
 
 			ib::info() << "It is also possible that your operating"
 				" system has corrupted its own file cache and"

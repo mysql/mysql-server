@@ -24,7 +24,7 @@ drop table if exists test.t3;
 
 truncate table performance_schema.events_waits_history_long;
 
-show variables like "thread_handling";
+show global variables like "thread_handling";
 
 # Code to test
 

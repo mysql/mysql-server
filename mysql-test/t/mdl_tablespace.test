@@ -1,0 +1,1072 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_perfschema.inc
+--enable_connect_log
+
+--echo ###########################################################
+--echo #
+--echo # WL#7957: MDL FOR TABLESPACES
+--echo # ============================
+--echo #
+--echo # We have the following tablespace DDL operations that acquire
+--echo # exclusive MDL locks on tablespaces:
+--echo #
+--echo #   CREATE, ALTER and DROP TABLESPACE
+--echo #
+--echo # Then, we have the following non-tablespace related DDL
+--echo # operations that acquire intention exclusive locks on
+--echo # tablespaces:
+--echo #
+--echo #   CREATE, ALTER, RENAME, TRUNCATE, LOCK, DROP TABLE
+--echo #
+--echo # and
+--echo #
+--echo #   CREATE, DROP INDEX
+--echo #
+--echo # Below are test cases to verify that:
+--echo #
+--echo # 1. We can *not* run DDL statements manipulating the same
+--echo #    tablespace concurrently.
+--echo # 2. We can run different DDL statements manipulating different
+--echo #    tablespaces concurrently.
+--echo # 3. We can run different DDL statements accessing different
+--echo #    tables in the same  tablespace concurrently.
+--echo # 4. We can *not* run DDL statements on tables in a given
+--echo #    tablespace concurrently with DDL operations on the
+--echo #    same tablespace.
+--echo # 5. Verify that dropping a schema with tables in various
+--echo #    tablespaces cannot run concurrentlty with dropping the
+--echo #    tablespaces.
+--echo # 6. Verify that tablespace IX locks are not acquired in
+--echo #    the context of 'FLUSH TABLE WITH READ LOCK',
+--echo #    'FLUSH TABLE FOR EXPORT' or 'LOCK TABLE READ'.
+--echo # 7. Verify that statements 'FLUSH TABLE WITH READ LOCK',
+--echo #    'FLUSH TABLE FOR EXPORT' and 'LOCK TABLE READ'
+--echo #    can run concurrently with DDL operations on the
+--echo #    tablespace.
+--echo # 8. Verify that tablespace IX locks are acquired in
+--echo #    the context of 'LOCK TABLE WRITE'.
+--echo # 9. Verify that table DML (e.g. SELECT ... FOR UPDATE)
+--echo #    can run concurrently with DDL on the tablespace.
+--echo # 10. Verify that MDL with prepared statements works as
+--echo #     expected, using a prepared ALTER TABLE.
+--echo # 11. Verify that a non-empty tablespace cannot be dropped.
+--echo # 12. Verify that the tablespace name length is checked
+--echo #     properly.
+--echo # 13. Extend test coverage:
+--echo #       i) Run tablespace DDL within lock tables mode.
+--echo #      ii) Run tablespace DDL when the global read lock
+--echo #          is taken.
+--echo #     iii) Provoke timeout for table DDL waiting for
+--echo #          tablespace MDL IX lock.
+--echo #      iv) Provoke timeout for tablespace DDL waiting for
+--echo #          tablespace MDL X lock.
+--echo # 14. Verify that CREATE TABLE ... LIKE statements are
+--echo #     handled correctly, both with and without source
+--echo #     tables in general tablespaces.
+--echo # 15. Verify that explicit invalid tablespace names make
+--echo #     table related DDL be rejected. Verify that implicit
+--echo #     invalid tablespace names (e.g., present in an .FRM
+--echo #     file from a previous MySQL version) are ignored.
+--echo #
+--echo ###########################################################
+--echo #
+--echo # Test setup: Create reusable connections:
+--echo #
+
+--connect (con1, localhost, root)
+--connect (con2, localhost, root)
+--connect (con3, localhost, root)
+--connect (con4, localhost, root)
+--connect (con5, localhost, root)
+
+--echo ###########################################################
+--echo # TC1. Verify that we can *not* run DDL statements manipulating
+--echo #      the same tablespace concurrently.
+--echo #
+
+--echo #
+--echo # Start executing CREATE TABLESPACE, but wait after
+--echo # getting the MDL X lock on the tablespace name.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd'
+
+--echo #
+--echo # Start executing ALTER TABLESPACE.
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+--send ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd'
+
+--echo #
+--echo # Verify that the ALTER TABLESPACE is waiting for an MDL
+--echo # X lock on the tablespace name (not logged). Then, signal
+--echo # con1 to make the CREATE TABLESPACE proceed.
+
+--connection default
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'ALTER TABLESPACE%';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--reap
+--connection con2
+# InnoDB does not support ALTER TABLESPACE
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+--connection default
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC2. Verify that we can run different DDL statements
+--echo #      manipulating different tablespaces concurrently.
+--echo #
+
+--echo #
+--echo # First, create a tablespace.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+
+--echo #
+--echo # Start executing CREATE TABLESPACE, but wait after
+--echo # getting the MDL X lock on the tablespace name.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd'
+
+--echo #
+--echo # Wait for con1 to get its X lock, then start executing
+--echo # ALTER TABLESPACE, but wait after getting the MDL X
+--echo # lock on the tablespace name.
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con2
+  WAIT_FOR cont_con2';
+--send ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd'
+
+--echo #
+--echo # Verify that both con1 and con2 have X locks. This will be the
+--echo # case when con2 signals got_lock_con2.
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con2';
+
+--echo #
+--echo # Then, signal both con1 to and con2 to make the execution
+--echo # proceed.
+
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+SET DEBUG_SYNC= 'now SIGNAL cont_con2';
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--reap
+--connection con2
+# InnoDB does not support ALTER TABLESPACE
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+--connection default
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC3. Verify that we can run different DDL statements
+--echo #      accessing different tables in the same tablespace
+--echo #      concurrently.
+--echo # +
+--echo #
+--echo # TC4. Verify that we can *not* run DDL statements on tables
+--echo #      in a given tablespace concurrently with DDL operations
+--echo #      on the same tablespace.
+--echo #
+
+--echo #
+--echo # First, create tablespaces ts1 and ts2, and tables in the
+--echo # tablespaces.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2_1.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+CREATE TABLE t3 (pk INTEGER PRIMARY KEY) TABLESPACE ts2;
+
+--echo #
+--echo # On connection con1, truncate the table in ts2, but wait after
+--echo # getting IX lock on the tablespace.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send TRUNCATE TABLE t3
+
+--echo #
+--echo # On connection con2, alter table t1 to use ts2 instead of ts1,
+--echo # but wait after getting IX lock on the tablespace.
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con2
+  WAIT_FOR cont_con2';
+--send ALTER TABLE t1 TABLESPACE ts2
+
+--echo #
+--echo # On connection con3, drop table t2, but wait after getting
+--echo # IX lock on the tablespace.
+
+--connection con3
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con2';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con3
+  WAIT_FOR cont_con3';
+--send DROP TABLE t2
+
+--echo #
+--echo # On connection con4, do DROP TABLESPACE ts1, which will
+--echo # wait for X lock on the tablepsace name.
+
+--connection con4
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con3';
+SET DEBUG_SYNC= 'now SIGNAL waiting_con4';
+--send DROP TABLESPACE ts1
+
+--echo #
+--echo # On connection con5, do ALTER TABLESPACE ts2, which will
+--echo # wait for X lock on the tablespace name.
+
+--connection con5
+SET DEBUG_SYNC= 'now WAIT_FOR waiting_con4';
+--send ALTER TABLESPACE ts2 ADD DATAFILE 'ts2_2.ibd'
+
+--echo #
+--echo # Back on the default connection, we can start unwinding the
+--echo # situation. First, verify that we have two threads waiting for
+--echo # MDL locks on tablespaces.
+
+--connection default
+LET $wait_condition=
+  SELECT COUNT(*) = 2 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE '%TABLESPACE%';
+--source include/wait_condition.inc
+
+--echo #
+--echo # Next, we signal con2 and con3 to continue. This will make
+--echo # all MDL IX locks on s1 be released, which again will make
+--echo # con4 finish. Thus, we verify that we have only one thread
+--echo # left waiting for MDL lcoks on tablespaces.
+
+SET DEBUG_SYNC= 'now SIGNAL cont_con2';
+SET DEBUG_SYNC= 'now SIGNAL cont_con3';
+
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'ALTER TABLESPACE%';
+--source include/wait_condition.inc
+
+--echo #
+--echo # Finally, signal con1 to finish, which will make all MDL
+--echo # locks on s2 be released. This, in its turn, will make
+--echo # con5 be able to continue and finish. We verify this by
+--echo # checking that we have no threads left waiting for MDL
+--echo # locks on tablespaces.
+
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+LET $wait_condition=
+  SELECT COUNT(*) = 0 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'ALTER TABLESPACE%';
+--source include/wait_condition.inc
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+--connection con1
+--reap
+--connection con2
+--reap
+--connection con3
+--reap
+--connection con4
+--reap
+--connection con5
+# InnoDB does not support ALTER TABLESPACE
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+--connection default
+DROP TABLE t1;
+DROP TABLE t3;
+DROP TABLESPACE ts2;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC5. Verify that dropping a schema with tables in various
+--echo #      tablespaces cannot run concurrentlty with dropping the
+--echo #      tablespaces.
+--echo #
+
+--echo #
+--echo # First create two tablespaces and a schema with two tables
+--echo # in it, but put the tables in different tablespaces.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+
+CREATE SCHEMA s1;
+
+CREATE TABLE s1.t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+CREATE TABLE s1.t2 (pk INTEGER PRIMARY KEY) TABLESPACE ts2;
+
+--echo #
+--echo # Next, on connection con1, issue a DROP SCHEMA but halt it
+--echo # after the tablespace locks have been acquired.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send DROP SCHEMA s1
+
+--echo #
+--echo # Then, on connection con2 and con3, issue DROP TABLESPACE
+--echo # statements to drop the tablespaces of the two tables in
+--echo # the schema being dropped.
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET DEBUG_SYNC= 'now SIGNAL go_con3';
+--send DROP TABLESPACE ts1
+
+--connection con3
+SET DEBUG_SYNC= 'now WAIT_FOR go_con3';
+--send DROP TABLESPACE ts2
+
+--echo #
+--echo # Verify that the two DROP TABLESPACE statements are stuck
+--echo # waiting for MDL locks.
+
+--connection default
+LET $wait_condition=
+  SELECT COUNT(*) = 2 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'DROP TABLESPACE%';
+--source include/wait_condition.inc
+
+--echo #
+--echo # Signal connection con1 to make it continue dropping the
+--echo # schema.
+
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+--echo #
+--echo # Verify that the DROP TABLESPACE statements eventually get
+--echo # the MDL locks.
+
+LET $wait_condition=
+  SELECT COUNT(*) = 0 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'DROP TABLESPACE%';
+--source include/wait_condition.inc
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--reap
+--connection con2
+--reap
+--connection con3
+--reap
+--connection default
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC6. Verify that tablespace IX locks are not acquired in
+--echo #      the context of 'FLUSH TABLE WITH READ LOCK',
+--echo #      'FLUSH TABLE FOR EXPORT' or 'LOCK TABLE READ'.
+
+--echo #
+--echo # First, create tablespaces ts1, ts2 and ts3, and tables in the
+--echo # tablespaces.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2_1.ibd';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3_1.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE ts2;
+CREATE TABLE t3 (pk INTEGER PRIMARY KEY) TABLESPACE ts3;
+
+--echo #
+--echo # Set a trap in the sync point after acquiring tablespace IX
+--echo # locks, and execute FLUSH TABLE WITH READ LOCK.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table HIT_LIMIT 1';
+--send FLUSH TABLE t1 WITH READ LOCK
+
+--echo #
+--echo # Set a trap in the sync point after acquiring tablespace IX
+--echo # locks, and execute FLUSH TABLE FOR EXPORT.
+
+--connection con2
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table HIT_LIMIT 1';
+--send FLUSH TABLE t2 FOR EXPORT
+
+--echo #
+--echo # Set a trap in the sync point after acquiring tablespace IX
+--echo # locks, and execute LOCK TABLE READ.
+
+--connection con3
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table HIT_LIMIT 1';
+--send LOCK TABLE t3 READ
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--reap
+UNLOCK TABLES;
+--connection con2
+--reap
+UNLOCK TABLES;
+--connection con3
+--reap
+UNLOCK TABLES;
+--connection default
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+DROP TABLE t2;
+DROP TABLESPACE ts2;
+DROP TABLE t3;
+DROP TABLESPACE ts3;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC7. Verify that statements 'FLUSH TABLE WITH READ LOCK',
+--echo #      'FLUSH TABLE FOR EXPORT' and 'LOCK TABLE READ'
+--echo #      can run concurrently with operations on the
+--echo #      tablespace.
+
+--echo #
+--echo # First, create tablespaces ts1, ts2 and ts3, and tables in the
+--echo # tablespaces.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2_1.ibd';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3_1.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE ts2;
+CREATE TABLE t3 (pk INTEGER PRIMARY KEY) TABLESPACE ts3;
+
+--echo #
+--echo # Do a tablespace operation on ts1, and park it after getting
+--echo # the tablespace X lock.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd'
+
+--echo #
+--echo # Do a tablespace operation on ts2, and park it after getting
+--echo # the tablespace X lock.
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con2
+  WAIT_FOR cont_con2';
+--send ALTER TABLESPACE ts2 ADD DATAFILE 'ts2_2.ibd'
+
+--echo #
+--echo # Do a tablespace operation on ts3, and park it after getting
+--echo # the tablespace X lock.
+
+--connection con3
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con2';
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con3
+  WAIT_FOR cont_con3';
+--send ALTER TABLESPACE ts3 ADD DATAFILE 'ts3_2.ibd'
+
+--echo #
+--echo # Execute statements that should not be blocked
+--echo # even with parked tablespace DDL statements
+--echo # holding tablespace name X locks.
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con3';
+FLUSH TABLE t1 WITH READ LOCK;
+UNLOCK TABLES;
+FLUSH TABLE t2 FOR EXPORT;
+UNLOCK TABLES;
+LOCK TABLE t3 READ;
+UNLOCK TABLES;
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+SET DEBUG_SYNC= 'now SIGNAL cont_con2';
+SET DEBUG_SYNC= 'now SIGNAL cont_con3';
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+--connection con2
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+--connection con3
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+--connection default
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+DROP TABLE t2;
+DROP TABLESPACE ts2;
+DROP TABLE t3;
+DROP TABLESPACE ts3;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC8. Verify that tablespace IX locks are acquired in
+--echo #      the context of 'LOCK TABLE WRITE'.
+
+--echo #
+--echo # First, create tablespace ts1 with one table.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+
+--echo #
+--echo # Set a trap in the sync point after acquiring tablespace IX
+--echo # locks, and execute LOCK TABLE WRITE.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send LOCK TABLE t1 WRITE
+
+--echo #
+--echo # Wait for con1 to get lock, then signal it to continue.
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--reap
+UNLOCK TABLES;
+--connection default
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC9. Verify that table DML (e.g. SELECT ... FOR UPDATE)
+--echo #      can run concurrently with DDL on the tablespace.
+
+--echo #
+--echo # First, create tablespace ts1 with one table and one row.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+INSERT INTO t1 (pk) VALUES (1);
+
+--echo #
+--echo # Set a trap in the sync point after acquiring tablespace X
+--echo # lock, and execute ALTER TABLESPACE.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd'
+
+--echo #
+--echo # Wait for con1 to get lock, then do DML.
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SELECT * FROM t1 FOR UPDATE;
+SET DEBUG_SYNC= 'now SIGNAL done_con2';
+
+--echo #
+--echo # Wait for con2 to finish, then signal con1 to continue.
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR done_con2';
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+# InnoDB does not support ALTER TABLESPACE
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+--connection default
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC10. Verify that MDL with prepared statements works as
+--echo #       expected, using a prepared ALTER TABLE.
+
+--echo #
+--echo # First, create tablespace ts1 with one table.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+
+--echo #
+--echo # Set a trap in the sync point after acquiring tablespace IX
+--echo # lock, and prepare a statement. Set a new sync point after
+--echo # preparing, now expecting the sync point to be reached, and
+--echo # execute the prepared statement.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table HIT_LIMIT 1';
+--send PREPARE stmt1 FROM 'ALTER TABLE t1 ADD COLUMN (i INTEGER)'
+--reap
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send EXECUTE stmt1
+
+--echo #
+--echo # Wait for con1 to get the lock while executing, then signal
+--echo # it to continue.
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--reap
+DEALLOCATE PREPARE stmt1;
+--connection default
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC11. Verify that a non-empty tablespace cannot be dropped.
+--echo #
+
+--echo #
+--echo # First, create a tablespace ts1 with one table.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+
+--echo #
+--echo # Dropping ts1 should fail.
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE ts1;
+
+--echo #
+--echo # Initiate a drop of table t1 and park it after
+--echo # acquiring IX lock on ts1.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send DROP TABLE t1
+
+--echo #
+--echo # Initiate a drop of tablespace ts1 as soon as con1
+--echo # got its lock.
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1 NO_CLEAR_EVENT';
+--send DROP TABLESPACE ts1
+
+--echo #
+--echo # Verify that the tablespace drop is waiting
+--echo # for X lock on ts1.
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1 NO_CLEAR_EVENT';
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'DROP TABLESPACE%';
+--source include/wait_condition.inc
+
+--echo #
+--echo # Let the table drop continue, and verify that the
+--echo # tablespace drop is not waiting anymore.
+
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+LET $wait_condition=
+  SELECT COUNT(*) = 0 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'DROP TABLESPACE%';
+--source include/wait_condition.inc
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--reap
+--connection con2
+--reap
+--connection default
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC12. Verify that the tablespace name length is checked
+--echo #       properly.
+--echo #
+
+--echo #
+--echo # Set UTF8 character set to allow multi byte characters.
+SET CHARACTER SET UTF8;
+
+--echo #
+--echo # An empty tablespace name should be rejected.
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLESPACE `` ADD DATAFILE 'x.ibd';
+
+--echo #
+--echo # A tablespace name up to 64 1-byte characters should be accepted.
+#                 0        1         2         3         4         5         6   6
+#                 1........0.........0.........0.........0.........0.........0...4
+CREATE TABLESPACE xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ADD DATAFILE 'x.ibd';
+DROP TABLESPACE xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+
+--echo #
+--echo # A tablespace name of 65 1-byte characters should be rejected.
+--error ER_TOO_LONG_IDENT
+#                 0        1         2         3         4         5         6    6
+#                 1........0.........0.........0.........0.........0.........0....5
+CREATE TABLESPACE xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ADD DATAFILE 'x.ibd';
+
+--echo #
+--echo # A tablespace name up to 64 2-byte characters should be accepted.
+#                  0        1         2         3         4         5         6   6
+#                  1........0.........0.........0.........0.........0.........0...4
+CREATE TABLESPACE `¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥` ADD DATAFILE 'x.ibd';
+DROP TABLESPACE `¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥`;
+
+--echo #
+--echo # A tablespace name of 65 2-byte characters should be rejected.
+--error ER_TOO_LONG_IDENT
+#                  0        1         2         3         4         5         6    6
+#                  1........0.........0.........0.........0.........0.........0....5
+CREATE TABLESPACE `¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥¥` ADD DATAFILE 'x.ibd';
+
+--echo #
+--echo # A tablespace name up to 64 3-byte characters should be accepted.
+#                  0        1         2         3         4         5         6   6
+#                  1........0.........0.........0.........0.........0.........0...4
+CREATE TABLESPACE `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€` ADD DATAFILE 'x.ibd';
+DROP TABLESPACE `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`;
+
+--echo #
+--echo # A tablespace name of 65 3-byte characters should be rejected.
+--error ER_TOO_LONG_IDENT
+#                  0        1         2         3         4         5         6    6
+#                  1........0.........0.........0.........0.........0.........0....5
+CREATE TABLESPACE `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€` ADD DATAFILE 'x.ibd';
+
+--echo #
+--echo # A tablespace name containing supplementary UTF characters should be rejected.
+--error ER_INVALID_CHARACTER_STRING
+CREATE TABLESPACE `a𐍈` ADD DATAFILE 'x.ibd';
+
+
+--echo ###########################################################
+--echo # TC13. Extend test coverage:
+--echo #    i) Run tablespace DDL within lock tables mode.
+--echo #   ii) Run tablespace DDL when the global read lock
+--echo #       is taken.
+--echo #  iii) Provoke timeout for table DDL waiting for
+--echo #       tablespace MDL IX lock.
+--echo #   iv) Provoke timeout for tablespace DDL waiting for
+--echo #       tablespace MDL X lock.
+--echo #
+
+--echo #
+--echo # First, create a tablespace ts1 with one table.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+
+--echo #
+--echo # Run LOCK TABLE followed by tablespace DDL,
+--echo # which should fail due to thd->locked_tables_mode.
+
+LOCK TABLE t1 READ;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd';
+UNLOCK TABLES;
+
+--echo #
+--echo # Run FLUSH TABLES WITH READ LOCK followed by tablespace
+--echo # DDL, which should fail due to global read lock.
+
+FLUSH TABLES WITH READ LOCK;
+--error ER_CANT_UPDATE_WITH_READLOCK
+ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd';
+UNLOCK TABLES;
+
+--echo #
+--echo # In connection 1, run tablespace DDL and park it
+--echo # after getting MDL X lock on the tablespace name.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd'
+
+--echo #
+--echo # Run table DDL concurrently with a short
+--echo # lock wait timeout. Should be aborted due
+--echo # to timeout.
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+SET @start_session_value= @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLE t1;
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+--echo #
+--echo # In connection 1, run table DDL and park it
+--echo # after getting MDL IX lock on the tablespace name.
+
+--connection con1
+# InnoDB does not support ALTER TABLESPACE
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send DROP TABLE t1
+
+--echo #
+--echo # Run tablespace DDL concurrently with a short
+--echo # lock wait timeout. Should be aborted due
+--echo # to timeout.
+
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC, reset
+--echo # lock_wait_timeout and drop objects.
+
+--connection con1
+--reap
+--connection default
+SET @@session.lock_wait_timeout= @start_session_value;
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC14. Verify that CREATE TABLE ... LIKE statements are
+--echo #       handled correctly, both with and without source
+--echo #       tables in general tablespaces.
+
+--echo #
+--echo # First, create a tablespace ts1 with one table, and
+--echo # another table without an explicit tablespace clause.
+
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+
+CREATE TABLE t1_src (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+CREATE TABLE t2_src (pk INTEGER PRIMARY KEY);
+
+--echo #
+--echo # Create tables like the source tables, then show the
+--echo # definitions, and drop the tables.
+
+CREATE TABLE t1_new LIKE t1_src;
+SHOW CREATE TABLE t1_new;
+DROP TABLE t1_new;
+
+CREATE TABLE t2_new LIKE t2_src;
+SHOW CREATE TABLE t2_new;
+DROP TABLE t2_new;
+
+--echo #
+--echo # Reset DEBUG_SYNC and drop objects.
+
+--connection default
+DROP TABLE t1_src;
+DROP TABLE t2_src;
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC15. Verify that explicit invalid tablespace names make
+--echo #       table related DDL be rejected. Verify that implicit
+--echo #       invalid tablespace names (e.g., present in an .FRM
+--echo #       file from a previous MySQL version) are ignored.
+
+--echo #
+--echo # First, create a tablespace ts1 with one table.
+--connection default
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
+
+--echo #
+--echo # Alter table t1 to use a tablespace with an empty name.
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLE t1 TABLESPACE ``;
+
+--echo #
+--echo # Alter table t1 to use a tablespace with a name which is
+--echo # too long.
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t1 TABLESPACE `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`;
+
+--echo #
+--echo # Create table t2 using a tablespace with an empty name.
+--error ER_WRONG_TABLESPACE_NAME
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE ``;
+
+--echo #
+--echo # Create table t2 using a tablespace with an name which is
+--echo # too long.
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY) TABLESPACE `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`;
+
+--echo #
+--echo # Copy files for a table with an invalid name.
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+--copy_file std_data/wl7957_1.frm $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.frm
+--copy_file std_data/wl7957_1.MYD $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.MYD
+--copy_file std_data/wl7957_1.MYI $MYSQLD_DATADIR/test/table_with_invalid_tablespace_name.MYI
+
+--echo #
+--echo # A SHOW CREATE TABLE will omit the tablespace name in
+--echo # the output.
+SHOW CREATE TABLE table_with_invalid_tablespace_name;
+FLUSH TABLES;
+
+--echo #
+--echo # A normal SELECT will behave as usual.
+SELECT * FROM table_with_invalid_tablespace_name;
+FLUSH TABLES;
+
+--echo #
+--echo # CREATE TABLE LIKE will omit the invalid tablespace name
+--echo # when creating the new table.
+CREATE TABLE table_like LIKE table_with_invalid_tablespace_name;
+FLUSH TABLES;
+SHOW CREATE TABLE table_like;
+
+--echo #
+--echo # ALTER TABLE will ignore the invalid tablespace name.
+ALTER TABLE table_with_invalid_tablespace_name ENGINE=InnoDB;
+FLUSH TABLES;
+SHOW CREATE TABLE table_with_invalid_tablespace_name;
+
+--echo #
+--echo # Reset DEBUG_SYNC and drop objects.
+
+--connection default
+DROP TABLE t1;
+DROP TABLE table_with_invalid_tablespace_name;
+DROP TABLE table_like;
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo #
+--echo # Test teardown: Disconnect
+--echo #
+
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection con3
+--disconnect con3
+--source include/wait_until_disconnected.inc
+
+--connection con4
+--disconnect con4
+--source include/wait_until_disconnected.inc
+
+--connection con5
+--disconnect con5
+--source include/wait_until_disconnected.inc
+
+--connection default
+--disable_connect_log

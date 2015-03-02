@@ -77,7 +77,6 @@ void mysql_reset_thd_for_next_command(THD *thd);
 void create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
-bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
@@ -96,7 +95,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       LEX_STRING *comment,
 		       char *change, List<String> *interval_list,
 		       const CHARSET_INFO *cs,
-		       uint uint_geom_type);
+		       uint uint_geom_type,
+                       Generated_column *gcol_info);
 void add_to_list(SQL_I_List<ORDER> &list, ORDER *order);
 void add_join_on(TABLE_LIST *b,Item *expr);
 void add_join_natural(TABLE_LIST *a,TABLE_LIST *b,List<String> *using_fields,
@@ -152,4 +152,11 @@ public:
 private:
   ulong m_id;
 };
+
+
+#ifdef HAVE_REPLICATION
+bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
+#endif /*HAVE_REPLICATION*/
+bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
+
 #endif /* SQL_PARSE_INCLUDED */

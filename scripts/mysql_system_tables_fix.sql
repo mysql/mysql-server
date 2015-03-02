@@ -694,6 +694,18 @@ UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysq
 ALTER TABLE user ADD password_lifetime smallint unsigned NULL;
 
 --
+-- Add account_locked column
+--
+SET @hadAccountLocked:=0;
+SELECT @hadAccountLocked:=1 FROM user WHERE account_locked LIKE '%';
+
+ALTER TABLE user ADD account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+UPDATE user SET account_locked = 'N' WHERE @hadAccountLocked=0;
+
+-- need to compensate for the ALTER TABLE user .. CONVERT TO CHARACTER SET above
+ALTER TABLE user MODIFY account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+
+--
 -- Drop password column
 --
 

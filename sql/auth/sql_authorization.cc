@@ -22,7 +22,9 @@
                                         /* any_db */
 #include "binlog.h"                     /* mysql_bin_log */
 #include "sp.h"                         /* sp_exist_routines */
+#include "sql_insert.h"                 /* Sql_cmd_insert_base */
 
+#include "sql_update.h"
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
@@ -174,7 +176,7 @@ bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
     TRUE  Error
 */
 
-bool multi_update_precheck(THD *thd, TABLE_LIST *tables)
+bool Sql_cmd_update::multi_update_precheck(THD *thd, TABLE_LIST *tables)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("multi_update_precheck");
@@ -269,8 +271,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       !select_lex->where_cond())
   {
-    my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-               ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
@@ -289,7 +290,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
     TRUE  Error
 */
 
-bool update_precheck(THD *thd, TABLE_LIST *tables)
+bool Sql_cmd_update::update_precheck(THD *thd, TABLE_LIST *tables)
 {
   DBUG_ENTER("update_precheck");
   const bool res= check_one_table_access(thd, UPDATE_ACL, tables);
@@ -332,7 +333,7 @@ bool delete_precheck(THD *thd, TABLE_LIST *tables)
     TRUE   error
 */
 
-bool insert_precheck(THD *thd, TABLE_LIST *tables)
+bool Sql_cmd_insert_base::insert_precheck(THD *thd, TABLE_LIST *tables)
 {
   LEX *lex= thd->lex;
   DBUG_ENTER("insert_precheck");
@@ -343,7 +344,7 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
   */
   ulong privilege= (INSERT_ACL |
                     (lex->duplicates == DUP_REPLACE ? DELETE_ACL : 0) |
-                    (lex->value_list.elements ? UPDATE_ACL : 0));
+                    (insert_value_list.elements ? UPDATE_ACL : 0));
 
   if (check_one_table_access(thd, privilege, tables))
     DBUG_RETURN(TRUE);
@@ -520,7 +521,7 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
     if (view && subquery_table->belong_to_view == view)
     {
       if (check_single_table_access(thd, privilege, subquery_table, false))
-        return true;
+        return true;            /* purecov: inspected */
       subquery_table= subquery_table->next_global;
     }
     if (subquery_table &&
@@ -752,8 +753,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   {
     DBUG_PRINT("error",("No database"));
     if (!no_errors)
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR),
-                 MYF(0));                       /* purecov: tested */
+      my_error(ER_NO_DB_ERROR, MYF(0));         /* purecov: tested */
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
@@ -834,8 +834,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                  sctx->priv_user().str,
                  sctx->priv_host().str,
                  (thd->password ?
-                  ER(ER_YES) :
-                  ER(ER_NO)));                    /* purecov: tested */
+                  ER_THD(thd, ER_YES) :
+                  ER_THD(thd, ER_NO)));         /* purecov: tested */
     }
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
@@ -1080,8 +1080,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
   if (rights & ~TABLE_ACLS)
   {
-    my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
-               MYF(0));
+    my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -1098,11 +1097,11 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       if (table_list->is_view())
       {
         if (table_list->resolve_derived(thd, false))
-          DBUG_RETURN(true);
+          DBUG_RETURN(true);             /* purecov: inspected */
 
         // Prepare a readonly (materialized) view for access to columns
         if (table_list->setup_materialized_derived(thd))
-          DBUG_RETURN(true);
+          DBUG_RETURN(true);             /* purecov: inspected */
       }
       while ((column = column_iter++))
       {
@@ -1459,8 +1458,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
   if (rights & ~PROC_ACLS)
   {
-    my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
-               MYF(0));
+    my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -2178,6 +2176,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   Security_context *sctx= MY_TEST(table_ref->security_ctx) ?
                           table_ref->security_ctx : thd->security_context();
 
+  DBUG_ASSERT(want_privilege);
+
   if (table_ref->is_view() || table_ref->field_translation)
   {
     /* View or derived information schema table. */
@@ -2195,7 +2195,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
         return FALSE;
       }
       table_ref->belong_to_view->allowed_show= FALSE;
-      my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+      my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
       return TRUE;
     }
   }
@@ -2218,14 +2218,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
     table_name= table->s->table_name.str;
   }
 
-  if (want_privilege)
-    return check_grant_column(thd, grant, db_name, table_name, name,
-                              length, sctx, want_privilege);
-  else
-  {
-    DBUG_ASSERT(grant->want_privilege == 0);
-    return false;
-  }
+  return check_grant_column(thd, grant, db_name, table_name, name,
+                            length, sctx, want_privilege);
 }
 
 
@@ -3238,7 +3232,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   mysql_mutex_unlock(&acl_cache->lock);
 
   if (result)
-    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+    my_error(ER_REVOKE_GRANTS, MYF(0));
 
   /*
     Before ACLs are changed to execute fully or none at all, when
@@ -3491,6 +3485,14 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
   thd->lex->ssl_cipher= thd->lex->x509_subject= thd->lex->x509_issuer= 0;
   memset(&thd->lex->mqh, 0, sizeof(thd->lex->mqh));
+  /* set default values */
+  thd->lex->alter_password.update_password_expired_column= false;
+  thd->lex->alter_password.use_default_password_lifetime= true;
+  thd->lex->alter_password.expire_after_days= 0;
+  thd->lex->alter_password.update_account_locked_column= false;
+  thd->lex->alter_password.account_locked= false;
+
+  combo->alter_status= thd->lex->alter_password;
 
   /*
     Only care about whether the operation failed or succeeded

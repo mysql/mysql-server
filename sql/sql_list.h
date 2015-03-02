@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,11 +168,19 @@ public:
     relies on this behaviour. This logic is quite tricky: please do not use
     it in any new code.
   */
-  inline base_list(const base_list &tmp) :Sql_alloc()
+  base_list(const base_list &tmp)
+    : Sql_alloc(),
+      first(tmp.first),
+      last(tmp.elements ? tmp.last : &first),
+      elements(tmp.elements)
+  {
+  }
+  base_list &operator=(const base_list &tmp)
   {
     elements= tmp.elements;
     first= tmp.first;
     last= elements ? tmp.last : &first;
+    return *this;
   }
   /**
     Construct a deep copy of the argument in memory root mem_root.
@@ -517,11 +525,16 @@ public:
   friend class error_list_iterator;
 };
 
+
 template <class T> class List :public base_list
 {
 public:
-  inline List() :base_list() {}
+  List() :base_list() {}
   inline List(const List<T> &tmp) :base_list(tmp) {}
+  List &operator=(const List &tmp)
+  {
+    return static_cast<List &>(base_list::operator=(tmp));
+  }
   inline List(const List<T> &tmp, MEM_ROOT *mem_root) :
     base_list(tmp, mem_root) {}
   /*

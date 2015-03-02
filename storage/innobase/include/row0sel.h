@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -106,6 +106,19 @@ que_thr_t*
 row_printf_step(
 /*============*/
 	que_thr_t*	thr);	/*!< in: query thread */
+
+/** Copy used fields from cached row.
+Copy cache record field by field, don't touch fields that
+are not covered by current key.
+@param[out]	buf		Where to copy the MySQL row.
+@param[in]	cached_rec	What to copy (in MySQL row format).
+@param[in]	prebuilt	prebuilt struct. */
+void
+row_sel_copy_cached_fields_for_mysql(
+	byte*		buf,
+	const byte*	cached_rec,
+	row_prebuilt_t*	prebuilt);
+
 /****************************************************************//**
 Converts a key value stored in MySQL format to an Innobase dtuple. The last
 field of the key value may be just a prefix of a fixed length field: hence
@@ -262,7 +275,7 @@ row_search_max_autoinc(
 	dict_index_t*	index,		/*!< in: index to search */
 	const char*	col_name,	/*!< in: autoinc column name */
 	ib_uint64_t*	value)		/*!< out: AUTOINC value read */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** A structure for caching column values for prefetched rows */
 struct sel_buf_t{

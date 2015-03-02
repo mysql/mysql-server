@@ -166,6 +166,10 @@ dict_mem_table_create(
 	}
 #endif /* !UNIV_HOTBACKUP */
 
+	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+		dict_get_and_save_space_name(table, true);
+	}
+
 	new(&table->foreign_set) dict_foreign_set();
 	new(&table->referenced_set) dict_foreign_set();
 
@@ -183,9 +187,9 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_d(table->cached = FALSE);
 
-        if (dict_table_has_fts_index(table)
-            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
-            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
+	if (dict_table_has_fts_index(table)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
 		if (table->fts) {
 			fts_optimize_remove_table(table);
 
@@ -202,6 +206,7 @@ dict_mem_table_free(
 	table->referenced_set.~dict_foreign_set();
 
 	ut_free(table->name.m_name);
+	table->name.m_name = NULL;
 	mem_heap_free(table->heap);
 }
 
@@ -297,7 +302,7 @@ dict_mem_table_add_col(
 
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
-static __attribute__((nonnull))
+static
 void
 dict_mem_table_col_rename_low(
 /*==========================*/

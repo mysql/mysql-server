@@ -1050,3 +1050,27 @@ eval EXPLAIN SELECT STRAIGHT_JOIN * FROM t4 JOIN $rest_of_query;
 eval EXPLAIN SELECT * FROM t4 STRAIGHT_JOIN $rest_of_query;
 
 drop table t1,t2,t3,t4;
+
+--echo # Bug#20455184: Assertion failed: join_cond in optimizer.cc
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+
+let $query=
+SELECT 1
+FROM (SELECT 1 FROM t1 WHERE a) AS q
+     NATURAL LEFT JOIN t1
+     NATURAL LEFT JOIN t1 AS t2;
+
+eval explain $query;
+eval $query;
+
+let $query=
+SELECT 1
+FROM t1
+     NATURAL RIGHT JOIN t1 AS t2
+     NATURAL RIGHT JOIN (SELECT 1 FROM t1 WHERE a) AS q;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;

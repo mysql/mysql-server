@@ -69,8 +69,12 @@ void get_server_host_port_uuid(char **hostname, uint *port, char** uuid);
   if one has conditions to proceed executing master-master replication.
 
   @param[out] requirements
- */
-void get_server_startup_prerequirements(Trans_context_info& requirements);
+
+  @param[in] has_lock Caller should set this to true if the calling
+  thread holds gtid_mode_lock; otherwise set it to false.
+*/
+void get_server_startup_prerequirements(Trans_context_info& requirements,
+                                        bool has_lock);
 
 
 /**

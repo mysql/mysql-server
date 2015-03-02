@@ -286,7 +286,7 @@ row_merge_insert_index_tuples(
 
 /******************************************************//**
 Encode an index record. */
-static __attribute__((nonnull))
+static
 void
 row_merge_buf_encode(
 /*=================*/
@@ -323,7 +323,7 @@ row_merge_buf_encode(
 /******************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */
-static __attribute__((malloc, nonnull))
+static __attribute__((malloc))
 row_merge_buf_t*
 row_merge_buf_create_low(
 /*=====================*/
@@ -905,7 +905,7 @@ respectively */
 
 /**********************************************************************//**
 Merge sort the tuple buffer in main memory. */
-static __attribute__((nonnull(4,5)))
+static
 void
 row_merge_tuple_sort(
 /*=================*/
@@ -3933,7 +3933,7 @@ row_merge_rename_tables_dict(
 	renamed is a single-table tablespace, which must be implicitly
 	renamed along with the table. */
 	if (err == DB_SUCCESS
-	    && !is_system_tablespace(old_table->space)
+	    && dict_table_is_file_per_table(old_table)
 	    && !old_table->ibd_file_missing) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* tmp_path = row_make_new_pathname(old_table, tmp_name);
@@ -3963,7 +3963,7 @@ row_merge_rename_tables_dict(
 	renamed is a single-table tablespace, which must be implicitly
 	renamed along with the table. */
 	if (err == DB_SUCCESS
-	    && !is_system_tablespace(new_table->space)) {
+	    && dict_table_is_file_per_table(new_table)) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(
 			new_table, old_table->name.m_name);
@@ -4003,7 +4003,7 @@ row_merge_rename_tables_dict(
 /*********************************************************************//**
 Create and execute a query graph for creating an index.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_merge_create_index_graph(
 /*=========================*/

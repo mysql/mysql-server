@@ -1,4 +1,5 @@
 --source include/not_embedded.inc
+--source include/not_gtid_enabled.inc
 
 SET @start_global_value = @@global.gtid_executed;
 SELECT @start_global_value;
@@ -16,10 +17,13 @@ select * from information_schema.session_variables where variable_name='gtid_exe
 --enable_warnings
 
 #
-# It is not writable and in debug mode an attempt to write
-# into it triggers an assertion.
+# It is not writable.
 #
 select @@global.gtid_executed;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@global.gtid_executed = '';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@session.gtid_executed = '';
 
 #
 # See rpl_gtid_execution.test for a comprehensive test case.

@@ -53,7 +53,9 @@ DROP TABLE t1;
 # a couple of tests for variables
 set global example_ulong_var=500;
 set global example_enum_var= e1;
-show status like 'example%';
+--disable_warnings
+select * from information_schema.global_status where variable_name like 'example%' order by variable_name;
+--enable_warnings
 show variables like 'example%';
 
 UNINSTALL PLUGIN example;
@@ -203,8 +205,10 @@ SET DEBUG_SYNC='acquired_LOCK_plugin SIGNAL cont_show_vars';
 
 connection con1;
 # Without fix, reap will hang.
+--disable_warnings
 --replace_column 1 #
 --reap;
+--enable_warnings
 SET DEBUG_SYNC='RESET';
 
 connection default;
@@ -238,8 +242,11 @@ connection con1;
 --reap;
 
 connection default;
+# Note: This masks 1639 debug sync point timed out warning
+--disable_warnings
 --replace_column 1 #
 --reap;
+--enable_warnings
 disconnect con2;
 
 --echo # Case 18008907_3: Testing Concurrent "Show Variables" and "Plugin Uninstall" operations.
@@ -266,8 +273,10 @@ let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 SET DEBUG_SYNC='now SIGNAL go';
 
 connection con1;
+--disable_warnings
 --replace_column 1 #
 --reap
+--enable_warnings
 
 connection con2;
 --reap

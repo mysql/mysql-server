@@ -22,6 +22,7 @@
 */
 
 #include <m_ctype.h>
+#include "current_thd.h"
 #include "sql_select.h"
 #include "sql_optimizer.h"             // JOIN_TAB
 #include "sql_parse.h"                          // check_stack_overrun
@@ -4652,6 +4653,10 @@ cmp_item* cmp_item_decimal::make_same()
 }
 
 
+cmp_item_datetime::cmp_item_datetime(Item *warn_item_arg)
+  : thd(current_thd), warn_item(warn_item_arg), lval_cache(0)
+{}
+
 void cmp_item_datetime::store_value(Item *item)
 {
   bool is_null;
@@ -6047,6 +6052,8 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
        !(specialflag & SPECIAL_NO_NEW_FUNC))
     {
       String* res2 = args[1]->val_str(&cmp.value2);
+      if (thd->is_error())
+        return true;
       if (!res2)
         return false;				// Null argument
 

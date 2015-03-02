@@ -25,14 +25,14 @@ truncate table performance_schema.events_waits_current;
 truncate table performance_schema.events_waits_history;
 truncate table performance_schema.events_waits_history_long;
 
-show variables like "thread_handling";
+show global variables like "thread_handling";
 
 # Code to test : in this main thread
 
 create table test.t1(a int) engine=MYISAM;
 
-show variables like "performance_schema";
-show variables like "performance_schema_max_thread%";
+show global variables like "performance_schema";
+show global variables like "performance_schema_max_thread%";
 
 # Verification : in this main thread
 

@@ -24,12 +24,14 @@
 #include "my_bit.h"                   // my_count_bits
 #include "myisam.h"                   // TT_FOR_UPGRADE
 #include "binlog.h"                   // mysql_bin_log
+#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "discover.h"                 // writefrm
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
+#include "psi_memory_key.h"
 #include "rpl_handler.h"              // RUN_HOOK
 #include "sql_base.h"                 // free_io_cache
 #include "sql_parse.h"                // check_stack_overrun
@@ -37,6 +39,7 @@
 #include "sql_table.h"                // build_table_filename
 #include "transaction.h"              // trans_commit_implicit
 #include "trigger_def.h"              // TRG_EXT
+#include "sql_select.h"               // actual_key_parts
 #include "rpl_write_set_handler.h"    // add_pke
 
 #include "pfs_file_provider.h"
@@ -47,10 +50,6 @@
 
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-#include "ha_partition.h"
-#endif
 
 #include <list>
 
@@ -423,6 +422,20 @@ handlerton *ha_default_temp_handlerton(THD *thd)
 }
 
 
+/**
+  Resolve handlerton plugin by name, without checking for "DEFAULT" or
+  HTON_NOT_USER_SELECTABLE.
+
+  @param thd  Thread context.
+  @param name Plugin name.
+
+  @return plugin or NULL if not found.
+*/
+plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name)
+{
+  return plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN);
+}
+
 /** @brief
   Return the storage engine handlerton for the supplied name
   
@@ -449,8 +462,7 @@ redo:
       ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
   LEX_CSTRING cstring_name= {name->str, name->length};
-  if ((plugin= my_plugin_lock_by_name(thd, cstring_name,
-                                      MYSQL_STORAGE_ENGINE_PLUGIN)))
+  if ((plugin= ha_resolve_by_name_raw(thd, cstring_name)))
   {
     handlerton *hton= plugin_data<handlerton*>(plugin);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
@@ -568,31 +580,6 @@ handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
 }
 
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-handler *get_ha_partition(partition_info *part_info)
-{
-  ha_partition *partition;
-  DBUG_ENTER("get_ha_partition");
-  if ((partition= new ha_partition(partition_hton, part_info)))
-  {
-    if (partition->initialize_partition(current_thd->mem_root))
-    {
-      delete partition;
-      partition= 0;
-    }
-    else
-      partition->init();
-  }
-  else
-  {
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
-             static_cast<int>(sizeof(ha_partition)));
-  }
-  DBUG_RETURN(((handler*) partition));
-}
-#endif
-
-
 static const char **handler_errmsgs;
 
 C_MODE_START
@@ -677,6 +664,10 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_INNODB_FORCED_RECOVERY,	ER_DEFAULT(ER_INNODB_FORCED_RECOVERY));
   SETMSG(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE,  "Too many words in a FTS phrase or proximity search");
   SETMSG(HA_ERR_TABLE_CORRUPT,		ER_DEFAULT(ER_TABLE_CORRUPT));
+  SETMSG(HA_ERR_TABLESPACE_MISSING,	ER_DEFAULT(ER_TABLESPACE_MISSING));
+  SETMSG(HA_ERR_TABLESPACE_IS_NOT_EMPTY,	ER_DEFAULT(ER_TABLESPACE_IS_NOT_EMPTY));
+  SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
+  SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -849,11 +840,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   case DB_TYPE_MYISAM:
     myisam_hton= hton;
     break;
-  case DB_TYPE_PARTITION_DB:
-    partition_hton= hton;
-    break;
   case DB_TYPE_INNODB:
-    innodb_hton = hton;
+    innodb_hton= hton;
     break;
   default:
     break;
@@ -1377,7 +1365,7 @@ int ha_prepare(THD *thd)
       else
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+                            ER_ILLEGAL_HA, ER_THD(thd, ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
       ha_info= ha_info->next();
@@ -2346,7 +2334,7 @@ err:
 }
 
 
-void handler::ha_statistic_increment(ulonglong SSV::*offset) const
+void handler::ha_statistic_increment(ulonglong System_status_var::*offset) const
 {
   (table->in_use->status_var.*offset)++;
 }
@@ -2624,6 +2612,8 @@ int handler::ha_rnd_next(uchar *buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_next(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2650,6 +2640,8 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_pos(buf, pos); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2692,6 +2684,8 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2707,6 +2701,8 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_last_map(buf, key, keypart_map); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2729,6 +2725,8 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, index, result,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   return result;
 }
 
@@ -2755,6 +2753,8 @@ int handler::ha_index_next(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2781,6 +2781,8 @@ int handler::ha_index_prev(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_prev(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2807,6 +2809,8 @@ int handler::ha_index_first(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_first(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2833,6 +2837,8 @@ int handler::ha_index_last(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_last(buf); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2861,6 +2867,8 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next_same(buf, key, keylen); })
+  if (!result && table->vfield)
+    result= update_generated_read_fields(table);
   DBUG_RETURN(result);
 }
 
@@ -2876,7 +2884,7 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   int error;
   DBUG_ENTER("handler::read_first_row");
 
-  ha_statistic_increment(&SSV::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
 
   /*
     If there is very few deleted rows in the table, find the first row by
@@ -2906,6 +2914,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
         error= end_error;
     }
   }
+  if (!error && table->vfield)
+    error= update_generated_read_fields(table);
   DBUG_RETURN(error);
 }
 
@@ -2922,7 +2932,7 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   @verbatim 1,5,15,25,35,... @endverbatim
 */
 inline ulonglong
-compute_next_insert_id(ulonglong nr,struct system_variables *variables)
+compute_next_insert_id(ulonglong nr,struct System_variables *variables)
 {
   const ulonglong save_nr= nr;
 
@@ -2972,7 +2982,7 @@ void handler::adjust_next_insert_id_after_explicit_value(ulonglong nr)
     The number X if it exists, "nr" otherwise.
 */
 inline ulonglong
-prev_insert_id(ulonglong nr, struct system_variables *variables)
+prev_insert_id(ulonglong nr, struct System_variables *variables)
 {
   if (unlikely(nr < variables->auto_increment_offset))
   {
@@ -3079,7 +3089,7 @@ int handler::update_auto_increment()
   ulonglong nr, nb_reserved_values;
   bool append= FALSE;
   THD *thd= table->in_use;
-  struct system_variables *variables= &thd->variables;
+  struct System_variables *variables= &thd->variables;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ENTER("handler::update_auto_increment");
@@ -3163,14 +3173,14 @@ int handler::update_auto_increment()
       if ((auto_inc_intervals_count == 0) && (estimation_rows_to_insert > 0))
         nb_desired_values= estimation_rows_to_insert;
       else if ((auto_inc_intervals_count == 0) &&
-               (thd->lex->many_values.elements > 0))
+               (thd->lex->bulk_insert_row_cnt > 0))
       {
         /*
           For multi-row inserts, if the bulk inserts cannot be started, the
           handler::estimation_rows_to_insert will not be set. But we still
           want to reserve the autoinc values.
         */
-        nb_desired_values= thd->lex->many_values.elements;
+        nb_desired_values= thd->lex->bulk_insert_row_cnt;
       }
       else /* go with the increasing defaults */
       {
@@ -3391,6 +3401,7 @@ void handler::ha_release_auto_increment()
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK ||
               (!next_insert_id && !insert_id_for_cur_row));
+  DEBUG_SYNC(ha_thd(), "release_auto_increment");
   release_auto_increment();
   insert_id_for_cur_row= 0;
   auto_inc_interval_for_cur_row.replace(0, 0, 0);
@@ -3404,6 +3415,12 @@ void handler::ha_release_auto_increment()
     */
     table->in_use->auto_inc_intervals_forced.empty();
   }
+}
+
+
+const char *table_case_name(HA_CREATE_INFO *info, const char *name)
+{
+  return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
 }
 
 
@@ -3455,7 +3472,8 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag)
 
 void print_keydup_error(TABLE *table, KEY *key, myf errflag)
 {
-  print_keydup_error(table, key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
+  print_keydup_error(table, key,
+                     ER_THD(current_thd, ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
 }
 
 
@@ -3634,13 +3652,7 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_SE_OUT_OF_MEMORY:
     my_error(ER_ENGINE_OUT_OF_MEMORY, errflag,
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-             table->part_info ? ha_resolve_storage_engine_name
-             (table->part_info->default_engine_type) :
              table->file->table_type());
-#else
-             table->file->table_type());
-#endif
     DBUG_VOID_RETURN;
   case HA_ERR_WRONG_COMMAND:
     textno=ER_ILLEGAL_HA;
@@ -3772,17 +3784,26 @@ void handler::print_error(int error, myf errflag)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_snprintf(errbuf, MYSYS_STRERROR_SIZE, "`%s`.`%s`", table_share->db.str,
-                table_share->table_name.str);
+    table_share->table_name.str);
     my_error(ER_TABLESPACE_MISSING, errflag, errbuf, error);
     DBUG_VOID_RETURN;
   }
+  case HA_ERR_TABLESPACE_IS_NOT_EMPTY:
+    my_error(ER_TABLESPACE_IS_NOT_EMPTY, errflag, table_share->db.str,
+             table_share->table_name.str);
+    DBUG_VOID_RETURN;
+  case HA_ERR_WRONG_FILE_NAME:
+    my_error(ER_WRONG_FILE_NAME, errflag, table_share->table_name.str);
+    DBUG_VOID_RETURN;
+  case HA_ERR_NOT_ALLOWED_COMMAND:
+    textno=ER_NOT_ALLOWED_COMMAND;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
 	 Ask handler if it has got a message for this error */
-      bool temporary= FALSE;
       String str;
-      temporary= get_error_message(error, &str);
+      bool temporary= get_error_message(error, &str);
       if (!str.is_empty())
       {
 	const char* engine= table_type();
@@ -3923,6 +3944,19 @@ int handler::check_old_types()
     }
     if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
       return HA_ADMIN_NEEDS_ALTER; // obsolete YEAR(2) type
+
+    //Check for old temporal format if avoid_temporal_upgrade is disabled.
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    bool check_temporal_upgrade= !avoid_temporal_upgrade;
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+
+    if (check_temporal_upgrade)
+    {
+      if (((*field)->real_type() == MYSQL_TYPE_TIME) ||
+          ((*field)->real_type() == MYSQL_TYPE_DATETIME) ||
+          ((*field)->real_type() == MYSQL_TYPE_TIMESTAMP))
+        return HA_ADMIN_NEEDS_ALTER;
+    }
   }
   return 0;
 }
@@ -4110,7 +4144,6 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   if it is started.
 */
 
-inline
 void
 handler::mark_trx_read_write()
 {
@@ -4398,7 +4431,8 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
     Alter_inplace_info::ALTER_COLUMN_DEFAULT |
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ALTER_RENAME |
-    Alter_inplace_info::RENAME_INDEX;
+    Alter_inplace_info::RENAME_INDEX |
+    Alter_inplace_info::HA_ALTER_STORED_GCOL;
 
   /* Is there at least one operation that requires copy algorithm? */
   if (ha_alter_info->handler_flags & ~inplace_offline_operations)
@@ -4542,66 +4576,6 @@ handler::ha_create_handler_files(const char *name, const char *old_name,
 
 
 /**
-  Change partitions: public interface.
-
-  @sa handler::change_partitions()
-*/
-
-int
-handler::ha_change_partitions(HA_CREATE_INFO *create_info,
-                     const char *path,
-                     ulonglong * const copied,
-                     ulonglong * const deleted,
-                     const uchar *pack_frm_data,
-                     size_t pack_frm_len)
-{
-  /*
-    Must have at least RDLCK or be a TMP table. Read lock is needed to read
-    from current partitions and write lock will be taken on new partitions.
-  */
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type != F_UNLCK);
-  mark_trx_read_write();
-
-  return change_partitions(create_info, path, copied, deleted,
-                           pack_frm_data, pack_frm_len);
-}
-
-
-/**
-  Drop partitions: public interface.
-
-  @sa handler::drop_partitions()
-*/
-
-int
-handler::ha_drop_partitions(const char *path)
-{
-  DBUG_ASSERT(!table->db_stat);
-
-  mark_trx_read_write();
-
-  return drop_partitions(path);
-}
-
-
-/**
-  Rename partitions: public interface.
-
-  @sa handler::rename_partitions()
-*/
-
-int
-handler::ha_rename_partitions(const char *path)
-{
-  DBUG_ASSERT(!table->db_stat);
-  mark_trx_read_write();
-
-  return rename_partitions(path);
-}
-
-
-/**
   Tell the storage engine that it is allowed to "disable transaction" in the
   handler. It is a hint that ACID is not required - it is used in NDB for
   ALTER TABLE, for example, when data are copied to temporary table.
@@ -4679,28 +4653,6 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
   }
   DBUG_RETURN(error);
 }
-
-
-void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
-                                         uint part_id)
-{
-  info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
-       HA_STATUS_NO_LOCK);
-  stat_info->records=              stats.records;
-  stat_info->mean_rec_length=      stats.mean_rec_length;
-  stat_info->data_file_length=     stats.data_file_length;
-  stat_info->max_data_file_length= stats.max_data_file_length;
-  stat_info->index_file_length=    stats.index_file_length;
-  stat_info->delete_length=        stats.delete_length;
-  stat_info->create_time=          static_cast<ulong>(stats.create_time);
-  stat_info->update_time=          stats.update_time;
-  stat_info->check_time=           stats.check_time;
-  stat_info->check_sum=            0;
-  if (table_flags() & (ulong) HA_HAS_CHECKSUM)
-    stat_info->check_sum= checksum();
-  return;
-}
-
 
 /****************************************************************************
 ** Some general functions that isn't in the handler class
@@ -5508,6 +5460,119 @@ double handler::index_only_read_time(uint keynr, double records)
 }
 
 
+double handler::table_in_memory_estimate() const
+{
+  DBUG_ASSERT(stats.table_in_mem_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+              (stats.table_in_mem_estimate >= 0.0 &&
+               stats.table_in_mem_estimate <= 1.0));
+
+  /*
+    If the storage engine has supplied information about how much of the
+    table that is currently in a memory buffer, then use this estimate.
+  */
+  if (stats.table_in_mem_estimate != IN_MEMORY_ESTIMATE_UNKNOWN)
+    return stats.table_in_mem_estimate;
+
+  /*
+    The storage engine has not provided any information about how much of
+    this index is in memory, use an heuristic to produce an estimate.
+  */
+  return estimate_in_memory_buffer(stats.data_file_length);
+}
+
+
+double handler::index_in_memory_estimate(uint keyno) const
+{
+  const KEY *key= &table->key_info[keyno];
+
+  /*
+    If the storage engine has supplied information about how much of the
+    index that is currently in a memory buffer, then use this estimate.
+  */
+  const double est= key->in_memory_estimate();
+  if (est != IN_MEMORY_ESTIMATE_UNKNOWN)
+    return est;
+
+  /*
+    The storage engine has not provided any information about how much of
+    this index is in memory, use an heuristic to produce an estimate.
+  */
+  ulonglong file_length;
+
+  /*
+    If the index is a clustered primary index, then use the data file
+    size as estimate for how large the index is.
+  */
+  if (keyno == table->s->primary_key && primary_key_is_clustered())
+    file_length= stats.data_file_length;
+  else
+    file_length= stats.index_file_length;
+
+  return estimate_in_memory_buffer(file_length);
+}
+
+
+double handler::estimate_in_memory_buffer(ulonglong table_index_size) const
+{
+  /*
+    The storage engine has not provided any information about how much of
+    the table/index is in memory. In this case we use a heuristic:
+
+    - if the size of the table/index is less than 20 percent (pick any
+      number) of the memory buffer, then the entire table/index is likely in
+      memory.
+    - if the size of the table/index is larger than the memory buffer, then
+      assume nothing of the table/index is in memory.
+    - if the size of the table/index is larger than 20 percent but less than
+      the memory buffer size, then use a linear function of the table/index
+      size that goes from 1.0 to 0.0.
+  */
+
+  /*
+    If the storage engine has information about the size of its
+    memory buffer, then use this. Otherwise, assume that at least 100 MB
+    of data can be chached in memory.
+  */
+  longlong memory_buf_size= get_memory_buffer_size();
+  if (memory_buf_size <= 0)
+    memory_buf_size= 100 * 1024 * 1024;    // 100 MB
+
+  /*
+    Upper limit for the relative size of a table to be considered
+    entirely available in a memory buffer. If the actual table size is
+    less than this we assume it is complete cached in a memory buffer.
+  */
+  const double table_index_in_memory_limit= 0.2;
+
+  /*
+    Estimate for how much of the total memory buffer this table/index
+    can occupy.
+  */
+  const double percent_of_mem= static_cast<double>(table_index_size) /
+    memory_buf_size;
+
+  double in_mem_est;
+
+  if (percent_of_mem < table_index_in_memory_limit) // Less than 20 percent
+    in_mem_est= 1.0;
+  else if (percent_of_mem > 1.0)                // Larger than buffer
+    in_mem_est= 0.0;
+  else
+  {
+    /*
+      The size of the table/index is larger than
+      "table_index_in_memory_limit" * "memory_buf_size" but less than
+      the total size of the memory buffer.
+    */
+    in_mem_est= 1.0 - (percent_of_mem - table_index_in_memory_limit) /
+      (1.0 - table_index_in_memory_limit);
+  }
+  DBUG_ASSERT(in_mem_est >= 0.0 && in_mem_est <= 1.0);
+
+  return in_mem_est;
+}
+
+
 Cost_estimate handler::table_scan_cost()
 {
   /*
@@ -5516,6 +5581,17 @@ Cost_estimate handler::table_scan_cost()
     optimization" to avoid creating the temporary object for the return value
     and use of the copy constructor.
   */
+
+#ifndef DBUG_OFF
+  /*
+    The cost model does not currently take into account whether table
+    data is in memory or on disk. To test and to get coverage for the
+    code for estimating data in memory, a call for getting this
+    estimate is included here when compiled in debug mode.
+  */
+  const double in_mem= table_in_memory_estimate();
+  DBUG_ASSERT(in_mem >= 0.0 && in_mem <= 1.0);
+#endif
 
   const double io_cost= scan_time() * table->cost_model()->io_block_read_cost();
   Cost_estimate cost;
@@ -5535,6 +5611,17 @@ Cost_estimate handler::index_scan_cost(uint index, double ranges, double rows)
 
   DBUG_ASSERT(ranges >= 0.0);
   DBUG_ASSERT(rows >= 0.0);
+
+#ifndef DBUG_OFF
+  /*
+    The cost model does not currently take into account whether index
+    data is in memory or on disk. To test and to get coverage for the
+    code for estimating data in memory, a call for getting this
+    estimate is included here when compiled in debug mode.
+  */
+  const double in_mem= index_in_memory_estimate(index);
+  DBUG_ASSERT(in_mem >= 0.0 && in_mem <= 1.0);
+#endif
 
   const double io_cost= index_only_read_time(index, rows) *
                         table->cost_model()->io_block_read_cost();
@@ -6307,13 +6394,12 @@ end:
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
                                uint *bufsz, uint *flags, Cost_estimate *cost)
 {
+  ha_rows res __attribute__((unused));
   uint def_flags= *flags;
   uint def_bufsz= *bufsz;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-#ifndef DBUG_OFF
-  ha_rows res=
-#endif
+  res=
     h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
                                       &def_flags, cost);
   DBUG_ASSERT(!res);
@@ -6907,6 +6993,27 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
 }
 
 
+uint calculate_key_len(TABLE *table, uint key,
+                       key_part_map keypart_map)
+{
+  /* works only with key prefixes */
+  DBUG_ASSERT(((keypart_map + 1) & keypart_map) == 0);
+
+  KEY *key_info= table->key_info + key;
+  KEY_PART_INFO *key_part= key_info->key_part;
+  KEY_PART_INFO *end_key_part= key_part + actual_key_parts(key_info);
+  uint length= 0;
+
+  while (key_part < end_key_part && keypart_map)
+  {
+    length+= key_part->store_length;
+    keypart_map >>= 1;
+    key_part++;
+  }
+  return length;
+}
+
+
 /**
   Returns a list of all known extensions.
 
@@ -7267,7 +7374,7 @@ int handler::ha_external_lock(THD *thd, int lock_type)
                                table_share->table_name.str);
   }
 
-  ha_statistic_increment(&SSV::ha_external_lock_count);
+  ha_statistic_increment(&System_status_var::ha_external_lock_count);
 
   MYSQL_TABLE_LOCK_WAIT(PSI_TABLE_EXTERNAL_LOCK, lock_type,
     { error= external_lock(thd, lock_type); })

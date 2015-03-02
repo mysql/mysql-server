@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -816,6 +816,8 @@ ut_strerr(
 	case DB_FORCED_ABORT:
 		return("Transaction aborted by another higher priority "
 		       "transaction");
+	case DB_WRONG_FILE_NAME:
+		return("Invalid Filename");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

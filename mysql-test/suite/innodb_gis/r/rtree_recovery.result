@@ -1,3 +1,4 @@
+# restart
 create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
 create procedure insert_t1(IN total int)
 begin

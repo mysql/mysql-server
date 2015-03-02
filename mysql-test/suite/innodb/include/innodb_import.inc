@@ -1,6 +1,5 @@
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 SET @old_innodb_file_per_table = @@innodb_file_per_table;
-SET @old_innodb_file_format = @@innodb_file_format;
 
 if ($partitioning)
 {
@@ -20,9 +19,6 @@ SUBPARTITION BY HASH (col18) SUBPARTITIONS 3
 }
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
 
 --echo # Following testcases are created from JET cases (where import
 --echo # export instance are different servers)
@@ -216,8 +212,6 @@ DROP TABLE t1;
 --echo #
 --echo # case 3 - with blob objects
 --echo #
-
-SET GLOBAL innodb_file_format='Barracuda';
 
 eval CREATE TABLE t1 (
 col_1_varbinary VARBINARY (4000),
@@ -1163,5 +1157,4 @@ call mtr.add_suppression("InnoDB: Unable to import tablespace .* because it alre
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfg
 
-SET GLOBAL innodb_file_format = @old_innodb_file_format;
 SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;

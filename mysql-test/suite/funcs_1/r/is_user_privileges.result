@@ -131,6 +131,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -175,6 +176,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -219,6 +221,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 #
 # Add GRANT OPTION db_datadict.* to testuser1;
 GRANT UPDATE ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
@@ -287,6 +290,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -331,6 +335,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -375,6 +380,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -429,6 +435,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -473,6 +480,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -517,6 +525,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -593,6 +602,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -637,6 +647,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -681,6 +692,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 GRANT SELECT ON *.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 #
 # Here <SELECT YES> is shown correctly for testuser1;
@@ -749,6 +761,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -793,6 +806,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -837,6 +851,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -891,6 +906,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -935,6 +951,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -979,6 +996,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT SELECT ON *.* TO 'testuser1'@'localhost' WITH GRANT OPTION
@@ -1085,6 +1103,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1129,6 +1148,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1173,6 +1193,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -1274,6 +1295,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1318,6 +1340,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1362,6 +1385,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''
@@ -1416,6 +1440,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1460,6 +1485,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1504,6 +1530,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -1565,6 +1592,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1609,6 +1637,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1653,6 +1682,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 SHOW GRANTS;
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
@@ -1729,6 +1759,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser2
 Select_priv	N
@@ -1773,6 +1804,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 Host	localhost
 User	testuser3
 Select_priv	N
@@ -1817,6 +1849,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 # Switch to connection testuser1
 SELECT * FROM information_schema.user_privileges
 WHERE grantee LIKE '''testuser%'''

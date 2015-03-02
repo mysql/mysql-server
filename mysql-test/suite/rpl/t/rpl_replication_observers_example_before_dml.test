@@ -1,0 +1,74 @@
+#
+# The purpose of this test is to verify the correct functionality of
+# the before_dml hook.
+#
+# If the hook is not executed by any reason, this test must fail.
+#
+#
+
+--source include/not_embedded.inc
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_replication_observers_example_plugin.inc
+
+--source include/install_replication_observers_example.inc
+
+--echo #
+--echo # Verify that the DML hook is in place and working
+--echo #
+
+CREATE TABLE t2 (c1 char(50) NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE tn (cn char(50) NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,cause_failure_in_before_dml_hook';
+
+#Test the INSERT instruction
+--error ER_BEFORE_DML_VALIDATION_ERROR
+--eval INSERT INTO t2 VALUES('a')
+
+#Test the UPDATE instruction
+--error ER_BEFORE_DML_VALIDATION_ERROR
+--eval UPDATE t2 SET c1 = 'a'
+
+#Test the INSERT...SELECT instruction
+--error ER_BEFORE_DML_VALIDATION_ERROR
+--eval INSERT INTO t2 (c1) SELECT tn.cn FROM tn
+
+#Test the DELETE instruction
+--error ER_BEFORE_DML_VALIDATION_ERROR
+--eval DELETE FROM t2
+
+#Test the load instruction
+--error ER_BEFORE_DML_VALIDATION_ERROR
+--eval LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t2
+
+#Test the REPLACE instruction
+--error ER_BEFORE_DML_VALIDATION_ERROR
+--eval REPLACE INTO t2 VALUES('a')
+
+#Test the REPLACE...SELECT instruction
+--error ER_BEFORE_DML_VALIDATION_ERROR
+--eval REPLACE INTO t2 (c1) SELECT tn.cn FROM tn
+
+#Test the DELETE_MULTI instruction
+--error ER_BEFORE_DML_VALIDATION_ERROR
+--eval DELETE t2, tn FROM t2, tn
+
+#Test the UPDATE_MULTI instruction
+--error ER_BEFORE_DML_VALIDATION_ERROR
+--eval UPDATE t2, tn SET c1 = 'a'
+
+--echo #
+--echo # Cleanup
+--echo #
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+DROP TABLE t2;
+DROP TABLE tn;
+
+--source include/uninstall_replication_observers_example.inc
+
+--echo End of test

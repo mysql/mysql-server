@@ -693,7 +693,7 @@ sel_enqueue_prefetched_row(
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel_build_prev_vers(
 /*====================*/
@@ -728,7 +728,7 @@ row_sel_build_prev_vers(
 /*********************************************************************//**
 Builds the last committed version of a clustered index record for a
 semi-consistent read. */
-static __attribute__((nonnull))
+static
 void
 row_sel_build_committed_vers_for_mysql(
 /*===================================*/
@@ -826,7 +826,7 @@ row_sel_test_other_conds(
 Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel_get_clust_rec(
 /*==================*/
@@ -2802,7 +2802,7 @@ row_sel_store_row_id_to_prebuilt(
 /**************************************************************//**
 Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.cc. */
-static __attribute__((nonnull))
+static
 void
 row_sel_field_store_in_mysql_format_func(
 /*=====================================*/
@@ -3216,7 +3216,7 @@ row_sel_store_mysql_rec(
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel_build_prev_vers_for_mysql(
 /*==============================*/
@@ -3253,7 +3253,7 @@ Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking. Used in the MySQL
 interface.
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel_get_clust_rec_for_mysql(
 /*============================*/
@@ -3640,6 +3640,35 @@ row_sel_copy_cached_field_for_mysql(
 	ut_memcpy(buf, cache, len);
 }
 
+/** Copy used fields from cached row.
+Copy cache record field by field, don't touch fields that
+are not covered by current key.
+@param[out]	buf		Where to copy the MySQL row.
+@param[in]	cached_rec	What to copy (in MySQL row format).
+@param[in]	prebuilt	prebuilt struct. */
+void
+row_sel_copy_cached_fields_for_mysql(
+	byte*		buf,
+	const byte*	cached_rec,
+	row_prebuilt_t*	prebuilt)
+{
+	const mysql_row_templ_t*templ;
+	ulint			i;
+	for (i = 0; i < prebuilt->n_template; i++) {
+		templ = prebuilt->mysql_template + i;
+		row_sel_copy_cached_field_for_mysql(
+			buf, cached_rec, templ);
+		/* Copy NULL bit of the current field from cached_rec
+		to buf */
+		if (templ->mysql_null_bit_mask) {
+			buf[templ->mysql_null_byte_offset]
+				^= (buf[templ->mysql_null_byte_offset]
+				    ^ cached_rec[templ->mysql_null_byte_offset])
+				& (byte) templ->mysql_null_bit_mask;
+		}
+	}
+}
+
 /********************************************************************//**
 Pops a cached row for MySQL from the fetch cache. */
 UNIV_INLINE
@@ -3651,7 +3680,6 @@ row_sel_dequeue_cached_row_for_mysql(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct */
 {
 	ulint			i;
-	const mysql_row_templ_t*templ;
 	const byte*		cached_rec;
 	ut_ad(prebuilt->n_fetch_cached > 0);
 	ut_ad(prebuilt->mysql_prefix_len <= prebuilt->mysql_row_len);
@@ -3661,22 +3689,7 @@ row_sel_dequeue_cached_row_for_mysql(
 	cached_rec = prebuilt->fetch_cache[prebuilt->fetch_cache_first];
 
 	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread)) {
-		/* Copy cache record field by field, don't touch fields that
-		are not covered by current key */
-
-		for (i = 0; i < prebuilt->n_template; i++) {
-			templ = prebuilt->mysql_template + i;
-			row_sel_copy_cached_field_for_mysql(
-				buf, cached_rec, templ);
-			/* Copy NULL bit of the current field from cached_rec
-			to buf */
-			if (templ->mysql_null_bit_mask) {
-				buf[templ->mysql_null_byte_offset]
-					^= (buf[templ->mysql_null_byte_offset]
-					    ^ cached_rec[templ->mysql_null_byte_offset])
-					& (byte) templ->mysql_null_bit_mask;
-			}
-		}
+		row_sel_copy_cached_fields_for_mysql(buf, cached_rec, prebuilt);
 	} else if (prebuilt->mysql_prefix_len > 63) {
 		/* The record is long. Copy it field by field, in case
 		there are some long VARCHAR column of which only a
@@ -5939,20 +5952,6 @@ row_search_check_if_query_cache_permitted(
 {
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
-
-	/* Disable query cache altogether for all tables if recovered XA
-	transactions in prepared state exist. This is because we do not
-	restore the table locks for those transactions and we may wrongly
-	set ret=TRUE above if "lock_table_get_n_locks(table) == 0". See
-	"Bug#14658648 XA ROLLBACK (DISTRIBUTED DATABASE) NOT WORKING WITH
-	QUERY CACHE ENABLED".
-	Read trx_sys->n_prepared_recovered_trx without mutex protection,
-	not possible to end up with a torn read since n_prepared_recovered_trx
-	is word size. */
-	if (trx_sys->n_prepared_recovered_trx > 0) {
-
-		return(FALSE);
-	}
 
 	table = dict_table_open_on_name(
 		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);

@@ -20,7 +20,6 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
 
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 
 --echo [1]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
 
@@ -34,7 +33,6 @@ VALUES (1, ST_GeomFromText('POINT(10 10) '), ST_GeomFromText('POINT(10 10) '));
 
 CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
 ALTER TABLE tab1 ADD  KEY (linestring_key(5));
-SET GLOBAL innodb_file_format='barracuda';
 
 --echo # create a compressed table
 CREATE TABLE tab2(col_1 CHAR (255) ,
@@ -378,4 +376,3 @@ let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 DROP TABLE tab1;
 DROP TABLE tab2;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;

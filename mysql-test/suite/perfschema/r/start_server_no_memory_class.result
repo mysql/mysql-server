@@ -95,7 +95,16 @@ select * from performance_schema.replication_applier_configuration;
 select * from performance_schema.replication_applier_status;
 select * from performance_schema.replication_applier_status_by_coordinator;
 select * from performance_schema.replication_applier_status_by_worker;
-show variables like "performance_schema%";
+select * from performance_schema.global_status;
+select * from performance_schema.status_by_thread;
+select * from performance_schema.status_by_user;
+select * from performance_schema.status_by_host;
+select * from performance_schema.status_by_account;
+select * from performance_schema.session_status;
+select * from performance_schema.global_variables;
+select * from performance_schema.variables_by_thread;
+select * from performance_schema.session_variables;
+show global variables like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
 performance_schema_accounts_size	100
@@ -125,6 +134,7 @@ performance_schema_max_rwlock_classes	40
 performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
+performance_schema_max_sql_text_length	1024
 performance_schema_max_stage_classes	150
 performance_schema_max_statement_classes	191
 performance_schema_max_statement_stack	10
@@ -138,12 +148,87 @@ performance_schema_setup_actors_size	100
 performance_schema_setup_objects_size	100
 performance_schema_users_size	100
 show engine PERFORMANCE_SCHEMA status;
-show status like "performance_schema%";
-show variables like "performance_schema_max_memory_classes";
+show global status like "performance_schema%";
+show global variables like "performance_schema_max_memory_classes";
 Variable_name	Value
 performance_schema_max_memory_classes	0
+select name from performance_schema.setup_instruments
+where name like "memory/performance_schema/%"
+  order by name;
+name
+memory/performance_schema/accounts
+memory/performance_schema/cond_class
+memory/performance_schema/cond_instances
+memory/performance_schema/events_stages_history
+memory/performance_schema/events_stages_history_long
+memory/performance_schema/events_stages_summary_by_account_by_event_name
+memory/performance_schema/events_stages_summary_by_host_by_event_name
+memory/performance_schema/events_stages_summary_by_thread_by_event_name
+memory/performance_schema/events_stages_summary_by_user_by_event_name
+memory/performance_schema/events_stages_summary_global_by_event_name
+memory/performance_schema/events_statements_current
+memory/performance_schema/events_statements_current.sqltext
+memory/performance_schema/events_statements_current.tokens
+memory/performance_schema/events_statements_history
+memory/performance_schema/events_statements_history.sqltext
+memory/performance_schema/events_statements_history.tokens
+memory/performance_schema/events_statements_history_long
+memory/performance_schema/events_statements_history_long.sqltext
+memory/performance_schema/events_statements_history_long.tokens
+memory/performance_schema/events_statements_summary_by_account_by_event_name
+memory/performance_schema/events_statements_summary_by_digest
+memory/performance_schema/events_statements_summary_by_digest.tokens
+memory/performance_schema/events_statements_summary_by_host_by_event_name
+memory/performance_schema/events_statements_summary_by_program
+memory/performance_schema/events_statements_summary_by_thread_by_event_name
+memory/performance_schema/events_statements_summary_by_user_by_event_name
+memory/performance_schema/events_statements_summary_global_by_event_name
+memory/performance_schema/events_transactions_history
+memory/performance_schema/events_transactions_history_long
+memory/performance_schema/events_transactions_summary_by_account_by_event_name
+memory/performance_schema/events_transactions_summary_by_host_by_event_name
+memory/performance_schema/events_transactions_summary_by_thread_by_event_name
+memory/performance_schema/events_transactions_summary_by_user_by_event_name
+memory/performance_schema/events_waits_history
+memory/performance_schema/events_waits_history_long
+memory/performance_schema/events_waits_summary_by_account_by_event_name
+memory/performance_schema/events_waits_summary_by_host_by_event_name
+memory/performance_schema/events_waits_summary_by_thread_by_event_name
+memory/performance_schema/events_waits_summary_by_user_by_event_name
+memory/performance_schema/file_class
+memory/performance_schema/file_handle
+memory/performance_schema/file_instances
+memory/performance_schema/hosts
+memory/performance_schema/memory_class
+memory/performance_schema/memory_summary_by_account_by_event_name
+memory/performance_schema/memory_summary_by_host_by_event_name
+memory/performance_schema/memory_summary_by_thread_by_event_name
+memory/performance_schema/memory_summary_by_user_by_event_name
+memory/performance_schema/memory_summary_global_by_event_name
+memory/performance_schema/metadata_locks
+memory/performance_schema/mutex_class
+memory/performance_schema/mutex_instances
+memory/performance_schema/prepared_statements_instances
+memory/performance_schema/rwlock_class
+memory/performance_schema/rwlock_instances
+memory/performance_schema/scalable_buffer
+memory/performance_schema/session_connect_attrs
+memory/performance_schema/setup_actors
+memory/performance_schema/setup_objects
+memory/performance_schema/socket_class
+memory/performance_schema/socket_instances
+memory/performance_schema/stage_class
+memory/performance_schema/statement_class
+memory/performance_schema/table_handles
+memory/performance_schema/table_io_waits_summary_by_index_usage
+memory/performance_schema/table_lock_waits_summary_by_table
+memory/performance_schema/table_shares
+memory/performance_schema/threads
+memory/performance_schema/thread_class
+memory/performance_schema/users
 select count(*) from performance_schema.setup_instruments
-where name like "memory/%";
+where name like "memory/%"
+    and name not like "memory/performance_schema/%";
 count(*)
 0
 select variable_value > 0 from information_schema.global_status

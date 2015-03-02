@@ -17,6 +17,9 @@
 
 #include "hash.h"               // HASH
 #include "sql_class.h"          // THD
+#include "psi_memory_key.h"
+#include "mysql/plugin.h"       // MYSQL_XIDDATASIZE
+#include "mysqld.h"             // server_id
 #include "transaction.h"        // trans_begin, trans_rollback
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "log.h"                // tc_log
@@ -34,6 +37,38 @@ static const int MAX_XID_LIST_SIZE= 1024*128;
 
 static mysql_mutex_t LOCK_transaction_cache;
 static HASH transaction_cache;
+
+static const uint MYSQL_XID_PREFIX_LEN= 8; // must be a multiple of 8
+static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
+static const uint MYSQL_XID_GTRID_LEN= MYSQL_XID_OFFSET + sizeof(my_xid);
+
+my_xid xid_t::get_my_xid() const
+{
+  // Verifies that our #define matches the one in plugin.h
+  compile_time_assert(XIDDATASIZE == MYSQL_XIDDATASIZE);
+
+  if (gtrid_length == static_cast<long>(MYSQL_XID_GTRID_LEN) &&
+      bqual_length == 0 &&
+      !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN))
+  {
+    my_xid tmp;
+    memcpy(&tmp, data + MYSQL_XID_OFFSET, sizeof(tmp));
+    return tmp;
+  }
+  return 0;
+}
+
+
+void xid_t::set(my_xid xid)
+{
+  formatID= 1;
+  memcpy(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN);
+  memcpy(data + MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id));
+  memcpy(data + MYSQL_XID_OFFSET, &xid, sizeof(xid));
+  gtrid_length= MYSQL_XID_GTRID_LEN;
+  bqual_length= 0;
+}
+
 
 static my_bool xacommit_handlerton(THD *unused1, plugin_ref plugin,
                                    void *arg)
@@ -186,7 +221,7 @@ int ha_recover(HASH *commit_list)
   }
   if (!info.list)
   {
-    sql_print_error(ER(ER_OUTOFMEMORY),
+    sql_print_error(ER_DEFAULT(ER_OUTOFMEMORY),
                     static_cast<int>(info.len * sizeof(XID)));
     DBUG_RETURN(1);
   }

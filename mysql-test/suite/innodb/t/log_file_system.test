@@ -76,7 +76,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Some file names in innodb_data_file_path d
 --remove_file $MYSQLD_DATADIR/foo
 
 --echo # Recovery and clean shutdown with old data file path
---error 2
+--error 1
 # Empty the undo logs and the change buffer with innodb_fast_shutdown=0.
 # Otherwise, log_write_requests=0 could be violated after the last restart.
 --exec $old_mysqld --innodb-fast-shutdown=0 --innodb-nonexistent-option
@@ -112,7 +112,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Redo log refers to system tablespace file 
 --remove_file $SEARCH_FILE
 
 --echo # Recovery and shutdown with innodb-force-recovery (ignore unknown file)
---error 2
+--error 1
 --exec $old_mysqld --innodb-force-recovery=1 --innodb-fast-shutdown=0 --innodb-nonexistent-option
 let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern_in_file.inc

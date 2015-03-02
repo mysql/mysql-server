@@ -124,7 +124,7 @@ and object_schema = 'test'
 and object_name =  'index_tab';
 SUM(NUMBER_OF_BYTES)
 2
-show status like 'performance_schema_%';
+show global status like 'performance_schema_%';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

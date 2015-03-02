@@ -16,8 +16,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 
 --source include/wait_until_disconnected.inc
-
---error 7
+--error 1
 --exec $MYSQLD_CMD --loose-console --performance-schema-enabled=maybe > $error_log 2>&1
 # The server restart aborts
 # [ERROR] unknown variable 'performance-schema-enabled=maybe'
@@ -26,7 +25,7 @@ let SEARCH_PATTERN= \[ERROR\] unknown variable 'performance-schema-enabled=maybe
 --echo # Server start with invalid startup option value 'performance-schema-enabled=maybe' : pass
 
 --remove_file $error_log
---error 7
+--error 1
 --exec $MYSQLD_CMD --loose-console --performance-schema-max_=12 > $error_log 2>&1
 # The server restart aborts
 # [ERROR] unknown variable 'performance-schema-max_=12'
@@ -42,7 +41,7 @@ let SEARCH_PATTERN= \[ERROR\] unknown variable 'performance-schema-max_=12';
 #    a similar reaction.
 
 --remove_file $error_log
---error 2
+--error 1
 --exec $MYSQLD_CMD --loose-console --performance-schema-unknown_99 > $error_log 2>&1
 # The server restart aborts
 let SEARCH_PATTERN= \[ERROR\] unknown option '--performance-schema-unknown_99';

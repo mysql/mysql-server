@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
   Private interface for the server (declarations).
 */
 
+#define PFS_AUTOSCALE_VALUE (-1)
+#define PFS_AUTOSIZE_VALUE (-1)
+
 #ifndef PFS_MAX_MUTEX_CLASS
   #define PFS_MAX_MUTEX_CLASS 200
 #endif
@@ -41,12 +44,6 @@
 #endif
 #ifndef PFS_MAX_SOCKET_CLASS
   #define PFS_MAX_SOCKET_CLASS 10
-#endif
-#ifndef PFS_MAX_SETUP_ACTOR
-  #define PFS_MAX_SETUP_ACTOR 100
-#endif
-#ifndef PFS_MAX_SETUP_OBJECT
-  #define PFS_MAX_SETUP_OBJECT 100
 #endif
 #ifndef PFS_MAX_STAGE_CLASS
   #define PFS_MAX_STAGE_CLASS 150
@@ -188,9 +185,9 @@ struct PFS_global_param
   /** Maximum number of rows in table EVENTS_WAITS_HISTORY_LONG. */
   long m_events_waits_history_long_sizing;
   /** Maximum number of rows in table SETUP_ACTORS. */
-  ulong m_setup_actor_sizing;
+  long m_setup_actor_sizing;
   /** Maximum number of rows in table SETUP_OBJECTS. */
-  ulong m_setup_object_sizing;
+  long m_setup_object_sizing;
   /** Maximum number of rows in table HOSTS. */
   long m_host_sizing;
   /** Maximum number of rows in table USERS. */
@@ -239,6 +236,9 @@ struct PFS_global_param
 
   long m_metadata_lock_sizing;
 
+  ulong m_max_digest_length;
+  ulong m_max_sql_text_length;
+
   /** Sizing hints, for auto tuning. */
   PFS_sizing_hints m_hints;
 };
@@ -279,6 +279,11 @@ void pfs_automated_sizing(PFS_global_param *param);
 void initialize_performance_schema_acl(bool bootstrap);
 
 void check_performance_schema();
+
+/**
+  Reset the aggregated status counter stats.
+*/
+void reset_pfs_status_stats();
 
 /**
   Initialize the dynamic array holding individual instrument settings collected

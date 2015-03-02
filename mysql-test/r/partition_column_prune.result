@@ -6,11 +6,10 @@ insert into t1 values ('a', NULL, 'd');
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain partitions select * from t1 where a = 'a' AND c = 'd';
+explain select * from t1 where a = 'a' AND c = 'd';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 'd') and (`test`.`t1`.`a` = 'a'))
 select * from t1 where a = 'a' AND c = 'd';
 a	b	c

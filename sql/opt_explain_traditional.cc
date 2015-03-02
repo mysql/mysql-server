@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "opt_explain_traditional.h"
+#include "current_thd.h"
+#include "sql_class.h"
 
 /**
   Heads of "extra" column parts
@@ -61,7 +63,7 @@ static const char *mod_type_name[]=
   "NONE", "INSERT", "UPDATE", "DELETE", "REPLACE"
 };
 
-bool Explain_format_traditional::send_headers(select_result *result)
+bool Explain_format_traditional::send_headers(Query_result *result)
 {
   return ((nil= new Item_null) == NULL ||
           Explain_format::send_headers(result) ||

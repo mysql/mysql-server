@@ -7,31 +7,26 @@ SET default_storage_engine=InnoDB;
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
-# These values can change during the test
-let $innodb_file_format_orig = `SELECT @@innodb_file_format`;
-let $innodb_file_format_max_orig = `SELECT @@innodb_file_format_max`;
-let $innodb_file_per_table_orig = `SELECT @@innodb_file_per_table`;
-let $innodb_large_prefix_orig = `SELECT @@innodb_large_prefix`;
-let $innodb_strict_mode_orig = `SELECT @@session.innodb_strict_mode`;
 --enable_query_log
 
-SET GLOBAL innodb_file_format = `Barracuda`;
-SET GLOBAL innodb_file_per_table = ON;
-
 --echo # Test 1) Show the page size from Information Schema
+--disable_warnings
 SELECT variable_value FROM information_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_page_size';
+--enable_warnings
 
 --echo # Test 2) The number of buffer pool pages is dependent upon the page size.
+--disable_warnings
 --replace_result 3071 {checked_valid} 3072 {checked_valid}
 SELECT variable_value FROM information_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+--enable_warnings
 
 --echo # Test 3) Query some information_shema tables that are dependent upon
 --echo #         the page size.
 # Pulled from innodb-system-table-view.test
 # The IDs of mysql.innodb_table_stats and mysql.innodb_index_stats are
-# unpredictable, probably they on whether mtr has created the database for
+# unpredictable. They depend on whether mtr has created the database for
 # this test from scratch or is using a previously created database where
 # those tables have been dropped and recreated. If we can force mtr to
 # use a freshly created database for this test then the following
@@ -43,7 +38,16 @@ SELECT variable_value FROM information_schema.global_status
 --let $rep_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_master_info'`
 --let $rep_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_relay_log_info'`
 --let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
---eval SELECT INDEX_ID, NAME, TABLE_ID, TYPE, N_FIELDS, SPACE FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3)
+--let $help_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_topic'`
+--let $help_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_category'`
+--let $help_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_relation'`
+--let $help_table_4 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_keyword'`
+--let $timezone_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone'`
+--let $timezone_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_leap_second'`
+--let $timezone_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_name'`
+--let $timezone_table_4 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_transition'`
+--let $timezone_table_5 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_transition_type'`
+--eval SELECT INDEX_ID, NAME, TABLE_ID, TYPE, N_FIELDS, SPACE!=0 FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $timezone_table_1, $timezone_table_2, $timezone_table_3, $timezone_table_4, $timezone_table_5)
 --enable_query_log
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
@@ -262,7 +266,6 @@ CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_per_table = ON;
 SET GLOBAL innodb_file_format = `Antelope`;
-SHOW VARIABLES LIKE 'innodb_file%';
 --error ER_ILLEGAL_HA
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
@@ -466,17 +469,3 @@ CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
 DROP TABLE t1;
-
-#
-# restore environment to the state it was before this test execution
-#
-
---disable_query_log
-EVAL SET GLOBAL innodb_file_format = $innodb_file_format_orig;
-EVAL SET GLOBAL innodb_file_format_max = $innodb_file_format_max_orig;
-EVAL SET GLOBAL innodb_file_per_table = $innodb_file_per_table_orig;
-EVAL SET GLOBAL innodb_large_prefix = $innodb_large_prefix_orig;
-EVAL SET SESSION innodb_strict_mode = $innodb_strict_mode_orig;
-#-- error 0, ER_UNKNOWN_SYSTEM_VARIABLE
-#EVAL SET GLOBAL innodb_change_buffering_debug = @innodb_change_buffering_debug_orig;
---enable_query_log

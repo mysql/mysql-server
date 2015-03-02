@@ -187,7 +187,7 @@ private:
   startup from mysqld.cc.
 */
 
-void init_optimizer_cost_module();
+void init_optimizer_cost_module(bool enable_plugins);
 
 /**
   Deletes the optimizer cost module. This should be called when

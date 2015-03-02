@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -135,9 +135,7 @@ struct PFS_digest_row
   /** Length in bytes of @c m_digest. */
   uint m_digest_length;
   /** Column DIGEST_TEXT. */
-  char m_digest_text[COL_DIGEST_TEXT_SIZE];
-  /** Length in bytes of @c m_digest_text. */
-  uint m_digest_text_length;
+  String m_digest_text;
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_statements_digest_stat*);
@@ -628,25 +626,33 @@ public:
     m_length= 0;
   }
 
-  void make_row(const char* str, uint length);
+  void make_row(const char* str, size_t length);
 
-  char m_str[64];
+  char m_str[NAME_CHAR_LEN+1];
   uint m_length;
 };
 
 struct PFS_variable_value_row
 {
+  void make_row(const char* str, size_t length);
+
+  char m_str[1024];
+  uint m_length;
+};
+
+struct PFS_user_variable_value_row
+{
 public:
-  PFS_variable_value_row()
+  PFS_user_variable_value_row()
     : m_value(NULL), m_value_length(0)
   {}
 
-  PFS_variable_value_row(const PFS_variable_value_row& rhs)
+  PFS_user_variable_value_row(const PFS_user_variable_value_row& rhs)
   {
     make_row(rhs.m_value, rhs.m_value_length);
   }
 
-  ~PFS_variable_value_row()
+  ~PFS_user_variable_value_row()
   {
     clear();
   }

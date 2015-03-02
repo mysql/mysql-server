@@ -1,0 +1,21 @@
+#-----------------------------------------------------------------------
+# Setup
+#-----------------------------------------------------------------------
+# Search for : --secure-file-priv is set to NULL. Operations
+#              related to importing and exporting data are
+#              disabled
+show variables like 'secure_file_priv';
+Variable_name	Value
+secure_file_priv	null
+use test;
+drop table if exists secure_file_priv_test_null;
+create table secure_file_priv_test_null(c1 int);
+insert into secure_file_priv_test_null values (1), (2), (3), (4);
+select * from secure_file_priv_test_null into outfile 'blah';
+ERROR HY000: The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
+select * from secure_file_priv_test_null into outfile 'null/blah';
+ERROR HY000: The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
+drop table secure_file_priv_test_null;
+#-----------------------------------------------------------------------
+# Clean-up
+#-----------------------------------------------------------------------

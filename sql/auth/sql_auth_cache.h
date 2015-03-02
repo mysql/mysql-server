@@ -101,6 +101,10 @@ public:
   MYSQL_TIME password_last_changed;
   uint password_lifetime;
   bool use_default_password_lifetime;
+  /**
+    Specifies whether the user account is locked or unlocked.
+  */
+  bool account_locked;
 
   ACL_USER *copy(MEM_ROOT *root);
 };

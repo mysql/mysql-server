@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,6 +74,9 @@ void mysqld_stmt_fetch(THD *thd, char *packet, size_t packet_length);
 void mysqld_stmt_reset(THD *thd, char *packet, size_t packet_length);
 void mysql_stmt_get_longdata(THD *thd, char *pos, size_t packet_length);
 void reinit_stmt_before_use(THD *thd, LEX *lex);
+bool select_like_stmt_cmd_test(THD *thd,
+                               class Sql_cmd_dml *cmd,
+                               ulong setup_tables_done_option);
 
 /**
   Execute a fragment of server code in an isolated context, so that
@@ -365,11 +368,11 @@ private:
   A result class used to send cursor rows using the binary protocol.
 */
 
-class Select_fetch_protocol_binary: public select_send
+class Query_fetch_protocol_binary: public Query_result_send
 {
   Protocol_binary protocol;
 public:
-  Select_fetch_protocol_binary(THD *thd);
+  Query_fetch_protocol_binary(THD *thd);
   virtual bool send_result_set_metadata(List<Item> &list, uint flags);
   virtual bool send_data(List<Item> &items);
   virtual bool send_eof();
@@ -421,7 +424,7 @@ public:
   PSI_prepared_stmt* m_prepared_stmt;
 
 private:
-  Select_fetch_protocol_binary result;
+  Query_fetch_protocol_binary result;
   uint flags;
   bool with_log;
   LEX_CSTRING m_name; /* name for named prepared statements */

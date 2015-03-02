@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -167,10 +167,22 @@ public:
 	@return true if they have the same data filenames and paths */
 	bool intersection(const Tablespace* other_space);
 
+	/** Use the ADD DATAFILE path to create a Datafile object and add
+	it to the front of m_files. Parse the datafile path into a path
+	and a basename with extension 'ibd'. This datafile_path provided
+	may be an absolute or relative path, but it must end with the
+	extension .ibd and have a basename of at least 1 byte.
+
+	Set tablespace m_path member and add a Datafile with the filename.
+	@param[in]	datafile_path	full path of the tablespace file. */
+	dberr_t add_datafile(
+		const char*	datafile_path);
+
 	/* Return a pointer to the first Datafile for this Tablespace
 	@return pointer to the first Datafile for this Tablespace*/
 	Datafile* first_datafile()
 	{
+		ut_a(!m_files.empty());
 		return &(m_files.front());
 	}
 

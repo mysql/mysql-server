@@ -272,9 +272,12 @@ void table_esms_global_by_event_name
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_statement_visitor visitor(klass);
-  PFS_connection_iterator::visit_global(true, /* hosts */
+  PFS_connection_iterator::visit_global(true,  /* hosts */
                                         false, /* users */
-                                        true, true, & visitor);
+                                        true,  /* accounts */
+                                        true,  /* threads */
+                                        false, /* THDs */
+                                        & visitor);
 
   m_row.m_stat.set(m_normalizer, & visitor.m_stat);
   m_row_exists= true;

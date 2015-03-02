@@ -1299,6 +1299,16 @@ static inline int mysql_mutex_lock(...)
 */
 
 thread_local_key_t THR_PFS;
+thread_local_key_t THR_PFS_VG;   // global_variables
+thread_local_key_t THR_PFS_SV;   // session_variables
+thread_local_key_t THR_PFS_VBT;  // variables_by_thread
+thread_local_key_t THR_PFS_SG;   // global_status
+thread_local_key_t THR_PFS_SS;   // session_status
+thread_local_key_t THR_PFS_SBT;  // status_by_thread
+thread_local_key_t THR_PFS_SBU;  // status_by_user
+thread_local_key_t THR_PFS_SBH;  // status_by_host
+thread_local_key_t THR_PFS_SBA;  // status_by_account
+
 bool THR_PFS_initialized= false;
 
 static inline PFS_thread*
@@ -3854,8 +3864,6 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
 
     DBUG_ASSERT(index <= wait_class_max);
     DBUG_ASSERT(sanitize_thread(thread) != NULL);
-    DBUG_ASSERT(event_name_array >= thread_instr_class_waits_array_start);
-    DBUG_ASSERT(event_name_array < thread_instr_class_waits_array_end);
 
     if (flags & STATE_FLAG_TIMED)
     {
@@ -5059,8 +5067,8 @@ void pfs_set_statement_text_v1(PSI_statement_locker *locker,
   {
     PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
     DBUG_ASSERT(pfs != NULL);
-    if (text_len > sizeof (pfs->m_sqltext))
-      text_len= sizeof(pfs->m_sqltext);
+    if (text_len > pfs_max_sqltext)
+      text_len= pfs_max_sqltext;
     if (text_len)
       memcpy(pfs->m_sqltext, text, text_len);
     pfs->m_sqltext_length= text_len;

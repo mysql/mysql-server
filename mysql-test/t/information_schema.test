@@ -29,7 +29,9 @@ DROP VIEW IF EXISTS v1;
 --echo #
 select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
 
+--disable_warnings
 show variables where variable_name like "skip_show_database";
+--enable_warnings
 grant select, update, execute on test.* to mysqltest_2@localhost;
 grant select, update on test.* to mysqltest_1@localhost;
 create user mysqltest_3@localhost;
@@ -442,9 +444,11 @@ where table_schema="mysql" and table_name="user";
 # test for 'show open tables ... where'
 show open tables where `table` like "user";
 # test for 'show status ... where'
+--disable_warnings
 show status where variable_name like "%database%";
 # test for 'show variables ... where'
 show variables where variable_name like "skip_show_databas";
+--enable_warnings
 
 #
 # Bug#7981 SHOW GLOBAL STATUS crashes server
@@ -1390,10 +1394,12 @@ set global init_connect="";
 # Bug#34517 SHOW GLOBAL STATUS does not work properly in embedded server.
 #
 
+--disable_warnings
 create table t0 select * from information_schema.global_status where VARIABLE_NAME='COM_SELECT';
 SELECT 1;
 select a.VARIABLE_VALUE - b.VARIABLE_VALUE from t0 b, information_schema.global_status a
    where a.VARIABLE_NAME = b.VARIABLE_NAME;
+--enable_warnings
 drop table t0;
 
 #
@@ -1856,14 +1862,18 @@ use test;
 --disable_result_log
 SELECT * FROM INFORMATION_SCHEMA.TABLES;
 --enable_result_log
+--disable_warnings
 SELECT VARIABLE_VALUE INTO @val1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
   VARIABLE_NAME LIKE 'Opened_tables';
+--enable_warnings
 --disable_result_log
 SELECT ENGINE FROM INFORMATION_SCHEMA.TABLES;
 --enable_result_log
+--disable_warnings
 --echo # The below SELECT query should give same output as above SELECT query.
 SELECT VARIABLE_VALUE INTO @val2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
   VARIABLE_NAME LIKE 'Opened_tables';
+--enable_warnings
 --echo # The below select should return '1'
 SELECT @val1 = @val2;
 

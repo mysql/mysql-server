@@ -17,45 +17,37 @@ SHOW CREATE VIEW v1;
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM v1;
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --sorted_result
 SELECT a FROM t1 PARTITION (p0);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 INSERT INTO v1 VALUES (10);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 INSERT INTO v1 VALUES (11);
-eval $get_handler_status_counts;
---echo # 2 locks (1 table, all partitions pruned)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM v1;
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --sorted_result
 SELECT a FROM t1 PARTITION (p0);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--source include/get_handler_status_counts.inc
 --sorted_result
 SELECT * FROM t1;
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a FROM t1 PARTITION (p0) WITH CHECK OPTION;
 FLUSH STATUS;
 INSERT INTO v1 VALUES (20);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 INSERT INTO v1 VALUES (21);
-eval $get_handler_status_counts;
---echo # 2 locks (1 table, all partitions pruned)
+--source include/get_handler_status_counts.inc
 --sorted_result
 SELECT * FROM v1;
 --sorted_result
@@ -65,18 +57,15 @@ CREATE VIEW v1 AS
 SELECT a FROM t1 PARTITION (p0) WHERE a = 30 WITH CHECK OPTION;
 FLUSH STATUS;
 INSERT INTO v1 VALUES (30);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v1 VALUES (31);
-eval $get_handler_status_counts;
---echo # 2 locks (1 table, all partitions pruned)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v1 VALUES (32);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--source include/get_handler_status_counts.inc
 --sorted_result
 SELECT * FROM v1;
 --sorted_result
@@ -95,8 +84,8 @@ SET @@default_storage_engine = 'InnoDB';
 
 --echo # Test to show if I_S affects HANDLER_ counts
 FLUSH STATUS;
-eval $get_handler_status_counts;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
+--source include/get_handler_status_counts.inc
 --echo # OK, seems to add number of variables processed before HANDLER_WRITE
 --echo # and number of variables + 1 evaluated in the previous call in RND_NEXT
 
@@ -135,10 +124,8 @@ INSERT INTO t1 PARTITION (pNeg, pNonExisting) VALUES (1, "error");
 --echo # Duplicate partitions and overlapping partitions and subpartitios is OK
 FLUSH STATUS;
 INSERT INTO t1 PARTITION (pNeg, pNeg) VALUES (-1, "pNeg(-subp1)");
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Should be 1 commit
---echo # 4 external locks (due to pruning of locks)
---echo # (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
 --echo # and 18 write (1 ha_innobase + 17 internal I_S write)
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, "pNeg(-subp1)");
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-2, "(pNeg-)subp0");
@@ -148,25 +135,22 @@ INSERT INTO t1 PARTITION (`p100-99999`) VALUES (100, "`p100-99999`(-subp6)"), (1
 INSERT INTO t1 PARTITION(`p10-99`,subp3) VALUES (1, "subp3"), (10, "p10-99");
 FLUSH STATUS;
 INSERT INTO t1 PARTITION(subp3) VALUES (3, "subp3");
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Should be 1 commit
---echo # 4 external locks
 --echo # (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
 --echo # and 18 write (1 ha_innobase + 17 internal I_S write)
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # should be 1 commit
---echo # 9 locks (1 ha_partition + 8 ha_innobase)
 --echo # 17 writes (internal I_S)
 INSERT INTO t1 PARTITION(`p0-9`) VALUES (5, "p0-9:subp3");
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 1 commit
 --echo # + 19 rnd next (internal I_S)
 --echo # + 19 write (18 internal I_S + 1 insert)
 UNLOCK TABLES;
-eval $get_handler_status_counts;
---echo # + 9 locks (unlocks)
+--source include/get_handler_status_counts.inc
 --echo # + 19 rnd next (internal I_S)
 --echo # + 18 write (internal I_S)
 
@@ -198,37 +182,34 @@ SET @@global.innodb_stats_on_metadata=@save_innodb_stats_on_metadata;
 FLUSH STATUS;
 --error ER_UNKNOWN_PARTITION
 SELECT * FROM t1 PARTITION (pNonexistent);
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # should have failed before locking (only 17 internal I_S writes)
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (subp2);
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Should be 1 commit
---echo # 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
 --echo # 1 read first (also calls index_read)
 --echo # 2 read key (first from innobase_get_index and second from index first)
 --echo # 17 writes (internal I_S)
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (subp2,pNeg) AS TableAlias;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Should be 1 commit
---echo # 8 locks (1 ha_partition + 2 + 1 ha_innobase) x 2
 --echo # 3 read first (one for each partition)
 --echo # 6 read key (3 from read first and 3 from innobase_get_index)
 --echo # 3 read next (one next call after each read row)
 --echo # 17 writes (internal I_S)
 FLUSH STATUS;
 LOCK TABLE t1 READ, t1 as TableAlias READ;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 commit
---echo # 18 locks
 --echo # 18 READ KEY from opening a new partition table instance,
 --echo # (1 innobase_get_index for each index, per partition, 1 x 2 x 8 = 16
 --echo #  + info(HA_STATUS_CONST) call on the partition with the most number
 --echo #  of rows, 2 innobase_get_index for updating both index statistics)
 --echo # 17 writes (internal I_S)
 SELECT * FROM t1 PARTITION (subp3) AS TableAlias;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 1 commit
 --echo # + 1 read first (read first key from index in one partition)
 --echo # + 2 read key (innobase_get_index from index_init + from index_first)
@@ -236,7 +217,7 @@ eval $get_handler_status_counts;
 --echo # + 19 rnd next (from the last I_S query)
 --echo # + 18 write (internal I_S)
 SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 1 commit
 --echo # + 2 read first (one for each subpart)
 --echo # + 4 read key (innobase_get_index from index_init + from index_first)
@@ -244,11 +225,11 @@ eval $get_handler_status_counts;
 --echo # + 19 rnd next (from the last I_S query)
 --echo # + 18 write (internal I_S)
 SELECT * FROM t1 WHERE a = 1000000;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # No matching partition, only internal I_S.
 SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
 UNLOCK TABLES;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 18 for unlock (same as lock above) (100 is not in pNeg, no match)
 
 --echo # Test that EXPLAIN PARTITION works
@@ -257,8 +238,7 @@ EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNonexistent);
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2);
 FLUSH STATUS;
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2,pNeg) AS tablealias;
-eval $get_handler_status_counts;
---echo # 8 locks (1 ha_partition + 3 ha_innobase) x 2 (lock/unlock)
+--source include/get_handler_status_counts.inc
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp3) AS tablealias;
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 1000000;
@@ -278,24 +258,21 @@ SELECT * FROM t1 AS `PARTITION`;
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
-eval $get_handler_status_counts;
---echo # 2 locks (1 ha_partition) x 2 (lock/unlock), Was 4 locks before WL4443
+--source include/get_handler_status_counts.inc
 --echo # explicit pruning says part_id 0 and implicit pruning says part_id 1
 --echo # so no partition will be locked!
 --echo # 0 rollback (since no locked partition)
 --echo # 17 writes (I_S internal)
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'Insert by REPLACE');
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 commit
---echo # 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
 --echo # 18 writes (17 I_S internal, 1 ha_innobase)
 SELECT * FROM t1 PARTITION (pNeg);
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 commit
---echo # 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
 --echo # 2 read key (1 innobase_get_index when init the index + 1 index read
 --echo # to get the position to update)
 --echo # 1 update (updated one row, since there is no delete trigger, update
@@ -304,12 +281,11 @@ eval $get_handler_status_counts;
 SELECT * FROM t1 PARTITION (pNeg);
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 commit
---echo # 9 locks
 --echo # 17 write (internal I_S)
 DELETE FROM t1 PARTITION(subp1) WHERE b = "REPLACEd by REPLACE";
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 1 commit
 --echo # + 1 delete (one row deleted)
 --echo # + 3 read key (1 innodb_get_index in records_in_range,
@@ -319,25 +295,25 @@ eval $get_handler_status_counts;
 --echo # + 18 write (internal I_S)
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Failed before start_stmt/execution.
 --echo # + 19 rnd next (internal I_S)
 --echo #   0 rollback (No partition had called start_stmt, all parts pruned)
 --echo # + 18 write (internal I_S)
 REPLACE INTO t1 PARTITION (pNeg) VALUES (-21, 'Insert by REPLACE');
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 1 commit
 --echo # + 19 rnd next (internal I_S)
 --echo # + 19 write (18 internal I_S + 1 real write)
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 1 commit
 --echo # + 2 read key (see non locked query)
 --echo # + 19 rnd next (internal I_S)
 --echo # + 1 update (see non locked query)
 --echo # + 19 write (18 internal I_S + 1 failed write)
 SELECT * FROM t1 PARTITION (subp1);
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 1 commit
 --echo # + 1 read first 
 --echo # + 2 read key 
@@ -345,8 +321,7 @@ eval $get_handler_status_counts;
 --echo # + 19 rnd next (internal I_S)
 --echo # + 18 write (internal I_S)
 UNLOCK TABLES;
-eval $get_handler_status_counts;
---echo # + 9 locks
+--source include/get_handler_status_counts.inc
 --echo # + 19 rnd next (internal I_S)
 --echo # + 18 write (internal I_S)
 
@@ -356,41 +331,36 @@ eval $get_handler_status_counts;
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`) INTO OUTFILE 'loadtest.txt';
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 commit
---echo # 10 locks (1 ha_partition + 4 ha_innobase) x 2 (lock/unlock)
 --echo # 4 read first (for reading the first row in 4 partitions)
 --echo # 8 read key (4 from read first + 4 for index init)
 --echo # 5 read next (one after each row)
 --echo # 17 write (internal I_S)
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
-eval $get_handler_status_counts;
---echo # 10 locks (table + 4 partition) x (lock + unlock)
+--source include/get_handler_status_counts.inc
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg);
-eval $get_handler_status_counts;
---echo # 6 locks (1 ha_partition + 2 ha_innobase) x 2 (lock+unlock)
+--source include/get_handler_status_counts.inc
 --echo # 1 rollback
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, subp4, subp5);
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 10 lock (1 ha_partition + 4 ha_innobase) x 2 (lock + unlock)
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
-eval $get_handler_status_counts;
---echo # 9 locks
+--source include/get_handler_status_counts.inc
 --echo # 18 read key (ALTER forces table to be closed, see above for open)
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`);
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 23 write (18 internal I_S + 5 rows)
 UNLOCK TABLES;
-eval $get_handler_status_counts;
---echo # + 9 locks
+--source include/get_handler_status_counts.inc
 --remove_file $MYSQLD_DATADIR/test/loadtest.txt
 
 --echo #
@@ -398,7 +368,7 @@ eval $get_handler_status_counts;
 --echo #
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 commit
 --echo # 4 lock (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
 --echo # 1 read first (read first row, called from first rnd_next)
@@ -409,7 +379,7 @@ EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
 SELECT * FROM t1 PARTITION (subp0) ORDER BY a;
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 commit
 --echo # 4 lock
 --echo # 1 read key
@@ -418,7 +388,7 @@ EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WH
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2')
 WHERE a = -2;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 commit
 --echo # 4 lock
 --echo # 2 read key - (2 index read)
@@ -427,13 +397,13 @@ eval $get_handler_status_counts;
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2');
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Nothing, since impossible PARTITION+WHERE clause.
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Nothing, since impossible PARTITION+WHERE clause.
 EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0)
 SET a = -2, b = concat(b, ', Updated from a = 100') WHERE a = 100;
@@ -441,7 +411,7 @@ FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 UPDATE t1 PARTITION(`p100-99999`) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 6 lock
 --echo # 4 read key (1 index init + 1 index read + 1 rnd init + 1 rnd pos)
 --echo # 1 read rnd (rnd pos)
@@ -450,8 +420,7 @@ FLUSH STATUS;
 --error ER_DUP_ENTRY,ER_DUP_KEY
 UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -4, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
-eval $get_handler_status_counts;
---echo # 10 locks
+--source include/get_handler_status_counts.inc
 --echo # 4 read key
 --echo # 1 read rnd
 --echo # 1 rollback
@@ -459,7 +428,7 @@ eval $get_handler_status_counts;
 FLUSH STATUS;
 UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -222, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 commit
 --echo # 1 delete
 --echo # 4 read key
@@ -470,30 +439,28 @@ SELECT * FROM t1 ORDER BY a;
 --echo # Test of non matching partition (i.e ER_NO_PARTITION_FOUND)
 FLUSH STATUS;
 UPDATE t1 SET b = concat(b, ', Updated2') WHERE a = 1000000;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Nothing (no matching partition found)
 FLUSH STATUS;
 UPDATE t1 PARTITION (pNeg) SET b = concat(b, ', Updated2') WHERE a = 1000000;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Nothing (no matching partition found)
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
-eval $get_handler_status_counts;
---echo # 9 locks
+--source include/get_handler_status_counts.inc
 UPDATE t1 PARTITION (subp7) SET b = concat(b, ', Updated to 103'), a = 103 WHERE a = 101;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 4 read key
 --echo # + 1 read rnd
 --echo # + 1 update
 UPDATE t1 PARTITION (`p100-99999`) SET b = concat(b, ', Updated to 110'), a = 110 WHERE a = 103;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 1 delete
 --echo # + 4 read key
 --echo # + 1 read rnd
 --echo # + 19 write (18 internal I_S + 1 insert)
 UNLOCK TABLES;
-eval $get_handler_status_counts;
---echo + 9 locks
+--source include/get_handler_status_counts.inc
 
 --echo #
 --echo # Test DELETE
@@ -501,64 +468,54 @@ eval $get_handler_status_counts;
 SELECT * FROM t1 ORDER BY b, a;
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (pNeg) WHERE a = -1;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 delete
---echo # 4 locks (pruning works!).
 --echo # 1 read key (index read)
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (subp1) WHERE b like '%subp1%';
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 1 delete
---echo # 4 locks
 --echo # 1 read first
 --echo # 2 read key
 --echo # 3 read rnd
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
-eval $get_handler_status_counts;
---echo # 9 locks
+--source include/get_handler_status_counts.inc
 DELETE FROM t1 PARTITION (subp1) WHERE b = 'p0-9:subp3';
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 3 read key (1 innodb_get_index in records_in_range
 --echo #               + 1 innobase_get_index in index_init + 1 index read)
 DELETE FROM t1 PARTITION (`p0-9`) WHERE b = 'p0-9:subp3';
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # + 1 delete
 --echo # + 6 read key (same as above, but for two subpartitions)
 --echo # + 1 read next (read next after found row)
 UNLOCK TABLES;
-eval $get_handler_status_counts;
---echo # + 9 locks
+--source include/get_handler_status_counts.inc
 
 --echo # Test multi-table DELETE
 --echo # Can be expressed in two different ways.
 CREATE TABLE t2 LIKE t1;
 FLUSH STATUS;
 INSERT INTO t2 PARTITION (`p10-99`, subp3, `p100-99999`) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
-eval $get_handler_status_counts;
---echo # 24 locks (2 table, 5 + 5 subpartitions lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
-eval $get_handler_status_counts;
---echo # 14 locks (1 table, 6 subpartitions lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 INSERT INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
-eval $get_handler_status_counts;
---echo # 16 locks (2 tables, 1 + 5 subpartitions lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 INSERT IGNORE INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
-eval $get_handler_status_counts;
---echo # 16 locks (2 tables, 1 + 5 subpartitions lock/unlock)
+--source include/get_handler_status_counts.inc
 TRUNCATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
-eval $get_handler_status_counts;
---echo # 30 locks (2 table, 8 + 5 subpartitions lock/unlock)
+--source include/get_handler_status_counts.inc
 FLUSH STATUS;
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
-eval $get_handler_status_counts;
---echo # 14 locks (2 table, 5 subpartitions lock/unlock)
+--source include/get_handler_status_counts.inc
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 SHOW CREATE TABLE t2;
@@ -569,13 +526,12 @@ FLUSH STATUS;
 --error ER_PARSE_ERROR
 DELETE t1 PARTITION (pNeg), t3 FROM t1, t3
 WHERE t1.a = t3.a AND t3.b = 'subp3';
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # Multi table delete without any matching rows
 FLUSH STATUS;
 DELETE t1, t2 FROM t1 PARTITION (pNeg), t3, t2 PARTITION (subp3)
 WHERE t1.a = t3.a AND t3.b = 'subp3' AND t3.a = t2.a;
-eval $get_handler_status_counts;
---echo # 12 locks (3 in t1, 1 in t3, 2 in t2) x 2 (lock + unlock)
+--source include/get_handler_status_counts.inc
 --echo # 1 read first (first rnd_next in t2)
 --echo # 4 read key (1 innodb_get_index in rnd_init in t2 + index read in t2
 --echo #             + 2 innodb_get_index in index_init in t1)
@@ -584,9 +540,8 @@ eval $get_handler_status_counts;
 FLUSH STATUS;
 DELETE FROM t2, t3 USING t2 PARTITION (`p0-9`), t3, t1 PARTITION (subp3)
 WHERE t1.a = t3.a AND t3.b = 'subp3' AND t2.a = t1.a;
-eval $get_handler_status_counts;
+--source include/get_handler_status_counts.inc
 --echo # 4 delete (2 in t2 + 2 in t3)
---echo # 12 locks (3 in t2, 1 in t3, 2 in t1) x 2 (lock + unlock)
 --echo # 3 read first (1 in t1 + 1 in t3 + 1 in t3, for second row in t1)
 --echo # 17 read key (1 index_init in t1 + 1 read first in t1 + 
 --echo #              2 index_init in t2 + 1 index read in t2 +
@@ -612,8 +567,7 @@ TRUNCATE TABLE t1 PARTITION(`p10-99`);
 --echo # Note that it does not support truncating subpartitions
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg;
-eval $get_handler_status_counts;
---echo # 6 locks (lock/unlock two subpartitions + table)
+--source include/get_handler_status_counts.inc
 
 --echo # Test on non partitioned table
 --error ER_PARTITION_CLAUSE_ON_NONPARTITIONED

@@ -19,6 +19,27 @@ let $insert_statement= INSERT INTO t1 VALUES (1, "Original from partition p0"), 
 
 let $crash_statement= ALTER TABLE t1 ADD PARTITION
 (PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+
+--echo #
+--echo # Test without crash/failure injection
+--echo #
+--eval $create_statement
+--eval $insert_statement
+--echo # State before statement
+--replace_result #p# #P# #sp# #SP#
+--list_files $DATADIR/test
+SHOW CREATE TABLE t1;
+--sorted_result
+SELECT * FROM t1;
+--eval $crash_statement
+--echo # State after statement
+--replace_result #p# #P# #sp# #SP#
+--list_files $DATADIR/test
+SHOW CREATE TABLE t1;
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --source suite/parts/inc/partition_crash_add.inc
 let $fail_statement= $crash_statement;
 --source suite/parts/inc/partition_fail_add.inc
@@ -29,6 +50,27 @@ let $fail_statement= $crash_statement;
 let $crash_statement= ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
 (PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
  PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+
+--echo #
+--echo # Test without crash/failure injection
+--echo #
+--eval $create_statement
+--eval $insert_statement
+--echo # State before statement
+--replace_result #p# #P# #sp# #SP#
+--list_files $DATADIR/test
+SHOW CREATE TABLE t1;
+--sorted_result
+SELECT * FROM t1;
+--eval $crash_statement
+--echo # State after statement
+--replace_result #p# #P# #sp# #SP#
+--list_files $DATADIR/test
+SHOW CREATE TABLE t1;
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --source suite/parts/inc/partition_crash_change.inc
 let $fail_statement= $crash_statement;
 --source suite/parts/inc/partition_fail_change.inc

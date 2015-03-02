@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +23,8 @@
 */
 
 #include "filesort.h"
+
+#include "current_thd.h"
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
@@ -37,6 +40,7 @@
 #include "priority_queue.h"
 #include "log.h"
 #include "item_sum.h"                   // Item_sum
+#include "psi_memory_key.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -368,6 +372,13 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     const ulong min_sort_memory=
       max<ulong>(MIN_SORT_MEMORY,
                  ALIGN_SIZE(MERGEBUFF2 * (param.rec_length + sizeof(uchar*))));
+    /*
+      Cannot depend on num_rows. For external sort, space for upto MERGEBUFF2
+      rows is required.
+    */
+    if (num_rows < MERGEBUFF2)
+      num_rows= MERGEBUFF2;
+
     while (memory_available >= min_sort_memory)
     {
       ha_rows keys= memory_available / (param.rec_length + sizeof(char*));
@@ -523,9 +534,10 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
       to client!
     */
     const char *cause= kill_errno
-                       ? ((kill_errno == THD::KILL_CONNECTION && !abort_loop)
-                         ? ER(THD::KILL_QUERY)
-                         : ER(kill_errno))
+                       ? ((kill_errno == THD::KILL_CONNECTION
+                         && !connection_events_loop_aborted())
+                          ? ER_THD(thd, THD::KILL_QUERY)
+                          : ER_THD(thd, kill_errno))
                        : thd->get_stmt_da()->message_text();
     const char *msg=   ER_THD(thd, ER_FILSORT_ABORT);
 
@@ -602,18 +614,33 @@ uint Filesort::make_sortorder()
 
   for (ord= order; ord; ord= ord->next, pos++)
   {
-    Item *item= ord->item[0]->real_item();
+    Item *const item= ord->item[0], *const real_item= item->real_item();
     pos->field= 0; pos->item= 0;
-    if (item->type() == Item::FIELD_ITEM)
-      pos->field= ((Item_field*) item)->field;
-    else if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
-      pos->field= ((Item_sum*) item)->get_tmp_table_field();
-    else if (item->type() == Item::COPY_STR_ITEM)
+    if (real_item->type() == Item::FIELD_ITEM)
+    {
+      // Could be a field, or Item_direct_view_ref wrapping a field
+      DBUG_ASSERT(item->type() == Item::FIELD_ITEM ||
+                  (item->type() == Item::REF_ITEM &&
+                   static_cast<Item_ref*>(item)->ref_type() ==
+                   Item_ref::VIEW_REF));
+      pos->field= static_cast<Item_field*>(real_item)->field;
+    }
+    else if (real_item->type() == Item::SUM_FUNC_ITEM &&
+             !real_item->const_item())
+    {
+      // Aggregate, or Item_aggregate_ref
+      DBUG_ASSERT(item->type() == Item::SUM_FUNC_ITEM ||
+                  (item->type() == Item::REF_ITEM &&
+                   static_cast<Item_ref*>(item)->ref_type() ==
+                   Item_ref::AGGREGATE_REF));
+      pos->field= item->get_tmp_table_field();
+    }
+    else if (real_item->type() == Item::COPY_STR_ITEM)
     {						// Blob patch
-      pos->item= ((Item_copy*) item)->get_item();
+      pos->item= static_cast<Item_copy*>(real_item)->get_item();
     }
     else
-      pos->item= *ord->item;
+      pos->item= item;
     pos->reverse= (ord->direction == ORDER::ORDER_DESC);
     DBUG_ASSERT(pos->field != NULL || pos->item != NULL);
   }
@@ -816,7 +843,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
       DBUG_RETURN(HA_POS_ERROR);
     }
     file->extra_opt(HA_EXTRA_CACHE,
-		    current_thd->variables.read_buff_size);
+		    thd->variables.read_buff_size);
   }
 
   if (quick_select)
@@ -1165,6 +1192,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
+          size_t tmp_length __attribute__((unused));
           if ((uchar*) from == to)
           {
             DBUG_ASSERT(sort_field->length >= length);
@@ -1172,9 +1200,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
             memcpy(tmp_buffer, from, length);
             from= tmp_buffer;
           }
-#ifndef DBUG_OFF
-          size_t tmp_length=
-#endif
+          tmp_length=
             cs->coll->strnxfrm(cs, to, sort_field->length,
                                item->max_char_length(),
                                (uchar*) from, length,

@@ -111,7 +111,7 @@ set @marker_end = (select end_event_id from performance_schema.events_statements
 select (@marker_end is not null) as expected;
 
 # Will point to what happened on spurious test failures
-show status like "performance_schema%";
+show global status like "performance_schema%";
 
 #
 # This is the test itself:

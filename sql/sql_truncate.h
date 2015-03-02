@@ -16,7 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"
-#include "sql_cmd.h"          // Sql_cmd
+#include "sql_cmd_dml.h"          // Sql_cmd_dml
 
 class MDL_ticket;
 class THD;
@@ -25,7 +25,7 @@ struct TABLE_LIST;
 /**
   Sql_cmd_truncate_table represents the TRUNCATE statement.
 */
-class Sql_cmd_truncate_table : public Sql_cmd
+class Sql_cmd_truncate_table : public Sql_cmd_dml
 {
 private:
   /* Set if a lock must be downgraded after truncate is done. */
@@ -52,6 +52,10 @@ public:
   {
     return SQLCOM_TRUNCATE;
   }
+
+  virtual bool prepared_statement_test(THD *) { return false; }
+  virtual bool prepare(THD *) { return false; }
+  virtual void cleanup(THD *) {}
 
 protected:
   enum truncate_result{

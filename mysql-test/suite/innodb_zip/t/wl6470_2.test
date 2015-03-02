@@ -21,17 +21,17 @@
 ####################################################################
 
 # run for page size >= 8k
+--disable_warnings
 if (`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(variable_name) = 'innodb_page_size' AND variable_value >= 8192`)
 {
   --skip Test requires InnoDB with page size >= 8k.
 }
+--enable_warnings
 
 
 # Save initial values of server variable
 --disable_query_log
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
-let $innodb_file_format_orig=`select @@innodb_file_format`;
-let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 --enable_query_log
 
@@ -73,8 +73,6 @@ create procedure populate_tables()
    index (c3,c4(50),c5(50)),
    index (c2))
    engine=innodb row_format=compact;
-
-   set global innodb_file_format='Barracuda';
 
    create temporary table t3(c1 int not null,
    c2 int not null,
@@ -259,8 +257,6 @@ connect (con2,localhost,root,,);
 --echo #---client 1 : dml operation ---"
 connection con1;
 -- disable_query_log
-eval set global innodb_file_format=$innodb_file_format_orig;
-eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
 -- disable_query_log
@@ -271,8 +267,6 @@ eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 --echo #---client 2 : dml operation ---"
 connection con2;
 -- disable_query_log
-eval set global innodb_file_format=$innodb_file_format_orig;
-eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
 -- disable_query_log
@@ -468,8 +462,6 @@ drop table prep_1;
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.outfile
 
 -- disable_query_log
-eval set global innodb_file_format=$innodb_file_format_orig;
-eval set global innodb_file_format_max=$innodb_file_format_max_orig;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 SET sql_mode = default;
 -- enable_query_log

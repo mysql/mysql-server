@@ -17,6 +17,10 @@
 # This script will convert the system tables of 5.7 server to be compatible
 # with 5.6 server.
 
+SET session sql_log_bin=0;
+SET NAMES 'utf8';
+START TRANSACTION;
+
 USE `mysql`;
 
 --
@@ -63,3 +67,5 @@ SET @str=IF(@have_password = 0, "UPDATE user SET authentication_string = '' wher
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+
+COMMIT;

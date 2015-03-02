@@ -15,6 +15,8 @@
 
 #include "my_global.h"
 #include "rpl_channel_service_interface.h"
+
+#include "current_thd.h"
 #include "rpl_slave.h"
 #include "rpl_info_factory.h"
 #include "rpl_mi.h"
@@ -432,7 +434,8 @@ bool channel_is_active(const char* channel, enum_channel_thread_types thd_type)
   DBUG_RETURN(false);
 }
 
-int channel_get_appliers_thread_id(const char* channel, long** appliers_id)
+int channel_get_appliers_thread_id(const char* channel,
+                                   unsigned long** appliers_id)
 {
   DBUG_ENTER("channel_is_active(channel, thd_type");
 
@@ -452,14 +455,16 @@ int channel_get_appliers_thread_id(const char* channel, long** appliers_id)
     int num_workers= mi->rli->slave_parallel_workers;
     if (num_workers > 1)
     {
-      *appliers_id= (long*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                      num_workers * sizeof(long),
-                                      MYF(MY_WME));
+      *appliers_id=
+          (unsigned long*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                     num_workers * sizeof(unsigned long),
+                                     MYF(MY_WME));
+      unsigned long *appliers_id_pointer= *appliers_id;
 
-      for (int i = 0; i < num_workers; i++)
+      for (int i= 0; i < num_workers; i++, appliers_id_pointer++)
       {
         mysql_mutex_lock(&mi->rli->workers.at(i)->info_thd_lock);
-        *appliers_id[i]= mi->rli->workers.at(i)->info_thd->thread_id();
+        *appliers_id_pointer= mi->rli->workers.at(i)->info_thd->thread_id();
         mysql_mutex_unlock(&mi->rli->workers.at(i)->info_thd_lock);
       }
 
@@ -469,9 +474,9 @@ int channel_get_appliers_thread_id(const char* channel, long** appliers_id)
     {
       if (mi->rli->info_thd != NULL)
       {
-        *appliers_id= (long*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                        sizeof(long),
-                                        MYF(MY_WME));
+        *appliers_id= (unsigned long*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                                 sizeof(unsigned long),
+                                                 MYF(MY_WME));
         mysql_mutex_lock(&mi->rli->info_thd_lock);
         **appliers_id= mi->rli->info_thd->thread_id();
         mysql_mutex_unlock(&mi->rli->info_thd_lock);

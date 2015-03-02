@@ -86,7 +86,7 @@ get_connection_status_info(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info)
 
 bool
 Group_replication_handler::
-get_group_members_info(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
+get_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
 {
   if (plugin_handle)
     return plugin_handle->get_group_members_info(index, info);
@@ -102,7 +102,7 @@ get_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info)
   return true;
 }
 
-uint Group_replication_handler::get_members_number_info()
+unsigned int Group_replication_handler::get_members_number_info()
 {
   if (plugin_handle)
     return plugin_handle->get_members_number_info();
@@ -166,7 +166,25 @@ bool is_group_replication_plugin_loaded()
 int group_replication_start()
 {
   if (group_replication_handler)
-    return group_replication_handler->start();
+  {
+    /*
+      We need to take global_sid_lock because
+      group_replication_handler->start function will (among other
+      things) do the following:
+
+       1. Call get_server_startup_prerequirements, which calls get_gtid_mode.
+       2. Set plugin-internal state that ensures that
+          is_group_replication_running() returns true.
+
+      In order to prevent a concurrent client from executing SET
+      GTID_MODE=ON_PERMISSIVE between 1 and 2, we must hold
+      gtid_mode_lock.
+    */
+    gtid_mode_lock->rdlock();
+    int ret= group_replication_handler->start();
+    gtid_mode_lock->unlock();
+    return ret;
+  }
   return 1;
 }
 
@@ -198,7 +216,7 @@ bool get_group_replication_connection_status_info(GROUP_REPLICATION_CONNECTION_S
   return true;
 }
 
-bool get_group_replication_group_members_info(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
+bool get_group_replication_group_members_info(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
 {
   if (group_replication_handler)
     return group_replication_handler->get_group_members_info(index, info);
@@ -212,7 +230,7 @@ bool get_group_replication_group_member_stats_info(GROUP_REPLICATION_GROUP_MEMBE
   return true;
 }
 
-uint get_group_replication_members_number_info()
+unsigned int get_group_replication_members_number_info()
 {
   if (group_replication_handler)
     return group_replication_handler->get_members_number_info();
@@ -221,7 +239,8 @@ uint get_group_replication_members_number_info()
 
 
 /*
-  Server access methods
+  Server methods exported to plugin through
+  include/mysql/group_replication_priv.h
 */
 
 bool is_server_engine_ready()
@@ -239,12 +258,15 @@ void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
 
 #ifdef HAVE_REPLICATION
 void
-get_server_startup_prerequirements(Trans_context_info& requirements)
+get_server_startup_prerequirements(Trans_context_info& requirements,
+                                   bool has_lock)
 {
   requirements.binlog_enabled= opt_bin_log;
   requirements.binlog_format= global_system_variables.binlog_format;
   requirements.binlog_checksum_options= binlog_checksum_options;
-  requirements.gtid_mode= gtid_mode;
+  requirements.gtid_mode=
+    get_gtid_mode(has_lock ? GTID_MODE_LOCK_GTID_MODE :
+                  GTID_MODE_LOCK_NONE);
   requirements.transaction_write_set_extraction=
     global_system_variables.transaction_write_set_extraction;
   requirements.mi_repository_type= opt_mi_repository_id;
@@ -255,9 +277,10 @@ get_server_startup_prerequirements(Trans_context_info& requirements)
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       uint *length)
 {
-  DBUG_ASSERT(gtid_mode > 0);
-
   global_sid_lock->wrlock();
+
+  DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) > 0);
+
   const Gtid_set *executed_gtids= gtid_state->get_executed_gtids();
   *length= executed_gtids->get_encoded_length();
   *encoded_gtid_executed= (uchar*) my_malloc(key_memory_Gtid_set_to_string,

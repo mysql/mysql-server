@@ -1,0 +1,351 @@
+#
+# This test is to check various cases of account lock functionality
+#
+
+# This test makes no sense with the embedded server
+--source include/not_embedded.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+connection default;
+CREATE USER unlocked_user@localhost IDENTIFIED BY 'pas';
+SELECT account_locked FROM mysql.user
+  WHERE user='unlocked_user' and host = 'localhost';
+--connect(unlocked_user_con, localhost, unlocked_user, pas)
+SELECT CURRENT_USER();
+connection default;
+--echo # lock the user in the database
+UPDATE mysql.user SET account_locked='Y'
+  WHERE user='unlocked_user' and host = 'localhost';
+
+--echo # without FLUSH the field has no effect
+disconnect unlocked_user_con;
+--connect(unlocked_user_con, localhost, unlocked_user, pas)
+--echo # must not throw an error
+SELECT CURRENT_USER();
+
+connection default;
+FLUSH PRIVILEGES;
+
+--echo # existing connections continue as before even after flush
+connection unlocked_user_con;
+--echo # must not throw an error
+SELECT CURRENT_USER();
+disconnect unlocked_user_con;
+
+--echo # Lowercase 'y' should disable login as well
+connection default;
+UPDATE mysql.user SET account_locked='y'
+  WHERE user='unlocked_user' and host = 'localhost';
+FLUSH PRIVILEGES;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(unlocked_user_con, localhost, unlocked_user, pas)
+
+--echo # new connections are blocked
+connection default;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(unlocked_user_con, localhost, unlocked_user, pas)
+
+--echo # unlock the user using ALTER USER command
+ALTER USER unlocked_user@localhost ACCOUNT UNLOCK;
+SELECT account_locked FROM mysql.user
+  WHERE user = 'unlocked_user' and host = 'localhost';
+
+--echo # connection should work now
+connect(unlocked_user_con, localhost, unlocked_user, pas);
+SELECT CURRENT_USER();
+disconnect unlocked_user_con;
+
+--echo # lock the user account using ALTER USER command
+connection default;
+ALTER USER unlocked_user@localhost ACCOUNT LOCK;
+SELECT account_locked FROM mysql.user
+  WHERE user = 'unlocked_user' and host = 'localhost';
+
+--echo # connection should not work
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+connect(unlocked_user_con, localhost, unlocked_user, pas);
+
+--echo # create another user
+connection default;
+CREATE USER unlocked_user2@localhost IDENTIFIED BY 'pas';
+
+--echo # newly created user should be able to log in
+connect(unlocked_user_con, localhost, unlocked_user2, pas);
+SELECT CURRENT_USER();
+disconnect unlocked_user_con;
+
+--echo # toogle access permission with one SQL statement
+connection default;
+ALTER USER unlocked_user@localhost,
+           unlocked_user2@localhost ACCOUNT UNLOCK;
+SELECT user, account_locked FROM mysql.user
+  WHERE (user = 'unlocked_user' and host = 'localhost') or
+        (user = 'unlocked_user2' and host = 'localhost') ORDER BY user;
+
+--echo # unlocked_user2 should be able to log in
+connect(unlocked_user_con, localhost, unlocked_user2, pas);
+SELECT CURRENT_USER();
+disconnect unlocked_user_con;
+
+--echo # unlocked_user should be able to log in
+connect(unlocked_user_con, localhost, unlocked_user, pas);
+SELECT CURRENT_USER();
+disconnect unlocked_user_con;
+
+--echo # Basic SHOW CREATE USER
+connection default;
+-- echo # Should appear without ACCOUNT UNLOCK
+SHOW CREATE USER unlocked_user@localhost;
+ALTER USER unlocked_user@localhost ACCOUNT LOCK;
+--echo # Should appear with ACCOUNT LOCK
+SHOW CREATE USER unlocked_user@localhost;
+
+--echo # roll back changes
+connection default;
+DROP USER unlocked_user@localhost;
+DROP USER unlocked_user2@localhost;
+
+--echo # Create anonymous user
+connection default;
+CREATE USER ''@localhost IDENTIFIED BY 'pass';
+connect(anonymous_user_con, localhost, '', pass);
+SELECT CURRENT_USER();
+disconnect anonymous_user_con;
+connection default;
+DROP USER ''@localhost;
+
+--echo # Create anonymous user - explicit UNLOCK
+connection default;
+CREATE USER ''@localhost IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
+connect(anonymous_user_con, localhost, '', pass);
+SELECT CURRENT_USER();
+disconnect anonymous_user_con;
+connection default;
+DROP USER ''@localhost;
+
+--echo # Create anonymous user - LOCK
+connection default;
+CREATE USER ''@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+connect(anonymous_user_con, localhost, '', pass);
+connection default;
+DROP USER ''@localhost;
+
+--echo # Disabling anonymous user
+connection default;
+CREATE USER ''@localhost IDENTIFIED BY 'pass';
+ALTER USER ''@localhost ACCOUNT LOCK;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+connect(anonymous_user_con, localhost, '', pass);
+connection default;
+DROP USER ''@localhost;
+
+--echo # Enabling anonymous user
+connection default;
+CREATE USER ''@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
+ALTER USER ''@localhost ACCOUNT UNLOCK;
+connect(anonymous_user_con, localhost, '', pass);
+SELECT CURRENT_USER();
+disconnect anonymous_user_con;
+connection default;
+DROP USER ''@localhost;
+
+--echo # Expiring password and disabing anynymous user
+connection default;
+CREATE USER ''@localhost IDENTIFIED BY 'pass';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_PASSWORD_EXPIRE_ANONYMOUS_USER
+ALTER USER ''@localhost PASSWORD EXPIRE ACCOUNT LOCK;
+DROP USER ''@localhost;
+
+--echo # Login as anonymous user and try to manipulate mysql.user table
+--echo # and users.
+connection default;
+CREATE user ''@localhost IDENTIFIED BY 'pass';
+CREATE USER 'unlocked_user'@localhost IDENTIFIED BY 'pass';
+
+connect(anonymous_user_con, localhost, '', pass);
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE mysql.user SET account_locked='Y'
+  WHERE user='unlocked_user' and host = 'localhost';
+connect(unlocked_user_con, localhost, unlocked_user, pass);
+disconnect unlocked_user_con;
+
+connection anonymous_user_con;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER USER unlocked_user@localhost ACCOUNT LOCK;
+connect(unlocked_user_con, localhost, unlocked_user, pass);
+disconnect unlocked_user_con;
+disconnect anonymous_user_con;
+
+# Perform cleanup
+connection default;
+DROP USER unlocked_user@localhost;
+DROP USER ''@localhost;
+
+--echo # Create stored procedure and users for test
+connection default;
+CREATE USER u1@localhost IDENTIFIED BY 'pass';
+CREATE USER u2@localhost IDENTIFIED BY 'pass';
+GRANT ALL ON *.* TO u1@localhost;
+DELIMITER |;
+CREATE TABLE mysql.t1(counter INT)|
+INSERT INTO mysql.t1 VALUES(0)|
+CREATE DEFINER = u1@localhost PROCEDURE mysql.p1()
+BEGIN
+  UPDATE mysql.t1 SET counter = counter + 1;
+  SELECT counter FROM mysql.t1;
+END|
+DELIMITER ;|
+CALL mysql.p1();
+GRANT EXECUTE ON PROCEDURE mysql.p1 TO u2@localhost;
+ALTER USER u1@localhost ACCOUNT LOCK;
+
+--echo # Login for u1@localhost should fail
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+connect(u1_con,localhost,u1,pass);
+
+--echo # Login as u2 and run stored procedure as u1
+connect(u2_con,localhost,u2,pass);
+SELECT CURRENT_USER();
+CALL mysql.p1();
+disconnect u2_con;
+
+--echo # Locked_connects STATUS VARIABLE
+connection default;
+FLUSH STATUS;
+CREATE USER 'u3'@'localhost' IDENTIFIED BY 'pass' ACCOUNT LOCK;
+SHOW STATUS LIKE 'Locked_connects';
+let $1 = 10;
+disable_query_log;
+while ($1) {
+  --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+  --error ER_ACCOUNT_HAS_BEEN_LOCKED
+  connect(unlocked_user_con, localhost, u3, pass);
+  connection default;
+  ALTER USER u3@localhost ACCOUNT UNLOCK;
+  connect(unlocked_user_con, localhost, u3, pass);
+  disconnect unlocked_user_con;
+  connection default;
+  ALTER USER u3@localhost ACCOUNT LOCK;
+  dec $1;
+}
+enable_query_log;
+connection default;
+SHOW STATUS LIKE 'Locked_connects';
+FLUSH STATUS;
+--echo # Invalid SQL syntax should fail
+connection default;
+--error ER_PARSE_ERROR
+CREATE USER u1@localhost REQUIRE NONE ACCOUNT LOCK WITH MAX_QUERIES_PER_HOUR 100;
+--echo # CREATE USER SQL syntax check
+DROP USER u1@localhost;
+CREATE USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 ACCOUNT LOCK;
+SHOW CREATE USER u1@localhost;
+--echo # ALTER USER correct SQL syntax 1
+ALTER USER u1@localhost PASSWORD EXPIRE ACCOUNT UNLOCK;
+SHOW CREATE USER u1@localhost;
+--echo # ALTER USER correct SQL syntax 2
+ALTER USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE;
+SHOW CREATE USER u1@localhost;
+--echo # ALTER USER correct SQL syntax 3
+ALTER USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 99 ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
+SHOW CREATE USER u1@localhost;
+--echo # ALTER USER correct SQL syntax 4
+ALTER USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 98 PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK;
+SHOW CREATE USER u1@localhost;
+--echo # ALTER USER invalid SQL syntax
+--error ER_PARSE_ERROR
+ALTER USER u1@localhost ACCOUNT UNLOCK WITH MAX_QUERIES_PER_HOUR 97 PASSWORD EXPIRE;
+DROP USER u1@localhost;
+--echo # Duplicated ACCOUNT statement 1
+CREATE USER u1@localhost IDENTIFIED BY 'PASS' ACCOUNT LOCK ACCOUNT UNLOCK;
+SHOW CREATE USER u1@localhost;
+DROP USER u1@localhost;
+--echo # Duplicated ACCOUNT statement 2
+CREATE USER u1@localhost ACCOUNT UNLOCK ACCOUNT LOCK;
+SHOW CREATE USER u1@localhost;
+DROP USER u1@localhost;
+--echo # Duplicated ACCOUNT statement 3
+CREATE USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE ACCOUNT LOCK;
+SHOW CREATE USER u1@localhost;
+--echo # Duplicated ACCOUNT statement 4
+ALTER USER u1@localhost IDENTIFIED BY 'PASS' ACCOUNT LOCK ACCOUNT UNLOCK;
+SHOW CREATE USER u1@localhost;
+--echo # Duplicated ACCOUNT statement 5
+ALTER USER u1@localhost ACCOUNT UNLOCK ACCOUNT LOCK;
+SHOW CREATE USER u1@localhost;
+--echo # Duplicated ACCOUNT statement 6
+ALTER USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE ACCOUNT LOCK;
+SHOW CREATE USER u1@localhost;
+--echo # Duplicated ACCOUNT statement 7
+ALTER USER u1@localhost PASSWORD EXPIRE ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+SHOW CREATE USER u1@localhost;
+--echo # Duplicated ACCOUNT statement 8
+ALTER USER u1@localhost PASSWORD EXPIRE NEVER ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK;
+SHOW CREATE USER u1@localhost;
+
+--echo # MySQL user table layout from the before ACCOUNT LOCK option
+connection default;
+CREATE TABLE temp_user LIKE mysql.user;
+INSERT INTO temp_user SELECT * FROM mysql.user;
+ALTER TABLE mysql.user DROP COLUMN account_locked;
+--error ER_BAD_FIELD_ERROR
+CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
+SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
+--error ER_BAD_FIELD_ERROR
+CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
+SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
+CREATE USER backuser@localhost IDENTIFIED BY 'pass';
+SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
+--error ER_BAD_FIELD_ERROR
+SELECT user, account_locked FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
+connect(backuser_conn, localhost, backuser, pass);
+disconnect backuser_conn;
+connection default;
+--error ER_BAD_FIELD_ERROR
+ALTER USER backuser@localhost ACCOUNT LOCK;
+--error ER_BAD_FIELD_ERROR
+ALTER USER backuser@localhost ACCOUNT UNLOCK;
+DROP USER backuser@localhost;
+DROP TABLE mysql.user;
+ALTER TABLE temp_user RENAME mysql.user;
+FLUSH PRIVILEGES;
+
+--echo # Check whether 'account' can be used as the identifier.
+connection default;
+CREATE DATABASE account;
+CREATE TABLE account.`account` (account text(20));
+INSERT INTO `account`.account VALUES("account");
+SELECT account FROM account.account WHERE account = 'account';
+SET @account = "account_before";
+delimiter |;
+CREATE PROCEDURE account.account(OUT ac CHAR(20))
+BEGIN
+  SELECT account.`account`.account INTO ac FROM account.account;
+END|
+delimiter ;|
+CALL account.account(@account);
+SELECT @account;
+DROP DATABASE account;
+CREATE USER ACCOUNT@localhost ACCOUNT LOCK;
+DROP USER ACCOUNT@localhost;
+
+# Perform cleanup
+connection default;
+DROP PROCEDURE mysql.p1;
+DROP TABLE mysql.t1;
+DROP USER u1@localhost;
+DROP USER u2@localhost;
+DROP USER u3@localhost;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

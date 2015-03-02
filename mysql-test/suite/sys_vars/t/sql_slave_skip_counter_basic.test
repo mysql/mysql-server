@@ -98,7 +98,33 @@ SET @@session.sql_slave_skip_counter = 12;
 SET @@local.sql_slave_skip_counter = 13;
 
 SET @@global.sql_slave_skip_counter = 0;
+
+#
+# Verify that it settable when gtid_mode!=on
+#
+
+SET @@global.enforce_gtid_consistency = on;
+SET @@global.gtid_mode = off_permissive;
+set global sql_slave_skip_counter= 1;
+set global sql_slave_skip_counter= 0;
+
+SET @@global.gtid_mode = on_permissive;
+set global sql_slave_skip_counter= 1;
+set global sql_slave_skip_counter= 0;
+
+SET @@global.gtid_mode = on;
+--error ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
+set global sql_slave_skip_counter= 1;
+select @@global.sql_slave_skip_counter;
+--error ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
+set global sql_slave_skip_counter= 0;
+select @@global.sql_slave_skip_counter;
+
+SET @@global.gtid_mode = on_permissive;
+SET @@global.gtid_mode = off_permissive;
+SET @@global.gtid_mode = off;
+SET @@global.enforce_gtid_consistency = off;
+
 ########################################################
 #              END OF sql_slave_skip_counter TESTS     #
 ########################################################
-

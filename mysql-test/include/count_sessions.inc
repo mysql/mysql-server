@@ -18,4 +18,4 @@
 # Created: 2009-01-14 mleich
 #
 
-let $count_sessions= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
+let $count_sessions= query_get_value(SHOW GLOBAL STATUS LIKE 'Threads_connected', Value, 1);

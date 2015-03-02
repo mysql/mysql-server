@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1141,7 +1141,7 @@ Finish the TRUNCATE operations for both commit and rollback.
 
 @param table		table being truncated
 @param trx		transaction covering the truncate
-@param flags		tablespace flags
+@param fsp_flags	tablespace flags
 @param logger		table to truncate information logger
 @param err		status of truncate operation
 
@@ -1151,15 +1151,17 @@ dberr_t
 row_truncate_complete(
 	dict_table_t*		table,
 	trx_t*			trx,
-	ulint			flags,
+	ulint			fsp_flags,
 	TruncateLogger*		&logger,
 	dberr_t			err)
 {
-        if (table->memcached_sync_count == DICT_TABLE_IN_DDL) {
-                /* We need to set the memcached sync back to 0, unblock
-                memcached operationse. */
-                table->memcached_sync_count = 0;
-        }
+	bool	is_file_per_table = dict_table_is_file_per_table(table);
+
+	if (table->memcached_sync_count == DICT_TABLE_IN_DDL) {
+		/* We need to set the memcached sync back to 0, unblock
+		memcached operations. */
+		table->memcached_sync_count = 0;
+	}
 
 	row_mysql_unlock_data_dictionary(trx);
 
@@ -1188,16 +1190,17 @@ row_truncate_complete(
 		}
 	}
 
-	if (!dict_table_is_temporary(table)
-	    && flags != ULINT_UNDEFINED
-	    && !is_system_tablespace(table->space)) {
+	/* If non-temp file-per-table tablespace... */
+	if (is_file_per_table
+	    && !dict_table_is_temporary(table)
+	    && fsp_flags != ULINT_UNDEFINED) {
 
 		/* This function will reset back the stop_new_ops
 		and is_being_truncated so that fil-ops can re-start. */
 		dberr_t err2 = truncate_t::truncate(
 			table->space,
 			table->data_dir_path,
-			table->name.m_name, flags, false);
+			table->name.m_name, fsp_flags, false);
 
 		if (err2 != DB_SUCCESS) {
 			return(err2);
@@ -1463,13 +1466,15 @@ dberr_t
 row_truncate_prepare(dict_table_t* table, ulint* flags)
 {
 	ut_ad(!dict_table_is_temporary(table));
-	ut_ad(!is_system_tablespace(table->space));
+	ut_ad(dict_table_is_file_per_table(table));
 
 	*flags = fil_space_get_flags(table->space);
 
 	ut_ad(!dict_table_is_temporary(table));
 
 	dict_get_and_save_data_dir_path(table, true);
+
+	dict_get_and_save_space_name(table, true);
 
 	if (*flags != ULINT_UNDEFINED) {
 
@@ -1592,6 +1597,7 @@ row_truncate_table_for_mysql(
 	dict_table_t* table,
 	trx_t* trx)
 {
+	bool	is_file_per_table = dict_table_is_file_per_table(table);
 	dberr_t		err;
 #ifdef UNIV_DEBUG
 	ulint		old_space = table->space;
@@ -1713,11 +1719,12 @@ row_truncate_table_for_mysql(
 	/* Step-5: There are few foreign key related constraint under which
 	we can't truncate table (due to referential integrity unless it is
 	turned off). Ensure this condition is satisfied. */
-	ulint	flags = ULINT_UNDEFINED;
+	ulint	fsp_flags = ULINT_UNDEFINED;
 	err = row_truncate_foreign_key_checks(table, trx);
 	if (err != DB_SUCCESS) {
 		trx_rollback_to_savepoint(trx, NULL);
-		return(row_truncate_complete(table, trx, flags, logger, err));
+		return(row_truncate_complete(
+				table, trx, fsp_flags, logger, err));
 	}
 
 	/* Check if memcached DML is running on this table. if is, we don't
@@ -1729,7 +1736,8 @@ row_truncate_table_for_mysql(
 			" operations running on it.";
 		err = DB_ERROR;
 		trx_rollback_to_savepoint(trx, NULL);
-		return(row_truncate_complete(table, trx, flags, logger, err));
+		return(row_truncate_complete(
+				table, trx, fsp_flags, logger, err));
 	} else {
                 /* We need to set this counter to -1 for blocking
                 memcached operations. */
@@ -1760,7 +1768,7 @@ row_truncate_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			trx_rollback_to_savepoint(trx, NULL);
 			return(row_truncate_complete(
-				table, trx, flags, logger, err));
+				table, trx, fsp_flags, logger, err));
 		}
 	}
 
@@ -1778,8 +1786,7 @@ row_truncate_table_for_mysql(
 		dict_table_has_fts_index(table)
 		|| DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 
-	bool	no_redo =
-		(!is_system_tablespace(table->space) && !has_internal_doc_id);
+	bool	no_redo = is_file_per_table && !has_internal_doc_id;
 
 	/* Step-8: Log information about tablespace which includes
 	table and index information. If there is a crash in the next step
@@ -1795,36 +1802,40 @@ row_truncate_table_for_mysql(
 
 	if (!dict_table_is_temporary(table) && !has_internal_doc_id) {
 
-		if (!is_system_tablespace(table->space)) {
+		if (is_file_per_table) {
 
-			err = row_truncate_prepare(table, &flags);
+			err = row_truncate_prepare(table, &fsp_flags);
 
 			DBUG_EXECUTE_IF("ib_err_trunc_preparing_for_truncate",
 					err = DB_ERROR;);
 
 			if (err != DB_SUCCESS) {
 				row_truncate_rollback(
-					table, trx, new_id, has_internal_doc_id,
+					table, trx, new_id,
+					has_internal_doc_id,
 					no_redo, false, true);
 				return(row_truncate_complete(
-					table, trx, flags, logger, err));
+					table, trx, fsp_flags, logger, err));
 			}
 		} else {
-			flags = fil_space_get_flags(table->space);
+			fsp_flags = fil_space_get_flags(table->space);
 
 			DBUG_EXECUTE_IF("ib_err_trunc_preparing_for_truncate",
-					flags = ULINT_UNDEFINED;);
+					fsp_flags = ULINT_UNDEFINED;);
 
-			if (flags == ULINT_UNDEFINED) {
+			if (fsp_flags == ULINT_UNDEFINED) {
 				row_truncate_rollback(
-					table, trx, new_id, has_internal_doc_id,
+					table, trx, new_id,
+					has_internal_doc_id,
 					no_redo, false, true);
 				return(row_truncate_complete(
-					table, trx, flags, logger, DB_ERROR));
+						table, trx, fsp_flags,
+						logger, DB_ERROR));
 			}
 		}
 
-		logger = UT_NEW_NOKEY(TruncateLogger(table, flags, new_id));
+		logger = UT_NEW_NOKEY(TruncateLogger(
+				table, fsp_flags, new_id));
 
 		err = logger->init();
 		if (err != DB_SUCCESS) {
@@ -1832,7 +1843,7 @@ row_truncate_table_for_mysql(
 				table, trx, new_id, has_internal_doc_id,
 				no_redo, false, true);
 			return(row_truncate_complete(
-					table, trx, flags, logger, DB_ERROR));
+				table, trx, fsp_flags, logger, DB_ERROR));
 
 		}
 
@@ -1842,7 +1853,7 @@ row_truncate_table_for_mysql(
 				table, trx, new_id, has_internal_doc_id,
 				no_redo, false, true);
 			return(row_truncate_complete(
-					table, trx, flags, logger, DB_ERROR));
+				table, trx, fsp_flags, logger, DB_ERROR));
 
 		}
 
@@ -1855,7 +1866,7 @@ row_truncate_table_for_mysql(
 				table, trx, new_id, has_internal_doc_id,
 				no_redo, false, true);
 			return(row_truncate_complete(
-					table, trx, flags, logger, DB_ERROR));
+				table, trx, fsp_flags, logger, DB_ERROR));
 		}
 	}
 
@@ -1879,7 +1890,7 @@ row_truncate_table_for_mysql(
 				no_redo, true, true);
 
 			return(row_truncate_complete(
-				table, trx, flags, logger, err));
+				table, trx, fsp_flags, logger, err));
 		}
 
 	} else {
@@ -1895,7 +1906,7 @@ row_truncate_table_for_mysql(
 					table, trx, new_id, has_internal_doc_id,
 					no_redo, true, true);
 				return(row_truncate_complete(
-					table, trx, flags, logger, err));
+					table, trx, fsp_flags, logger, err));
 			}
 
 			DBUG_EXECUTE_IF(
@@ -1906,9 +1917,9 @@ row_truncate_table_for_mysql(
 		}
 	}
 
-	if (!is_system_tablespace(table->space)
+	if (is_file_per_table
 	    && !dict_table_is_temporary(table)
-	    && flags != ULINT_UNDEFINED) {
+	    && fsp_flags != ULINT_UNDEFINED) {
 
 		fil_reinit_space_header(
 			table->space,
@@ -1941,7 +1952,7 @@ row_truncate_table_for_mysql(
 				no_redo, true, true);
 
 			return(row_truncate_complete(
-				table, trx, flags, logger, err));
+				table, trx, fsp_flags, logger, err));
 		}
 	}
 
@@ -1960,7 +1971,7 @@ row_truncate_table_for_mysql(
 				no_redo, true, false);
 
 			return(row_truncate_complete(
-				table, trx, flags, logger, err));
+				table, trx, fsp_flags, logger, err));
 		}
 	}
 
@@ -1984,7 +1995,7 @@ row_truncate_table_for_mysql(
 
 		if (err != DB_SUCCESS) {
 			return(row_truncate_complete(
-				table, trx, flags, logger, err));
+				table, trx, fsp_flags, logger, err));
 		}
 	}
 
@@ -2005,17 +2016,69 @@ row_truncate_table_for_mysql(
 		trx_commit_for_mysql(trx);
 	}
 
-	return(row_truncate_complete(table, trx, flags, logger, err));
+	return(row_truncate_complete(table, trx, fsp_flags, logger, err));
 }
 
 /**
 Fix the table truncate by applying information parsed from TRUNCATE log.
-Fix-up includes re-creating table (drop and re-create indexes) and for
-single-tablespace re-creating tablespace.
-@return error code or DB_SUCCESS */
-
+Fix-up includes re-creating table (drop and re-create indexes)
+@return	error code or DB_SUCCESS */
 dberr_t
-truncate_t::fixup_tables()
+truncate_t::fixup_tables_in_system_tablespace()
+{
+	dberr_t	err = DB_SUCCESS;
+
+	/* Using the info cached during REDO log scan phase fix the
+	table truncate. */
+
+	for (tables_t::iterator it = s_tables.begin();
+	     it != s_tables.end();) {
+
+		if ((*it)->m_space_id == TRX_SYS_SPACE) {
+			/* Step-1: Drop and re-create indexes. */
+			ib::info() << "Completing truncate for table with "
+				"id (" << (*it)->m_old_table_id << ") "
+				"residing in the system tablespace.";
+
+			err = fil_recreate_table(
+				(*it)->m_space_id,
+				(*it)->m_format_flags,
+				(*it)->m_tablespace_flags,
+				(*it)->m_tablename,
+				**it);
+
+			/* Step-2: Update the SYS_XXXX tables to reflect
+			this new table_id and root_page_no. */
+			table_id_t	new_id;
+
+			dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);
+
+			err = row_truncate_update_sys_tables_during_fix_up(
+				**it, new_id, TRUE,
+				(err == DB_SUCCESS) ? false : true);
+
+			if (err != DB_SUCCESS) {
+				break;
+			}
+
+			os_file_delete(
+				innodb_log_file_key, (*it)->m_log_file_name);
+			UT_DELETE(*it);
+			it = s_tables.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	return(err);
+}
+
+/**
+Fix the table truncate by applying information parsed from TRUNCATE log.
+Fix-up includes re-creating tablespace.
+@return	error code or DB_SUCCESS */
+dberr_t
+truncate_t::fixup_tables_in_non_system_tablespace()
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -2025,14 +2088,21 @@ truncate_t::fixup_tables()
 
 	for (tables_t::iterator it = s_tables.begin(); it != end; ++it) {
 
+		/* All tables in the system tablesapce have already been
+		done and erased from this list. */
+		ut_a((*it)->m_space_id != TRX_SYS_SPACE);
+
 		/* Step-1: Drop tablespace (only for single-tablespace),
 		drop indexes and re-create indexes. */
 
-		ib::info() << "Completing truncate for table with id ("
-			<< (*it)->m_old_table_id << ") residing in space with"
-			" id (" << (*it)->m_space_id << ")";
+		if (fsp_is_file_per_table((*it)->m_space_id,
+					  (*it)->m_tablespace_flags)) {
+			/* The table is file_per_table */
 
-		if (!is_system_tablespace((*it)->m_space_id)) {
+			ib::info() << "Completing truncate for table with "
+				"id (" << (*it)->m_old_table_id << ") "
+				"residing in file-per-table tablespace with "
+				"id (" << (*it)->m_space_id << ")";
 
 			if (!fil_space_get((*it)->m_space_id)) {
 
@@ -2046,7 +2116,6 @@ truncate_t::fixup_tables()
 					(*it)->m_tablename,
 					(*it)->m_dir_path,
 					(*it)->m_tablespace_flags,
-					false,
 					FIL_IBD_FILE_INITIAL_SIZE);
 				if (err != DB_SUCCESS) {
 					/* If checkpoint is not yet done
@@ -2071,15 +2140,16 @@ truncate_t::fixup_tables()
 				(*it)->m_tablename,
 				**it, log_get_lsn());
 
-		} else if (is_system_tablespace(
-				(*it)->m_space_id)) {
+		} else {
+			/* Table is in a shared tablespace */
 
-			/* Only tables residing in ibdata1 are truncated.
-			Temp-tables in temp-tablespace are never restored.*/
-			ut_ad((*it)->m_space_id == srv_sys_space.space_id());
+			ib::info() << "Completing truncate for table with "
+				"id (" << (*it)->m_old_table_id << ") "
+				"residing in shared tablespace with "
+				"id (" << (*it)->m_space_id << ")";
 
-			/* System table is always loaded. */
-			ut_ad(fil_space_get((*it)->m_space_id));
+			/* Temp-tables in temp-tablespace are never restored.*/
+			ut_ad((*it)->m_space_id != srv_tmp_space.space_id());
 
 			err = fil_recreate_table(
 				(*it)->m_space_id,
@@ -2089,9 +2159,9 @@ truncate_t::fixup_tables()
 				**it);
 		}
 
-		/* Step-2: Update the SYS_XXXX tables to reflect new table-id
-		and root_page_no. */
-		table_id_t      new_id;
+		/* Step-2: Update the SYS_XXXX tables to reflect new
+		table-id and root_page_no. */
+		table_id_t	new_id;
 
 		dict_hdr_get_new_id(&new_id, NULL, NULL, NULL, true);
 

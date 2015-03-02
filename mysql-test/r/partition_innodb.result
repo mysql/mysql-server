@@ -26,7 +26,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT b FROM t1 WHERE b between 'L' and 'N' AND a > -100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	pNeg_pNegsp0,pNeg_pNegsp1,pNeg_pNegsp2,pNeg_pNegsp3,pNeg_pNegsp4,pNeg_pNegsp5,pNeg_pNegsp6,pNeg_pNegsp7,pNeg_pNegsp8,pNeg_pNegsp9,p0_p0sp0,p0_p0sp1,p0_p0sp2,p0_p0sp3,p0_p0sp4,p0_p0sp5,p0_p0sp6,p0_p0sp7,p0_p0sp8,p0_p0sp9,pMAX_pMAXsp0,pMAX_pMAXsp1,pMAX_pMAXsp2,pMAX_pMAXsp3,pMAX_pMAXsp4,pMAX_pMAXsp5,pMAX_pMAXsp6,pMAX_pMAXsp7,pMAX_pMAXsp8,pMAX_pMAXsp9	range	PRIMARY,b	b	67	NULL	18	100.00	Using where; Using index
+1	SIMPLE	t1	pNeg_pNegsp0,pNeg_pNegsp1,pNeg_pNegsp2,pNeg_pNegsp3,pNeg_pNegsp4,pNeg_pNegsp5,pNeg_pNegsp6,pNeg_pNegsp7,pNeg_pNegsp8,pNeg_pNegsp9,p0_p0sp0,p0_p0sp1,p0_p0sp2,p0_p0sp3,p0_p0sp4,p0_p0sp5,p0_p0sp6,p0_p0sp7,p0_p0sp8,p0_p0sp9,pMAX_pMAXsp0,pMAX_pMAXsp1,pMAX_pMAXsp2,pMAX_pMAXsp3,pMAX_pMAXsp4,pMAX_pMAXsp5,pMAX_pMAXsp6,pMAX_pMAXsp7,pMAX_pMAXsp8,pMAX_pMAXsp9	range	PRIMARY,b	b	71	NULL	8	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` between 'L' and 'N') and (`test`.`t1`.`a` > <cache>(-(100))))
 DROP TABLE t1;
@@ -193,19 +193,19 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 90)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 90)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 90)
@@ -223,25 +223,25 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 89)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 89)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 100)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 100)
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 100)
@@ -412,14 +412,14 @@ DROP TABLE t1;
 create table t1 (a int) engine=innodb partition by hash(a) ;
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	#	#	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	0	#	#	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	#	#	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	0	#	#	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 insert into t1 values (0), (1), (2), (3);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
@@ -433,7 +433,7 @@ engine = innodb
 partition by key (a);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	#	#	0	0	#	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	0	#	#	0	0	#	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
@@ -468,7 +468,7 @@ partition p1 values less than (2007));
 explain partitions select * from t1
 where a between '2006-01-01' and '2007-06-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '2006-01-01' and '2007-06-01')
@@ -631,18 +631,15 @@ t1#P#p0.ibd
 t1#P#p1.cfg
 t1#P#p1.ibd
 t1.frm
-t1.par
 # Copying the .cfg and .ibd files as backup
 UNLOCK TABLES;
 # List of files after UNLOCK (no .cfg files).
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 ALTER TABLE t1 DISCARD TABLESPACE;
 # List of files after DISCARD (no .cfg/.ibd files).
 t1.frm
-t1.par
 # Moving the .cfg and .ibd files back from backup
 ALTER TABLE t1 IMPORT TABLESPACE;
 # List of files after IMPORT (.cfg files still there).
@@ -651,7 +648,6 @@ t1#P#p0.ibd
 t1#P#p1.cfg
 t1#P#p1.ibd
 t1.frm
-t1.par
 DROP TABLE t1;
 # List of files after DROP (.cfg files should also be removed).
 #
@@ -672,6 +668,8 @@ SELECT b FROM t1 WHERE b = 0;
 ERROR HY000: Table definition has changed, please retry transaction
 SELECT b FROM t1 WHERE b = 0;
 ERROR HY000: Table definition has changed, please retry transaction
+SELECT * FROM t1;
+ERROR HY000: Table definition has changed, please retry transaction
 DROP TABLE t1;
 # Same test without partitioning
 CREATE TABLE t1
@@ -686,6 +684,8 @@ ALTER TABLE t1 ADD INDEX idx1 (b);
 SELECT b FROM t1 WHERE b = 0;
 ERROR HY000: Table definition has changed, please retry transaction
 SELECT b FROM t1 WHERE b = 0;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT * FROM t1;
 ERROR HY000: Table definition has changed, please retry transaction
 DROP TABLE t1;
 Bug 17896265	 PARTITIONED TABLE HAS MISPLACED ROWS, AFTER INPLACE ALTER
@@ -800,3 +800,92 @@ test.t7	check	status	OK
 ALTER TABLE t7 CHANGE f1 f1 INT AFTER f4, ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+# Coverage tests for Native InnoDB Partitioning
+#
+# Test enable/disable keys.
+#
+CREATE TABLE t1 (a int, b int, primary key (a), key (b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 3;
+INSERT INTO t1 VALUES (1,1),(2,1),(3,3),(4,1),(5,3),(6,1),(7,1),(8,1),(9,4),
+(10,1),(11,3),(12,1),(13,3),(14,1),(15,1),(16,3),(17,1),(18,1),(19,1),(20,3);
+EXPLAIN SELECT * FROM t1 WHERE b = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2	ref	b	b	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 4)
+ALTER TABLE t1 DISABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+INSERT INTO t1 VALUES (21,1),(22,1),(23,3),(24,1);
+EXPLAIN SELECT * FROM t1 WHERE b = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2	ref	b	b	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 4)
+ALTER TABLE t1 ENABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+EXPLAIN SELECT * FROM t1 WHERE b = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2	ref	b	b	5	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 4)
+DROP TABLE t1;
+#
+# Test with different key sizes
+#
+CREATE TABLE t1
+(a int NOT NULL,
+b int NOT NULL,
+c varchar(10) NOT NULL,
+INDEX(a),
+UNIQUE KEY  (c(5), a, b)
+)
+ENGINE=InnoDB
+PARTITION BY HASH (b) PARTITIONS 2;
+SELECT * FROM t1 WHERE a = '92' AND c = '0.73';
+a	b	c
+SELECT * FROM t1 WHERE a = '1224';
+a	b	c
+DROP TABLE t1;
+#
+# Test with index_merge using PK
+#
+CREATE TABLE t1
+(
+a int NOT NULL,
+b int NOT NULL DEFAULT 2,
+c int NOT NULL DEFAULT 3,
+PRIMARY KEY (a),
+INDEX i2(b),
+INDEX i3(c)
+)
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 3;
+INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 (a) SELECT a+8 FROM t1;
+UPDATE t1 SET b=a,c=a;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE a=3 OR b=4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2	index_merge	PRIMARY,i2	PRIMARY,i2	4,4	NULL	2	100.00	Using union(PRIMARY,i2); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 3) or (`test`.`t1`.`b` = 4))
+SELECT * FROM t1 WHERE a=3 OR b=4;
+a	b	c
+3	3	3
+4	4	4
+DROP TABLE t1;
+#
+# Test error handling in mysql_admin
+#
+CREATE TABLE t1 (a int)
+PARTITION BY LINEAR HASH (a) PARTITIONS 8;
+LOAD INDEX INTO CACHE t1 PARTITION (ALL);
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+ALTER TABLE t1 COALESCE PARTITION 2;
+DROP TABLE t1;

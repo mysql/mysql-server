@@ -16,6 +16,8 @@
 
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on';
 
+set global innodb_large_prefix=off;
 --source include/subquery_mat.inc
+set global innodb_large_prefix=default;
 
 set optimizer_switch=default;

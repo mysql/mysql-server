@@ -174,7 +174,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
 #define MYSQL_LOCK_IGNORE_TIMEOUT               0x0800
 /**
   When acquiring "strong" (SNW, SNRW, X) metadata locks on tables to
-  be open do not acquire global and schema-scope IX locks.
+  be open do not acquire global, tablespace-scope and schema-scope IX locks.
 */
 #define MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK         0x1000
 /**
@@ -596,6 +596,70 @@ inline bool is_temporary_table(TABLE_LIST *tl)
   return tl->table->s->tmp_table != NO_TMP_TABLE;
 }
 
+/**
+  A simple holder for Internal_error_handler.
+  The class utilizes RAII technique to not forget to pop the handler.
+
+  @tparam Error_handler      Internal_error_handler to instantiate.
+  @tparam Error_handler_arg  Type of the error handler ctor argument.
+*/
+template<typename Error_handler, typename Error_handler_arg>
+class Internal_error_handler_holder
+{
+  THD *m_thd;
+  bool m_activate;
+  Error_handler m_error_handler;
+
+public:
+  Internal_error_handler_holder(THD *thd, bool activate,
+                                Error_handler_arg *arg)
+    : m_thd(thd), m_activate(activate), m_error_handler(arg)
+  {
+    if (activate)
+      thd->push_internal_handler(&m_error_handler);
+  }
+
+
+  ~Internal_error_handler_holder()
+  {
+    if (m_activate)
+      m_thd->pop_internal_handler();
+  }
+};
+
+/**
+   An Internal_error_handler that suppresses errors regarding views'
+   underlying tables that occur during privilege checking. It hides errors which
+   show view underlying table information.
+   This happens in the cases when
+
+   - A view's underlying table (e.g. referenced in its SELECT list) does not
+     exist or columns of underlying table are altered. There should not be an
+     error as no attempt was made to access it per se.
+
+   - Access is denied for some table, column, function or stored procedure
+     such as mentioned above. This error gets raised automatically, since we
+     can't untangle its access checking from that of the view itself.
+
+    There are currently two mechanisms at work that handle errors for views
+    based on an Internal_error_handler. This one and another one is
+    Show_create_error_handler. The latter handles errors encountered during
+    execution of SHOW CREATE VIEW, while this mechanism using this method is
+    handles SELECT from views. The two methods should not clash.
+
+*/
+class View_error_handler : public Internal_error_handler
+{
+  TABLE_LIST *m_top_view;
+
+public:
+  View_error_handler(TABLE_LIST *top_view) :
+  m_top_view(top_view)
+  {}
+  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *level,
+                                const char *message);
+};
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE.
@@ -698,5 +762,6 @@ private:
   enum_set_select_behavior m_set_select_behavior;
 };
 
+void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set);
 
 #endif /* SQL_BASE_INCLUDED */

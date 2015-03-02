@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@ void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 /* Lock based on name */
 bool lock_schema_name(THD *thd, const char *db);
+/* Lock based on tablespace name */
+bool lock_tablespace_name(THD *thd, const char *tablespace);
 /* Lock based on stored routine name */
 bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                       const char *db, const char *name);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
-#include "sql_class.h"                    // select_result_interceptor
+#include "sql_class.h"                    // Query_result_interceptor
 #include "sp_pcontext.h"                  // sp_condition_value
 #include "sql_array.h"
 #include "prealloced_array.h"
@@ -393,12 +393,12 @@ class sp_cursor
 private:
   /// An interceptor of cursor result set used to implement
   /// FETCH <cname> INTO <varlist>.
-  class Select_fetch_into_spvars: public select_result_interceptor
+  class Query_fetch_into_spvars: public Query_result_interceptor
   {
     List<sp_variable> *spvar_list;
     uint field_count;
   public:
-    Select_fetch_into_spvars() {}               /* Remove gcc warning */
+    Query_fetch_into_spvars() {}               /* Remove gcc warning */
     uint get_field_count() { return field_count; }
     void set_spvar_list(List<sp_variable> *vars) { spvar_list= vars; }
 
@@ -429,7 +429,7 @@ public:
   { return m_push_instr; }
 
 private:
-  Select_fetch_into_spvars m_result;
+  Query_fetch_into_spvars m_result;
 
   Server_side_cursor *m_server_side_cursor;
   sp_instr_cpush *m_push_instr;

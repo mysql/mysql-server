@@ -1,0 +1,287 @@
+################# suite/perfschema/t/show_aggregate.test #######################
+#                                                                              #
+# This test verifies:                                                          #
+# 1. Status variable values are consistent with corresponding server events.   #
+# 2. Status variable values are consistent across session, thread, account,    #
+#    host, user and global tables.                                             #
+# 3. Status totals for user, host and account are retained after related       #
+#    threads disconnect.                                                       #
+################################################################################
+
+--source include/have_perfschema.inc
+--source include/not_embedded.inc
+--source ../include/no_protocol.inc
+
+--enable_connect_log
+
+--echo
+--echo ================================================================================
+--echo SETUP
+--echo ================================================================================
+--echo # Save current SHOW_COMPATIBILITY_56 setting
+SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
+SET @@global.show_compatibility_56=OFF;
+SET @@session.sql_log_bin=OFF;
+--echo
+--echo # CREATE 3 CLIENTS, 3 CONNECTIONS, RESULTS TABLE
+connection default;
+USE test;
+--echo
+--echo # Create results table
+CREATE TABLE test.status_results 
+  (variable_name VARCHAR(64), start INT DEFAULT 0, stop INT DEFAULT 0, delta INT DEFAULT 0, 
+   t1 INT DEFAULT 0, t2 INT DEFAULT 0, t3 INT DEFAULT 0, thread INT DEFAULT 0, 
+   u1 INT DEFAULT 0, u2 INT DEFAULT 0, u3 INT DEFAULT 0, user INT DEFAULT 0, 
+   h1 INT DEFAULT 0, h2 INT DEFAULT 0, h3 INT DEFAULT 0, host INT DEFAULT 0, 
+   a1 INT DEFAULT 0, a2 INT DEFAULT 0, a3 INT DEFAULT 0, acct INT DEFAULT 0);
+  
+INSERT INTO test.status_results (variable_name, start) 
+  SELECT sg.variable_name, sg.variable_value+0 FROM performance_schema.global_status sg
+    WHERE variable_name IN ('handler_delete', 'handler_rollback');
+
+--echo 
+--echo # Create test tables
+CREATE TABLE t1 (s1 int) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2), (2), (3), (3), (3);
+CREATE TABLE t2 (s1 int) ENGINE=InnoDB;
+CREATE TABLE t3 (s1 int) ENGINE=InnoDB;
+--echo
+GRANT ALL ON *.* to 'user1'@localhost;
+GRANT ALL ON *.* to 'user2'@localhost;
+GRANT ALL ON *.* to 'user3'@localhost;
+
+--echo
+--echo ================================================================================
+--echo CONNECTION 1: DELETE 1, ROLLBACK x 1
+--echo ================================================================================
+connect(con1, localhost, user1,,);
+SET @@session.sql_log_bin=OFF;
+DELETE FROM t1 WHERE s1 = 1;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+ROLLBACK;
+
+--echo
+--echo ================================================================================
+--echo CONNECTION 2: DELETE 2, ROLLBACK x 2
+--echo ================================================================================
+connect(con2, localhost, user2,,);
+SET @@session.sql_log_bin=OFF;
+DELETE FROM t1 WHERE s1 = 2;
+--echo
+START TRANSACTION;
+INSERT INTO t1 VALUES (2);
+ROLLBACK;
+--echo
+START TRANSACTION;
+INSERT INTO t1 VALUES (2);
+ROLLBACK;
+
+--echo
+--echo ================================================================================
+--echo CONNECTION 3: DELETE 3, ROLLBACK x 3
+--echo ================================================================================
+connect(con3, localhost, user3,,);
+SET @@session.sql_log_bin=OFF;
+DELETE FROM t1 WHERE s1 = 3;
+--echo
+START TRANSACTION;
+INSERT INTO t1 VALUES (3);
+ROLLBACK;
+--echo
+START TRANSACTION;
+INSERT INTO t1 VALUES (3);
+ROLLBACK;
+--echo
+START TRANSACTION;
+INSERT INTO t1 VALUES (3);
+ROLLBACK;
+
+--echo
+--echo ================================================================================
+--echo CONNECTION DEFAULT: Gather results, compare session and global status counts
+--echo ================================================================================
+connection default;
+--echo # Get thread ids for each connection.
+USE performance_schema;
+SELECT thread_id INTO @con1_id FROM threads WHERE processlist_user IN ('user1');
+SELECT thread_id INTO @con2_id FROM threads WHERE processlist_user IN ('user2');
+SELECT thread_id INTO @con3_id FROM threads WHERE processlist_user IN ('user3');
+
+--source ../include/show_aggregate.inc
+
+#--echo DEBUG
+#USE test;
+#SELECT * FROM test.status_results;
+
+--echo
+--echo ================================================================================
+--echo TEST 1: STATUS_BY_THREAD: Verify expected status counts per thread (1,2,3)
+--echo ================================================================================
+--echo #
+--echo # Review per-thread status counts
+--echo #
+USE performance_schema;
+--replace_column 1 thread_id
+SELECT * FROM status_by_thread WHERE thread_id IN (@con1_id, @con2_id, @con3_id) AND variable_name IN ('handler_delete', 'handler_rollback') ORDER BY thread_id;
+
+--echo #
+--echo # Verify expected counts for 'handler_delete' per thread
+--echo # 
+--replace_column 1 connect_1
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_thread WHERE thread_id = @con1_id AND variable_name IN ('handler_delete');
+--echo
+--replace_column 1 connnect_2
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_thread WHERE thread_id = @con2_id AND variable_name IN ('handler_delete');
+--echo
+--replace_column 1 connnect_3
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_thread WHERE thread_id = @con3_id AND variable_name IN ('handler_delete');
+
+--echo #
+--echo # STATUS_BY_THREAD vs. GLOBAL_STATUS
+--echo #
+SELECT variable_name, t1, t2, t3, delta, thread, IF(thread=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 2: STATUS_BY_USER: Verify expected status counts per user (1,2,3)
+--echo ================================================================================
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user1') AND variable_name IN ('handler_delete');
+--echo
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user2') AND variable_name IN ('handler_delete');
+--echo
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user3') AND variable_name IN ('handler_delete');
+
+--echo #
+--echo # STATUS_BY_USER vs. GLOBAL_STATUS
+--echo #
+SELECT variable_name, u1, u2, u3, delta, user, IF(user=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 3: STATUS_BY_ACCOUNT: Verify expected status counts per user, host (1,2,3)
+--echo ================================================================================
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user1') AND variable_name IN ('handler_delete');
+--echo
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user2') AND variable_name IN ('handler_delete');
+--echo
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user3') AND variable_name IN ('handler_delete');
+
+--echo #
+--echo # STATUS_BY_ACCOUNT vs. GLOBAL_STATUS
+--echo #
+SELECT variable_name, a1, a2, a3, delta, acct, IF(acct=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+
+--echo ================================================================================
+--echo TEST 4: STATUS_BY_HOST: Verify expected status counts per host (6)
+--echo ================================================================================
+SELECT *, IF (variable_value = 6,'OK','ERROR') AS Expected FROM status_by_host WHERE host IN ('localhost') AND variable_name IN ('handler_delete');
+
+--echo #
+--echo # STATUS_BY_HOST vs. GLOBAL_STATUS
+--echo #
+--echo # Special case: No way to isolate pre-existing 'localhost' activity, so
+--echo # just check global totals = sum(status_by_host).
+--echo #
+SELECT variable_name, h1, h2, h3, delta, host, IF(host=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+
+--echo
+--echo ================================================================================
+--echo DISCONNECT ALL USERS AND RUN THE TESTS AGAIN. RESULTS SHOULD NOT CHANGE.
+--echo ================================================================================
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+--echo
+USE test;
+--echo
+--echo # Clear results table, leave initial global_status counts
+UPDATE test.status_results
+  SET stop=0, delta=0,
+      t1=0, t2=0, t3=0, thread=0,
+      u1=0, u2=0, u3=0, user=0,
+      h1=0, h2=0, h3=0, host=0,
+      a1=0, a2=0, a3=0, acct=0;
+
+#--echo DEBUG
+#SELECT * FROM test.status_results;
+--echo
+--source ../include/show_aggregate.inc
+
+USE performance_schema;
+--echo
+--echo ================================================================================
+--echo TEST X: STATUS_BY_THREAD: Connections are gone--nothing to verify.
+--echo ================================================================================
+--echo
+--echo ================================================================================
+--echo TEST 5: STATUS_BY_USER: Verify expected status counts per user (1,2,3)
+--echo ================================================================================
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user1') AND variable_name IN ('handler_delete');
+--echo
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user2') AND variable_name IN ('handler_delete');
+--echo
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user3') AND variable_name IN ('handler_delete');
+
+--echo #
+--echo # STATUS_BY_USER vs. GLOBAL_STATUS
+--echo #
+SELECT variable_name, u1, u2, u3, delta, user, IF(user=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 6: STATUS_BY_ACCOUNT: Verify expected status counts per user:host (1,2,3)
+--echo ================================================================================
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user1') AND variable_name IN ('handler_delete');
+--echo
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user2') AND variable_name IN ('handler_delete');
+--echo
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user3') AND variable_name IN ('handler_delete');
+
+--echo #
+--echo # STATUS_BY_ACCOUNT vs. GLOBAL_STATUS
+--echo #
+SELECT variable_name, a1, a2, a3, delta, acct, IF(acct=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+
+--echo ================================================================================
+--echo TEST 7: STATUS_BY_HOST: Verify expected status counts per host (6)
+--echo ================================================================================
+SELECT *, IF (variable_value = 6,'OK','ERROR') AS Expected FROM status_by_host WHERE host IN ('localhost') AND variable_name IN ('handler_delete');
+
+--echo #
+--echo # STATUS_BY_HOST vs. GLOBAL_STATUS
+--echo #
+--echo # Special case: No way to isolate pre-existing 'localhost' activity, so
+--echo # just check global totals = sum(status_by_host).
+--echo #
+SELECT variable_name, h1, h2, h3, delta, host, IF(host=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+
+--echo ================================================================================
+--echo CLEANUP
+--echo ================================================================================
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE test.t3;
+DROP TABLE test.status_results;
+DROP USER 'user1'@localhost;
+DROP USER 'user2'@localhost;
+DROP USER 'user3'@localhost;
+--echo
+--echo # Restore SHOW_COMPATIBILITY_56 setting
+SET @@global.show_compatibility_56 = @show_compatibility_56_save;
+ 

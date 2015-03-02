@@ -24,10 +24,12 @@
 #define MYSQL_SERVER
 #endif
 
+#include "current_thd.h"
 #include "sql_table.h"      // build_table_filename,
                             // tablename_to_filename,
                             // filename_to_tablename
-#include "sql_partition.h"  // HA_CAN_*, partition_info, part_id_range
+#include "sql_partition.h"  // HA_CAN_*, part_id_range
+#include "partition_info.h" // partition_info
 #include "sql_base.h"       // close_cached_tables
 #include "discover.h"       // readfrm
 #include "auth_common.h"    // wild_case_compare

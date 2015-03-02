@@ -6,10 +6,10 @@
 --source ../include/start_server_common.inc
 
 # Expect instances
-show variables like "performance_schema_max_table_instances";
+show global variables like "performance_schema_max_table_instances";
 
 # Expect no handles
-show variables like "performance_schema_max_table_handles";
+show global variables like "performance_schema_max_table_handles";
 
 # Create an instrumented table
 --disable_warnings
@@ -22,9 +22,11 @@ select * from test.instrument_me;
 drop table test.instrument_me;
 
 # Expect no instances lost
-show variables like "performance_schema_max_table_instances";
+show global variables like "performance_schema_max_table_instances";
 
 # We lost all the handles
+--disable_warnings
 select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_TABLE_HANDLES_LOST';
+--enable_warnings
 

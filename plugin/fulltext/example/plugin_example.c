@@ -214,9 +214,9 @@ static struct st_mysql_ftparser simple_parser_descriptor=
 
 static struct st_mysql_show_var simple_status[]=
 {
-  {"static",     (char *)"just a static text",     SHOW_CHAR},
-  {"called",     (char *)&number_of_calls, SHOW_LONG},
-  {0,0,0}
+  {"static",     (char *)"just a static text",     SHOW_CHAR, SHOW_SCOPE_GLOBAL},
+  {"called",     (char *)&number_of_calls, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {0,0,0, SHOW_SCOPE_GLOBAL}
 };
 
 /*

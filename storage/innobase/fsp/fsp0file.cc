@@ -26,34 +26,12 @@ Created 2013-7-26 by Kevin Lewis
 #include "ha_prototypes.h"
 
 #include "fsp0file.h"
+#include "fil0fil.h"
+#include "fsp0sysspace.h"
 #include "os0file.h"
 #include "page0page.h"
 #include "srv0start.h"
 #include "ut0new.h"
-
-/** Initialize the name, size and order of this datafile
-@param[in]	name		space name, shutdown() will free it
-@param[in]	filepath	file name, shutdown() fill free it;
-can be NULL if not determined
-@param[in]	size		size in database pages
-@param[in]	order		ordinal position or the datafile
-in the tablespace */
-
-void
-Datafile::init(
-	char*	name,
-	char*	filepath,
-	ulint	size,
-	ulint	order)
-{
-	ut_ad(m_name == NULL);
-	ut_ad(name != NULL);
-
-	m_name = name;
-	m_filepath = filepath;
-	m_size = size;
-	m_order = order;
-}
 
 /** Initialize the name, size and order of this datafile
 @param[in]	name	tablespace name, will be copied
@@ -67,7 +45,12 @@ Datafile::init(
 	ulint		size,
 	ulint		order)
 {
-	init(mem_strdup(name), NULL, size, order);
+	ut_ad(m_name == NULL);
+	ut_ad(name != NULL);
+
+	m_name = mem_strdup(name);
+	m_size = size;
+	m_order = order;
 }
 
 /** Release the resources. */
@@ -137,7 +120,7 @@ Datafile::open_read_only(bool strict)
 	if (strict) {
 		m_last_os_error = os_file_get_last_error(true);
 		ib::error() << "Cannot open datafile for read-only: '"
-			<< m_filepath << "'";
+			<< m_filepath << "' OS error: " << m_last_os_error;
 	}
 
 	return(DB_CANNOT_OPEN_FILE);
@@ -252,6 +235,28 @@ Datafile::free_filepath()
 	}
 }
 
+/** Allocate and set the datafile or tablespace name in m_name.
+If a name is provided, use it; else if the datafile is file-per-table,
+extract a file-per-table tablespace name from m_filepath; else it is a
+general tablespace, so just call it that for now. The value of m_name
+will be freed in the destructor.
+@param[in]	name	Tablespace Name if known, NULL if not */
+void
+Datafile::set_name(const char*	name)
+{
+	if (name != NULL) {
+		m_name = mem_strdup(name);
+	} else if (fsp_is_file_per_table(m_space_id, m_flags)) {
+		m_name = fil_path_to_space_name(m_filepath);
+	} else {
+		/* Give this general tablespace a temporary name. */
+		m_name = static_cast<char*>(
+			ut_malloc_nokey(strlen(general_space_name) + 20));
+
+		sprintf(m_name, "%s_" ULINTPF, general_space_name, m_space_id);
+	}
+}
+
 /** Reads a few significant fields from the first page of the first
 datafile.  The Datafile must already be open.
 @param[in]	read_only_mode	if true, then readonly mode checks are enforced.
@@ -330,10 +335,13 @@ Datafile::validate_to_dd(
 		return(err);
 	}
 
-	/* Make sure the datafile we found matched the space ID. */
+	/* Make sure the datafile we found matched the space ID.
+	If the datafile is a file-per-table tablespace then also match
+	the row format and zip page size. */
 	if (m_space_id == space_id
-	    && ((m_flags & ~FSP_FLAGS_MASK_DATA_DIR)
-		== (flags & ~FSP_FLAGS_MASK_DATA_DIR))) {
+	    && (m_flags & FSP_FLAGS_MASK_SHARED
+	        || (m_flags & ~FSP_FLAGS_MASK_DATA_DIR)
+	            == (flags & ~FSP_FLAGS_MASK_DATA_DIR))) {
 		/* Datafile matches the tablespace expected. */
 		return(DB_SUCCESS);
 	}
@@ -381,7 +389,7 @@ Datafile::validate_for_recovery()
 		close();
 		err = open_read_write(srv_read_only_mode);
 		if (err != DB_SUCCESS) {
-			ib::error() << "Datafile '" << m_name << "' could not"
+			ib::error() << "Datafile '" << m_filepath << "' could not"
 				" be opened in read-write mode so that the"
 				" doublewrite pages could be restored.";
 			return(err);
@@ -389,7 +397,7 @@ Datafile::validate_for_recovery()
 
 		err = find_space_id();
 		if (err != DB_SUCCESS || m_space_id == 0) {
-			ib::error() << "Datafile '" << m_name << "' is"
+			ib::error() << "Datafile '" << m_filepath << "' is"
 				" corrupted. Cannot determine the space ID from"
 				" the first 64 pages.";
 			return(err);
@@ -405,10 +413,14 @@ Datafile::validate_for_recovery()
 		err = validate_first_page();
 	}
 
+	if (err == DB_SUCCESS) {
+		set_name(NULL);
+	}
+
 	return(err);
 }
 
-/** Checks the consistency of the first page of a datafile when the
+/** Check the consistency of the first page of a datafile when the
 tablespace is opened.  This occurs before the fil_space_t is created
 so the Space ID found here must not already be open.
 m_is_valid is set true on success, else false.
@@ -417,7 +429,6 @@ m_is_valid is set true on success, else false.
 @retval DB_SUCCESS on if the datafile is valid
 @retval DB_CORRUPTION if the datafile is not readable
 @retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-
 dberr_t
 Datafile::validate_first_page(lsn_t* flush_lsn)
 {
@@ -459,7 +470,7 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 		/* skip the next few tests */
 	} else if (univ_page_size.logical() != page_size.logical()) {
 		/* Page size must be univ_page_size. */
-		ib::error() << "Data file '" << m_name << "' uses page size "
+		ib::error() << "Data file '" << m_filepath << "' uses page size "
 			<< page_size.logical() << ", but the innodb_page_size"
 			" start-up parameter is "
 			<< univ_page_size.logical();
@@ -482,22 +493,22 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 	}
 
 	if (error_txt != NULL) {
-		ib::error() << error_txt << " in tablespace: " << m_name
-			<< ", Datafile: " << m_filepath << ", Space ID:"
-			<< m_space_id  << ", Flags: " << m_flags << ". "
-			<< TROUBLESHOOT_DATADICT_MSG;
+		ib::error() << error_txt << " in datafile: " << m_filepath
+			<< ", Space ID:" << m_space_id  << ", Flags: "
+			<< m_flags << ". " << TROUBLESHOOT_DATADICT_MSG;
 		m_is_valid = false;
 		free_first_page();
 		return(DB_CORRUPTION);
 	} else if (fil_space_read_name_and_filepath(
-			   m_space_id, &prev_name, &prev_filepath)) {
+			   m_space_id, &prev_name, &prev_filepath)
+		   && (0 != strcmp(m_filepath, prev_filepath))) {
 		/* Make sure the space_id has not already been opened. */
 		ib::error() << "Attempted to open a previously opened"
 			" tablespace. Previous tablespace " << prev_name
-			<< " at filepath: " << prev_filepath << " uses"
-			" space ID: " << m_space_id << ". Cannot open"
-			" tablespace " << m_name << " at filepath: "
-			<< m_filepath << " which uses the same space ID.";
+			<< " at filepath: " << prev_filepath
+			<< " uses space ID: " << m_space_id
+			<< ". Cannot open filepath: " << m_filepath
+			<< " which uses the same space ID.";
 
 		ut_free(prev_name);
 		ut_free(prev_filepath);
@@ -526,7 +537,7 @@ Datafile::find_space_id()
 
 	if (file_size == (os_offset_t) -1) {
 		ib::error() << "Could not get file size of datafile '"
-			<< m_name << "'";
+			<< m_filepath << "'";
 		return(DB_CORRUPTION);
 	}
 
@@ -581,10 +592,16 @@ Datafile::find_space_id()
 
 			bool	compressed_ok = false;
 
-			/* For compressed pages, univ_page_size.logical()
-			and page size must be equal to or less than 16k. */
+			/* file-per-table tablespaces can be compressed with
+			the same physical and logical page size.  General
+			tablespaces must have different physical and logical
+			page sizes in order to be compressed. For this check,
+			assume the page is compressed if univ_page_size.
+			logical() is equal to or less than 16k and the
+			page_size we are checking is equal to or less than
+			univ_page_size.logical(). */
 			if (univ_page_size.logical() <= UNIV_PAGE_SIZE_DEF
-			    && univ_page_size.logical() >= page_size) {
+			    && page_size <= univ_page_size.logical()) {
 				const page_size_t	compr_page_size(
 					page_size, univ_page_size.logical(),
 					true);
@@ -659,8 +676,8 @@ Datafile::restore_from_doublewrite(
 		now. Hence this is treated as an error. */
 		ib::error() << "Corrupted page "
 			<< page_id_t(m_space_id, restore_page_no)
-			<< " of datafile '" << m_name << "' could not be"
-			" found in the doublewrite buffer.";
+			<< " of datafile '" << m_filepath
+			<< "' could not be found in the doublewrite buffer.";
 
 		return(DB_CORRUPTION);
 	}
@@ -674,9 +691,10 @@ Datafile::restore_from_doublewrite(
 
 	ib::info() << "Restoring page "
 		<< page_id_t(m_space_id, restore_page_no)
-		<< " of datafile '" << m_name << "' from the doublewrite"
-		<< " buffer. Writing " << page_size.physical() << " bytes into"
-		<< " file '" << m_filepath << "'";
+		<< " of datafile '" << m_filepath
+		<< "' from the doublewrite buffer. Writing "
+		<< page_size.physical() << " bytes into file '"
+		<< m_filepath << "'";
 
 	if (!os_file_write(m_filepath, m_handle, page, 0,
 			   page_size.physical())) {

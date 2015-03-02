@@ -23,6 +23,7 @@
 #include <mysys_err.h>    // EE_OUTOFMEMORY
 #include "parse_file.h"   // File_option
 #include "trigger.h"
+#include "current_thd.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -435,7 +436,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     push_warning_printf(current_thd,
                         Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
-                        ER(ER_OLD_FILE_FORMAT),
+                        ER_THD(current_thd, ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
@@ -480,7 +481,7 @@ bool Handle_old_incorrect_trigger_table_hook::process_unknown_string(
     push_warning_printf(current_thd,
                         Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
-                        ER(ER_OLD_FILE_FORMAT),
+                        ER_THD(current_thd, ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
 
     if (!(ptr= parse_escaped_string(ptr, end, mem_root, trigger_table_value)))
@@ -637,7 +638,7 @@ bool Trigger_loader::load_triggers(THD *thd,
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_TRG_NO_CREATION_CTX,
-                        ER(ER_TRG_NO_CREATION_CTX),
+                        ER_THD(thd, ER_TRG_NO_CREATION_CTX),
                         (const char*) db_name,
                         (const char*) table_name);
 

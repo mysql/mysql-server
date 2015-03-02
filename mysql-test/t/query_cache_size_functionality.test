@@ -86,17 +86,21 @@ SELECT @@GLOBAL.query_cache_size;
 #################################################################
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
+--disable_warnings
 SELECT @@GLOBAL.query_cache_size = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='query_cache_size';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.query_cache_size);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='query_cache_size';
+--enable_warnings
 --echo 1 Expected
 
 
@@ -155,6 +159,7 @@ let $Qcache_not_cached = `select variable_value from information_schema.global_s
 
 select 1 from tab1 limit 1;
 --echo 1 Expected
+--disable_warnings
 select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
 --echo 0 Expected
 select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
@@ -162,10 +167,12 @@ select variable_value from information_schema.global_status where variable_name 
 select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
 --echo 0 Expected
 select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--enable_warnings
 --echo 17 Expected
 
 select 1 from tab1 limit 1;
 --echo 1 Expected
+--disable_warnings
 select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
 --echo 0 Expected
 select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
@@ -173,10 +180,12 @@ select variable_value from information_schema.global_status where variable_name 
 select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
 --echo 0 Expected
 select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--enable_warnings
 --echo 22 Expected
 
 select 1 from tab1 limit 2;
 --echo 1 Expected
+--disable_warnings
 select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
 --echo 0 Expected
 select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
@@ -184,6 +193,7 @@ select variable_value from information_schema.global_status where variable_name 
 select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
 --echo 0 Expected
 select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--enable_warnings
 --echo 27 Expected
 
 --echo # Restart server with query_cache_type ON
@@ -196,13 +206,17 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
 
+--disable_warnings
 let $Qcache_hits = `select variable_value from information_schema.global_status where variable_name ='Qcache_hits';`;
 let $Qcache_inserts = `select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';`;
 let $Qcache_queries_in_cache = `select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';`;
 let $Qcache_not_cached = `select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';`;
+--enable_warnings
 
 select 1 from tab1 limit 1;
 --echo 1 Expected
+
+--disable_warnings
 select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
 --echo 0 Expected
 
@@ -243,10 +257,14 @@ select variable_value from information_schema.global_status where variable_name 
 select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
 --echo 16 Expected
 
+--enable_warnings
+
 --echo # opening another client session
 connect (con1,localhost,root,,);
 
+--disable_warnings
 select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--enable_warnings
 --echo 17 Expected
 
 disconnect con1;

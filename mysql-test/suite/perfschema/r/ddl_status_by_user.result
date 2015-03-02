@@ -1,0 +1,10 @@
+alter table performance_schema.status_by_user
+add column foo integer;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+truncate table performance_schema.status_by_user;
+ALTER TABLE performance_schema.status_by_user
+ADD INDEX test_index(VARIABLE_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE UNIQUE INDEX test_index
+ON performance_schema.status_by_user(VARIABLE_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

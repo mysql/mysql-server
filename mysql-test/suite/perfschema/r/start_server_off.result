@@ -95,6 +95,15 @@ select * from performance_schema.replication_execute_configuration;
 select * from performance_schema.replication_execute_status;
 select * from performance_schema.replication_execute_status_by_coordinator;
 select * from performance_schema.replication_execute_status_by_worker;
+select * from performance_schema.status_global;
+select * from performance_schema.status_by_thread;
+select * from performance_schema.status_by_user;
+select * from performance_schema.status_by_host;
+select * from performance_schema.status_by_account;
+select * from performance_schema.session_status;
+select * from performance_schema.variables_global;
+select * from performance_schema.variables_by_thread;
+select * from performance_schema.session_variables;
 show variables like "performance_schema%";
 Variable_name	Value
 performance_schema	OFF

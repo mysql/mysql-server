@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ public:
   Explain_format_traditional() : nil(NULL) {}
 
   virtual bool is_hierarchical() const { return false; }
-  virtual bool send_headers(select_result *result);
+  virtual bool send_headers(Query_result *result);
   virtual bool begin_context(enum_parsing_context,
                              SELECT_LEX_UNIT *subquery,
                              const Explain_format_flags *flags)

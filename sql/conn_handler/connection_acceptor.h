@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ public:
   void connection_event_loop()
   {
     Connection_handler_manager *mgr= Connection_handler_manager::get_instance();
-    while (!abort_loop)
+    while (!connection_events_loop_aborted())
     {
       Channel_info *channel_info= m_listener->listen_for_connection_event();
       if (channel_info != NULL)

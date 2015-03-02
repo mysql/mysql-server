@@ -21,6 +21,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user1 in con1a" as status;
 status
 user1 in con1a
@@ -40,6 +42,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user1 in con1b" as status;
 status
 user1 in con1b
@@ -60,6 +64,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user1 in con1c" as status;
 status
 user1 in con1c
@@ -81,6 +87,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user2 in con2a" as status;
 status
 user2 in con2a
@@ -105,6 +113,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user2 in con2b" as status;
 status
 user2 in con2b
@@ -130,6 +140,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user2 in con2c" as status;
 status
 user2 in con2c
@@ -156,6 +168,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user3 in con3a" as status;
 status
 user3 in con3a
@@ -185,6 +199,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user3 in con3b" as status;
 status
 user3 in con3b
@@ -215,6 +231,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user3 in con3c" as status;
 status
 user3 in con3c
@@ -246,6 +264,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con1a disconnected" as status;
 status
 con1a disconnected
@@ -276,6 +296,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con2a disconnected" as status;
 status
 con2a disconnected
@@ -305,6 +327,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con3a disconnected" as status;
 status
 con3a disconnected
@@ -333,6 +357,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 truncate table performance_schema.accounts;
 call dump_all();
 processlist_user	processlist_host
@@ -359,6 +385,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 truncate table performance_schema.users;
 call dump_all();
 processlist_user	processlist_host
@@ -385,6 +413,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 truncate table performance_schema.hosts;
 call dump_all();
 processlist_user	processlist_host
@@ -411,6 +441,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user4 in con4a" as status;
 status
 user4 in con4a
@@ -442,6 +474,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user4 in con4b" as status;
 status
 user4 in con4b
@@ -474,6 +508,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user4 in con4c" as status;
 status
 user4 in con4c
@@ -507,6 +543,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con1b disconnected" as status;
 status
 con1b disconnected
@@ -539,6 +577,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con2b disconnected" as status;
 status
 con2b disconnected
@@ -570,6 +610,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con3b disconnected" as status;
 status
 con3b disconnected
@@ -600,6 +642,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con1c disconnected" as status;
 status
 con1c disconnected
@@ -629,6 +673,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con2c disconnected" as status;
 status
 con2c disconnected
@@ -657,6 +703,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con3c disconnected" as status;
 status
 con3c disconnected
@@ -684,6 +732,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 truncate table performance_schema.accounts;
 call dump_all();
 processlist_user	processlist_host
@@ -706,6 +756,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 truncate table performance_schema.users;
 call dump_all();
 processlist_user	processlist_host
@@ -725,6 +777,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 truncate table performance_schema.hosts;
 call dump_all();
 processlist_user	processlist_host
@@ -744,6 +798,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user5 in con5a" as status;
 status
 user5 in con5a
@@ -768,6 +824,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user5 in con5b" as status;
 status
 user5 in con5b
@@ -793,6 +851,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "user5 in con5c" as status;
 status
 user5 in con5c
@@ -819,6 +879,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 select "con 5a, 5b, 5c, 6a, 6b, 6c disconnected" as status;
 status
 con 5a, 5b, 5c, 6a, 6b, 6c disconnected
@@ -839,6 +901,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 truncate table performance_schema.hosts;
 call dump_all();
 processlist_user	processlist_host
@@ -855,6 +919,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 truncate table performance_schema.users;
 call dump_all();
 processlist_user	processlist_host
@@ -869,6 +935,8 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 truncate table performance_schema.accounts;
 call dump_all();
 processlist_user	processlist_host
@@ -883,3 +951,5 @@ variable_name	variable_value
 PERFORMANCE_SCHEMA_ACCOUNTS_LOST	0
 PERFORMANCE_SCHEMA_HOSTS_LOST	0
 PERFORMANCE_SCHEMA_USERS_LOST	0
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead

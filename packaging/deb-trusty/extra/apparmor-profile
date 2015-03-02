@@ -47,6 +47,10 @@
   /var/lib/mysql/ r,
   /var/lib/mysql/** rwk,
 
+# Allow data files dir access
+  /var/lib/mysql-files/ r,
+  /var/lib/mysql-files/** rwk,
+
 # Allow log file access
   /var/log/mysql/ r,
   /var/log/mysql/** rw,

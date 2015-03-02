@@ -6,14 +6,14 @@ drop table if exists test.t1;
 truncate table performance_schema.events_waits_current;
 truncate table performance_schema.events_waits_history;
 truncate table performance_schema.events_waits_history_long;
-show variables like "thread_handling";
+show global variables like "thread_handling";
 Variable_name	Value
 thread_handling	no-threads
 create table test.t1(a int) engine=MYISAM;
-show variables like "performance_schema";
+show global variables like "performance_schema";
 Variable_name	Value
 performance_schema	ON
-show variables like "performance_schema_max_thread%";
+show global variables like "performance_schema_max_thread%";
 Variable_name	Value
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	20

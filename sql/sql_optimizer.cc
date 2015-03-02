@@ -28,6 +28,7 @@
 
 #include "my_bit.h"              // my_count_bits
 #include "abstract_query_plan.h" // Join_plan
+#include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum
 #include "lock.h"                // mysql_unlock_some_tables
@@ -40,6 +41,7 @@
 #include "sql_planner.h"         // calculate_condition_filter
 #include "sql_resolver.h"        // subquery_allows_materialization
 #include "sql_test.h"            // print_where
+#include "sql_tmp_table.h"       // get_max_key_and_part_length
 
 #include <algorithm>
 using std::max;
@@ -254,14 +256,12 @@ JOIN::optimize()
     }
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (select_lex->partitioned_table_count && prune_table_partitions())
   {
     error= 1;
     DBUG_PRINT("error", ("Error from prune_partitions"));
     DBUG_RETURN(1);
   }
-#endif
 
   /* 
      Try to optimize count(*), min() and max() to const fields if
@@ -457,6 +457,9 @@ JOIN::optimize()
 
   if (make_join_select(this, where_cond))
   {
+    if (thd->is_error())
+      DBUG_RETURN(1);
+
     zero_result_cause=
       "Impossible WHERE noticed after reading const tables";
     goto setup_subq_exit;
@@ -638,27 +641,32 @@ JOIN::optimize()
   if (make_tmp_tables_info())
     DBUG_RETURN(1);
 
-  // At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible.
+  // At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible,
+  // pushed joins(see below) are still allowed to change the QEP_TABs
 
-  if (!plan_is_const())
+  /*
+    Push joins to handlerton(s)
+
+    The handlerton(s) will inspect the QEP through the
+    AQP (Abstract Query Plan) and extract from it whatever
+    it might implement of pushed execution.
+
+    It is the responsibility of the handler:
+     - to store any information it need for later
+       execution of pushed queries.
+     - to call appropriate AQP functions which modifies the
+       QEP to use the special 'linked' read functions
+       for those parts of the join which have been pushed.
+
+    Currently pushed joins are only implemented by NDB.
+
+    It only make sense to try pushing if > 1 non-const tables.
+  */
+  if (!plan_is_single_table() && !plan_is_const())
   {
-    /**
-     * Push joins to handler(s) whenever possible.
-     * The handlers will inspect the QEP through the
-     * AQP (Abstract Query Plan), and extract from it
-     * whatewer it might implement of pushed execution.
-     * It is the responsibility if the handler to store any
-     * information it need for later execution of pushed queries.
-     *
-     * Currently pushed joins are only implemented by NDB.
-     * It only make sense to try pushing if > 1 non-const tables.
-     */
-    if (!plan_is_single_table() && !plan_is_const())
-    {
-      const AQP::Join_plan plan(this);
-      if (ha_make_pushed_joins(thd, &plan))
-        DBUG_RETURN(1);
-    }
+    const AQP::Join_plan plan(this);
+    if (ha_make_pushed_joins(thd, &plan))
+      DBUG_RETURN(1);
   }
 
   // Update last_query_cost to reflect actual need of filesort.
@@ -2016,6 +2024,9 @@ check_reverse_order:
       }
 
       DBUG_ASSERT(tab->type() != JT_REF_OR_NULL && tab->type() != JT_FT);
+
+      // Changing the key makes filter_effect obsolete
+      tab->position()->filter_effect= COND_FILTER_STALE;
     }
     else if (best_key >= 0)
     {
@@ -2056,6 +2067,7 @@ check_reverse_order:
           tab->ref().key= -1;
           tab->ref().key_parts= 0;
         }
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
       else if (tab->type() != JT_ALL)
       {
@@ -2072,9 +2084,7 @@ check_reverse_order:
         tab->ref().key_parts=0;		// Don't use ref key.
         if (tab->quick()->is_loose_index_scan())
           join->tmp_table_param.precomputed_group_by= TRUE;
-        /*
-          TODO: update the number of records in tab->position
-        */
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
     } // best_key >= 0
 
@@ -2087,7 +2097,6 @@ check_reverse_order:
         if (!tmp)
         {
           /* purecov: begin inspected */
-          tab->set_rowcount(0);
           can_skip_sorting= false;      // Reverse sort failed -> filesort
           goto fix_ICP;
           /* purecov: end */
@@ -2096,6 +2105,7 @@ check_reverse_order:
           delete tab->quick();
         tab->set_quick(tmp);
         tab->set_type(calc_join_type(tmp->get_type()));
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
       else if ((tab->type() == JT_REF || tab->type() == JT_INDEX_SCAN) &&
                tab->ref().key_parts <= used_key_parts)
@@ -2120,6 +2130,7 @@ check_reverse_order:
     }
     else if (tab->quick())
       tab->quick()->need_sorted_output();
+
   } // QEP has been modified
 
 fix_ICP:
@@ -2130,8 +2141,12 @@ fix_ICP:
   */
   if (can_skip_sorting && !no_changes)
   {
-    if (tab->type() == JT_INDEX_SCAN && select_limit < table->file->stats.records)
-      tab->set_rowcount(select_limit);
+    if (tab->type() == JT_INDEX_SCAN &&
+        select_limit < table->file->stats.records)
+    {
+      tab->position()->rows_fetched= select_limit;
+      tab->position()->filter_effect= COND_FILTER_STALE_NO_CONST;
+    }
 
     // Keep current (ordered) tab->quick()
     if (save_quick != tab->quick())
@@ -2179,8 +2194,6 @@ fix_ICP:
 }
 
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-
 /**
   Prune partitions for all tables of a join (query block).
 
@@ -2214,8 +2227,6 @@ bool JOIN::prune_table_partitions()
 
   return false;
 }
-
-#endif
 
 
 /**
@@ -2329,6 +2340,7 @@ void JOIN::adjust_access_methods()
         if (tab->position()->sj_strategy != SJ_OPT_LOOSE_SCAN)
           tab->set_index(find_shortest_key(tab->table(), &tab->table()->covering_keys));
         tab->set_type(JT_INDEX_SCAN);      // Read with index_first / index_next
+        // From table scan to index scan, thus filter effect needs no recalc.
       }
     }
     else if (tab->type() == JT_REF)
@@ -2347,14 +2359,8 @@ void JOIN::adjust_access_methods()
           add_alnum("new_type", join_type_str[tab->type()]).
           add_alnum("cause", "uses_more_keyparts");
 
-        tab->position()->rows_fetched= rows2double(tab->quick()->records);
         tab->use_quick= QS_RANGE;
-
-        tab->position()->filter_effect=
-          calculate_condition_filter(tab, NULL,
-                                     tab->prefix_tables() & ~tl->map(),
-                                     tab->position()->rows_fetched,
-                                     false);
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
       else
       {
@@ -2564,7 +2570,6 @@ bool JOIN::get_best_combination()
 
     best_ref[target]= tab;
     tab->set_idx(target);
-    tab->set_rowcount((ha_rows) pos->rows_fetched);
     tab->set_position(pos);
     TABLE *const table= tab->table();
     if (tab->type() != JT_CONST && tab->type() != JT_SYSTEM)
@@ -2584,12 +2589,7 @@ bool JOIN::get_best_combination()
         if (tab->quick())
           tab->set_type(calc_join_type(tab->quick()->get_type()));
         else
-        {
           tab->set_type(JT_ALL);
-          // Update number of rows
-          tab->table_ref->fetch_number_of_rows();
-          tab->set_rowcount(table->file->stats.records);
-        }
       }
       else
         // REF or RANGE, clarify later when prefix tables are set for JOIN_TABs
@@ -4701,7 +4701,7 @@ bool JOIN::make_join_plan()
       best_read > (double) thd->variables.max_join_size &&
       !thd->lex->is_explain())
   {						/* purecov: inspected */
-    my_message(ER_TOO_BIG_SELECT, ER(ER_TOO_BIG_SELECT), MYF(0));
+    my_error(ER_TOO_BIG_SELECT, MYF(0));
     error= -1;
     DBUG_RETURN(1);
   }
@@ -4923,7 +4923,7 @@ bool JOIN::propagate_dependencies()
     {
       tables= 0;               // Don't use join->table
       primary_tables= 0;
-      my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
+      my_error(ER_WRONG_OUTER_JOIN, MYF(0));
       return true;
     }
 
@@ -4970,11 +4970,7 @@ bool JOIN::extract_const_tables()
     TABLE_LIST *const tl= tab->table_ref;
     enum enum_const_table_extraction extract_method= extract_const_table;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     const bool all_partitions_pruned_away= table->all_partitions_pruned_away;
-#else
-    const bool all_partitions_pruned_away= false;
-#endif
 
     if (tl->outer_join_nest())
     {
@@ -5447,20 +5443,45 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   List_iterator<Item> it1(sj_nest->nested_join->sj_outer_exprs);
   List_iterator<Item> it2(sj_nest->nested_join->sj_inner_exprs);
 
-  sj_nest->nested_join->sjm.scan_allowed= false;
-  sj_nest->nested_join->sjm.lookup_allowed= false;
+  sj_nest->nested_join->sjm.scan_allowed= true; 
+  sj_nest->nested_join->sjm.lookup_allowed= true;
 
   bool blobs_involved= false;
   Item *outer, *inner;
+  uint total_lookup_index_length= 0;
+  uint max_key_length;
+  uint max_key_part_length;
+  /*
+    Maximum lengths for keys and key parts that are supported by
+    the temporary table storage engine(s).
+  */
+  get_max_key_and_part_length(&max_key_length,
+                              &max_key_part_length);
   while (outer= it1++, inner= it2++)
   {
     DBUG_ASSERT(outer->real_item() && inner->real_item());
     if (!types_allow_materialization(outer, inner))
+    {
+      sj_nest->nested_join->sjm.scan_allowed= false; 
+      sj_nest->nested_join->sjm.lookup_allowed= false;
       DBUG_VOID_RETURN;
+    }
     blobs_involved|= inner->is_blob_field();
+
+    // Calculate the index length of materialized table
+    const uint lookup_index_length=((inner->type() == Item::FIELD_ITEM) ?
+                            ((Item_field *)inner)->field->pack_length() :
+                            inner->max_length) +
+                            (inner->maybe_null ? HA_KEY_NULL_LENGTH : 0);
+    if (lookup_index_length > max_key_part_length)
+      sj_nest->nested_join->sjm.lookup_allowed= false;
+    total_lookup_index_length+= lookup_index_length ; 
   }
-  sj_nest->nested_join->sjm.scan_allowed=   true;
-  sj_nest->nested_join->sjm.lookup_allowed= !blobs_involved;
+  if (total_lookup_index_length > max_key_length)
+    sj_nest->nested_join->sjm.lookup_allowed= false;
+
+  if (blobs_involved)
+    sj_nest->nested_join->sjm.lookup_allowed= false;
 
   if (sj_nest->embedding)
   {
@@ -6458,7 +6479,7 @@ warn_index_not_applicable(THD *thd, const Field *field,
         push_warning_printf(thd,
                             Sql_condition::SL_WARNING,
                             ER_WARN_INDEX_NOT_APPLICABLE,
-                            ER(ER_WARN_INDEX_NOT_APPLICABLE),
+                            ER_THD(thd, ER_WARN_INDEX_NOT_APPLICABLE),
                             "ref",
                             field->table->key_info[j].name,
                             field->field_name);
@@ -7275,6 +7296,11 @@ add_ft_keys(Key_use_array *keyuse_array,
       !(usable_tables & cond_func->table_ref->map()))
     return FALSE;
 
+  // Cannot do index lookup into outer table:
+  for (uint i= 0; i < cond_func->arg_count ; ++i)
+    if (!is_local_field(cond_func->arguments()[i]))
+      return false;
+
   cond_func->set_simple_expression(simple_match_expr);
 
   const Key_use keyuse(cond_func->table_ref,
@@ -7291,7 +7317,7 @@ add_ft_keys(Key_use_array *keyuse_array,
   return keyuse_array->push_back(keyuse);
 }
 
- 
+
 /**
   Compares two keyuse elements.
 
@@ -8748,6 +8774,9 @@ static bool make_join_select(JOIN *join, Item *cond)
   if (const_cond != NULL)
   {
     const bool const_cond_result= const_cond->val_int() != 0;
+    if (thd->is_error())
+      DBUG_RETURN(true);
+
     Opt_trace_object trace_const_cond(trace);
     trace_const_cond.add("condition_on_constant_tables", const_cond)
                     .add("condition_value", const_cond_result);
@@ -8897,6 +8926,9 @@ static bool make_join_select(JOIN *join, Item *cond)
 
           DBUG_ASSERT(tab->const_keys.is_subset(tab->keys()));
 
+          const join_type orig_join_type= tab->type();
+          const QUICK_SELECT_I *const orig_quick= tab->quick();
+
           if (cond &&                                                // 1a
               (tab->keys() != tab->const_keys) &&                      // 1b
               (i > 0 ||                                              // 1c
@@ -8953,75 +8985,58 @@ static bool make_join_select(JOIN *join, Item *cond)
 
             if (recheck_reason == LOW_LIMIT)
             {
-              /*
-                When optimizing for ORDER BY ... LIMIT, only indexes
-                that give correct ordering are of interest. The block
-                below removes all other indexes from usable_keys so
-                the range optimizer (see test_quick_select() below)
-                does not consider them.
-              */
-              for (uint idx= 0; idx < tab->table()->s->keys; idx++)
-              {
-                /*
-                  No need to check if indexes that we're not allowed
-                  to use can provide required ordering.
-                */
-                if (!usable_keys.is_set(idx))
-                  continue;
+              int read_direction= 0;
 
-                const int read_direction=
-                  test_if_order_by_key(join->order, tab->table(), idx);
-                if (read_direction == 0)
+              /*
+                If the current plan is to use range, then check if the
+                already selected index provides the order dictated by the
+                ORDER BY clause.
+              */
+              if (tab->quick() && tab->quick()->index != MAX_KEY)
+              {
+                const uint ref_key= tab->quick()->index;
+
+                read_direction= test_if_order_by_key(join->order,
+                                                     tab->table(), ref_key);
+                /*
+                  If the index provides order there is no need to recheck
+                  index usage; we already know from the former call to
+                  test_quick_select() that a range scan on the chosen
+                  index is cheapest. Note that previous calls to
+                  test_quick_select() did not take order direction
+                  (ASC/DESC) into account, so in case of DESC ordering
+                  we still need to recheck.
+                */
+                if ((read_direction == 1) ||
+                    (read_direction == -1 && tab->quick()->reverse_sorted()))
                 {
-                  // The index cannot provide required ordering
-                  usable_keys.clear_bit(idx);
-                  continue;
+                  recheck_reason= DONT_RECHECK;
                 }
-
-                /*
-                  Currently, only ASC ordered indexes are availabe,
-                  which means that if ordering can be achieved by
-                  reading the index in forward direction, then we have
-                  ORDER BY... ASC. Likewise, if ordering can be
-                  achieved by reading the index in backward direction,
-                  then we have ORDER BY ... DESC.
-
-                  Furthermore, if correct order can be achieved by
-                  reading one index in either forward or backward
-                  direction, then all other applicable indexes will
-                  need to be read in the same direction (so no reason
-                  to check that read_direction is the same for all
-                  applicable indexes).
-
-                  If DESC/mixed ordered indexes will be possible in
-                  the future, the implied connection between index
-                  read direction and ASC/DESC ordering will no longer
-                  hold.
-                */
-                interesting_order= (read_direction == -1 ? ORDER::ORDER_DESC :
-                                                           ORDER::ORDER_ASC);
               }
-
-              if (usable_keys.is_clear_all())
-                recheck_reason= DONT_RECHECK; // No usable keys
-
-              /*
-                If the current plan is to use a range access on an
-                index that provides the order dictated by the ORDER BY
-                clause there is no need to recheck index usage; we
-                already know from the former call to
-                test_quick_select() that a range scan on the chosen
-                index is cheapest. Note that previous calls to
-                test_quick_select() did not take order direction
-                (ASC/DESC) into account, so in case of DESC ordering
-                we still need to recheck.
-              */
-              if (tab->quick() && (tab->quick()->index != MAX_KEY) &&
-                  usable_keys.is_set(tab->quick()->index) &&
-                  (interesting_order != ORDER::ORDER_DESC ||
-                   tab->quick()->reverse_sorted()))
+              if (recheck_reason != DONT_RECHECK)
               {
-                recheck_reason= DONT_RECHECK;
+                int best_key= -1;
+                ha_rows select_limit= join->unit->select_limit_cnt;
+
+                /* Use index specified in FORCE INDEX FOR ORDER BY, if any. */
+                if (tab->table()->force_index)
+                  usable_keys.intersect(tab->table()->keys_in_use_for_order_by);
+
+                /* Do a cost based search on the indexes that give sort order */
+                test_if_cheaper_ordering(tab, join->order, tab->table(),
+                                         usable_keys, -1, select_limit,
+                                         &best_key, &read_direction,
+                                         &select_limit);
+                if (best_key < 0)
+                  recheck_reason= DONT_RECHECK; // No usable keys
+                else
+                {
+                  // Only usable_key is the best_key chosen
+                  usable_keys.clear_all();
+                  usable_keys.set_bit(best_key);
+                  interesting_order= (read_direction == -1 ? ORDER::ORDER_DESC :
+                                      ORDER::ORDER_ASC);
+                }
               }
             }
 
@@ -9081,19 +9096,10 @@ static bool make_join_select(JOIN *join, Item *cond)
               Access method changed. This is after deciding join order
               and access method for all other tables so the info
               updated below will not have any effect on the execution
-              plan. However, if this is EXPLAIN, rows_fetched and
-              filter_effect need to reflect the new access method.
+              plan.
             */
-	    if (tab->quick())
-            {
+            if (tab->quick())
               tab->set_type(calc_join_type(tab->quick()->get_type()));
-              tab->position()->rows_fetched= (double)tab->quick()->records;
-              tab->position()->filter_effect=
-                calculate_condition_filter(tab, NULL,
-                                           used_tables & ~tab->table_ref->map(),
-                                           tab->position()->rows_fetched,
-                                           false);
-            }
 
           } // end of "if (recheck_reason != DONT_RECHECK)"
 
@@ -9142,6 +9148,11 @@ static bool make_join_select(JOIN *join, Item *cond)
             else
               tab->use_quick= QS_RANGE;
           }
+
+          if (tab->type() != orig_join_type ||
+              tab->quick() != orig_quick)       // Access method changed
+            tab->position()->filter_effect= COND_FILTER_STALE;
+
 	}
       }
 

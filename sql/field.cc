@@ -25,6 +25,7 @@
 
 #include "field.h"
 
+#include "current_thd.h"
 #include "filesort.h"                    // change_double_for_sort
 #include "item_timefunc.h"               // Item_func_now_local
 #include "log_event.h"                   // class Table_map_log_event
@@ -101,7 +102,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -132,7 +133,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_TINY,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -163,7 +164,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_SHORT,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -194,7 +195,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_LONG,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -225,7 +226,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_FLOAT,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_DOUBLE,      MYSQL_TYPE_VARCHAR,
@@ -256,7 +257,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_DOUBLE,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_DOUBLE,      MYSQL_TYPE_VARCHAR,
@@ -287,7 +288,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_DATETIME,    MYSQL_TYPE_YEAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_BIT,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_ENUM,
@@ -318,7 +319,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_DATETIME,    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_DATETIME,    MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -349,7 +350,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_LONGLONG,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -380,7 +381,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_INT24,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL    MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -411,7 +412,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_DATETIME,    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -442,7 +443,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_DATETIME,    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -473,7 +474,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_DATETIME,    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_DATETIME,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -504,7 +505,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_YEAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -535,7 +536,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_DATETIME,    MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_NEWDATE,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -566,7 +567,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -597,7 +598,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_BIT,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -628,7 +629,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_NEWDECIMAL,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_NEWDECIMAL,  MYSQL_TYPE_VARCHAR,
@@ -659,7 +660,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -690,7 +691,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -721,7 +722,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_TINY_BLOB,   MYSQL_TYPE_TINY_BLOB,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_TINY_BLOB,   MYSQL_TYPE_TINY_BLOB,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_TINY_BLOB,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_TINY_BLOB,   MYSQL_TYPE_TINY_BLOB,
@@ -752,7 +753,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_MEDIUM_BLOB,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_MEDIUM_BLOB,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_MEDIUM_BLOB,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_MEDIUM_BLOB,
@@ -783,7 +784,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_LONG_BLOB,   MYSQL_TYPE_LONG_BLOB,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_LONG_BLOB,   MYSQL_TYPE_LONG_BLOB,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_LONG_BLOB,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_LONG_BLOB,   MYSQL_TYPE_LONG_BLOB,
@@ -814,7 +815,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_BLOB,        MYSQL_TYPE_BLOB,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_BLOB,        MYSQL_TYPE_BLOB,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_BLOB,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_BLOB,        MYSQL_TYPE_BLOB,
@@ -845,7 +846,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -876,7 +877,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_STRING,      MYSQL_TYPE_STRING,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_STRING,      MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_STRING,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_STRING,      MYSQL_TYPE_STRING,
@@ -907,7 +908,7 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
     MYSQL_TYPE_VARCHAR,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
     MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_VARCHAR,
@@ -971,7 +972,7 @@ static Item_result field_types_result_type [FIELDTYPE_NUM]=
   STRING_RESULT,            INT_RESULT,
   //MYSQL_TYPE_NEWDATE      MYSQL_TYPE_VARCHAR
   STRING_RESULT,            STRING_RESULT,
-  //MYSQL_TYPE_BIT          <16>-<245>
+  //MYSQL_TYPE_BIT          <16>-<244>
   STRING_RESULT,
   //MYSQL_TYPE_NEWDECIMAL   MYSQL_TYPE_ENUM
   DECIMAL_RESULT,           STRING_RESULT,
@@ -1076,7 +1077,7 @@ static void push_numerical_conversion_warning(THD* thd, const char* str,
     String tmp(buf, sizeof(buf), cs);
     tmp.copy(str, length, cs);
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        error, ER(error), typestr, tmp.c_ptr(),
+                        error, ER_THD(thd, error), typestr, tmp.c_ptr(),
                         field_name, row_num);
 }
 
@@ -1114,7 +1115,7 @@ static void set_decimal_warning(Field_new_decimal *field,
     const Diagnostics_area *da= field->table->in_use->get_stmt_da();
     push_warning_printf(field->table->in_use, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        ER_THD(field->table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "decimal", errmsg.ptr(), field->field_name,
                         da->current_row_for_condition());
     my_decimal_set_zero(dec_value);
@@ -1211,7 +1212,7 @@ Field_num::check_int(const CHARSET_INFO *cs, const char *str, size_t length,
     ErrConvString err(str, length, cs);
     push_warning_printf(table->in_use, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
-                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        ER_THD(table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "integer", err.ptr(), field_name,
                         table->in_use->get_stmt_da()->
                         current_row_for_condition());
@@ -1371,7 +1372,9 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    unireg_check(unireg_check_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
    is_created_from_null_item(FALSE),
-   m_warnings_pushed(0)
+   m_warnings_pushed(0),
+   gcol_info(0), stored_in_db(TRUE)
+
 {
   flags=real_maybe_null() ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
@@ -2827,7 +2830,7 @@ Field_new_decimal::store(const char *from, size_t length,
     const Diagnostics_area *da= table->in_use->get_stmt_da();
     push_warning_printf(table->in_use, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        ER_THD(table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "decimal", errmsg.ptr(), field_name,
                         da->current_row_for_condition());
     DBUG_RETURN(decimal_err_to_type_conv_status(err));
@@ -4702,7 +4705,7 @@ warn:
     ErrConvString err(str);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
   }
   return res;
@@ -4852,6 +4855,11 @@ void Field_double::sql_type(String &res) const
 /****************************************************************************
 ** Common code for all temporal data types: DATE, DATETIME, TIMESTAMP, TIME
 *****************************************************************************/
+
+my_time_flags_t Field_temporal::date_flags()
+{
+  return date_flags(table ? table->in_use : current_thd);
+}
 
 uint Field_temporal::is_equal(Create_field *new_field)
 {
@@ -6712,7 +6720,7 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
   push_warning_printf(thd,
                       Sql_condition::SL_WARNING,
                       ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                      ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                      ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                       "string", tmp, field_name,
                       thd->get_stmt_da()->current_row_for_condition());
   return TYPE_WARN_TRUNCATED;
@@ -6891,7 +6899,7 @@ double Field_string::val_real(void)
     ErrConvString err((char*) ptr, field_length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
                         err.ptr());
   }
   return result;
@@ -6915,7 +6923,7 @@ longlong Field_string::val_int(void)
     ErrConvString err((char*) ptr, field_length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE, 
-                        ER(ER_TRUNCATED_WRONG_VALUE),
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
                         "INTEGER", err.ptr());
   }
   return result;
@@ -6951,7 +6959,7 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
     ErrConvString errmsg((char*) ptr, field_length, charset());
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE, 
-                        ER(ER_TRUNCATED_WRONG_VALUE),
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
                         "DECIMAL", errmsg.ptr());
   }
 
@@ -7720,6 +7728,12 @@ void Field_varstring::hash(ulong *nr, ulong *nr2)
 ** packlength slot and may be from 1-4.
 ****************************************************************************/
 
+Field_blob::Field_blob(uint32 packlength_arg)
+  :Field_longstr((uchar*) 0, 0, (uchar*) "", 0, NONE, "temp",
+                 system_charset_info),
+   packlength(packlength_arg)
+{}
+
 Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
                        TABLE_SHARE *share, uint blob_pack_length,
@@ -8388,24 +8402,21 @@ void Field_geom::sql_type(String &res) const
 
 type_conversion_status Field_geom::store(double nr)
 {
-  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
   return TYPE_ERR_BAD_VALUE;
 }
 
 
 type_conversion_status Field_geom::store(longlong nr, bool unsigned_val)
 {
-  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
   return TYPE_ERR_BAD_VALUE;
 }
 
 
 type_conversion_status Field_geom::store_decimal(const my_decimal *)
 {
-  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
   return TYPE_ERR_BAD_VALUE;
 }
 
@@ -8422,8 +8433,7 @@ Field_geom::store_internal(const char *from, size_t length,
       !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)))
   {
     memset(ptr, 0, Field_blob::pack_length());  
-    my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-               ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+    my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
     return TYPE_ERR_BAD_VALUE;
   }
 
@@ -9791,6 +9801,9 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
     (maybe_null ? FIELDFLAG_MAYBE_NULL : 0) |
     (is_unsigned ? 0 : FIELDFLAG_DECIMAL);
 
+  gcol_info= 0;
+  stored_in_db= TRUE;
+
   DBUG_PRINT("debug", ("pack_flag: %s%s%s%s%s%s, pack_type: %d",
                        FLAGSTR(pack_flag, FIELDFLAG_BINARY),
                        FLAGSTR(pack_flag, FIELDFLAG_NUMBER),
@@ -9821,6 +9834,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   @param fld_interval_list     Interval list (if any.)
   @param fld_charset           Column charset.
   @param fld_geom_type         Column geometry type (if any.)
+  @param fld_gcol_info         Generated column data
 
   @retval
     FALSE on success.
@@ -9834,7 +9848,8 @@ bool Create_field::init(THD *thd, const char *fld_name,
                         Item *fld_default_value, Item *fld_on_update_value,
                         LEX_STRING *fld_comment, const char *fld_change,
                         List<String> *fld_interval_list,
-                        const CHARSET_INFO *fld_charset, uint fld_geom_type)
+                        const CHARSET_INFO *fld_charset, uint fld_geom_type,
+                        Generated_column *fld_gcol_info)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -9900,6 +9915,62 @@ bool Create_field::init(THD *thd, const char *fld_name,
   interval_list.empty();
 
   comment= *fld_comment;
+  gcol_info= fld_gcol_info;
+  stored_in_db= TRUE;
+
+  /* Initialize data for a virtual field */
+  if (gcol_info)
+  {
+    DBUG_ASSERT(gcol_info->expr_item);
+    stored_in_db= gcol_info->get_field_stored();
+    /*
+      Perform per item-type checks to determine if the expression is 
+      allowed for a generated column.
+      Note that validation of the specific function is done later in
+      procedures open_table_from_share and fix_fields_gcol_func
+    */
+    switch (gcol_info->expr_item->type()) {
+    case Item::FUNC_ITEM:
+      if (((Item_func *)gcol_info->expr_item)->functype() ==
+          Item_func::FUNC_SP)
+      {
+        my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0),
+                 field_name);
+        DBUG_RETURN(TRUE);
+      }
+      break;
+    case Item::COPY_STR_ITEM:
+    case Item::FIELD_AVG_ITEM:
+    case Item::PROC_ITEM:
+    case Item::REF_ITEM:
+    case Item::FIELD_STD_ITEM:
+    case Item::FIELD_VARIANCE_ITEM:
+    case Item::INSERT_VALUE_ITEM:
+    case Item::SUBSELECT_ITEM:
+    case Item::CACHE_ITEM:
+    case Item::TYPE_HOLDER:
+    case Item::PARAM_ITEM:
+    case Item::TRIGGER_FIELD_ITEM:
+    case Item::XPATH_NODESET:
+    case Item::XPATH_NODESET_CMP:
+    case Item::VIEW_FIXER_ITEM:
+      my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0),
+               field_name);
+      DBUG_RETURN(TRUE);
+      break;
+    default:
+      // Continue with the field creation
+      break;
+    }
+    /*
+      Make a field created for the real type.
+      Note that "real" and generated fields differ from each other
+      only by Field::gcol_info, which is always 0 for normal columns.
+      gcol_info is updated for fields later in procedure open_binary_frm.
+    */
+    sql_type= fld_type= gcol_info->get_real_type();
+  }
+
   /*
     Set NO_DEFAULT_VALUE_FLAG if this field doesn't have a default value and
     it is NOT NULL and not an AUTO_INCREMENT field.
@@ -10022,7 +10093,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
         */
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_BLOB_CANT_HAVE_DEFAULT,
-                            ER(ER_BLOB_CANT_HAVE_DEFAULT),
+                            ER_THD(thd, ER_BLOB_CANT_HAVE_DEFAULT),
                             fld_name);
       }
       def= 0;
@@ -10174,7 +10245,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
     }
   case MYSQL_TYPE_DECIMAL:
     DBUG_ASSERT(0); /* Was obsolete */
-  }
+ }
   /* Remember the value of length */
   char_length= length;
 
@@ -10281,7 +10352,6 @@ uint pack_length_to_packflag(uint type)
   }
   return 0;					// This shouldn't happen
 }
-
 
 Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 		  uchar *null_pos, uchar null_bit,
@@ -10501,7 +10571,9 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   key_length(old_field->key_length()),
   unireg_check(old_field->unireg_check),
   charset(old_field->charset()),		// May be NULL ptr
-  field(old_field)
+  field(old_field),
+  gcol_info(old_field->gcol_info),
+  stored_in_db(old_field->stored_in_db)
 {
 
   switch (sql_type) {
@@ -10714,7 +10786,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   {
     // We aggregate warnings from only INSERT and REPLACE statements.
 
-    push_warning_printf(thd, level, code, ER(code), field_name,
+    push_warning_printf(thd, level, code, ER_THD(thd, code), field_name,
                         thd->get_stmt_da()->current_row_for_condition());
 
     return 0;
@@ -10731,7 +10803,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   {
     if (!(m_warnings_pushed & current_warning_mask))
     {
-      push_warning_printf(thd, level, code, ER(code), field_name,
+      push_warning_printf(thd, level, code, ER_THD(thd, code), field_name,
                           thd->get_stmt_da()->current_row_for_condition());
       m_warnings_pushed|= current_warning_mask;
     }
@@ -10742,7 +10814,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_NO_DEFAULT_FOR_VIEW_FIELD,
-                          ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
+                          ER_THD(thd, ER_NO_DEFAULT_FOR_VIEW_FIELD),
                           view_db_name,
                           view_name);
       m_warnings_pushed|= NO_DEFAULT_FOR_VIEW_FIELD_PUSHED;
@@ -10750,7 +10822,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   }
   else
   {
-    push_warning_printf(thd, level, code, ER(code), field_name,
+    push_warning_printf(thd, level, code, ER_THD(thd, code), field_name,
                         thd->get_stmt_da()->current_row_for_condition());
   }
 

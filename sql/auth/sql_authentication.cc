@@ -29,6 +29,9 @@
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
 #include <mysql/service_my_plugin_log.h>
 #include "sys_vars.h"
+#include "current_thd.h"
+#include "psi_memory_key.h"
+
 #include <fstream>                      /* std::fstream */
 #include <string>                       /* std::string */
 #include <algorithm>                    /* for_each */
@@ -450,7 +453,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
     query_logger.general_log_print(thd, COM_CONNECT,
-                                   ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                                   ER_DEFAULT(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip);
     /*
@@ -458,7 +461,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    sql_print_information(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+    sql_print_information(ER_DEFAULT(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                           mpvio->auth_info.user_name,
                           mpvio->auth_info.host_or_ip);
   }
@@ -467,20 +470,21 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
     my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip,
-             passwd_used ? ER(ER_YES) : ER(ER_NO));
-    query_logger.general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+             passwd_used ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO));
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER_DEFAULT(ER_ACCESS_DENIED_ERROR),
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip,
-                                   passwd_used ? ER(ER_YES) : ER(ER_NO));
+                                   passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
     /*
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    sql_print_information(ER(ER_ACCESS_DENIED_ERROR),
+    sql_print_information(ER_DEFAULT(ER_ACCESS_DENIED_ERROR),
                           mpvio->auth_info.user_name,
                           mpvio->auth_info.host_or_ip,
-                          passwd_used ? ER(ER_YES) : ER(ER_NO));
+                          passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
   }
 }
 
@@ -732,6 +736,7 @@ ACL_USER *decoy_user(const LEX_STRING &username,
   user->password_last_changed.time_type= MYSQL_TIMESTAMP_ERROR;
   user->password_lifetime= 0;
   user->use_default_password_lifetime= true;
+  user->account_locked= false;
 
   /*
     For now the common default account is used. Improvements might involve
@@ -806,7 +811,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
                               native_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(current_thd, COM_CONNECT,
-                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
+                                   ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -1004,7 +1009,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   DBUG_ENTER ("parse_com_change_user_packet");
   if (passwd >= end)
   {
-    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
     DBUG_RETURN (1);
   }
 
@@ -1023,7 +1028,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   */
   if (db >= end)
   {
-    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
     DBUG_RETURN (1);
   }
 
@@ -1081,7 +1086,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
     client_plugin= ptr + 2;
     if (client_plugin >= end)
     {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
   }
@@ -2243,6 +2248,20 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
       DBUG_RETURN(1);
     }
 
+    /*
+      Check whether the account has been locked.
+    */
+    if (unlikely(mpvio.acl_user->account_locked))
+    {
+      locked_account_connection_count++;
+
+      my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0),
+               mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
+      sql_print_information(ER_DEFAULT(ER_ACCOUNT_HAS_BEEN_LOCKED),
+                            mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
+      DBUG_RETURN(1);
+    }
+
     /* checking password_time_expire for connecting user */
     password_time_expired= check_password_lifetime(thd, mpvio.acl_user);
 
@@ -2259,8 +2278,8 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
 
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
-                                     ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      sql_print_information("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+                                     ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      sql_print_information("%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);
@@ -2370,7 +2389,7 @@ acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
 int generate_native_password(char *outbuf, unsigned int *buflen,
                              const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf))
+  if (my_validate_password_policy(inbuf, inbuflen))
     return 1;
   /* for empty passwords */
   if (inbuflen == 0)
@@ -2417,8 +2436,11 @@ int set_native_salt(const char* password, unsigned int password_len,
     *salt_len= 0;
   else
   {
-    get_salt_from_password(salt, password);
-    *salt_len= SCRAMBLE_LENGTH;
+    if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH)
+    {
+      get_salt_from_password(salt, password);
+      *salt_len= SCRAMBLE_LENGTH;
+    }
   }
   return 0;
 }
@@ -2427,7 +2449,7 @@ int set_native_salt(const char* password, unsigned int password_len,
 int generate_sha256_password(char *outbuf, unsigned int *buflen,
                              const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf))
+  if (my_validate_password_policy(inbuf, inbuflen))
     return 1;
   if (inbuflen == 0)
   {

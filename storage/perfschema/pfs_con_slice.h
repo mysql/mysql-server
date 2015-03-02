@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #include "pfs_lock.h"
 #include "lf.h"
+#include "pfs_status.h"
 
 struct PFS_single_stat;
 struct PFS_stage_stat;
@@ -41,39 +42,6 @@ struct PFS_memory_stat;
 */
 struct PFS_connection_slice
 {
-  /**
-    Allocate memory for waits statistics.
-    @param sizing the number of wait classes.
-    @return wait statistics for this slice.
-  */
-  static PFS_single_stat *alloc_waits_slice(uint sizing);
-  /**
-    Allocate memory for stages statistics.
-    @param sizing the number of stage classes.
-    @return stage statistics for this slice.
-  */
-  static PFS_stage_stat *alloc_stages_slice(uint sizing);
-  /**
-    Allocate memory for statement statistics.
-    @param sizing the number of statement classes.
-    @return statement statistics for this slice.
-  */
-  static PFS_statement_stat *alloc_statements_slice(uint sizing);
-
-  /**
-    Allocate memory for transaction statistics.
-    @param sizing the number of transaction classes.
-    @return transaction statistics for this slice.
-  */
-  static PFS_transaction_stat *alloc_transactions_slice(uint sizing);
-
-  /**
-    Allocate memory for memory statistics.
-    @param sizing the number of memory classes.
-    @return memory statistics for this slice.
-  */
-  static PFS_memory_stat *alloc_memory_slice(uint sizing);
-
   /** Reset all statistics. */
   inline void reset_stats()
   {
@@ -82,6 +50,7 @@ struct PFS_connection_slice
     m_has_statements_stats= false;
     m_has_transactions_stats= false;
     m_has_memory_stats= false;
+    reset_status_stats();
   }
 
   /** Reset all wait statistics. */
@@ -94,6 +63,11 @@ struct PFS_connection_slice
   void reset_transactions_stats();
   /** Reset all memory statistics. */
   void rebase_memory_stats();
+  /** Reset all status variable statistics. */
+  void reset_status_stats()
+  {
+    m_status_stats.reset();
+  }
 
   void set_instr_class_waits_stats(PFS_single_stat *array)
   {
@@ -256,6 +230,18 @@ private:
     Immutable, safe to use without internal lock.
   */
   PFS_memory_stat *m_instr_class_memory_stats;
+
+public:
+
+  void aggregate_status_stats(const System_status_var *status_vars)
+  {
+    m_status_stats.aggregate_from(status_vars);
+  }
+
+  /**
+    Aggregated status variables.
+  */
+  PFS_status_stats m_status_stats;
 };
 
 /** @} */

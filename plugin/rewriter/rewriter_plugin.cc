@@ -81,14 +81,14 @@ static long long status_var_number_reloads;
 static st_mysql_show_var rewriter_plugin_status_vars[]=
 {
   {PLUGIN_NAME "_number_rewritten_queries",
-     pointer_cast<char*>(&status_var_number_rewritten_queries), SHOW_LONGLONG},
+     pointer_cast<char*>(&status_var_number_rewritten_queries), SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {PLUGIN_NAME "_reload_error",
-     pointer_cast<char*>(&status_var_reload_error), SHOW_BOOL},
+     pointer_cast<char*>(&status_var_reload_error), SHOW_BOOL, SHOW_SCOPE_GLOBAL},
   {PLUGIN_NAME "_number_loaded_rules",
-     pointer_cast<char*>(&status_var_number_loaded_rules), SHOW_INT},
+     pointer_cast<char*>(&status_var_number_loaded_rules), SHOW_INT, SHOW_SCOPE_GLOBAL},
   {PLUGIN_NAME "_number_reloads",
-     pointer_cast<char*>(&status_var_number_reloads), SHOW_LONGLONG},
-  {0, 0, SHOW_BOOL}
+     pointer_cast<char*>(&status_var_number_reloads), SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {0, 0, SHOW_BOOL, SHOW_SCOPE_GLOBAL}
 };
 
 

@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,8 +60,8 @@ public:
   /**
     Enter a condition wait.
     For @c enter_cond() / @c exit_cond() to work the mutex must be held before
-    @c enter_cond(); this mutex is then released by @c exit_cond().
-    Usage must be: lock mutex; enter_cond(); your code; exit_cond().
+    @c enter_cond(); this mutex must then be released before @c exit_cond().
+    Usage must be: lock mutex; enter_cond(); your code; unlock mutex; exit_cond().
     @param cond the condition to wait on
     @param mutex the associated mutex
     @param [in] stage the stage to enter, or NULL
@@ -308,12 +308,16 @@ public:
     update m_namespace_to_wait_state_name array in mdl.cc!
 
     Different types of objects exist in different namespaces
+     - GLOBAL is used for the global read lock.
+     - TABLESPACE is for tablespaces.
+     - SCHEMA is for schemas (aka databases).
      - TABLE is for tables and views.
      - FUNCTION is for stored functions.
      - PROCEDURE is for stored procedures.
      - TRIGGER is for triggers.
-     - EVENT is for event scheduler events
-     - USER_LEVEL_LOCK is for user-level locks
+     - EVENT is for event scheduler events.
+     - COMMIT is for enabling the global read lock to block commits.
+     - USER_LEVEL_LOCK is for user-level locks.
     Note that although there isn't metadata locking on triggers,
     it's necessary to have a separate namespace for them since
     MDL_key is also used outside of the MDL subsystem.
@@ -321,6 +325,7 @@ public:
     treatment - waiting is aborted if connection to client is lost.
   */
   enum enum_mdl_namespace { GLOBAL=0,
+                            TABLESPACE,
                             SCHEMA,
                             TABLE,
                             FUNCTION,
@@ -353,7 +358,6 @@ public:
     @param  mdl_namespace Id of namespace of object to be locked
     @param  db            Name of database to which the object belongs
     @param  name          Name of of the object
-    @param  key           Where to store the the MDL key.
   */
   void mdl_key_init(enum_mdl_namespace mdl_namespace,
                     const char *db, const char *name)

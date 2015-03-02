@@ -19,6 +19,8 @@
 /* 2006-12 Erik Wetterberg : LOAD XML added */
 
 #include "sql_load.h"
+
+#include "psi_memory_key.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"          // fill_record_n_invoke_before_triggers
 #include <my_dir.h>
@@ -221,8 +223,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (escaped->length() > 1 || enclosed->length() > 1)
   {
-    my_message(ER_WRONG_FIELD_TERMINATORS,ER(ER_WRONG_FIELD_TERMINATORS),
-	       MYF(0));
+    my_error(ER_WRONG_FIELD_TERMINATORS, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -233,7 +234,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
-                 ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
+                 ER_THD(thd, WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   } 
 
   if (open_and_lock_tables(thd, table_list, 0))
@@ -246,7 +247,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     DBUG_RETURN(true);
 
   if (table_list->is_view() && select->resolve_derived(thd, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                   /* purecov: inspected */
 
   TABLE_LIST *const insert_table_ref=
     table_list->is_updatable() &&        // View must be updatable
@@ -262,7 +263,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (select->derived_table_count &&
       select->check_view_privileges(thd, INSERT_ACL, SELECT_ACL))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);                   /* purecov: inspected */
 
   if (table_list->is_merged())
   {
@@ -385,8 +386,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (use_blobs && !ex->line.line_term->length() && !field_term->length())
   {
-    my_message(ER_BLOBS_AND_NO_TERMINATED,ER(ER_BLOBS_AND_NO_TERMINATED),
-	       MYF(0));
+    my_error(ER_BLOBS_AND_NO_TERMINATED, MYF(0));
     DBUG_RETURN(TRUE);
   }
   if (use_vars && !field_term->length() && !enclosed->length())
@@ -633,7 +633,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
 
   my_snprintf(name, sizeof(name),
-              ER(ER_LOAD_INFO),
+              ER_THD(thd, ER_LOAD_INFO),
               (long) info.stats.records, (long) info.stats.deleted,
               (long) (info.stats.records - info.stats.copied),
               (long) thd->get_stmt_da()->current_statement_cond_count());
@@ -747,9 +747,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   /*
     prepare fields-list and SET if needed; print_query won't do that for us.
   */
-  if (!thd->lex->field_list.is_empty())
+  if (!thd->lex->load_field_list.is_empty())
   {
-    List_iterator<Item>  li(thd->lex->field_list);
+    List_iterator<Item> li(thd->lex->load_field_list);
 
     pfields.append(" (");
     n= 0;
@@ -768,9 +768,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     pfields.append(")");
   }
 
-  if (!thd->lex->update_list.is_empty())
+  if (!thd->lex->load_update_list.is_empty())
   {
-    List_iterator<Item> lu(thd->lex->update_list);
+    List_iterator<Item> lu(thd->lex->load_update_list);
     List_iterator<String> ls(thd->lex->load_set_str_list);
 
     pfields.append(" SET ");
@@ -892,7 +892,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         thd->cuted_fields++;			/* Not enough fields */
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_TOO_FEW_RECORDS,
-                            ER(ER_WARN_TOO_FEW_RECORDS),
+                            ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                             thd->get_stmt_da()->current_row_for_condition());
         if (field->type() == FIELD_TYPE_TIMESTAMP && !field->maybe_null())
         {
@@ -919,7 +919,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       thd->cuted_fields++;			/* To long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
-                          ER(ER_WARN_TOO_MANY_RECORDS),
+                          ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
                           thd->get_stmt_da()->current_row_for_condition());
     }
 
@@ -953,7 +953,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       thd->cuted_fields++;			/* To long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
-                          ER(ER_WARN_TOO_MANY_RECORDS),
+                          ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
                           thd->get_stmt_da()->current_row_for_condition());
     }
     thd->get_stmt_da()->inc_current_row_for_condition();
@@ -1155,7 +1155,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           thd->cuted_fields++;
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
-                              ER(ER_WARN_TOO_FEW_RECORDS),
+                              ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
         }
         else if (item->type() == Item::STRING_ITEM)
@@ -1224,7 +1224,8 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     {
       thd->cuted_fields++;			/* To long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_TOO_MANY_RECORDS, ER(ER_WARN_TOO_MANY_RECORDS),
+                          ER_WARN_TOO_MANY_RECORDS,
+                          ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
                           thd->get_stmt_da()->current_row_for_condition());
       if (thd->killed)
         DBUG_RETURN(1);
@@ -1375,7 +1376,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           thd->cuted_fields++;
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
-                              ER(ER_WARN_TOO_FEW_RECORDS),
+                              ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
         }
         else

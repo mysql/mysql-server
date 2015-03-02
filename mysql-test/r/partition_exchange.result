@@ -1515,12 +1515,13 @@ a	b
 163	163
 164	164
 200	Two hundred, end of values
+call mtr.add_suppression("Cannot find index .PRIMARY. in InnoDB index translation table.");
 ALTER TABLE tsp REBUILD PARTITION p1;
-ERROR 23000: Duplicate entry '162' for key 'PRIMARY'
+Got one of the listed errors
 ALTER TABLE tsp REORGANIZE PARTITION p1 INTO
 (PARTITION p1 VALUES LESS THAN (162),
 PARTITION p2 VALUES LESS THAN MAXVALUE);
-ERROR 23000: Duplicate entry '162' for key 'PRIMARY'
+Got one of the listed errors
 ALTER TABLE tsp ANALYZE PARTITION sp3;
 Table	Op	Msg_type	Msg_text
 test.tsp	analyze	status	OK

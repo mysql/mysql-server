@@ -1,5 +1,6 @@
 # Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 #
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -39,6 +40,8 @@ cursor_by_user.h
 pfs.h
 pfs_account.h
 pfs_atomic.h
+pfs_buffer_container.h
+pfs_builtin_memory.h
 pfs_column_types.h
 pfs_column_values.h
 pfs_con_slice.h
@@ -62,8 +65,10 @@ pfs_server.h
 pfs_setup_actor.h
 pfs_setup_object.h
 pfs_stat.h
+pfs_status.h
 pfs_timer.h
 pfs_user.h
+pfs_variable.h
 pfs_visitor.h
 table_accounts.h
 table_all_instr.h
@@ -118,6 +123,15 @@ table_setup_instruments.h
 table_setup_objects.h
 table_setup_timers.h
 table_sync_instances.h
+table_status_by_account.h
+table_status_by_host.h
+table_status_by_thread.h
+table_status_by_user.h
+table_global_status.h
+table_session_status.h
+table_variables_by_thread.h
+table_global_variables.h
+table_session_variables.h
 table_table_handles.h
 table_threads.h
 table_tiws_by_index_usage.h
@@ -145,6 +159,8 @@ ha_perfschema.cc
 pfs.cc
 pfs_account.cc
 pfs_autosize.cc
+pfs_buffer_container.cc
+pfs_builtin_memory.cc
 pfs_check.cc
 pfs_column_values.cc
 pfs_con_slice.cc
@@ -165,8 +181,10 @@ pfs_memory.cc
 pfs_server.cc
 pfs_setup_actor.cc
 pfs_setup_object.cc
+pfs_status.cc
 pfs_timer.cc
 pfs_user.cc
+pfs_variable.cc
 pfs_visitor.cc
 table_accounts.cc
 table_all_instr.cc
@@ -221,6 +239,15 @@ table_setup_instruments.cc
 table_setup_objects.cc
 table_setup_timers.cc
 table_sync_instances.cc
+table_status_by_account.cc
+table_status_by_host.cc
+table_status_by_thread.cc
+table_status_by_user.cc
+table_global_status.cc
+table_session_status.cc
+table_variables_by_thread.cc
+table_global_variables.cc
+table_session_variables.cc
 table_table_handles.cc
 table_threads.cc
 table_tiws_by_index_usage.cc

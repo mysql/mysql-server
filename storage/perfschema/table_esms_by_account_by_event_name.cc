@@ -26,6 +26,7 @@
 #include "table_esms_by_account_by_event_name.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
+#include "pfs_buffer_container.h"
 #include "field.h"
 
 THR_LOCK table_esms_by_account_by_event_name::m_table_lock;
@@ -205,7 +206,7 @@ table_esms_by_account_by_event_name::delete_all_rows(void)
 ha_rows
 table_esms_by_account_by_event_name::get_row_count(void)
 {
-  return account_max * statement_class_max;
+  return global_account_container.get_row_count() * statement_class_max;
 }
 
 table_esms_by_account_by_event_name::table_esms_by_account_by_event_name()
@@ -229,13 +230,14 @@ int table_esms_by_account_by_event_name::rnd_next(void)
 {
   PFS_account *account;
   PFS_statement_class *statement_class;
+  bool has_more_account= true;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_account();
+       has_more_account;
        m_pos.next_account())
   {
-    account= &account_array[m_pos.m_index_1];
-    if (account->m_lock.is_populated())
+    account= global_account_container.get(m_pos.m_index_1, & has_more_account);
+    if (account != NULL)
     {
       statement_class= find_statement_class(m_pos.m_index_2);
       if (statement_class)
@@ -257,17 +259,16 @@ table_esms_by_account_by_event_name::rnd_pos(const void *pos)
   PFS_statement_class *statement_class;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < account_max);
 
-  account= &account_array[m_pos.m_index_1];
-  if (! account->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
-
-  statement_class= find_statement_class(m_pos.m_index_2);
-  if (statement_class)
+  account= global_account_container.get(m_pos.m_index_1);
+  if (account != NULL)
   {
-    make_row(account, statement_class);
-    return 0;
+    statement_class= find_statement_class(m_pos.m_index_2);
+    if (statement_class)
+    {
+      make_row(account, statement_class);
+      return 0;
+    }
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -290,7 +291,10 @@ void table_esms_by_account_by_event_name
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_statement_visitor visitor(klass);
-  PFS_connection_iterator::visit_account(account, true, & visitor);
+  PFS_connection_iterator::visit_account(account,
+                                         true,  /* threads */
+                                         false, /* THDs */
+                                         & visitor);
 
   if (! account->m_lock.end_optimistic_lock(&lock))
     return;

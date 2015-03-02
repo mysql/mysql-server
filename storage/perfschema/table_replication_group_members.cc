@@ -44,8 +44,13 @@ static const TABLE_FIELD_TYPE field_types[]=
     {NULL, 0}
   },
   {
-    {C_STRING_WITH_LEN("MEMBER_ADDRESS")},
+    {C_STRING_WITH_LEN("MEMBER_HOST")},
     {C_STRING_WITH_LEN("char(60)")},
+    {NULL, 0}
+  },
+  {
+    {C_STRING_WITH_LEN("MEMBER_PORT")},
+    {C_STRING_WITH_LEN("int(11)")},
     {NULL, 0}
   },
   {
@@ -57,7 +62,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_replication_group_members::m_field_def=
-{ 4, field_types };
+{ 5, field_types };
 
 PFS_engine_table_share
 table_replication_group_members::m_share=
@@ -167,15 +172,17 @@ void table_replication_group_members::make_row(uint index)
       my_free((void*)group_replication_info->member_id);
     }
 
-    m_row.member_address_length= 0;
-    if (group_replication_info->member_address != NULL)
+    m_row.member_host_length= 0;
+    if (group_replication_info->member_host != NULL)
     {
-      m_row.member_address_length= strlen(group_replication_info->member_address);
-      memcpy(m_row.member_address, group_replication_info->member_address,
-             m_row.member_address_length);
+      m_row.member_host_length= strlen(group_replication_info->member_host);
+      memcpy(m_row.member_host, group_replication_info->member_host,
+             m_row.member_host_length);
 
-      my_free((void*)group_replication_info->member_address);
+      my_free((void*)group_replication_info->member_host);
     }
+
+    m_row.member_port= group_replication_info->member_port;
 
     m_row.member_state= group_replication_info->member_state;
 
@@ -214,9 +221,15 @@ int table_replication_group_members::read_row_values(TABLE *table,
         set_field_char_utf8(f, m_row.member_id, m_row.member_id_length);
         break;
       case 2: /** member_host */
-        set_field_char_utf8(f, m_row.member_address, m_row.member_address_length);
+        set_field_char_utf8(f, m_row.member_host, m_row.member_host_length);
         break;
-      case 3: /** node_state */
+      case 3: /** member_port */
+        if (m_row.member_port > 0)
+          set_field_ulong(f, m_row.member_port);
+        else
+          f->set_null();
+        break;
+      case 4: /** member_state */
         set_field_enum(f, m_row.member_state);
         break;
       default:

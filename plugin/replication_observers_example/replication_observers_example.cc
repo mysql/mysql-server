@@ -192,6 +192,9 @@ int trans_before_dml(Trans_param *param, int& out_val)
 {
   trans_before_dml_call++;
 
+  DBUG_EXECUTE_IF("cause_failure_in_before_dml_hook",
+                  out_val= 1;);
+
   return 0;
 }
 
@@ -509,10 +512,15 @@ int validate_plugin_server_requirements(Trans_param *param)
   if (tcle->is_valid())
   {
     Gtid_set *snapshot_version= tcle->get_snapshot_version();
+    size_t snapshot_version_len= snapshot_version->get_encoded_length();
+    uchar* snapshot_version_buf= (uchar *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                                    snapshot_version_len, MYF(0));
+    snapshot_version->encode(snapshot_version_buf);
     my_plugin_log_message(&plugin_info_ptr,
                           MY_INFORMATION_LEVEL,
                           "snapshot version is '%s'",
-                          snapshot_version->encode().c_str());
+                          snapshot_version_buf);
+    my_free(snapshot_version_buf);
     success++;
   }
   else
@@ -551,7 +559,7 @@ int validate_plugin_server_requirements(Trans_param *param)
   get_server_host_port_uuid(&hostname, &port, &uuid);
 
   Trans_context_info startup_pre_reqs;
-  get_server_startup_prerequirements(startup_pre_reqs);
+  get_server_startup_prerequirements(startup_pre_reqs, false);
 
   bool server_engine_ready= is_server_engine_ready();
 

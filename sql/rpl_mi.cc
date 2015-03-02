@@ -119,7 +119,7 @@ Master_info::Master_info(
    clock_diff_with_master(0), heartbeat_period(0),
    received_heartbeats(0), last_heartbeat(0), master_id(0),
    checksum_alg_before_fd(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
-   retry_count(master_retry_count), master_gtid_mode(0),
+   retry_count(master_retry_count),
    mi_description_event(NULL),
    auto_position(false)
 {
@@ -180,8 +180,9 @@ void Master_info::clear_in_memory_info(bool all)
     start_user_configured= false; ssl= 0; port= MYSQL_PORT;
     connect_retry= DEFAULT_CONNECT_RETRY; clock_diff_with_master= 0;
     heartbeat_period= 0; received_heartbeats= 0; last_heartbeat= 0;
-    master_id= 0; checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
-    retry_count= master_retry_count; master_gtid_mode= 0;
+    master_id= 0;
+    checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
+    retry_count= master_retry_count;
     auto_position= false; host[0]= 0; user[0]= 0;
     password[0]= 0; bind_addr[0]= 0; start_password[0]= 0; ssl_ca[0]= 0;
     ssl_capath[0]= 0; ssl_cert[0]= 0; ssl_cipher[0]= 0; ssl_key[0]= 0;
@@ -484,14 +485,6 @@ bool Master_info::read_info(Rpl_info_handler *from)
   ssl_verify_server_cert= (my_bool) MY_TEST(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
   auto_position= MY_TEST(temp_auto_position);
-
-  if (auto_position != 0 && gtid_mode != 3)
-  {
-    auto_position = 0;
-    sql_print_warning("MASTER_AUTO_POSITION in the master info file was 1 but "
-                      "server is started with @@GLOBAL.GTID_MODE = OFF. Forcing "
-                      "MASTER_AUTO_POSITION to 0.");
-  }
 
 #ifndef HAVE_OPENSSL
   if (ssl)

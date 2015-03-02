@@ -2,6 +2,8 @@ SET @start_global_value = @@global.gtid_mode;
 SELECT @start_global_value;
 @start_global_value
 OFF
+SET @start_enforce_gtid_consistency= @@global.enforce_gtid_consistency;
+SET @@global.enforce_gtid_consistency = ON;
 select @@global.gtid_mode;
 @@global.gtid_mode
 OFF
@@ -19,10 +21,79 @@ GTID_MODE	OFF
 select * from information_schema.session_variables where variable_name='gtid_mode';
 VARIABLE_NAME	VARIABLE_VALUE
 GTID_MODE	OFF
-set global gtid_mode = "ON";
-ERROR HY000: Variable 'gtid_mode' is a read only variable
+set global gtid_mode = OFF;
+set global gtid_mode = ON_PERMISSIVE;
+ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.
+set global gtid_mode = ON;
+ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.
+set global gtid_mode = OFF_PERMISSIVE;
+set global gtid_mode = OFF_PERMISSIVE;
+set global gtid_mode = ON;
+ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.
+set global gtid_mode = ON_PERMISSIVE;
+set global gtid_mode = ON_PERMISSIVE;
+set global gtid_mode = OFF;
+ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.
+set global gtid_mode = ON;
+set global gtid_mode = ON;
+set global gtid_mode = OFF;
+ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.
+set global gtid_mode = OFF_PERMISSIVE;
+ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.
+set global gtid_mode = ON_PERMISSIVE;
+set global gtid_mode = OFF_PERMISSIVE;
+set global gtid_mode = OFF;
+set global gtid_mode = NULL;
+ERROR 42000: Variable 'gtid_mode' can't be set to the value of 'NULL'
 select @@global.gtid_mode;
 @@global.gtid_mode
 OFF
-set session gtid_mode = 1;
-ERROR HY000: Variable 'gtid_mode' is a read only variable
+set global gtid_mode = default;
+select @@global.gtid_mode;
+@@global.gtid_mode
+OFF
+set global gtid_mode = OFF_PERMISSIVE;
+set global gtid_mode = default;
+select @@global.gtid_mode;
+@@global.gtid_mode
+OFF
+set global gtid_mode = OFF_PERMISSIVE;
+set global gtid_mode = ON_PERMISSIVE;
+set global gtid_mode = default;
+ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.
+select @@global.gtid_mode;
+@@global.gtid_mode
+ON_PERMISSIVE
+set global gtid_mode = ON;
+set global gtid_mode = default;
+ERROR HY000: The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions.
+select @@global.gtid_mode;
+@@global.gtid_mode
+ON
+set session gtid_mode = ON;
+ERROR HY000: Variable 'gtid_mode' is a GLOBAL variable and should be set with SET GLOBAL
+set global gtid_mode = on_permissive;
+set global sql_slave_skip_counter = 1;
+set global gtid_mode = on;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because @@GLOBAL.SQL_SLAVE_SKIP_COUNTER is greater than zero.
+set global sql_slave_skip_counter = 0;
+set global gtid_mode = on;
+set global gtid_mode = on_permissive;
+SET @@global.enforce_gtid_consistency = OFF;
+set global gtid_mode = off_permissive;
+set global gtid_mode = off;
+set global gtid_mode = off_permissive;
+set global gtid_mode = on_permissive;
+set global gtid_mode = on;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because ENFORCE_GTID_CONSISTENCY is not ON.
+SET @@global.enforce_gtid_consistency = WARN;
+set global gtid_mode = off_permissive;
+set global gtid_mode = off;
+set global gtid_mode = off_permissive;
+set global gtid_mode = on_permissive;
+set global gtid_mode = on;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because ENFORCE_GTID_CONSISTENCY is not ON.
+set global gtid_mode = ON_PERMISSIVE;
+set global gtid_mode = Off_Permissive;
+set global gtid_mode = off;
+SET @@global.enforce_gtid_consistency = @start_enforce_gtid_consistency;

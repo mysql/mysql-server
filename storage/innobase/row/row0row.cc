@@ -903,7 +903,7 @@ row_search_index_entry(
 
 	switch (btr_pcur_get_btr_cur(pcur)->flag) {
 	case BTR_CUR_DELETE_REF:
-		ut_a(mode & BTR_DELETE);
+		ut_a(mode & BTR_DELETE && !dict_index_is_spatial(index));
 		return(ROW_NOT_DELETED_REF);
 
 	case BTR_CUR_DEL_MARK_IBUF:

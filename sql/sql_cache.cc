@@ -343,6 +343,8 @@ TODO list:
 #include "../storage/myisammrg/myrg_def.h"
 #include "probes_mysql.h"
 #include "transaction.h"
+#include "current_thd.h"
+#include "psi_memory_key.h"
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
@@ -423,8 +425,7 @@ struct Query_cache_wait_state
     m_func(func), m_file(file), m_line(line)
   {
     if (m_thd)
-      set_thd_stage_info(m_thd,
-                         &stage_waiting_for_query_cache_lock,
+      m_thd->enter_stage(&stage_waiting_for_query_cache_lock,
                          &m_old_stage,
                          m_func, m_file, m_line);
   }
@@ -432,7 +433,7 @@ struct Query_cache_wait_state
   ~Query_cache_wait_state()
   {
     if (m_thd)
-      set_thd_stage_info(m_thd, &m_old_stage, NULL, m_func, m_file, m_line);
+      m_thd->enter_stage(&m_old_stage, NULL, m_func, m_file, m_line);
   }
 };
 
@@ -1135,7 +1136,7 @@ void mysql_query_cache_invalidate4(THD *thd,
                                    int using_trx)
 {
   char qcache_key_name[2 * (NAME_LEN + 1)];
-  char db_name[NAME_LEN + 1];
+  char db_name[NAME_CHAR_LEN * FILENAME_CHARSET_MBMAXLEN + 1];
   const char *key_ptr;
   size_t tabname_len, dbname_len;
 
@@ -1145,9 +1146,9 @@ void mysql_query_cache_invalidate4(THD *thd,
   db_name[(key_ptr - key)]= '\0';
 
   /*
-    Construct the key("db-name\0table$name\0") in a non-canonical format for
-    the query cache using the key("db@002dname\0table@0024name\0") which is
-    in its canonical form.
+    Construct the key("db@002dname\0table@0024name\0") in a canonical format for
+    the query cache using the key("db-name\0table$name\0") which is
+    in its non-canonical form.
   */
   dbname_len= filename_to_tablename(db_name, qcache_key_name,
                                     sizeof(qcache_key_name));

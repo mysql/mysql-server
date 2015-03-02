@@ -16,10 +16,17 @@ enum enum_mysql_show_type
   SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
 };
-struct st_mysql_show_var {
+enum enum_mysql_show_scope
+{
+  SHOW_SCOPE_UNDEF,
+  SHOW_SCOPE_GLOBAL
+};
+struct st_mysql_show_var
+{
   const char *name;
   char *value;
   enum enum_mysql_show_type type;
+  enum enum_mysql_show_scope scope;
 };
 typedef int (*mysql_show_var_func)(void*, struct st_mysql_show_var*, char *);
 struct st_mysql_sys_var;
@@ -74,7 +81,10 @@ int thd_in_lock_tables(const void* thd);
 int thd_tablespace_op(const void* thd);
 long long thd_test_options(const void* thd, long long test_options);
 int thd_sql_command(const void* thd);
-const char *thd_proc_info(void* thd, const char *info);
+const char *set_thd_proc_info(void* thd, const char *info,
+                              const char *calling_func,
+                              const char *calling_file,
+                              const unsigned int calling_line);
 void **thd_ha_data(const void* thd, const struct handlerton *hton);
 void thd_storage_lock_wait(void* thd, long long value);
 int thd_tx_isolation(const void* thd);

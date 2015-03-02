@@ -25,56 +25,101 @@
 #include "mysql/psi/mysql_transaction.h"
 
 
-/**
-  Acquire group ownership for a single group.  This is used to start a
-  commit-sequence when SET GTID_NEXT is executed.
 
-  @param thd The calling thread.
-
-  @retval 0 Success; we have started the commit-sequence.  Either the
-  GTID is logged (and will be skipped) or we have acquired ownership
-  of it.
-
-  @retval 1 Failure; the thread was killed or an error occurred.  The
-  error has been reported.
-*/
-int gtid_acquire_ownership_single(THD *thd)
+bool set_gtid_next(THD *thd, const Gtid_specification &spec)
 {
-  DBUG_ENTER("gtid_acquire_ownership_single");
-  int ret= 0;
-  const Gtid gtid_next= thd->variables.gtid_next.gtid;
+  DBUG_ENTER("set_gtid_next");
 
-  if (thd->variables.gtid_next.type == ANONYMOUS_GROUP)
+  spec.dbug_print();
+  global_sid_lock->assert_some_lock();
+  int lock_count= 1;
+  bool ret= true;
+
+  // we may acquire and release locks throughout this function; this
+  // variable tells the error handler how many are left to release
+
+  // Check that we don't own a GTID or ANONYMOUS.
+  if (thd->owned_gtid.sidno > 0 ||
+      thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
   {
+    char buf[Gtid::MAX_TEXT_LENGTH + 1];
+    if (thd->owned_gtid.sidno > 0)
+    {
+#ifndef DBUG_OFF
+      global_sid_lock->unlock();
+      global_sid_lock->wrlock();
+      DBUG_ASSERT(gtid_state->get_owned_gtids()->
+                  thread_owns_anything(thd->thread_id()));
+#endif
+      thd->owned_gtid.to_string(thd->owned_sid, buf);
+    }
+    else
+    {
+      DBUG_ASSERT(gtid_state->get_anonymous_ownership_count() > 0);
+      strcpy(buf, "ANONYMOUS");
+    }
+    my_error(ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID, MYF(0), buf);
+    goto err;
+  }
+
+  // At this point we should not own any GTID.
+  DBUG_ASSERT(thd->owned_gtid.is_empty());
+
+  if (spec.type == AUTOMATIC_GROUP)
+  {
+    thd->variables.gtid_next.set_automatic();
+  }
+  else if (spec.type == ANONYMOUS_GROUP)
+  {
+    if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_ON)
+    {
+      my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
+      goto err;
+    }
+
+    thd->variables.gtid_next.set_anonymous();
     thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
+    thd->owned_gtid.gno= 0;
+    gtid_state->acquire_anonymous_ownership();
   }
   else
   {
-    DBUG_ASSERT(thd->variables.gtid_next.type == GTID_GROUP);
-    DBUG_ASSERT(gtid_next.sidno >= 1);
-    DBUG_ASSERT(gtid_next.gno >= 1);
+    DBUG_ASSERT(spec.type == GTID_GROUP);
+    DBUG_ASSERT(spec.gtid.sidno >= 1);
+    DBUG_ASSERT(spec.gtid.gno >= 1);
     while (true)
     {
-      global_sid_lock->rdlock();
+      // loop invariant: we should always hold global_sid_lock.rdlock
+      DBUG_ASSERT(lock_count == 1);
+      global_sid_lock->assert_some_lock();
+
+      if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
+      {
+        my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
+        goto err;
+      }
+
       // acquire lock before checking conditions
-      gtid_state->lock_sidno(gtid_next.sidno);
+      gtid_state->lock_sidno(spec.gtid.sidno);
+      lock_count= 2;
 
       // GTID already logged
-      if (gtid_state->is_executed(gtid_next))
+      if (gtid_state->is_executed(spec.gtid))
       {
+        thd->variables.gtid_next= spec;
         /*
           Don't skip the statement here, skip it in
           gtid_pre_statement_checks.
         */
         break;
       }
-      my_thread_id owner= gtid_state->get_owner(gtid_next);
+      my_thread_id owner= gtid_state->get_owner(spec.gtid);
       // GTID not owned by anyone: acquire ownership
       if (owner == 0)
       {
-        if (gtid_state->acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
-          ret= 1;
-        thd->owned_gtid= gtid_next;
+        // acquire_ownership can't fail
+        gtid_state->acquire_ownership(thd, spec.gtid);
+        thd->variables.gtid_next= spec;
         DBUG_ASSERT(thd->owned_gtid.sidno >= 1);
         DBUG_ASSERT(thd->owned_gtid.gno >= 1);
         break;
@@ -84,13 +129,16 @@ int gtid_acquire_ownership_single(THD *thd)
       {
         // The call below releases the read lock on global_sid_lock and
         // the mutex lock on SIDNO.
-        gtid_state->wait_for_gtid(thd, gtid_next);
+        gtid_state->wait_for_gtid(thd, spec.gtid);
 
         // global_sid_lock and mutex are now released
+        lock_count= 0;
 
         // Check if thread was killed.
-        if (thd->killed || abort_loop)
-          DBUG_RETURN(1);
+        if (thd->killed || connection_events_loop_aborted())
+        {
+          goto err;
+        }
 #ifdef HAVE_REPLICATION
         // If this thread is a slave SQL thread or slave SQL worker
         // thread, we need this additional condition to determine if it
@@ -102,21 +150,29 @@ int gtid_acquire_ownership_single(THD *thd)
           DBUG_ASSERT(thd->rli_slave!= NULL);
           Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
           if (c_rli->abort_slave)
-            DBUG_RETURN(1);
+          {
+            goto err;
+          }
         }
 #endif // HAVE_REPLICATION
+        global_sid_lock->rdlock();
+        lock_count= 1;
       }
     }
-    gtid_state->unlock_sidno(gtid_next.sidno);
-
-    global_sid_lock->unlock();
   }
 
-#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  ret= false;
+
+err:
+  if (lock_count == 2)
+    gtid_state->unlock_sidno(spec.gtid.sidno);
+
+  if (lock_count >= 1)
+    global_sid_lock->unlock();
+
   if (!ret)
     gtid_set_performance_schema_values(thd);
-#endif
-  thd->owned_gtid.dbug_print(NULL, "Set owned_gtid in gtid_acquire_ownership");
+  thd->owned_gtid.dbug_print(NULL, "Set owned_gtid in set_gtid_next");
 
   DBUG_RETURN(ret);
 }
@@ -180,7 +236,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
 
     // at this point, we don't hold any locks. re-acquire the global
     // read lock that was held when this function was invoked
-    if (thd->killed || abort_loop)
+    if (thd->killed || connection_events_loop_aborted())
       DBUG_RETURN(1);
 #ifdef HAVE_REPLICATION
     // If this thread is a slave SQL thread or slave SQL worker
@@ -236,7 +292,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
 
   /*
     TODO: If this code is enabled, set the GTID in the Performance Schema,
-    similar to gtid_acquire_ownership_single().
+    similar to set_gtid_next().
   */
 
   DBUG_RETURN(ret);
@@ -311,7 +367,9 @@ static inline void skip_statement(const THD *thd)
 #ifndef DBUG_OFF
   const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
   global_sid_lock->rdlock();
+  gtid_state->lock_sidno(thd->variables.gtid_next.gtid.sidno);
   DBUG_ASSERT(executed_gtids->contains_gtid(thd->variables.gtid_next.gtid));
+  gtid_state->unlock_sidno(thd->variables.gtid_next.gtid.sidno);
   global_sid_lock->unlock();
 #endif
 
@@ -328,23 +386,24 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd)
     Format_description_log_event originating from a master
     (corresponding to a new master binary log), it sets gtid_next to
     NOT_YET_DETERMINED_GROUP.  This allows any following
-    Gtid_log_event will set the GTID appropriately, but if there is no
+    Gtid_log_event to set the GTID appropriately, but if there is no
     Gtid_log_event, gtid_next will be converted to ANONYMOUS.
   */
-  DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%lu",
-                      gtid_next->type, gtid_mode));
+  DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%s",
+                      gtid_next->type,
+                      get_gtid_mode_string(GTID_MODE_LOCK_NONE)));
   if (gtid_next->type == NOT_YET_DETERMINED_GROUP ||
       (gtid_next->type == ANONYMOUS_GROUP && thd->owned_gtid.sidno == 0))
   {
-    if (gtid_mode == GTID_MODE_ON)
-    {
-      my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
-      DBUG_RETURN(true);
-    }
-    DBUG_PRINT("info", ("converting NOT_YET_DETERMINED_GROUP to ANONYMOUS_GROUP"));
+    Gtid_specification spec;
+    spec.set_anonymous();
+    DBUG_PRINT("info", ("acquiring ANONYMOUS ownership"));
 
-    gtid_next->set_anonymous();
-    gtid_acquire_ownership_single(thd);
+    global_sid_lock->rdlock();
+    // set_gtid_next releases global_sid_lock
+    if (set_gtid_next(thd, spec))
+      // this can happen if gtid_mode=on
+      DBUG_RETURN(true);
 
 #ifdef HAVE_REPLICATION
     thd->set_currently_executing_gtid_for_slave_thread();
@@ -387,7 +446,14 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 
   Gtid_specification *gtid_next= &thd->variables.gtid_next;
 
-  if (enforce_gtid_consistency && !thd->is_ddl_gtid_compatible())
+  DBUG_PRINT("info", ("gtid_next->type=%d "
+                      "owned_gtid.{sidno,gno}={%d,%lld}",
+                      gtid_next->type,
+                      thd->owned_gtid.sidno, thd->owned_gtid.gno));
+  DBUG_ASSERT(gtid_next->type != AUTOMATIC_GROUP ||
+              thd->owned_gtid.is_empty());
+
+  if (!thd->is_ddl_gtid_compatible(true, false))
   {
     // error message has been generated by thd->is_ddl_gtid_compatible()
     DBUG_RETURN(GTID_STATEMENT_CANCEL);
@@ -503,6 +569,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
 bool gtid_pre_statement_post_implicit_commit_checks(THD *thd)
 {
   DBUG_ENTER("gtid_pre_statement_post_implicit_commit_checks");
+
   /*
     Ensure that we hold anonymous ownership before executing any
     statement, if gtid_next=anonymous or not_yet_determined.  But do
@@ -524,6 +591,15 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd)
     if (gtid_reacquire_ownership_if_anonymous(thd))
       // this can happen if gtid_mode is on
       DBUG_RETURN(true);
+
+#ifndef DBUG_OFF
+  bool ret=
+#endif
+    thd->is_ddl_gtid_compatible(false, true);
+  // is_ddl_gtid_compatible can only return false if the first
+  // parameter is set to true.
+  DBUG_ASSERT(ret);
+
   DBUG_RETURN(false);
 }
 
@@ -558,7 +634,9 @@ void gtid_post_statement_checks(THD *thd)
        (sql_command == SQLCOM_SET_OPTION && thd->lex->is_set_password_sql) ||
        sql_command == SQLCOM_COMMIT ||
        sql_command == SQLCOM_ROLLBACK))
+  {
     thd->variables.gtid_next.set_undefined();
+  }
 
   DBUG_VOID_RETURN;
 }

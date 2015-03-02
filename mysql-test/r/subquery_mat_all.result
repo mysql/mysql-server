@@ -1,4 +1,7 @@
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on';
+set global innodb_large_prefix=off;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -653,7 +656,7 @@ create index it1a on t1(a);
 explain extended
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ref	it1a	it1a	4	<subquery2>.c	2	100.00	Using index
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
 Warnings:
@@ -669,7 +672,7 @@ insert into t2 values (1,10);
 explain extended
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ref	it1a	it1a	4	<subquery2>.c	2	100.00	Using index
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
@@ -2162,4 +2165,7 @@ NULL
 DROP TABLE t1,t2;
 set @@optimizer_switch=@old_opt_switch;
 SET sql_mode = default;
+set global innodb_large_prefix=default;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set optimizer_switch=default;

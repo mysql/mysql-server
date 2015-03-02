@@ -39,6 +39,7 @@
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 --let $use_gtids= 0
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
@@ -86,6 +87,7 @@ INSERT INTO t1 VALUES (2);
 --let $rpl_server_number= 1
 --let $rpl_start_with_gtids= 1
 --source include/rpl_restart_server.inc
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 
 # Insert more data on master
 --echo # This should be MASTER_UUID:3
@@ -106,6 +108,7 @@ INSERT INTO t1 VALUES (3);
 
 # Restore the slave
 --source include/stop_slave_io.inc
+SET GLOBAL GTID_MODE = ON;
 RESET SLAVE;
 RESET MASTER;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
@@ -113,6 +116,7 @@ CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 
 # Cleanup the master
 --source include/rpl_connection_master.inc
+SET GLOBAL GTID_MODE = ON;
 DROP TABLE t1;
 RESET MASTER;
 --source include/rpl_connection_slave.inc

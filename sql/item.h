@@ -46,6 +46,30 @@ void item_init(void);			/* Init item functions */
 #define COND_FILTER_INEQUALITY 0.3333f
 /// Filtering effect for between: col1 BETWEEN a AND b
 #define COND_FILTER_BETWEEN 0.1111f
+/**
+   Value is out-of-date, will need recalculation.
+   This is used by post-greedy-search logic which changes the access method and thus
+   makes obsolete the filtering value calculated by best_access_path(). For
+  example, test_if_skip_sort_order().
+*/
+#define COND_FILTER_STALE -1.0f
+/**
+   A special subcase of the above:
+   - if this is table/index/range scan, and
+   - rows_fetched is how many rows we will examine, and
+   - rows_fetched is less than the number of rows in the table (as determined
+   by test_if_cheaper_ordering() and test_if_skip_sort_order()).
+   Unlike the ordinary case where rows_fetched:
+   - is set by calculate_scan_cost(), and
+   - is how many rows pass the constant condition (so, less than we will
+   examine), and
+   - the actual rows_fetched to show in EXPLAIN is the number of rows in the
+   table (== rows which we will examine), and
+   - the constant condition's effect has to be moved to filter_effect for
+   EXPLAIN.
+*/
+#define COND_FILTER_STALE_NO_CONST -2.0f
+
 
 static inline uint32
 char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
@@ -429,10 +453,6 @@ struct Hybrid_type_traits_integer: public Hybrid_type_traits
 };
 
 
-void dummy_error_processor(THD *thd, void *data);
-
-void view_error_processor(THD *thd, void *data);
-
 /*
   Instances of Name_resolution_context store the information necesary for
   name resolution of Items and other context analysis of a query made in
@@ -493,8 +513,8 @@ struct Name_resolution_context: Sql_alloc
     hide underlying tables in errors about views (i.e. it substitute some
     errors for views)
   */
-  void (*error_processor)(THD *, void *);
-  void *error_processor_data;
+  bool view_error_handler;
+  TABLE_LIST *view_error_handler_arg;
 
   /**
     When TRUE, items are resolved in this context against
@@ -515,13 +535,13 @@ struct Name_resolution_context: Sql_alloc
   Name_resolution_context()
     :outer_context(NULL), next_context(NULL),
     table_list(NULL), select_lex(NULL),
-    error_processor_data(NULL), security_ctx(NULL)
+    view_error_handler_arg(NULL), security_ctx(NULL)
     {}
 
   void init()
   {
     resolve_in_select_list= FALSE;
-    error_processor= &dummy_error_processor;
+    view_error_handler= false;
     first_name_resolution_table= NULL;
     last_name_resolution_table= NULL;
   }
@@ -530,11 +550,6 @@ struct Name_resolution_context: Sql_alloc
   {
     table_list= first_name_resolution_table= tables;
     resolve_in_select_list= FALSE;
-  }
-
-  void process_error(THD *thd)
-  {
-    (*error_processor)(thd, error_processor_data);
   }
 };
 
@@ -618,6 +633,8 @@ typedef enum monotonicity_info
    MONOTONIC_STRICT_INCREASING_NOT_NULL  /* But only for valid/real x and y */
 } enum_monotonicity_info;
 
+/* This enum is used to return invalid refer by GC */
+enum invalid_ref_by_gc {REF_INVALID_GC, REF_INVALID_AUTO_INC};
 
 /**
    A type for SQL-like 3-valued Booleans: true/false/unknown.
@@ -1903,6 +1920,34 @@ public:
     return FALSE;
   }
 
+ /**
+   @brief  check_gcol_func_processor
+     Check if an expression/function is allowed for a virtual column
+
+   @param int_arg It is only used for Item_field
+
+   @return
+     TRUE                           Function not accepted
+   @return
+     FALSE                          Function accepted
+  */
+  virtual bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
+
+  /**
+    @brief  update_indexed_column_map
+    Update columns map for index.
+
+    @param int_arg It's useless 
+    @return  false successfully update 
+    */
+  virtual bool update_indexed_column_map(uchar *int_arg) { return false; }
+
   /*
     For SP local variable returns pointer to Item representing its
     current value and pointer to current Item otherwise.
@@ -2090,6 +2135,7 @@ public:
 
   void set_used_tables(table_map map) { used_table_map= map; }
   table_map used_tables() const { return used_table_map; }
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
   /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup()
   {
@@ -2662,6 +2708,31 @@ public:
   bool add_field_to_cond_set_processor(uchar *unused);
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
+  /**
+    @param int_arg It has two kinds of uses. One is used for passing the
+    field index before calling. The other is as a carrier to return the
+    error code.
+  */
+  bool check_gcol_func_processor(uchar *int_arg)
+  {
+    int *args= (int *)int_arg;
+    int fld_idx= args[0];
+    // Don't allow GC to refer itself or another GC that is defined after it.
+    if (field && field->gcol_info && field->field_index >= fld_idx)
+    {
+      args[1]= REF_INVALID_GC;
+      return true;
+    }
+    // Auto-increment field can't be referenced by stored generated columns
+    if (field->flags & AUTO_INCREMENT_FLAG &&  
+          field->table->field[fld_idx]->stored_in_db)
+    {
+      args[1]= REF_INVALID_AUTO_INC;
+      return true;
+    }
+
+    return false;
+  }
   bool mark_field_in_map(uchar *arg);
   bool check_column_privileges(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) { return false; }
@@ -2851,6 +2922,13 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return true;}
   enum_field_types field_type() const { return fld_type; }
   Item_result result_type() const { return res_type; }
+  bool check_gcol_func_processor(uchar *int_arg)
+  {
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_PRINT("info", ("  Item name: %s", full_name()));
+    return TRUE;
+  }
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -3093,6 +3171,7 @@ public:
   { return (uint)(max_length - MY_TEST(value < 0)); }
   bool eq(const Item *, bool binary_cmp) const;
   bool check_partition_func_processor(uchar *bool_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -3179,7 +3258,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
-  bool check_partition_func_processor(uchar *bool_arg) { return false;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -3558,6 +3637,13 @@ public:
   }
 
   bool check_partition_func_processor(uchar *int_arg) {return true;}
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_static_string_func::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -3720,6 +3806,7 @@ public:
     also to make printing of items inherited from Item_sum uniform.
   */
   virtual const char *func_name() const= 0;
+  bool check_gcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -4635,6 +4722,13 @@ public:
            arg->walk(processor, walk, args) ||
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
+  bool check_gcol_func_processor(uchar *int_arg) 
+  {
+    DBUG_ENTER("Item_insert_value::check_gcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_gcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+  }
 };
 
 
@@ -4796,7 +4890,11 @@ public:
     with_subselect|= item->has_subquery();
     with_stored_program|= item->has_stored_program();
     if (item->type() == FIELD_ITEM)
+    {
       cached_field= ((Item_field *)item)->field;
+      if (((Item_field *)item)->table_ref)
+        used_table_map= ((Item_field *)item)->table_ref->map();
+    }
     return 0;
   };
   enum Type type() const { return CACHE_ITEM; }
@@ -4838,6 +4936,7 @@ public:
   bool walk (Item_processor processor, enum_walk walk, uchar *arg);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
   bool is_null() { return value_cached ? null_value : example->is_null(); }
+  bool check_gcol_func_processor(uchar *int_arg) { return true;}
   Item_result result_type() const
   {
     if (!example)

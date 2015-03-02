@@ -18,8 +18,10 @@
 #include <pfs_instr_class.h>
 #include <pfs_global.h>
 #include <tap.h>
+#include <sql_class.h>
 
 #include "stub_pfs_global.h"
+#include "stub_global_status_var.h"
 
 void test_oom()
 {

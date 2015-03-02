@@ -58,11 +58,13 @@ if (`SELECT ROW_COUNT() > 0`) {
 }
 --echo # Status of EXPLAIN EXTENDED query
 --disable_query_log
+--disable_warnings
 SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR
                    Variable_name LIKE 'Handler_read_%' OR
                    Variable_name = 'Handler_write' OR
                    Variable_name = 'Handler_update' OR
                    Variable_name = 'Handler_delete') AND Value <> 0;
+--enable_warnings
 --enable_query_log
 
 if ($json) {
@@ -94,11 +96,13 @@ if ($innodb) {
 --eval EXPLAIN EXTENDED $select
 --echo # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 --disable_query_log
+--disable_warnings
 SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR
                    Variable_name LIKE 'Handler_read_%' OR
                    Variable_name = 'Handler_write' OR
                    Variable_name = 'Handler_update' OR
                    Variable_name = 'Handler_delete') AND Value <> 0;
+--enable_warnings
 --enable_query_log
 if ($json) {
 if ($innodb) {
@@ -135,23 +139,27 @@ if ($select) {
 --eval $select
 --enable_result_log
 --echo # Status of "equivalent" SELECT query execution:
+--disable_warnings
 SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR
                    Variable_name LIKE 'Handler_read_%' OR
                    Variable_name = 'Handler_write' OR
                    Variable_name = 'Handler_update' OR
                    Variable_name = 'Handler_delete') AND Value <> 0;
+--enable_warnings
 }
 
 FLUSH STATUS;
 FLUSH TABLES;
 --eval $query
 --echo # Status of testing query execution:
+--disable_warnings
 SHOW STATUS WHERE (Variable_name LIKE 'Sort%' OR
                    Variable_name LIKE 'Handler_read_%' OR
                    Variable_name = 'Handler_write' OR
                    Variable_name = 'Handler_update' OR
                    Variable_name = 'Handler_delete') AND Value <> 0;
 
+--enable_warnings
 --let $query=
 --let $select=
 --let $no_rows=

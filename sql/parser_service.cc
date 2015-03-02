@@ -19,7 +19,6 @@
 #include <mysql/service_parser.h>
 
 #include "item.h"
-#include "mysqld.h"
 #include "select_lex_visitor.h"
 #include "sp_cache.h"
 #include "sql_class.h"
@@ -33,6 +32,7 @@
 #include "sql_base.h" // close_thread_tables
 #include "mysqld_thd_manager.h"
 #include "template_utils.h"
+#include "current_thd.h"
 
 /**
   This class implements the parse tree visiting service.
@@ -270,6 +270,7 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
 
   parser_state.m_input.m_compute_digest= true;
   thd->m_digest= &thd->m_digest_state;
+  thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
   if (is_prepared)
   {

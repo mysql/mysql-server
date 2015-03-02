@@ -7,6 +7,16 @@ role, instrumented
 FROM performance_schema.threads
 WHERE name LIKE 'thread/sql%'
 ORDER BY name;
+name	thread/sql/compress_gtid_table
+type	FOREGROUND
+processlist_user	NULL
+processlist_host	NULL
+processlist_db	NULL
+processlist_command	Daemon
+processlist_info	NULL
+unified_parent_thread_id	unified parent_thread_id
+role	NULL
+instrumented	YES
 name	thread/sql/main
 type	BACKGROUND
 processlist_user	NULL
@@ -113,6 +123,7 @@ WHERE t1.name LIKE 'thread/sql%'
 ORDER BY parent_thread_name, child_thread_name;
 parent_thread_name	child_thread_name
 thread/sql/event_scheduler	thread/sql/event_worker
+thread/sql/main	thread/sql/compress_gtid_table
 thread/sql/main	thread/sql/one_connection
 thread/sql/main	thread/sql/signal_handler
 thread/sql/main	thread/sql/thread_timer_notifier

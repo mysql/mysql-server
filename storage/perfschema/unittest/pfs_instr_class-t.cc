@@ -21,6 +21,7 @@
 #include <pfs_global.h>
 #include <tap.h>
 
+#include "stub_global_status_var.h"
 
 void test_no_registration()
 {

@@ -27,12 +27,6 @@ enum enum_member_state {
   MEMBER_STATE_RECOVERING
 };
 
-enum enum_applier_status {
-  APPLIER_STATE_RUNNING= 1,
-  APPLIER_STATE_STOP,
-  APPLIER_STATE_ERROR
-};
-
 typedef struct st_group_replication_connection_status_info
 {
   char* channel_name;
@@ -44,7 +38,8 @@ typedef struct st_group_replication_group_members_info
 {
   char* channel_name;
   char* member_id;
-  char* member_address;
+  char* member_host;
+  unsigned int member_port;
   enum enum_member_state member_state;
 } GROUP_REPLICATION_GROUP_MEMBERS_INFO;
 
@@ -103,7 +98,7 @@ struct st_mysql_group_replication
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_group_members_info)(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
+  bool (*get_group_members_info)(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
 
   /*
     This function is used to fetch information for group replication members statistics.
@@ -118,7 +113,7 @@ struct st_mysql_group_replication
   /*
     Get number of group replication members.
   */
-  uint (*get_members_number_info)();
+  unsigned int (*get_members_number_info)();
 };
 
 #endif

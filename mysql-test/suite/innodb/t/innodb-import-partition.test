@@ -10,10 +10,6 @@ let $partitioning= 1;
 --source suite/innodb/include/innodb_import.inc
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
-SET @old_innodb_file_per_table = @@innodb_file_per_table;
-SET @old_innodb_file_format = @@innodb_file_format;
-SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 
 --echo #
 --echo # DISCARD/IMPORT selected partitions only
@@ -292,10 +288,8 @@ call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not o
 call mtr.add_suppression("InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
 call mtr.add_suppression("InnoDB: Unable to import tablespace .* because it already exists.  Please DISCARD the tablespace before IMPORT.");
+call mtr.add_suppression("InnoDB: Missing \.ibd file for table .test...t1. .. Partition");
 --enable_query_log
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfg
-
-SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
-SET GLOBAL innodb_file_format = @old_innodb_file_format;

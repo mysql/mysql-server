@@ -44,8 +44,13 @@ loose-performance-schema-max-cond-instances=1000
 loose-performance-schema-max-file-instances=10000
 loose-performance-schema-max-socket-instances=1000
 loose-performance-schema-max-table-instances=500
+loose-performance-schema-max-table-lock-stat=500
+loose-performance-schema-max-index-stat=5000
 loose-performance-schema-max-table-handles=1000
 loose-performance-schema-max-prepared-statements-instances=100
+loose-performance-schema-max-program-instances=5000
+loose-performance-schema-setup-actors-size=100
+loose-performance-schema-setup-objects-size=100
 
 loose-performance-schema-events-waits-history-size=10
 loose-performance-schema-events-waits-history-long-size=10000
@@ -57,6 +62,7 @@ loose-performance-schema-events-transactions-history-size=10
 loose-performance-schema-events-transactions-history-long-size=1000
 loose-performance-schema-max-thread-instances=200
 loose-performance-schema-session-connect-attrs-size=2048
+loose-performance-schema-max-metadata-locks=10000
 
 # Enable everything, for maximun code exposure during testing
 
@@ -78,3 +84,6 @@ loose-performance-schema-consumer-global-instrumentation=ON
 loose-performance-schema-consumer-thread-instrumentation=ON
 
 binlog-direct-non-transactional-updates
+
+loose-show-compatibility-56=ON
+

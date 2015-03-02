@@ -19,6 +19,7 @@
 #include <pfs_instr_class.h>
 #include <pfs_instr.h>
 #include <pfs_global.h>
+#include <pfs_buffer_container.h>
 #include <tap.h>
 
 #include <string.h>
@@ -26,6 +27,7 @@
 
 #include "stub_print_error.h"
 #include "stub_pfs_defaults.h"
+#include "stub_global_status_var.h"
 
 /* test helpers, to simulate the setup */
 
@@ -39,30 +41,30 @@ void setup_thread(PSI_thread *t, bool enabled)
 
 PFS_file* lookup_file_by_name(const char* name)
 {
-  uint i;
   PFS_file *pfs;
   size_t len= strlen(name);
   size_t dirlen;
   const char *filename;
   size_t filename_length;
 
-  for (i= 0; i < file_max; i++)
+  PFS_file_iterator it= global_file_container.iterate();
+  pfs= it.scan_next();
+
+  while (pfs != NULL)
   {
-    pfs= & file_array[i];
-    if (pfs->m_lock.is_populated())
-    {
-      /*
-        When a file "foo" is instrumented, the name is normalized
-        to "/path/to/current/directory/foo", so we remove the
-        directory name here to find it back.
-      */
-      dirlen= dirname_length(pfs->m_filename);
-      filename= pfs->m_filename + dirlen;
-      filename_length= pfs->m_filename_length - dirlen;
-      if ((len == filename_length) &&
-          (strncmp(name, filename, filename_length) == 0))
-        return pfs;
-    }
+    /*
+      When a file "foo" is instrumented, the name is normalized
+      to "/path/to/current/directory/foo", so we remove the
+      directory name here to find it back.
+    */
+    dirlen= dirname_length(pfs->m_filename);
+    filename= pfs->m_filename + dirlen;
+    filename_length= pfs->m_filename_length - dirlen;
+    if ((len == filename_length) &&
+        (strncmp(name, filename, filename_length) == 0))
+      return pfs;
+
+    pfs= it.scan_next();
   }
 
   return NULL;
@@ -117,6 +119,8 @@ void test_bootstrap()
   param.m_statement_stack_sizing= 0;
   param.m_memory_class_sizing= 0;
   param.m_metadata_lock_sizing= 0;
+  param.m_max_digest_length= 0;
+  param.m_max_sql_text_length= 0;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache       = 100;
@@ -188,6 +192,8 @@ PSI * load_perfschema()
   param.m_statement_stack_sizing= 10;
   param.m_memory_class_sizing= 10;
   param.m_metadata_lock_sizing= 10;
+  param.m_max_digest_length= 0;
+  param.m_max_sql_text_length= 1000;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache       = 100;
@@ -1576,6 +1582,8 @@ void test_event_name_index()
   param.m_statement_stack_sizing= 10;
   param.m_memory_class_sizing= 12;
   param.m_metadata_lock_sizing= 10;
+  param.m_max_digest_length= 0;
+  param.m_max_sql_text_length= 1000;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
@@ -1822,6 +1830,8 @@ void test_leaks()
   param.m_digest_sizing= 1000;
   param.m_program_sizing= 1000;
   param.m_statement_stack_sizing= 10;
+  param.m_max_digest_length= 1000;
+  param.m_max_sql_text_length= 1000;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache       = 100;

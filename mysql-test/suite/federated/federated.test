@@ -757,7 +757,6 @@ INSERT INTO federated.t1 VALUES (3,3,3),(1,1,1),(2,2,2),(4,4,4);
 
 connection slave;
 DROP TABLE IF EXISTS federated.t1;
-SET @@global.innodb_file_format='Barracuda';
 
 CREATE TABLE federated.t1 (i1 int, i2 int, i3 int, i4 int, i5 int, i6 int, i7 int, i8
 int, i9 int, i10 int, i11 int, i12 int, i13 int, i14 int, i15 int, i16 int, i17
@@ -885,7 +884,6 @@ int, i983 int, i984 int, i985 int, i986 int, i987 int, i988 int, i989 int, i990
 int, i991 int, i992 int, i993 int, i994 int, i995 int, i996 int, i997 int, i998
 int, i999 int, i1000 int, b varchar(256)) 
 row_format=dynamic;
-SET @@global.innodb_file_format='Antelope';
 connection master;
 
 DROP TABLE IF EXISTS federated.t1;

@@ -1,5 +1,7 @@
 CREATE USER 'kristofer';
 SET old_passwords=2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user;
 user	plugin

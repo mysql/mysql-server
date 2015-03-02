@@ -237,7 +237,7 @@ WL#5706 -- show the above got logged/rewritten correctly
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %');
 argument
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server'
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
@@ -245,13 +245,13 @@ IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
 AS 'grant_plug_dest'
-CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
-CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
+CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 GRANT USAGE ON *.* TO ''@'','proxy_admin'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' WITH GRANT OPTION
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
@@ -336,6 +336,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -567,3 +568,14 @@ employee@localhost
 user()
 empl_external@localhost
 DROP USER 'empl_external'@'localhost', 'employee'@'localhost';
+#
+# Bug #20537246: SERVER CRASH WHILE CONNECTING WITH CLEARTEXT-PLUGIN
+#                USER WITH BLANK PWD
+#
+CREATE USER bug20537246@localhost
+IDENTIFIED WITH 'cleartext_plugin_server' AS '';
+## test connection
+select USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+bug20537246@localhost	bug20537246@localhost
+DROP USER bug20537246@localhost;

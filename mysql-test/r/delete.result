@@ -644,3 +644,99 @@ ERROR 42S22: Unknown column 'z' in 'field list'
 INSERT INTO t2 VALUES('a');
 DELETE FROM t2 WHERE 1 = a;
 DROP TABLE t1, t2;
+#
+# Bug#20086791 ASSERT `! IS_SET()` IN DIAGNOSTICS_AREA::SET_OK_STATUS
+#              ON DELETE (ER_SUBQUERY..)
+#
+SET sql_mode='';
+CREATE TABLE t1 (
+col_int_key int,
+pk integer auto_increment,
+col_datetime_key datetime,
+/*Indices*/
+key (col_int_key ),
+primary key (pk),
+key (col_datetime_key )
+) ENGINE=memory;
+CREATE TABLE t2 (
+col_varchar_key varchar (1),
+col_date_key date,
+pk integer auto_increment,
+/*Indices*/
+key (col_varchar_key ),
+key (col_date_key ),
+primary key (pk)
+) ENGINE=memory;
+INSERT INTO t2 VALUES
+('v',  '2002-05-01', NULL) ,
+('d',  '2001-01-01', NULL) 
+;
+CREATE TABLE t3 (
+pk integer auto_increment,
+col_int_key int,
+col_varchar_key varchar (1),
+/*Indices*/
+primary key (pk),
+key (col_int_key ),
+key (col_varchar_key )) 
+ENGINE=memory;
+INSERT INTO t3 VALUES
+(NULL, 3, 'n') ,
+(NULL, 1, 'r') 
+;
+CREATE TABLE t4 (
+pk integer auto_increment,
+col_varchar_key varchar (1),
+col_int_key int,
+/*Indices*/
+primary key (pk),
+key (col_varchar_key ),
+key (col_int_key )
+) ENGINE=memory;
+CREATE TABLE t5 (
+col_datetime_key datetime,
+pk integer auto_increment,
+col_int_key int,
+/*Indices*/
+key (col_datetime_key ),
+primary key (pk),
+key (col_int_key )) 
+ENGINE=memory;
+INSERT INTO t5 VALUES
+('2007-10-01', NULL, 8) ,
+('2002-10-01', NULL, 3) 
+;
+DELETE OUTR1.* FROM t2 AS OUTR1 
+JOIN t3 AS OUTR2 
+ON ( OUTR1 . col_varchar_key = OUTR2 . col_varchar_key ) 
+WHERE OUTR1 . col_varchar_key NOT IN
+( SELECT  INNR1 . col_varchar_key AS y FROM t5 AS INNR2
+RIGHT JOIN t4 AS INNR1 ON ( INNR2 . pk < INNR1 . col_int_key )
+WHERE INNR1 . col_int_key <= INNR1 . col_int_key
+AND OUTR2 . col_int_key >= 3  );
+DELETE QUICK  
+FROM OUTR1.* USING t2 AS OUTR1 
+LEFT OUTER JOIN t1 AS OUTR2 
+ON ( OUTR1 . col_date_key = OUTR2 . col_datetime_key ) 
+WHERE OUTR1 . pk NOT IN ( SELECT 2 UNION  SELECT 7 );
+DELETE    OUTR1.* 
+FROM t2 AS OUTR1
+LEFT JOIN t1 AS OUTR2 
+ON ( OUTR1 . pk = OUTR2 . col_int_key )
+WHERE OUTR1 . pk <> (
+SELECT DISTINCT INNR1 . col_int_key AS y
+FROM t5 AS INNR1 WHERE OUTR1 . pk <= 5
+ORDER BY INNR1 . col_datetime_key
+);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1, t2, t3, t4, t5;
+SET sql_mode=default;
+# Bug#20450013 assertion 'select_lex::having_cond() == __null ...
+CREATE TABLE t1(a TEXT, FULLTEXT (a));
+CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+explain DELETE FROM t1 USING v1,t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+DELETE FROM t1 USING v1,t1;
+DROP VIEW v1;
+DROP TABLE t1;

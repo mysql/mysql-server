@@ -11,13 +11,11 @@ SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 
 # These values can change during the test
-LET $innodb_file_format_orig=`select @@innodb_file_format`;
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
 SET SESSION innodb_strict_mode = ON;
 SET GLOBAL innodb_file_per_table=ON;
-SET GLOBAL innodb_file_format=barracuda;
 
 # Unlike MyISAM, InnoDB creates the subdirectories given to it in the
 # DATA DIRECTORY clauses.  Another difference is that InnoDB uses an extra
@@ -153,7 +151,6 @@ DROP TABLE emp;
 --rmdir $MYSQL_TMP_DIR/alt_dir_south
 
 --disable_query_log
-EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 --enable_query_log

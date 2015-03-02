@@ -39,6 +39,7 @@
 #include "ndb_global_schema_lock.h"
 #include "ndb_global_schema_lock_guard.h"
 #include "abstract_query_plan.h"
+#include "partition_info.h"
 #include "ndb_dist_priv_util.h"
 #include "ha_ndb_index_stat.h"
 
@@ -337,12 +338,11 @@ static handler *ndbcluster_create_handler(handlerton *hton,
 static uint
 ndbcluster_partition_flags()
 {
-  return (HA_CAN_PARTITION | HA_CAN_UPDATE_PARTITION_KEY |
+  return (HA_CAN_UPDATE_PARTITION_KEY |
           HA_CAN_PARTITION_UNIQUE | HA_USE_AUTO_PARTITION);
 }
 
-static uint
-ndbcluster_alter_table_flags(uint flags)
+uint ha_ndbcluster::alter_flags(uint flags) const
 {
   const uint f=
     HA_PARTITION_FUNCTION_SUPPORTED |
@@ -626,140 +626,140 @@ static int update_status_variables(Thd_ndb *thd_ndb,
 #define NDBAPI_COUNTERS(NAME_SUFFIX, ARRAY_LOCATION)                    \
   {"api_wait_exec_complete_count" NAME_SUFFIX,                          \
    (char*) ARRAY_LOCATION[ Ndb::WaitExecCompleteCount ],                \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_wait_scan_result_count" NAME_SUFFIX,                            \
    (char*) ARRAY_LOCATION[ Ndb::WaitScanResultCount ],                  \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_wait_meta_request_count" NAME_SUFFIX,                           \
    (char*) ARRAY_LOCATION[ Ndb::WaitMetaRequestCount ],                 \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_wait_nanos_count" NAME_SUFFIX,                                  \
    (char*) ARRAY_LOCATION[ Ndb::WaitNanosCount ],                       \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_bytes_sent_count" NAME_SUFFIX,                                  \
    (char*) ARRAY_LOCATION[ Ndb::BytesSentCount ],                       \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_bytes_received_count" NAME_SUFFIX,                              \
    (char*) ARRAY_LOCATION[ Ndb::BytesRecvdCount ],                      \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_trans_start_count" NAME_SUFFIX,                                 \
    (char*) ARRAY_LOCATION[ Ndb::TransStartCount ],                      \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_trans_commit_count" NAME_SUFFIX,                                \
    (char*) ARRAY_LOCATION[ Ndb::TransCommitCount ],                     \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_trans_abort_count" NAME_SUFFIX,                                 \
    (char*) ARRAY_LOCATION[ Ndb::TransAbortCount ],                      \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_trans_close_count" NAME_SUFFIX,                                 \
    (char*) ARRAY_LOCATION[ Ndb::TransCloseCount ],                      \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_pk_op_count" NAME_SUFFIX,                                       \
    (char*) ARRAY_LOCATION[ Ndb::PkOpCount ],                            \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_uk_op_count" NAME_SUFFIX,                                       \
    (char*) ARRAY_LOCATION[ Ndb::UkOpCount ],                            \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_table_scan_count" NAME_SUFFIX,                                  \
    (char*) ARRAY_LOCATION[ Ndb::TableScanCount ],                       \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_range_scan_count" NAME_SUFFIX,                                  \
    (char*) ARRAY_LOCATION[ Ndb::RangeScanCount ],                       \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_pruned_scan_count" NAME_SUFFIX,                                 \
    (char*) ARRAY_LOCATION[ Ndb::PrunedScanCount ],                      \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_scan_batch_count" NAME_SUFFIX,                                  \
    (char*) ARRAY_LOCATION[ Ndb::ScanBatchCount ],                       \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_read_row_count" NAME_SUFFIX,                                    \
    (char*) ARRAY_LOCATION[ Ndb::ReadRowCount ],                         \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_trans_local_read_row_count" NAME_SUFFIX,                        \
    (char*) ARRAY_LOCATION[ Ndb::TransLocalReadRowCount ],               \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_adaptive_send_forced_count" NAME_SUFFIX,                        \
    (char *) ARRAY_LOCATION[ Ndb::ForcedSendsCount ],                    \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_adaptive_send_unforced_count" NAME_SUFFIX,                      \
    (char *) ARRAY_LOCATION[ Ndb::UnforcedSendsCount ],                  \
-   SHOW_LONGLONG},                                                      \
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},                                   \
   {"api_adaptive_send_deferred_count" NAME_SUFFIX,                      \
    (char *) ARRAY_LOCATION[ Ndb::DeferredSendsCount ],                  \
-   SHOW_LONGLONG}
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL}
 
 SHOW_VAR ndb_status_variables_dynamic[]= {
-  {"cluster_node_id",     (char*) &g_ndb_status.cluster_node_id,      SHOW_LONG},
-  {"config_from_host",    (char*) &g_ndb_status.connected_host,       SHOW_CHAR_PTR},
-  {"config_from_port",    (char*) &g_ndb_status.connected_port,       SHOW_LONG},
-//{"number_of_replicas",  (char*) &g_ndb_status.number_of_replicas,   SHOW_LONG},
-  {"number_of_data_nodes",(char*) &g_ndb_status.number_of_data_nodes, SHOW_LONG},
+  {"cluster_node_id",     (char*) &g_ndb_status.cluster_node_id,      SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"config_from_host",    (char*) &g_ndb_status.connected_host,       SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
+  {"config_from_port",    (char*) &g_ndb_status.connected_port,       SHOW_LONG, SHOW_SCOPE_GLOBAL},
+//{"number_of_replicas",  (char*) &g_ndb_status.number_of_replicas,   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"number_of_data_nodes",(char*) &g_ndb_status.number_of_data_nodes, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"number_of_ready_data_nodes",
-   (char*) &g_ndb_status.number_of_ready_data_nodes,                  SHOW_LONG},
-  {"connect_count",      (char*) &g_ndb_status.connect_count,         SHOW_LONG},
-  {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG},
-  {"scan_count",         (char*) &g_ndb_status.scan_count,            SHOW_LONG},
-  {"pruned_scan_count",  (char*) &g_ndb_status.pruned_scan_count,     SHOW_LONG},
-  {"schema_locks_count", (char*) &g_ndb_status.schema_locks_count,    SHOW_LONG},
+   (char*) &g_ndb_status.number_of_ready_data_nodes,                  SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"connect_count",      (char*) &g_ndb_status.connect_count,         SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scan_count",         (char*) &g_ndb_status.scan_count,            SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"pruned_scan_count",  (char*) &g_ndb_status.pruned_scan_count,     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"schema_locks_count", (char*) &g_ndb_status.schema_locks_count,    SHOW_LONG, SHOW_SCOPE_GLOBAL},
   NDBAPI_COUNTERS("_session", &g_ndb_status.api_client_stats),
-  {"sorted_scan_count",  (char*) &g_ndb_status.sorted_scan_count,     SHOW_LONG},
+  {"sorted_scan_count",  (char*) &g_ndb_status.sorted_scan_count,     SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"pushed_queries_defined", (char*) &g_ndb_status.pushed_queries_defined, 
-   SHOW_LONG},
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"pushed_queries_dropped", (char*) &g_ndb_status.pushed_queries_dropped,
-   SHOW_LONG},
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"pushed_queries_executed", (char*) &g_ndb_status.pushed_queries_executed,
-   SHOW_LONG},
-  {"pushed_reads",       (char*) &g_ndb_status.pushed_reads,          SHOW_LONG},
+   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"pushed_reads",       (char*) &g_ndb_status.pushed_reads,          SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"last_commit_epoch_server", 
                          (char*) &g_ndb_status.last_commit_epoch_server,
-                                                                      SHOW_LONGLONG},
+                                                                      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {"last_commit_epoch_session", 
                          (char*) &g_ndb_status.last_commit_epoch_session, 
-                                                                      SHOW_LONGLONG},
-  {NullS, NullS, SHOW_LONG}
+                                                                      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 SHOW_VAR ndb_status_conflict_variables[]= {
-  {"fn_max",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX], SHOW_LONGLONG},
-  {"fn_old",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_OLD], SHOW_LONGLONG},
-  {"fn_max_del_win", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN], SHOW_LONGLONG},
-  {"fn_epoch",     (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH], SHOW_LONGLONG},
-  {"fn_epoch_trans", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH_TRANS], SHOW_LONGLONG},
-  {"trans_row_conflict_count", (char*) &g_ndb_slave_state.trans_row_conflict_count, SHOW_LONGLONG},
-  {"trans_row_reject_count",   (char*) &g_ndb_slave_state.trans_row_reject_count, SHOW_LONGLONG},
-  {"trans_reject_count",       (char*) &g_ndb_slave_state.trans_in_conflict_count, SHOW_LONGLONG},
-  {"trans_detect_iter_count",  (char*) &g_ndb_slave_state.trans_detect_iter_count, SHOW_LONGLONG},
+  {"fn_max",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_old",       (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_OLD], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_max_del_win", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_epoch",     (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"fn_epoch_trans", (char*) &g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH_TRANS], SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"trans_row_conflict_count", (char*) &g_ndb_slave_state.trans_row_conflict_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"trans_row_reject_count",   (char*) &g_ndb_slave_state.trans_row_reject_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"trans_reject_count",       (char*) &g_ndb_slave_state.trans_in_conflict_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"trans_detect_iter_count",  (char*) &g_ndb_slave_state.trans_detect_iter_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {"trans_conflict_commit_count",
-                               (char*) &g_ndb_slave_state.trans_conflict_commit_count, SHOW_LONGLONG},
-  {NullS, NullS, SHOW_LONG}
+                               (char*) &g_ndb_slave_state.trans_conflict_commit_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 SHOW_VAR ndb_status_injector_variables[]= {
-  {"api_event_data_count_injector",     (char*) &g_event_data_count, SHOW_LONGLONG},
-  {"api_event_nondata_count_injector",  (char*) &g_event_nondata_count, SHOW_LONGLONG},
-  {"api_event_bytes_count_injector",    (char*) &g_event_bytes_count, SHOW_LONGLONG},
-  {NullS, NullS, SHOW_LONG}
+  {"api_event_data_count_injector",     (char*) &g_event_data_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"api_event_nondata_count_injector",  (char*) &g_event_nondata_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"api_event_bytes_count_injector",    (char*) &g_event_bytes_count, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 SHOW_VAR ndb_status_slave_variables[]= {
   NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
-  {"slave_last_conflict_epoch",    (char*) &g_ndb_slave_state.last_conflicted_epoch, SHOW_LONGLONG},
-  {"slave_max_replicated_epoch", (char*) &g_ndb_slave_state.max_rep_epoch, SHOW_LONGLONG},
-  {NullS, NullS, SHOW_LONG}
+  {"slave_last_conflict_epoch",    (char*) &g_ndb_slave_state.last_conflicted_epoch, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {"slave_max_replicated_epoch", (char*) &g_ndb_slave_state.max_rep_epoch, SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 SHOW_VAR ndb_status_server_client_stat_variables[]= {
   NDBAPI_COUNTERS("", &g_server_api_client_stats),
   {"api_event_data_count",     
    (char*) &g_server_api_client_stats[ Ndb::DataEventsRecvdCount ], 
-   SHOW_LONGLONG},
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {"api_event_nondata_count",  
    (char*) &g_server_api_client_stats[ Ndb::NonDataEventsRecvdCount ], 
-   SHOW_LONGLONG},
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
   {"api_event_bytes_count",    
    (char*) &g_server_api_client_stats[ Ndb::EventBytesRecvdCount ], 
-   SHOW_LONGLONG},
-  {NullS, NullS, SHOW_LONG}
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 static int show_ndb_server_api_stats(THD *thd, SHOW_VAR *var, char *buff)
@@ -775,15 +775,16 @@ static int show_ndb_server_api_stats(THD *thd, SHOW_VAR *var, char *buff)
 
   var->type= SHOW_ARRAY;
   var->value= (char*) ndb_status_server_client_stat_variables;
+  var->scope= SHOW_SCOPE_GLOBAL;
 
   return 0;
 }
 
 SHOW_VAR ndb_status_index_stat_variables[]= {
-  {"status",          (char*) &g_ndb_status_index_stat_status, SHOW_CHAR_PTR},
-  {"cache_query",     (char*) &g_ndb_status_index_stat_cache_query, SHOW_LONG},
-  {"cache_clean",     (char*) &g_ndb_status_index_stat_cache_clean, SHOW_LONG},
-  {NullS, NullS, SHOW_LONG}
+  {"status",          (char*) &g_ndb_status_index_stat_status, SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
+  {"cache_query",     (char*) &g_ndb_status_index_stat_cache_query, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"cache_clean",     (char*) &g_ndb_status_index_stat_cache_clean, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 
@@ -833,11 +834,12 @@ int ndb_to_mysql_error(const NdbError *ndberr)
     */
     if (ndberr->status == NdbError::TemporaryError)
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
+                          ER_GET_TEMPORARY_ERRMSG,
+                          ER_THD(current_thd, ER_GET_TEMPORARY_ERRMSG),
                           ndberr->code, ndberr->message, "NDB");
     else
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ER_GET_ERRMSG, ER_THD(current_thd, ER_GET_ERRMSG),
                           ndberr->code, ndberr->message, "NDB");
   }
   return error;
@@ -995,7 +997,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                     nonMaskedError.code, nonMaskedError.message);
         push_warning_printf(current_thd, Sql_condition::SL_ERROR,
                             ER_EXCEPTIONS_WRITE_ERROR,
-                            ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
         /* Slave will stop replication. */
         DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
       }
@@ -2910,7 +2912,7 @@ inline ulong ha_ndbcluster::index_flags(uint idx_no, uint part,
 }
 
 bool
-ha_ndbcluster::primary_key_is_clustered()
+ha_ndbcluster::primary_key_is_clustered() const
 {
 
   if (table->s->primary_key == MAX_KEY)
@@ -5081,7 +5083,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
   DBUG_ASSERT(trans);
 
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
 
   /*
      Setup OperationOptions
@@ -5412,7 +5414,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
 
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_EXCEPTIONS_WRITE_ERROR,
-                            ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
 
         DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
       }
@@ -5514,7 +5516,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                       err.message);
           push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                               ER_EXCEPTIONS_WRITE_ERROR,
-                              ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
           /* Slave will stop replication. */
           DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
         }
@@ -5562,7 +5564,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                       err.message);
           push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                               ER_EXCEPTIONS_WRITE_ERROR,
-                              ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
           /* Slave will stop replication. */
           DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
         }
@@ -5797,7 +5799,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       DBUG_RETURN(peek_res);
   }
 
-  ha_statistic_increment(&SSV::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count);
 
   bool skip_partition_for_unique_index= FALSE;
   if (m_use_partition_pruning)
@@ -6169,7 +6171,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   if (unlikely(error))
     DBUG_RETURN(error);
 
-  ha_statistic_increment(&SSV::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count);
   m_rows_changed++;
 
   bool skip_partition_for_unique_index= FALSE;
@@ -6673,7 +6675,7 @@ int ha_ndbcluster::index_read(uchar *buf,
 int ha_ndbcluster::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
   const int error= next_result(buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
@@ -6683,7 +6685,7 @@ int ha_ndbcluster::index_next(uchar *buf)
 int ha_ndbcluster::index_prev(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_prev");
-  ha_statistic_increment(&SSV::ha_read_prev_count);
+  ha_statistic_increment(&System_status_var::ha_read_prev_count);
   const int error= next_result(buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
@@ -6693,7 +6695,7 @@ int ha_ndbcluster::index_prev(uchar *buf)
 int ha_ndbcluster::index_first(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_first");
-  ha_statistic_increment(&SSV::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
@@ -6706,7 +6708,7 @@ int ha_ndbcluster::index_first(uchar *buf)
 int ha_ndbcluster::index_last(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_last");
-  ha_statistic_increment(&SSV::ha_read_last_count);
+  ha_statistic_increment(&System_status_var::ha_read_last_count);
   const int error= ordered_index_scan(0, 0, m_sorted, TRUE, buf, NULL);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
@@ -6899,7 +6901,7 @@ int ha_ndbcluster::rnd_end()
 int ha_ndbcluster::rnd_next(uchar *buf)
 {
   DBUG_ENTER("rnd_next");
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
   int error;
   if (m_active_cursor || m_active_query)
@@ -6921,7 +6923,7 @@ int ha_ndbcluster::rnd_next(uchar *buf)
 int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
 {
   DBUG_ENTER("rnd_pos");
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   // The primary key for the record is stored in pos
   // Perform a pk_read using primary key "index"
   {
@@ -7245,12 +7247,12 @@ int ha_ndbcluster::info(uint flag)
 }
 
 
-void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
+void ha_ndbcluster::get_dynamic_partition_info(ha_statistics *stat_info,
+                                               ha_checksum *check_sum,
                                                uint part_id)
 {
   DBUG_PRINT("info", ("ha_ndbcluster::get_dynamic_partition_info"));
 
-  memset(stat_info, 0, sizeof(PARTITION_STATS));
   int error = 0;
   THD *thd = table->in_use;
 
@@ -9787,7 +9789,7 @@ int ha_ndbcluster::create(const char *name,
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_ILLEGAL_HA_CREATE_OPTION,
-                            ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                            ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
                             ndbcluster_hton_name,
                             "Index on field "
                             "declared with "
@@ -10180,7 +10182,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
 			  ER_ILLEGAL_HA_CREATE_OPTION,
-			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
+			  ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
 			  ndbcluster_hton_name,
 			  "Ndb does not support non-unique "
 			  "hash based indexes");
@@ -10261,7 +10263,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
                           "Index on field "
                           "declared with "
@@ -12342,7 +12344,6 @@ int ndbcluster_init(void* p)
     h->show_status=      ndbcluster_show_status;    /* Show status */
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
-    h->alter_table_flags=ndbcluster_alter_table_flags; /* Alter table flags */
 #if MYSQL_VERSION_ID >= 50501
     h->fill_is_table=    ndbcluster_fill_is_table;
 #else
@@ -14478,7 +14479,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
   mrr_need_range_assoc = !MY_TEST(mode & HA_MRR_NO_ASSOCIATION);
   if (mrr_need_range_assoc)
   {
-    ha_statistic_increment(&SSV::ha_multi_range_read_init_count);
+    ha_statistic_increment(&System_status_var::ha_multi_range_read_init_count);
   }
 
   /*
@@ -15186,6 +15187,7 @@ int ndbcluster_make_pushed_join(handlerton *hton,
       // Check for online upgrade/downgrade.
       ndb_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
   {
+    bool pushed_something = false;
     ndb_pushed_builder_ctx pushed_builder(*plan);
 
     for (uint i= 0; i < plan->get_access_count()-1; i++)
@@ -15219,6 +15221,18 @@ int ndbcluster_make_pushed_join(handlerton *hton,
           handler->print_error(error, MYF(0));
           DBUG_RETURN(error);
         }
+        // Something was pushed and the QEP need to be modified
+        pushed_something = true;
+      }
+    }
+
+    if (pushed_something)
+    {
+      // Modify the QEP_TAB's to use the 'linked' read functions
+      // for those parts of the join which have been pushed down.
+      for (uint i= 0; i < plan->get_access_count(); i++)
+      {
+        plan->get_table_access(i)->set_pushed_table_access_method();
       }
     }
   }
@@ -15885,7 +15899,7 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
 }
 
 
-int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
+int ha_ndbcluster::get_default_num_partitions(HA_CREATE_INFO *create_info)
 {
   if (unlikely(g_ndb_cluster_connection->get_no_ready() <= 0))
   {
@@ -16139,7 +16153,7 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
     {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ER_THD(current_thd, ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
                           "LIST, RANGE and HASH partition disabled by default,"
                           " use --new option to enable");
@@ -17492,13 +17506,13 @@ ndberror2:
 }
 
 
-bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
+bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
 {
   THD *thd= current_thd;
   Ndb *ndb;
   NDBDICT *dict;
   int err= 0;
-  DBUG_ENTER("ha_ndbcluster::get_no_parts");
+  DBUG_ENTER("ha_ndbcluster::get_num_parts");
 
   set_dbname(name);
   set_tabname(name);
@@ -17514,7 +17528,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
     Ndb_table_guard ndbtab_g(dict= ndb->getDictionary(), m_tabname);
     if (!ndbtab_g.get_table())
       ERR_BREAK(dict->getNdbError(), err);
-    *no_parts= ndbtab_g.get_table()->getFragmentCount();
+    *num_parts= ndbtab_g.get_table()->getFragmentCount();
     DBUG_RETURN(FALSE);
   }
 
@@ -17827,13 +17841,13 @@ static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 SHOW_VAR ndb_status_variables_export[]= {
-  {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC},
-  {"Ndb_conflict", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
-  {"Ndb",          (char*) &ndb_status_injector_variables, SHOW_ARRAY},
-  {"Ndb",          (char*) &ndb_status_slave_variables,    SHOW_ARRAY},
-  {"Ndb",          (char*) &show_ndb_server_api_stats,     SHOW_FUNC},
-  {"Ndb_index_stat", (char*) &ndb_status_index_stat_variables, SHOW_ARRAY},
-  {NullS, NullS, SHOW_LONG}
+  {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
+  {"Ndb_conflict", (char*) &ndb_status_conflict_variables, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+  {"Ndb",          (char*) &ndb_status_injector_variables, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+  {"Ndb",          (char*) &ndb_status_slave_variables,    SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+  {"Ndb",          (char*) &show_ndb_server_api_stats,     SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
+  {"Ndb_index_stat", (char*) &ndb_status_index_stat_variables, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 static MYSQL_SYSVAR_ULONG(

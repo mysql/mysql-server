@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -238,20 +238,21 @@
   #endif
   while (!thd->killed && !end_of_wait_condition)
     mysql_cond_wait(&condition_variable, &mutex);
+  mysql_mutex_unlock(&mutex);
   thd->exit_cond(old_message);
 
   Here some explanations:
 
   thd->enter_cond() is used to register the condition variable and the
-  mutex in thd->mysys_var. This is done to allow the thread to be
-  interrupted (killed) from its sleep. Another thread can find the
-  condition variable to signal and mutex to use for synchronization in
-  this thread's THD::mysys_var.
+  mutex in THD::current_cond/current_mutex. This is done to allow the
+  thread to be interrupted (killed) from its sleep. Another thread can
+  find the condition variable to signal and mutex to use for synchronization
+  in this thread's THD.
 
   thd->enter_cond() requires the mutex to be acquired in advance.
 
-  thd->exit_cond() unregisters the condition variable and mutex and
-  releases the mutex.
+  thd->exit_cond() unregisters the condition variable and mutex. Requires
+  the mutex to be released in advance.
 
   If you want to have a Debug Sync point with the wait, please place it
   behind enter_cond(). Only then you can safely decide, if the wait will
@@ -280,6 +281,7 @@
       [DEBUG_SYNC(thd, "sync_point_name");]
       mysql_cond_wait(&condition_variable, &mutex);
     }
+    mysql_mutex_unlock(&mutex);
     thd->exit_cond(old_message);
   }
 
@@ -291,7 +293,7 @@
   condition variable. It would just set THD::killed. But if we would not
   test it again, we would go asleep though we are killed. If the killing
   thread would kill us when we are after the second test, but still
-  before sleeping, we hold the mutex, which is registered in mysys_var.
+  before sleeping, we hold the mutex, which is registered in THD.
   The killing thread would try to acquire the mutex before signaling
   the condition variable. Since the mutex is only released implicitly in
   mysql_cond_wait(), the signaling happens at the right place. We
@@ -330,6 +332,7 @@
 
 #include "sql_parse.h"
 #include "log.h"
+#include "current_thd.h"
 
 #include <set>
 #include <string>
@@ -1903,19 +1906,13 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         mutex and cond. This would prohibit the use of DEBUG_SYNC
         between other places of enter_cond() and exit_cond().
 
-        We need to check for existence of thd->mysys_var to also make
-        it possible to use DEBUG_SYNC framework in scheduler when this
-        variable has been set to NULL.
+        Note that we cannot lock LOCK_current_cond here. See comment
+        in THD::enter_cond().
       */
-      if (thd->mysys_var)
-      {
-        old_mutex= thd->mysys_var->current_mutex;
-        old_cond= thd->mysys_var->current_cond;
-        thd->mysys_var->current_mutex= &debug_sync_global.ds_mutex;
-        thd->mysys_var->current_cond= &debug_sync_global.ds_cond;
-      }
-      else
-        old_mutex= NULL;
+      old_mutex= thd->current_mutex;
+      old_cond= thd->current_cond;
+      thd->current_mutex= &debug_sync_global.ds_mutex;
+      thd->current_cond= &debug_sync_global.ds_cond;
 
       set_timespec(&abstime, action->timeout);
       DBUG_EXECUTE("debug_sync_exec", {
@@ -1944,7 +1941,8 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         {
           // We should not make the statement fail, even if in strict mode.
           push_warning(thd, Sql_condition::SL_WARNING,
-                       ER_DEBUG_SYNC_TIMEOUT, ER(ER_DEBUG_SYNC_TIMEOUT));
+                       ER_DEBUG_SYNC_TIMEOUT,
+                       ER_THD(thd, ER_DEBUG_SYNC_TIMEOUT));
           DBUG_EXECUTE_IF("debug_sync_abort_on_timeout", DBUG_ABORT(););
           break;
         }
@@ -1974,11 +1972,11 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
       mysql_mutex_unlock(&debug_sync_global.ds_mutex);
       if (old_mutex)
       {
-        mysql_mutex_lock(&thd->mysys_var->mutex);
-        thd->mysys_var->current_mutex= old_mutex;
-        thd->mysys_var->current_cond= old_cond;
+        mysql_mutex_lock(&thd->LOCK_current_cond);
+        thd->current_mutex= old_mutex;
+        thd->current_cond= old_cond;
+        mysql_mutex_unlock(&thd->LOCK_current_cond);
         debug_sync_thd_proc_info(thd, old_proc_info);
-        mysql_mutex_unlock(&thd->mysys_var->mutex);
       }
       else
         debug_sync_thd_proc_info(thd, old_proc_info);

@@ -27,6 +27,9 @@ STOPTIMEOUT=60
 
 lockfile=/var/lock/subsys/$prog
 
+# Support for extra options passed to mysqld
+command=$1 && shift
+extra_opts="$@"
 
 # extract value of a MySQL option from config files
 # Usage: get_mysql_option SECTION VARNAME DEFAULT
@@ -107,7 +110,7 @@ start(){
 	# alarms, per bug #547485
 	$exec   --datadir="$datadir" --socket="$socketfile" \
 		--pid-file="$mypidfile" \
-		--basedir=/usr --user=mysql >/dev/null 2>&1 &
+		--basedir=/usr --user=mysql $extra_opts >/dev/null 2>&1 &
 	safe_pid=$!
 	# Spin for a maximum of N seconds waiting for the server to come up;
 	# exit the loop immediately if mysqld_safe process disappears.
@@ -196,7 +199,7 @@ condrestart(){
 
 
 # See how we were called.
-case "$1" in
+case "$command" in
   start)
     start
     ;;

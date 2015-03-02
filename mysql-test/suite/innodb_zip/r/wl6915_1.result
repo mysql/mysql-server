@@ -43,7 +43,6 @@ set @s = concat("CREATE TABLE t2",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3
 PREPARE createTable FROM @s;
 EXECUTE createTable;
 DEALLOCATE PREPARE createTable;
-set global innodb_file_format='Barracuda';
 CREATE TEMPORARY TABLE t3_temp(c1 int NOT NULL,
 c2 int NOT NULL,
 c3 char(255) NOT NULL,

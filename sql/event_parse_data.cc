@@ -127,7 +127,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
     case SQLCOM_CREATE_EVENT:
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_EVENT_CANNOT_CREATE_IN_THE_PAST,
-                   ER(ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
+                   ER_THD(thd, ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
       break;
     case SQLCOM_ALTER_EVENT:
       my_error(ER_EVENT_CANNOT_ALTER_IN_THE_PAST, MYF(0));
@@ -144,7 +144,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
     status_changed= true;
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_EVENT_EXEC_TIME_IN_THE_PAST,
-                 ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
+                 ER_THD(thd, ER_EVENT_EXEC_TIME_IN_THE_PAST));
   }
 }
 

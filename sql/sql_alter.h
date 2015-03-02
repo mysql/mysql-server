@@ -198,6 +198,12 @@ public:
   // Set for RENAME INDEX
   static const uint ALTER_RENAME_INDEX          = 1L << 27;
 
+  // Set for adding/altering stored generated columns
+  static const uint ALTER_STORED_GCOLUMN        = 1L << 28;
+
+  // Set for adding/altering virtual generated columns
+  static const uint ALTER_VIRTUAL_GCOLUMN       = 1L << 29;
+
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
   /**
@@ -262,16 +268,13 @@ public:
   // WITHOUT VALIDATION was not given
   bool                          with_validation;
 
-  void                          *se_blob;
-
   Alter_info() :
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     num_parts(0),
     requested_algorithm(ALTER_TABLE_ALGORITHM_DEFAULT),
     requested_lock(ALTER_TABLE_LOCK_DEFAULT),
-    with_validation(true),
-    se_blob(NULL)
+    with_validation(true)
   {}
 
   void reset()

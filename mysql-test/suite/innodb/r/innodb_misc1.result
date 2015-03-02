@@ -123,6 +123,9 @@ create table t8 (col1 blob, index(col1(767)))
 character set = latin1 engine = innodb;
 drop table t1, t2, t3, t4, t5, t6, t7, t8;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET GLOBAL innodb_large_prefix=OFF;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create table t1 (col1 varchar(768), index(col1))
 character set = latin1 engine = innodb;
 Warnings:
@@ -159,6 +162,9 @@ ERROR 42000: Specified key was too long; max key length is 767 bytes
 create table t4 (col1 blob, primary key(col1(768)))
 character set = latin1 engine = innodb;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
+SET GLOBAL innodb_large_prefix=default;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 CREATE TABLE t1
 (
 id INT PRIMARY KEY

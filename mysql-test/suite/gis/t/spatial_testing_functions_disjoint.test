@@ -204,12 +204,13 @@ SELECT count(ST_ASTEXT(g2) != 'NULL') FROM gis_geometrycollection_2;
 # Checking the spatial testing functions                                                   #
 ############################################################################################
 
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # MBRDISJOINT(g1,g2)
---echo #=======================================================================================
+--echo #####################################################################################
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,point
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center));
@@ -220,8 +221,9 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipoint
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
@@ -238,8 +240,9 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,linestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
@@ -254,8 +257,9 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multilinestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
@@ -270,8 +274,9 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTILINESTRIN
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,polygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
@@ -286,8 +291,9 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,1
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipolygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
@@ -300,8 +306,9 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON((
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,geometrycollection
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
@@ -318,54 +325,61 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLEC
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,point
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipoint
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_all_points_3),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=408;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,linestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=409;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multilinestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=409;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,polygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=401;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipolygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,geometrycollection
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -374,56 +388,63 @@ SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,point
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
 
 SELECT MBRDISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipoint
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_all_points_3)) FROM gis_geometrycollection WHERE fid=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,linestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center_3)) FROM gis_geometrycollection WHERE fid=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multilinestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal_3),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal_3)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,polygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical_3)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipolygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems_3)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,geometrycollection
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -432,16 +453,18 @@ SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometr
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,point
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipoint
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points));
@@ -450,16 +473,18 @@ SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points_3)) FROM gis_geometryco
 
 SELECT MBRDISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,linestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multilinestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_near_vertical_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
@@ -468,24 +493,27 @@ SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geomet
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_line_vertical_3)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,polygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_verticali_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipolygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems_3)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,geometrycollection
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -494,24 +522,27 @@ SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometr
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,point
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipoint
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,linestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
@@ -520,32 +551,36 @@ SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycoll
 
 SELECT MBRDISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multilinestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_3),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,polygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical_3)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipolygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,geometrycollection
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -554,40 +589,45 @@ SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,point
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_3));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_top_3)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipoint
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,linestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multilinestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,polygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_3));
@@ -596,19 +636,20 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipolygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
 
-SELECT MBRDISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
-       WHERE fid=103 and fid2=103;
+SELECT MBRDISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,geometrycollection
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -619,40 +660,45 @@ SELECT MBRDISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WH
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,point
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_3));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_top_3)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipoint
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,linestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multilinestring
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,polygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_3));
@@ -661,8 +707,9 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLY
 
 SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipolygon
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
@@ -671,8 +718,9 @@ SELECT MBRDISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT MBRDISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,geometrycollection
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -683,12 +731,13 @@ SELECT MBRDISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WH
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # ST_DISJOINT(g1,g2)
---echo #=======================================================================================
+--echo #####################################################################################
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,point
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center));
@@ -699,8 +748,9 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipoint
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
@@ -717,8 +767,9 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,linestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
@@ -733,8 +784,9 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multilinestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
@@ -749,8 +801,9 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTILINESTRIN
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,polygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
@@ -765,8 +818,9 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,1
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipolygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
@@ -779,8 +833,9 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON((
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,geometrycollection
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
@@ -797,55 +852,61 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLEC
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,point
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipoint
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points_3),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=408;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,linestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=409;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multilinestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=409;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,polygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=401;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipolygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,geometrycollection
-
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -854,25 +915,27 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,point
-
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipoint
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_all_points_3)) FROM gis_geometrycollection WHERE fid=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,linestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_line_vertical));
@@ -883,32 +946,36 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING(5 5,10 10)'), ST_GEOMFROMTEXT('LI
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING(5 5,2 8)'), ST_GEOMFROMTEXT('LINESTRING(4 6,7 3)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multilinestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal_3),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal_3)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,polygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical_3)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipolygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems_3)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,geometrycollection
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -917,16 +984,18 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometr
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,point
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipoint
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points));
@@ -935,16 +1004,18 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points_3)) FROM gis_geometryco
 
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,linestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multilinestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_near_vertical_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
@@ -953,24 +1024,27 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geomet
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_line_vertical_3)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,polygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_verticali_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipolygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems_3)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,geometrycollection
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -979,24 +1053,27 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometr
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,point
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipoint
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,linestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
@@ -1005,32 +1082,36 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycoll
 
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multilinestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_3),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,polygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical_3)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipolygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,geometrycollection
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -1039,40 +1120,45 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,point
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_3));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_3)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipoint
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,linestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multilinestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,polygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_3));
@@ -1081,8 +1167,9 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipolygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
@@ -1091,8 +1178,9 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollectio
 
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,geometrycollection
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -1101,40 +1189,45 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,point
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_3));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_3)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipoint
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,linestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multilinestring
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,polygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_3));
@@ -1143,8 +1236,9 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLY
 
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipolygon
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
@@ -1153,8 +1247,9 @@ SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,geometrycollection
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -1165,488 +1260,13 @@ SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WH
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #=======================================================================================
---echo # ST_DISJOINT(g1,g2)
---echo #=======================================================================================
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,point
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=104;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,multipoint
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=108;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0)'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,linestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_line_vertical));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,20 0)'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,multilinestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0,10 0))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,polygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=404;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,multipolygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,geometrycollection
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,point
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,multipoint
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points_3),ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=408;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,linestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=409;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,multilinestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=409;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,polygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=401;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,multipolygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,geometrycollectrion
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,point
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,multipoint
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_all_points_3)) FROM gis_geometrycollection WHERE fid=111;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,linestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_line_vertical));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center_3)) FROM gis_geometrycollection WHERE fid=111;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,multilinestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal_3),ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal_3)) FROM gis_geometrycollection WHERE fid=110;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,polygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical_3)) FROM gis_geometrycollection WHERE fid=110;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,multipolygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems_3)) FROM gis_geometrycollection WHERE fid=110;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,geometrycollection
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,point
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,multipoint
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points_3)) FROM gis_geometrycollection WHERE fid=114;
-
-SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,linestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,multilinestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_near_vertical_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=114;
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_line_vertical_3)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,polygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_verticali_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,multipolygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems_3)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,geometrycollection
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=114;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,point
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,multipoint
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,linestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
-
-SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,multilinestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_3),ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,polygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical_3)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,multipolygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,geometrycollection
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,point
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_3));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_3)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,multipoint
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,linestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,multilinestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,polygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,multipolygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
-
-SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,geometrycollection
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
-
-SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,point
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_3));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_3)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,multipoint
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,linestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,multilinestring
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,polygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,multipolygon
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
-
-SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,geometrycollection
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
-
-SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #=======================================================================================
---echo # Testing ST_DISJOINT() with 2 geometries of same SRID
---echo #=======================================================================================
-
---echo #-------------------------------------------------------------------------------------------
+--echo #####################################################################################
+--echo # Testing with 2 geometries of same SRID
+--echo #####################################################################################
+
+--echo #====================================================================================
 --echo # MBRDISJOINT(g1,g2)
+--echo #====================================================================================
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
@@ -1665,8 +1285,9 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center
 
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # ST_DISJOINT(g1,g2)
+--echo #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
@@ -1685,32 +1306,13 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center
 
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
---echo #-------------------------------------------------------------------------------------------
---echo # ST_DISJOINT(g1,g2)
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # Invalid function calls
---echo #=======================================================================================
+--echo #####################################################################################
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # ST_DISJOINT(g1,g2)
+--echo #====================================================================================
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
@@ -1781,80 +1383,9 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),);
 --error ER_PARSE_ERROR
 SELECT ST_DISJOINT(,ST_GEOMFROMTEXT(@star_top));
 
---echo #-------------------------------------------------------------------------------------------
---echo # ST_DISJOINT(g1,g2)
---error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
-
---error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-
-SELECT ST_DISJOINT(NULL,ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),NULL);
-
-SELECT ST_DISJOINT(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
-SELECT ST_DISJOINT(NULL,NULL);
-
-SELECT ST_DISJOINT(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(fid,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT ST_DISJOINT(,);
-
---error ER_PARSE_ERROR
-SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),);
-
---error ER_PARSE_ERROR
-SELECT ST_DISJOINT(,ST_GEOMFROMTEXT(@star_top));
-
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # MBRDISJOINT(g1,g2)
+--echo #====================================================================================
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 

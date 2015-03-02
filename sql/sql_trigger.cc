@@ -352,7 +352,8 @@ bool add_table_for_trigger(THD *thd,
     if (continue_if_not_exist)
     {
       push_warning(thd, Sql_condition::SL_NOTE,
-                   ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST));
+                   ER_TRG_DOES_NOT_EXIST,
+                   ER_THD(thd, ER_TRG_DOES_NOT_EXIST));
 
       *table= NULL;
 

@@ -1,0 +1,517 @@
+
+================================================================================
+SETUP
+================================================================================
+# Save current SHOW_COMPATIBILITY_56 setting
+SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
+SET @@global.show_compatibility_56=OFF;
+SET @@session.sql_log_bin=OFF;
+
+# CREATE 3 CLIENTS, 3 CONNECTIONS, RESULTS TABLE
+connection default;
+USE test;
+
+# Create results table
+CREATE TABLE test.status_results 
+(variable_name VARCHAR(64), start INT DEFAULT 0, stop INT DEFAULT 0, delta INT DEFAULT 0, 
+t1 INT DEFAULT 0, t2 INT DEFAULT 0, t3 INT DEFAULT 0, thread INT DEFAULT 0, 
+u1 INT DEFAULT 0, u2 INT DEFAULT 0, u3 INT DEFAULT 0, user INT DEFAULT 0, 
+h1 INT DEFAULT 0, h2 INT DEFAULT 0, h3 INT DEFAULT 0, host INT DEFAULT 0, 
+a1 INT DEFAULT 0, a2 INT DEFAULT 0, a3 INT DEFAULT 0, acct INT DEFAULT 0);
+INSERT INTO test.status_results (variable_name, start) 
+SELECT sg.variable_name, sg.variable_value+0 FROM performance_schema.global_status sg
+WHERE variable_name IN ('handler_delete', 'handler_rollback');
+
+# Create test tables
+CREATE TABLE t1 (s1 int) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2), (2), (3), (3), (3);
+CREATE TABLE t2 (s1 int) ENGINE=InnoDB;
+CREATE TABLE t3 (s1 int) ENGINE=InnoDB;
+
+GRANT ALL ON *.* to 'user1'@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+GRANT ALL ON *.* to 'user2'@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+GRANT ALL ON *.* to 'user3'@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+
+================================================================================
+CONNECTION 1: DELETE 1, ROLLBACK x 1
+================================================================================
+connect con1, localhost, user1,,;
+SET @@session.sql_log_bin=OFF;
+DELETE FROM t1 WHERE s1 = 1;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+ROLLBACK;
+
+================================================================================
+CONNECTION 2: DELETE 2, ROLLBACK x 2
+================================================================================
+connect con2, localhost, user2,,;
+SET @@session.sql_log_bin=OFF;
+DELETE FROM t1 WHERE s1 = 2;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (2);
+ROLLBACK;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (2);
+ROLLBACK;
+
+================================================================================
+CONNECTION 3: DELETE 3, ROLLBACK x 3
+================================================================================
+connect con3, localhost, user3,,;
+SET @@session.sql_log_bin=OFF;
+DELETE FROM t1 WHERE s1 = 3;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (3);
+ROLLBACK;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (3);
+ROLLBACK;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES (3);
+ROLLBACK;
+
+================================================================================
+CONNECTION DEFAULT: Gather results, compare session and global status counts
+================================================================================
+connection default;
+# Get thread ids for each connection.
+USE performance_schema;
+SELECT thread_id INTO @con1_id FROM threads WHERE processlist_user IN ('user1');
+SELECT thread_id INTO @con2_id FROM threads WHERE processlist_user IN ('user2');
+SELECT thread_id INTO @con3_id FROM threads WHERE processlist_user IN ('user3');
+#=================
+# Global results
+#=================
+USE test;
+UPDATE test.status_results sr, performance_schema.global_status sg
+SET sr.stop = sg.variable_value
+WHERE sr.variable_name = sg.variable_name
+AND sg.variable_name IN ('handler_delete', 'handler_rollback');
+
+# Global deltas: END - START.
+UPDATE test.status_results sr
+SET sr.delta = sr.stop - sr.start;
+#=================
+# Status by thread
+#=================
+# Thread results from CON1.
+UPDATE test.status_results sr, performance_schema.status_by_thread sbt
+SET sr.t1 = sbt.variable_value
+WHERE sr.variable_name = sbt.variable_name
+AND sbt.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbt.thread_id = @con1_id;
+
+# Thread results from CON2.
+UPDATE test.status_results sr, performance_schema.status_by_thread sbt
+SET sr.t2 = sbt.variable_value
+WHERE sr.variable_name = sbt.variable_name
+AND sbt.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbt.thread_id = @con2_id;
+
+# Thread results from CON3.
+UPDATE test.status_results sr, performance_schema.status_by_thread sbt
+SET sr.t3 = sbt.variable_value
+WHERE sr.variable_name = sbt.variable_name
+AND sbt.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbt.thread_id = @con3_id;
+
+# Thread totals for 3 connections.
+UPDATE test.status_results sr
+SET sr.thread = sr.t1 + sr.t2 + sr.t3;
+#=================
+# Status by user
+#=================
+# User1
+UPDATE test.status_results sr, performance_schema.status_by_user sbu
+SET sr.u1 = sbu.variable_value
+WHERE sr.variable_name = sbu.variable_name
+AND sbu.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbu.user IN ('user1');
+
+# User2
+UPDATE test.status_results sr, performance_schema.status_by_user sbu
+SET sr.u2 = sbu.variable_value
+WHERE sr.variable_name = sbu.variable_name
+AND sbu.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbu.user IN ('user2');
+
+# User3
+UPDATE test.status_results sr, performance_schema.status_by_user sbu
+SET sr.u3 = sbu.variable_value
+WHERE sr.variable_name = sbu.variable_name
+AND sbu.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbu.user IN ('user3');
+
+# Status totals for 3 users.
+UPDATE test.status_results sr
+SET sr.user = sr.u1 + sr.u2 + sr.u3;
+#===========================
+# Status by host (localhost)
+#===========================
+
+# host1 = localhost
+UPDATE test.status_results sr, performance_schema.status_by_host sbh
+SET sr.h1 = sbh.variable_value
+WHERE sr.variable_name = sbh.variable_name
+AND sbh.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbh.host IN ('localhost');
+
+# Status totals for 'localhost' only.
+UPDATE test.status_results sr
+SET sr.host = sr.h1 + sr.h2 + sr.h3;
+#==================
+# Status by account
+#==================
+# User1@localhost
+UPDATE test.status_results sr, performance_schema.status_by_account sba
+SET sr.a1 = sba.variable_value
+WHERE sr.variable_name = sba.variable_name
+AND sba.variable_name IN ('handler_delete', 'handler_rollback')
+AND sba.user IN ('user1');
+
+# User2@localhost
+UPDATE test.status_results sr, performance_schema.status_by_account sba
+SET sr.a2 = sba.variable_value
+WHERE sr.variable_name = sba.variable_name
+AND sba.variable_name IN ('handler_delete', 'handler_rollback')
+AND sba.user IN ('user2');
+
+# User3@localhost
+UPDATE test.status_results sr, performance_schema.status_by_account sba
+SET sr.a3 = sba.variable_value
+WHERE sr.variable_name = sba.variable_name
+AND sba.variable_name IN ('handler_delete', 'handler_rollback')
+AND sba.user IN ('user3');
+
+
+# Status totals for 3 accounts.
+UPDATE test.status_results sr
+SET sr.acct = sr.a1 + sr.a2 + sr.a3;
+
+================================================================================
+TEST 1: STATUS_BY_THREAD: Verify expected status counts per thread (1,2,3)
+================================================================================
+#
+# Review per-thread status counts
+#
+USE performance_schema;
+SELECT * FROM status_by_thread WHERE thread_id IN (@con1_id, @con2_id, @con3_id) AND variable_name IN ('handler_delete', 'handler_rollback') ORDER BY thread_id;
+THREAD_ID	VARIABLE_NAME	VARIABLE_VALUE
+thread_id	Handler_delete	1
+thread_id	Handler_rollback	1
+thread_id	Handler_delete	2
+thread_id	Handler_rollback	2
+thread_id	Handler_delete	3
+thread_id	Handler_rollback	3
+#
+# Verify expected counts for 'handler_delete' per thread
+# 
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_thread WHERE thread_id = @con1_id AND variable_name IN ('handler_delete');
+THREAD_ID	VARIABLE_NAME	VARIABLE_VALUE	Expected
+connect_1	Handler_delete	1	OK
+
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_thread WHERE thread_id = @con2_id AND variable_name IN ('handler_delete');
+THREAD_ID	VARIABLE_NAME	VARIABLE_VALUE	Expected
+connnect_2	Handler_delete	2	OK
+
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_thread WHERE thread_id = @con3_id AND variable_name IN ('handler_delete');
+THREAD_ID	VARIABLE_NAME	VARIABLE_VALUE	Expected
+connnect_3	Handler_delete	3	OK
+#
+# STATUS_BY_THREAD vs. GLOBAL_STATUS
+#
+SELECT variable_name, t1, t2, t3, delta, thread, IF(thread=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+variable_name	t1	t2	t3	delta	thread	Expected
+Handler_delete	1	2	3	6	6	OK
+Handler_rollback	1	2	3	6	6	OK
+
+================================================================================
+TEST 2: STATUS_BY_USER: Verify expected status counts per user (1,2,3)
+================================================================================
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user1') AND variable_name IN ('handler_delete');
+USER	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user1	Handler_delete	1	OK
+
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user2') AND variable_name IN ('handler_delete');
+USER	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user2	Handler_delete	2	OK
+
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user3') AND variable_name IN ('handler_delete');
+USER	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user3	Handler_delete	3	OK
+#
+# STATUS_BY_USER vs. GLOBAL_STATUS
+#
+SELECT variable_name, u1, u2, u3, delta, user, IF(user=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+variable_name	u1	u2	u3	delta	user	Expected
+Handler_delete	1	2	3	6	6	OK
+Handler_rollback	1	2	3	6	6	OK
+
+================================================================================
+TEST 3: STATUS_BY_ACCOUNT: Verify expected status counts per user, host (1,2,3)
+================================================================================
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user1') AND variable_name IN ('handler_delete');
+USER	HOST	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user1	localhost	Handler_delete	1	OK
+
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user2') AND variable_name IN ('handler_delete');
+USER	HOST	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user2	localhost	Handler_delete	2	OK
+
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user3') AND variable_name IN ('handler_delete');
+USER	HOST	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user3	localhost	Handler_delete	3	OK
+#
+# STATUS_BY_ACCOUNT vs. GLOBAL_STATUS
+#
+SELECT variable_name, a1, a2, a3, delta, acct, IF(acct=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+variable_name	a1	a2	a3	delta	acct	Expected
+Handler_delete	1	2	3	6	6	OK
+Handler_rollback	1	2	3	6	6	OK
+================================================================================
+TEST 4: STATUS_BY_HOST: Verify expected status counts per host (6)
+================================================================================
+SELECT *, IF (variable_value = 6,'OK','ERROR') AS Expected FROM status_by_host WHERE host IN ('localhost') AND variable_name IN ('handler_delete');
+HOST	VARIABLE_NAME	VARIABLE_VALUE	Expected
+localhost	Handler_delete	6	OK
+#
+# STATUS_BY_HOST vs. GLOBAL_STATUS
+#
+# Special case: No way to isolate pre-existing 'localhost' activity, so
+# just check global totals = sum(status_by_host).
+#
+SELECT variable_name, h1, h2, h3, delta, host, IF(host=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+variable_name	h1	h2	h3	delta	host	Expected
+Handler_delete	6	0	0	6	6	OK
+Handler_rollback	6	0	0	6	6	OK
+
+================================================================================
+DISCONNECT ALL USERS AND RUN THE TESTS AGAIN. RESULTS SHOULD NOT CHANGE.
+================================================================================
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+
+USE test;
+
+# Clear results table, leave initial global_status counts
+UPDATE test.status_results
+SET stop=0, delta=0,
+t1=0, t2=0, t3=0, thread=0,
+u1=0, u2=0, u3=0, user=0,
+h1=0, h2=0, h3=0, host=0,
+a1=0, a2=0, a3=0, acct=0;
+
+#=================
+# Global results
+#=================
+USE test;
+UPDATE test.status_results sr, performance_schema.global_status sg
+SET sr.stop = sg.variable_value
+WHERE sr.variable_name = sg.variable_name
+AND sg.variable_name IN ('handler_delete', 'handler_rollback');
+
+# Global deltas: END - START.
+UPDATE test.status_results sr
+SET sr.delta = sr.stop - sr.start;
+#=================
+# Status by thread
+#=================
+# Thread results from CON1.
+UPDATE test.status_results sr, performance_schema.status_by_thread sbt
+SET sr.t1 = sbt.variable_value
+WHERE sr.variable_name = sbt.variable_name
+AND sbt.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbt.thread_id = @con1_id;
+
+# Thread results from CON2.
+UPDATE test.status_results sr, performance_schema.status_by_thread sbt
+SET sr.t2 = sbt.variable_value
+WHERE sr.variable_name = sbt.variable_name
+AND sbt.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbt.thread_id = @con2_id;
+
+# Thread results from CON3.
+UPDATE test.status_results sr, performance_schema.status_by_thread sbt
+SET sr.t3 = sbt.variable_value
+WHERE sr.variable_name = sbt.variable_name
+AND sbt.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbt.thread_id = @con3_id;
+
+# Thread totals for 3 connections.
+UPDATE test.status_results sr
+SET sr.thread = sr.t1 + sr.t2 + sr.t3;
+#=================
+# Status by user
+#=================
+# User1
+UPDATE test.status_results sr, performance_schema.status_by_user sbu
+SET sr.u1 = sbu.variable_value
+WHERE sr.variable_name = sbu.variable_name
+AND sbu.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbu.user IN ('user1');
+
+# User2
+UPDATE test.status_results sr, performance_schema.status_by_user sbu
+SET sr.u2 = sbu.variable_value
+WHERE sr.variable_name = sbu.variable_name
+AND sbu.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbu.user IN ('user2');
+
+# User3
+UPDATE test.status_results sr, performance_schema.status_by_user sbu
+SET sr.u3 = sbu.variable_value
+WHERE sr.variable_name = sbu.variable_name
+AND sbu.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbu.user IN ('user3');
+
+# Status totals for 3 users.
+UPDATE test.status_results sr
+SET sr.user = sr.u1 + sr.u2 + sr.u3;
+#===========================
+# Status by host (localhost)
+#===========================
+
+# host1 = localhost
+UPDATE test.status_results sr, performance_schema.status_by_host sbh
+SET sr.h1 = sbh.variable_value
+WHERE sr.variable_name = sbh.variable_name
+AND sbh.variable_name IN ('handler_delete', 'handler_rollback')
+AND sbh.host IN ('localhost');
+
+# Status totals for 'localhost' only.
+UPDATE test.status_results sr
+SET sr.host = sr.h1 + sr.h2 + sr.h3;
+#==================
+# Status by account
+#==================
+# User1@localhost
+UPDATE test.status_results sr, performance_schema.status_by_account sba
+SET sr.a1 = sba.variable_value
+WHERE sr.variable_name = sba.variable_name
+AND sba.variable_name IN ('handler_delete', 'handler_rollback')
+AND sba.user IN ('user1');
+
+# User2@localhost
+UPDATE test.status_results sr, performance_schema.status_by_account sba
+SET sr.a2 = sba.variable_value
+WHERE sr.variable_name = sba.variable_name
+AND sba.variable_name IN ('handler_delete', 'handler_rollback')
+AND sba.user IN ('user2');
+
+# User3@localhost
+UPDATE test.status_results sr, performance_schema.status_by_account sba
+SET sr.a3 = sba.variable_value
+WHERE sr.variable_name = sba.variable_name
+AND sba.variable_name IN ('handler_delete', 'handler_rollback')
+AND sba.user IN ('user3');
+
+
+# Status totals for 3 accounts.
+UPDATE test.status_results sr
+SET sr.acct = sr.a1 + sr.a2 + sr.a3;
+USE performance_schema;
+
+================================================================================
+TEST X: STATUS_BY_THREAD: Connections are gone--nothing to verify.
+================================================================================
+
+================================================================================
+TEST 5: STATUS_BY_USER: Verify expected status counts per user (1,2,3)
+================================================================================
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user1') AND variable_name IN ('handler_delete');
+USER	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user1	Handler_delete	1	OK
+
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user2') AND variable_name IN ('handler_delete');
+USER	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user2	Handler_delete	2	OK
+
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_user WHERE user IN ('user3') AND variable_name IN ('handler_delete');
+USER	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user3	Handler_delete	3	OK
+#
+# STATUS_BY_USER vs. GLOBAL_STATUS
+#
+SELECT variable_name, u1, u2, u3, delta, user, IF(user=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+variable_name	u1	u2	u3	delta	user	Expected
+Handler_delete	1	2	3	6	6	OK
+Handler_rollback	1	2	3	6	6	OK
+
+================================================================================
+TEST 6: STATUS_BY_ACCOUNT: Verify expected status counts per user:host (1,2,3)
+================================================================================
+SELECT *, IF (variable_value = 1,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user1') AND variable_name IN ('handler_delete');
+USER	HOST	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user1	localhost	Handler_delete	1	OK
+
+SELECT *, IF (variable_value = 2,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user2') AND variable_name IN ('handler_delete');
+USER	HOST	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user2	localhost	Handler_delete	2	OK
+
+SELECT *, IF (variable_value = 3,'OK','ERROR') AS Expected FROM status_by_account WHERE user IN ('user3') AND variable_name IN ('handler_delete');
+USER	HOST	VARIABLE_NAME	VARIABLE_VALUE	Expected
+user3	localhost	Handler_delete	3	OK
+#
+# STATUS_BY_ACCOUNT vs. GLOBAL_STATUS
+#
+SELECT variable_name, a1, a2, a3, delta, acct, IF(acct=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+variable_name	a1	a2	a3	delta	acct	Expected
+Handler_delete	1	2	3	6	6	OK
+Handler_rollback	1	2	3	6	6	OK
+================================================================================
+TEST 7: STATUS_BY_HOST: Verify expected status counts per host (6)
+================================================================================
+SELECT *, IF (variable_value = 6,'OK','ERROR') AS Expected FROM status_by_host WHERE host IN ('localhost') AND variable_name IN ('handler_delete');
+HOST	VARIABLE_NAME	VARIABLE_VALUE	Expected
+localhost	Handler_delete	6	OK
+#
+# STATUS_BY_HOST vs. GLOBAL_STATUS
+#
+# Special case: No way to isolate pre-existing 'localhost' activity, so
+# just check global totals = sum(status_by_host).
+#
+SELECT variable_name, h1, h2, h3, delta, host, IF(host=delta,'OK','ERROR') Expected
+FROM test.status_results
+ORDER BY variable_name;
+variable_name	h1	h2	h3	delta	host	Expected
+Handler_delete	6	0	0	6	6	OK
+Handler_rollback	6	0	0	6	6	OK
+================================================================================
+CLEANUP
+================================================================================
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE test.t3;
+DROP TABLE test.status_results;
+DROP USER 'user1'@localhost;
+DROP USER 'user2'@localhost;
+DROP USER 'user3'@localhost;
+
+# Restore SHOW_COMPATIBILITY_56 setting
+SET @@global.show_compatibility_56 = @show_compatibility_56_save;

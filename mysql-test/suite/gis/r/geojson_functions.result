@@ -501,42 +501,42 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)"), 0, abc);
 ERROR 42S22: Unknown column 'abc' in 'field list'
 SELECT ST_ASGEOJSON("*&$%$123", abc, 0);
 ERROR 42S22: Unknown column 'abc' in 'field list'
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(?, 10, 0)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(POINT(10, 10), ?, 0)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(POINT(10, 10), 10, ?)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(?, ?, 0)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(?, 10, ?)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(POINT(10, 10), ?, ?)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(?, ?, ?)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(?, 10, 0)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(POINT(10, 10), ?, 0)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(POINT(10, 10), 10, ?)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(?, ?, 0)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(?, 10, ?)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(POINT(10, 10), ?, ?)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(?, ?, ?)";
 # Check that packet overflow is handled correctly.
 SET @old_max_allowed_packet= @@global.max_allowed_packet;
 CREATE TABLE t1 (g GEOMETRY);
-INSERT INTO t1 VALUES (ST_GeomFromText(
+INSERT INTO t1 VALUES (ST_GEOMFROMTEXT(
 "  LINESTRING(1 2, 3 4, 5 6, 7 8, 9 10, 11 12, 13 14, 15 16, 17 18, 19 20,    "
-"  21 22, 23 24, 25 26, 27 28, 29 30, 31 32, 33 34, 35 36, 37 38, 39 40,      "
-"  41 42, 43 44, 45 46, 47 48, 49 50)                                         "
+  "  21 22, 23 24, 25 26, 27 28, 29 30, 31 32, 33 34, 35 36, 37 38, 39 40,      "
+  "  41 42, 43 44, 45 46, 47 48, 49 50)                                         "
 ));
-SELECT ST_AsText(g) FROM t1;
-ST_AsText(g)
+SELECT ST_ASTEXT(g) FROM t1;
+ST_ASTEXT(g)
 LINESTRING(1 2,3 4,5 6,7 8,9 10,11 12,13 14,15 16,17 18,19 20,21 22,23 24,25 26,27 28,29 30,31 32,33 34,35 36,37 38,39 40,41 42,43 44,45 46,47 48,49 50)
-UPDATE t1 SET g=GeometryCollection(g, g, g, g, g, g, g, g, g, g);
-UPDATE t1 SET g=GeometryCollection(g, g, g, g, g, g, g, g, g, g);
-UPDATE t1 SET g=GeometryCollection(g, g, g, g, g, g, g, g, g, g);
-UPDATE t1 SET g=GeometryCollection(g, g, g, g, g, g, g, g, g, g);
-SELECT Length(ST_AsText(g)) FROM t1;
-Length(ST_AsText(g))
+UPDATE t1 SET g = GEOMETRYCOLLECTION(g, g, g, g, g, g, g, g, g, g);
+UPDATE t1 SET g = GEOMETRYCOLLECTION(g, g, g, g, g, g, g, g, g, g);
+UPDATE t1 SET g = GEOMETRYCOLLECTION(g, g, g, g, g, g, g, g, g, g);
+UPDATE t1 SET g = GEOMETRYCOLLECTION(g, g, g, g, g, g, g, g, g, g);
+SELECT LENGTH(ST_ASTEXT(g)) FROM t1;
+LENGTH(ST_ASTEXT(g))
 1552219
-SELECT Length(ST_AsGeoJSON(g)) FROM t1;
-Length(ST_AsGeoJSON(g))
+SELECT LENGTH(ST_ASGEOJSON(g)) FROM t1;
+LENGTH(ST_ASGEOJSON(g))
 2339994
 SET @@global.max_allowed_packet = 1048576;
-SELECT Length(ST_AsGeoJSON(g)) FROM t1;
-Length(ST_AsGeoJSON(g))
+SELECT LENGTH(ST_ASGEOJSON(g)) FROM t1;
+LENGTH(ST_ASGEOJSON(g))
 NULL
 Warnings:
 Warning	1301	Result of st_asgeojson() was larger than max_allowed_packet (1048576) - truncated
-SELECT ST_AsGeoJSON(g) FROM t1;
-ST_AsGeoJSON(g)
+SELECT ST_ASGEOJSON(g) FROM t1;
+ST_ASGEOJSON(g)
 NULL
 Warnings:
 Warning	1301	Result of st_asgeojson() was larger than max_allowed_packet (1048576) - truncated
@@ -2568,13 +2568,13 @@ SELECT ST_GEOMFROMGEOJSON(
 "}                                      "
 );
 ERROR HY000: Invalid JSON data provided to function st_geomfromgeojson: Must be a comma or '}' after an object member
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON(?, 0, 0)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON('', ?, 0)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON('', 0, ?)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON(?, ?, 0)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON(?, 0, ?)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON('', ?, ?)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON(?, ?, ?)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, 0, 0)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', ?, 0)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', 0, ?)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, ?, 0)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, 0, ?)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', ?, ?)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, ?, ?)";
 SELECT ST_GEOMFROMGEOJSON("{}foo");
 ERROR HY000: Invalid JSON data provided to function st_geomfromgeojson: Nothing should follow the root object or array.
 SELECT ST_GEOMFROMGEOJSON("[12 foo 13]");
@@ -2608,10 +2608,10 @@ ERROR HY000: Invalid JSON data provided to function st_geomfromgeojson: (null)
 SELECT ST_GEOMFROMGEOJSON("[ -9223372036854775900, 184467440737095516700] ");
 ERROR HY000: Invalid JSON data provided to function st_geomfromgeojson: (null)
 SELECT ST_GEOMFROMGEOJSON("["
-"900000000000000000000000000000000000000000000000000000000000000000000000000000"
-"000000000000000000000000000000000000000000000000000000000000000000000000000000"
-"000000000000000000000000000000000000000000000000000000000000000000000000000000"
-"000000000000000000000000000000000000000000000000000000000000000000000000000"
+  "900000000000000000000000000000000000000000000000000000000000000000000000000000"
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  "000000000000000000000000000000000000000000000000000000000000000000000000000"
 "]");
 ERROR HY000: Invalid JSON data provided to function st_geomfromgeojson: Number too big to store in double
 SELECT ST_GEOMFROMGEOJSON("[ 1. ] ");
@@ -4080,3 +4080,26 @@ SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, 1844674
 ERROR HY000: Incorrect type for argument SRID in function st_geomfromgeojson.
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 18446744073709551616);
 ERROR HY000: Incorrect type for argument options in function st_geomfromgeojson.
+CREATE TABLE geojson(
+gid INT NOT NULL AUTO_INCREMENT,
+geojson_value TEXT,
+PRIMARY KEY (`gid`)
+);
+INSERT INTO geojson (geojson_value) VALUES
+(ST_AsGeoJSON(ST_GeomFromText('POINT(10 11)', 4326), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(-1.324 66.231)', 5423), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -123.001)', 1), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(0.0 0.0)', 200004), 100, 2));
+SELECT ST_AsText(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
+ST_AsText(ST_GeomFromGeoJSON(geojson_value))
+POINT(10 11)
+POINT(-1.324 66.231)
+POINT(98.344 -123.001)
+POINT(0 0)
+SELECT ST_SRID(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
+ST_SRID(ST_GeomFromGeoJSON(geojson_value))
+4326
+5423
+1
+200004
+DROP TABLE geojson;

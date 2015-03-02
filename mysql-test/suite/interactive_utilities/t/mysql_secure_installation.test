@@ -6,7 +6,7 @@
 
 SELECT password_last_changed into @password from mysql.user where host='localhost';
 call mtr.add_suppression("Dictionary file not specified");
-SET PASSWORD for root@localhost = PASSWORD('');
+SET PASSWORD for root@localhost = '';
 # The execution of mysql_secure_installation using perl which uses the
 # Expect module as mysql_secure_installation is user interactive.
 --perl
@@ -143,12 +143,12 @@ EOF
 UNINSTALL PLUGIN validate_password;
 
 # Restoring the server to the state prior to this test.
-SET PASSWORD for root@localhost = PASSWORD('');
+SET PASSWORD for root@localhost = '';
 CREATE DATABASE test;
-INSERT INTO mysql.user SELECT LOWER(@@hostname),'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL;
-REPLACE INTO mysql.user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
-REPLACE INTO mysql.user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
-REPLACE INTO mysql.user VALUES ('::1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
+INSERT INTO mysql.user SELECT LOWER(@@hostname),'root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL;
+REPLACE INTO mysql.user VALUES ('localhost','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
+REPLACE INTO mysql.user VALUES ('127.0.0.1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
+REPLACE INTO mysql.user VALUES ('::1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',@password,NULL);
 INSERT INTO mysql.db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
 INSERT INTO mysql.db VALUES ('%','test\_%','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
 FLUSH PRIVILEGES;

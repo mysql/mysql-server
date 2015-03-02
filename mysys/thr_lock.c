@@ -356,7 +356,6 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
               my_bool in_wait_list, ulong lock_wait_timeout,
               struct st_my_thread_var *thread_var)
 {
-  mysql_cond_t *cond= &thread_var->suspend;
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
   PSI_stage_info old_stage;
@@ -394,13 +393,11 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   locks_waited++;
 
   /* Set up control struct to allow others to abort locks */
-  thread_var->current_mutex= &data->lock->mutex;
-  thread_var->current_cond=  cond;
-  data->cond= cond;
+  data->cond= &thread_var->suspend;
 
-  proc_info_hook(NULL, &stage_waiting_for_table_level_lock,
-                 &old_stage,
-                 __func__, __FILE__, __LINE__);
+  enter_cond_hook(NULL, data->cond, &data->lock->mutex,
+                  &stage_waiting_for_table_level_lock, &old_stage,
+                  __func__, __FILE__, __LINE__);
 
   /*
     Since before_lock_wait potentially can create more threads to
@@ -418,7 +415,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   set_timespec(&wait_timeout, lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
   {
-    int rc= mysql_cond_timedwait(cond, &data->lock->mutex, &wait_timeout);
+    int rc= mysql_cond_timedwait(data->cond, &data->lock->mutex, &wait_timeout);
     /*
       We must break the wait if one of the following occurs:
       - the connection has been aborted (!thread_var->abort),
@@ -481,13 +478,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   }
   mysql_mutex_unlock(&data->lock->mutex);
 
-  /* The following must be done after unlock of lock->mutex */
-  mysql_mutex_lock(&thread_var->mutex);
-  thread_var->current_mutex= 0;
-  thread_var->current_cond=  0;
-  mysql_mutex_unlock(&thread_var->mutex);
-
-  proc_info_hook(NULL, &old_stage, NULL, __func__, __FILE__, __LINE__);
+  exit_cond_hook(NULL, &old_stage, __func__, __FILE__, __LINE__);
 
   DBUG_RETURN(result);
 }
@@ -1385,7 +1376,6 @@ static void *test_thread(void *arg)
   struct st_my_thread_var my_thread_var;
   memset(&my_thread_var, 0, sizeof(my_thread_var));
   my_thread_var.id= param + 1; /* Main thread uses value 0. */
-  mysql_mutex_init(0, &my_thread_var.mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(0, &my_thread_var.suspend);
 
   printf("Thread T@%u (%d) started\n", my_thread_var.id, param);

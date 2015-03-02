@@ -572,7 +572,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	4	100.00	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (((`test`.`t1`.`c1` > 10) and (`test`.`t1`.`c1` < 13)) or ((`test`.`t1`.`c1` > 17) and (`test`.`t1`.`c1` < 20)))
@@ -594,7 +594,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 10 AND c1 < 13) OR (c1 > 17 AND c1 < 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	a	range	c1	c1	5	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t2	a	range	c1	c1	5	NULL	4	100.00	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t2` where (((`test`.`t2`.`c1` > 10) and (`test`.`t2`.`c1` < 13)) or ((`test`.`t2`.`c1` > 17) and (`test`.`t2`.`c1` < 20)))
@@ -633,7 +633,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 5))
@@ -653,7 +653,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 2 AND c1 < 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	a	range	c1	c1	5	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t2	a	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t2` where ((`test`.`t2`.`c1` > 2) and (`test`.`t2`.`c1` < 5))
@@ -673,7 +673,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 12 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 12) and (`test`.`t1`.`c1` < 15))
@@ -693,7 +693,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN PARTITIONS SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	a	range	c1	c1	5	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t2	a	range	c1	c1	5	NULL	2	100.00	Using where; Using index
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t2` where ((`test`.`t2`.`c1` > 12) and (`test`.`t2`.`c1` < 15))

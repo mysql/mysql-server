@@ -20,6 +20,7 @@
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
+#include "current_thd.h"
 #include "debug_sync.h"                  // DEBUG_SYNC
 #include "item_cmpfunc.h"                // and_conds
 #include "key.h"                         // find_ref_key
@@ -27,6 +28,7 @@
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
+#include "psi_memory_key.h"
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_derived.h"                 // mysql_handle_single_derived
@@ -35,6 +37,7 @@
 #include "sql_plugin.h"                  // plugin_unlock
 #include "sql_select.h"                  // actual_key_parts
 #include "sql_table.h"                   // build_table_filename
+#include "sql_tablespace.h"              // check_tablespace_name())
 #include "sql_view.h"                    // view_type
 #include "strfunc.h"                     // unhex_type2
 #include "table_cache.h"                 // table_cache_manager
@@ -73,6 +76,9 @@ LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
 
 /* GTID_EXECUTED name */
 LEX_STRING GTID_EXECUTED_NAME= {C_STRING_WITH_LEN("gtid_executed")};
+
+/* Keyword for parsing generated column functions */
+LEX_STRING PARSE_GCOL_KEYWORD= {C_STRING_WITH_LEN("parse_gcol_expr")};
 
 
 	/* Functions defined in this file */
@@ -172,7 +178,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
   {
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_NO_CREATION_CTX,
-                        ER(ER_VIEW_NO_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_NO_CREATION_CTX),
                         (const char *) view->db,
                         (const char *) view->table_name);
 
@@ -206,7 +212,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
-                        ER(ER_VIEW_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_INVALID_CREATION_CTX),
                         (const char *) view->db,
                         (const char *) view->table_name);
   }
@@ -1010,6 +1016,201 @@ end:
 }
 
 
+/**
+  When reading the tablespace name from the .FRM file, the tablespace name
+  is validated. If the name is invalid, it is ignored. The function used to
+  validate the name, 'check_tablespace_name()', emits errors. In the context
+  of reading .FRM files, the errors must be ignored. This error handler makes
+  sure this is done.
+*/
+
+class Tablespace_name_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg)
+  {
+    if (sql_errno == ER_WRONG_TABLESPACE_NAME ||
+        sql_errno == ER_TOO_LONG_IDENT)
+      return true;
+    return false;
+  }
+};
+
+
+const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
+{
+  // Prepare the path to the .FRM file and open the file
+  char path[FN_REFLEN + 1];           //< Path to .FRM file
+  build_table_filename(path, sizeof(path) - 1,
+                       table->db, table->table_name, reg_ext, 0);
+
+  // First, we open the file, and return upon failure. No need to close
+  // the file in this case.
+  File file= mysql_file_open(key_file_frm, path, O_RDONLY | O_SHARE, MYF(0));
+  if (file < 0)
+    return NULL;
+
+  // Next, we read the header and do some basic verification of the
+  // header fields.
+  uchar head[64];
+  if (mysql_file_read(file, head, sizeof(head), MYF(MY_NABP)) ||
+      head[0] != (uchar) 254 || head[1] != 1                  ||
+      !(head[2] == FRM_VER || head[2] == FRM_VER + 1 ||
+        (head[2] >= FRM_VER + 3 && head[2] <= FRM_VER + 4)))
+  {
+    // Upon failure, return NULL, but here, we have to close the file first.
+    mysql_file_close(file, MYF(MY_WME));
+    return NULL;
+  }
+
+  // Then, check that we have an extra data segment and a proper form position.
+  const ulong pos= get_form_pos(file, head);   //< Position of form info
+  const uint n_length= uint4korr(head + 55);   //< Length of extra segment
+  if (n_length == 0 || pos == 0)
+  {
+    // If failing, return NULL, but here, we have to close the file first.
+    mysql_file_close(file, MYF(MY_WME));
+    return NULL;
+  }
+
+  // Now, we are done with the basic verification. The outline of the
+  // processing below is as follows:
+  //
+  // 1. Scan the key information buffer to determine how many keys
+  //    that will have an associated parser name represented in the
+  //    extra segment (see below).
+  // 2. Read the form information, allocate a buffer for the extra
+  //    data segment and read it into the buffer.
+  // 3. Get the length of various elements and advance the reading
+  //    position accordingly.
+  // 4. Loop over the full text key fields that have parser names
+  //    stored in the extra segment.
+  // 5. Finally, read the tablespace name from the format section.
+
+  // Read the number of keys. Needed to advance read position correctly
+  const uint key_info_length= uint2korr(head + 28);
+  uint n_keys= 0;
+  uchar *disk_buff= NULL;
+  mysql_file_seek(file, uint2korr(head + 6), MY_SEEK_SET, MYF(0));
+  if (!read_string(file, &disk_buff, key_info_length))
+  {
+    if (disk_buff[0] & 0x80)
+      n_keys= (disk_buff[1] << 7) | (disk_buff[0] & 0x7f);
+    else
+      n_keys= disk_buff[0];
+  }
+
+  // Get the FRM version, needed to interpret key fields correctly
+  const uint new_frm_ver= (head[2] - FRM_VER);
+
+  // Number of key fields with parser name in the extra segment, this is
+  // the relevant key information in this context (see below).
+  uint n_keys_parser= 0;
+
+  // Position to read from
+  uchar *strpos= disk_buff + 6;
+
+  // Find which keys have a parser name in the extra segment. Loop over
+  // all keys, get the flags, and interpret them according to the .FRM
+  // version present
+  for (uint i= 0; i < n_keys; i++)
+  {
+    uint user_defined_key_parts= 0;
+    // First, get the key information. Here, we only care about the
+    // flags (needed to increment n_keys_parser) and the number of
+    // user defined key parts (needed to advance read position).
+    if (new_frm_ver >= 3)
+    {
+      if (HA_USES_PARSER & uint2korr(strpos))
+        n_keys_parser++;
+      user_defined_key_parts= strpos[4];
+      strpos+= 8;
+    }
+    else
+    {
+      if (HA_USES_PARSER & strpos[0])
+        n_keys_parser++;
+      user_defined_key_parts= strpos[3];
+      strpos+= 4;
+    }
+
+    // Advance read position correctly
+    if (new_frm_ver >= 1)
+      strpos+= 9 * user_defined_key_parts;
+    else
+      strpos+= 7 * user_defined_key_parts;
+  }
+
+  // Read the form information, allocate and read the extra segment.
+  mysql_file_seek(file, pos, MY_SEEK_SET,MYF(0));
+  uchar forminfo[288];
+  uchar *extra_segment_buff= static_cast<uchar*>(
+          my_malloc(key_memory_frm_extra_segment_buff,
+                    n_length, MYF(MY_WME)));
+  const uint reclength= uint2korr(head + 16);
+  const uint record_offset= uint2korr(head + 6) +
+          ((uint2korr(head + 14) == 0xffff ?
+            uint4korr(head + 47) : uint2korr(head + 14)));
+  char *tablespace_name= NULL;        //< Tablespace name to be returned
+  if (!mysql_file_read(file, forminfo, sizeof(forminfo), MYF(MY_NABP)) &&
+      extra_segment_buff &&
+      !mysql_file_pread(file, extra_segment_buff, n_length,
+                        record_offset + reclength, MYF(MY_NABP)))
+  {
+    uchar *next_chunk= extra_segment_buff;                //< Read pos
+    const uchar *buff_end= extra_segment_buff + n_length; //< Buffer end
+
+    next_chunk+= uint2korr(next_chunk) + 2;   // Connect string
+    if (next_chunk + 2 < buff_end)
+      next_chunk+= uint2korr(next_chunk) + 2; // DB type
+    if (next_chunk + 5 < buff_end)
+      next_chunk+= 5 + uint4korr(next_chunk); // Partitioning
+    if (uint4korr(head + 51) >= 50110 && next_chunk < buff_end)
+      next_chunk++;                           // Auto_partitioned
+
+    // Read parser names for full text keys (this is why we needed to
+    // get the key information above)
+    for (uint i= 0; i < n_keys_parser; i++)
+      if (next_chunk < buff_end)
+        next_chunk+= strlen(reinterpret_cast<char*>(next_chunk)) + 1;
+
+    if (forminfo[46] == static_cast<uchar>(255) &&
+        (next_chunk + 2 < buff_end))
+      next_chunk+= 2 + uint2korr(next_chunk); // Long table comment
+
+    // At last we got to the point where the tablespace name is located
+    const uint format_section_header_size= 8;
+    if (next_chunk + format_section_header_size < buff_end)
+    {
+      const uint format_section_length= uint2korr(next_chunk);
+      if (next_chunk + format_section_length <= buff_end)
+      {
+        tablespace_name= thd->mem_strdup((char*)next_chunk +
+                format_section_header_size);
+        if (strlen(tablespace_name) > 0)
+        {
+          Tablespace_name_error_handler error_handler;
+          thd->push_internal_handler(&error_handler);
+          if (check_tablespace_name(tablespace_name) != IDENT_NAME_OK)
+            tablespace_name= NULL; // Allocated memory is implicitly freed.
+          thd->pop_internal_handler();
+        }
+      }
+    }
+  }
+
+  // Free the dynamically allocated buffers and close the .FRM file
+  my_free(extra_segment_buff);
+  my_free(disk_buff);
+  mysql_file_close(file, MYF(MY_WME));
+
+  return tablespace_name;
+}
+
 /*
   Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
 
@@ -1025,12 +1226,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint new_frm_ver, field_pack_length, new_field_pack_flag;
   uint interval_count, interval_parts, read_length, int_length;
   uint db_create_options, keys, key_parts, n_length;
-  uint key_info_length, com_length, null_bit_pos;
+  uint key_info_length, com_length, null_bit_pos, gcol_screen_length;
   uint extra_rec_buf_length;
   uint i,j;
   bool use_extended_sk;   // Supported extending of secondary keys with PK parts
   bool use_hash;
-  char *keynames, *names, *comment_pos;
+  char *keynames, *names, *comment_pos, *gcol_screen_pos;
   uchar forminfo[288];
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
@@ -1071,13 +1272,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (share->frm_version == FRM_VER_TRUE_VARCHAR -1 && head[33] == 5)
     share->frm_version= FRM_VER_TRUE_VARCHAR;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (*(head+61) &&
       !(share->default_part_db_type= 
         ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 1, 0)))
     goto err;
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
-#endif
   legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
   DBUG_ASSERT(share->db_plugin == NULL);
   /*
@@ -1196,6 +1395,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     keyinfo->key_part= key_part;
     keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);
+    keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
 
     for (j=keyinfo->user_defined_key_parts ; j-- ; key_part++)
     {
@@ -1263,6 +1463,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   }
 
   share->reclength = uint2korr((head+16));
+  share->stored_rec_length= share->reclength;
   if (*(head+26) == 1)
     share->system= 1;				/* one-record-database */
 
@@ -1324,32 +1525,27 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             str_db_type_length, next_chunk + 2,
                             ha_legacy_type(share->db_type())));
       }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-      else if (str_db_type_length == 9 &&
+      else if (!tmp_plugin && str_db_type_length == 9 &&
                !strncmp((char *) next_chunk + 2, "partition", 9))
       {
-        /*
-          Use partition handler
-          tmp_plugin is locked with a local lock.
-          we unlock the old value of share->db_plugin before
-          replacing it with a globally locked version of tmp_plugin
-        */
         /* Check if the partitioning engine is ready */
-        LEX_CSTRING name_cstr= {name.str, name.length};
-        if (!plugin_is_ready(name_cstr, MYSQL_STORAGE_ENGINE_PLUGIN))
+        if (!ha_checktype(thd, DB_TYPE_PARTITION_DB, true, false))
         {
           error= 8;
-          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-                   "--skip-partition");
+          my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
+                   "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
           goto err;
         }
-        plugin_unlock(NULL, share->db_plugin);
-        share->db_plugin= ha_lock_engine(NULL, partition_hton);
+	/*
+          Partition engine is ready, share->db_plugin must already contain a
+          properly locked reference to it.
+        */
+	DBUG_ASSERT(is_ha_partition_handlerton(plugin_data<handlerton*>(
+                                                 share->db_plugin)));
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                             str_db_type_length, next_chunk + 2,
                             ha_legacy_type(share->db_type())));
       }
-#endif
       else if (!tmp_plugin)
       {
         /* purecov: begin inspected */
@@ -1364,7 +1560,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (next_chunk + 5 < buff_end)
     {
       uint32 partition_info_str_len = uint4korr(next_chunk);
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       if ((share->partition_info_buffer_size=
              share->partition_info_str_len= partition_info_str_len))
       {
@@ -1375,13 +1570,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           goto err;
         }
       }
-#else
-      if (partition_info_str_len)
-      {
-        DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        goto err;
-      }
-#endif
       next_chunk+= 5 + partition_info_str_len;
     }
 #if MYSQL_VERSION_ID < 50200
@@ -1401,9 +1589,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       share->auto_partitioned= *next_chunk;
-#endif
       next_chunk++;
     }
     keyinfo= share->key_info;
@@ -1483,11 +1669,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       const char *tablespace=
         (const char*)next_chunk + format_section_header_size;
       const size_t tablespace_length= strlen(tablespace);
-      if (tablespace_length &&
+      share->tablespace= NULL;
+      if (tablespace_length)
+      {
+        Tablespace_name_error_handler error_handler;
+        thd->push_internal_handler(&error_handler);
+        enum_ident_name_check name_check= check_tablespace_name(tablespace);
+        thd->pop_internal_handler();
+        if (name_check == IDENT_NAME_OK &&
           !(share->tablespace= strmake_root(&share->mem_root,
                                             tablespace, tablespace_length+1)))
-      {
-        goto err;
+        {
+          goto err;
+        }
       }
       DBUG_PRINT("info", ("tablespace: '%s'",
                           share->tablespace ? share->tablespace : "<null>"));
@@ -1523,6 +1717,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   int_length= uint2korr(forminfo+274);
   share->null_fields= uint2korr(forminfo+282);
   com_length= uint2korr(forminfo+284);
+  gcol_screen_length= uint2korr(forminfo+286);
+  share->vfields= 0;
+  share->stored_fields= share->fields;
   if (forminfo[46] != (uchar)255)
   {
     share->comment.length=  (int) (forminfo[46]);
@@ -1530,20 +1727,21 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                      share->comment.length);
   }
 
-  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length));
-
+  DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d  gcol_screen_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length, gcol_screen_length));
   if (!(field_ptr = (Field **)
 	alloc_root(&share->mem_root,
 		   (uint) ((share->fields+1)*sizeof(Field*)+
 			   interval_count*sizeof(TYPELIB)+
 			   (share->fields+interval_parts+
 			    keys+3)*sizeof(char *)+
-			   (n_length+int_length+com_length)))))
+			   (n_length+int_length+com_length+
+			       gcol_screen_length)))))
     goto err;                                   /* purecov: inspected */
 
   share->field= field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
-		      pos+ (uint) (n_length+int_length+com_length));
+		      pos+ (uint) (n_length+int_length+com_length+
+		                   gcol_screen_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
 
@@ -1557,7 +1755,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   memcpy((char*) names, strpos+(share->fields*field_pack_length),
 	 (uint) (n_length+int_length));
   comment_pos= names+(n_length+int_length);
-  memcpy(comment_pos, disk_buff+read_length-com_length, com_length);
+  memcpy(comment_pos, disk_buff+read_length-com_length-gcol_screen_length, 
+         com_length);
+  gcol_screen_pos= names+(n_length+int_length+com_length);
+  memcpy(gcol_screen_pos, disk_buff+read_length-gcol_screen_length, 
+         gcol_screen_length);
 
   fix_type_pointers(&interval_array, &share->fieldnames, 1, &names);
   if (share->fieldnames.count != share->fields)
@@ -1626,10 +1828,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   for (i=0 ; i < share->fields; i++, strpos+=field_pack_length, field_ptr++)
   {
     uint pack_flag, interval_nr, unireg_type, recpos, field_length;
+    uint gcol_info_length=0;
     enum_field_types field_type;
     const CHARSET_INFO *charset=NULL;
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
+    Generated_column *gcol_info= 0;
+    bool fld_stored_in_db= true;
 
     if (new_frm_ver >= 3)
     {
@@ -1660,6 +1865,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           goto err;
         }
       }
+
       if (!comment_length)
       {
 	comment.str= (char*) "";
@@ -1670,6 +1876,38 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	comment.str=    (char*) comment_pos;
 	comment.length= comment_length;
 	comment_pos+=   comment_length;
+      }
+
+      if (unireg_type & Field::GENERATED_FIELD)
+      {
+        /*
+          Get generated column data stored in the .frm file as follows:
+          byte 1      = 1 (always 1 to allow for future extensions)
+          byte 2,3    = expression length
+          byte 4      = flags, as of now:
+                          0 - no flags
+                          1 - field is physically stored
+          byte 5-...  = generated column expression (text data)
+        */
+        gcol_info= new Generated_column();
+        if ((uint)gcol_screen_pos[0] != 1)
+        {
+          error= 4;
+          goto err;
+        }
+
+        gcol_info_length= uint2korr(gcol_screen_pos + 1);
+        DBUG_ASSERT(gcol_info_length); // Expect non-null expression
+
+        fld_stored_in_db= (bool) (uint) gcol_screen_pos[3];
+        gcol_info->set_field_stored(fld_stored_in_db);
+        gcol_info->expr_str.str= (char *)memdup_root(&share->mem_root,
+                                                     gcol_screen_pos+
+                                                       (uint)FRM_GCOL_HEADER_SIZE,
+                                                     gcol_info_length);
+        gcol_info->expr_str.length= gcol_info_length;
+        gcol_screen_pos+= gcol_info_length + FRM_GCOL_HEADER_SIZE;
+        share->vfields++;
       }
     }
     else
@@ -1775,6 +2013,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
     reg_field->field_index= i;
     reg_field->comment=comment;
+    reg_field->gcol_info= gcol_info;
+    reg_field->stored_in_db= fld_stored_in_db;
     if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
     {
       if ((null_bit_pos+= field_length & 7) > 7)
@@ -1817,8 +2057,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       reg_field->set_storage_type((ha_storage_media)field_storage);
       reg_field->set_column_format((column_format_type)field_column_format);
     }
+    if (!reg_field->stored_in_db)
+    {
+      share->stored_fields--;
+      if (share->stored_rec_length>=recpos)
+        share->stored_rec_length= recpos-1;
+    }
   }
   *field_ptr=0;					// End marker
+  /* Sanity checks: */
+  DBUG_ASSERT(share->fields >= share->stored_fields);
+  DBUG_ASSERT(share->reclength >= share->stored_rec_length);
 
   /* Fix key->name and key_part->field */
   if (key_parts)
@@ -2097,6 +2346,281 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   DBUG_RETURN(error);
 } /* open_binary_frm */
 
+/**
+  @brief validate_generated_expr
+    Validate the generated expression to see whether there are invalid
+    Item objects.
+  @note
+    Needs to be done after fix_fields to allow checking references
+    to other generated columns.
+
+  @param field  Pointer of generated column
+
+  @return  TRUE  The generated expression has some invalid objects
+  @return  FALSE No illegal objects in the generated expression
+ */
+static bool validate_generated_expr(Field *field)
+{
+  bool error;
+  Item* expr= field->gcol_info->expr_item;
+  int args[2];
+  const char *field_name= field->field_name;
+  DBUG_ENTER("validate_generate_expr");
+  DBUG_ASSERT(expr);
+
+  /**
+    1) Subquery is not allowed
+    2) SP/UDF is not allowed
+    3) System variables and parameters are not allowed
+   */
+  if (expr->has_subquery() ||              // 1)
+      expr->has_stored_program() ||        // 2)
+      (expr->used_tables() &
+       (RAND_TABLE_BIT | PARAM_TABLE_BIT)))// 3)
+  {
+    my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
+    DBUG_RETURN(TRUE);
+  }
+  /* 
+    Walk through the Item tree checking if all items are valid
+    to be part of the generated column. 
+  */
+  args[0]= field->field_index;
+  args[1]= -1;
+  error= expr->walk(&Item::check_gcol_func_processor, Item::WALK_POSTFIX,
+                         (uchar*)&args);
+  if (error)
+  {
+    if (args[1] == REF_INVALID_GC)
+      my_error(ER_GENERATED_COLUMN_NON_PRIOR, MYF(0), field_name);
+    else if (args[1] == REF_INVALID_AUTO_INC)
+      my_error(ER_GENERATED_COLUMN_REF_AUTO_INC, MYF(0), field_name);
+    else
+      my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
+    DBUG_RETURN(TRUE);
+  }
+
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  @brief  fix_fields_gcol_func
+    Process generated expression of the field.
+
+  @param thd                The thread object
+  @param field              The processed field
+
+  @return
+    TRUE                 An error occurred, something was wrong with the
+                         function.
+  @return
+    FALSE                Ok, generated expression is fixed sucessfully 
+ */
+bool fix_fields_gcol_func(THD *thd, Field *field)
+{
+  uint dir_length, home_dir_length;
+  bool result= TRUE;
+  Item* func_expr= field->gcol_info->expr_item;
+  TABLE *table= field->table;
+  TABLE_LIST tables;
+  TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
+  int error;
+  Name_resolution_context *context;
+  const char *save_where;
+  char* db_name;
+  char db_name_string[FN_REFLEN];
+  bool save_use_only_table_context;
+  enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
+  Item *dummy;
+  DBUG_ASSERT(func_expr);
+  DBUG_ENTER("fix_fields_gcol_func");
+
+  /*
+    Set-up the TABLE_LIST object to be a list with a single table
+    Set the object to zero to create NULL pointers and set alias
+    and real name to table name and get database name from file name.
+  */
+
+  memset((void*)&tables, 0, sizeof(TABLE_LIST));
+  tables.alias= tables.table_name= (char*) table->s->table_name.str;
+  tables.table= table;
+  tables.next_local= 0;
+  tables.next_name_resolution_table= 0;
+  my_stpmov(db_name_string, table->s->normalized_path.str);
+  dir_length= dirname_length(db_name_string);
+  db_name_string[dir_length - 1]= 0;
+  home_dir_length= dirname_length(db_name_string);
+  db_name= &db_name_string[home_dir_length];
+  tables.db= db_name;
+
+  thd->mark_used_columns= MARK_COLUMNS_NONE;
+
+  context= thd->lex->current_context();
+  table->get_fields_in_item_tree= TRUE;
+  save_table_list= context->table_list;
+  save_first_table= context->first_name_resolution_table;
+  save_last_table= context->last_name_resolution_table;
+  context->table_list= &tables;
+  context->first_name_resolution_table= &tables;
+  context->last_name_resolution_table= NULL;
+  func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX,
+                  (uchar*) context);
+  save_where= thd->where;
+  thd->where= "generated column function";
+
+  /* Save the context before fixing the fields*/
+  save_use_only_table_context= thd->lex->use_only_table_context;
+  thd->lex->use_only_table_context= TRUE;
+
+  /* Fix fields referenced to by the generated column function */
+  error= func_expr->fix_fields(thd, &dummy);
+  /* Restore the original context*/
+  thd->lex->use_only_table_context= save_use_only_table_context;
+  context->table_list= save_table_list;
+  context->first_name_resolution_table= save_first_table;
+  context->last_name_resolution_table= save_last_table;
+
+  if (unlikely(error))
+  {
+    DBUG_PRINT("info", ("Field in generated column function not part of table"));
+    goto end;
+  }
+  thd->where= save_where;
+  /*
+    Checking if all items are valid to be part of the generated column.
+  */
+  if (validate_generated_expr(field))
+    goto end;
+  result= FALSE;
+
+end:
+  table->get_fields_in_item_tree= FALSE;
+  thd->mark_used_columns= save_mark_used_columns;
+  DBUG_RETURN(result);
+}
+
+
+/**
+  @brief  unpack_gcol_info_from_frm
+    Unpack the definition of a virtual column
+
+  @param thd                  Thread handler
+  @param table                Table with the checked field
+  @param field                Pointer to Field object
+  @param is_create_table      Indicates that table is opened as part
+                              of CREATE or ALTER and does not yet exist in SE
+  @param error_reported       updated flag for the caller that no other error
+                              messages are to be generated.
+
+  @return
+    TRUE            Failure
+  @return
+    FALSE           Success
+ */
+
+bool unpack_gcol_info_from_frm(THD *thd,
+                               TABLE *table,
+                               Field *field,
+                               bool is_create_table,
+                               bool *error_reported)
+{
+  DBUG_ENTER("unpack_gcol_info_from_frm");
+  DBUG_ASSERT(field->table == table);
+  LEX_STRING *gcol_expr= &field->gcol_info->expr_str;
+  DBUG_ASSERT(gcol_expr);
+  /*
+    Step 1: Construct a statement for the parser.
+    The parsed string needs to take the following format:
+    "PARSE_GCOL_EXPR (<expr_string_from_frm>)"
+  */
+  char *gcol_expr_str;
+  int str_len= 0;
+  const CHARSET_INFO *old_character_set_client;
+
+  if (!(gcol_expr_str= (char*) alloc_root(&table->mem_root,
+                                          gcol_expr->length +
+                                            PARSE_GCOL_KEYWORD.length + 3)))
+  {
+    DBUG_RETURN(TRUE);
+  }
+  memcpy(gcol_expr_str,
+         (char*) PARSE_GCOL_KEYWORD.str,
+         PARSE_GCOL_KEYWORD.length);
+  str_len= PARSE_GCOL_KEYWORD.length;
+  memcpy(gcol_expr_str + str_len, "(", 1);
+  str_len++;
+  memcpy(gcol_expr_str + str_len,
+         (char*) gcol_expr->str,
+         gcol_expr->length);
+  str_len+= gcol_expr->length;
+  memcpy(gcol_expr_str + str_len, ")", 1);
+  str_len++;
+  memcpy(gcol_expr_str + str_len, "\0", 1);
+  str_len++;
+  Parser_state parser_state;
+  parser_state.init(thd, gcol_expr_str, str_len);
+
+  /*
+    Step 2: Setup thd for parsing.
+  */
+  Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
+  Query_arena backup_arena;
+  Query_arena gcol_arena(&table->mem_root, Query_arena::STMT_INITIALIZED);
+  thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+  thd->stmt_arena= &gcol_arena;
+  ulong save_old_privilege= thd->want_privilege;
+  thd->want_privilege= 0;
+
+  thd->lex->parse_gcol_expr= TRUE;
+  old_character_set_client= thd->variables.character_set_client;
+
+  /*
+    Step 3: Use the parser to build an Item object from.
+  */
+  if (parse_sql(thd, &parser_state, NULL))
+  {
+    goto parse_err;
+  }
+  /* Keep attribute of generated column */
+  thd->lex->gcol_info->set_field_stored(field->stored_in_db);
+  /* From now on use gcol_info generated by the parser. */
+  field->gcol_info= thd->lex->gcol_info;
+
+  /* Validate the Item tree. */
+  if (fix_fields_gcol_func(thd, field))
+  {
+    if (is_create_table)
+    {
+      /*
+        During CREATE/ALTER TABLE it is ok to receive errors here.
+        It is not ok if it happens during the opening of an frm
+        file as part of a normal query.
+      */
+      *error_reported= TRUE;
+    }
+    field->gcol_info= 0;
+    goto parse_err;
+  }
+  thd->stmt_arena= backup_stmt_arena_ptr;
+  thd->restore_active_arena(&gcol_arena, &backup_arena);
+  field->gcol_info->item_free_list= gcol_arena.free_list;
+  thd->want_privilege= save_old_privilege;
+
+  DBUG_RETURN(FALSE);
+
+parse_err:
+  thd->lex->parse_gcol_expr= FALSE;
+  thd->free_items();
+  thd->stmt_arena= backup_stmt_arena_ptr;
+  thd->restore_active_arena(&gcol_arena, &backup_arena);
+  thd->variables.character_set_client= old_character_set_client;
+  thd->want_privilege= save_old_privilege;
+  DBUG_RETURN(TRUE);
+}
+
+/*
+  Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
+*/
 
 /*
   Open a table based on a TABLE_SHARE
@@ -2133,7 +2657,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   uint records, i, bitmap_size;
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
-  Field **field_ptr;
+  Field **field_ptr, **vfield_ptr= NULL;
   Field *fts_doc_id_field = NULL;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
@@ -2290,7 +2814,6 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->partition_info_str_len && outparam->file)
   {
   /*
@@ -2355,9 +2878,22 @@ partititon_err:
       goto err;
     }
   }
-#endif
+  /* Check generated columns against table's storage engine. */
+  if (share->vfields && outparam->file &&
+      !(outparam->file->ha_table_flags() & HA_GENERATED_COLUMNS))
+  {
+    my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN,
+             MYF(0),
+             "Specified storage engine");
+    error_reported= TRUE;
+    goto err;
+  }
 
-  /* Allocate bitmaps */
+  /*
+    Allocate bitmaps
+    This needs to be done prior to generated columns as they'll call
+    fix_fields and functions might want to access bitmaps.
+  */
 
   bitmap_size= share->column_bitmap_size;
   if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 5)))
@@ -2375,6 +2911,37 @@ partititon_err:
               FALSE);
   outparam->default_column_bitmaps();
 
+  /*
+    Process generated columns, if any.
+  */
+  outparam->vfield= vfield_ptr;
+  if (share->vfields)
+  {
+    if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
+                                             (uint) ((share->vfields+1)*
+                                                     sizeof(Field*)))))
+      goto err;
+
+    outparam->vfield= vfield_ptr;
+
+    for (field_ptr= outparam->field; *field_ptr; field_ptr++)
+    {
+      if ((*field_ptr)->gcol_info)
+      {
+        if (unpack_gcol_info_from_frm(thd,
+                                      outparam,
+                                      *field_ptr,
+                                      is_create_table,
+                                      &error_reported))
+        {
+          error= 4; // in case no error is reported
+          goto err;
+        }
+        *(vfield_ptr++)= *field_ptr;
+      }
+    }
+    *vfield_ptr= 0;                              // End marker
+  }
   /* The table struct is now initialized;  Open the table */
   error= 2;
   if (db_stat)
@@ -2462,10 +3029,8 @@ partititon_err:
   if (! error_reported)
     open_table_error(share, error, my_errno, 0);
   delete outparam->file;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
-#endif
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
   free_root(&outparam->mem_root, MYF(0));
@@ -2496,12 +3061,15 @@ int closefrm(TABLE *table, bool free_share)
   if (table->field)
   {
     for (Field **ptr=table->field ; *ptr ; ptr++)
+    {
+      if ((*ptr)->gcol_info)
+        free_items((*ptr)->gcol_info->item_free_list);
       delete *ptr;
+    }
     table->field= 0;
   }
   delete table->file;
   table->file= 0;				/* For easier errorchecking */
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
     /* Allocated through table->mem_root, freed below */
@@ -2509,7 +3077,6 @@ int closefrm(TABLE *table, bool free_share)
     table->part_info->item_free_list= 0;
     table->part_info= 0;
   }
-#endif
   if (free_share)
   {
     if (table->s->tmp_table == NO_TMP_TABLE)
@@ -3189,30 +3756,6 @@ char *get_field(MEM_ROOT *mem, Field *field)
   return to;
 }
 
-/*
-  DESCRIPTION
-    given a buffer with a key value, and a map of keyparts
-    that are present in this value, returns the length of the value
-*/
-uint calculate_key_len(TABLE *table, uint key, const uchar *buf,
-                       key_part_map keypart_map)
-{
-  /* works only with key prefixes */
-  DBUG_ASSERT(((keypart_map + 1) & keypart_map) == 0);
-
-  KEY *key_info= table->key_info + key;
-  KEY_PART_INFO *key_part= key_info->key_part;
-  KEY_PART_INFO *end_key_part= key_part + actual_key_parts(key_info);
-  uint length= 0;
-
-  while (key_part < end_key_part && keypart_map)
-  {
-    length+= key_part->store_length;
-    keypart_map >>= 1;
-    key_part++;
-  }
-  return length;
-}
 
 /**
   Check if database name is valid
@@ -3385,7 +3928,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   ER_THD(current_thd, ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
                    table->s->db.str, table->alias,
                    table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
@@ -3395,7 +3938,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
+                   ER_THD(current_thd, ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
                    table->s->db.str, table->s->table_name.str,
                    table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
@@ -3708,6 +4251,18 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
   }
 }
 
+Blob_mem_storage::Blob_mem_storage()
+  : truncated_value(false)
+{
+  init_alloc_root(key_memory_blob_mem_storage,
+                  &storage, MAX_FIELD_VARCHARLENGTH, 0);
+}
+
+Blob_mem_storage::~Blob_mem_storage()
+{
+  free_root(&storage, MYF(0));
+}
+
 
 /**
   Initialize TABLE instance (newly created, or coming either from table
@@ -3886,7 +4441,7 @@ bool TABLE_LIST::merge_underlying_tables(class st_select_lex *select)
     tl->embedding= this;
     tl->join_list= &nested_join->join_list;
     if (nested_join->join_list.push_back(tl))
-      return true;
+      return true;                  /* purecov: inspected */
   }
 
   return false;
@@ -3967,7 +4522,7 @@ bool TABLE_LIST::merge_where(THD *thd)
   */
   set_join_cond(and_conds(join_cond(), condition));
   if (!join_cond())
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   DBUG_RETURN(false);
 }
@@ -3990,23 +4545,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
 
   DBUG_ASSERT(derived->is_prepared());
 
-  if (field_translation)
-  {
-    /*
-      Update items in the field translation after view have been prepared.
-      It's needed because some items in the select list, like
-      IN subquery predicates, might be substituted for optimized ones.
-    */
-    if (is_view())
-    {
-      while ((item= it++))
-      {
-        field_translation[field_count++].item= item;
-      }
-    }
-
-    return false;
-  }
+  DBUG_ASSERT(!field_translation);
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
@@ -4015,7 +4554,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
     (Field_translator *)thd->stmt_arena->alloc(select->item_list.elements *
                                                sizeof(Field_translator));
   if (!transl)
-    return true;
+    return true;                        /* purecov: inspected */
 
   while ((item= it++))
   {
@@ -4054,7 +4593,7 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
   if (table->join_cond())
   {
     if (!(*pcond= table->join_cond()->copy_andor_structure(thd)))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                   /* purecov: inspected */
   }
   if (!table->nested_join)
     DBUG_RETURN(false);
@@ -4065,9 +4604,9 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
       continue;
     Item *cond;
     if (merge_join_conditions(thd, tbl, &cond))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                   /* purecov: inspected */
     if (cond && !(*pcond= and_conds(*pcond, cond)))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                   /* purecov: inspected */
   }
   DBUG_RETURN(false);
 }
@@ -4119,7 +4658,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     if (tbl->is_view() && tbl->prep_check_option(thd, is_cascaded ?
                                                       VIEW_CHECK_CASCADED :
                                                       VIEW_CHECK_NONE))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                  /* purecov: inspected */
   }
 
   if (check_opt_type && !check_option_processed)
@@ -4127,7 +4666,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     if (merge_join_conditions(thd, this, &check_option))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                  /* purecov: inspected */
 
     if (is_cascaded)
     {
@@ -4136,7 +4675,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
         if (tbl->check_option)
         {
           if (!(check_option= and_conds(check_option, tbl->check_option)))
-            DBUG_RETURN(true);
+            DBUG_RETURN(true);            /* purecov: inspected */
         }
       }
     }
@@ -4149,7 +4688,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     thd->where= "check option";
     if (check_option->fix_fields(thd, &check_option) ||
         check_option->check_cols(1))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                  /* purecov: inspected */
     thd->where= save_where;
   }
 
@@ -4189,7 +4728,7 @@ bool TABLE_LIST::prepare_replace_filter(THD *thd)
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     if (merge_join_conditions(thd, this, &replace_filter))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                 /* purecov: inspected */
     for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
     {
       if (tbl->replace_filter)
@@ -4212,58 +4751,6 @@ bool TABLE_LIST::prepare_replace_filter(THD *thd)
   }
 
   DBUG_RETURN(false);
-}
-
-
-/**
-  Hide errors which show view underlying table information. 
-  There are currently two mechanisms at work that handle errors for views,
-  this one and a more general mechanism based on an Internal_error_handler,
-  see Show_create_error_handler. The latter handles errors encountered during
-  execution of SHOW CREATE VIEW, while the machanism using this method is
-  handles SELECT from views. The two methods should not clash.
-
-  @param[in,out]  thd     thread handler
-
-  @pre This method can be called only if there is an error.
-*/
-
-void TABLE_LIST::hide_view_error(THD *thd)
-{
-  // HOTFIX: overcome problem introduced in STRICT worklog
-  //if (thd->killed || thd->get_internal_handler())
-  if (thd->killed || thd->lex->sql_command == SQLCOM_SHOW_CREATE)
-    return;
-  /* Hide "Unknown column" or "Unknown function" error */
-  DBUG_ASSERT(thd->is_error());
-
-  switch (thd->get_stmt_da()->mysql_errno()) {
-    case ER_BAD_FIELD_ERROR:
-    case ER_SP_DOES_NOT_EXIST:
-    // ER_FUNC_INEXISTENT_NAME_COLLISION cannot happen here.
-    case ER_PROCACCESS_DENIED_ERROR:
-    case ER_COLUMNACCESS_DENIED_ERROR:
-    case ER_TABLEACCESS_DENIED_ERROR:
-    // ER_TABLE_NOT_LOCKED cannot happen here.
-    case ER_NO_SUCH_TABLE:
-    {
-      TABLE_LIST *top= top_table();
-      thd->clear_error();
-      my_error(ER_VIEW_INVALID, MYF(0),
-               top->view_db.str, top->view_name.str);
-      break;
-    }
-
-    case ER_NO_DEFAULT_FOR_FIELD:
-    {
-      TABLE_LIST *top= top_table();
-      thd->clear_error();
-      // TODO: make correct error message
-      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
-               top->view_db.str, top->view_name.str);
-      break;
-    }
-  }
 }
 
 
@@ -4360,14 +4847,14 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
     if (!table->insert_values &&
         !(table->insert_values= (uchar *)alloc_root(mem_root,
                                                     table->s->rec_buff_length)))
-      return true;
+      return true;                       /* purecov: inspected */
   }
   else
   {
     DBUG_ASSERT(view && merge_underlying_list);
     for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
       if (tbl->set_insert_values(mem_root))
-        return true;
+        return true;                     /* purecov: inspected */
   }
   return false;
 }
@@ -4565,7 +5052,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
       {
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_NO_SUCH_USER, 
-                            ER(ER_NO_SUCH_USER),
+                            ER_THD(thd, ER_NO_SUCH_USER),
                             definer.user.str, definer.host.str);
       }
       else
@@ -4585,7 +5072,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
             my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
                      thd->security_context()->priv_user().str,
                      thd->security_context()->priv_host().str,
-                     (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+                     (thd->password ?  ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
         }
         DBUG_RETURN(TRUE);
       }
@@ -4800,7 +5287,6 @@ const char *Field_iterator_table::name()
   return (*ptr)->field_name;
 }
 
-
 Item *Field_iterator_table::create_item(THD *thd)
 {
   SELECT_LEX *select= thd->lex->current_select();
@@ -4855,7 +5341,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   if (!field->fixed)
   {
     if (field->fix_fields(thd, field_ref))
-      DBUG_RETURN(NULL);
+      DBUG_RETURN(NULL);               /* purecov: inspected */
     field= *field_ref;
   }
   Item *item= new Item_direct_view_ref(context, field_ref,
@@ -5234,10 +5720,28 @@ void TABLE::mark_column_used(THD *thd, Field *field,
     bitmap_set_bit(read_set, field->field_index);
 
     // Update covering_keys and merge_keys based on all fields that are read:      
-    covering_keys.intersect(field->part_of_key);
-    merge_keys.merge(field->part_of_key);
+    if (field->stored_in_db)
+    {
+      covering_keys.intersect(field->part_of_key);
+      merge_keys.merge(field->part_of_key);
+    }
     if (get_fields_in_item_tree)
       field->flags|= GET_FIXED_FIELDS_FLAG;
+   /*
+     As vitual generated columns are calculated on the fly, they
+     needs to be updated (written, even for read-only statements) to the
+     field in order to be used, so set the generated field for write here.
+     Moreover, in order to evaluate the value of virtual generated column,
+     the base columns are also needed to be read.
+    */
+    if (field->gcol_info && !field->stored_in_db)
+    {
+      bitmap_fast_test_and_set(write_set, field->field_index);
+      Mark_field mark_read_field(MARK_COLUMNS_READ);
+      field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
+                         Item::WALK_PREFIX, (uchar *)&mark_read_field);
+    }
+
     break;
 
   case MARK_COLUMNS_WRITE:
@@ -5250,12 +5754,24 @@ void TABLE::mark_column_used(THD *thd, Field *field,
       DBUG_PRINT("warning", ("Found duplicated field"));
       thd->dup_field= field;
     }
-    if (get_fields_in_item_tree)
-      field->flags|= GET_FIXED_FIELDS_FLAG;
+    DBUG_ASSERT(!get_fields_in_item_tree);
+
+    if (field->gcol_info)
+    {
+      Mark_field mark_read_field(MARK_COLUMNS_READ);
+      field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
+                         Item::WALK_PREFIX, (uchar *)&mark_read_field);
+    }
     break;
 
   case MARK_COLUMNS_TEMP:
     bitmap_set_bit(read_set, field->field_index);
+    if (field->gcol_info && !field->stored_in_db)
+    {
+      Mark_field mark_fld(MARK_COLUMNS_TEMP);
+      field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
+                         Item::WALK_PREFIX, (uchar *)&mark_fld);
+    }
     break;
   }
   DBUG_VOID_RETURN;
@@ -5295,7 +5811,9 @@ void TABLE::mark_columns_used_by_index_no_reset(uint index,
   KEY_PART_INFO *key_part_end= (key_part +
                                 key_info[index].user_defined_key_parts);
   for (;key_part != key_part_end; key_part++)
+  {
     bitmap_set_bit(bitmap, key_part->fieldnr-1);
+  }
 }
 
 
@@ -5447,6 +5965,9 @@ void TABLE::mark_columns_needed_for_update()
 
     file->column_bitmaps_signal();
   }
+  /* Mark dependent generated columns as writable */
+  if (vfield)
+    mark_generated_columns(true);
   DBUG_VOID_RETURN;
 }
 
@@ -5657,6 +6178,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   cur_key->name= key_name;
   cur_key->actual_flags= cur_key->flags= HA_GENERATED_KEY;
   cur_key->set_rec_per_key_array(rec_per_key, rec_per_key_float);
+  cur_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
   cur_key->table= this;
 
   /* Initialize rec_per_key and rec_per_key_float */
@@ -5788,8 +6310,150 @@ void TABLE::mark_columns_needed_for_insert()
   }
   if (found_next_number_field)
     mark_auto_increment_column();
+  /* Mark all generated columns as writable */
+  if (vfield)
+    mark_generated_columns(false);
 }
 
+
+/* 
+  @brief Update the write/read_set for generated columns
+         when doing update and insert operation.
+
+  @param        is_update  TRUE means the operation is UPDATE.
+                           FALSE means it's INSERT.
+
+  @return       void
+
+  @detail
+
+  Prerequisites for INSERT:
+
+  - write_map is filled with all base columns.
+
+  - read_map is filled with base columns and generated columns to be read. 
+  Otherwise, it is empty. covering_keys and merge_keys are adjusted according
+  to read_map.
+
+  Actions for INSERT:
+
+  - Fill write_map with all generated columns.
+  Stored columns are needed because their values will be stored.
+  Virtual columns are needed because their values must be checked against
+  constraints and it might be referenced by latter generated columns.
+
+  - Fill read_map with base columns for all generated columns.
+  This has no technical reason, but is required because the function that
+  evaluates generated functions asserts that base columns are in the read_map.
+  covering_keys and merge_keys are adjusted according to read_map.
+
+  Prerequisites for UPDATE:
+
+  - write_map is filled with base columns to be updated.
+
+  - read_map is filled with base columns and generated columns to be read
+  prior to the row update. covering_keys and merge_keys are adjusted
+  according to read_map.
+
+  Actions for UPDATE:
+
+  - Fill write_map with generated columns that are dependent on updated base columns
+  and all virtual generated columns.
+  Stored columns are needed because their values will be stored.
+  Virtual columns are needed because their values must be checked against
+  constraints and might be referenced by latter generated columns.
+*/
+
+void TABLE::mark_generated_columns(bool is_update)
+{
+  Field **vfield_ptr, *tmp_vfield;
+  bool bitmap_updated= FALSE;
+
+  /**
+    For update, only GCs which are dependent on the updatable fields are
+    set to be writable.
+   **/
+  if (is_update)
+  {
+    MY_BITMAP dependent_fields;
+    my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
+    bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
+
+    for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      tmp_vfield= *vfield_ptr;
+      DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+      Mark_field mark_fld(MARK_COLUMNS_TEMP);
+      MY_BITMAP *save_old_read_set= read_set;
+      bitmap_clear_all(&dependent_fields);
+      read_set= &dependent_fields;
+      tmp_vfield->gcol_info->expr_item->walk(&Item::mark_field_in_map, 
+                              Item::WALK_PREFIX, (uchar *) &mark_fld);
+
+      /**
+        If the GC depends on any of the write-column, make it writable.
+      */
+      if (bitmap_is_overlapping(read_set, write_set))
+      {
+        read_set= save_old_read_set;
+        // The GC needs to be updated
+        tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
+                                            MARK_COLUMNS_WRITE);
+        bitmap_updated= TRUE;
+      }
+      else
+        read_set= save_old_read_set;
+    }
+  }
+  else //Insert will mark all GCs
+  {
+    for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      tmp_vfield= *vfield_ptr;
+      DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+      tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
+                                          MARK_COLUMNS_WRITE);
+      bitmap_updated= TRUE;
+    }
+  }
+
+  if (bitmap_updated)
+    file->column_bitmaps_signal();
+}
+
+/*
+  @brief Check whether a base field is dependent on any generated columns.
+
+  @return
+    TRUE     The field is dependent by some GC.
+
+*/
+bool TABLE::is_field_dependent_on_generated_columns(uint field_index)
+{
+  Field **vfield_ptr, *tmp_vfield;
+  MY_BITMAP dependent_fields;
+  my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
+  bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
+  bitmap_clear_all(&dependent_fields);
+  MY_BITMAP *save_old_read_set= read_set;
+  read_set= &dependent_fields;
+
+  for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+  {
+    tmp_vfield= *vfield_ptr;
+    DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+    Mark_field mark_fld(MARK_COLUMNS_TEMP);
+    tmp_vfield->gcol_info->expr_item->walk(&Item::mark_field_in_map, 
+                                           Item::WALK_PREFIX, (uchar *) &mark_fld);
+    if (bitmap_is_set(read_set, field_index))
+    {
+      read_set= save_old_read_set;
+      return true;
+    }
+  }
+  read_set= save_old_read_set;
+  return false;
+}
 
 /*
   Cleanup this table for re-execution.
@@ -5806,17 +6470,12 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   */
   table= 0;
 
- /*
-   Reset table_name and table_name_length,if it is a anonymous derived table
-   or schema table. They are not valid as TABLEs were closed in the end of
-   previous prepare or execute call.
- */
-  if (is_derived())
-  {
-    table_name= NULL;
-    table_name_length= 0;
-  }
-  else if (schema_table_name)
+  /*
+    Reset table_name and table_name_length for schema table.
+    They are not valid as TABLEs were closed in the end of previous prepare
+    or execute call.
+  */
+  if (schema_table_name)
   {
     table_name= schema_table_name;
     table_name_length= strlen(schema_table_name);
@@ -6027,7 +6686,6 @@ size_t max_row_length(TABLE *table, const uchar *data)
   }
   return length;
 }
-
 
 /**
    Helper function which allows to allocate metadata lock request
@@ -6456,5 +7114,106 @@ bool is_simple_order(ORDER *order)
       return FALSE;
   }
   return TRUE;
+}
+
+/**
+  @brief  update_generated_read_fields
+    Calculate data for each virtual generated field marked for read in the
+    corresponding column map.
+    In order to fill virtual generated field value, we need calculate its
+    expression once read a record from SE.
+    Note: stored generated fields don't need to evaluate its expression.
+  @param table          The TABLE object
+
+  @return
+    FALSE  - Success
+  @return
+    TRUE - Error occurred during the generation/calculation of a generated
+           field value
+ */
+bool update_generated_read_fields(TABLE *table)
+{
+  DBUG_ENTER("update_generated_read_fields");
+  Field **vfield_ptr;
+  int error= 0;
+
+  DBUG_ASSERT(table->vfield);
+  /* Iterate over generated fields in the table */
+  for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *vfield;
+    vfield= (*vfield_ptr);
+    DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
+    /**
+      Only update those virtual generated fields that are marked in the
+      read_set bitmap.
+     */
+    if (!vfield->stored_in_db &&
+        bitmap_is_set(table->read_set, vfield->field_index))
+    {
+      /* Generate the actual value of the generated fields */
+      error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+      DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
+      if (error && !table->in_use->is_error())
+        error= 0;
+    }
+    else
+    {
+      DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
+    }
+  }
+
+  if (error > 0)
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
+}
+
+/**
+  @brief  update_generated_write_fields
+    Calculate data for each generated field marked for write in the
+    corresponding column map.
+    Note: We need calculate data for both virtual and stored generated
+    fields.
+  @param table          The TABLE object
+
+  @return
+    FALSE  - Success
+  @return
+    TRUE - Error occurred during the generation/calculation of a generated
+          field value
+ */
+bool update_generated_write_fields(TABLE *table)
+{
+  DBUG_ENTER("update_generated_write_fields");
+  Field **vfield_ptr;
+  int error= 0;
+
+  DBUG_ASSERT(table->vfield);
+  /* Iterate over generated fields in the table */
+  for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *vfield;
+    vfield= (*vfield_ptr);
+    DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
+    /* Only update those fields that are marked in the write_set bitmap */
+    if (bitmap_is_set(table->write_set, vfield->field_index))
+    {
+      /* Generate the actual value of the generated fields */
+      error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+      DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
+      if (error && !table->in_use->is_error())
+        error= 0;
+      if (table->fields_set_during_insert)
+        bitmap_set_bit(table->fields_set_during_insert, vfield->field_index);
+    }
+    else
+    {
+      DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
+    }
+  }
+
+  if (error > 0)
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
 }
 

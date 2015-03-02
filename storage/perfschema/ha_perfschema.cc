@@ -33,6 +33,7 @@
 #include "pfs_user.h"
 #include "pfs_program.h"
 #include "pfs_prepared_stmt.h"
+#include "pfs_buffer_container.h"
 
 handlerton *pfs_hton= NULL;
 
@@ -111,70 +112,70 @@ static int pfs_done_func(void *p)
 static struct st_mysql_show_var pfs_status_vars[]=
 {
   {"Performance_schema_mutex_classes_lost",
-    (char*) &mutex_class_lost, SHOW_LONG_NOFLUSH},
+    (char*) &mutex_class_lost, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_rwlock_classes_lost",
-    (char*) &rwlock_class_lost, SHOW_LONG_NOFLUSH},
+    (char*) &rwlock_class_lost, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_cond_classes_lost",
-    (char*) &cond_class_lost, SHOW_LONG_NOFLUSH},
+    (char*) &cond_class_lost, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_thread_classes_lost",
-    (char*) &thread_class_lost, SHOW_LONG_NOFLUSH},
+    (char*) &thread_class_lost, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_file_classes_lost",
-    (char*) &file_class_lost, SHOW_LONG_NOFLUSH},
+    (char*) &file_class_lost, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_socket_classes_lost",
-    (char*) &socket_class_lost, SHOW_LONG_NOFLUSH},
+    (char*) &socket_class_lost, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_memory_classes_lost",
-    (char*) &memory_class_lost, SHOW_LONG_NOFLUSH},
+    (char*) &memory_class_lost, SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_mutex_instances_lost",
-    (char*) &mutex_lost, SHOW_LONG},
+    (char*) &global_mutex_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_rwlock_instances_lost",
-    (char*) &rwlock_lost, SHOW_LONG},
+    (char*) &global_rwlock_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_cond_instances_lost",
-    (char*) &cond_lost, SHOW_LONG},
+    (char*) &global_cond_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_thread_instances_lost",
-    (char*) &thread_lost, SHOW_LONG},
+    (char*) &global_thread_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_file_instances_lost",
-    (char*) &file_lost, SHOW_LONG},
+    (char*) &global_file_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_file_handles_lost",
-    (char*) &file_handle_lost, SHOW_LONG},
+    (char*) &file_handle_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_socket_instances_lost",
-    (char*) &socket_lost, SHOW_LONG},
+    (char*) &global_socket_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_locker_lost",
-    (char*) &locker_lost, SHOW_LONG},
+    (char*) &locker_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   /* table shares, can be flushed */
   {"Performance_schema_table_instances_lost",
-    (char*) &table_share_lost, SHOW_LONG},
+    (char*) &global_table_share_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   /* table handles, can be flushed */
   {"Performance_schema_table_handles_lost",
-    (char*) &table_lost, SHOW_LONG},
+    (char*) &global_table_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   /* table lock stats, can be flushed */
   {"Performance_schema_table_lock_stat_lost",
-    (char*) &table_share_lock_stat_lost, SHOW_LONG},
+    (char*) &global_table_share_lock_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   /* table index stats, can be flushed */
   {"Performance_schema_index_stat_lost",
-    (char*) &table_share_index_stat_lost, SHOW_LONG},
+    (char*) &global_table_share_index_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_hosts_lost",
-    (char*) &host_lost, SHOW_LONG},
+    (char*) &global_host_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_users_lost",
-    (char*) &user_lost, SHOW_LONG},
+    (char*) &global_user_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_accounts_lost",
-    (char*) &account_lost, SHOW_LONG},
+    (char*) &global_account_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_stage_classes_lost",
-    (char*) &stage_class_lost, SHOW_LONG},
+    (char*) &stage_class_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_statement_classes_lost",
-    (char*) &statement_class_lost, SHOW_LONG},
+    (char*) &statement_class_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_digest_lost",
-    (char*) &digest_lost, SHOW_LONG},
+    (char*) &digest_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_session_connect_attrs_lost",
-    (char*) &session_connect_attrs_lost, SHOW_LONG},
+    (char*) &session_connect_attrs_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_program_lost",
-    (char*) &program_lost, SHOW_LONG},
+    (char*) &global_program_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_nested_statement_lost",
-    (char*) &nested_statement_lost, SHOW_LONG},
+    (char*) &nested_statement_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_prepared_statements_lost",
-    (char*) &prepared_stmt_lost, SHOW_LONG},
+    (char*) &global_prepared_stmt_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_metadata_lock_lost",
-    (char*) &metadata_lock_lost, SHOW_LONG},
-  {NullS, NullS, SHOW_LONG}
+    (char*) &global_mdl_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 struct st_mysql_storage_engine pfs_storage_engine=
@@ -250,7 +251,7 @@ int ha_perfschema::write_row(uchar *buf)
     DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 
   DBUG_ASSERT(m_table_share);
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
   result= m_table_share->write_row(table, buf, table->field);
   DBUG_RETURN(result);
 }
@@ -276,7 +277,7 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
     DBUG_RETURN(0);
 
   DBUG_ASSERT(m_table);
-  ha_statistic_increment(&SSV::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count);
   int result= m_table->update_row(table, old_data, new_data, table->field);
   DBUG_RETURN(result);
 }
@@ -288,7 +289,7 @@ int ha_perfschema::delete_row(const uchar *buf)
     DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 
   DBUG_ASSERT(m_table);
-  ha_statistic_increment(&SSV::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count);
   int result= m_table->delete_row(table, buf, table->field);
   DBUG_RETURN(result);
 }
@@ -333,7 +334,7 @@ int ha_perfschema::rnd_next(uchar *buf)
   }
 
   DBUG_ASSERT(m_table);
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
   int result= m_table->rnd_next();
   if (result == 0)
@@ -365,7 +366,7 @@ int ha_perfschema::rnd_pos(uchar *buf, uchar *pos)
   }
 
   DBUG_ASSERT(m_table);
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   int result= m_table->rnd_pos(pos);
   if (result == 0)
     result= m_table->read_row(table, buf, table->field);

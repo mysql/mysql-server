@@ -24,7 +24,7 @@ SELECT SCHEMA_NAME, DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_ROWS_AFFECTED, SUM_WARN
 
 
 # Expect no digest
-SHOW VARIABLES LIKE "performance_schema_digests_size";
+SHOW GLOBAL VARIABLES LIKE "performance_schema_digests_size";
 SELECT COUNT(*) FROM performance_schema.events_statements_summary_by_digest;
 
 # Cleanup for Digest

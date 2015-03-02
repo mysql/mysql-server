@@ -4,14 +4,14 @@
 # Test for the functionality of InnoDB Buffer Pool dump/load.
 #
 
--- source include/have_innodb.inc
+--source include/have_innodb.inc
 # include/restart_mysqld.inc does not work in embedded mode
--- source include/not_embedded.inc
+--source include/not_embedded.inc
 
--- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
+--let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
 
--- error 0,1
--- remove_file $file
+--error 0,1
+--remove_file $file
 
 # Create a table and populate it with some data
 CREATE TABLE ib_bp_test
@@ -22,42 +22,46 @@ let $check_cnt =
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
 WHERE table_name LIKE '%ib_bp_test%';
 
+--let SPACE = `SELECT space FROM information_schema.innodb_sys_tables WHERE name LIKE '%ib_bp_test%'`
+
 # See that we have a small number of pages in the LRU
--- eval $check_cnt
+--eval $check_cnt
 
 # Here we end up with 16382 rows in the table
--- disable_query_log
+--disable_query_log
 INSERT INTO ib_bp_test (b, c) VALUES (REPEAT('b', 64), REPEAT('c', 256));
 INSERT INTO ib_bp_test (b, c) VALUES (REPEAT('B', 64), REPEAT('C', 256));
 let $i=12;
 while ($i)
 {
-  -- eval INSERT INTO ib_bp_test (b, c) VALUES ($i, $i * $i);
+  --eval INSERT INTO ib_bp_test (b, c) VALUES ($i, $i * $i);
   INSERT INTO ib_bp_test (b, c) SELECT b, c FROM ib_bp_test;
   dec $i;
 }
--- enable_query_log
+--enable_query_log
 
 # Accept 83 for 64k page size, 163 for 32k page size, 329 for 16k page size,
 # 662 for 8k page size & 1392 for 4k page size
--- replace_result 83 {checked_valid} 163 {checked_valid} 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
--- eval $check_cnt
+--replace_result 83 {checked_valid} 163 {checked_valid} 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
+--eval $check_cnt
 
 # Dump
 SET GLOBAL innodb_buffer_pool_dump_now = ON;
 
 # Wait for the dump to complete
+--disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
   FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
--- source include/wait_condition.inc
+--enable_warnings
+--source include/wait_condition.inc
 
 # Confirm the file has been created
--- file_exists $file
+--file_exists $file
 
 # Add some garbage records to the dump file
--- let IBDUMPFILE = $file
+--let IBDUMPFILE = $file
 perl;
 my $fn = $ENV{'IBDUMPFILE'};
 open(my $fh, '>>', $fn) || die "perl open($fn): $!";
@@ -67,7 +71,7 @@ print $fh "123456,123456\n";
 close($fh);
 EOF
 
--- source include/restart_mysqld.inc
+--source include/restart_mysqld.inc
 
 # Load the table so that entries in the I_S table do not appear as NULL
 select count(*) from ib_bp_test where a = 1;
@@ -76,25 +80,29 @@ select count(*) from ib_bp_test where a = 1;
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 
 # Wait for the load to complete
+--disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
   FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
--- source include/wait_condition.inc
+--enable_warnings
+--source include/wait_condition.inc
 
 # Show the status, interesting if the above timed out
--- replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+--disable_warnings
+--replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
 SELECT variable_value
 FROM information_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--enable_warnings
 
 # Accept 83 for 64k page size, 163 for 32k page size, 329 for 16k page size,
 # 662 for 8k page size & 1392 for 4k page size
--- replace_result 83 {checked_valid} 163 {checked_valid} 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
--- eval $check_cnt
+--replace_result 83 {checked_valid} 163 {checked_valid} 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
+--eval $check_cnt
 
 # Add some total garbage to the dump file
--- let IBDUMPFILE = $file
+--let IBDUMPFILE = $file
 perl;
 my $fn = $ENV{'IBDUMPFILE'};
 open(my $fh, '>>', $fn) || die "perl open($fn): $!";
@@ -108,10 +116,48 @@ call mtr.add_suppression("InnoDB: Error parsing");
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 
 # Wait for the load to fail
+--disable_warnings
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 13) = 'Error parsing'
   FROM information_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
--- source include/wait_condition.inc
+--enable_warnings
+--source include/wait_condition.inc
+
+--echo # Re-write some valid pages to the dump file, make sure the space
+--echo # should be valid but all the page no should be out of bound of the file
+--let IBDUMPFILE = $file
+perl;
+my $fn = $ENV{'IBDUMPFILE'};
+my $space = $ENV{'SPACE'};
+open(my $fh, '>', $fn) || die "perl open($fn): $!";
+print $fh "$space,10000\n";
+print $fh "$space,10001\n";
+print $fh "$space,10002\n";
+close($fh);
+EOF
+
+# We force the restart so that the table would be closed
+--source include/restart_mysqld.inc
+
+# Load directly, without accessing the table first
+SET GLOBAL innodb_buffer_pool_load_now = ON;
+
+# Wait for the load to complete
+--disable_warnings
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
+  FROM information_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--enable_warnings
+--source include/wait_condition.inc
+
+# Show the status, interesting if the above timed out
+--disable_warnings
+--replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+SELECT variable_value
+FROM information_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--enable_warnings
 
 DROP TABLE ib_bp_test;

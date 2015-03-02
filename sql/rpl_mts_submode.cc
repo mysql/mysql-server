@@ -142,6 +142,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
                     entry, entry->usage, w_entry->id));
       } while (entry->usage != 0 && !thd->killed);
       entry->worker= w_entry; // restoring last association, needed only for assert
+      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
       thd->EXIT_COND(&old_stage);
       ret++;
     }
@@ -486,6 +487,7 @@ wait_for_last_committed_trx(Relay_log_info* rli,
     while ((!rli->info_thd->killed && !is_error) &&
            !clock_leq(last_committed_arg, estimate_lwm_timestamp()));
     my_atomic_store64(&min_waited_timestamp, SEQ_UNINIT);  // reset waiting flag
+    mysql_mutex_unlock(&rli->mts_gaq_LOCK);
     thd->EXIT_COND(&old_stage);
     set_timespec_nsec(&ts[1], 0);
     my_atomic_add64(&rli->mts_total_wait_overlap, diff_timespec(&ts[1], &ts[0]));
@@ -559,16 +561,22 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       /*
         Either master is old, or the current group of events is malformed.
         In either case execution is allowed in effectively sequential mode, and warned.
+
+        View_change_log_event is expected not to have sequence_number,
+        thence the exception.
       */
-      sql_print_warning("Either event (relay log name:position) (%s:%llu) "
-                        "is from an old master therefore is not tagged "
-                        "with logical timestamps, or the current group of "
-                        "events miss a proper group header event. Execution is "
-                        "proceeded, but it is recommended to make sure "
-                        "replication is resumed from a valid start group "
-                        "position.",
-                        rli->get_event_relay_log_name(),
-                        rli->get_event_relay_log_pos());
+      if (ev->get_type_code() != binary_log::VIEW_CHANGE_EVENT)
+      {
+        sql_print_warning("Either event (relay log name:position) (%s:%llu) "
+                          "is from an old master therefore is not tagged "
+                          "with logical timestamps, or the current group of "
+                          "events miss a proper group header event. Execution is "
+                          "proceeded, but it is recommended to make sure "
+                          "replication is resumed from a valid start group "
+                          "position.",
+                          rli->get_event_relay_log_name(),
+                          rli->get_event_relay_log_pos());
+      }
     }
     first_event= false;
   }

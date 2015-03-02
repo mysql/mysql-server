@@ -1,0 +1,57 @@
+#! /bin/bash
+
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+
+# Script used by systemd @SYSTEMD_SERVICE_NAME@.service to run before executing mysqld
+
+get_option () {
+    local section=$1
+    local option=$2
+    local default=$3
+    ret=$(@bindir@/my_print_defaults $section | grep '^--'${option}'=' | cut -d= -f2-)
+    [ -z $ret ] && ret=$default
+    echo $ret
+}
+
+install_db () {
+    # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
+    datadir=$(get_option mysqld datadir "@MYSQL_DATADIR@")
+    log=$(get_option mysqld log-error /var/log/mysqld.log)
+
+    # Restore log, dir, perms and SELinux contexts
+
+    [ -d "$datadir" ] || install -d -m 0755 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
+
+    [ -e $log ] || touch $log
+    chmod 0640 $log
+    chown @MYSQLD_USER@:@MYSQLD_USER@ $log || exit 1
+
+    if [ -x /usr/sbin/restorecon ]; then
+        /usr/sbin/restorecon "$datadir"
+        /usr/sbin/restorecon $log
+    fi
+
+    # If special mysql dir is in place, skip db install
+    [ -d "$datadir/mysql" ] && exit 0
+
+    # Create initial db
+    @libexecdir@/mysqld --initialize --datadir="$datadir" --user=@MYSQLD_USER@
+    exit 0
+}
+install_db
+
+exit 0

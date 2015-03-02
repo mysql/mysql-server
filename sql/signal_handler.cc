@@ -21,6 +21,7 @@
 #include "connection_handler_manager.h"  // Connection_handler_manager
 #include "mysqld_thd_manager.h"          // Global_THD_manager
 #include "sql_class.h"
+#include "current_thd.h"                 // my_thread_get_THR_THD
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -58,7 +59,7 @@ extern "C" void handle_fatal_signal(int sig)
   if (segfaulted)
   {
     my_safe_printf_stderr("Fatal " SIGNAL_FMT " while backtracing\n", sig);
-    _exit(1); /* Quit without running destructors */
+    _exit(MYSQLD_FAILURE_EXIT); /* Quit without running destructors */
   }
 
   segfaulted = 1;
@@ -225,6 +226,6 @@ extern "C" void handle_fatal_signal(int sig)
      Quit, without running destructors (etc.)
      On Windows, do not terminate, but pass control to exception filter.
   */
-  _exit(1);  // Using _exit(), since exit() is not async signal safe
+  _exit(MYSQLD_FAILURE_EXIT);  // Using _exit(), since exit() is not async signal safe
 #endif
 }

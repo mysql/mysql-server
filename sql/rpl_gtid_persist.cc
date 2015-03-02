@@ -17,6 +17,7 @@
 
 #include "rpl_gtid_persist.h"
 
+#include "current_thd.h"
 #include "debug_sync.h"       // debug_sync_set_action
 #include "log.h"              // sql_print_error
 #include "replication.h"      // THD_ENTER_COND
@@ -666,6 +667,14 @@ int Gtid_table_persistor::fetch_gtids(Gtid_set *gtid_set)
   while(!(err= table->file->ha_rnd_next(table->record[0])))
   {
     /* Store the gtid into the gtid_set */
+
+    /**
+      @todo:
+      - take only global_sid_lock->rdlock(), and take
+        gtid_state->sid_lock for each iteration.
+      - Add wrapper around Gtid_set::add_gno_interval and call that
+        instead.
+    */
     global_sid_lock->wrlock();
     if (gtid_set->add_gtid_text(encode_gtid_text(table).c_str()) !=
         RETURN_STATUS_OK)
@@ -751,6 +760,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
     while(!(should_compress || terminate_compress_thread))
       mysql_cond_wait(&COND_compress_gtid_table, &LOCK_compress_gtid_table);
     should_compress= false;
+    mysql_mutex_unlock(&LOCK_compress_gtid_table);
     THD_EXIT_COND(thd, NULL);
 
     if (terminate_compress_thread)

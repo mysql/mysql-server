@@ -259,8 +259,7 @@ static
 dberr_t
 fts_sync(
 /*=====*/
-	fts_sync_t*	sync)		/*!< in: sync state */
-	__attribute__((nonnull));
+	fts_sync_t*	sync);		/*!< in: sync state */
 
 /****************************************************************//**
 Release all resources help by the words rb tree e.g., the node ilist. */
@@ -268,8 +267,7 @@ static
 void
 fts_words_free(
 /*===========*/
-	ib_rbt_t*	words)		/*!< in: rb tree of words */
-	__attribute__((nonnull));
+	ib_rbt_t*	words);		/*!< in: rb tree of words */
 #ifdef FTS_CACHE_SIZE_DEBUG
 /****************************************************************//**
 Read the max cache size parameter from the config table. */
@@ -306,7 +304,7 @@ fts_is_word_in_index(
 	fts_table_t*	fts_table,	/*!< in: table instance */
 	const fts_string_t* word,	/*!< in: the word to check */
 	ibool*		found)		/*!< out: TRUE if exists */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 #endif /* FTS_DOC_STATS_DEBUG */
 
 /******************************************************************//**
@@ -320,8 +318,7 @@ fts_update_sync_doc_id(
 	const dict_table_t*	table,		/*!< in: table */
 	const char*		table_name,	/*!< in: table name, or NULL */
 	doc_id_t		doc_id,		/*!< in: last document id */
-	trx_t*			trx)		/*!< in: update trx, or NULL */
-	__attribute__((nonnull(1)));
+	trx_t*			trx);		/*!< in: update trx, or NULL */
 
 /** Get a character set based on precise type.
 @param prtype precise type
@@ -1476,7 +1473,7 @@ fts_cache_add_doc(
 /****************************************************************//**
 Drops a table. If the table can't be found we return a SUCCESS code.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_drop_table(
 /*===========*/
@@ -1517,7 +1514,7 @@ fts_drop_table(
 /****************************************************************//**
 Rename a single auxiliary table due to database name change.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_rename_one_aux_table(
 /*=====================*/
@@ -1621,7 +1618,7 @@ Drops the common ancillary tables needed for supporting an FTS index
 on the given table. row_mysql_lock_data_dictionary must have been called
 before this.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_drop_common_tables(
 /*===================*/
@@ -1740,7 +1737,7 @@ Drops FTS ancillary tables needed for supporting an FTS index
 on the given table. row_mysql_lock_data_dictionary must have been called
 before this.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_drop_all_index_tables(
 /*======================*/
@@ -1935,11 +1932,16 @@ fts_create_one_index_table(
 
 	fts_get_table_name(fts_table, table_name);
 
-	if (srv_file_per_table) {
-		flags2 = DICT_TF2_USE_FILE_PER_TABLE;
-	}
+	/* Use the file_per_table setting from the main file */
+	flags2 = fts_table->table->flags2
+		 & DICT_TF2_USE_FILE_PER_TABLE;
 
 	new_table = dict_mem_table_create(table_name, 0, 5, 1, flags2);
+
+	if (DICT_TF_HAS_SHARED_SPACE(fts_table->table->flags)) {
+		new_table->tablespace = mem_heap_strdup(
+			heap, fts_table->table->tablespace);
+	}
 
 	field = dict_index_get_nth_field(index, 0);
 	charset = fts_get_charset(field->col->prtype);
@@ -2637,7 +2639,7 @@ fts_get_next_doc_id(
 This function fetch the Doc ID from CONFIG table, and compare with
 the Doc ID supplied. And store the larger one to the CONFIG table.
 @return DB_SUCCESS if OK */
-static __attribute__((nonnull))
+static
 dberr_t
 fts_cmp_set_sync_doc_id(
 /*====================*/
@@ -2869,7 +2871,7 @@ fts_doc_ids_free(
 /*********************************************************************//**
 Do commit-phase steps necessary for the insertion of a new row.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_add(
 /*====*/
@@ -2901,7 +2903,7 @@ fts_add(
 /*********************************************************************//**
 Do commit-phase steps necessary for the deletion of a row.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_delete(
 /*=======*/
@@ -2996,7 +2998,7 @@ fts_delete(
 /*********************************************************************//**
 Do commit-phase steps necessary for the modification of a row.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_modify(
 /*=======*/
@@ -3066,7 +3068,7 @@ fts_create_doc_id(
 The given transaction is about to be committed; do whatever is necessary
 from the FTS system's POV.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_commit_table(
 /*=============*/
@@ -3367,7 +3369,7 @@ fts_fetch_doc_from_rec(
 		doc->is_ngram = index->is_ngram;
 
 		/* Null Field */
-		if (doc->text.f_len == UNIV_SQL_NULL) {
+		if (doc->text.f_len == UNIV_SQL_NULL || doc->text.f_len == 0) {
 			continue;
 		}
 
@@ -3863,7 +3865,7 @@ fts_write_node(
 /*********************************************************************//**
 Add rows to the DELETED_CACHE table.
 @return DB_SUCCESS if all went well else error code*/
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_sync_add_deleted_cache(
 /*=======================*/
@@ -3919,7 +3921,7 @@ fts_sync_add_deleted_cache(
 /*********************************************************************//**
 Write the words and ilist to disk.
 @return DB_SUCCESS if all went well else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_sync_write_words(
 /*=================*/
@@ -4036,7 +4038,7 @@ fts_sync_write_words(
 /*********************************************************************//**
 Write a single documents statistics to disk.
 @return DB_SUCCESS if all went well else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_sync_write_doc_stat(
 /*====================*/
@@ -4291,7 +4293,7 @@ fts_sync_begin(
 Run SYNC on the table, i.e., write out data from the index specific
 cache to the FTS aux INDEX table and FTS aux doc id stats table.
 @return DB_SUCCESS if all OK */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_sync_index(
 /*===========*/
@@ -4328,7 +4330,7 @@ fts_sync_index(
 /*********************************************************************//**
 Commit the SYNC, change state of processed doc ids etc.
 @return DB_SUCCESS if all OK */
-static  __attribute__((nonnull, warn_unused_result))
+static  __attribute__((warn_unused_result))
 dberr_t
 fts_sync_commit(
 /*============*/
@@ -5777,7 +5779,7 @@ fts_savepoint_lookup(
 
 /*********************************************************************//**
 Release the savepoint data identified by  name. All savepoints created
-after the named savepoint are also released.
+after the named savepoint are kept.
 @return DB_SUCCESS or error code */
 void
 fts_savepoint_release(
@@ -5785,81 +5787,37 @@ fts_savepoint_release(
 	trx_t*		trx,		/*!< in: transaction */
 	const char*	name)		/*!< in: savepoint name */
 {
-	ulint			i;
-	ib_vector_t*		savepoints;
-	ulint			top_of_stack = 0;
-
 	ut_a(name != NULL);
 
-	savepoints = trx->fts_trx->savepoints;
+	ib_vector_t*	savepoints = trx->fts_trx->savepoints;
 
 	ut_a(ib_vector_size(savepoints) > 0);
 
-	/* Skip the implied savepoint (first element). */
-	for (i = 1; i < ib_vector_size(savepoints); ++i) {
-		fts_savepoint_t*	savepoint;
+	ulint   i = fts_savepoint_lookup(savepoints, name);
+	if (i != ULINT_UNDEFINED) {
+		ut_a(i >= 1);
 
+		fts_savepoint_t*        savepoint;
 		savepoint = static_cast<fts_savepoint_t*>(
 			ib_vector_get(savepoints, i));
 
-		/* Even though we release the resources that are part
-		of the savepoint, we don't (always) actually delete the
-		entry.  We simply set the savepoint name to NULL. Therefore
-		we have to skip deleted/released entries. */
-		if (savepoint->name != NULL
-		    && strcmp(name, savepoint->name) == 0) {
-			break;
+		if (i == ib_vector_size(savepoints) - 1) {
+			/* If the savepoint is the last, we save its
+			tables to the  previous savepoint. */
+			fts_savepoint_t*	prev_savepoint;
+			prev_savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_get(savepoints, i - 1));
 
-		/* Track the previous savepoint instance that will
-		be at the top of the stack after the release. */
-		} else if (savepoint->name != NULL) {
-			/* We need to delete all entries
-			greater than this element. */
-			top_of_stack = i;
+			ib_rbt_t*	tables = savepoint->tables;
+			savepoint->tables = prev_savepoint->tables;
+			prev_savepoint->tables = tables;
 		}
-	}
 
-	/* Only if we found and element to release. */
-	if (i < ib_vector_size(savepoints)) {
-		fts_savepoint_t*	last_savepoint;
-		fts_savepoint_t*	top_savepoint;
-		ib_rbt_t*		tables;
-
-		ut_a(top_of_stack < ib_vector_size(savepoints));
-
-		/* Exchange tables between last savepoint and top savepoint */
-		last_savepoint = static_cast<fts_savepoint_t*>(
-				ib_vector_last(trx->fts_trx->savepoints));
-		top_savepoint = static_cast<fts_savepoint_t*>(
-				ib_vector_get(savepoints, top_of_stack));
-		tables = top_savepoint->tables;
-		top_savepoint->tables = last_savepoint->tables;
-		last_savepoint->tables = tables;
-
-		/* Skip the implied savepoint. */
-		for (i = ib_vector_size(savepoints) - 1;
-		     i > top_of_stack;
-		     --i) {
-
-			fts_savepoint_t*	savepoint;
-
-			savepoint = static_cast<fts_savepoint_t*>(
-				ib_vector_get(savepoints, i));
-
-			/* Skip savepoints that were released earlier. */
-			if (savepoint->name != NULL) {
-				savepoint->name = NULL;
-				fts_savepoint_free(savepoint);
-			}
-
-			ib_vector_pop(savepoints);
-		}
+		fts_savepoint_free(savepoint);
+		ib_vector_remove(savepoints, *(void**)savepoint);
 
 		/* Make sure we don't delete the implied savepoint. */
 		ut_a(ib_vector_size(savepoints) > 0);
-
-		/* This must hold. */
-		ut_a(ib_vector_size(savepoints) == (top_of_stack + 1));
 	}
 }
 
@@ -6313,7 +6271,7 @@ fts_update_hex_format_flag(
 /*********************************************************************//**
 Rename an aux table to HEX format. It's called when "%016llu" is used
 to format an object id in table name, which only happens in Windows. */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_rename_one_aux_table_to_hex_format(
 /*===================================*/
@@ -6400,7 +6358,7 @@ Note the ids in tables are correct but the names are old ambiguous ones.
 
 This function should make sure that either all the parent table and aux tables
 are set DICT_TF2_FTS_AUX_HEX_NAME with flags2 or none of them are set */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_rename_aux_tables_to_hex_format_low(
 /*====================================*/
@@ -6878,7 +6836,7 @@ fts_drop_aux_table_from_vector(
 Check and drop all orphaned FTS auxiliary tables, those that don't have
 a parent table or FTS index defined on them.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull))
+static
 void
 fts_check_and_drop_orphaned_tables(
 /*===============================*/

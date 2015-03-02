@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,6 +39,8 @@ Created 10/25/1995 Heikki Tuuri
 
 #include <list>
 #include <vector>
+
+extern const char general_space_name[];
 
 // Forward declaration
 struct trx_t;
@@ -599,7 +601,7 @@ fil_op_replay_rename(
 	const char*	new_name)
 	__attribute__((warn_unused_result));
 
-/** Deletes a Single-Table IBD tablespace.
+/** Deletes an IBD tablespace, either general or single-table.
 The tablespace must be cached in the memory cache. This will delete the
 datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
 @param[in]	space_id	Tablespace id
@@ -738,13 +740,12 @@ fil_make_filepath(
 	ib_extention	suffix,
 	bool		strip_name);
 
-/** Creates a new Single-Table tablespace
+/** Creates a new General or Single-Table tablespace
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name in dbname/tablename format.
 For general tablespaces, the 'dbname/' part may be missing.
 @param[in]	path		Path and filename of the datafile to create.
 @param[in]	flags		Tablespace flags
-@param[in]	is_temp		true if this is a temporary table
 @param[in]	size		Initial size of the tablespace file in pages,
 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
@@ -754,7 +755,6 @@ fil_ibd_create(
 	const char*	name,
 	const char*	path,
 	ulint		flags,
-	bool		is_temp,
 	ulint		size)
 	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
@@ -1124,6 +1124,13 @@ fil_space_read_name_and_filepath(
 	ulint	space_id,
 	char**	name,
 	char**	filepath);
+
+/** Convert a file name to a tablespace name.
+@param[in]	filename	directory/databasename/tablename.ibd
+@return database/tablename string, to be freed with ut_free() */
+char*
+fil_path_to_space_name(
+	const char*	filename);
 
 /** Returns the space ID based on the tablespace name.
 The tablespace must be found in the tablespace memory cache.

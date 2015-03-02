@@ -1,0 +1,866 @@
+
+######################### t/grant_user_lock_qa.test ########################
+# Testing CREATE/ALTER UESR with ACCOUNT UNLOCK,ACCOUNT LOCK options.      #
+# Test for WL#6054                                                         #
+# Created: 2014-01-27                                                      #
+# Author : Lalit Choudhary                                                 #
+############################################################################
+
+-- source include/not_embedded.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo
+--echo # CREATE USER,ALTER USER,SHOW CREATE USER tests with ACCOUNT UNLOCK/LOCK
+connection default;
+FLUSH STATUS;
+CREATE USER user1;
+--replace_column 4 #
+query_vertical SELECT host,user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='user1';
+# Testing connection
+--connect(con1, localhost, user1)
+SELECT USER();
+connection default;
+disconnect con1;
+
+ALTER USER user1;
+--replace_column 4 #
+query_vertical SELECT host,user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='user1';
+--echo
+SHOW CREATE USER user1;
+
+# Testing connection
+--connect(con1, localhost, user1)
+SELECT USER();
+connection default;
+disconnect con1;
+
+CREATE USER user2@localhost ACCOUNT UNLOCK;
+--replace_column 4 #
+query_vertical SELECT host,user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='user2';
+--echo # Current user ACCOUNT LOCK within own running session.
+# Using user()
+# Testing connection
+--connect(con1, localhost, user2)
+SELECT USER();
+--error ER_PARSE_ERROR
+ALTER USER user() IDENTIFIED BY 'auth_string' ACCOUNT LOCK;
+connection default;
+disconnect con1;
+
+# Using user_name
+GRANT CREATE USER ON *.* TO user2@localhost;
+FLUSH PRIVILEGES;
+# Testing connection
+--connect(con1, localhost, user2)
+SELECT USER();
+ALTER USER user2@localhost IDENTIFIED BY 'auth_string' ACCOUNT LOCK;
+SELECT USER();
+connection default;
+disconnect con1;
+
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, user2,'auth_string')
+connection default;
+
+ALTER USER user2@localhost ACCOUNT LOCK;
+--replace_column 4 #
+query_vertical SELECT host,user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='user2';
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, user2,'auth_string')
+connection default;
+
+CREATE USER 'user8'@'localhost'
+            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+            ACCOUNT UNLOCK;
+ALTER USER 'user8'@'localhost' ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+CREATE USER 'user9'@'localhost'
+            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+            ACCOUNT LOCK;
+CREATE USER 'user10'@'localhost'
+            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+            PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+ALTER USER 'user10'@'localhost' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+CREATE USER 'user11'@'localhost'
+            IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+            ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+ALTER USER 'user11'@'localhost' PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
+
+# Testing invalid syntax
+--error ER_PARSE_ERROR
+CREATE USER ACCOUNT UNLOCK user5@localhost;
+--error ER_PARSE_ERROR
+CREATE USER ACCOUNT LOCK user6@localhost;
+--error ER_PARSE_ERROR
+ALTER USER ACCOUNT LOCK user2@localhost;
+--error ER_PARSE_ERROR
+ALTER USER ACCOUNT UNLOCK user2@localhot;
+
+# CREATE/ALTER USER with  Using masks with multiple user.
+CREATE USER user3,user4@localhost ACCOUNT LOCK;
+CREATE USER user6@'%',user7@localhost ACCOUNT LOCK;
+ALTER USER user3,user4@localhost ACCOUNT UNLOCK;
+ALTER USER user7@localhost,user6@'%' ACCOUNT UNLOCK;
+--replace_column 4 #
+query_vertical SELECT host,user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user3';
+--replace_column 4 #
+query_vertical SELECT host,user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user4';
+
+ALTER USER user4@localhost,user3 ACCOUNT LOCK;
+--replace_column 4 #
+query_vertical SELECT host,user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user3';
+--replace_column 4 #
+query_vertical SELECT host,user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user4';
+
+SHOW STATUS LIKE 'locked_connects';
+FLUSH STATUS;
+# Account access permission information for a user should NOT be available
+# through INFORMATION_SCHEMA.user_privileges. The LOGIN permission is NOT a privilege.
+SELECT * FROM INFORMATION_SCHEMA.user_privileges WHERE GRANTEE LIKE '%user%';
+
+# Cleanup
+DROP USER user1,user2@localhost,user3,user4@localhost,user6,user7@localhost,
+          user8@localhost,user9@localhost,user10@localhost,user11@localhost;
+--echo
+--echo
+CREATE USER u1@localhost ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='u1';
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u1)
+connection default;
+
+ALTER USER u1@localhost;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='u1';
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u1)
+connection default;
+
+CREATE USER u2@localhost IDENTIFIED BY 'auth_string' ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='u2';
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u2,'auth_string')
+connection default;
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u2@localhost;
+--echo # Recreating user using SHOW CREATE USER output for u2@localhost
+DROP USER u2@localhost;
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+            AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+            REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u2,'auth_string')
+connection default;
+
+ALTER USER u2@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='u2';
+# Testing connection
+--connect(con1, localhost, u2,'auth_string')
+SELECT USER();
+connection default;
+disconnect con1;
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u2@localhost;
+
+CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password'
+                         ACCOUNT UNLOCK ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u3';
+--echo
+SHOW CREATE USER u3@localhost;
+
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u3,,,,,SSL)
+connection default;
+
+ALTER USER u3@localhost IDENTIFIED WITH 'sha256_password'
+                        ACCOUNT LOCK ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u3';
+# Testing connection
+--connect(con1, localhost, u3,,,,,SSL)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+--enable_warnings
+SET PASSWORD = 'def';
+--disable_warnings
+connection default;
+disconnect con1;
+--enable_warnings
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u3@localhost;
+
+CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
+                         PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u4';
+
+ALTER USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
+                        ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u4';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u4@localhost;
+
+# Testing connection
+--connect(con1, localhost, u4,'auth_string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+--echo
+CREATE USER user4@localhost IDENTIFIED WITH 'sha256_password' AS 'auth_string'
+ACCOUNT LOCK PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD EXPIRE INTERVAL 90 DAY;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user4';
+
+CREATE USER user5@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+                            ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
+# Testing connection
+--connect(con1, localhost, user5, 'auth_string')
+SELECT USER();
+connection default;
+disconnect con1;
+
+--echo
+CREATE USER user6@localhost IDENTIFIED WITH 'mysql_native_password'
+                            ACCOUNT UNLOCK ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user6';
+--echo
+SHOW CREATE USER user6@localhost;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, user6)
+connection default;
+ALTER USER user6@localhost IDENTIFIED WITH 'mysql_native_password'
+                           ACCOUNT LOCK ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user6';
+# ALTER USER ... ACCOUNT UNLOCK will set password_expired=Y and
+# user has to SET PASSWORD after login.
+# Only for user with blank password.
+
+# Testing connection
+--connect(con1, localhost, user6)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+connection default;
+disconnect con1;
+
+--echo
+CREATE USER user7@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string#%y'
+            PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user7';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER user7@localhost;
+# Testing connection
+--connect(con1, localhost, user7, 'auth_string#%y')
+SELECT USER();
+connection default;
+disconnect con1;
+ALTER USER user7@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string_sha256'
+           PASSWORD EXPIRE NEVER ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user7';
+--echo
+--echo # Testing connection with wrong password and ACCOUNT LOCK state
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+--connect(con1, localhost, user7, 'auth_string#%y',,,,SSL)
+connection default;
+--echo # Testing connection with correct password and ACCOUNT LOCK state
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, user7,'auth_string_sha256',,,,SSL)
+connection default;
+
+CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password'
+AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user8';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER user8@localhost;
+# Testing connection
+--connect(con1, localhost, user8,'auth_string')
+SELECT USER();
+connection default;
+disconnect con1;
+ALTER USER user8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'new_auth_string'
+                           ACCOUNT UNLOCK PASSWORD EXPIRE;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='user8';
+# Testing connection
+--connect(con1, localhost, user8,'new_auth_string')
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+SET PASSWORD='auth_string';
+SELECT USER();
+connection default;
+disconnect con1;
+
+--echo
+CREATE USER u5@localhost REQUIRE SSL ACCOUNT LOCK PASSWORD EXPIRE;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u5';
+--echo
+SHOW CREATE USER u5@localhost;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u5,,,,,SSL)
+connection default;
+ALTER USER u5@localhost REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
+--connect(con1, localhost, u5,,,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509
+                         ACCOUNT LOCK PASSWORD EXPIRE PASSWORD EXPIRE NEVER;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u6';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u6@localhost;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u6,'auth_string',,,,SSL)
+connection default;
+ALTER USER u6@localhost ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u6';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u6@localhost;
+# Testing connection
+--connect(con1, localhost, u6,'auth_string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
+            REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+            PASSWORD EXPIRE NEVER PASSWORD EXPIRE NEVER;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u7';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u7@localhost;
+# Testing connection
+--connect(con1, localhost, u7,,,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+ALTER USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
+                        PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u7';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u7@localhost;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u7,,,,,SSL)
+connection default;
+
+CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
+            REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA'
+            PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u8';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u8@localhost;
+# Testing connection
+--connect(con1, localhost, u8,'auth_string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+ALTER USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
+            REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA'
+            PASSWORD EXPIRE NEVER ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u8';
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u8,'auth_string',,,,SSL)
+connection default;
+
+CREATE USER u9@localhost
+            REQUIRE SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+            ACCOUNT LOCK PASSWORD EXPIRE NEVER;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u9';
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u9,,,,,SSL)
+connection default;
+ALTER USER u9@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string' ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u9';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u9@localhost;
+# Testing connection
+--connect(con1, localhost, u9,'auth_string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string#y'
+            REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+            SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+            ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+            ACCOUNT LOCK PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u10';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u10@localhost;
+# Testing connection
+--connect(con1, localhost, u10,'auth_string#y',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+ALTER USER u10@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+           ACCOUNT UNLOCK PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u10';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u10@localhost;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u10,auth_string#y,,,,SSL)
+connection default;
+
+CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2 ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
+--echo
+SHOW CREATE USER u11@localhost;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u11)
+connection default;
+ALTER USER u11@localhost WITH MAX_QUERIES_PER_HOUR 6 ACCOUNT UNLOCK ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
+--echo
+SHOW CREATE USER u11@localhost;
+# Recreating user from SHOW CREATE USER output.
+DROP USER u11@localhost;
+CREATE USER 'u11'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 6 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
+# Testing connection
+--connect(con1, localhost, u11)
+SELECT USER();
+connection default;
+disconnect con1;
+
+CREATE USER u12@localhost IDENTIFIED BY 'auth_string'
+                          WITH MAX_QUERIES_PER_HOUR 4
+                          ACCOUNT LOCK PASSWORD EXPIRE NEVER PASSWORD EXPIRE ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u12';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u12@localhost;
+# Testing connection
+--connect(con1, localhost, u12,'auth_string')
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+# Password set to current user
+ALTER USER USER() IDENTIFIED BY 'abc';
+SELECT USER();
+connection default;
+disconnect con1;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u12';
+
+ALTER USER u12@localhost ACCOUNT LOCK PASSWORD EXPIRE NEVER
+                         PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
+                         ACCOUNT LOCK ACCOUNT LOCK ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u12';
+--echo
+SHOW CREATE USER u12@localhost;
+# Testing connection
+--connect(con1, localhost, u12,'abc')
+SELECT USER();
+connection default;
+disconnect con1;
+
+CREATE USER u13@localhost IDENTIFIED WITH 'sha256_password'
+            WITH MAX_CONNECTIONS_PER_HOUR 2 ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,max_connections,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u13';
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u13,,,,,SSL)
+connection default;
+ALTER USER u13@localhost PASSWORD EXPIRE INTERVAL 20 DAY ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,max_connections,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u13';
+--echo
+SHOW CREATE USER u13@localhost;
+# Testing connection
+--connect(con1, localhost, u13,,,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+CREATE USER u14@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
+REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+WITH MAX_USER_CONNECTIONS 2 ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 999 DAY ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_user_connections,password_expired,password_lifetime,account_locked
+FROM mysql.user WHERE USER='u14';
+# Testing connection
+--connect(con1, localhost, u14,'auth_string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+ALTER USER u14@localhost
+REQUIRE SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+WITH MAX_USER_CONNECTIONS 2 ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 999 DAY ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_user_connections,password_expired,password_lifetime,account_locked
+FROM mysql.user WHERE USER='u14';
+--echo
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+SHOW CREATE USER u14@localhost;
+# Testing connection
+--connect(con1, localhost, u14,'auth_string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+CREATE USER u15@localhost,
+            u16@localhost IDENTIFIED BY 'auth_string',
+            u17@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
+            ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='u15';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='u16';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,account_locked
+FROM mysql.user WHERE USER='u17';
+# Testing connection
+--connect(con1, localhost, u15)
+SELECT USER();
+connection default;
+disconnect con1;
+# Testing connection
+--connect(con1, localhost, u16,'auth_string')
+SELECT USER();
+connection default;
+disconnect con1;
+# Testing connection
+--connect(con1, localhost, u17,'auth_string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+CREATE USER u18@localhost,
+            u19@localhost IDENTIFIED BY 'auth_string',
+            u20@localhost IDENTIFIED WITH 'sha256_password',
+            u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string',
+            u22@localhost IDENTIFIED WITH 'mysql_native_password',
+            u23@localhost IDENTIFIED WITH 'mysql_native_password'
+                          AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634'
+            REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
+            WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 ACCOUNT LOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u18';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u19';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u20';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u21';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+x509_issuer,x509_subject,max_questions,max_user_connections,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u22';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,
+x509_issuer,x509_subject,max_questions,max_user_connections,password_expired,
+password_lifetime,account_locked FROM mysql.user WHERE USER='u23';
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u18,,,,,SSL)
+connection default;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u19,'auth_string',,,,SSL)
+connection default;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u20,,,,,SSL)
+connection default;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u21,'auth_string',,,,SSL)
+connection default;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u22,,,,,SSL)
+connection default;
+# Testing connection
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+--connect(con1, localhost, u23,'auth_&string',,,,SSL)
+connection default;
+ALTER  USER u18@localhost,
+            u19@localhost IDENTIFIED BY 'auth_string',
+            u20@localhost IDENTIFIED WITH 'sha256_password',
+            u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string',
+            u22@localhost IDENTIFIED WITH 'mysql_native_password',
+            u23@localhost IDENTIFIED WITH 'mysql_native_password'
+                          AS '*318C29553A414C4A571A077BC9E9A9F67D5E5634'
+                          REQUIRE CIPHER "DHE-RSA-AES256-SHA"
+                          ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+                          ACCOUNT UNLOCK;
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u18';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u19';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u20';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u21';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u22';
+--replace_column 3 #
+query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
+x509_subject,max_questions,max_user_connections,password_expired,password_lifetime,
+account_locked FROM mysql.user WHERE USER='u23';
+# Testing connection
+--connect(con1, localhost, u18,,,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+# Testing connection
+--connect(con1, localhost, u19,'auth_string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+# Testing connection
+--connect(con1, localhost, u20,,,,,SSL)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+connection default;
+disconnect con1;
+
+# Testing connection
+--connect(con1, localhost, u21,'auth_string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+# Testing connection
+--connect(con1, localhost, u22,,,,,SSL)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+connection default;
+disconnect con1;
+
+# Testing connection
+--connect(con1, localhost, u23,'auth_&string',,,,SSL)
+SELECT USER();
+connection default;
+disconnect con1;
+
+--echo # Locked_connects variable count
+SHOW STATUS LIKE 'Locked_connects';
+SHOW GLOBAL STATUS LIKE 'LOCKED_Connects';
+SHOW SESSION STATUS LIKE 'locked_connects';
+FLUSH STATUS;
+--echo # Cleanup
+DROP USER user4@localhost,user5@localhost,user6@localhost,user7@localhost,user8@localhost,
+          u1@localhost, u2@localhost, u3@localhost, u4@localhost, u5@localhost,
+          u6@localhost, u7@localhost, u8@localhost, u9@localhost, u10@localhost,
+          u11@localhost, u12@localhost, u13@localhost, u14@localhost,
+          u15@localhost, u16@localhost, u17@localhost, u18@localhost,
+          u19@localhost, u20@localhost, u21@localhost,u22@localhost,u23@localhost;
+
+--echo # Create stored procedure,trigger,function and test with lock/unlock users.
+connection default;
+CREATE USER u1@localhost IDENTIFIED BY 'pass';
+CREATE USER u2@localhost IDENTIFIED BY 'pass';
+GRANT ALL ON *.* TO u1@localhost;
+
+CREATE TABLE test.t1(counter INT);
+INSERT INTO test.t1 VALUES(0);
+CREATE TABLE test.t2(update_count INT);
+
+
+--echo # TRIGGER
+DELIMITER |;
+CREATE DEFINER = u1@localhost TRIGGER test.t1_update_count
+BEFORE UPDATE ON test.t1 FOR EACH ROW
+BEGIN
+  UPDATE test.t2 SET update_count = update_count + 1;
+END|
+DELIMITER ;|
+
+--echo # PROCEDURE
+DELIMITER |;
+CREATE DEFINER = u1@localhost PROCEDURE test.p1()
+BEGIN
+  UPDATE test.t1 SET counter= counter + 1;
+  UPDATE test.t1 SET counter= counter + 1;
+  UPDATE test.t1 SET counter= counter + 1;
+  SELECT counter FROM test.t1;
+END|
+DELIMITER ;|
+CALL test.p1();
+SELECT update_count FROM test.t2;
+
+--echo # FUNCTION
+DELIMITER |;
+CREATE DEFINER = u1@localhost FUNCTION test.myfunc() RETURNS CHAR(50)
+BEGIN
+RETURN 'wl6054_test';
+END|
+DELIMITER ;|
+
+GRANT EXECUTE ON PROCEDURE test.p1 TO u2@localhost;
+GRANT EXECUTE ON FUNCTION test.myfunc TO u2@localhost;
+ALTER USER u1@localhost ACCOUNT LOCK;
+
+--echo # Login for u1@localhost should fail.
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCOUNT_HAS_BEEN_LOCKED
+connect(u1_con,localhost,u1,pass);
+
+--echo # Login as u2 and run stored procedure and trigger as u1.
+connect(u2_con,localhost,u2,pass);
+SELECT CURRENT_USER();
+CALL test.p1();
+SELECT update_count FROM test.t2;
+SELECT update_count,myfunc() FROM test.t2;
+connection default;
+disconnect u2_con;
+
+--echo # Cleanup
+DROP PROCEDURE IF EXISTS test.p1;
+DROP TRIGGER IF EXISTS t1_update_count;
+DROP FUNCTION IF EXISTS test.myfunc;
+DROP TABLE test.t1,test.t2;
+DROP USER u1@localhost,u2@localhost;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+--echo
+--echo End of 5.7 tests!
+--echo

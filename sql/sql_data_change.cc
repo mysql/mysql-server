@@ -26,6 +26,7 @@
 
 #include "sql_class.h"  // THD
 #include "table.h"      // TABLE
+#include "current_thd.h"
 
 /**
    Allocates and initializes a MY_BITMAP bitmap, containing one bit per column

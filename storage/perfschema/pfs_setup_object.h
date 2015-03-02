@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ struct PFS_ALIGNED PFS_setup_object
 
 int init_setup_object(const PFS_global_param *param);
 void cleanup_setup_object(void);
-int init_setup_object_hash(void);
+int init_setup_object_hash(const PFS_global_param *param);
 void cleanup_setup_object_hash(void);
 
 int insert_setup_object(enum_object_type object_type, const String *schema,
@@ -88,13 +88,7 @@ void lookup_setup_object(PFS_thread *thread,
                          const char *object_name, int object_name_length,
                          bool *enabled, bool *timed);
 
-/* For iterators and show status. */
-
-extern ulong setup_object_max;
-
-/* Exposing the data directly, for iterators. */
-
-extern PFS_setup_object *setup_object_array;
+/* For show status. */
 
 extern LF_HASH setup_object_hash;
 

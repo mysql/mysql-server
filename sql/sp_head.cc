@@ -18,6 +18,7 @@
 
 #include "sql_cache.h"         // query_cache_*
 #include "probes_mysql.h"
+#include "psi_memory_key.h"
 #include "sql_show.h"          // append_identifier
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
 #include "sql_table.h"         // prepare_create_field
@@ -523,6 +524,8 @@ Field *sp_head::create_result_field(size_t field_max_length,
                  m_return_field_def.interval,
                  field_name ? field_name : (const char *) m_name.str);
 
+  field->gcol_info= m_return_field_def.gcol_info;
+  field->stored_in_db= m_return_field_def.stored_in_db;
   if (field)
     field->init(table);
 

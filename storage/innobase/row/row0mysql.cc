@@ -1009,8 +1009,9 @@ row_prebuilt_free(
 	if (prebuilt->rtr_info) {
 		rtr_clean_rtr_info(prebuilt->rtr_info, true);
 	}
-
-	dict_table_close(prebuilt->table, dict_locked, TRUE);
+	if (prebuilt->table) {
+		dict_table_close(prebuilt->table, dict_locked, TRUE);
+	}
 
 	mem_heap_free(prebuilt->heap);
 }
@@ -2948,7 +2949,7 @@ err_exit:
 	tablespace was created. */
 	if (err == DB_SUCCESS && dict_table_is_file_per_table(table)) {
 
-		ut_ad(!is_system_tablespace(table->space));
+		ut_ad(dict_table_is_file_per_table(table));
 
 		char*	path;
 		path = fil_space_get_first_path(table->space);
@@ -4139,16 +4140,6 @@ row_drop_table_for_mysql(
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
-
-		if (!row_is_mysql_tmp_table_name(name)) {
-			ib::error() << "Table " << ut_get_name(trx, name)
-				<< " does not exist in the InnoDB internal"
-				" data dictionary though MySQL is trying to"
-				" drop it. Have you copied the .frm file"
-				" of the table to the MySQL database directory"
-				" from another database? "
-				<< TROUBLESHOOTING_MSG;
-		}
 		goto funct_exit;
 	}
 
@@ -4499,12 +4490,13 @@ row_drop_table_for_mysql(
 			"DELETE FROM SYS_TABLES\n"
 			"WHERE NAME = :table_name;\n";
 
-		sql += "DELETE FROM SYS_TABLESPACES\n"
-			"WHERE SPACE = space_id;\n"
-			"DELETE FROM SYS_DATAFILES\n"
-			"WHERE SPACE = space_id;\n";
-
-		sql.append("END;\n");
+		if (dict_table_is_file_per_table(table)) {
+			sql += "DELETE FROM SYS_TABLESPACES\n"
+				"WHERE SPACE = space_id;\n"
+				"DELETE FROM SYS_DATAFILES\n"
+				"WHERE SPACE = space_id;\n";
+		}
+		sql += "END;\n";
 
 		err = que_eval_sql(info, sql.c_str(), FALSE, trx);
 	} else {
@@ -4523,12 +4515,14 @@ row_drop_table_for_mysql(
 		bool	is_temp;
 		bool	ibd_file_missing;
 		bool	is_discarded;
+		bool	shared_tablespace;
 
 	case DB_SUCCESS:
 		space_id = table->space;
 		ibd_file_missing = table->ibd_file_missing;
 		is_discarded = dict_table_is_discarded(table);
 		is_temp = dict_table_is_temporary(table);
+		shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
 
 		/* If there is a temp path then the temp flag is set.
 		However, during recovery, we might have a temp flag but
@@ -4541,9 +4535,14 @@ row_drop_table_for_mysql(
 		/* Make sure the data_dir_path is set if needed. */
 		dict_get_and_save_data_dir_path(table, true);
 
-		/* Determine the tablespace file name.  Then free this memory
-		after the table has been successfully removed from cache. */
-		if (space_id && DICT_TF_HAS_DATA_DIR(table->flags)) {
+		err = row_drop_ancillary_fts_tables(table, trx);
+		if (err != DB_SUCCESS) {
+			break;
+		}
+
+		/* Determine the tablespace filename before we drop
+		dict_table_t.  Free this memory before returning. */
+		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			ut_a(table->data_dir_path);
 
 			filepath = fil_make_filepath(
@@ -4553,14 +4552,9 @@ row_drop_table_for_mysql(
 			filepath = fil_make_filepath(
 				table->dir_path_of_temp_table,
 				NULL, IBD, false);
-		} else {
+		} else if (!shared_tablespace) {
 			filepath = fil_make_filepath(
 				NULL, table->name.m_name, IBD, false);
-		}
-
-		err = row_drop_ancillary_fts_tables(table, trx);
-		if (err != DB_SUCCESS) {
-			break;
 		}
 
 		/* Free the dict_table_t object. */
@@ -4571,14 +4565,12 @@ row_drop_table_for_mysql(
 
 		/* Do not attempt to drop known-to-be-missing tablespaces,
 		nor system or shared general tablespaces. */
-		if (is_discarded || ibd_file_missing
+		if (is_discarded || ibd_file_missing || shared_tablespace
 		    || is_system_tablespace(space_id)) {
 			break;
 		}
 
-		/* OK so far.  We can now drop the single-table tablespace.
-		We do not want to delete valuable data if something went
-		wrong. */
+		/* We can now drop the single-table tablespace. */
 		err = row_drop_single_table_tablespace(
 			space_id, tablename, filepath, is_temp, trx);
 		break;
@@ -4764,7 +4756,7 @@ row_mysql_drop_temp_tables(void)
 Drop all foreign keys in a database, see Bug#18942.
 Called at the end of row_drop_database_for_mysql().
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 drop_all_foreign_keys_in_db(
 /*========================*/
@@ -4827,20 +4819,32 @@ dberr_t
 row_drop_database_for_mysql(
 /*========================*/
 	const char*	name,	/*!< in: database name which ends to '/' */
-	trx_t*		trx)	/*!< in: transaction handle */
+	trx_t*		trx,	/*!< in: transaction handle */
+	ulint*		found)	/*!< out: Number of dropped tables/partitions */
 {
 	dict_table_t*	table;
 	char*		table_name;
 	dberr_t		err	= DB_SUCCESS;
 	ulint		namelen	= strlen(name);
+	bool		is_partition = false;
 	DBUG_ENTER("row_drop_database_for_mysql");
 
 	DBUG_PRINT("row_drop_database_for_mysql", ("db: '%s'", name));
 
 	ut_a(name != NULL);
-	ut_a(name[namelen - 1] == '/');
+	/* Assert DB name or partition name. */
+	if (name[namelen - 1] == '#') {
+		ut_ad(name[namelen - 2] != '/');
+		is_partition = true;
+		trx->op_info = "dropping partitions";
+	} else {
+		ut_a(name[namelen - 1] == '/');
+		trx->op_info = "dropping database";
+	}
 
-	trx->op_info = "dropping database";
+	if (found) {
+		*found = 0;
+	}
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
@@ -4871,7 +4875,8 @@ loop:
 			/* There could be orphan temp tables left from
 			interrupted alter table. Leave them, and handle
 			the rest.*/
-			if (table->can_be_evicted) {
+			if (table->can_be_evicted
+			    && (name[namelen - 1] != '#')) {
 				ib::warn() << "Orphan table encountered during"
 					" DROP DATABASE. This is possible if '"
 					<< table->name << ".frm' was lost.";
@@ -4889,6 +4894,17 @@ loop:
 		dict_table_open() or after dict_table_close(). But this is OK
 		if we are holding, the dict_sys->mutex. */
 		ut_ad(mutex_own(&dict_sys->mutex));
+
+		/* Disable statistics on the found table. */
+		if (!dict_stats_stop_bg(table)) {
+			row_mysql_unlock_data_dictionary(trx);
+
+			os_thread_sleep(250000);
+
+			ut_free(table_name);
+
+			goto loop;
+		}
 
 		/* Wait until MySQL does not have any queries running on
 		the table */
@@ -4921,9 +4937,13 @@ loop:
 		}
 
 		ut_free(table_name);
+		if (found) {
+			(*found)++;
+		}
 	}
 
-	if (err == DB_SUCCESS) {
+	/* Partitioning does not yet support foreign keys. */
+	if (err == DB_SUCCESS && !is_partition) {
 		/* after dropping all tables try to drop all leftover
 		foreign keys in case orphaned ones exist */
 		err = drop_all_foreign_keys_in_db(name, trx);
@@ -4963,7 +4983,7 @@ row_is_mysql_tmp_table_name(
 /****************************************************************//**
 Delete a single constraint.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_delete_constraint_low(
 /*======================*/
@@ -4986,7 +5006,7 @@ row_delete_constraint_low(
 /****************************************************************//**
 Delete a single constraint.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_delete_constraint(
 /*==================*/
@@ -5072,12 +5092,6 @@ row_rename_table_for_mysql(
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
-		ib::error() << "Table " << ut_get_name(trx, old_name)
-			<< " does not exist in the InnoDB internal data"
-			" dictionary though MySQL is trying to rename the"
-			" table. Have you copied the .frm file of the table to"
-			" the MySQL database directory from another database? "
-			<< TROUBLESHOOTING_MSG;
 		goto funct_exit;
 
 	} else if (table->ibd_file_missing
@@ -5146,7 +5160,7 @@ row_rename_table_for_mysql(
 	/* SYS_TABLESPACES and SYS_DATAFILES need to be updated if
 	the table is in a single-table tablespace. */
 	if (err == DB_SUCCESS
-	    && !is_system_tablespace(table->space)
+	    && dict_table_is_file_per_table(table)
 	    && !table->ibd_file_missing) {
 		/* Make a new pathname to update SYS_DATAFILES. */
 		char*	new_path = row_make_new_pathname(table, new_name);
@@ -5405,7 +5419,7 @@ funct_exit:
 		/* If the first fts_rename fails, the trx would
 		be rolled back and committed, we can't use it any more,
 		so we have to start a new background trx here. */
-		ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+		ut_a(trx_state_eq(trx_bg, TRX_STATE_NOT_STARTED));
 		trx_bg->op_info = "Revert the failing rename "
 				  "for fts aux tables";
 		trx_bg->dict_operation_lock_mode = RW_X_LATCH;
@@ -5444,8 +5458,61 @@ funct_exit:
 	return(err);
 }
 
+/** Renames a partitioned table for MySQL.
+@param[in]	old_name	Old table name.
+@param[in]	new_name	New table name.
+@param[in,out]	trx		Transaction.
+@return error code or DB_SUCCESS */
+dberr_t
+row_rename_partitions_for_mysql(
+	const char*	old_name,
+	const char*	new_name,
+	trx_t*		trx)
+{
+	char		from_name[FN_REFLEN];
+	char		to_name[FN_REFLEN];
+	ulint		from_len = strlen(old_name);
+	ulint		to_len = strlen(new_name);
+	char*		table_name;
+	dberr_t		error = DB_TABLE_NOT_FOUND;
+
+	ut_a(from_len < (FN_REFLEN - 4));
+	ut_a(to_len < (FN_REFLEN - 4));
+	memcpy(from_name, old_name, from_len);
+	from_name[from_len] = '#';
+	from_name[from_len + 1] = 0;
+	while ((table_name = dict_get_first_table_name_in_db(from_name))) {
+		ut_a(memcmp(table_name, from_name, from_len) == 0);
+		/* Must match #[Pp]#<partition_name> */
+		if (strlen(table_name) <= (from_len + 3)
+		    || table_name[from_len] != '#'
+		    || table_name[from_len + 2] != '#'
+		    || (table_name[from_len + 1] != 'P'
+			&& table_name[from_len + 1] != 'p')) {
+
+			ut_ad(0);
+			ut_free(table_name);
+			continue;
+		}
+		memcpy(to_name, new_name, to_len);
+		memcpy(to_name + to_len, table_name + from_len,
+			strlen(table_name) - from_len + 1);
+		error = row_rename_table_for_mysql(table_name, to_name,
+						trx, false);
+		if (error != DB_SUCCESS) {
+			/* Rollback and return. */
+			trx_rollback_for_mysql(trx);
+			ut_free(table_name);
+			return(error);
+		}
+		ut_free(table_name);
+	}
+	trx_commit_for_mysql(trx);
+	return(error);
+}
+
 /*********************************************************************//**
-Scans an index for either COOUNT(*) or CHECK TABLE.
+Scans an index for either COUNT(*) or CHECK TABLE.
 If CHECK TABLE; Checks that the index contains entries in an ascending order,
 unique constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.

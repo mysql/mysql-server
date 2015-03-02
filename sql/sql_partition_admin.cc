@@ -16,28 +16,15 @@
 #include "sql_partition_admin.h"
 
 #include "auth_common.h"                    // check_access
+#include "current_thd.h"
 #include "sql_table.h"                      // mysql_alter_table, etc.
-#include "sql_partition.h"                  // struct partition_info, etc.
+#include "partition_info.h"                 // class partition_info etc.
 #include "sql_base.h"                       // open_and_lock_tables, etc
 #include "debug_sync.h"                     // DEBUG_SYNC
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-#include "ha_partition.h"                   // ha_partition
-#endif
 #include "sql_base.h"                       // open_and_lock_tables
 #include "log.h"
+#include "partitioning/partition_handler.h" // Partition_handler
 
-#ifndef WITH_PARTITION_STORAGE_ENGINE
-
-bool Sql_cmd_partition_unsupported::execute(THD *)
-{
-  DBUG_ENTER("Sql_cmd_partition_unsupported::execute");
-  /* error, partitioning support not compiled in... */
-  my_error(ER_FEATURE_DISABLED, MYF(0), "partitioning",
-           "--with-plugin-partition");
-  DBUG_RETURN(TRUE);
-}
-
-#else
 
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
 {
@@ -120,12 +107,9 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table)
     DBUG_RETURN(TRUE);
   }
 
-  if (part_table->file->ht != partition_hton)
+  if (!part_table->file->ht->partition_flags ||
+      !(part_table->file->ht->partition_flags() & HA_CAN_EXCHANGE_PARTITION))
   {
-    /*
-      Only allowed on partitioned tables throught the generic ha_partition
-      handler, i.e not yet for native partitioning (NDB).
-    */
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
@@ -739,13 +723,12 @@ bool Sql_cmd_alter_table_repair_partition::execute(THD *thd)
 bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 {
   int error;
-  ha_partition *partition;
   ulong timeout= thd->variables.lock_wait_timeout;
   TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   Alter_info *alter_info= &thd->lex->alter_info;
   uint table_counter;
   List<String> partition_names_list;
-  bool binlog_stmt;
+  Partition_handler *part_handler;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 
   /*
@@ -772,18 +755,13 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   if (open_tables(thd, &first_table, &table_counter, 0))
     DBUG_RETURN(true);
 
-  /*
-    TODO: Add support for TRUNCATE PARTITION for NDB and other
-          engines supporting native partitioning.
-  */
-
   if (!first_table->table || first_table->is_view() ||
-      first_table->table->s->db_type() != partition_hton)
+      !first_table->table->file->ht->partition_flags ||
+      !(part_handler= first_table->table->file->get_partition_handler()))
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-
 
   /*
     Prune all, but named partitions,
@@ -808,10 +786,11 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, first_table->db,
                    first_table->table_name, FALSE);
 
-  partition= (ha_partition*) first_table->table->file;
   /* Invoke the handler method responsible for truncating the partition. */
-  if ((error= partition->truncate_partition(alter_info, &binlog_stmt)))
-    partition->print_error(error, MYF(0));
+  if ((error= part_handler->truncate_partition()))
+  {
+    first_table->table->file->print_error(error, MYF(0));
+  }
 
   /*
     All effects of a truncate operation are committed even if the
@@ -820,8 +799,10 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     before any call to handler::truncate() is done.
     Also, it is logged in statement format, regardless of the binlog format.
   */
-  if (error != HA_ERR_WRONG_COMMAND && binlog_stmt)
+  if (error != HA_ERR_WRONG_COMMAND)
+  {
     error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
+  }
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the
@@ -840,5 +821,3 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 
   DBUG_RETURN(error);
 }
-
-#endif /* WITH_PARTITION_STORAGE_ENGINE */

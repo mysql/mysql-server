@@ -20,6 +20,7 @@
 #include "rpl_info_table_access.h"  // Rpl_info_table_access
 #include "rpl_info_values.h"        // Rpl_info_values
 #include "sql_class.h"              // THD
+#include "psi_memory_key.h"
 
 
 Rpl_info_table::Rpl_info_table(uint nparam,

@@ -61,6 +61,14 @@ typedef float rec_per_key_t;
 */
 #define REC_PER_KEY_UNKNOWN -1.0f
 
+/**
+  If the "in memory estimate" for a table (in
+  ha_statistics.table_in_mem_estimate) or index (in
+  st_key::m_in_memory_estimate) is not known or not set by the storage
+  engine, then it should have the following value.
+*/
+#define IN_MEMORY_ESTIMATE_UNKNOWN -1.0
+
 typedef struct st_key {
   /** Tot length of key */
   uint	key_length;
@@ -101,6 +109,15 @@ typedef struct st_key {
     For internally created temporary tables this member is NULL.
   */
   ulong *rec_per_key;
+
+  /**
+    Estimate for how much of the index data that is currently
+    available in a memory buffer. Valid range is [0..1]. This will be
+    initialized to a IN_MEMORY_ESTIMATE_UNKNOWN. If it still has this
+    value when used, it means that the storage engine has not supplied
+    a value.
+  */
+  double m_in_memory_estimate;
 
 private:
   /**
@@ -223,6 +240,41 @@ public:
   {
     rec_per_key= rec_per_key_arg;
     rec_per_key_float= rec_per_key_float_arg;
+  }
+
+  /**
+    Retrieve the estimate for how much of the index data that is available
+    in a memory buffer.
+
+    The returned estimate will be in the interval [0..1].
+
+    @return Estimate for how much of index data is available in memory buffer
+      @retval IN_MEMORY_ESTIMATE_UNKNOWN no estimate available
+      @retval != IN_MEMORY_ESTIMATE_UNKNOWN estimate
+  */
+
+  double in_memory_estimate() const
+  {
+    DBUG_ASSERT(m_in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+                (m_in_memory_estimate >= 0.0 && m_in_memory_estimate <= 1.0));
+
+    return m_in_memory_estimate;
+  }
+
+  /**
+    Set the estimate for how much of this index that is currently in a
+    memory buffer.
+
+    The estimate must be in the interval [0..1] or take the value
+    IN_MEMORY_ESTIMATE_UNKNOWN.
+  */
+
+  void set_in_memory_estimate(double in_memory_estimate)
+  {
+    DBUG_ASSERT(in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+                (in_memory_estimate >= 0.0 && in_memory_estimate <= 1.0));
+
+    m_in_memory_estimate= in_memory_estimate;
   }
 } KEY;
 

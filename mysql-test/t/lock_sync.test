@@ -943,8 +943,10 @@ SET DEBUG_SYNC="before_lock_tables_takes_lock SIGNAL drop WAIT_FOR query";
 --echo # Connection default
 connection default;
 SET DEBUG_SYNC="now WAIT_FOR drop";
+#--disable_warnings # Don't mask sql_log_bin warning
 SELECT name FROM mysql.event, INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE definer = VARIABLE_VALUE;
+#--enable_warnings
 SET DEBUG_SYNC="now SIGNAL query";
 
 --echo # Connection con1

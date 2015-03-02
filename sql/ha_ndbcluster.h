@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include <ndbapi/ndbapi_limits.h>
 #include <kernel/ndb_limits.h>
 #include "ndb_conflict.h"
+#include "partitioning/partition_handler.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 
@@ -132,7 +133,9 @@ struct st_ndb_status {
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
-class ha_ndbcluster: public handler
+
+
+class ha_ndbcluster: public handler, public Partition_handler
 {
   friend class ndb_pushed_builder_ctx;
 
@@ -207,10 +210,6 @@ public:
   ha_rows estimate_rows_upper_bound()
     { return HA_POS_ERROR; }
   int info(uint);
-#if MYSQL_VERSION_ID < 50501
-  typedef PARTITION_INFO PARTITION_STATS;
-#endif
-  void get_dynamic_partition_info(PARTITION_STATS *stat_info, uint part_id);
   uint32 calculate_key_hash_value(Field **field_array);
   bool start_read_removal(void);
   ha_rows end_read_removal(void);
@@ -225,10 +224,9 @@ public:
   const char * table_type() const;
   const char ** bas_ext() const;
   ulonglong table_flags(void) const;
-  void set_part_info(partition_info *part_info, bool early);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   virtual const key_map *keys_to_use_for_scanning() { return &btree_keys; }
-  bool primary_key_is_clustered();
+  bool primary_key_is_clustered() const;
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
   uint max_supported_key_parts() const;
@@ -252,9 +250,6 @@ public:
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
-  int get_default_no_partitions(HA_CREATE_INFO *info);
-  bool get_no_parts(const char *name, uint *no_parts);
-  void set_auto_partitions(partition_info *part_info);
   virtual bool is_ignorable_error(int error)
   {
     if (handler::is_ignorable_error(error) ||
@@ -598,6 +593,20 @@ private:
   friend int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
   int start_statement(THD *thd, Thd_ndb *thd_ndb, uint table_count);
   int init_handler_for_statement(THD *thd);
+  /*
+    Implementing Partition_handler API.
+  */
+  Partition_handler *get_partition_handler()
+  { return static_cast<Partition_handler*>(this); }
+  uint alter_flags(uint flags) const;
+  void get_dynamic_partition_info(ha_statistics *stat_info,
+                                  ha_checksum *check_sum,
+                                  uint part_id);
+  int get_default_num_partitions(HA_CREATE_INFO *info);
+  bool get_num_parts(const char *name, uint *num_parts);
+  void set_auto_partitions(partition_info *part_info);
+  void set_part_info(partition_info *part_info, bool early);
+  /* End of Partition_handler API */
 
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;

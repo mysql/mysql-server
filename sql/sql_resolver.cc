@@ -113,11 +113,6 @@ bool SELECT_LEX::prepare(THD *thd)
   Opt_trace_object trace_prepare(trace, "join_preparation");
   trace_prepare.add_select_number(select_number);
   Opt_trace_array trace_steps(trace, "steps");
-
-  // These must be reset before every condition preparation
-  cond_count= 0;
-  between_count= 0;
-  max_equal_elems= 0;
  
   // Initially, "all_fields" is the select list
   all_fields= fields_list;
@@ -463,7 +458,6 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
 
   fix_prepare_information(thd);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
     Prune partitions for all query blocks after query block merging, if
     pruning is wanted.
@@ -482,7 +476,6 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
         DBUG_RETURN(true); /* purecov: inspected */
     }
   }
-#endif
 
   DBUG_RETURN(false);
 }
@@ -673,16 +666,15 @@ bool st_select_lex::check_view_privileges(THD *thd,
                                           ulong want_privilege_next)
 {
   ulong want_privilege= want_privilege_first;
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, true, leaf_tables);
 
   for (TABLE_LIST *tl= leaf_tables; tl; tl= tl->next_leaf)
   {
     for (TABLE_LIST *ref= tl; ref->referencing_view; ref= ref->referencing_view)
     {
       if (check_single_table_access(thd, want_privilege, ref, false))
-      {
-        tl->hide_view_error(thd);
         return true;
-      }
     }
     want_privilege= want_privilege_next;
   }
@@ -762,10 +754,8 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
     tr->reset();
     if (tr->process_index_hints(table))
       DBUG_RETURN(true);
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     if (table->part_info)     // Count number of partitioned tables
       partitioned_table_count++;
-#endif
   }
  
   DBUG_RETURN(false);
@@ -853,7 +843,7 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
           !tl->is_mergeable())
       continue;
       if (merge_derived(thd, tl))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
     }
   }
 
@@ -885,9 +875,9 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
         continue;
       DBUG_ASSERT(!tl->is_merged());
       if (tl->resolve_derived(thd, apply_semijoin))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       if (tl->setup_materialized_derived(thd))
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       materialized_derived_table_count++;
     }
   }
@@ -1173,7 +1163,7 @@ bool SELECT_LEX::setup_conds(THD *thd)
       if (view->effective_with_check)
       {
         if (view->prepare_check_option(thd))
-          DBUG_RETURN(true);
+          DBUG_RETURN(true);        /* purecov: inspected */
         thd->change_item_tree(&table->check_option, view->check_option);
       }
     }
@@ -2139,7 +2129,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
 
   if (subq_select->ftfunc_list->elements &&
       add_ftfunc_list(subq_select->ftfunc_list))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   // This query block has semi-join nests
   has_sj_nests= true;
@@ -2231,7 +2221,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Add a nested join object to the derived table object
   if (!(derived_table->nested_join=
        (NESTED_JOIN *) thd->mem_calloc(sizeof(NESTED_JOIN))))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
   derived_table->nested_join->join_list.empty();//Should be done by constructor!
 
   // Merge tables from underlying query block into this join nest
@@ -2279,10 +2269,10 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
 
   // Merge the WHERE clause into the outer query block
   if (derived_table->merge_where(thd))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   if (derived_table->create_field_translation(thd))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   // Exclude the derived table query expression from query graph.
   derived_unit->exclude_level();
@@ -2350,7 +2340,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Add any full-text functions from derived table into outer query
   if (derived_select->ftfunc_list->elements &&
       add_ftfunc_list(derived_select->ftfunc_list))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   DBUG_RETURN(false);
 }
@@ -2666,7 +2656,7 @@ bool SELECT_LEX::add_ftfunc_list(List<Item_func_match> *ftfuncs)
   while ((ifm= li++))
   {
     if (ftfunc_list->push_front(ifm))
-      return true;
+      return true;        /* purecov: inspected */
   }
   return false;
 }
@@ -3087,9 +3077,9 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
         overshadows the column reference from the SELECT list.
       */
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
-                          ER(ER_NON_UNIQ_ERROR),
+                          ER_THD(thd, ER_NON_UNIQ_ERROR),
                           ((Item_ident*) order_item)->field_name,
-                          current_thd->where);
+                          thd->where);
     }
   }
 
@@ -3131,6 +3121,17 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
   uint el= all_fields.elements;
   all_fields.push_front(order_item); /* Add new field to field list. */
   ref_pointer_array[el]= order_item;
+  /*
+    If the order_item is a SUM_FUNC_ITEM, when fix_fields is called
+    ref_by is set to order->item which is the address of order_item.
+    But this needs to be address of order_item in the all_fields list.
+    As a result, when it gets replaced with Item_aggregate_ref
+    object in Item::split_sum_func2, we will be able to retrieve the
+    newly created object.
+  */
+  if (order_item->type() == Item::SUM_FUNC_ITEM)
+    ((Item_sum *)order_item)->ref_by= all_fields.head_ref();
+
   /*
     Currently, we assume that this assertion holds. If it turns out
     that it fails for some query, order->item has changed and the old
@@ -3368,12 +3369,10 @@ bool SELECT_LEX::setup_group(THD *thd)
 
 bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
 {
-  Item **arg,**arg_end;
   bool arg_changed= false;
-  for (arg= expr->arguments(),
-       arg_end= expr->arguments()+expr->arg_count;
-       arg != arg_end; arg++)
+  for (uint i= 0; i < expr->arg_count; i++)
   {
+    Item **arg= expr->arguments() + i;
     Item *const item= *arg;
     if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
     {
@@ -3445,6 +3444,66 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
     }
   }
   return false;
+}
+
+/**
+  @brief  validate_gc_assignment
+  Check whether the other values except DEFAULT are assigned
+  for generated columns.
+
+  @param thd                        thread handler
+  @param fields                     Item_fields list to be filled
+  @param values                     values to fill with
+  @param table                      table to be checked
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occured
+
+  @Note: This function must be called after table->write_set has been
+         filled.
+*/
+bool
+validate_gc_assignment(THD * thd, List<Item> *fields,
+                       List<Item> *values, TABLE *table)
+{
+  Field **fld= NULL;
+  MY_BITMAP *bitmap= table->write_set;
+  bool use_table_field= false;
+  DBUG_ENTER("validate_gc_assignment");
+
+  if (!values || (values->elements == 0))
+      DBUG_RETURN(false);
+
+  // If fields has no elements, we use all table fields
+  if (fields->elements == 0)
+  {
+    use_table_field= true;
+    fld= table->field;
+  }
+  List_iterator_fast<Item> f(*fields),v(*values);
+  Item *value;
+  while ((value= v++))
+  {
+    Field *rfield;
+
+    if (!use_table_field)
+      rfield= ((Item_field *)f++)->field;
+    else
+      rfield= *(fld++);
+    if (rfield->table != table)
+      continue;
+    /* skip non marked fields */
+    if (!bitmap_is_set(bitmap, rfield->field_index))
+      continue;
+    if (rfield->gcol_info && 
+        value->type() != Item::DEFAULT_VALUE_ITEM)
+    {
+      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
+               rfield->field_name, rfield->table->s->table_name.str);
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(false);
 }
 
 

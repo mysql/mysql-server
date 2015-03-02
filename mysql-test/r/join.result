@@ -933,13 +933,13 @@ INSERT INTO t1 SELECT a + 64, b FROM t1;
 INSERT INTO t2 SELECT a, b FROM t1;
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	6400.00	Using where
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c` = `test`.`t1`.`b`) order by `test`.`t1`.`a` limit 2
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	2	6400.00	NULL
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c` = `test`.`t1`.`a`) order by `test`.`t1`.`a` limit 2
@@ -1394,3 +1394,36 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`c1` AS `c1`,`test`.`t4`.`c2` AS `c2`,`test`.`t4`.`ref_t1` AS `ref_t1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2`,`test`.`t3`.`ref_t1` AS `ref_t1`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t2`.`ref_t1` AS `ref_t1` from `test`.`t4` join `test`.`t1` join `test`.`t3` join `test`.`t2` where ((`test`.`t2`.`ref_t1` = `test`.`t4`.`ref_t1`) and (`test`.`t3`.`ref_t1` = `test`.`t4`.`ref_t1`) and (`test`.`t1`.`c1` = `test`.`t4`.`ref_t1`))
 drop table t1,t2,t3,t4;
+# Bug#20455184: Assertion failed: join_cond in optimizer.cc
+CREATE TABLE t1(a INTEGER) engine=innodb;
+explain SELECT 1
+FROM (SELECT 1 FROM t1 WHERE a) AS q
+NATURAL LEFT JOIN t1
+NATURAL LEFT JOIN t1 AS t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	5.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` on(1) left join `test`.`t1` `t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where `test`.`t1`.`a`
+SELECT 1
+FROM (SELECT 1 FROM t1 WHERE a) AS q
+NATURAL LEFT JOIN t1
+NATURAL LEFT JOIN t1 AS t2;
+1
+explain SELECT 1
+FROM t1
+NATURAL RIGHT JOIN t1 AS t2
+NATURAL RIGHT JOIN (SELECT 1 FROM t1 WHERE a) AS q;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	5.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join (`test`.`t1` `t2` left join `test`.`t1` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on(1) where `test`.`t1`.`a`
+SELECT 1
+FROM t1
+NATURAL RIGHT JOIN t1 AS t2
+NATURAL RIGHT JOIN (SELECT 1 FROM t1 WHERE a) AS q;
+1
+DROP TABLE t1;

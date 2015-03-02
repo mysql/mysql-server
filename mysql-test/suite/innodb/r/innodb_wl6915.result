@@ -253,5 +253,4 @@ i
 3
 drop table t1;
 drop table t2;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;
+set global innodb_file_per_table=default;

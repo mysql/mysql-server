@@ -9,13 +9,9 @@ INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 CREATE TABLE t2(a INT, i INT PRIMARY KEY);
 INSERT INTO t2 (i) SELECT i FROM t1;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 a	i
 NULL	11
-NULL	12
-NULL	13
-NULL	14
-NULL	15
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -27,12 +23,12 @@ Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	4
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
-DELETE FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+DELETE FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -44,12 +40,16 @@ Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	4
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
 a	i
+NULL	12
+NULL	13
+NULL	14
+NULL	15
 NULL	16
 NULL	17
 NULL	18
@@ -60,18 +60,14 @@ DROP TABLE t2;
 CREATE TABLE t2(a INT, i CHAR(2), INDEX(i(1)));
 INSERT INTO t2 (i) SELECT i FROM t1;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 a	i
 NULL	11
-NULL	12
-NULL	13
-NULL	14
-NULL	15
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
 Sort_range	0
-Sort_rows	5
+Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
@@ -83,7 +79,7 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	27
 FLUSH STATUS;
-DELETE FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+DELETE FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -97,10 +93,14 @@ Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	5
+Handler_read_rnd	1
 Handler_read_rnd_next	27
 SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
 a	i
+NULL	12
+NULL	13
+NULL	14
+NULL	15
 NULL	16
 NULL	17
 NULL	18
@@ -212,7 +212,7 @@ DROP TABLE t2;
 CREATE TABLE t2 (a CHAR(2), b CHAR(2), c CHAR(2), d CHAR(2), INDEX (a,b(1),c));
 INSERT INTO t2 SELECT i, i, i, i FROM t1;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 1;
 a	b	c	d
 10	10	10	10
 SHOW SESSION STATUS LIKE 'Sort%';
@@ -231,7 +231,7 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	27
 FLUSH STATUS;
-DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
+DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 1;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -360,13 +360,9 @@ DROP TABLE t2;
 CREATE TABLE t2(a INT, i INT PRIMARY KEY);
 INSERT INTO t2 (i) SELECT i FROM t1;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 a	i
 NULL	18
-NULL	17
-NULL	16
-NULL	15
-NULL	14
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -379,11 +375,11 @@ Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
-Handler_read_prev	4
+Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
-DELETE FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+DELETE FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -396,7 +392,7 @@ Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
-Handler_read_prev	4
+Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
@@ -404,6 +400,10 @@ a	i
 NULL	11
 NULL	12
 NULL	13
+NULL	14
+NULL	15
+NULL	16
+NULL	17
 DROP TABLE t2;
 #
 # mixed sorting direction, should use filesort
@@ -557,13 +557,9 @@ INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 CREATE TABLE t2(a INT, i INT PRIMARY KEY);
 INSERT INTO t2 (i) SELECT i FROM t1;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 a	i
 NULL	11
-NULL	12
-NULL	13
-NULL	14
-NULL	15
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -575,12 +571,12 @@ Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	4
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
-UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -592,17 +588,17 @@ Variable_name	Value
 Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	4
+Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	5
+Handler_read_rnd	1
 Handler_read_rnd_next	0
 SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
 a	i
 10	11
-10	12
-10	13
-10	14
-10	15
+NULL	12
+NULL	13
+NULL	14
+NULL	15
 NULL	16
 NULL	17
 NULL	18
@@ -924,13 +920,9 @@ DROP TABLE t2;
 CREATE TABLE t2(a INT, i INT PRIMARY KEY);
 INSERT INTO t2 (i) SELECT i FROM t1;
 FLUSH STATUS;
-SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 a	i
 NULL	18
-NULL	17
-NULL	16
-NULL	15
-NULL	14
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -943,11 +935,11 @@ Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
-Handler_read_prev	4
+Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
-UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -960,18 +952,18 @@ Handler_read_first	0
 Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
-Handler_read_prev	4
-Handler_read_rnd	5
+Handler_read_prev	0
+Handler_read_rnd	1
 Handler_read_rnd_next	0
 SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i;
 a	i
 NULL	11
 NULL	12
 NULL	13
-10	14
-10	15
-10	16
-10	17
+NULL	14
+NULL	15
+NULL	16
+NULL	17
 10	18
 DROP TABLE t2;
 #

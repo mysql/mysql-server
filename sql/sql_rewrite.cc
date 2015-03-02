@@ -165,6 +165,25 @@ void rewrite_user_resources(LEX *lex, String *rlb)
                lex->mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS);
   }
 }
+
+void rewrite_account_lock(LEX *lex, String *rlb, bool lock_only)
+{
+  if (!lex->alter_password.account_locked)
+  {
+    if (lock_only)
+    {
+      /* Do not write account enable state. */
+      return;
+    }
+
+    rlb->append(STRING_WITH_LEN(" ACCOUNT UNLOCK"));
+  }
+  else
+  {
+    rlb->append(STRING_WITH_LEN(" ACCOUNT LOCK"));
+  }
+}
+
 /**
   Rewrite a GRANT statement.
 
@@ -248,10 +267,21 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
 
   if (first_table)
   {
-    append_identifier(thd, rlb, first_table->db, strlen(first_table->db));
-    rlb->append(STRING_WITH_LEN("."));
-    append_identifier(thd, rlb, first_table->table_name,
-                      strlen(first_table->table_name));
+    if (first_table->is_view())
+    {
+      append_identifier(thd, rlb, first_table->view_db.str,
+                        first_table->view_db.length);
+      rlb->append(STRING_WITH_LEN("."));
+      append_identifier(thd, rlb, first_table->view_name.str,
+                        first_table->view_name.length);
+    }
+    else
+    {
+      append_identifier(thd, rlb, first_table->db, strlen(first_table->db));
+      rlb->append(STRING_WITH_LEN("."));
+      append_identifier(thd, rlb, first_table->table_name,
+                        strlen(first_table->table_name));
+    }
   }
   else
   {
@@ -364,6 +394,8 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb)
   }
   else
     rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE NEVER"));
+
+  rewrite_account_lock(lex, rlb, false);
 }
 
 /**

@@ -743,6 +743,8 @@ ALTER TABLE t1 ADD INDEX idx1 (b);
 SELECT b FROM t1 WHERE b = 0;
 --error ER_TABLE_DEF_CHANGED
 SELECT b FROM t1 WHERE b = 0;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t1;
 --disconnect con1
 DROP TABLE t1;
 
@@ -762,6 +764,8 @@ ALTER TABLE t1 ADD INDEX idx1 (b);
 SELECT b FROM t1 WHERE b = 0;
 --error ER_TABLE_DEF_CHANGED
 SELECT b FROM t1 WHERE b = 0;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t1;
 --disconnect con1
 DROP TABLE t1;
 
@@ -892,3 +896,71 @@ ALTER TABLE t7 CHANGE f1 f1 INT AFTER f4, ALGORITHM=INPLACE;
 
 DROP TABLE t1,t2,t3,t4,t5,t6,t7;
 
+--echo # Coverage tests for Native InnoDB Partitioning
+
+--echo #
+--echo # Test enable/disable keys.
+--echo #
+CREATE TABLE t1 (a int, b int, primary key (a), key (b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 3;
+INSERT INTO t1 VALUES (1,1),(2,1),(3,3),(4,1),(5,3),(6,1),(7,1),(8,1),(9,4),
+(10,1),(11,3),(12,1),(13,3),(14,1),(15,1),(16,3),(17,1),(18,1),(19,1),(20,3);
+EXPLAIN SELECT * FROM t1 WHERE b = 4;
+ALTER TABLE t1 DISABLE KEYS;
+INSERT INTO t1 VALUES (21,1),(22,1),(23,3),(24,1);
+EXPLAIN SELECT * FROM t1 WHERE b = 4;
+ALTER TABLE t1 ENABLE KEYS;
+EXPLAIN SELECT * FROM t1 WHERE b = 4;
+DROP TABLE t1;
+
+--echo #
+--echo # Test with different key sizes
+--echo #
+CREATE TABLE t1
+(a int NOT NULL,
+ b int NOT NULL,
+ c varchar(10) NOT NULL,
+ INDEX(a),
+ UNIQUE KEY  (c(5), a, b)
+)
+ENGINE=InnoDB
+PARTITION BY HASH (b) PARTITIONS 2;
+SELECT * FROM t1 WHERE a = '92' AND c = '0.73';
+SELECT * FROM t1 WHERE a = '1224';
+DROP TABLE t1;
+
+--echo #
+--echo # Test with index_merge using PK
+--echo #
+CREATE TABLE t1
+(
+  a int NOT NULL,
+  b int NOT NULL DEFAULT 2,
+  c int NOT NULL DEFAULT 3,
+  PRIMARY KEY (a),
+  INDEX i2(b),
+  INDEX i3(c)
+)
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 3;
+
+INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO t1 (a) SELECT a+8 FROM t1;
+
+UPDATE t1 SET b=a,c=a;
+
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT * FROM t1 WHERE a=3 OR b=4;
+SELECT * FROM t1 WHERE a=3 OR b=4;
+DROP TABLE t1;
+
+--echo #
+--echo # Test error handling in mysql_admin
+--echo #
+CREATE TABLE t1 (a int)
+PARTITION BY LINEAR HASH (a) PARTITIONS 8;
+LOAD INDEX INTO CACHE t1 PARTITION (ALL);
+ALTER TABLE t1 COALESCE PARTITION 2;
+DROP TABLE t1;

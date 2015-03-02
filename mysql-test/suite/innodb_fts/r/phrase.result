@@ -1,0 +1,84 @@
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+(NULL, 'mysql good database'),
+(NULL, ' mysql good database'),
+('', 'mysql good database'),
+('', ' mysql good database'),
+(' ', 'mysql good database'),
+('mysql', 'good database'),
+('mysql ', 'good database'),
+('mysql', ' good database'),
+('mysql good database', ''),
+('mysql good database', NULL);
+SET GLOBAL innodb_ft_aux_table="test/articles";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+database	2	11	10	2	11
+database	2	11	10	3	12
+database	2	11	10	4	11
+database	2	11	10	5	12
+database	2	11	10	6	13
+database	2	11	10	7	11
+database	2	11	10	8	12
+database	2	11	10	9	12
+database	2	11	10	10	11
+database	2	11	10	11	11
+good	2	11	10	2	6
+good	2	11	10	3	7
+good	2	11	10	4	6
+good	2	11	10	5	7
+good	2	11	10	6	8
+good	2	11	10	7	6
+good	2	11	10	8	7
+good	2	11	10	9	7
+good	2	11	10	10	6
+good	2	11	10	11	6
+mysql	2	11	10	2	0
+mysql	2	11	10	3	1
+mysql	2	11	10	4	0
+mysql	2	11	10	5	1
+mysql	2	11	10	6	2
+mysql	2	11	10	7	0
+mysql	2	11	10	8	0
+mysql	2	11	10	9	0
+mysql	2	11	10	10	0
+mysql	2	11	10	11	0
+SET GLOBAL innodb_ft_aux_table=default;
+SELECT * FROM articles;
+id	title	body
+1	NULL	mysql good database
+2	NULL	 mysql good database
+3		mysql good database
+4		 mysql good database
+5	 	mysql good database
+6	mysql	good database
+7	mysql 	good database
+8	mysql	 good database
+9	mysql good database	
+10	mysql good database	NULL
+SELECT * FROM articles WHERE MATCH(title, body)
+AGAINST('"mysql good database"' IN BOOLEAN MODE);
+id	title	body
+1	NULL	mysql good database
+2	NULL	 mysql good database
+3		mysql good database
+4		 mysql good database
+5	 	mysql good database
+9	mysql good database	
+10	mysql good database	NULL
+SELECT * FROM articles WHERE MATCH(title, body)
+AGAINST('("mysql good database")' IN BOOLEAN MODE);
+id	title	body
+1	NULL	mysql good database
+2	NULL	 mysql good database
+3		mysql good database
+4		 mysql good database
+5	 	mysql good database
+9	mysql good database	
+10	mysql good database	NULL
+DROP TABLE articles;

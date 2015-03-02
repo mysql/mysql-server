@@ -37,9 +37,9 @@
 #include "sql_view.h"                 // check_key_in_view
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"              // trans_commit_stmt
-#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "sql_resolver.h"             // validate_gc_assignment
 #include "partition_info.h"           // partition_info
-#endif
+#include "probes_mysql.h"             // MYSQL_INSERT_START
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref);
@@ -192,6 +192,9 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
       return true;
     }
   }
+  /* Mark all generated columns for write*/
+  if (table->vfield)
+    table->mark_generated_columns(false);
 
   if (check_key_in_view(thd, table_list, *insert_table_ref) ||
       (table_list->is_view() &&
@@ -326,12 +329,7 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
   end of dispatch_command().
 */
 
-bool mysql_insert(THD *thd,TABLE_LIST *table_list,
-                  List<Item> &fields,
-                  List<List_item> &values_list,
-                  List<Item> &update_fields,
-                  List<Item> &update_values,
-                  enum_duplicates duplic)
+bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
 {
   DBUG_ENTER("mysql_insert");
 
@@ -353,23 +351,21 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     Item_default_value::save_in_field()).
   */
   const bool manage_defaults=
-    fields.elements != 0 ||                     // 1)
-    values_list.head()->elements == 0;          // 2)
+    insert_field_list.elements != 0 ||          // 1)
+    insert_many_values.head()->elements == 0;   // 2)
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
-                 &fields,
+                 &insert_field_list,
                  manage_defaults,
-                 duplic);
-  COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &update_fields, &update_values);
+                 duplicates);
+  COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &insert_update_list,
+                   &insert_value_list);
   Name_resolution_context *context;
   Name_resolution_context_state ctx_state;
-  Item *unused_conds= 0;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   uint num_partitions= 0;
   enum partition_info::enum_can_prune can_prune_partitions=
                                                   partition_info::PRUNE_NO;
   MY_BITMAP used_partitions;
   bool prune_needs_default_values;
-#endif /* WITH_PARITITION_STORAGE_ENGINE */
 
   SELECT_LEX *const select_lex= thd->lex->select_lex;
 
@@ -384,16 +380,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   THD_STAGE_INFO(thd, stage_init);
   thd->lex->used_tables=0;
 
-  List_iterator_fast<List_item> its(values_list);
+  List_iterator_fast<List_item> its(insert_many_values);
   List_item *values= its++;
   const uint value_count= values->elements;
   TABLE_LIST *insert_table_ref= NULL;
   TABLE      *insert_table= NULL;
-  if (mysql_prepare_insert(thd, table_list, &insert_table_ref, fields, values,
-                           update_fields, update_values, duplic, &unused_conds,
-                           false,
-                           (fields.elements || !value_count ||
-                            table_list->is_view())))
+  if (mysql_prepare_insert(thd, table_list, &insert_table_ref, values, false))
     goto exit_without_my_ok;
 
   if (select_lex->apply_local_transforms(thd, false))
@@ -404,7 +396,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /* Must be done before can_prune_insert, due to internal initialization. */
   if (info.add_function_default_columns(insert_table, insert_table->write_set))
     goto exit_without_my_ok; /* purecov: inspected */
-  if (duplic == DUP_UPDATE &&
+  if (duplicates == DUP_UPDATE &&
       update.add_function_default_columns(insert_table,
                                           insert_table->write_set))
     goto exit_without_my_ok; /* purecov: inspected */
@@ -429,14 +421,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   DBUG_ASSERT(table_list->next_local == 0);
   context->resolve_in_table_list_only(table_list);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (!is_locked && insert_table->part_info)
   {
     if (insert_table->part_info->can_prune_insert(thd,
-                                           duplic,
+                                           duplicates,
                                            update,
-                                           update_fields,
-                                           fields,
+                                           insert_update_list,
+                                           insert_field_list,
                                            !MY_TEST(values->elements),
                                            &can_prune_partitions,
                                            &prune_needs_default_values,
@@ -458,7 +449,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         values, so we only need to check the first INSERT value, since all the
         rest will be in the same partition.
       */
-      if (insert_table->part_info->set_used_partition(fields,
+      if (insert_table->part_info->set_used_partition(insert_field_list,
                                                *values,
                                                info,
                                                prune_needs_default_values,
@@ -466,7 +457,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         can_prune_partitions= partition_info::PRUNE_NO;
     }
   }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   while ((values= its++))
   {
@@ -479,7 +469,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, 0, 0))
       goto exit_without_my_ok;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     /*
       To make it possible to increase concurrency on table level locking
       engines such as MyISAM, we check pruning for each row until we will use
@@ -490,7 +479,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     */
     if (can_prune_partitions == partition_info::PRUNE_YES)
     {
-      if (insert_table->part_info->set_used_partition(fields,
+      if (insert_table->part_info->set_used_partition(insert_field_list,
                                                *values,
                                                info,
                                                prune_needs_default_values,
@@ -507,7 +496,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           can_prune_partitions= partition_info::PRUNE_NO;
       }
     }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
   }
   insert_table->auto_increment_field_not_null= false;
   its.rewind ();
@@ -522,7 +510,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                          NULL, false, 0);
   DEBUG_SYNC(thd, "planned_single_insert");
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (can_prune_partitions != partition_info::PRUNE_NO)
   {
     /*
@@ -542,7 +529,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     bitmap_intersect(&insert_table->part_info->lock_partitions,
                      &used_partitions);
   }
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   // Lock the tables now if not locked already.
   if (!is_locked &&
@@ -560,7 +546,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     For single line insert, generate an error if try to set a NOT NULL field
     to NULL.
   */
-  thd->count_cuted_fields= ((values_list.elements == 1 &&
+  thd->count_cuted_fields= ((insert_many_values.elements == 1 &&
                              !thd->lex->is_ignore()) ?
                             CHECK_FIELD_ERROR_FOR_NULL :
                             CHECK_FIELD_WARN);
@@ -582,25 +568,25 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   error=0;
   THD_STAGE_INFO(thd, stage_update);
-  if (duplic == DUP_REPLACE &&
+  if (duplicates == DUP_REPLACE &&
       (!insert_table->triggers ||
        !insert_table->triggers->has_delete_triggers()))
     insert_table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-  if (duplic == DUP_UPDATE)
+  if (duplicates == DUP_UPDATE)
     insert_table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   /*
     let's *try* to start bulk inserts. It won't necessary
-    start them as values_list.elements should be greater than
+    start them as insert_many_values.elements should be greater than
     some - handler dependent - threshold.
     We should not start bulk inserts if this statement uses
     functions or invokes triggers since they may access
     to the same table and therefore should not see its
     inconsistent state created by this optimization.
     So we call start_bulk_insert to perform nesessary checks on
-    values_list.elements, and - if nothing else - to initialize
+    insert_many_values.elements, and - if nothing else - to initialize
     the code to make the call of end_bulk_insert() below safe.
   */
-  if (duplic != DUP_ERROR || thd->lex->is_ignore())
+  if (duplicates != DUP_ERROR || thd->lex->is_ignore())
     insert_table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   /**
      This is a simple check for the case when the table has a trigger
@@ -610,7 +596,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
      same table in the same connection.
   */
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
-    insert_table->file->ha_start_bulk_insert(values_list.elements);
+    insert_table->file->ha_start_bulk_insert(insert_many_values.elements);
 
   prepare_triggers_for_insert_stmt(insert_table);
 
@@ -621,20 +607,20 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   while ((values= its++))
   {
-    if (fields.elements || !value_count)
+    if (insert_field_list.elements || !value_count)
     {
       restore_record(insert_table, s->default_values);  // Get empty record
 
       /*
-        Check whether default values of the fields not specified in column list
-        are correct or not.
+        Check whether default values of the insert_field_list not specified in
+        column list are correct or not.
       */
       if (validate_default_values_of_unset_fields(thd, insert_table))
       {
         error= 1;
         break;
       }
-      if (fill_record_n_invoke_before_triggers(thd, fields, *values,
+      if (fill_record_n_invoke_before_triggers(thd, insert_field_list, *values,
                                                insert_table,
                                                TRG_EVENT_INSERT,
                                                insert_table->s->fields))
@@ -714,6 +700,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     user
   */
   {
+    /* TODO: Only call this if insert_table->found_next_number_field.*/
     insert_table->file->ha_release_auto_increment();
     /*
       Make sure 'end_bulk_insert()' is called regardless of current error
@@ -735,7 +722,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       error= 1;
       /* purecov: end */
     }
-    if (duplic != DUP_ERROR || thd->lex->is_ignore())
+    if (duplicates != DUP_ERROR || thd->lex->is_ignore())
       insert_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
     transactional_table= insert_table->file->has_transactions();
@@ -818,7 +805,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   insert_table->next_number_field= 0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   insert_table->auto_increment_field_not_null= FALSE;
-  if (duplic == DUP_REPLACE &&
+  if (duplicates == DUP_REPLACE &&
       (!insert_table->triggers ||
        !insert_table->triggers->has_delete_triggers()))
     insert_table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
@@ -826,8 +813,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (thd->is_error())
     goto exit_without_my_ok;
 
-  if (values_list.elements == 1 && (!(thd->variables.option_bits & OPTION_WARNINGS) ||
-				    !thd->cuted_fields))
+  if (insert_many_values.elements == 1 &&
+      (!(thd->variables.option_bits & OPTION_WARNINGS) || !thd->cuted_fields))
   {
     my_ok(thd, info.stats.copied + info.stats.deleted +
                ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
@@ -841,12 +828,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                      info.stats.touched : info.stats.updated);
     if (thd->lex->is_ignore())
       my_snprintf(buff, sizeof(buff),
-                  ER(ER_INSERT_INFO), (long) info.stats.records,
+                  ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.records - info.stats.copied),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     else
       my_snprintf(buff, sizeof(buff),
-                  ER(ER_INSERT_INFO), (long) info.stats.records,
+                  ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
@@ -967,7 +954,7 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr)
     Column_privilege_tracker column_privilege(thd, SELECT_ACL);
 
     if (tr->join_cond()->fix_fields(thd, NULL))
-      return true;
+      return true;             /* purecov: inspected */
   }
 
   if (tr->nested_join == NULL)
@@ -979,7 +966,7 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr)
   while ((ti= li++))
   {
     if (fix_join_cond_for_insert(thd, ti))
-      return true;
+      return true;             /* purecov: inspected */
   }
   return false;
 }
@@ -995,9 +982,11 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr)
   @return false if success, true if error
 */
 
-static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
-                                             List<Item> &fields,
-                                             bool select_insert)
+bool
+Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
+                                                      TABLE_LIST *table_list,
+                                                      List<Item> &fields,
+                                                      bool select_insert)
 {
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
@@ -1005,7 +994,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   const bool insert_into_view= table_list->is_view();
 
   if (select->setup_tables(thd, table_list, select_insert))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);             /* purecov: inspected */
 
   if (insert_into_view)
   {
@@ -1014,7 +1003,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(true);
 
     if (select->merge_derived(thd, table_list))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);           /* purecov: inspected */
 
     /*
       On second preparation, we may need to resolve view condition generated
@@ -1022,7 +1011,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
     */
     if (!select->first_execution && table_list->is_merged() &&
         fix_join_cond_for_insert(thd, table_list))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);           /* purecov: inspected */
   }
 
   if (!table_list->is_updatable())
@@ -1049,7 +1038,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
 
   if (insert_into_view && !fields.elements)
   {
-    thd->lex->empty_field_list_on_rset= 1;
+    empty_field_list_on_rset= true;
     if (table_list->is_multiple_tables())
     {
       my_error(ER_VIEW_NO_INSERT_FIELD_LIST, MYF(0),
@@ -1104,15 +1093,10 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
   @param table_list            Global/local table list
   @param[out] insert_table_ref Table to insert into (can be NULL if table should
                                be taken from underlying table of table_list)
-  @param fields                List of fields (columns) to be inserted into
   @param values                List of values to be inserted
-  @param update_fields         List of fields to be updated if ON DUPLICATE KEY
-  @param update_values         List of update values if ON DUPLICATE KEY
   @param duplic                What to do on duplicate key error
   @param where                 Where clause (for insert ... select)
   @param select_insert         TRUE if INSERT ... SELECT statement
-  @param check_fields          TRUE if need to check that all INSERT fields are
-                               given values.
 
   @todo (in far future)
     In cases of:
@@ -1127,13 +1111,10 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
   @return false if success, true if error
 */
 
-bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
+bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           TABLE_LIST **insert_table_ref,
-                          List<Item> &fields, List_item *values,
-                          List<Item> &update_fields, List<Item> &update_values,
-                          enum_duplicates duplic,
-                          Item **where, bool select_insert,
-                          bool check_fields)
+                          List_item *values,
+                          bool select_insert)
 {
   DBUG_ENTER("mysql_prepare_insert");
 
@@ -1141,9 +1122,10 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   DBUG_ASSERT (!select_insert || !values);
 
   // Number of update fields must match number of update values
-  DBUG_ASSERT(update_fields.elements == update_values.elements);
+  DBUG_ASSERT(insert_update_list.elements == insert_value_list.elements);
 
-  SELECT_LEX *const select_lex= thd->lex->select_lex;
+  LEX * const lex= thd->lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
   Name_resolution_context *const context= &select_lex->context;
   Name_resolution_context_state ctx_state;
   const bool insert_into_view= table_list->is_view();
@@ -1174,18 +1156,19 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     }
   }
 
-  if (mysql_prepare_insert_check_table(thd, table_list, fields, select_insert))
+  if (mysql_prepare_insert_check_table(thd, table_list, insert_field_list,
+                                       select_insert))
     DBUG_RETURN(true);
 
   // REPLACE for a JOIN view is not permitted.
-  if (table_list->is_multiple_tables() && duplic == DUP_REPLACE)
+  if (table_list->is_multiple_tables() && duplicates == DUP_REPLACE)
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
              table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(true);
   }
 
-  if (duplic == DUP_UPDATE)
+  if (duplicates == DUP_UPDATE)
   {
     /* it should be allocated before Item::fix_fields() */
     if (table_list->set_insert_values(thd->mem_root))
@@ -1210,7 +1193,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     context->resolve_in_table_list_only(table_list);
 
     if (!res)
-      res= check_insert_fields(thd, context->table_list, fields,
+      res= check_insert_fields(thd, context->table_list, insert_field_list,
                                values->elements, true,
                                !insert_into_view, insert_table_ref);
     table_map map= 0;
@@ -1226,28 +1209,35 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     thd->lex->in_update_value_clause= true;
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
-                        update_values, SELECT_ACL, 0, 0);
+                        insert_value_list, SELECT_ACL, 0, 0);
     if (!res)
-      res= check_valid_table_refs(table_list, update_values, map);
+      res= check_valid_table_refs(table_list, insert_value_list, map);
+    if (!res && (*insert_table_ref)->table->vfield)
+      res= validate_gc_assignment(thd, &insert_field_list, values,
+                                  (*insert_table_ref)->table);
     thd->lex->in_update_value_clause= false;
 
-    if (!res && duplic == DUP_UPDATE)
+    if (!res && duplicates == DUP_UPDATE)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       table_list->set_want_privilege(UPDATE_ACL);
 #endif
       // Setup the columns to be updated
       res= setup_fields(thd, Ref_ptr_array(),
-                        update_fields, UPDATE_ACL, 0, 0);
+                        insert_update_list, UPDATE_ACL, 0, 0);
       if (!res)
-        res= check_valid_table_refs(table_list, update_fields, map);
+        res= check_valid_table_refs(table_list, insert_update_list, map);
+      if (!res && (*insert_table_ref)->table->vfield)
+        res= validate_gc_assignment(thd, &insert_update_list,
+                                    &insert_value_list,
+                                    (*insert_table_ref)->table);
     }
   }
   else if (thd->stmt_arena->is_stmt_prepare())
   {
     /*
       This section of code is more or less a duplicate of the code  in
-      select_insert::prepare, and the 'if' branch above.
+      Query_result_insert::prepare, and the 'if' branch above.
       @todo Consolidate these three sections into one.
     */
     /*
@@ -1265,23 +1255,31 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       SELECT list from the SELECT) is not resolved yet, so pass "false"
       for value_count_known.
     */
-    res= check_insert_fields(thd, context->table_list, fields, 0, false,
-                             !insert_into_view, insert_table_ref);
+    res= check_insert_fields(thd, context->table_list, insert_field_list, 0,
+                             false, !insert_into_view, insert_table_ref);
     table_map map= 0;
     if (!res)
       map= (*insert_table_ref)->map();
 
-    if (!res && duplic == DUP_UPDATE)
+    if (!res && (*insert_table_ref)->table->vfield)
+      res= validate_gc_assignment(thd, &insert_field_list, values,
+                                  (*insert_table_ref)->table);
+
+    if (!res && duplicates == DUP_UPDATE)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       table_list->set_want_privilege(UPDATE_ACL);
 #endif
       // Setup the columns to be modified
       res= setup_fields(thd, Ref_ptr_array(),
-                        update_fields, UPDATE_ACL, 0, 0);
+                        insert_update_list, UPDATE_ACL, 0, 0);
       if (!res)
-        res= check_valid_table_refs(table_list, update_fields, map);
+        res= check_valid_table_refs(table_list, insert_update_list, map);
 
+      if (!res && (*insert_table_ref)->table->vfield)
+        res= validate_gc_assignment(thd, &insert_update_list,
+                                    &insert_value_list,
+                                    (*insert_table_ref)->table);
       DBUG_ASSERT(!table_list->next_name_resolution_table);
       if (select_lex->group_list.elements == 0 && !select_lex->with_sum_func)
       {
@@ -1295,13 +1293,14 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       }
       thd->lex->in_update_value_clause= true;
       if (!res)
-        res= setup_fields(thd, Ref_ptr_array(), update_values,
+        res= setup_fields(thd, Ref_ptr_array(), insert_value_list,
                           SELECT_ACL, 0, 0);
       thd->lex->in_update_value_clause= false;
 
       /*
         Notice that there is no need to apply the Item::update_value_transformer
-        here, as this will be done during EXECUTE in select_insert::prepare().
+        here, as this will be done during EXECUTE in
+        Query_result_insert::prepare().
       */
     }
   }
@@ -1334,11 +1333,11 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
         table_list->prepare_check_option(thd))
       DBUG_RETURN(true);
 
-    if (duplic == DUP_REPLACE &&
+    if (duplicates == DUP_REPLACE &&
         table_list->prepare_replace_filter(thd))
       DBUG_RETURN(true);
   }
-  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+  if (duplicates == DUP_UPDATE || duplicates == DUP_REPLACE)
     prepare_for_positional_update((*insert_table_ref)->table, table_list);
 
   DBUG_RETURN(false);
@@ -1861,7 +1860,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
     TRUE  Error
 */
 
-bool mysql_insert_select_prepare(THD *thd)
+bool Sql_cmd_insert_select::mysql_insert_select_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   SELECT_LEX *select_lex= lex->select_lex;
@@ -1873,11 +1872,8 @@ bool mysql_insert_select_prepare(THD *thd)
     clause if table is VIEW
   */
   TABLE_LIST *insert_table_ref;
-  if (mysql_prepare_insert(thd, lex->query_tables,
-                           &insert_table_ref, lex->field_list, 0,
-                           lex->update_list, lex->value_list,
-                           lex->duplicates,
-                           select_lex->where_cond_ref(), true, false))
+  if (mysql_prepare_insert(thd, lex->query_tables, &insert_table_ref, NULL,
+                           true))
     DBUG_RETURN(TRUE);
 
   /*
@@ -1904,10 +1900,9 @@ bool mysql_insert_select_prepare(THD *thd)
 }
 
 
-int
-select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
-  DBUG_ENTER("select_insert::prepare");
+  DBUG_ENTER("Query_result_insert::prepare");
 
   LEX *const lex= thd->lex;
   bool res;
@@ -2067,21 +2062,21 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   Finish the preparation of the result table.
 
   SYNOPSIS
-    select_insert::prepare2()
+    Query_result_insert::prepare2()
     void
 
   DESCRIPTION
     If the result table is the same as one of the source tables (INSERT SELECT),
     the result table is not finally prepared at the join prepair phase.
     Do the final preparation now.
-		       
+
   RETURN
     0   OK
 */
 
-int select_insert::prepare2(void)
+int Query_result_insert::prepare2()
 {
-  DBUG_ENTER("select_insert::prepare2");
+  DBUG_ENTER("Query_result_insert::prepare2");
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !thd->lex->describe)
   {
@@ -2094,15 +2089,19 @@ int select_insert::prepare2(void)
 }
 
 
-void select_insert::cleanup()
+void Query_result_insert::cleanup()
 {
-  /* select_insert/select_create are never re-used in prepared statement */
+  /*
+    Query_result_insert/Query_result_create are never re-used
+    in prepared statement
+  */
   DBUG_ASSERT(0);
 }
 
-select_insert::~select_insert()
+
+Query_result_insert::~Query_result_insert()
 {
-  DBUG_ENTER("~select_insert");
+  DBUG_ENTER("~Query_result_insert");
   if (table)
   {
     table->next_number_field=0;
@@ -2114,9 +2113,9 @@ select_insert::~select_insert()
 }
 
 
-bool select_insert::send_data(List<Item> &values)
+bool Query_result_insert::send_data(List<Item> &values)
 {
-  DBUG_ENTER("select_insert::send_data");
+  DBUG_ENTER("Query_result_insert::send_data");
   bool error=0;
 
   if (unit->offset_limit_cnt)
@@ -2227,7 +2226,7 @@ bool select_insert::send_data(List<Item> &values)
 }
 
 
-void select_insert::store_values(List<Item> &values)
+void Query_result_insert::store_values(List<Item> &values)
 {
   if (fields->elements)
   {
@@ -2245,9 +2244,9 @@ void select_insert::store_values(List<Item> &values)
   check_that_all_fields_are_given_values(thd, table, table_list);
 }
 
-void select_insert::send_error(uint errcode,const char *err)
+void Query_result_insert::send_error(uint errcode,const char *err)
 {
-  DBUG_ENTER("select_insert::send_error");
+  DBUG_ENTER("Query_result_insert::send_error");
 
   my_message(errcode, err, MYF(0));
 
@@ -2255,14 +2254,14 @@ void select_insert::send_error(uint errcode,const char *err)
 }
 
 
-bool select_insert::send_eof()
+bool Query_result_insert::send_eof()
 {
   int error;
   bool const trans_table= table->file->has_transactions();
   ulonglong id, row_count;
   bool changed;
   THD::killed_state killed_status= thd->killed;
-  DBUG_ENTER("select_insert::send_eof");
+  DBUG_ENTER("Query_result_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
 
@@ -2335,12 +2334,12 @@ bool select_insert::send_eof()
   char buff[160];
   if (thd->lex->is_ignore())
     my_snprintf(buff, sizeof(buff),
-                ER(ER_INSERT_INFO), (long) info.stats.records,
+                ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.records - info.stats.copied),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   else
     my_snprintf(buff, sizeof(buff),
-                ER(ER_INSERT_INFO), (long) info.stats.records,
+                ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.deleted+info.stats.updated),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   row_count= info.stats.copied + info.stats.deleted +
@@ -2355,9 +2354,10 @@ bool select_insert::send_eof()
   DBUG_RETURN(0);
 }
 
-void select_insert::abort_result_set() {
 
-  DBUG_ENTER("select_insert::abort_result_set");
+void Query_result_insert::abort_result_set()
+{
+  DBUG_ENTER("Query_result_insert::abort_result_set");
   /*
     If the creation of the table failed (due to a syntax error, for
     example), no table will have been opened and therefore 'table'
@@ -2625,10 +2625,9 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     @retval !=0 Failure
 */
 
-int
-select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
-  DBUG_ENTER("select_create::prepare");
+  DBUG_ENTER("Query_result_create::prepare");
 
   unit= u;
   DBUG_ASSERT(create_table->table == NULL);
@@ -2662,10 +2661,9 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     @retval !=0 Failure
 */
 
-int
-select_create::prepare2()
+int Query_result_create::prepare2()
 {
-  DBUG_ENTER("select_create::prepare2");
+  DBUG_ENTER("Query_result_create::prepare2");
   DEBUG_SYNC(thd,"create_table_select_before_lock");
 
   MYSQL_LOCK *extra_lock= NULL;
@@ -2689,7 +2687,7 @@ select_create::prepare2()
    */
   class MY_HOOKS : public TABLEOP_HOOKS {
   public:
-    MY_HOOKS(select_create *x, TABLE_LIST *create_table_arg,
+    MY_HOOKS(Query_result_create *x, TABLE_LIST *create_table_arg,
              TABLE_LIST *select_tables_arg)
       : ptr(x),
         create_table(create_table_arg),
@@ -2722,7 +2720,7 @@ select_create::prepare2()
       }
       return 0;
     }
-    select_create *ptr;
+    Query_result_create *ptr;
     TABLE_LIST *create_table;
     TABLE_LIST *select_tables;
   };
@@ -2807,9 +2805,10 @@ select_create::prepare2()
   DBUG_RETURN(0);
 }
 
-int
-select_create::binlog_show_create_table(TABLE **tables, uint count)
+
+int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
 {
+  DBUG_ENTER("select_create::binlog_show_create_table");
   /*
     Note 1: In RBR mode, we generate a CREATE TABLE statement for the
     created table by calling store_create_info() (behaves as SHOW
@@ -2855,11 +2854,13 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
     thd->is_commit_in_middle_of_statement= true;
     result |= mysql_bin_log.commit(thd, true);
     thd->is_commit_in_middle_of_statement= false;
+    thd->pending_gtid_state_update= true;
   }
-  return result;
+  DBUG_RETURN(result);
 }
 
-void select_create::store_values(List<Item> &values)
+
+void Query_result_create::store_values(List<Item> &values)
 {
   fill_record_n_invoke_before_triggers(thd, field, values,
                                        table, TRG_EVENT_INSERT,
@@ -2867,9 +2868,9 @@ void select_create::store_values(List<Item> &values)
 }
 
 
-void select_create::send_error(uint errcode,const char *err)
+void Query_result_create::send_error(uint errcode,const char *err)
 {
-  DBUG_ENTER("select_create::send_error");
+  DBUG_ENTER("Query_result_create::send_error");
 
   DBUG_PRINT("info",
              ("Current statement %s row-based",
@@ -2890,24 +2891,24 @@ void select_create::send_error(uint errcode,const char *err)
 
   */
   tmp_disable_binlog(thd);
-  select_insert::send_error(errcode, err);
+  Query_result_insert::send_error(errcode, err);
   reenable_binlog(thd);
 
   DBUG_VOID_RETURN;
 }
 
 
-bool select_create::send_eof()
+bool Query_result_create::send_eof()
 {
   /*
     The routine that writes the statement in the binary log
-    is in select_insert::send_eof(). For that reason, we
+    is in Query_result_insert::send_eof(). For that reason, we
     mark the flag at this point.
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  bool tmp=select_insert::send_eof();
+  bool tmp= Query_result_insert::send_eof();
   if (tmp)
     abort_result_set();
   else
@@ -2936,12 +2937,12 @@ bool select_create::send_eof()
 }
 
 
-void select_create::abort_result_set()
+void Query_result_create::abort_result_set()
 {
-  DBUG_ENTER("select_create::abort_result_set");
+  DBUG_ENTER("Query_result_create::abort_result_set");
 
   /*
-    In select_insert::abort_result_set() we roll back the statement, including
+    In Query_result_insert::abort_result_set() we roll back the statement, including
     truncating the transaction cache of the binary log. To do this, we
     pretend that the statement is transactional, even though it might
     be the case that it was not.
@@ -2956,7 +2957,7 @@ void select_create::abort_result_set()
     log state.
   */
   tmp_disable_binlog(thd);
-  select_insert::abort_result_set();
+  Query_result_insert::abort_result_set();
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
   reenable_binlog(thd);
   /* possible error of writing binary log is ignored deliberately */
@@ -2978,4 +2979,160 @@ void select_create::abort_result_set()
     table=0;                                    // Safety
   }
   DBUG_VOID_RETURN;
+}
+
+
+bool Sql_cmd_insert::execute(THD *thd)
+{
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_REPLACE ||
+              thd->lex->sql_command == SQLCOM_INSERT);
+
+  bool res= false;
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
+  TABLE_LIST *const first_table= select_lex->get_table_list();
+  TABLE_LIST *const all_tables= first_table;
+
+  if (open_temporary_tables(thd, all_tables))
+    return true;
+
+  if (insert_precheck(thd, all_tables))
+    return true;
+
+  /* Push ignore / strict error handler */
+  Ignore_error_handler ignore_handler;
+  Strict_error_handler strict_handler;
+  if (thd->lex->is_ignore())
+    thd->push_internal_handler(&ignore_handler);
+  else if (thd->is_strict_mode())
+    thd->push_internal_handler(&strict_handler);
+
+  MYSQL_INSERT_START(const_cast<char*>(thd->query().str));
+  res= mysql_insert(thd, all_tables);
+  MYSQL_INSERT_DONE(res, (ulong) thd->get_row_count_func());
+
+  /* Pop ignore / strict error handler */
+  if (thd->lex->is_ignore() || thd->is_strict_mode())
+    thd->pop_internal_handler();
+
+  /*
+    If we have inserted into a VIEW, and the base table has
+    AUTO_INCREMENT column, but this column is not accessible through
+    a view, then we should restore LAST_INSERT_ID to the value it
+    had before the statement.
+  */
+  if (first_table->is_view() && !first_table->contain_auto_increment)
+    thd->first_successful_insert_id_in_cur_stmt=
+      thd->first_successful_insert_id_in_prev_stmt;
+
+  DBUG_EXECUTE_IF("after_mysql_insert",
+                  {
+                    const char act[]=
+                      "now "
+                      "wait_for signal.continue";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+  return res;
+}
+
+
+bool Sql_cmd_insert_select::execute(THD *thd)
+{
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_REPLACE_SELECT ||
+              thd->lex->sql_command == SQLCOM_INSERT_SELECT);
+
+  bool res= false;
+  LEX *const lex= thd->lex;
+  SELECT_LEX *const select_lex= lex->select_lex;
+  SELECT_LEX_UNIT *const unit= lex->unit;
+  TABLE_LIST *const first_table= select_lex->get_table_list();
+  TABLE_LIST *const all_tables= first_table;
+
+  Query_result_insert *sel_result;
+  if (insert_precheck(thd, all_tables))
+    return true;
+  /*
+    INSERT...SELECT...ON DUPLICATE KEY UPDATE/REPLACE SELECT/
+    INSERT...IGNORE...SELECT can be unsafe, unless ORDER BY PRIMARY KEY
+    clause is used in SELECT statement. We therefore use row based
+    logging if mixed or row based logging is available.
+    TODO: Check if the order of the output of the select statement is
+    deterministic. Waiting for BUG#42415
+  */
+  if (lex->sql_command == SQLCOM_INSERT_SELECT &&
+      lex->duplicates == DUP_UPDATE)
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE);
+
+  if (lex->sql_command == SQLCOM_INSERT_SELECT && lex->is_ignore())
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_IGNORE_SELECT);
+
+  if (lex->sql_command == SQLCOM_REPLACE_SELECT)
+    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
+
+  unit->set_limit(select_lex);
+
+  if (!(res= open_tables_for_query(thd, all_tables, 0)))
+  {
+    if (run_before_dml_hook(thd))
+      return true;
+
+    MYSQL_INSERT_SELECT_START(const_cast<char*>(thd->query().str));
+
+    /* Skip first table, which is the table we are inserting in */
+    TABLE_LIST *second_table= first_table->next_local;
+    select_lex->table_list.first= second_table;
+    select_lex->context.table_list=
+      select_lex->context.first_name_resolution_table= second_table;
+
+    res= mysql_insert_select_prepare(thd);
+    if (!res && (sel_result= new Query_result_insert(first_table,
+                                                     first_table->table,
+                                                     &insert_field_list,
+                                                     &insert_field_list,
+                                                     &insert_update_list,
+                                                     &insert_value_list,
+                                                     lex->duplicates)))
+    {
+      Ignore_error_handler ignore_handler;
+      Strict_error_handler strict_handler;
+      if (thd->lex->is_ignore())
+        thd->push_internal_handler(&ignore_handler);
+      else if (thd->is_strict_mode())
+        thd->push_internal_handler(&strict_handler);
+
+      res= handle_query(thd, lex, sel_result,
+                        // Don't unlock tables until command is written
+                        // to binary log
+                        OPTION_SETUP_TABLES_DONE | SELECT_NO_UNLOCK,
+                        0);
+
+      if (thd->lex->is_ignore() || thd->is_strict_mode())
+        thd->pop_internal_handler();
+
+      delete sel_result;
+    }
+    /* revert changes for SP */
+    MYSQL_INSERT_SELECT_DONE(res, (ulong) thd->get_row_count_func());
+    select_lex->table_list.first= first_table;
+  }
+  /*
+    If we have inserted into a VIEW, and the base table has
+    AUTO_INCREMENT column, but this column is not accessible through
+    a view, then we should restore LAST_INSERT_ID to the value it
+    had before the statement.
+  */
+  if (first_table->is_view() && !first_table->contain_auto_increment)
+    thd->first_successful_insert_id_in_cur_stmt=
+      thd->first_successful_insert_id_in_prev_stmt;
+
+  return res;
+}
+
+
+bool Sql_cmd_insert::prepared_statement_test(THD *thd)
+{
+  LEX *lex= thd->lex;
+  return mysql_test_insert(thd, lex->query_tables);
 }

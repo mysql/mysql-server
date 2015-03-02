@@ -81,7 +81,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT a, HEX(b) FROM t1 WHERE b >= 'te' and (a % 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	range	b	b	7	NULL	3	100.00	Using index condition; Using where
+1	SIMPLE	t1	p0,p1,p2	range	b	b	7	NULL	4	100.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,hex(`test`.`t1`.`b`) AS `HEX(b)` from `test`.`t1` where ((`test`.`t1`.`b` >= 'te') and (`test`.`t1`.`a` % 2))
 EXPLAIN FORMAT=JSON SELECT a, HEX(b) FROM t1 WHERE b >= 'te' and (a % 2);
@@ -90,7 +90,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.21"
+      "query_cost": "6.61"
     },
     "table": {
       "table_name": "t1",
@@ -108,15 +108,15 @@ EXPLAIN
         "b"
       ],
       "key_length": "7",
-      "rows_examined_per_scan": 3,
-      "rows_produced_per_join": 3,
+      "rows_examined_per_scan": 4,
+      "rows_produced_per_join": 4,
       "filtered": "100.00",
       "index_condition": "(`test`.`t1`.`a` % 2)",
       "cost_info": {
-        "read_cost": "4.61",
-        "eval_cost": "0.60",
-        "prefix_cost": "5.21",
-        "data_read_per_join": "120"
+        "read_cost": "5.81",
+        "eval_cost": "0.80",
+        "prefix_cost": "6.61",
+        "data_read_per_join": "160"
       },
       "used_columns": [
         "a",

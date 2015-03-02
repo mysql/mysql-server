@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,7 +100,10 @@ static const char *handler_error_messages[]=
   "Out of memory in storage engine",
   "Table corrupted",
   "Query interrupted",
-  "Tablespace cannot be accessed"
+  "Tablespace cannot be accessed",
+  "Tablespace is not empty",
+  "Incorrect file name",
+  "Operation is not allowed"
 };
 
 extern void my_handler_error_register(void);

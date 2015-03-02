@@ -35,7 +35,7 @@
 #include "sql_parse.h"           // check_stack_overrun
 #include "sql_test.h"            // print_where
 #include "sql_tmp_table.h"       // free_tmp_table
-#include "sql_union.h"           // select_union
+#include "sql_union.h"           // Query_result_union
 
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), traced_before(false),
@@ -46,7 +46,7 @@ Item_subselect::Item_subselect():
   with_subselect= 1;
   reset();
   /*
-    Item value is NULL if select_result_interceptor didn't change this value
+    Item value is NULL if Query_result_interceptor didn't change this value
     (i.e. some rows will be found returned)
   */
   null_value= TRUE;
@@ -62,7 +62,7 @@ Item_subselect::Item_subselect(const POS &pos):
   with_subselect= 1;
   reset();
   /*
-    Item value is NULL if select_result_interceptor didn't change this value
+    Item value is NULL if Query_result_interceptor didn't change this value
     (i.e. some rows will be found returned)
   */
   null_value= TRUE;
@@ -70,7 +70,7 @@ Item_subselect::Item_subselect(const POS &pos):
 
 
 void Item_subselect::init(st_select_lex *select_lex,
-			  select_subselect *result)
+			  Query_result_subquery *result)
 {
   /*
     Please see Item_singlerow_subselect::invalidate_and_restore_select_lex(),
@@ -764,23 +764,23 @@ void Item_subselect::print(String *str, enum_query_type query_type)
 
 
 /* Single value subselect interface class */
-class select_singlerow_subselect :public select_subselect
+class Query_result_scalar_subquery :public Query_result_subquery
 {
 public:
-  select_singlerow_subselect(Item_subselect *item_arg)
-    :select_subselect(item_arg)
+  Query_result_scalar_subquery(Item_subselect *item_arg)
+    :Query_result_subquery(item_arg)
   {}
   bool send_data(List<Item> &items);
 };
 
 
-bool select_singlerow_subselect::send_data(List<Item> &items)
+bool Query_result_scalar_subquery::send_data(List<Item> &items)
 {
-  DBUG_ENTER("select_singlerow_subselect::send_data");
+  DBUG_ENTER("Query_result_scalar_subquery::send_data");
   Item_singlerow_subselect *it= (Item_singlerow_subselect *)item;
   if (it->assigned())
   {
-    my_message(ER_SUBQUERY_NO_1_ROW, ER(ER_SUBQUERY_NO_1_ROW), MYF(0));
+    my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
     DBUG_RETURN(true);
   }
   if (unit->offset_limit_cnt)
@@ -804,7 +804,7 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
   :Item_subselect(), value(0), no_rows(false)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
-  init(select_lex, new select_singlerow_subselect(this));
+  init(select_lex, new Query_result_scalar_subquery(this));
   maybe_null= 1; // if the subquery is empty, value is NULL
   max_columns= UINT_MAX;
   DBUG_VOID_RETURN;
@@ -831,10 +831,10 @@ Item_singlerow_subselect::invalidate_and_restore_select_lex()
 }
 
 /* used in independent ALL/ANY optimisation */
-class select_max_min_finder_subselect :public select_subselect
+class Query_result_max_min_subquery :public Query_result_subquery
 {
   Item_cache *cache;
-  bool (select_max_min_finder_subselect::*op)();
+  bool (Query_result_max_min_subquery::*op)();
   bool fmax;
   /**
     If ignoring NULLs, comparisons will skip NULL values. If not
@@ -843,9 +843,10 @@ class select_max_min_finder_subselect :public select_subselect
   */
   bool ignore_nulls;
 public:
-  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx,
-                                  bool ignore_nulls)
-    :select_subselect(item_arg), cache(0), fmax(mx), ignore_nulls(ignore_nulls)
+  Query_result_max_min_subquery(Item_subselect *item_arg, bool mx,
+                                bool ignore_nulls)
+    :Query_result_subquery(item_arg), cache(0), fmax(mx),
+     ignore_nulls(ignore_nulls)
   {}
   void cleanup();
   bool send_data(List<Item> &items);
@@ -857,17 +858,17 @@ private:
 };
 
 
-void select_max_min_finder_subselect::cleanup()
+void Query_result_max_min_subquery::cleanup()
 {
-  DBUG_ENTER("select_max_min_finder_subselect::cleanup");
+  DBUG_ENTER("Query_result_max_min_subquery::cleanup");
   cache= 0;
   DBUG_VOID_RETURN;
 }
 
 
-bool select_max_min_finder_subselect::send_data(List<Item> &items)
+bool Query_result_max_min_subquery::send_data(List<Item> &items)
 {
-  DBUG_ENTER("select_max_min_finder_subselect::send_data");
+  DBUG_ENTER("Query_result_max_min_subquery::send_data");
   Item_maxmin_subselect *it= (Item_maxmin_subselect *)item;
   List_iterator_fast<Item> li(items);
   Item *val_item= li++;
@@ -886,16 +887,16 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
       switch (val_item->result_type())
       {
       case REAL_RESULT:
-	op= &select_max_min_finder_subselect::cmp_real;
+	op= &Query_result_max_min_subquery::cmp_real;
 	break;
       case INT_RESULT:
-	op= &select_max_min_finder_subselect::cmp_int;
+	op= &Query_result_max_min_subquery::cmp_int;
 	break;
       case STRING_RESULT:
-	op= &select_max_min_finder_subselect::cmp_str;
+	op= &Query_result_max_min_subquery::cmp_str;
 	break;
       case DECIMAL_RESULT:
-        op= &select_max_min_finder_subselect::cmp_decimal;
+        op= &Query_result_max_min_subquery::cmp_decimal;
         break;
       case ROW_RESULT:
         // This case should never be choosen
@@ -930,7 +931,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
   @retval true if the new number should be the new maximum/minimum.
   @retval false if the maximum/minimum should stay unchanged.
  */
-bool select_max_min_finder_subselect::cmp_real()
+bool Query_result_max_min_subquery::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
@@ -953,9 +954,9 @@ bool select_max_min_finder_subselect::cmp_real()
 /**
   Compare two integer numbers for MAX or MIN.
 
-  @see select_max_min_finder_subselect::cmp_real()
+  @see Query_result_max_min_subquery::cmp_real()
 */
-bool select_max_min_finder_subselect::cmp_int()
+bool Query_result_max_min_subquery::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
@@ -967,9 +968,9 @@ bool select_max_min_finder_subselect::cmp_int()
 /**
   Compare two decimal numbers for MAX or MIN.
 
-  @see select_max_min_finder_subselect::cmp_real()
+  @see Query_result_max_min_subquery::cmp_real()
 */
-bool select_max_min_finder_subselect::cmp_decimal()
+bool Query_result_max_min_subquery::cmp_decimal()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
@@ -984,9 +985,9 @@ bool select_max_min_finder_subselect::cmp_decimal()
 /**
   Compare two strings for MAX or MIN.
 
-  @see select_max_min_finder_subselect::cmp_real()
+  @see Query_result_max_min_subquery::cmp_real()
 */
-bool select_max_min_finder_subselect::cmp_str()
+bool Query_result_max_min_subquery::cmp_str()
 {
   String *val1, *val2, buf1, buf2;
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
@@ -1012,8 +1013,8 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
-  init(select_lex, new select_max_min_finder_subselect(this, max_arg,
-                                                       ignore_nulls));
+  init(select_lex, new Query_result_max_min_subquery(this, max_arg,
+                                                     ignore_nulls));
   max_columns= 1;
   maybe_null= 1;
   max_columns= 1;
@@ -1100,7 +1101,7 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
     if (thd->lex->describe)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
-      sprintf(warn_buff, ER(ER_SELECT_REDUCED), select->select_number);
+      sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);
       push_warning(thd, Sql_condition::SL_NOTE,
 		   ER_SELECT_REDUCED, warn_buff);
     }
@@ -1316,18 +1317,18 @@ bool Item_singlerow_subselect::val_bool()
 
 
 /* EXISTS subselect interface class */
-class select_exists_subselect :public select_subselect
+class Query_result_exists_subquery :public Query_result_subquery
 {
 public:
-  select_exists_subselect(Item_subselect *item_arg)
-    :select_subselect(item_arg){}
+  Query_result_exists_subquery(Item_subselect *item_arg)
+    :Query_result_subquery(item_arg){}
   bool send_data(List<Item> &items);
 };
 
 
-bool select_exists_subselect::send_data(List<Item> &items)
+bool Query_result_exists_subquery::send_data(List<Item> &items)
 {
-  DBUG_ENTER("select_exists_subselect::send_data");
+  DBUG_ENTER("Query_result_exists_subquery::send_data");
   Item_exists_subselect *it= (Item_exists_subselect *)item;
   if (unit->offset_limit_cnt)
   {				          // Using limit offset,count
@@ -1351,7 +1352,7 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select):
      sj_convert_priority(0), embedding_join_nest(NULL)
 {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
-  init(select, new select_exists_subselect(this));
+  init(select, new Query_result_exists_subquery(this));
   max_columns= UINT_MAX;
   null_value= FALSE; //can't be NULL
   maybe_null= 0; //can't be NULL
@@ -1387,7 +1388,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
   in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
-  init(select, new select_exists_subselect(this));
+  init(select, new Query_result_exists_subquery(this));
   max_columns= UINT_MAX;
   maybe_null= 1;
   reset();
@@ -1421,7 +1422,7 @@ bool Item_in_subselect::itemize(Parse_context *pc, Item **res)
       pt_subselect->contextualize(pc))
     return true;
   SELECT_LEX *select_lex= pt_subselect->value;
-  init(select_lex, new select_exists_subselect(this));
+  init(select_lex, new Query_result_exists_subquery(this));
   if (test_limit())
     return true;
   return false;
@@ -1436,7 +1437,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
   DBUG_ENTER("Item_allany_subselect::Item_allany_subselect");
   left_expr= left_exp;
   func= func_creator(all_arg);
-  init(select, new select_exists_subselect(this));
+  init(select, new Query_result_exists_subquery(this));
   max_columns= 1;
   abort_on_null= 0;
   reset();
@@ -2131,7 +2132,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
 	if (thd->lex->describe)
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
-	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select->select_number);
+	  sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);
 	  push_warning(thd, Sql_condition::SL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
@@ -2777,8 +2778,8 @@ void Item_allany_subselect::print(String *str, enum_query_type query_type)
 void subselect_engine::set_thd_for_result()
 {
   /*
-    select_result's constructor sets neither select_result::thd nor
-    select_result::unit.
+    Query_result's constructor sets neither Query_result::thd nor
+    Query_result::unit.
   */
   if (result)
     result->set_thd(item->unit->thd);
@@ -2787,7 +2788,7 @@ void subselect_engine::set_thd_for_result()
 
 subselect_single_select_engine::
 subselect_single_select_engine(st_select_lex *select,
-			       select_result_interceptor *result_arg,
+			       Query_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg), select_lex(select)
 {
@@ -2814,7 +2815,7 @@ void subselect_union_engine::cleanup()
 
 
 subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
-					       select_result_interceptor *result_arg,
+					       Query_result_interceptor *result_arg,
 					       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg)
 {
@@ -3291,7 +3292,7 @@ bool subselect_indexsubquery_engine::exec()
       err= tl->materialize_derived(thd);
     err|= tl->cleanup_derived();
     if (err)
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);            /* purecov: inspected */
 
     tab->materialized= true;
   }
@@ -3556,7 +3557,7 @@ void subselect_indexsubquery_engine::print(String *str,
   change query result object of engine.
 
   @param si		new subselect Item
-  @param res		new select_result object
+  @param res		new Query_result object
 
   @retval
     FALSE OK
@@ -3564,8 +3565,9 @@ void subselect_indexsubquery_engine::print(String *str,
     TRUE  error
 */
 
-bool subselect_single_select_engine::change_query_result(Item_subselect *si,
-                                                         select_subselect *res)
+bool
+subselect_single_select_engine::change_query_result(Item_subselect *si,
+                                                    Query_result_subquery *res)
 {
   item= si;
   result= res;
@@ -3577,7 +3579,7 @@ bool subselect_single_select_engine::change_query_result(Item_subselect *si,
   change query result object of engine.
 
   @param si		new subselect Item
-  @param res		new select_result object
+  @param res		new Query_result object
 
   @retval
     FALSE OK
@@ -3586,7 +3588,7 @@ bool subselect_single_select_engine::change_query_result(Item_subselect *si,
 */
 
 bool subselect_union_engine::change_query_result(Item_subselect *si,
-                                                 select_subselect *res)
+                                                 Query_result_subquery *res)
 {
   item= si;
   int rc= unit->change_query_result(res, result);
@@ -3599,7 +3601,7 @@ bool subselect_union_engine::change_query_result(Item_subselect *si,
   change query result emulation, never should be called.
 
   @param si		new subselect Item
-  @param res		new select_result object
+  @param res		new Query_result object
 
   @retval
     FALSE OK
@@ -3608,7 +3610,7 @@ bool subselect_union_engine::change_query_result(Item_subselect *si,
 */
 
 bool subselect_indexsubquery_engine::change_query_result(Item_subselect *si,
-                                                   select_subselect *res)
+                                                   Query_result_subquery *res)
 {
   DBUG_ASSERT(0);
   return TRUE;
@@ -3713,7 +3715,7 @@ bool subselect_indexsubquery_engine::no_tables() const
 bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 {
   /* The result sink where we will materialize the subquery result. */
-  select_union  *tmp_result_sink;
+  Query_result_union   *tmp_result_sink;
   /* The table into which the subquery is materialized. */
   TABLE         *tmp_table;
   KEY           *tmp_key; /* The only index on the temporary table. */
@@ -3730,7 +3732,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     result stream in a temporary table. The temporary table itself is
     managed (created/filled/etc) internally by the interceptor.
   */
-  if (!(tmp_result_sink= new select_union))
+  if (!(tmp_result_sink= new Query_result_union))
     DBUG_RETURN(TRUE);
   THD * const thd= item->unit->thd;
   if (tmp_result_sink->create_result_table(

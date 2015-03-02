@@ -3938,6 +3938,40 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 drop table t0, t1, t2;
+#
+# Bug#19695490: CRASH IN CREATE_REF_FOR_KEY ON SELECT + JOIN + UTF8 COLUMN
+#                + DATETIME INDEX.
+#
+CREATE TABLE t1 (
+field1 varchar(255) CHARACTER SET utf8,
+field2 varchar(255) CHARACTER SET utf8
+);
+INSERT INTO t1 VALUES
+('time','time'),
+('lpjdzvkp','lpjdzvkp'),
+('dzvkpai', 'dzvkpai');
+CREATE TABLE t2 ( col_varchar varchar(10));
+CREATE TABLE t3 (
+pk int(11) NOT NULL,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8,
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
+PRIMARY KEY (pk)
+);
+INSERT INTO t3 VALUES (22,'come','h'),
+(23,'time','aaa'),
+(24,'lpjdzvkp','ababa'),
+(25,'d','GGDD');
+SELECT * FROM t1 WHERE (field1, field2) IN (
+SELECT table1.col_varchar_255_utf8_key AS field1,
+table1.col_varchar_255_utf8_key AS field2
+FROM t3 AS table1 LEFT JOIN t2 AS table2
+ON table1.col_varchar_10_utf8_key <=
+table2.col_varchar
+WHERE table1.pk >= 6);
+field1	field2
+time	time
+lpjdzvkp	lpjdzvkp
+DROP TABLE t1,t2,t3;
 create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);
 create table t1 as select * from t0;
@@ -8821,7 +8855,7 @@ WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
 1	SIMPLE	alias1	NULL	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	10.00	Using sort_union(col_varchar_key,PRIMARY); Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	26.53	Range checked for each record (index map: 0x2); End temporary
+1	SIMPLE	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	19.00	Range checked for each record (index map: 0x2); End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`field1` AS `field1` from `test`.`t2` semi join (`test`.`t1` `alias1` join `test`.`t1` `alias2`) where ((`test`.`alias1`.`col_varchar_nokey` = `test`.`t2`.`field1`) and ((`test`.`alias1`.`pk` = 58) or (`test`.`alias1`.`col_varchar_key` = 'o')) and ((`test`.`alias2`.`col_int_key` = `test`.`alias1`.`pk`) or (`test`.`alias2`.`col_int_key` = `test`.`alias1`.`col_int_key`)))
 SELECT *
@@ -11805,5 +11839,94 @@ SELECT 1 FROM t1 WHERE
 (SELECT 1, 2 FROM t1 WHERE x = 2) IN (SELECT 1, 2 FROM t1);
 1
 DROP TABLE t1;
+#
+#Bug#20119743 ASSERTIONQEP_TAB->USE_ORDER() IN ENUM_NESTED_LOOP_STATE
+#             EVALUATE_JOIN_RECORD
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'x');
+CREATE TABLE t2 (
+col_date_key date DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t2 VALUES ('2000-12-03', 8, 'x', 'x'),('2008-05-03', 7, 'd', 'd'),
+('2005-12-06', 1, 'r', 'r'),('2000-04-10', 7, 'f', 'f'),
+('2002-11-05', 9, 'y', 'y'),('2000-09-06', NULL, 'u', 'u'),
+(NULL, 1, 'm', 'm'),('2007-06-14', 9, NULL, NULL),
+('2007-11-17', 2, 'o', 'o'),('2009-02-23', 9, 'w', 'w'),
+('2007-01-08', 2, 'm', 'm'), ('2008-06-10', 4, 'q', 'q'),
+('2002-10-20', 0, NULL, NULL),('2008-09-12', 4, 'd', 'd'),
+('2006-06-16', 8, 'g', 'g'),('2004-09-18', NULL, 'x', 'x'),
+('1900-01-01', NULL, 'f', 'f'),('2005-09-13', 0, 'p', 'p'),
+('2007-04-09', NULL, 'j', 'j'),('2000-09-20', 8, 'c', 'c');
+CREATE TABLE t3 (
+pk int(11) NOT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t3 VALUES (1, 'c'),(2, 'c'),(3, 'q'),(4, 'g'),(5, 'e'),(6, 'l'),
+(7, NULL),(8, 'v'),(9, 'c'),(10, 'u'),(11, 'x'),(12, 'x'),(13, 'x'),(14, 'l'),
+(15, 'e'),(16, 's'),(17, 'k'),(18, 'm'),(19, 'x'),(20, 's');
+ANALYZE TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN SELECT r1.col_date_key
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+(SELECT ir2.pk
+FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+ON ir2.col_varchar_nokey = ir1.col_varchar_key
+WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+AND ir2.pk IN
+(SELECT iir2.pk
+FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+ON iir2.col_varchar_nokey = iir1.col_varchar_key)) 
+ORDER BY r1.col_date_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	r1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort
+2	DEPENDENT SUBQUERY	iir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; LooseScan; Full scan on NULL key
+2	DEPENDENT SUBQUERY	iir1	NULL	ref	col_varchar_key	col_varchar_key	4	test.iir2.col_varchar_nokey	1	100.00	Using index; FirstMatch(iir2)
+2	DEPENDENT SUBQUERY	ir1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	ir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Full scan on NULL key
+SELECT r1.col_date_key
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+(SELECT ir2.pk
+FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+ON ir2.col_varchar_nokey = ir1.col_varchar_key
+WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+AND ir2.pk IN
+(SELECT iir2.pk
+FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+ON iir2.col_varchar_nokey = iir1.col_varchar_key)) 
+ORDER BY r1.col_date_key;
+col_date_key
+2000-04-10
+2000-09-20
+2000-12-03
+2002-10-20
+2002-11-05
+2004-09-18
+2005-09-13
+2006-06-16
+2007-01-08
+2007-06-14
+2007-11-17
+2008-05-03
+2008-06-10
+2008-09-12
+2009-02-23
+DROP TABLE t1,t2,t3;
 set optimizer_switch=default;
 set optimizer_switch=default;

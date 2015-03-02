@@ -7,7 +7,7 @@ let bugdir= $MYSQLTEST_VARDIR/tmp/log_file;
 --mkdir $bugdir
 
 let SEARCH_FILE = $bugdir/my_restart.err;
-let $args=--defaults-file=$bugdir/my.cnf --datadir=$bugdir --loose-console --core-file --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys > $SEARCH_FILE 2>&1 ;
+let $args=--defaults-file=$bugdir/my.cnf --datadir=$bugdir --loose-console --core-file --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --secure-file-priv="" > $SEARCH_FILE 2>&1 ;
 
 --echo # Write tmp/log_file/my.cnf
 --write_file $bugdir/my.cnf
@@ -59,7 +59,7 @@ let SEARCH_PATTERN=\[ERROR\] Aborting;
 # complaining about mysql.* tables. This is sufficient for testing
 # missing tablespaces.
 --echo # Start mysqld to create tablespaces according to my.cnf
---error 2
+--error 1
 --exec $MYSQLD $args --skip-grant-tables --innodb-unknown-parameter
 let SEARCH_PATTERN=unknown option '--innodb-unknown-parameter';
 --source include/search_pattern_in_file.inc

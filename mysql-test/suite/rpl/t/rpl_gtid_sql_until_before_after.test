@@ -11,7 +11,7 @@
 #
 --source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
---source include/rpl_set_gtid_mode.inc
+--source include/have_gtid.inc
 
 --connection master
 --let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)

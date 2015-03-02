@@ -203,67 +203,67 @@ SELECT count(ST_ASTEXT(g2) != 'NULL') FROM gis_geometrycollection_2;
 # Checking the spatial operator functions                                                  #
 ############################################################################################
 
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # ST_INTERSECTION(g1,g2)
---echo #=======================================================================================
+--echo #####################################################################################
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_center))) FROM gis_geometrycollection WHERE fid=105;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_bottom_points)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=106;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_top_to_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=104;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=104;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star))) FROM gis_geometrycollection WHERE fid=104;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=104;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star_collection_elems)));
@@ -276,18 +276,18 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0)),GEOMETRYCOLLECTION())')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_bottom_left))) FROM gis_geometrycollection WHERE fid=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_bottom_points)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points)));
@@ -296,45 +296,45 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTE
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_all_points))) FROM gis_geometrycollection WHERE fid=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=109;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))) FROM gis_geometrycollection WHERE fid=109;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_horizontal)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_horizontal))) FROM gis_geometrycollection WHERE fid=109;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=109;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_collection_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems)));
@@ -348,9 +348,9 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 10)'),ST_GEO
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0)),'
                                                                                               'GEOMETRYCOLLECTION())')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('LINESTRING(15 25,15 10)'),ST_GEOMFROMTEXT('POINT(15 10)')));
@@ -359,18 +359,18 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFRO
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'))) FROM gis_geometrycollection WHERE fid=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_line_vertical)));
@@ -379,36 +379,36 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFRO
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25))),((25 0,0 15,25 10))')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)),((25 0,0 15,25 10)))'))) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,geometrycollectionn
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems)));
@@ -422,18 +422,18 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEO
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                                                               'GEOMETRYCOLLECTION(POLYGON((5 5,15 5,15 15))))')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top))) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points)));
@@ -442,18 +442,18 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_bottom_points))) FROM g
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
@@ -462,27 +462,30 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 1 1), (10 10, 11 11), (20 20, 21 21))'),
+                                 ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 1 1), (10 10, 11 11), (20 20, 19 19))')));
+
+--echo #====================================================================================
 --echo # multilinestring,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
@@ -496,18 +499,18 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10),(5
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                                                                      'GEOMETRYCOLLECTION(POLYGON((5 5,15 5,15 15))))')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_center))) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOINT(0 0,30 25)')));
@@ -516,9 +519,9 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_all_points))) FROM gis_
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points)));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal)));
@@ -527,36 +530,36 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_line_vertical))) FROM g
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,geomertycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3)));
@@ -572,60 +575,60 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
                                                                                                                          'POLYGON((4 4,4 6,6 6,6 4)))')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POINT(30 30)')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top))) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 0,5 5,0 0)),((5 5,10 0,5 0,5 5)))')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))'),
                                  ST_GEOMFROMTEXT('MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3)),((9 9,9 15,15 15,15 9,9 9)))')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,geometrycollectionn
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
@@ -643,45 +646,45 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((4 4,4 6,6 6,6 4)))'),
                                  ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((4 4,4 6,6 6,6 4)))')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POINT(30 30)')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top))) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=115;
@@ -690,9 +693,9 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOM
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,0 0)))')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
@@ -704,9 +707,9 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometry
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),LINESTRING(3 3,6 6))'),
                                  ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5)))')));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,geometrycollectionn
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEXT(@star_collection_elems)));
@@ -725,10 +728,9 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOL
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),
                                  ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1 1), GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())))')));
 
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # Testing ST_INTERSECTION() with 2 geometries of same SRID
---echo #=======================================================================================
-
+--echo #####################################################################################
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100)));
@@ -747,10 +749,9 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEX
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000)));
 
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # Invalid function calls
---echo #=======================================================================================
-
+--echo #####################################################################################
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326)));
 
@@ -863,6 +864,97 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometry
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),
                                  ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
 
+# Test with all combinations of geometry types, including types inside
+# geometry collections. These queries are for coverage of code
+# paths. The results have not been verified.
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, g GEOMETRY NOT NULL);
+
+INSERT INTO t1 VALUES (1, ST_GEOMFROMTEXT('POINT(1 1)'));
+INSERT INTO t1 VALUES (2, ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'));
+INSERT INTO t1 VALUES (3, ST_GEOMFROMTEXT(
+  'POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'));
+INSERT INTO t1 VALUES (4, ST_GEOMFROMTEXT(
+  'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), (4 4, 6 4, 6 6, 4 6, 4 4))'));
+INSERT INTO t1 VALUES (5, ST_GEOMFROMTEXT('MULTIPOINT(1 1, 2 2)'));
+INSERT INTO t1 VALUES (6, ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2),'
+  '(3 3, 4 4))'));
+INSERT INTO t1 VALUES (7, ST_GEOMFROMTEXT(
+  'MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)),((5 5, 10 5, 10 10, 5 10, 5 5)))'));
+INSERT INTO t1 VALUES (8, ST_GEOMFROMTEXT(
+  'MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)), ((5 5, 10 5, 10 10, 5 10, 5 5), '
+  '(6 6, 7 6, 7 7, 6 7, 6 6)))'));
+INSERT INTO t1 VALUES (9, ST_GEOMFROMTEXT(
+  'MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)), ((1 1, 10 1, 10 10, 1 10, 1 1), '
+  '(4 4, 6 4, 6 6, 4 6, 4 4)))'));
+INSERT INTO t1 VALUES (10, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1))'));
+INSERT INTO t1 VALUES (11, ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(LINESTRING(1 1, 2 2))'));
+INSERT INTO t1 VALUES (12, ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(POLYGON((0 0, 1 0, 1 1, 0 1, 0 0)))'));
+INSERT INTO t1 VALUES (13, ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), '
+  '(4 4, 6 4, 6 6, 4 6, 4 4)))'));
+INSERT INTO t1 VALUES (14, ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(MULTIPOINT(1 1, 2 2))'));
+INSERT INTO t1 VALUES (15, ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(MULTILINESTRING((1 1, 2 2), (3 3, 4 4)))'));
+INSERT INTO t1 VALUES (16, ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)), '
+  '((5 5, 10 5, 10 10, 5 10, 5 5))))'));
+INSERT INTO t1 VALUES (17, ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)), '
+  '((5 5, 10 5, 10 10, 5 10, 5 5), (6 6, 7 6, 7 7, 6 7, 6 6))))'));
+INSERT INTO t1 VALUES (18, ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)), '
+  '((1 1, 10 1, 10 10, 1 10, 1 1), (4 4, 6 4, 6 6, 4 6, 4 4))))'));
+INSERT INTO t1 VALUES (19, ST_GEOMFROMTEXT(
+  'GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(1 1, 2 2),'
+  'POLYGON((0 0, 1 0, 1 1, 0 1, 0 0)),'
+  'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), (4 4, 6 4, 6 6, 4 6, 4 4)),'
+  'MULTIPOINT(1 1, 2 2),MULTILINESTRING((1 1, 2 2), (3 3, 4 4)),'
+  'MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)), ((5 5, 10 5, 10 10, 5 10, 5 5))),'
+  'MULTIPOLYGON(((0 0, 1 0, 1 1, 0 1, 0 0)), ((5 5, 10 5, 10 10, 5 10, 5 5), '
+  '(6 6, 7 6, 7 7, 6 7, 6 6))))'));
+INSERT INTO t1 VALUES(20,
+  GEOMETRYCOLLECTION(POINT(1,1),LINESTRING(POINT(1,1),POINT(2,2)),
+  POLYGON(LINESTRING(POINT(0,0),POINT(1,0),POINT(1,1),POINT(0,1),POINT(0,0))),
+  POLYGON(LINESTRING(POINT(0,0),POINT(10,0),POINT(10,10),POINT(0,10),
+  POINT(0,0)),LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),POINT(4,6),
+  POINT(4,4))),MULTIPOINT(POINT(1,1),POINT(2,2)),
+  MULTILINESTRING(LINESTRING(POINT(1,1),POINT(2,2)),LINESTRING(POINT(3,3),
+  POINT(4,4))),MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0),POINT(1,0),POINT(1,1),
+  POINT(0,1),POINT(0,0))),POLYGON(LINESTRING(POINT(5,5),POINT(10,5),
+  POINT(10,10),POINT(5,10),POINT(5,5)))),
+  MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0),POINT(1,0),POINT(1,1),POINT(0,1),
+  POINT(0,0))),POLYGON(LINESTRING(POINT(5,5),POINT(10,5),POINT(10,10),
+  POINT(5,10),POINT(5,5)),LINESTRING(POINT(6,6),POINT(7,6),POINT(7,7),
+  POINT(6,7),POINT(6,6)))),GEOMETRYCOLLECTION(POINT(1,1)),
+  GEOMETRYCOLLECTION(LINESTRING(POINT(1,1),POINT(2,2))),
+  GEOMETRYCOLLECTION(POLYGON(LINESTRING(POINT(0,0),POINT(1,0),POINT(1,1),
+  POINT(0,1),POINT(0,0)))),GEOMETRYCOLLECTION(POLYGON(LINESTRING(POINT(0,0),
+  POINT(10,0),POINT(10,10),POINT(0,10),POINT(0,0)),LINESTRING(POINT(4,4),
+  POINT(6,4),POINT(6,6),POINT(4,6),POINT(4,4)))),
+  GEOMETRYCOLLECTION(MULTIPOINT(POINT(1,1),POINT(2,2))),
+  GEOMETRYCOLLECTION(MULTILINESTRING(LINESTRING(POINT(1,1),POINT(2,2)),
+  LINESTRING(POINT(3,3),POINT(4,4)))),
+  GEOMETRYCOLLECTION(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0),POINT(1,0),
+  POINT(1,1),POINT(0,1),POINT(0,0))),POLYGON(LINESTRING(POINT(5,5),POINT(10,5),
+  POINT(10,10),POINT(5,10),POINT(5,5))))),
+  GEOMETRYCOLLECTION(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0),POINT(1,0),
+  POINT(1,1),POINT(0,1),POINT(0,0))),POLYGON(LINESTRING(POINT(5,5),POINT(10,5),
+  POINT(10,10),POINT(5,10),POINT(5,5)),LINESTRING(POINT(6,6),POINT(7,6),
+  POINT(7,7),POINT(6,7),POINT(6,6)))))));
+INSERT INTO t1 VALUES (21,
+  GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(1,1)),
+  GEOMETRYCOLLECTION(LINESTRING(POINT(1,1),POINT(2,2))),
+  GEOMETRYCOLLECTION(POLYGON(LINESTRING(POINT(1,1), POINT(10,1), POINT(10,10),
+  POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
+  POINT(4,6),POINT(4,4))))));
+
+SELECT ST_ASTEXT(ST_INTERSECTION(a.g, b.g)) FROM t1 AS a JOIN t1 AS b ORDER BY a.pk, b.pk;
+
 --echo #clean up
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
+DROP TABLE t1;

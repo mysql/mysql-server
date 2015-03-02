@@ -15,8 +15,10 @@
 
 #include "rpl_handler.h"
 
+#include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
 #include "log.h"               // sql_print_error
+#include "psi_memory_key.h"
 #include "replication.h"       // Trans_param
 #include "rpl_mi.h"            // Master_info
 #include "sql_class.h"         // THD
@@ -38,6 +40,25 @@ Observer_info::Observer_info(void *ob, st_plugin_int *p)
   : observer(ob), plugin_int(p)
 {
   plugin= plugin_int_to_ref(plugin_int);
+}
+
+
+Delegate::Delegate(
+#ifdef HAVE_PSI_INTERFACE
+         PSI_rwlock_key key
+#endif
+         )
+{
+  inited= FALSE;
+#ifdef HAVE_PSI_INTERFACE
+  if (mysql_rwlock_init(key, &lock))
+    return;
+#else
+  if (mysql_rwlock_init(0, &lock))
+    return;
+#endif
+  init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
+  inited= TRUE;
 }
 
 

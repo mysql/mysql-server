@@ -1201,13 +1201,17 @@ protected:
   static const int ENCODED_SEQ_NUMBER_OFFSET= 40;
   // 4 bytes length.
   static const int ENCODED_CERT_INFO_SIZE_OFFSET= 48;
+  // 1 bytes length
+  static const int ENCODED_WRITTEN_FLAG_OFFSET= 52;
+
 
   /*
     The layout of the buffer is as follows
-    +--------------------- -+-------------+----------+
-    | View Id               | seq number  | map size |
-    +-----------------------+-------------+----------+
+    +--------------------- -+-------------+----------+---------+
+    | View Id               | seq number  | map size | written |
+    +-----------------------+-------------+----------+---------+
    view id (40 bytes) + seq number (8 bytes) + map size (4 bytes)
+      + written flag (1 byte)
    Sum of the length of the values at the above OFFSETS.
   */
 
@@ -1224,6 +1228,8 @@ protected:
   long long int seq_number;
 
   std::map<std::string, std::string> certification_info;
+
+  bool written_to_binlog;
 };
 
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -237,4 +237,82 @@ Tablespace::is_undo_tablespace(
 	return(id <= srv_undo_tablespaces_open
 	       && id != srv_sys_space.space_id()
 	       && id != srv_tmp_space.space_id());
+}
+
+/** Use the ADD DATAFILE path to create a Datafile object and add it to the
+front of m_files.
+Parse the datafile path into a path and a filename with extension 'ibd'.
+This datafile_path provided may or may not be an absolute path, but it
+must end with the extension .ibd and have a basename of at least 1 byte.
+
+Set tablespace m_path member and add a Datafile with the filename.
+@param[in]	datafile_path	full path of the tablespace file. */
+dberr_t
+Tablespace::add_datafile(
+	const char*	datafile_added)
+{
+	const char*	basename;
+	ulint		len = strlen(datafile_added);
+	char*		datafile_buf;
+
+	datafile_buf = static_cast<char*>(ut_malloc_nokey(len + 1));
+	if (datafile_buf == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	memcpy(datafile_buf, datafile_added, len + 1);
+
+	os_normalize_path_for_win(datafile_buf);
+
+	/* The path provided ends in ".ibd".  This was assured by
+	validate_create_tablespace_info() */
+	ut_d(const char* dot = strrchr(datafile_buf, '.'));
+	ut_ad(dot != NULL && (0 == strcmp(dot, DOT_IBD)));
+
+	/* The path provided is either an absolute path or
+	a relative path. */
+	bool	absolute_path =
+		(datafile_buf[0] == OS_PATH_SEPARATOR
+		 || datafile_buf[1] == ':')
+		? true : false;
+
+	char* sep = strrchr(datafile_buf, OS_PATH_SEPARATOR);
+
+	/* Need at least 1 char in the basename before ".ibd".
+	This was also assured by validate_create_tablespace_info() */
+	if (sep != NULL) {
+		ut_ad(strlen(&sep[1]) > strlen(DOT_IBD));
+		if (absolute_path) {
+			basename = &sep[1];
+			sep[0] = '\0';
+		} else {
+			basename = datafile_buf;
+		}
+	} else {
+		ut_ad(!absolute_path);
+		basename = datafile_buf;
+		ut_ad(strlen(basename) > strlen(DOT_IBD));
+	}
+
+	/* Fill the m_path member which is the default directory for files
+	in this tablespace. If the default for this tablespace has not yet
+	been set, we will set it here. */
+	if (m_path == NULL) {
+		if (absolute_path) {
+			set_path(datafile_buf);
+		} else {
+			/* Assume that the default location for files in
+			this tablespace is the default datdir. */
+			set_path(fil_path_to_mysql_datadir);
+		}
+	}
+
+	/* Now add a new Datafile and set the filepath
+	using the m_path created above. */
+	m_files.push_back(Datafile(basename, FIL_IBD_FILE_INITIAL_SIZE, 0));
+	Datafile* datafile = &m_files.back();
+	datafile->make_filepath(m_path);
+
+	ut_free(datafile_buf);
+	return(DB_SUCCESS);
 }

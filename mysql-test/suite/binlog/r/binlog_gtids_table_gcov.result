@@ -1,7 +1,9 @@
-call mtr.add_suppression("Failed to save set of GTIDs of the last binlog into "
-                         "gtid_executed table on server shutdown, so we save "
-                         "it into gtid_executed table and executed_gtids "
-                         "during next server startup.");
+call mtr.add_suppression("Failed to save the set of Global Transaction "
+                         "Identifiers of the last binary log into the "
+                         "mysql.gtid_executed table while the server was "
+                         "shutting down. The next server restart will make "
+                         "another attempt to save Global Transaction "
+                         "Identifiers into the table.");
 SET @debug_save= @@GLOBAL.DEBUG;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 SET @@GLOBAL.DEBUG= "+d,simulate_err_on_write_gtid_into_table";
@@ -16,6 +18,7 @@ SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	2
 SET GLOBAL DEBUG= @debug_save;
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 call mtr.add_suppression(".* Turning logging off for the whole duration of the "
                          "MySQL server process. To turn it on again: fix the "
                          "cause, shutdown the MySQL server and restart it.");
@@ -32,6 +35,7 @@ SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	2
 include/assert.inc [committed gtid set is MASTER_UUID:1-4]
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 DROP TABLE t1;
 # restart
 RESET MASTER;

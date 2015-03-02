@@ -2101,7 +2101,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	400.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (@a:=`test`.`t1`.`a`) order by `test`.`t1`.`a` limit 1
@@ -2127,7 +2127,7 @@ EXPLAIN
         "key_length": "4",
         "rows_examined_per_scan": 1,
         "rows_produced_per_join": 4,
-        "filtered": "400.00",
+        "filtered": "100.00",
         "using_index": true,
         "cost_info": {
           "read_cost": "2.01",
@@ -3131,7 +3131,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	35204.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	10.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -3159,7 +3159,7 @@ EXPLAIN
         "key_length": "15",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 1760,
-        "filtered": "35204.00",
+        "filtered": "10.00",
         "cost_info": {
           "read_cost": "3243.42",
           "eval_cost": "352.04",
@@ -3618,22 +3618,22 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35);
 #
-# query:  DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5
-# select: SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5
+# query:  DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1
+# select: SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1
 #
-EXPLAIN DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+EXPLAIN DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;;
+EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;;
 EXPLAIN
 {
   "query_block": {
@@ -3664,15 +3664,15 @@ EXPLAIN
 }
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index condition
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;;
+EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;;
 EXPLAIN
 {
   "query_block": {
@@ -3712,16 +3712,14 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
-Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_delete	5
+Handler_delete	1
 Handler_read_key	1
-Handler_read_next	4
 
 DROP TABLE t1;
 #30
@@ -3883,7 +3881,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	52.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	10.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -3911,7 +3909,7 @@ EXPLAIN
         "key_length": "15",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 2,
-        "filtered": "52.00",
+        "filtered": "10.00",
         "cost_info": {
           "read_cost": "6.79",
           "eval_cost": "0.52",
@@ -3997,7 +3995,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	35204.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	10.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -4025,7 +4023,7 @@ EXPLAIN
         "key_length": "15",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 1760,
-        "filtered": "35204.00",
+        "filtered": "10.00",
         "cost_info": {
           "read_cost": "3243.42",
           "eval_cost": "352.04",
@@ -4400,22 +4398,22 @@ INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 CREATE TABLE t2(a INT, i INT PRIMARY KEY);
 INSERT INTO t2 (i) SELECT i FROM t1;
 #
-# query:  DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5
-# select: SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5
+# query:  DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1
+# select: SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1
 #
-EXPLAIN DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+EXPLAIN DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+EXPLAIN EXTENDED DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;;
+EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;;
 EXPLAIN
 {
   "query_block": {
@@ -4446,15 +4444,15 @@ EXPLAIN
 }
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+EXPLAIN EXTENDED SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index condition
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 5
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-EXPLAIN FORMAT=JSON SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;;
+EXPLAIN FORMAT=JSON SELECT * FROM t2 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;;
 EXPLAIN
 {
   "query_block": {
@@ -4494,16 +4492,14 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 5
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
-Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_delete	5
+Handler_delete	1
 Handler_read_key	1
-Handler_read_prev	4
 
 DROP TABLE t1, t2;
 #37
@@ -4654,7 +4650,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	5	352040.00	NULL
+1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	5	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
@@ -4681,7 +4677,7 @@ EXPLAIN
         "key_length": "6",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 17602,
-        "filtered": "352040.00",
+        "filtered": "100.00",
         "cost_info": {
           "read_cost": "40.68",
           "eval_cost": "3520.40",
@@ -4718,22 +4714,22 @@ INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 CREATE TABLE t2(a INT, i INT PRIMARY KEY);
 INSERT INTO t2 (i) SELECT i FROM t1;
 #
-# query:  UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5
-# select: SELECT * FROM  t2    WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5
+# query:  UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1
+# select: SELECT * FROM  t2    WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1
 #
-EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-EXPLAIN FORMAT=JSON UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;;
+EXPLAIN FORMAT=JSON UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;;
 EXPLAIN
 {
   "query_block": {
@@ -4765,15 +4761,15 @@ EXPLAIN
 }
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM  t2    WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
+EXPLAIN EXTENDED SELECT * FROM  t2    WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index condition
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-EXPLAIN FORMAT=JSON SELECT * FROM  t2    WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;;
+EXPLAIN FORMAT=JSON SELECT * FROM  t2    WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 1;;
 EXPLAIN
 {
   "query_block": {
@@ -4813,17 +4809,15 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
-Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	1
-Handler_read_next	4
-Handler_read_rnd	5
-Handler_update	5
+Handler_read_rnd	1
+Handler_update	1
 
 DROP TABLE t1, t2;
 #40
@@ -4987,7 +4981,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	52.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	10.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -5015,7 +5009,7 @@ EXPLAIN
         "key_length": "15",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 2,
-        "filtered": "52.00",
+        "filtered": "10.00",
         "cost_info": {
           "read_cost": "6.79",
           "eval_cost": "0.52",
@@ -5102,7 +5096,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	35204.00	Using where
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	5	10.00	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
@@ -5130,7 +5124,7 @@ EXPLAIN
         "key_length": "15",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 1760,
-        "filtered": "35204.00",
+        "filtered": "10.00",
         "cost_info": {
           "read_cost": "3243.42",
           "eval_cost": "352.04",
@@ -5504,22 +5498,22 @@ INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 CREATE TABLE t2(a INT, i INT PRIMARY KEY);
 INSERT INTO t2 (i) SELECT i FROM t1;
 #
-# query:  UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5
-# select: SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5
+# query:  UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1
+# select: SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1
 #
-EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+EXPLAIN UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	4	const	8	100.00	Using where; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
-EXPLAIN FORMAT=JSON UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;;
+EXPLAIN FORMAT=JSON UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;;
 EXPLAIN
 {
   "query_block": {
@@ -5551,15 +5545,15 @@ EXPLAIN
 }
 FLUSH STATUS;
 FLUSH TABLES;
-EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;
+EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	8	100.00	Using index condition
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 5
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
-EXPLAIN FORMAT=JSON SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 5;;
+EXPLAIN FORMAT=JSON SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i DESC LIMIT 1;;
 EXPLAIN
 {
   "query_block": {
@@ -5599,17 +5593,15 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 5
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	1
-Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	1
-Handler_read_prev	4
-Handler_read_rnd	5
-Handler_update	5
+Handler_read_rnd	1
+Handler_update	1
 
 DROP TABLE t1, t2;
 #47
@@ -5761,7 +5753,7 @@ FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	5	352040.00	NULL
+1	SIMPLE	t2	NULL	index	NULL	a	6	NULL	5	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
@@ -5788,7 +5780,7 @@ EXPLAIN
         "key_length": "6",
         "rows_examined_per_scan": 5,
         "rows_produced_per_join": 17602,
-        "filtered": "352040.00",
+        "filtered": "100.00",
         "cost_info": {
           "read_cost": "40.68",
           "eval_cost": "3520.40",

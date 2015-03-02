@@ -23,6 +23,7 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "keycaches.h"
+#include "psi_memory_key.h"
 #include "sql_optimizer.h"  // JOIN
 #include "opt_explain.h"    // join_type_str
 #include <hash.h>
@@ -456,7 +457,7 @@ reads:          %10s\n\n",
 void mysql_print_status()
 {
   char current_dir[FN_REFLEN];
-  STATUS_VAR tmp;
+  System_status_var tmp;
 
   calc_sum_of_all_status(&tmp);
   printf("\nStatus information:\n\n");

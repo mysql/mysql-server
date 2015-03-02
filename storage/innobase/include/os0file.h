@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -510,7 +510,7 @@ os_file_create_simple_no_error_handling_func(
 				/*!< in: if true read only mode
 				checks are enforced. */
 	bool*		success)/*!< out: TRUE if succeed, FALSE if error */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /****************************************************************//**
 Tries to disable OS caching on an opened file descriptor. */
 void
@@ -545,7 +545,7 @@ os_file_create_func(
 				/*!< in: if true read only mode
 				checks are enforced. */
 	bool*		success)/*!< out: TRUE if succeed, FALSE if error */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***********************************************************************//**
 Deletes a file. The file has to be closed before calling this.
 @return TRUE if success */
@@ -611,7 +611,7 @@ pfs_os_file_create_simple_func(
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /****************************************************************//**
 NOTE! Please use the corresponding macro
@@ -639,7 +639,7 @@ pfs_os_file_create_simple_no_error_handling_func(
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /****************************************************************//**
 NOTE! Please use the corresponding macro os_file_create(), not directly
@@ -670,7 +670,7 @@ pfs_os_file_create_func(
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /***********************************************************************//**
 NOTE! Please use the corresponding macro os_file_close(), not directly
@@ -865,7 +865,7 @@ os_file_set_size(
 	bool		read_only_mode)
 				/*!< in: if true, read only mode
 				checks are enforced. */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***********************************************************************//**
 Truncates a file at its current position.
 @return TRUE if success */
@@ -1029,7 +1029,7 @@ os_file_make_data_dir_path(
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return TRUE if call succeeded FALSE otherwise */
-bool
+dberr_t
 os_file_create_subdirs_if_needed(
 /*=============================*/
 	const char*	path);	/*!< in: path name */

@@ -472,5 +472,5 @@ delete from performance_schema.setup_objects
   where object_schema='mtr';
 
 # In case of failure, will indicate the root cause
-show status like "performance_schema%";
+show global status like "performance_schema%";
 

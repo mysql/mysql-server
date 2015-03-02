@@ -19,7 +19,7 @@
 #ifdef HAVE_REPLICATION
 #include "my_global.h"
 #include "binlog.h"           // LOG_INFO
-#include "binlog_event.h"     // enum_binlog_checksum_alg
+#include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
 #include "mysqld_error.h"     // ER_*
 #include "sql_error.h"        // Diagnostics_area
 
@@ -64,6 +64,7 @@ private:
   binary_log::enum_binlog_checksum_alg m_event_checksum_alg;
   binary_log::enum_binlog_checksum_alg m_slave_checksum_alg;
   ulonglong m_heartbeat_period;
+  time_t m_last_event_sent_ts;
   /*
     For mysqlbinlog(server_id is 0), it will stop immediately without waiting
     if it already reads all events.
@@ -71,6 +72,7 @@ private:
   bool m_wait_new_events;
 
   Diagnostics_area m_diag_area;
+  char m_errmsg_buf[MYSQL_ERRMSG_SIZE];
   const char *m_errmsg;
   int m_errno;
   /*
@@ -277,6 +279,24 @@ private:
                         binary_log::enum_binlog_checksum_alg checksum_alg,
                         uchar **event_ptr, uint32 *event_len);
   /**
+    Check if it is allowed to send this event type.
+
+    The following are disallowed:
+    - GTID_MODE=ON and type==ANONYMOUS_GTID_LOG_EVENT
+    - AUTO_POSITION=1 and type==ANONYMOUS_GTID_LOG_EVENT
+    - GTID_MODE=OFF and type==GTID_LOG_EVENT
+
+    @param type The event type.
+    @param log_file The binary log file (used in error messages).
+    @param log_pos The binary log position (used in error messages).
+
+    @retval true The event is not allowed. In this case, this function
+    calls set_fatal_error().
+    @retval false The event is allowed.
+  */
+  bool check_event_type(binary_log::Log_event_type type,
+                        const char *log_file, my_off_t log_pos);
+  /**
     It checks if the event is in m_exclude_gtid.
 
     Clients may request to exclude some GTIDs. The events include in the GTID
@@ -347,7 +367,10 @@ private:
   bool has_error() { return m_errno != 0; }
   void set_error(int errorno, const char *errmsg)
   {
-    m_errmsg= errmsg;
+    // Need to set the final '\0' since strncpy does not do that.
+    strncpy(m_errmsg_buf, errmsg, sizeof(m_errmsg_buf) - 1);
+    m_errmsg_buf[sizeof(m_errmsg_buf) - 1]= '\0';
+    m_errmsg= m_errmsg_buf;
     m_errno= errorno;
   }
 

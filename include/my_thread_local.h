@@ -79,14 +79,10 @@ struct st_my_thread_var
   int thr_winerr;
 #endif
   mysql_cond_t suspend;
-  mysql_mutex_t mutex;
-  mysql_mutex_t * volatile current_mutex;
-  mysql_cond_t * volatile current_cond;
   my_thread_id id;
   int volatile abort;
   struct st_my_thread_var *next,**prev;
   void *opt_info;
-  void  *stack_ends_here;
 #ifndef DBUG_OFF
   void *dbug;
 #endif

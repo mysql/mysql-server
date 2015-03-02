@@ -499,7 +499,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     initiated. Also set the statement query arena to the lex mem_root.
   */
   MEM_ROOT *execution_mem_root= thd->mem_root;
-  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->state);
+  Query_arena parse_arena(&m_lex_mem_root, STMT_INITIALIZED_FOR_SP);
 
   thd->mem_root= &m_lex_mem_root;
   thd->stmt_arena->set_query_arena(&parse_arena);

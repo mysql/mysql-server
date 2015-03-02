@@ -19,7 +19,6 @@
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "gcalc_tools.h"
-#include "mysqld.h"
 #include "sql_string.h"                 // String
 
 #include <vector>
@@ -238,15 +237,7 @@ struct Geometry_buffer;
   Memory management functions for BG adapter code. Allocate extra space for
   GEOMETRY header so that we can later prefix the header if needed.
  */
-inline void *gis_wkb_alloc(size_t sz)
-{
-  sz+= GEOM_HEADER_SIZE;
-  char *p= static_cast<char *>(my_malloc(key_memory_Geometry_objects_data,
-                                         sz, MYF(MY_FAE)));
-  p+= GEOM_HEADER_SIZE;
-  return p;
-}
-
+void *gis_wkb_alloc(size_t sz);
 
 inline void *gis_wkb_fixed_alloc(size_t sz)
 {
@@ -254,17 +245,7 @@ inline void *gis_wkb_fixed_alloc(size_t sz)
 }
 
 
-inline void *gis_wkb_realloc(void *p, size_t sz)
-{
-  char *cp= static_cast<char *>(p);
-  if (cp)
-    cp-= GEOM_HEADER_SIZE;
-  sz+= GEOM_HEADER_SIZE;
-
-  p= my_realloc(key_memory_Geometry_objects_data, cp, sz, MYF(MY_FAE));
-  cp= static_cast<char *>(p);
-  return cp + GEOM_HEADER_SIZE;
-}
+void *gis_wkb_realloc(void *p, size_t sz);
 
 
 inline void gis_wkb_free(void *p)
@@ -692,10 +673,13 @@ public:
   }
 
   static Geometry *construct(Geometry_buffer *buffer,
-                             const char *data, uint32 data_len);
-  static Geometry *construct(Geometry_buffer *buffer, const String *str)
+                             const char *data, uint32 data_len,
+                             bool has_srid= true);
+  static Geometry *construct(Geometry_buffer *buffer, const String *str,
+                             bool has_srid= true)
   {
-    return construct(buffer, str->ptr(), static_cast<uint32>(str->length()));
+    return construct(buffer, str->ptr(),
+                     static_cast<uint32>(str->length()), has_srid);
   }
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
 				   Gis_read_stream *trs, String *wkt,
@@ -1377,7 +1361,6 @@ public:
 
   typedef Gis_point self;
   typedef Geometry base;
-  typedef self point_type;
 
   explicit Gis_point(bool is_bg_adapter= true)
     :Geometry(NULL, 0, Flags_t(wkb_point, 0), default_srid)
@@ -2219,7 +2202,6 @@ public:
   typedef const T& const_reference;
   typedef T* pointer;
   typedef T& reference;
-  typedef typename T::point_type point_type;
   typedef ptrdiff_t difference_type;
 
   typedef Geometry_vector<T> Geo_vector;
@@ -2470,7 +2452,7 @@ Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
 
 template <typename T>
 Gis_wkb_vector<T>::
-Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v)
+Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
 {
   DBUG_ASSERT((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
               (v.get_ptr() == NULL && !v.get_ownmem() &&
@@ -2683,6 +2665,12 @@ void Gis_wkb_vector<T>::set_ptr(void *ptr, size_t len)
 template <typename T>
 void Gis_wkb_vector<T>::clear()
 {
+  if (!m_geo_vect)
+  {
+    DBUG_ASSERT(m_ptr == NULL);
+    return;
+  }
+
   DBUG_ASSERT(m_geo_vect && get_geotype() != Geometry::wkb_polygon);
   // Keep the component vector because this object can be reused again.
   const void *ptr= get_ptr();
@@ -3341,7 +3329,6 @@ public:
 
   /**** Boost Geometry Adapter Interface ******/
 
-  typedef Gis_point point_type;
   typedef Gis_wkb_vector<Gis_point> base_type;
   typedef Gis_line_string self;
 
@@ -3371,7 +3358,6 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point>
 public:
   typedef Gis_wkb_vector<Gis_point> base;
   typedef Gis_polygon_ring self;
-  typedef Gis_point point_type;
 
   virtual ~Gis_polygon_ring()
   {}
@@ -3428,7 +3414,6 @@ public:
 
 
   /**** Boost Geometry Adapter Interface ******/
-  typedef Gis_point point_type;
   typedef Gis_polygon self;
   typedef Gis_polygon_ring ring_type;
   typedef Gis_wkb_vector<ring_type> inner_container_type;
@@ -3545,7 +3530,6 @@ public:
 
   /**** Boost Geometry Adapter Interface ******/
 
-  typedef Gis_point point_type;
   typedef Gis_wkb_vector<Gis_point> base_type;
   typedef Gis_multi_point self;
 
@@ -3590,7 +3574,6 @@ public:
 
   typedef Gis_wkb_vector<Gis_line_string> base;
   typedef Gis_multi_line_string self;
-  typedef Gis_point point_type;
 
   explicit Gis_multi_line_string(bool is_bg_adapter= true)
     :base(NULL, 0, Flags_t(wkb_multilinestring, 0),
@@ -3631,7 +3614,6 @@ public:
 
 
   /**** Boost Geometry Adapter Interface ******/
-  typedef Gis_point point_type;
   typedef Gis_multi_polygon self;
   typedef Gis_wkb_vector<Gis_polygon> base;
 
@@ -3655,7 +3637,6 @@ public:
 class Gis_geometry_collection: public Geometry
 {
 public:
-  typedef Gis_point point_type;
   Gis_geometry_collection()
     :Geometry(NULL, 0, Flags_t(wkb_geometrycollection, 0), default_srid)
   {

@@ -852,6 +852,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   }
 
 err:
+  mysql_mutex_unlock(&data_lock);
   thd->EXIT_COND(&old_stage);
   DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
 improper_arguments: %d  timed_out: %d",
@@ -1009,6 +1010,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
     DBUG_PRINT("info",("Testing if killed or SQL thread not running"));
   }
 
+  mysql_mutex_unlock(&data_lock);
   thd->EXIT_COND(&old_stage);
   DBUG_PRINT("exit",("killed: %d  abort: %d  slave_running: %d \
 improper_arguments: %d  timed_out: %d",
@@ -2697,9 +2699,13 @@ void Relay_log_info::relay_log_number_to_name(uint number,
                                               char name[FN_REFLEN+1])
 {
   char *str= NULL;
+  char relay_bin_channel[FN_REFLEN+1];
+  const char *relay_log_basename_channel=
+    add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN+1,
+                                  relay_log_basename);
 
-  /* str points to closing null relay log basename */
-  str= strmake(name, relay_log_basename, FN_REFLEN+1);
+  /* str points to closing null of relay log basename channel */
+  str= strmake(name, relay_log_basename_channel, FN_REFLEN+1);
   *str++= '.';
   sprintf(str, "%06u", number);
 }

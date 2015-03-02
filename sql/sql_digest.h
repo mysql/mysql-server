@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,9 +16,11 @@
 #ifndef SQL_DIGEST_H
 #define SQL_DIGEST_H
 
-#define MAX_DIGEST_STORAGE_SIZE 1024
-
 #include <string.h>
+#include "sql_string.h"
+#include "my_md5.h"
+
+#define MAX_DIGEST_STORAGE_SIZE (1024*1024)
 
 /**
   Structure to store token count/array for a statement
@@ -27,7 +29,8 @@
 struct sql_digest_storage
 {
   bool m_full;
-  int m_byte_count;
+  uint m_byte_count;
+  unsigned char m_md5[MD5_HASH_SIZE];
   /** Character set number. */
   uint m_charset_number;
   /**
@@ -39,13 +42,32 @@ struct sql_digest_storage
     SELECT * FROM T1;
     &lt;SELECT_TOKEN&gt; &lt;*&gt; &lt;FROM_TOKEN&gt; &lt;ID_TOKEN&gt; &lt;2&gt; &lt;T1&gt;
   */
-  unsigned char m_token_array[MAX_DIGEST_STORAGE_SIZE];
+  unsigned char *m_token_array;
+  /* Length of the token array to be considered for DIGEST_TEXT calculation. */
+  uint m_token_array_length;
+
+  sql_digest_storage()
+  {
+    reset(NULL, 0);
+  }
+
+  inline void reset(unsigned char *token_array, uint length)
+  {
+    m_token_array= token_array;
+    m_token_array_length= length;
+    reset();
+  }
 
   inline void reset()
   {
     m_full= false;
     m_byte_count= 0;
     m_charset_number= 0;
+    if (m_token_array_length > 0)
+    {
+      memset(m_token_array, 0, m_token_array_length);
+    }
+    memset(m_md5, 0, MD5_HASH_SIZE);
   }
 
   inline bool is_empty()
@@ -60,14 +82,16 @@ struct sql_digest_storage
       as the thread producing the digest is executing concurrently,
       without any lock enforced.
     */
-    int byte_count_copy= from->m_byte_count;
+    uint byte_count_copy= m_token_array_length < from->m_byte_count ?
+                          m_token_array_length : from->m_byte_count;
 
-    if ((byte_count_copy > 0) && (byte_count_copy <= MAX_DIGEST_STORAGE_SIZE))
+    if (byte_count_copy > 0)
     {
       m_full= from->m_full;
       m_byte_count= byte_count_copy;
       m_charset_number= from->m_charset_number;
       memcpy(m_token_array, from->m_token_array, m_byte_count);
+      memcpy(m_md5, from->m_md5, MD5_HASH_SIZE);
     }
     else
     {
@@ -100,8 +124,7 @@ void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char 
   @param [out] truncated true if the text representation was truncated
 */
 void compute_digest_text(const sql_digest_storage *digest_storage,
-                         char *digest_text, size_t digest_text_length,
-                         bool *truncated);
+                         String *digest_text);
 
 #endif
 

@@ -1,0 +1,160 @@
+include/rpl_init.inc [topology=none]
+include/rpl_default_connections.inc
+CALL mtr.add_suppression("Statement violates GTID consistency:");
+CREATE TABLE innodb (a INT) ENGINE = InnoDB;
+CREATE TABLE myisam (a INT) ENGINE = MyISAM;
+==== AUTOMATIC, GTID-consistent: all modes ok ====
+[connection master]
+BEGIN;
+INSERT INTO innodb VALUES (1);
+[connection master1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON;
+[connection master]
+COMMIT;
+[connection master]
+BEGIN;
+INSERT INTO innodb VALUES (1);
+[connection master1]
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+[connection master]
+COMMIT;
+==== AUTOMATIC, GTID-violating: only OFF and OFF_PERMISSIVE ok ====
+[connection master]
+BEGIN;
+INSERT INTO innodb VALUES (1);
+INSERT INTO myisam VALUES (1);
+[connection master1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+Warnings:
+Warning	3117	There are ongoing transactions that violate GTID consistency.
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+ERROR HY000: Cannot set ENFORCE_GTID_CONSISTENCY = ON because there are ongoing transactions that violate GTID consistency.
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE is not allowed because there are ongoing transactions that use GTID_NEXT = 'AUTOMATIC', which violate GTID consistency. Adjust your workload to be GTID-consistent before setting @@GLOBAL.GTID_MODE = ON_PERMISSIVE. See the Manual for @@GLOBAL.ENFORCE_GTID_CONSISTENCY for details.
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+[connection master]
+COMMIT;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+[connection master]
+BEGIN;
+INSERT INTO innodb VALUES (1);
+INSERT INTO myisam VALUES (1);
+[connection master1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+Warnings:
+Warning	3117	There are ongoing transactions that violate GTID consistency.
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+ERROR HY000: Cannot set ENFORCE_GTID_CONSISTENCY = ON because there are ongoing transactions that violate GTID consistency.
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE is not allowed because there are ongoing transactions that use GTID_NEXT = 'AUTOMATIC', which violate GTID consistency. Adjust your workload to be GTID-consistent before setting @@GLOBAL.GTID_MODE = ON_PERMISSIVE. See the Manual for @@GLOBAL.ENFORCE_GTID_CONSISTENCY for details.
+SET GLOBAL GTID_MODE = OFF;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+[connection master]
+COMMIT;
+==== ANONYMOUS, GTID-consistent: all except ON are ok ====
+[connection master]
+SET GTID_NEXT = 'ANONYMOUS';
+BEGIN;
+INSERT INTO innodb VALUES (1);
+[connection master1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because there are ongoing, anonymous transactions. Before setting @@GLOBAL.GTID_MODE = ON, wait until SHOW STATUS LIKE 'ANONYMOUS_TRANSACTION_COUNT' shows zero on all servers. Then wait for all existing, anonymous transactions to replicate to all slaves, and then execute SET @@GLOBAL.GTID_MODE = ON on all servers. See the Manual for details.
+[connection master]
+COMMIT;
+[connection master]
+SET GTID_NEXT = 'ANONYMOUS';
+BEGIN;
+INSERT INTO innodb VALUES (1);
+[connection master1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+SET GLOBAL GTID_MODE = ON;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because there are ongoing, anonymous transactions. Before setting @@GLOBAL.GTID_MODE = ON, wait until SHOW STATUS LIKE 'ANONYMOUS_TRANSACTION_COUNT' shows zero on all servers. Then wait for all existing, anonymous transactions to replicate to all slaves, and then execute SET @@GLOBAL.GTID_MODE = ON on all servers. See the Manual for details.
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+[connection master]
+COMMIT;
+==== ANONYMOUS, GTID-violating: all except ON are ok ====
+[connection master]
+SET GTID_NEXT = 'ANONYMOUS';
+BEGIN;
+INSERT INTO innodb VALUES (1);
+INSERT INTO myisam VALUES (1);
+[connection master1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+Warnings:
+Warning	3117	There are ongoing transactions that violate GTID consistency.
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+ERROR HY000: Cannot set ENFORCE_GTID_CONSISTENCY = ON because there are ongoing transactions that violate GTID consistency.
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because there are ongoing, anonymous transactions. Before setting @@GLOBAL.GTID_MODE = ON, wait until SHOW STATUS LIKE 'ANONYMOUS_TRANSACTION_COUNT' shows zero on all servers. Then wait for all existing, anonymous transactions to replicate to all slaves, and then execute SET @@GLOBAL.GTID_MODE = ON on all servers. See the Manual for details.
+[connection master]
+COMMIT;
+[connection master]
+SET GTID_NEXT = 'ANONYMOUS';
+BEGIN;
+INSERT INTO innodb VALUES (1);
+INSERT INTO myisam VALUES (1);
+Warnings:
+Warning	1785	Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables.
+[connection master1]
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+ERROR HY000: Cannot set ENFORCE_GTID_CONSISTENCY = ON because there are ongoing transactions that violate GTID consistency.
+SET GLOBAL GTID_MODE = ON;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = ON is not allowed because there are ongoing, anonymous transactions. Before setting @@GLOBAL.GTID_MODE = ON, wait until SHOW STATUS LIKE 'ANONYMOUS_TRANSACTION_COUNT' shows zero on all servers. Then wait for all existing, anonymous transactions to replicate to all slaves, and then execute SET @@GLOBAL.GTID_MODE = ON on all servers. See the Manual for details.
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+[connection master]
+COMMIT;
+==== GTID transaction: all except OFF are ok ====
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+[connection master]
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+INSERT INTO innodb VALUES (1);
+[connection master1]
+SET GLOBAL GTID_MODE = OFF;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing transactions that have a GTID. Before you set @@GLOBAL.GTID_MODE = OFF, wait until SELECT @@GLOBAL.GTID_OWNED is empty on all servers. Then wait for all GTID-transactions to replicate to all servers, and then execute SET @@GLOBAL.GTID_MODE = OFF on all servers. See the Manual for details.
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL GTID_MODE = ON;
+[connection master]
+COMMIT;
+[connection master]
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+BEGIN;
+INSERT INTO innodb VALUES (1);
+[connection master1]
+SET GLOBAL GTID_MODE = ON_PERMISSIVE;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
+SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
+SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
+SET GLOBAL GTID_MODE = OFF;
+ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing transactions that have a GTID. Before you set @@GLOBAL.GTID_MODE = OFF, wait until SELECT @@GLOBAL.GTID_OWNED is empty on all servers. Then wait for all GTID-transactions to replicate to all servers, and then execute SET @@GLOBAL.GTID_MODE = OFF on all servers. See the Manual for details.
+[connection master]
+COMMIT;
+SET GLOBAL GTID_MODE = OFF;
+SET GTID_NEXT = AUTOMATIC;
+DROP TABLE innodb, myisam;
+include/rpl_end.inc

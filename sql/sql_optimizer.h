@@ -27,7 +27,8 @@
    Only such indexes are involved in range analysis.
 */
 
-#include "sql_select.h"        // Item_null_array
+#include "sql_select.h"                         // Item_null_array
+#include "opt_explain_format.h"                 // Explain_sort_clause
 
 class Cost_model_server;
 
@@ -722,9 +723,7 @@ private:
   */
   void replace_item_field(const char* field_name, Item* new_item);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   bool prune_table_partitions();
-#endif
 
 private:
   void set_prefix_tables();

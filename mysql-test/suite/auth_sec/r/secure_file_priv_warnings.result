@@ -1,0 +1,9 @@
+#-----------------------------------------------------------------------
+# Setup
+#-----------------------------------------------------------------------
+# Search for : Insecure configuration for --secure-file-priv: Current
+#              value does not restrict location of generated files.
+#              Consider setting it to a valid, non-empty path.
+#-----------------------------------------------------------------------
+# Clean-up
+#-----------------------------------------------------------------------

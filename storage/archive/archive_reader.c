@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -388,7 +388,7 @@ static struct my_option my_long_options[] =
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2007-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
+  puts("Copyright 2007-2008 MySQL AB, 2015 Oracle Inc.");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Read and modify Archive files directly\n");
   printf("Usage: %s [OPTIONS] file_to_be_looked_at [file_for_backup]\n", my_progname);
@@ -413,7 +413,7 @@ static void get_options(int *argc, char ***argv)
   if (*argc == 0)
   {
     usage();
-    exit(-1);
+    exit(1);
   }
 
   return;

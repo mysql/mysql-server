@@ -42,7 +42,7 @@ wait/io/file/myisam/dfile	mi_dynrec.c:	write	20	no_index_tab.MYD
 wait/io/file/myisam/kfile	mi_open.c:	write	124	no_index_tab.MYI
 wait/io/file/myisam/dfile	mi_dynrec.c:	write	20	no_index_tab.MYD
 wait/io/file/myisam/kfile	mi_open.c:	write	124	no_index_tab.MYI
-show status like 'performance_schema_%';
+show global status like 'performance_schema_%';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

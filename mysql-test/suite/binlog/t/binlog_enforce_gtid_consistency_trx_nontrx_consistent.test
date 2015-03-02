@@ -1,0 +1,19 @@
+
+# We don't want to run this test with different gtid_modes, since
+# the tests forces a GTID_MODE anyways.
+
+# But we want to run this test for both values of
+# binlog_direct_non_transactional_updates.  So we conver the
+# combinations for gtid_mode=on/off into combinations for
+# binlog_direct_non_transactional_updates=on/off.
+
+--source include/no_valgrind_without_big.inc
+--let $variable= binlog_direct_non_transactional_updates
+--source include/begin_replace_gtid_combination.inc
+
+--let $test_file= extra/binlog_tests/enforce_gtid_consistency_trx_nontrx_consistent.test
+--source extra/binlog_tests/enforce_gtid_consistency.test
+
+--let $variable= binlog_direct_non_transactional_updates
+--source include/end_replace_gtid_combination.inc
+

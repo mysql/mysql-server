@@ -16,6 +16,8 @@
 /** @file "EXPLAIN <command>" implementation */ 
 
 #include "opt_explain.h"
+
+#include "current_thd.h"
 #include "sql_select.h"
 #include "sql_optimizer.h" // JOIN
 #include "sql_partition.h" // for make_used_partitions_str()
@@ -640,7 +642,7 @@ bool Explain::prepare_columns()
   Explain class main function
 
   This function:
-    a) allocates a select_send object (if no one pre-allocated available),
+    a) allocates a Query_result_send object (if no one pre-allocated available),
     b) calculates and sends whole EXPLAIN data.
 
   @return false if success, true if error
@@ -832,11 +834,9 @@ bool Explain_union_result::explain_extra()
 
 bool Explain_table_base::explain_partitions()
 {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
     return make_used_partitions_str(table->part_info,
                                     &fmt->entry()->col_partitions);
-#endif
   return false;
 }
 
@@ -1483,55 +1483,12 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   POSITION *const pos= tab->position();
-  double examined_rows;
-  double access_method_fanout= pos->rows_fetched;
-  if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE ||
-      ((tab->type() == JT_REF || tab->type() == JT_REF_OR_NULL) &&
-       tab->quick_optim()))
-  {
-    /*
-      Because filesort can't handle REF it's converted into quick select,
-      but type is kept as is. This is an exception and the only case when
-      REF has quick select.
-    */
-    DBUG_ASSERT(!(tab->type() == JT_REF || tab->type() == JT_REF_OR_NULL) ||
-                tab->filesort);
-    examined_rows= rows2double(tab->quick_optim()->records);
 
-    /*
-      Unlike the "normal" range access method, dynamic range access
-      method does not set
-      tab->position()->rows_fetched=tab->quick()->records. If this is EXPLAIN
-      FOR CONNECTION of a table with dynamic range,
-      tab->position()->rows_fetched reflects that fanout of table/index scan,
-      not the fanout of the current dynamic range scan.
-    */
-    if (tab->dynamic_range())
-      access_method_fanout= examined_rows;
-  }
-  else if (tab->type() == JT_INDEX_SCAN || tab->type() == JT_ALL ||
-           tab->type() == JT_CONST || tab->type() == JT_SYSTEM)
-    // Materialization temp table is empty
-    if (tab->sj_mat_exec() &&
-        (tab->type() == JT_INDEX_SCAN || tab->type() == JT_ALL))
-      examined_rows= 0;
-    else
-      examined_rows= static_cast<double>(tab->rowcount());
-  else
-    examined_rows= pos->rows_fetched;
-
-  fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
-
-  /* Add "filtered" field */
-  {
-    float filter= 0.0;
-    if (examined_rows)
-    {
-      filter= static_cast<float>(100.0 * (access_method_fanout / examined_rows) *
-                                 tab->position()->filter_effect);
-    }
-    fmt->entry()->col_filtered.set(filter);
-  }
+  fmt->entry()->col_rows.set(static_cast<ulonglong>(pos->rows_fetched));
+  fmt->entry()->col_filtered.
+    set(pos->rows_fetched ?
+        static_cast<float>(100.0 * tab->position()->filter_effect) :
+        0.0f);
   // Print cost-related info
   double prefix_rows= pos->prefix_rowcount;
   fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
@@ -1952,7 +1909,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list)
   {
     if (tbl->is_view() && tbl->view_no_explain)
     {
-      my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+      my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
       return true;
     }
   }
@@ -1981,7 +1938,7 @@ bool explain_single_table_modification(THD *ethd,
                                        SELECT_LEX *select)
 {
   DBUG_ENTER("explain_single_table_modification");
-  select_send result;
+  Query_result_send result;
   const THD *const query_thd= select->master_unit()->thd;
   const bool other= (query_thd != ethd);
   bool ret;
@@ -1990,12 +1947,12 @@ bool explain_single_table_modification(THD *ethd,
     Prepare the self-allocated result object
 
     For queries with top-level JOIN the caller provides pre-allocated
-    select_send object. Then that JOIN object prepares the select_send
-    object calling result->prepare() in SELECT_LEX::prepare(),
+    Query_result_send object. Then that JOIN object prepares the
+    Query_result_send object calling result->prepare() in SELECT_LEX::prepare(),
     result->initalize_tables() in JOIN::optimize() and result->prepare2()
     in JOIN::exec().
     However without the presence of the top-level JOIN we have to
-    prepare/initialize select_send object manually.
+    prepare/initialize Query_result_send object manually.
   */
   List<Item> dummy;
   if (result.prepare(dummy, ethd->lex->unit) ||
@@ -2164,15 +2121,15 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
   Send to the client a QEP data set for any DML statement that has a QEP
   represented completely by JOIN object(s).
 
-  This function uses a specific select_result object for sending explain
+  This function uses a specific Query_result object for sending explain
   output to the client.
 
-  When explaining own query, the existing select_result object (found
+  When explaining own query, the existing Query_result object (found
   in outermost SELECT_LEX_UNIT or SELECT_LEX) is used. However, if the
-  select_result is unsuitable for explanation (need_explain_interceptor()
-  returns true), wrap the select_result inside an explain_send object.
+  Query_result is unsuitable for explanation (need_explain_interceptor()
+  returns true), wrap the Query_result inside an Query_result_explain object.
 
-  When explaining other query, create a select_send object and prepare it
+  When explaining other query, create a Query_result_send object and prepare it
   as if it was a regular SELECT query.
 
   @note see explain_single_table_modification() for single-table
@@ -2180,7 +2137,7 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
 
   @note Unlike handle_query(), explain_query() calls abort_result_set()
         itself in the case of failure (OOM etc.) since it may use
-        an internally created select_result object that has to be deleted
+        an internally created Query_result object that has to be deleted
         before exiting the function.
 
   @param ethd    THD of the explaining session
@@ -2196,17 +2153,17 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
   const THD *const query_thd= unit->thd; // THD of query to be explained
   const bool other= (ethd != query_thd);
 
-  select_result *explain_result= NULL;
+  Query_result *explain_result= NULL;
 
   if (!other)
     explain_result= unit->query_result() ?
                     unit->query_result() : unit->first_select()->query_result();
 
-  explain_send explain_wrapper(unit, explain_result);
+  Query_result_explain explain_wrapper(unit, explain_result);
 
   if (other)  
   {
-    if (!((explain_result= new select_send)))
+    if (!((explain_result= new Query_result_send)))
       return true; /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||
@@ -2391,8 +2348,8 @@ void mysql_explain_other(THD *thd)
                  thd->security_context()->priv_user().str,
                  thd->security_context()->priv_host().str,
                  (thd->password ?
-                  ER(ER_YES) :
-                  ER(ER_NO)));
+                  ER_THD(thd, ER_YES) :
+                  ER_THD(thd, ER_NO)));
         goto err;
       }
       mysql_mutex_unlock(&query_thd->LOCK_thd_data);

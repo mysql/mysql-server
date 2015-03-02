@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -461,8 +461,12 @@ que_graph_free_recursive(
 		ins = static_cast<ins_node_t*>(node);
 
 		que_graph_free_recursive(ins->select);
+		ins->select = NULL;
 
-		mem_heap_free(ins->entry_sys_heap);
+		if (ins->entry_sys_heap != NULL) {
+			mem_heap_free(ins->entry_sys_heap);
+			ins->entry_sys_heap = NULL;
+		}
 
 		break;
 	case QUE_NODE_PURGE:
@@ -482,16 +486,22 @@ que_graph_free_recursive(
 		if (upd->in_mysql_interface) {
 
 			btr_pcur_free_for_mysql(upd->pcur);
+			upd->in_mysql_interface = FALSE;
 		}
 
 		if (upd->cascade_top) {
 			mem_heap_free(upd->cascade_heap);
+			upd->cascade_heap = NULL;
 			upd->cascade_top = false;
 		}
 
 		que_graph_free_recursive(upd->select);
+		upd->select = NULL;
 
-		mem_heap_free(upd->heap);
+		if (upd->heap != NULL) {
+			mem_heap_free(upd->heap);
+			upd->heap = NULL;
+		}
 
 		break;
 	case QUE_NODE_CREATE_TABLE:
@@ -893,7 +903,7 @@ que_node_get_containing_loop_node(
 #ifndef DBUG_OFF
 /** Gets information of an SQL query graph node.
 @return type description */
-static __attribute__((warn_unused_result, nonnull))
+static __attribute__((warn_unused_result))
 const char*
 que_node_type_string(
 /*=================*/

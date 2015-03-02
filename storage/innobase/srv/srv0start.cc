@@ -121,6 +121,8 @@ incomplete transactions */
 bool	srv_startup_is_before_trx_rollback_phase = false;
 /** TRUE if the server is being started */
 bool	srv_is_being_started = false;
+/** TRUE if SYS_TABLESPACES is available for lookups */
+bool	srv_sys_tablespaces_open = false;
 /** TRUE if the server was successfully started */
 ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
@@ -317,7 +319,7 @@ DECLARE_THREAD(io_handler_thread)(
 /*********************************************************************//**
 Creates a log file.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 create_log_file(
 /*============*/
@@ -510,7 +512,7 @@ create_log_files_rename(
 /*********************************************************************//**
 Opens a log file.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 open_log_file(
 /*==========*/
@@ -664,7 +666,8 @@ srv_undo_tablespace_open(
 		fil_set_max_space_id_if_bigger(space_id);
 
 		/* Set the compressed page size to 0 (non-compressed) */
-		flags = fsp_flags_init(univ_page_size, false, false);
+		flags = fsp_flags_init(
+			univ_page_size, false, false, false, false);
 		space = fil_space_create(
 			name, space_id, flags, FIL_TYPE_TABLESPACE);
 
@@ -1124,7 +1127,7 @@ srv_open_tmp_tablespace(
 		ut_a(temp_space_id != ULINT_UNDEFINED);
 		ut_a(tmp_space->space_id() == temp_space_id);
 
-		/* Open this shared temp tablesapce in the fil_system so that
+		/* Open this shared temp tablespace in the fil_system so that
 		it stays open until shutdown. */
 		if (fil_space_open(tmp_space->name())) {
 
@@ -1294,6 +1297,69 @@ srv_init_abort_low(
 
 	srv_shutdown_all_bg_threads();
 	return(err);
+}
+
+/** Prepare to delete the redo log files. Flush the dirty pages from all the
+buffer pools.  Flush the redo log buffer to the redo log file.
+@param[in]	n_files		number of old redo log files
+@return lsn upto which data pages have been flushed. */
+static
+lsn_t
+srv_prepare_to_delete_redo_log_files(
+	ulint	n_files)
+{
+	lsn_t	flushed_lsn;
+	ulint	pending_io = 0;
+	ulint	count = 0;
+
+	do {
+		/* Clean the buffer pool. */
+		buf_flush_sync_all_buf_pools();
+
+		RECOVERY_CRASH(1);
+
+		log_mutex_enter();
+
+		fil_names_clear(log_sys->lsn, false);
+
+		flushed_lsn = log_sys->lsn;
+
+		ib::warn() << "Resizing redo log from " << n_files << "*"
+			<< srv_log_file_size << " to " << srv_n_log_files
+			<< "*" << srv_log_file_size_requested << " pages"
+			", LSN=" << flushed_lsn;
+
+		/* Flush the old log files. */
+		log_mutex_exit();
+
+		log_write_up_to(flushed_lsn, true);
+
+		/* If innodb_flush_method=O_DSYNC,
+		we need to explicitly flush the log buffers. */
+		fil_flush(SRV_LOG_SPACE_FIRST_ID);
+
+		ut_ad(flushed_lsn == log_get_lsn());
+
+		/* Check if the buffer pools are clean.  If not
+		retry till it is clean. */
+		pending_io = buf_pool_check_no_pending_io();
+
+		if (pending_io > 0) {
+			count++;
+			/* Print a message every 60 seconds if we
+			are waiting to clean the buffer pools */
+			if (srv_print_verbose_log && count > 600) {
+				ib::info() << "Waiting for "
+					<< pending_io << " buffer "
+					<< "page I/Os to complete";
+				count = 0;
+			}
+		}
+		os_thread_sleep(100000);
+
+	} while (buf_pool_check_no_pending_io());
+
+	return(flushed_lsn);
 }
 
 /********************************************************************
@@ -2123,7 +2189,24 @@ files_checked:
 
 		recv_recovery_from_checkpoint_finish();
 
+		/* Fix-up truncate of tables in the system tablespace
+		if server crashed while truncate was active. The non-
+		system tables are done after tablespace discovery. Do
+		this now because this procedure assumes that no pages
+		have changed since redo recovery.  Tablespace discovery
+		can do updates to pages in the system tablespace.*/
+		err = truncate_t::fixup_tables_in_system_tablespace();
+
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
+			/* Open or Create SYS_TABLESPACES and SYS_DATAFILES
+			so that tablespace names and other metadata can be
+			found. */
+			srv_sys_tablespaces_open = true;
+			err = dict_create_or_check_sys_tablespace();
+			if (err != DB_SUCCESS) {
+				return(srv_init_abort(err));
+			}
+
 			/* The following call is necessary for the insert
 			buffer to work with multiple tablespaces. We must
 			know the mapping between space id's and .ibd file
@@ -2137,30 +2220,24 @@ files_checked:
 			every table in the InnoDB data dictionary that has
 			an .ibd file.
 
-			We also determine the maximum tablespace id used. */
+			We also determine the maximum tablespace id used.
 
-			/* Before searching the dictionary for tablespaces,
-			make sure SYS_TABLESPACES and SYS_DATAFILES are
-			available. */
-			err = dict_create_or_check_sys_tablespace();
-			if (err != DB_SUCCESS) {
-				return(srv_init_abort(err));
-			}
-
-			/* This flag indicates that when a tablespace is opened,
-			we also read the header page and validate the contents
-			to the data dictionary. This is time consuming, especially
-			for databases with lots of ibd files.  So only do it after
-			a crash and not forcing recovery.  Open rw transactions
-			at this point is not a good reason to validate. */
+			The 'validate' flag indicates that when a tablespace
+			is opened, we also read the header page and validate
+			the contents to the data dictionary. This is time
+			consuming, especially for databases with lots of ibd
+			files.  So only do it after a crash and not forcing
+			recovery.  Open rw transactions at this point is not
+			a good reason to validate. */
 			bool validate = recv_needed_recovery
 				&& srv_force_recovery == 0;
+
 			dict_check_tablespaces_and_store_max_id(validate);
 		}
 
 		/* Fix-up truncate of table if server crashed while truncate
 		was active. */
-		err = truncate_t::fixup_tables();
+		err = truncate_t::fixup_tables_in_non_system_tablespace();
 
 		if (err != DB_SUCCESS) {
 			return(srv_init_abort(err));
@@ -2179,33 +2256,8 @@ files_checked:
 				return(srv_init_abort(DB_READ_ONLY));
 			}
 
-			/* Clean the buffer pool. */
-			buf_flush_sync_all_buf_pools();
-
-			RECOVERY_CRASH(1);
-
-			log_mutex_enter();
-
-			fil_names_clear(log_sys->lsn, false);
-
-			flushed_lsn = log_sys->lsn;
-
-			ib::warn() << "Resizing redo log from " << i << "*"
-				<< srv_log_file_size << " to "
-				<< srv_n_log_files << "*"
-				<< srv_log_file_size_requested << " pages"
-				", LSN=" << flushed_lsn;
-
-			/* Flush the old log files. */
-			log_mutex_exit();
-
-			log_write_up_to(flushed_lsn, true);
-
-			/* If innodb_flush_method=O_DSYNC,
-			we need to explicitly flush the log buffers. */
-			fil_flush(SRV_LOG_SPACE_FIRST_ID);
-
-			ut_ad(flushed_lsn == log_get_lsn());
+			/* Prepare to delete the old redo log files */
+			flushed_lsn = srv_prepare_to_delete_redo_log_files(i);
 
 			/* Prohibit redo log writes from any other
 			threads until creating a log checkpoint at the
@@ -2349,6 +2401,7 @@ files_checked:
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
 	}
+	srv_sys_tablespaces_open = true;
 
 	srv_is_being_started = false;
 
@@ -2391,6 +2444,10 @@ files_checked:
 
 	/* wake main loop of page cleaner up */
 	os_event_set(buf_flush_event);
+
+	/* Be sure the data dictionary has the correct detail about the
+	system tablespace. */
+	srv_sys_space.replace_in_dictionary();
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
 	ut_a(sum_of_new_sizes != ULINT_UNDEFINED);

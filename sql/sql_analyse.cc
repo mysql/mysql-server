@@ -27,6 +27,7 @@
 
 #include "procedure.h"       // Item_proc
 #include "sql_yacc.h"        // DECIMAL_NUM
+#include "current_thd.h"
 
 #include <algorithm>
 using std::min;
@@ -70,7 +71,7 @@ int compare_decimal2(int* len, const char *s, const char *t)
   @retval true          Failure (OOM)
 */
 bool
-select_analyse::init(List<Item> &field_list)
+Query_result_analyse::init(List<Item> &field_list)
 {
   DBUG_ENTER("proc_analyse_init");
 
@@ -603,7 +604,7 @@ void field_ulonglong::add()
 } // field_ulonglong::add
 
 
-bool select_analyse::send_data(List<Item> & /* field_list */)
+bool Query_result_analyse::send_data(List<Item> & /* field_list */)
 {
   field_info **f = f_info;
 
@@ -617,7 +618,7 @@ bool select_analyse::send_data(List<Item> & /* field_list */)
 }
 
 
-bool select_analyse::send_eof()
+bool Query_result_analyse::send_eof()
 {
   field_info **f = f_info;
   char buff[MAX_FIELD_WIDTH];
@@ -743,7 +744,7 @@ ok:
 error:
   abort_result_set();
   return true;
-} // select_analyse::send_eof
+} // Query_result_analyse::send_eof
 
 
 void field_str::get_opt_type(String *answer, ha_rows total_rows)
@@ -1113,7 +1114,7 @@ int collect_ulonglong(ulonglong *element,
 /**
   Create items for substituted output columns (both metadata and data)
 */
-bool select_analyse::change_columns()
+bool Query_result_analyse::change_columns()
 {
   func_items[0] = new Item_proc_string("Field_name", 255);
   func_items[1] = new Item_proc_string("Min_value", 255);
@@ -1137,10 +1138,10 @@ bool select_analyse::change_columns()
     result_fields.push_back(func_items[i]);
   }
   return false;
-} // select_analyse::change_columns
+} // Query_result_analyse::change_columns
 
 
-void select_analyse::cleanup()
+void Query_result_analyse::cleanup()
 {
   if (f_info)
   {
@@ -1153,14 +1154,15 @@ void select_analyse::cleanup()
 }
 
 
-bool select_analyse::send_result_set_metadata(List<Item> &fields, uint flag)
+bool Query_result_analyse::send_result_set_metadata(List<Item> &fields,
+                                                    uint flag)
 {
   return (init(fields) || change_columns() ||
 	  result->send_result_set_metadata(result_fields, flag));
 }
 
 
-void select_analyse::abort_result_set()
+void Query_result_analyse::abort_result_set()
 {
   cleanup();
   return result->abort_result_set();

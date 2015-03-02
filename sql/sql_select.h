@@ -33,7 +33,6 @@
 
 #include "mem_root_array.h"
 #include "sql_executor.h"
-#include "opt_explain_format.h" // for Extra_tag
 #include "sql_opt_exec_shared.h"
 #include "item_cmpfunc.h"             // Item_cond_and
 
@@ -1075,7 +1074,7 @@ protected:
 };
 
 bool error_if_full_join(JOIN *join);
-bool handle_query(THD *thd, LEX *lex, select_result *result,
+bool handle_query(THD *thd, LEX *lex, Query_result *result,
                   ulonglong added_options, ulonglong removed_options);
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);

@@ -273,6 +273,33 @@ create table VAR_SAMP(a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_SAMP(a int)' at line 1
 create table VAR_SAMP (a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VAR_SAMP (a int)' at line 1
+#
+# Test "UNIQUE KEY" and "UNIQUE" "KEY" grammar ambiguity
+#
+CREATE TABLE t1 (i INT KEY);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  PRIMARY KEY (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+CREATE TABLE t2 (i INT UNIQUE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL,
+  UNIQUE KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+CREATE TABLE t3 (i INT UNIQUE KEY);
+# Should output "UNIQUE KEY `i` (`i`)" only:
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int(11) DEFAULT NULL,
+  UNIQUE KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1, t2, t3;
+#
 DROP TABLE IF EXISTS table_25930_a;
 DROP TABLE IF EXISTS table_25930_b;
 SET SQL_MODE = 'ANSI_QUOTES';
@@ -1107,4 +1134,31 @@ SELECT  !('' XOR LENGTH());
 ERROR 42000: Incorrect parameter count in the call to native function 'LENGTH'
 SELECT  !((UNHEX() IS NULL));
 ERROR 42000: Incorrect parameter count in the call to native function 'UNHEX'
+#
+# Bug #20086997: PARSER CONFUSES WITH 7BIT-CHARACTER STRING DETECTION
+#
+CREATE DATABASE mysqltest1 CHARACTER SET LATIN2;
+USE mysqltest1;
+CREATE TABLE t1 (a VARCHAR(255) CHARACTER SET LATIN2);
+SET CHARACTER SET cp1250_latin2;
+INSERT INTO t1 VALUES ('£¥ª¯');
+INSERT INTO t1 VALUES ('£¥ª¯' '');
+SELECT HEX(a) FROM t1;
+HEX(a)
+A3A1AAAF
+A3A1AAAF
+DROP DATABASE mysqltest1;
+USE test;
+#
+# WL #7201, WL #7202 and WL#8062 coverage tests
+#
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 () SELECT * FROM t1;
+INSERT INTO t1 SELECT HIGH_PRIORITY * FROM t1;
+INSERT INTO t1 SELECT DISTINCT ALL * FROM t1;
+ERROR HY000: Incorrect usage of ALL and DISTINCT
+REPLACE INTO `` SELECT * FROM ``;
+ERROR 42000: Incorrect table name ''
+DELETE QUICK FROM t1 WHERE i = 0;
+DROP TABLE t1;
 #

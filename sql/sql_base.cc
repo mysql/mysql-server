@@ -17,6 +17,8 @@
 
 #include "sql_base.h"
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "current_thd.h"
+#include "psi_memory_key.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
@@ -28,9 +30,11 @@
 #include "auth_common.h" // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
                          // get_column_grant
-#include "sql_partition.h"               // ALTER_PARTITION_PARAM_TYPE
+#include "sql_derived.h" // mysql_derived_prepare,
+                         // mysql_handle_derived,
+                         // mysql_derived_filling
 #include "sql_handler.h" // mysql_ha_flush
-#include "sql_partition.h"                      // ALTER_PARTITION_PARAM_TYPE
+#include "partition_info.h"                     // partition_info
 #include "log_event.h"                          // Query_log_event
 #include "sql_select.h"
 #include "sp_head.h"
@@ -114,6 +118,48 @@ bool Ignore_error_handler::handle_condition(THD *thd,
   return false;
 }
 
+bool View_error_handler::handle_condition(
+                                THD *thd,
+                                uint sql_errno,
+                                const char *,
+                                Sql_condition::enum_severity_level *level,
+                                const char *message)
+{
+  /*
+    Error will be handled by Show_create_error_handler for
+    SHOW CREATE statements.
+  */
+  if (thd->lex->sql_command == SQLCOM_SHOW_CREATE)
+    return false;
+
+  switch (sql_errno)
+  {
+    case ER_BAD_FIELD_ERROR:
+    case ER_SP_DOES_NOT_EXIST:
+    // ER_FUNC_INEXISTENT_NAME_COLLISION cannot happen here.
+    case ER_PROCACCESS_DENIED_ERROR:
+    case ER_COLUMNACCESS_DENIED_ERROR:
+    case ER_TABLEACCESS_DENIED_ERROR:
+    // ER_TABLE_NOT_LOCKED cannot happen here.
+    case ER_NO_SUCH_TABLE:
+    {
+      TABLE_LIST *top= m_top_view->top_table();
+      my_error(ER_VIEW_INVALID, MYF(0),
+               top->view_db.str, top->view_name.str);
+      return true;
+    }
+
+    case ER_NO_DEFAULT_FOR_FIELD:
+    {
+      TABLE_LIST *top= m_top_view->top_table();
+      // TODO: make correct error message
+      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
+               top->view_db.str, top->view_name.str);
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
   Implementation of STRICT mode.
@@ -1555,6 +1601,11 @@ void close_thread_tables(THD *thd)
     for (table= thd->derived_tables ; table ; table= next)
     {
       next= table->next;
+
+      // Restore original name of materialized table
+      if (!table->pos_in_table_list->schema_table)
+        table->pos_in_table_list->reset_name_temporary();
+
       free_tmp_table(thd, table);
     }
     thd->derived_tables= 0;
@@ -3466,7 +3517,6 @@ table_found:
   table_list->set_updatable(); // It is not derived table nor non-updatable VIEW
   table_list->table= table;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
     /* Set all [named] partitions as used. */
@@ -3479,7 +3529,6 @@ table_found:
     my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
-#endif
 
   table->init(thd, table_list);
 
@@ -3583,6 +3632,17 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
 /***********************************************************************
   class Locked_tables_list implementation. Declared in sql_class.h
 ************************************************************************/
+
+Locked_tables_list::Locked_tables_list()
+  :m_locked_tables(NULL),
+   m_locked_tables_last(&m_locked_tables),
+   m_reopen_array(NULL),
+   m_locked_tables_count(0)
+{
+  init_sql_alloc(key_memory_locked_table_list,
+                 &m_locked_tables_root, MEM_ROOT_BLOCK_SIZE, 0);
+}
+
 
 /**
   Enter LTM_LOCK_TABLES mode.
@@ -4765,19 +4825,6 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
   if (tables->is_derived())
     goto end;
 
-  if (tables->is_view())
-  {
-    /*
-      We restore view's name and database possibly wiped out by derived tables
-      processing and fall back to standard open process in order to
-      obtain proper metadata locks and do other necessary steps like
-      stored routine processing.
-    */
-    tables->db= tables->view_db.str;
-    tables->db_length= tables->view_db.length;
-    tables->table_name= tables->view_name.str;
-    tables->table_name_length= tables->view_name.length;
-  }
   /*
     If this TABLE_LIST object is a placeholder for an information_schema
     table, create a temporary table to represent the information_schema
@@ -5048,6 +5095,15 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
   return (uchar*) table->db;
 }
 
+extern "C" uchar *tablespace_set_get_key(const uchar *record, size_t *length,
+                                     my_bool not_used __attribute__((unused)))
+{
+  const char *tblspace_name= reinterpret_cast<const char *>(record);
+  *length= strlen(tblspace_name);
+  return reinterpret_cast<uchar*>(const_cast<char*>(tblspace_name));
+}
+
+
 /**
   Run the server hook called "before_dml". This is a hook originated from
   replication that allow server plugins to execute code before any DML
@@ -5089,8 +5145,8 @@ int run_before_dml_hook(THD *thd)
   @param flags             Bitmap of flags to modify how the tables will be
                            open, see open_table() description for details.
 
-  @retval FALSE  Success.
-  @retval TRUE   Failure (e.g. connection was killed)
+  @retval false  Success.
+  @retval true   Failure (e.g. connection was killed)
 */
 
 bool
@@ -5106,6 +5162,8 @@ lock_table_names(THD *thd,
 
   DBUG_ASSERT(!thd->locked_tables_mode);
 
+  // Phase 1: Iterate over tables, collect set of unique schema names, and
+  //          construct a list of requests for table MDL locks.
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
@@ -5128,13 +5186,15 @@ lock_table_names(THD *thd,
 
       if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
           schema_set.insert(table))
-        return TRUE;
+        return true;
       need_global_read_lock_protection= true;
     }
 
     mdl_requests.push_front(&table->mdl_request);
   }
 
+  // Phase 2: Iterate over the schema set, add an IX lock for each
+  //          schema name.
   if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
       ! mdl_requests.is_empty())
   {
@@ -5147,7 +5207,7 @@ lock_table_names(THD *thd,
     {
       MDL_request *schema_request= new (thd->mem_root) MDL_request;
       if (schema_request == NULL)
-        return TRUE;
+        return true;
       MDL_REQUEST_INIT(schema_request,
                        MDL_key::SCHEMA, table->db, "",
                        MDL_INTENTION_EXCLUSIVE,
@@ -5163,7 +5223,7 @@ lock_table_names(THD *thd,
         duration.
       */
       if (thd->global_read_lock.can_acquire_protection())
-        return TRUE;
+        return true;
       MDL_REQUEST_INIT(&global_request,
                        MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
                        MDL_STATEMENT);
@@ -5171,10 +5231,112 @@ lock_table_names(THD *thd,
     }
   }
 
+  // Phase 3: Acquire the locks which have been requested so far.
   if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
-    return TRUE;
+    return true;
 
-  return FALSE;
+  // Phase 4: Lock tablespace names. This cannot be done as part of the
+  //          previous phases, because we need to read the .FRM file to
+  //          get hold of the tablespace name, and in order to do this,
+  //          we must have acquired a lock on the table. If this is a
+  //          DISCARD or IMPORT TABLESPACE command (indicated by the THD::
+  //          tablespace_op flag), we skip this phase, because these commands
+  //          are only used for file-per-table tablespaces, which we do
+  //          not lock. We also skip this phase if we are within the context
+  //          of a FLUSH TABLE WITH READ LOCK or FLUSH TABLE FOR EXPORT
+  //          statement, indicated by the MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK flag.
+  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !thd->tablespace_op)
+  {
+    MDL_request_list mdl_tablespace_requests;
+
+    // The first step is to loop over the tables, make sure we have
+    // locked the names, and then peek into the .FRM files to get hold of
+    // the tablespace names.
+    Hash_set<char, tablespace_set_get_key> tablespace_set;
+    for (table= tables_start; table && table != tables_end;
+         table= table->next_global)
+    {
+      // Consider only non-temporary tables. The if clauses below have the
+      // following meaning:
+      //
+      // !MDL_SHARED_READ_ONLY                   Not a LOCK TABLE ... READ.
+      //                                         In that case, tables will not
+      //                                         be altered, created or dropped,
+      //                                         so no need to IX lock the
+      //                                         tablespace.
+      // is_ddl_or...request() || ...FOR_CREATE  Request for a strong DDL or
+      //                                         LOCK TABLES type lock, or a
+      //                                         table to be created.
+      // !OT_TEMPORARY_ONLY                      Not a user defined tmp table.
+      // !(OT_TEMPORARY_OR_BASE && is_temp...()) Not a pre-opened tmp table.
+      if (table->mdl_request.type != MDL_SHARED_READ_ONLY            &&
+          (table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
+           table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)      &&
+          table->open_type != OT_TEMPORARY_ONLY                      &&
+          !(table->open_type == OT_TEMPORARY_OR_BASE &&
+            is_temporary_table(table)))
+      {
+        // We have basically three situations here:
+        //
+        // 1. Lock only the target tablespace name (e.g. CREATE TABLE
+        //    explicitly specifying the tablespace name).
+        // 2. Lock only the existing tablespace name (e.g. ALTER TABLE t
+        //    ADD COLUMN ... where t is defined in some tablespace s.
+        // 3. Lock both the target and the existing tablespace names
+        //    (e.g. ALTER TABLE t TABLESPACE s2, where t is defined in
+        //    some tablespace s)
+        //
+        // Please note that for partitioned tables assigning different
+        // partitions to different tablespaces, MDL locks for the different
+        // partition tablespaces are not acquired. The reason is that this
+        // is not supported by the SEs.
+        if (table->target_tablespace_name.length > 0)
+          tablespace_set.insert(const_cast<char*>(
+                                  table->target_tablespace_name.str));
+
+        // No need to try this for tables to be created since they do not
+        // have an .FRM file.
+        if (table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE)
+        {
+          // Assert that we have an MDL lock on the table name. Needed to read
+          // the .FRM file safely.
+          DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+                  MDL_key::TABLE, table->db, table->table_name, MDL_SHARED));
+
+          // Get the tablespace name from the .FRM file of the table.
+          const char *target_tablespace_name= get_tablespace_name(thd, table);
+          if (target_tablespace_name && strlen(target_tablespace_name))
+            tablespace_set.insert(const_cast<char*>(target_tablespace_name));
+        }
+      }
+    }
+
+    // After we have identified the tablespace names, we iterate over the
+    // names and add lock requests for each of them.
+    if (!tablespace_set.is_empty())
+    {
+      Hash_set<char, tablespace_set_get_key>::Iterator it(tablespace_set);
+      char *tablespace= NULL;
+      while ((tablespace= it++))
+      {
+        MDL_request *tablespace_request= new (thd->mem_root) MDL_request;
+        if (tablespace_request == NULL)
+          return true;
+        MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE,
+                         "", tablespace, MDL_INTENTION_EXCLUSIVE,
+                         MDL_TRANSACTION);
+        mdl_tablespace_requests.push_front(tablespace_request);
+      }
+
+      // Finally, the requests are acquired.
+      if (thd->mdl_context.acquire_locks(&mdl_tablespace_requests,
+                                         lock_wait_timeout))
+        return true;
+
+      DEBUG_SYNC(thd, "after_wait_locked_tablespace_name_for_table");
+    }
+  }
+  return false;
 }
 
 
@@ -5505,7 +5667,7 @@ restart:
   {
     reset_statement_timer(thd);
     push_warning(thd, Sql_condition::SL_NOTE, ER_NON_RO_SELECT_DISABLE_TIMER,
-                 ER(ER_NON_RO_SELECT_DISABLE_TIMER));
+                 ER_THD(thd, ER_NON_RO_SELECT_DISABLE_TIMER));
   }
 #endif
 
@@ -6699,7 +6861,6 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
     DBUG_RETURN(FALSE);
   }
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (tl->partition_names)
   {
     /* Partitioned temporary tables is not supported. */
@@ -6707,7 +6868,6 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
     my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
-#endif
 
   if (table->query_id)
   {
@@ -7857,7 +8017,7 @@ set_new_item_local_context(THD *thd, Item_ident *item, TABLE_LIST *table_ref)
 {
   Name_resolution_context *context;
   if (!(context= new (thd->mem_root) Name_resolution_context))
-    return true;
+    return true;                /* purecov: inspected */
   context->init();
   context->first_name_resolution_table=
     context->last_name_resolution_table= table_ref;
@@ -7907,6 +8067,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
   bool first_outer_loop= TRUE;
+  List<Field> fields;
   /*
     Leaf table references to which new natural join columns are added
     if the leaves are != NULL.
@@ -8010,6 +8171,8 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Field *field_2= nj_col_2->field();
       Item_ident *item_ident_1, *item_ident_2;
       Item_func_eq *eq_cond;
+      fields.push_back(field_1);
+      fields.push_back(field_2);
 
       if (!item_1 || !item_2)
         DBUG_RETURN(true);                      // Out of memory.
@@ -8101,6 +8264,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
         ++(*found_using_fields);
     }
   }
+
   if (leaf_1)
     leaf_1->is_join_columns_complete= TRUE;
 
@@ -8207,7 +8371,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
         if (!(common_field= it++))
         {
           my_error(ER_BAD_FIELD_ERROR, MYF(0), using_field_name_ptr,
-                   current_thd->where);
+                   thd->where);
           DBUG_RETURN(true);
         }
         if (!my_strcasecmp(system_charset_info,
@@ -8379,9 +8543,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     table_ref_1->natural_join= table_ref_2->natural_join= NULL;
 
     /* Add a TRUE condition to outer joins that have no common columns. */
-    if (table_ref_2->outer_join &&
-        !table_ref_1->join_cond() && !table_ref_2->join_cond())
-      table_ref_2->set_join_cond(new Item_int((longlong) 1,1)); // Always true.
+    if (table_ref_2->outer_join && !table_ref_2->join_cond())
+      table_ref_2->set_join_cond(new Item_int((longlong) 1,1));
 
     /* Change this table reference to become a leaf for name resolution. */
     if (left_neighbor)
@@ -8732,7 +8895,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     {
       Item *const item= field_iterator.create_item(thd);
       if (!item)
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       DBUG_ASSERT(item->fixed);
       /* cache the table for the Item_fields inserted by expanding stars */
       if (item->type() == Item::FIELD_ITEM && tables->cacheable_table)
@@ -8815,7 +8978,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     meaningful message than ER_BAD_TABLE_ERROR.
   */
   if (!table_name || !*table_name)
-    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
+    my_error(ER_NO_TABLES_USED, MYF(0));
   else
   {
     String tbl_name;
@@ -8837,7 +9000,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 ** Fill a record with data (for INSERT or UPDATE)
 ** Returns : 1 if some field has wrong type
 ******************************************************************************/
-
 
 /*
   Fill fields with given items.
@@ -8865,6 +9027,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item *value, *fld;
   Item_field *field;
   TABLE *table= 0;
+  TABLE *tbl_set[MAX_TABLES];
+  uint tab_count= 0;
+  table_map used_table_map= 0;
   DBUG_ENTER("fill_record");
   DBUG_ASSERT(fields.elements == values.elements);
   /*
@@ -8904,12 +9069,26 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(rfield, false) < 0)
     {
-      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
       goto err;
     }
     bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
+    // Record the distinct table so that update the generate columns
+    if (table->pos_in_table_list &&
+        !(used_table_map & table->pos_in_table_list->map()))
+    {
+      used_table_map|= table->pos_in_table_list->map();
+      tbl_set[tab_count++]= table;
+    }
+  }
+  /* Update generated fields*/
+  for (uint i= 0; i < tab_count; i++)
+  {
+    table= tbl_set[i];
+    if (table->vfield && update_generated_write_fields(table))
+      goto err;
   }
   DBUG_RETURN(thd->is_error());
 err:
@@ -8939,7 +9118,7 @@ static bool check_record(THD *thd, List<Item> &fields)
     if (field &&
         field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
     {
-      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
       return true;
     }
   }
@@ -9090,6 +9269,14 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
       rc= fill_record(thd, fields, values, NULL, NULL) ||
           table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
     }
+    /* 
+      Re-calculate generated fields to cater for cases when base columns are 
+      updated by the triggers.
+    */
+    DBUG_ASSERT(table->pos_in_table_list &&
+                !table->pos_in_table_list->is_view());
+    if (!rc && table->vfield)
+        rc= update_generated_write_fields(table);
 
     table->triggers->disable_fields_temporary_nullability();
 
@@ -9130,6 +9317,9 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
   List_iterator_fast<Item> v(values);
   Item *value;
   TABLE *table= 0;
+  TABLE *tbl_set[MAX_TABLES];
+  uint tab_count= 0;
+  table_map used_table_map= 0;
   DBUG_ENTER("fill_record");
 
   Field *field;
@@ -9165,7 +9355,22 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
       bitmap_set_bit(table->fields_set_during_insert, field->field_index);
     if (insert_into_fields_bitmap)
       bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
+    // Record the distinct table so that update the generate columns
+    if (table->pos_in_table_list &&
+        !(used_table_map & table->pos_in_table_list->map()))
+    {
+      used_table_map|= table->pos_in_table_list->map();
+      tbl_set[tab_count++]= table;
+    }
   }
+  /* Update generated fields*/
+  for (uint i= 0; i < tab_count; i++)
+  {
+    table= tbl_set[i];
+    if (table->vfield && update_generated_write_fields(table))
+      goto err;
+  }
+
   DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
 
@@ -9228,6 +9433,16 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
       rc= call_before_insert_triggers(thd, table, event,
                                       &insert_into_fields_bitmap);
 
+    /* 
+      Re-calculate generated fields to cater for cases when base columns are 
+      updated by the triggers.
+    */
+    if (!rc && *ptr)
+    {
+      TABLE *table= (*ptr)->table;
+      if (table->vfield)
+        rc= update_generated_write_fields(table);
+    }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
   }

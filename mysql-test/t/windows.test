@@ -100,9 +100,10 @@ deallocate prepare abc;
 --echo #
 --echo # Bug#45498: Socket variable not available on Windows
 --echo #
-
+--disable_warnings
 SELECT VARIABLE_NAME FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
   WHERE VARIABLE_NAME = 'socket';
+--enable_warnings
 
 --echo #
 --echo # Bug#16581605: REPLACE.EXE UTILITY IS BROKEN IN 5.5

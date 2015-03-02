@@ -86,6 +86,14 @@ void
 btr_pcur_init(
 /*==========*/
 	btr_pcur_t*	pcur);	/*!< in: persistent cursor */
+
+/** Free old_rec_buf.
+@param[in]	pcur	Persistent cursor holding old_rec to be freed. */
+UNIV_INLINE
+void
+btr_pcur_free(
+	btr_pcur_t*	pcur);
+
 /**************************************************************//**
 Initializes and opens a persistent cursor to an index tree. It should be
 closed with btr_pcur_close. */
@@ -153,8 +161,7 @@ btr_pcur_open_at_index_side(
 	bool		init_pcur,	/*!< in: whether to initialize pcur */
 	ulint		level,		/*!< in: level to search for
 					(0=leaf) */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
 /**************************************************************//**
 Gets the up_match value for a pcur after a search.
 @return number of matched fields at the cursor or to the right if

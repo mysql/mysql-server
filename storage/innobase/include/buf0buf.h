@@ -448,8 +448,7 @@ UNIV_INLINE
 void
 buf_page_free_descriptor(
 /*=====================*/
-	buf_page_t*	bpage)	/*!< in: bpage descriptor to free. */
-	__attribute__((nonnull));
+	buf_page_t*	bpage);	/*!< in: bpage descriptor to free. */
 
 /********************************************************************//**
 Allocates a buffer block.
@@ -750,8 +749,7 @@ buf_block_buf_fix_inc_func(
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line */
 # endif /* UNIV_SYNC_DEBUG */
-	buf_block_t*	block)	/*!< in/out: block to bufferfix */
-	__attribute__((nonnull));
+	buf_block_t*	block);	/*!< in/out: block to bufferfix */
 
 /** Increments the bufferfix count.
 @param[in,out]	bpage	block to bufferfix
@@ -1199,8 +1197,7 @@ UNIV_INLINE
 void
 buf_page_set_accessed(
 /*==================*/
-	buf_page_t*	bpage)		/*!< in/out: control block */
-	__attribute__((nonnull));
+	buf_page_t*	bpage);		/*!< in/out: control block */
 /*********************************************************************//**
 Gets the buf_block_t handle of a buffered file block if an uncompressed
 page frame exists, or NULL. Note: even though bpage is not declared a
@@ -1441,7 +1438,7 @@ buf_pool_watch_is_sentinel(
 /*=======================*/
 	const buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	const buf_page_t*	bpage)		/*!< in: block */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Add watch for the given page to be read in. Caller must have
 appropriate hash_lock for the bpage. This function may release the

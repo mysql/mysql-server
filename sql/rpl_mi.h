@@ -279,8 +279,6 @@ public:
   char master_uuid[UUID_LENGTH+1];
   char bind_addr[HOSTNAME_LENGTH+1];
 
-  ulong master_gtid_mode;
-
   int mi_init_info();
   void end_info();
   int flush_info(bool force= FALSE);

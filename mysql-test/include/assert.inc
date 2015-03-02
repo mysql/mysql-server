@@ -8,6 +8,8 @@
 #
 # --let $assert_text= Relay_Log_Pos must be between min_pos and max_pos
 # --let $assert_cond= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] >= $min_pos AND <1> <= $max_pos
+# [--let $extra_debug_info= some text]
+# [--let $extra_debug_eval= expression parsable by include/eval.inc]
 # [--let $rpl_debug= 1]
 # --source include/assert.inc
 #
@@ -28,6 +30,9 @@
 #
 # $rpl_debug
 #   Print extra debug info.
+#
+# $extra_debug_info, $extra_debug_eval
+#   See include/show_rpl_debug_info.inc
 
 
 --let $include_filename= assert.inc [$assert_text]

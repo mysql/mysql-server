@@ -1,5 +1,5 @@
 SET default_storage_engine=InnoDB;
-DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
+SET innodb_strict_mode=OFF;
 CREATE TABLE gis_point  (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
 CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
 CREATE TABLE gis_polygon   (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
@@ -665,11 +665,11 @@ insert into t1 values ('85984',ST_GeomFromText('MULTIPOLYGON(((-115.006363
 select object_id, ST_geometrytype(geo), ST_ISSIMPLE(GEO), ST_ASTEXT(ST_centroid(geo)) from
 t1 where object_id=85998;
 object_id	ST_geometrytype(geo)	ST_ISSIMPLE(GEO)	ST_ASTEXT(ST_centroid(geo))
-85998	MULTIPOLYGON	1	POINT(-115.29706048618988 36.23335611474115)
+85998	MULTIPOLYGON	0	POINT(-115.29706048618988 36.23335611474115)
 select object_id, ST_geometrytype(geo), ST_ISSIMPLE(GEO), ST_ASTEXT(ST_centroid(geo)) from
 t1 where object_id=85984;
 object_id	ST_geometrytype(geo)	ST_ISSIMPLE(GEO)	ST_ASTEXT(ST_centroid(geo))
-85984	MULTIPOLYGON	1	POINT(-114.86854471507417 36.3472521808043)
+85984	MULTIPOLYGON	0	POINT(-114.86854471507417 36.3472521808043)
 drop table t1;
 create table t1 (fl geometry not null);
 insert into t1 values (1);

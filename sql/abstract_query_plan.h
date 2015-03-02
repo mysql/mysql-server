@@ -45,6 +45,11 @@ class Item_field;
   execution plan that may be executed in the engine rather than in mysqld. By 
   using the AQP rather than the mysqld internals directly, the coupling between
   the engine and mysqld is reduced.
+
+  The AQP also provides functions which allows the storage engine
+  to change the query execution plan for the part of the join which
+  it will handle. Thus be aware that although the QEP_TAB*'s are const
+  they may be modified.
 */
 namespace AQP
 {
@@ -200,6 +205,12 @@ namespace AQP
     const Table_access* get_firstmatch_last_skipped() const;
 
     bool filesort_before_join() const;
+
+    /**
+       Change the query plan for this part of the join to use
+       the pushed functions
+    */
+    void set_pushed_table_access_method() const;
 
   private:
 

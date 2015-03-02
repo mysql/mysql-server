@@ -88,17 +88,21 @@ SELECT IF (@@open_files_limit < 5000, 1400, @@GLOBAL.table_definition_cache);
 #################################################################
 # Check if the value in GLOBAL Table matches value in variable  #
 #################################################################
+--disable_warnings
 SELECT @@GLOBAL.table_definition_cache = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='table_definition_cache';
+--enable_warnings
 --echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.table_definition_cache);
 --echo 1 Expected
 
+--disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='table_definition_cache';
+--enable_warnings
 --echo 1 Expected
 
 
@@ -141,8 +145,10 @@ SELECT table_definition_cache = @@SESSION.table_definition_cache;
 flush tables;
 flush status;
 
+--disable_warnings
 set @Open_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions');
 set @Opened_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions');
+--enable_warnings
 
 --echo # create 2 tables 
 
@@ -157,10 +163,12 @@ let $table = tab1;
 let $table = tab2;
 --source include/create_table.inc
 
+--disable_warnings
 select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions;
 --echo 1 Expected
 
 select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 2;
+--enable_warnings
 --echo 1 Expected
 
 --echo # open two tables
@@ -168,36 +176,44 @@ select (select variable_value from information_schema.session_status where varia
 select 1 from tab1;
 --echo 1 Expected
 
+--disable_warnings
 select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1;
 --echo 1 Expected
 
 select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 3;
+--enable_warnings
 --echo 1 Expected
 
 select 1 from tab2;
 --echo 1 Expected
 
+--disable_warnings
 select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2;
 --echo 1 Expected
 
 select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
+--enable_warnings
 --echo 1 Expected
 
 DROP TABLE IF EXISTS tab1;
 
+--disable_warnings
 select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1;
 --echo 1 Expected
 
 select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
+--enable_warnings
 --echo 1 Expected
 
 
 DROP TABLE IF EXISTS tab2;
 
+--disable_warnings
 select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions;
 --echo 1 Expected
 
 select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
+--enable_warnings
 --echo 1 Expected
 
 

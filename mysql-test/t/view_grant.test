@@ -2920,5 +2920,36 @@ SELECT cs FROM test1.v1_multi;
 DROP USER user1@localhost;
 DROP DATABASE test1;
 
+--echo #
+--echo # Bug#20032855 STRICT MODE REVEALS UNDERLYING PRIVILEGE ERROR
+--echo #
+CREATE DATABASE test1;
+CREATE USER 'user1'@'localhost';
+CREATE TABLE test1.t1 (cn CHAR(1), cs CHAR(1), ci CHAR(1), cu CHAR(1), cus CHAR(1));
+GRANT SELECT(cs,cus) ON test1.t1 TO user1@localhost;
+GRANT INSERT(ci) ON test1.t1 TO user1@localhost;
+GRANT UPDATE(cu,cus) ON test1.t1 TO user1@localhost;
+CREATE SQL SECURITY INVOKER VIEW test1.v1_all AS
+SELECT * FROM test1.t1;
+GRANT SELECT,INSERT,UPDATE,DELETE ON test1.v1_all TO user1@localhost;
+FLUSH PRIVILEGES;
+--enable_connect_log
+connect (con1,localhost,user1,,);
+SET sql_mode='STRICT_ALL_TABLES';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all SET cn='x';
+SHOW WARNINGS;
+SET sql_mode='';
+--error ER_VIEW_INVALID
+UPDATE test1.v1_all SET cn='x';
+SHOW WARNINGS;
+--error ER_VIEW_INVALID
+UPDATE IGNORE test1.v1_all SET cn='x';
+SHOW WARNINGS;
+--connection default
+disconnect con1;
+DROP USER 'user1'@'localhost';
+DROP DATABASE test1;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

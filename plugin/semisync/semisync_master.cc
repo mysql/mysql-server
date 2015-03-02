@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #if defined(ENABLED_DEBUG_SYNC)
 #include "debug_sync.h"
 #include "sql_class.h"
+#include "current_thd.h"
 #endif
 
 #define TIME_THOUSAND 1000
@@ -556,9 +557,10 @@ void ReplSemiSyncMaster::remove_slave()
     */
     if ((rpl_semi_sync_master_clients ==
          rpl_semi_sync_master_wait_for_slave_count - 1) &&
-        (!rpl_semi_sync_master_wait_no_slave || abort_loop))
+        (!rpl_semi_sync_master_wait_no_slave ||
+         connection_events_loop_aborted()))
     {
-      if (abort_loop)
+      if (connection_events_loop_aborted())
       {
         if (commit_file_name_inited_ && reply_file_name_inited_)
         {
@@ -785,7 +787,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
        * when replication has progressed far enough, we will release
        * these waiting threads.
        */
-      if (abort_loop && (rpl_semi_sync_master_clients ==
+      if (connection_events_loop_aborted() && (rpl_semi_sync_master_clients ==
                          rpl_semi_sync_master_wait_for_slave_count - 1) && is_on())
       {
         sql_print_warning("SEMISYNC: Forced shutdown. Some updates might "
@@ -854,8 +856,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
     else
       rpl_semi_sync_master_no_transactions++;
 
-    /* The lock held will be released by thd_exit_cond, so no need to
-       call unlock() here */
+    unlock();
     THD_EXIT_COND(NULL, & old_stage);
   }
 

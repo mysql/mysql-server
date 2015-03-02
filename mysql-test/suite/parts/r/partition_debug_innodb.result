@@ -10,6 +10,66 @@ call mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop table ");
 # after timed out COALESCE PARTITION
 # Extended crash recovery testing of fast_alter_partition_table.
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+#
+# Test without crash/failure injection
+#
+CREATE TABLE t1 (a INT, b VARCHAR(64))
+ENGINE = 'InnoDB'
+PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
+PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
+INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
+# State before statement
+t1#P#p0.ibd
+t1#P#p10.ibd
+t1.frm
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+ALTER TABLE t1 ADD PARTITION
+(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+# State after statement
+t1#P#p0.ibd
+t1#P#p10.ibd
+t1#P#p20.ibd
+t1.frm
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Original from partition p0
+11	Original from partition p1
+12	Original from partition p1
+13	Original from partition p1
+14	Original from partition p1
+2	Original from partition p0
+3	Original from partition p0
+4	Original from partition p0
+DROP TABLE t1;
 # Crash testing ADD PARTITION
 SET SESSION debug="+d,crash_add_partition_1";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -22,7 +82,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -49,12 +108,10 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -87,7 +144,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -112,16 +168,13 @@ ALTER TABLE t1 ADD PARTITION
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -154,7 +207,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -179,16 +231,13 @@ ALTER TABLE t1 ADD PARTITION
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -221,7 +270,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -246,16 +294,13 @@ ALTER TABLE t1 ADD PARTITION
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -288,7 +333,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -313,17 +357,14 @@ ALTER TABLE t1 ADD PARTITION
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1#P#p20.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -356,7 +397,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -381,17 +421,14 @@ ALTER TABLE t1 ADD PARTITION
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1#P#p20.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -424,7 +461,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -449,17 +485,15 @@ ALTER TABLE t1 ADD PARTITION
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1#P#p20.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
+t1#P#p20.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -468,7 +502,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
+ PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -481,212 +516,6 @@ a	b
 4	Original from partition p0
 DROP TABLE t1;
 SET SESSION debug="-d,crash_add_partition_7";
-SET SESSION debug="+d,crash_add_partition_8";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 ADD PARTITION
-(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-#sql-t1.frm
-#sql-t1.par
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_add_partition_8";
-SET SESSION debug="+d,crash_add_partition_9";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 ADD PARTITION
-(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_add_partition_9";
-SET SESSION debug="+d,crash_add_partition_10";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 ADD PARTITION
-(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_add_partition_10";
 # Error recovery testing ADD PARTITION
 SET SESSION debug="+d,fail_add_partition_1";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -699,7 +528,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -726,7 +554,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -758,7 +585,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -786,7 +612,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -820,7 +645,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -847,7 +671,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -879,7 +702,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -907,7 +729,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -941,7 +762,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -968,7 +788,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1000,7 +819,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1028,7 +846,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1062,7 +879,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1089,7 +905,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1121,7 +936,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1149,7 +963,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1183,7 +996,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1210,7 +1022,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1242,7 +1053,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1270,7 +1080,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1304,7 +1113,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1331,7 +1139,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1363,7 +1170,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1391,7 +1197,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1425,128 +1230,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 ADD PARTITION
-(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 ADD PARTITION
-(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_add_partition_7";
-SET SESSION debug="+d,fail_add_partition_8";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1574,7 +1257,6 @@ t1#P#p0.ibd
 t1#P#p10.ibd
 t1#P#p20.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1607,7 +1289,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1636,7 +1317,6 @@ t1#P#p0.ibd
 t1#P#p10.ibd
 t1#P#p20.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1659,257 +1339,7 @@ a	b
 4	Original from partition p0
 UNLOCK TABLES;
 DROP TABLE t1;
-SET SESSION debug="-d,fail_add_partition_8";
-SET SESSION debug="+d,fail_add_partition_9";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 ADD PARTITION
-(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 ADD PARTITION
-(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_add_partition_9";
-SET SESSION debug="+d,fail_add_partition_10";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 ADD PARTITION
-(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 ADD PARTITION
-(PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_add_partition_10";
+SET SESSION debug="-d,fail_add_partition_7";
 # Test DROP PARTITION
 SET SESSION debug="+d,crash_drop_partition_1";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -1922,7 +1352,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1948,12 +1377,10 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1986,7 +1413,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2010,16 +1436,13 @@ ALTER TABLE t1 DROP PARTITION p10;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2052,7 +1475,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2076,16 +1498,13 @@ ALTER TABLE t1 DROP PARTITION p10;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2118,7 +1537,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2142,15 +1560,12 @@ ALTER TABLE t1 DROP PARTITION p10;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2178,7 +1593,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2202,15 +1616,12 @@ ALTER TABLE t1 DROP PARTITION p10;
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2227,238 +1638,6 @@ a	b
 4	Original from partition p0
 DROP TABLE t1;
 SET SESSION debug="-d,crash_drop_partition_5";
-SET SESSION debug="+d,crash_drop_partition_6";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-#sql-t1.frm
-#sql-t1.par
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_drop_partition_6";
-SET SESSION debug="+d,crash_drop_partition_7";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_drop_partition_7";
-SET SESSION debug="+d,crash_drop_partition_8";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-t1#P#p0.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_drop_partition_8";
-SET SESSION debug="+d,crash_drop_partition_9";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-t1#P#p0.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_drop_partition_9";
 # Error recovery DROP PARTITION
 SET SESSION debug="+d,fail_drop_partition_1";
 CREATE TABLE t1 (a INT, b VARCHAR(64))
@@ -2471,7 +1650,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2497,7 +1675,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2529,7 +1706,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2556,7 +1732,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2590,7 +1765,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2616,7 +1790,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2648,7 +1821,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2675,7 +1847,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2709,7 +1880,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2735,7 +1905,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2767,7 +1936,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2794,7 +1962,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2828,7 +1995,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2853,7 +2019,6 @@ ERROR HY000: Unknown error
 # State after failure
 t1#P#p0.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2880,7 +2045,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2906,7 +2070,6 @@ ERROR HY000: Unknown error
 # State after failure
 t1#P#p0.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2935,7 +2098,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2960,7 +2122,6 @@ ERROR HY000: Unknown error
 # State after failure
 t1#P#p0.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2987,7 +2148,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3013,7 +2173,6 @@ ERROR HY000: Unknown error
 # State after failure
 t1#P#p0.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3031,18 +2190,19 @@ a	b
 UNLOCK TABLES;
 DROP TABLE t1;
 SET SESSION debug="-d,fail_drop_partition_5";
-SET SESSION debug="+d,fail_drop_partition_6";
+#
+# Test without crash/failure injection
+#
 CREATE TABLE t1 (a INT, b VARCHAR(64))
 ENGINE = 'InnoDB'
 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
 PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
 INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
+# State before statement
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3062,39 +2222,14 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
+ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
+(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
+PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
+# State after statement
 t1#P#p0.ibd
 t1#P#p10.ibd
+t1#P#p20.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3103,7 +2238,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -3114,351 +2250,7 @@ a	b
 2	Original from partition p0
 3	Original from partition p0
 4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
 DROP TABLE t1;
-SET SESSION debug="-d,fail_drop_partition_6";
-SET SESSION debug="+d,fail_drop_partition_7";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_drop_partition_7";
-SET SESSION debug="+d,fail_drop_partition_8";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_drop_partition_8";
-SET SESSION debug="+d,fail_drop_partition_9";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 DROP PARTITION p10;
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_drop_partition_9";
 # Test change partition (REORGANIZE/REBUILD/COALESCE
 # or ADD HASH PARTITION).
 SET SESSION debug="+d,crash_change_partition_1";
@@ -3472,7 +2264,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3500,12 +2291,10 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3538,7 +2327,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3564,16 +2352,13 @@ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3606,7 +2391,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3632,16 +2416,13 @@ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3674,7 +2455,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3700,18 +2480,15 @@ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10#TMP#.ibd
 t1#P#p10.ibd
 t1#P#p20#TMP#.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3744,7 +2521,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3770,18 +2546,15 @@ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10#TMP#.ibd
 t1#P#p10.ibd
 t1#P#p20#TMP#.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3814,7 +2587,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3840,18 +2612,16 @@ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10#TMP#.ibd
 t1#P#p10.ibd
 t1#P#p20#TMP#.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
+t1#P#p20.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3860,7 +2630,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (a)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
+ PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
+ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
 SELECT * FROM t1;
 a	b
 1	Original from partition p0
@@ -3884,7 +2655,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3910,19 +2680,16 @@ PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
 ERROR HY000: Lost connection to MySQL server during query
 # State after crash (before recovery)
 #sql-t1.frm
-#sql-t1.par
 t1#P#p0.ibd
 t1#P#p10#TMP#.ibd
 t1#P#p10.ibd
 t1#P#p20#TMP#.ibd
 t1.frm
-t1.par
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1#P#p20.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -3945,356 +2712,6 @@ a	b
 4	Original from partition p0
 DROP TABLE t1;
 SET SESSION debug="-d,crash_change_partition_7";
-SET SESSION debug="+d,crash_change_partition_8";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-#sql-t1.frm
-#sql-t1.par
-t1#P#p0.ibd
-t1#P#p10#TMP#.ibd
-t1#P#p10.ibd
-t1#P#p20#TMP#.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_change_partition_8";
-SET SESSION debug="+d,crash_change_partition_9";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-t1#P#p0.ibd
-t1#P#p10#TMP#.ibd
-t1#P#p10.ibd
-t1#P#p20#TMP#.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_change_partition_9";
-SET SESSION debug="+d,crash_change_partition_10";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-t1#P#p0.ibd
-t1#P#p10#TMP#.ibd
-t1#P#p10.ibd
-t1#P#p20#TMP#.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_change_partition_10";
-SET SESSION debug="+d,crash_change_partition_11";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_change_partition_11";
-SET SESSION debug="+d,crash_change_partition_12";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before crash
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Lost connection to MySQL server during query
-# State after crash (before recovery)
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-# State after crash recovery
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-SET SESSION debug="-d,crash_change_partition_12";
 # Error recovery change partition (REORGANIZE/REBUILD/COALESCE
 # or ADD HASH PARTITION).
 SET SESSION debug="+d,fail_change_partition_1";
@@ -4308,7 +2725,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4336,7 +2752,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4368,7 +2783,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4397,7 +2811,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4431,7 +2844,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4459,7 +2871,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4491,7 +2902,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4520,7 +2930,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4554,7 +2963,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4582,7 +2990,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4614,7 +3021,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4643,7 +3049,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4677,7 +3082,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4705,7 +3109,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4737,7 +3140,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4766,7 +3168,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4800,7 +3201,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4828,7 +3228,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4860,7 +3259,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4889,7 +3287,6 @@ ERROR HY000: Unknown error
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4923,130 +3320,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_change_partition_6";
-SET SESSION debug="+d,fail_change_partition_7";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -5075,7 +3348,6 @@ t1#P#p0.ibd
 t1#P#p10.ibd
 t1#P#p20.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -5108,7 +3380,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p10.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -5138,7 +3409,6 @@ t1#P#p0.ibd
 t1#P#p10.ibd
 t1#P#p20.ibd
 t1.frm
-t1.par
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -5161,642 +3431,7 @@ a	b
 4	Original from partition p0
 UNLOCK TABLES;
 DROP TABLE t1;
-SET SESSION debug="-d,fail_change_partition_7";
-SET SESSION debug="+d,fail_change_partition_8";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_change_partition_8";
-SET SESSION debug="+d,fail_change_partition_9";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_change_partition_9";
-SET SESSION debug="+d,fail_change_partition_10";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_change_partition_10";
-SET SESSION debug="+d,fail_change_partition_11";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_change_partition_11";
-SET SESSION debug="+d,fail_change_partition_12";
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-DROP TABLE t1;
-# Same test under LOCK TABLE
-CREATE TABLE t1 (a INT, b VARCHAR(64))
-ENGINE = 'InnoDB'
-PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9),
-PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19));
-INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from partition p0"), (3, "Original from partition p0"), (4, "Original from partition p0"), (11, "Original from partition p1"), (12, "Original from partition p1"), (13, "Original from partition p1"), (14, "Original from partition p1");
-# State before failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (11,12,13,14,15,16,17,18,19) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 REORGANIZE PARTITION p10 INTO
-(PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19),
-PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29));
-ERROR HY000: Unknown error
-# State after failure
-t1#P#p0.ibd
-t1#P#p10.ibd
-t1#P#p20.ibd
-t1.frm
-t1.par
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(64) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (a)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6,7,8,9) ENGINE = InnoDB,
- PARTITION p10 VALUES IN (10,11,12,13,14,15,16,17,18,19) ENGINE = InnoDB,
- PARTITION p20 VALUES IN (20,21,22,23,24,25,26,27,28,29) ENGINE = InnoDB) */
-SELECT * FROM t1;
-a	b
-1	Original from partition p0
-11	Original from partition p1
-12	Original from partition p1
-13	Original from partition p1
-14	Original from partition p1
-2	Original from partition p0
-3	Original from partition p0
-4	Original from partition p0
-UNLOCK TABLES;
-DROP TABLE t1;
-SET SESSION debug="-d,fail_change_partition_12";
+SET SESSION debug="-d,fail_change_partition_6";
 #
 # WL#4445: EXCHANGE PARTITION WITH TABLE
 # Verify ddl_log and InnoDB in case of crashing.
@@ -5828,7 +3463,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -5860,14 +3494,12 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -5933,7 +3565,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -5965,14 +3596,12 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6038,7 +3667,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6070,14 +3698,12 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6143,7 +3769,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6176,13 +3801,11 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6248,7 +3871,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6281,13 +3903,11 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6353,7 +3973,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6385,14 +4004,12 @@ ERROR HY000: Lost connection to MySQL server during query
 #sqlx-nnnn_nnnn.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6458,7 +4075,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6490,14 +4106,12 @@ ERROR HY000: Lost connection to MySQL server during query
 #sqlx-nnnn_nnnn.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6563,7 +4177,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6595,14 +4208,12 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6668,7 +4279,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6700,14 +4310,12 @@ ERROR HY000: Lost connection to MySQL server during query
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 # State after crash recovery
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6773,7 +4381,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6805,7 +4412,6 @@ ERROR HY000: Error in DDL log
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6871,7 +4477,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6903,7 +4508,6 @@ ERROR HY000: Error in DDL log
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -6969,7 +4573,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7001,7 +4604,6 @@ ERROR HY000: Error on rename of './test/t2' to './test/#sqlx-nnnn_nnnn' (errno: 
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7067,7 +4669,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7099,7 +4700,6 @@ ERROR HY000: Error in DDL log
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7165,7 +4765,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7197,7 +4796,6 @@ ERROR HY000: Error on rename of './test/t1#P#p0' to './test/t2' (errno: 0 - n/a)
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7263,7 +4861,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7295,7 +4892,6 @@ ERROR HY000: Error in DDL log
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7361,7 +4957,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7393,7 +4988,6 @@ ERROR HY000: Error on rename of './test/#sqlx-nnnn_nnnn' to './test/t1#P#p0' (er
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7459,7 +5053,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7491,7 +5084,6 @@ ERROR HY000: Error in DDL log
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7557,7 +5149,6 @@ INSERT INTO t1 VALUES (1, "Original from partition p0"), (2, "Original from part
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;
@@ -7589,7 +5180,6 @@ ERROR HY000: Error in DDL log
 t1#P#p0.ibd
 t1#P#p1.ibd
 t1.frm
-t1.par
 t2.frm
 t2.ibd
 SHOW CREATE TABLE t1;

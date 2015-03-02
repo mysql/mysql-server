@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,9 @@
 #include "pfs_user.h"
 #include "pfs_host.h"
 #include "pfs_account.h"
+#include "mysqld_thd_manager.h"
+#include "pfs_buffer_container.h"
+#include "sql_class.h"
 
 /**
   @file storage/perfschema/pfs_visitor.cc
@@ -32,182 +35,317 @@
   @{
 */
 
+class All_THD_visitor_adapter : public Do_THD_Impl
+{
+public:
+  All_THD_visitor_adapter(PFS_connection_visitor *visitor)
+    : m_visitor(visitor)
+  {}
+
+  virtual void operator()(THD *thd)
+  {
+    m_visitor->visit_THD(thd);
+  }
+
+private:
+  PFS_connection_visitor *m_visitor;
+};
+
 /** Connection iterator */
 void PFS_connection_iterator::visit_global(bool with_hosts, bool with_users,
                                            bool with_accounts, bool with_threads,
+                                           bool with_THDs,
                                            PFS_connection_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(! with_threads || ! with_THDs);
 
   visitor->visit_global();
 
   if (with_hosts)
   {
-    PFS_host *pfs= host_array;
-    PFS_host *pfs_last= pfs + host_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_host_iterator it= global_host_container.iterate();
+    PFS_host *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if (pfs->m_lock.is_populated())
-        visitor->visit_host(pfs);
+      visitor->visit_host(pfs);
+      pfs= it.scan_next();
     }
   }
 
   if (with_users)
   {
-    PFS_user *pfs= user_array;
-    PFS_user *pfs_last= pfs + user_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_user_iterator it= global_user_container.iterate();
+    PFS_user *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if (pfs->m_lock.is_populated())
-        visitor->visit_user(pfs);
+      visitor->visit_user(pfs);
+      pfs= it.scan_next();
     }
   }
 
   if (with_accounts)
   {
-    PFS_account *pfs= account_array;
-    PFS_account *pfs_last= pfs + account_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_account_iterator it= global_account_container.iterate();
+    PFS_account *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if (pfs->m_lock.is_populated())
-        visitor->visit_account(pfs);
+      visitor->visit_account(pfs);
+      pfs= it.scan_next();
     }
   }
+
 
   if (with_threads)
   {
-    PFS_thread *pfs= thread_array;
-    PFS_thread *pfs_last= pfs + thread_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_thread_iterator it= global_thread_container.iterate();
+    PFS_thread *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if (pfs->m_lock.is_populated())
-        visitor->visit_thread(pfs);
+      visitor->visit_thread(pfs);
+      pfs= it.scan_next();
     }
+  }
+
+  if (with_THDs)
+  {
+    All_THD_visitor_adapter adapter(visitor);
+    Global_THD_manager::get_instance()->do_for_all_thd(& adapter);
   }
 }
 
+bool match_host(THD *thd, PFS_host *host)
+{
+  const LEX_CSTRING thd_host= thd->m_main_security_ctx.host();
+  return ((thd_host.length > 0) &&
+          (host->m_hostname_length == thd_host.length) &&
+          (strncmp(host->m_hostname, thd_host.str, host->m_hostname_length) == 0));
+}
+
+class All_host_THD_visitor_adapter : public Do_THD_Impl
+{
+public:
+  All_host_THD_visitor_adapter(PFS_connection_visitor *visitor, PFS_host *host)
+    : m_visitor(visitor), m_host(host)
+  {}
+
+  virtual void operator()(THD *thd)
+  {
+    if (match_host(thd, m_host))
+      m_visitor->visit_THD(thd);
+  }
+
+private:
+  PFS_connection_visitor *m_visitor;
+  PFS_host *m_host;
+};
+
 void PFS_connection_iterator::visit_host(PFS_host *host,
                                          bool with_accounts, bool with_threads,
+                                         bool with_THDs,
                                          PFS_connection_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(! with_threads || ! with_THDs);
 
   visitor->visit_host(host);
 
   if (with_accounts)
   {
-    PFS_account *pfs= account_array;
-    PFS_account *pfs_last= pfs + account_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_account_iterator it= global_account_container.iterate();
+    PFS_account *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if ((pfs->m_host == host) && pfs->m_lock.is_populated())
+      if (pfs->m_host == host)
       {
         visitor->visit_account(pfs);
       }
+      pfs= it.scan_next();
     }
   }
 
   if (with_threads)
   {
-    PFS_thread *pfs= thread_array;
-    PFS_thread *pfs_last= pfs + thread_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_thread_iterator it= global_thread_container.iterate();
+    PFS_thread *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if (pfs->m_lock.is_populated())
+      PFS_account *safe_account= sanitize_account(pfs->m_account);
+      if (((safe_account != NULL) && (safe_account->m_host == host)) /* 1 */
+          || (pfs->m_host == host))                                  /* 2 */
       {
-        PFS_account *safe_account= sanitize_account(pfs->m_account);
-        if ((safe_account != NULL) && (safe_account->m_host == host))
-        {
-          /*
-            If the thread belongs to a known user@host that belongs to this host,
-            process it.
-          */
-          visitor->visit_thread(pfs);
-        }
-        else if (pfs->m_host == host)
-        {
-          /*
-            If the thread belongs to a 'lost' user@host that belong to this host,
-            process it.
-          */
-          visitor->visit_thread(pfs);
-        }
+        /*
+          If the thread belongs to:
+          - (1) a known user@host that belongs to this host,
+          - (2) a 'lost' user@host that belongs to this host
+          process it.
+        */
+        visitor->visit_thread(pfs);
       }
+      pfs= it.scan_next();
     }
+  }
+
+  if (with_THDs)
+  {
+    All_host_THD_visitor_adapter adapter(visitor, host);
+    Global_THD_manager::get_instance()->do_for_all_thd(& adapter);
   }
 }
 
+bool match_user(THD *thd, PFS_user *user)
+{
+  const LEX_CSTRING thd_user= thd->m_main_security_ctx.user();
+  return ((thd_user.length > 0) &&
+          (user->m_username_length == thd_user.length) &&
+          (strncmp(user->m_username, thd_user.str, user->m_username_length) == 0));
+}
+
+class All_user_THD_visitor_adapter : public Do_THD_Impl
+{
+public:
+  All_user_THD_visitor_adapter(PFS_connection_visitor *visitor, PFS_user *user)
+    : m_visitor(visitor), m_user(user)
+  {}
+
+  virtual void operator()(THD *thd)
+  {
+    if (match_user(thd, m_user))
+      m_visitor->visit_THD(thd);
+  }
+
+private:
+  PFS_connection_visitor *m_visitor;
+  PFS_user *m_user;
+};
+
 void PFS_connection_iterator::visit_user(PFS_user *user,
                                          bool with_accounts, bool with_threads,
+                                         bool with_THDs,
                                          PFS_connection_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(! with_threads || ! with_THDs);
 
   visitor->visit_user(user);
 
   if (with_accounts)
   {
-    PFS_account *pfs= account_array;
-    PFS_account *pfs_last= pfs + account_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_account_iterator it= global_account_container.iterate();
+    PFS_account *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if ((pfs->m_user == user) && pfs->m_lock.is_populated())
+      if (pfs->m_user == user)
       {
         visitor->visit_account(pfs);
       }
+      pfs= it.scan_next();
     }
   }
 
   if (with_threads)
   {
-    PFS_thread *pfs= thread_array;
-    PFS_thread *pfs_last= pfs + thread_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_thread_iterator it= global_thread_container.iterate();
+    PFS_thread *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if (pfs->m_lock.is_populated())
+      PFS_account *safe_account= sanitize_account(pfs->m_account);
+      if (((safe_account != NULL) && (safe_account->m_user == user)) /* 1 */
+          || (pfs->m_user == user))                                  /* 2 */
       {
-        PFS_account *safe_account= sanitize_account(pfs->m_account);
-        if ((safe_account != NULL) && (safe_account->m_user == user))
-        {
-          /*
-            If the thread belongs to a known user@host that belongs to this user,
-            process it.
-          */
-          visitor->visit_thread(pfs);
-        }
-        else if (pfs->m_user == user)
-        {
-          /*
-            If the thread belongs to a 'lost' user@host that belong to this user,
-            process it.
-          */
-          visitor->visit_thread(pfs);
-        }
+        /*
+          If the thread belongs to:
+          - (1) a known user@host that belongs to this user,
+          - (2) a 'lost' user@host that belongs to this user
+          process it.
+        */
+        visitor->visit_thread(pfs);
       }
+      pfs= it.scan_next();
     }
+  }
+
+  if (with_THDs)
+  {
+    All_user_THD_visitor_adapter adapter(visitor, user);
+    Global_THD_manager::get_instance()->do_for_all_thd(& adapter);
   }
 }
 
+bool match_account(THD *thd, PFS_account *account)
+{
+  const LEX_CSTRING thd_host= thd->m_main_security_ctx.host();
+  const LEX_CSTRING thd_user= thd->m_main_security_ctx.user();
+  return ((account->m_hostname_length == thd_host.length) &&
+          (account->m_username_length > 0) &&
+          (account->m_username_length == thd_user.length) &&
+          (strncmp(account->m_hostname, thd_host.str, account->m_hostname_length) == 0) &&
+          (strncmp(account->m_username, thd_user.str, account->m_username_length) == 0));
+}
+
+class All_account_THD_visitor_adapter : public Do_THD_Impl
+{
+public:
+  All_account_THD_visitor_adapter(PFS_connection_visitor *visitor, PFS_account *account)
+    : m_visitor(visitor), m_account(account)
+  {}
+
+  virtual void operator()(THD *thd)
+  {
+    if (match_account(thd, m_account))
+      m_visitor->visit_THD(thd);
+  }
+
+private:
+  PFS_connection_visitor *m_visitor;
+  PFS_account *m_account;
+};
+
 void PFS_connection_iterator::visit_account(PFS_account *account,
-                                              bool with_threads,
-                                              PFS_connection_visitor *visitor)
+                                            bool with_threads,
+                                            bool with_THDs,
+                                            PFS_connection_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(! with_threads || ! with_THDs);
 
   visitor->visit_account(account);
 
   if (with_threads)
   {
-    PFS_thread *pfs= thread_array;
-    PFS_thread *pfs_last= pfs + thread_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_thread_iterator it= global_thread_container.iterate();
+    PFS_thread *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if ((pfs->m_account == account) && pfs->m_lock.is_populated())
+      if (pfs->m_account == account)
       {
         visitor->visit_thread(pfs);
       }
+      pfs= it.scan_next();
     }
   }
+
+  if (with_THDs)
+  {
+    All_account_THD_visitor_adapter adapter(visitor, account);
+    Global_THD_manager::get_instance()->do_for_all_thd(& adapter);
+  }
+}
+
+void PFS_connection_iterator::visit_THD(THD *thd,
+                                        PFS_connection_visitor *visitor)
+{
+  DBUG_ASSERT(visitor != NULL);
+  visitor->visit_THD(thd);
 }
 
 void PFS_instance_iterator::visit_all(PFS_instance_visitor *visitor)
@@ -239,14 +377,13 @@ void PFS_instance_iterator::visit_all_mutex_classes(PFS_instance_visitor *visito
 
 void PFS_instance_iterator::visit_all_mutex_instances(PFS_instance_visitor *visitor)
 {
-  PFS_mutex *pfs= mutex_array;
-  PFS_mutex *pfs_last= pfs + mutex_max;
-  for ( ; pfs < pfs_last; pfs++)
+  PFS_mutex_iterator it= global_mutex_container.iterate();
+  PFS_mutex *pfs= it.scan_next();
+
+  while (pfs != NULL)
   {
-    if (pfs->m_lock.is_populated())
-    {
-      visitor->visit_mutex(pfs);
-    }
+    visitor->visit_mutex(pfs);
+    pfs= it.scan_next();
   }
 }
 
@@ -271,14 +408,13 @@ void PFS_instance_iterator::visit_all_rwlock_classes(PFS_instance_visitor *visit
 
 void PFS_instance_iterator::visit_all_rwlock_instances(PFS_instance_visitor *visitor)
 {
-  PFS_rwlock *pfs= rwlock_array;
-  PFS_rwlock *pfs_last= pfs + rwlock_max;
-  for ( ; pfs < pfs_last; pfs++)
+  PFS_rwlock_iterator it= global_rwlock_container.iterate();
+  PFS_rwlock *pfs= it.scan_next();
+
+  while (pfs != NULL)
   {
-    if (pfs->m_lock.is_populated())
-    {
-      visitor->visit_rwlock(pfs);
-    }
+    visitor->visit_rwlock(pfs);
+    pfs= it.scan_next();
   }
 }
 
@@ -303,14 +439,13 @@ void PFS_instance_iterator::visit_all_cond_classes(PFS_instance_visitor *visitor
 
 void PFS_instance_iterator::visit_all_cond_instances(PFS_instance_visitor *visitor)
 {
-  PFS_cond *pfs= cond_array;
-  PFS_cond *pfs_last= pfs + cond_max;
-  for ( ; pfs < pfs_last; pfs++)
+  PFS_cond_iterator it= global_cond_container.iterate();
+  PFS_cond *pfs= it.scan_next();
+
+  while (pfs != NULL)
   {
-    if (pfs->m_lock.is_populated())
-    {
-      visitor->visit_cond(pfs);
-    }
+    visitor->visit_cond(pfs);
+    pfs= it.scan_next();
   }
 }
 
@@ -335,14 +470,13 @@ void PFS_instance_iterator::visit_all_file_classes(PFS_instance_visitor *visitor
 
 void PFS_instance_iterator::visit_all_file_instances(PFS_instance_visitor *visitor)
 {
-  PFS_file *pfs= file_array;
-  PFS_file *pfs_last= pfs + file_max;
-  for ( ; pfs < pfs_last; pfs++)
+  PFS_file_iterator it= global_file_container.iterate();
+  PFS_file *pfs= it.scan_next();
+
+  while (pfs != NULL)
   {
-    if (pfs->m_lock.is_populated())
-    {
-      visitor->visit_file(pfs);
-    }
+    visitor->visit_file(pfs);
+    pfs= it.scan_next();
   }
 }
 
@@ -368,14 +502,16 @@ void PFS_instance_iterator::visit_mutex_instances(PFS_mutex_class *klass,
   }
   else
   {
-    PFS_mutex *pfs= mutex_array;
-    PFS_mutex *pfs_last= pfs + mutex_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_mutex_iterator it= global_mutex_container.iterate();
+    PFS_mutex *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      if (pfs->m_class == klass)
       {
         visitor->visit_mutex(pfs);
       }
+      pfs= it.scan_next();
     }
   }
 }
@@ -400,14 +536,16 @@ void PFS_instance_iterator::visit_rwlock_instances(PFS_rwlock_class *klass,
   }
   else
   {
-    PFS_rwlock *pfs= rwlock_array;
-    PFS_rwlock *pfs_last= pfs + rwlock_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_rwlock_iterator it= global_rwlock_container.iterate();
+    PFS_rwlock *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      if (pfs->m_class == klass)
       {
         visitor->visit_rwlock(pfs);
       }
+      pfs= it.scan_next();
     }
   }
 }
@@ -432,14 +570,16 @@ void PFS_instance_iterator::visit_cond_instances(PFS_cond_class *klass,
   }
   else
   {
-    PFS_cond *pfs= cond_array;
-    PFS_cond *pfs_last= pfs + cond_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_cond_iterator it= global_cond_container.iterate();
+    PFS_cond *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      if (pfs->m_class == klass)
       {
         visitor->visit_cond(pfs);
       }
+      pfs= it.scan_next();
     }
   }
 }
@@ -464,14 +604,16 @@ void PFS_instance_iterator::visit_file_instances(PFS_file_class *klass,
   }
   else
   {
-    PFS_file *pfs= file_array;
-    PFS_file *pfs_last= pfs + file_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_file_iterator it= global_file_container.iterate();
+    PFS_file *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      if (pfs->m_class == klass)
       {
         visitor->visit_file(pfs);
       }
+      pfs= it.scan_next();
     }
   }
 }
@@ -498,14 +640,16 @@ void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
   }
   else
   {
-    PFS_socket *pfs= socket_array;
-    PFS_socket *pfs_last= pfs + socket_max;
-    for ( ; pfs < pfs_last; pfs++)
+    PFS_socket_iterator it= global_socket_container.iterate();
+    PFS_socket *pfs= it.scan_next();
+
+    while (pfs != NULL)
     {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      if (pfs->m_class == klass)
       {
         visitor->visit_socket(pfs);
       }
+      pfs= it.scan_next();
     }
   }
 }
@@ -535,16 +679,17 @@ void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
   else
   {
     /* Get current socket stats from each socket instance owned by this thread */
-    PFS_socket *pfs= socket_array;
-    PFS_socket *pfs_last= pfs + socket_max;
+    PFS_socket_iterator it= global_socket_container.iterate();
+    PFS_socket *pfs= it.scan_next();
 
-    for ( ; pfs < pfs_last; pfs++)
+    while (pfs != NULL)
     {
       if (unlikely((pfs->m_class == klass) &&
                    (pfs->m_thread_owner == thread)))
       {
         visitor->visit_socket(pfs);
       }
+      pfs= it.scan_next();
     }
   }
 }
@@ -579,6 +724,50 @@ void PFS_object_iterator::visit_all(PFS_object_visitor *visitor)
   visit_all_tables(visitor);
 }
 
+class Proc_all_table_shares
+  : public PFS_buffer_processor<PFS_table_share>
+{
+public:
+  Proc_all_table_shares(PFS_object_visitor *visitor)
+    : m_visitor(visitor)
+  {}
+
+  virtual void operator()(PFS_table_share *pfs)
+  {
+    if (pfs->m_enabled)
+    {
+      m_visitor->visit_table_share(pfs);
+    }
+  }
+
+private:
+  PFS_object_visitor* m_visitor;
+};
+
+class Proc_all_table_handles
+  : public PFS_buffer_processor<PFS_table>
+{
+public:
+  Proc_all_table_handles(PFS_object_visitor *visitor)
+    : m_visitor(visitor)
+  {}
+
+  virtual void operator()(PFS_table *pfs)
+  {
+    PFS_table_share *safe_share= sanitize_table_share(pfs->m_share);
+    if (safe_share != NULL)
+    {
+      if (safe_share->m_enabled)
+      {
+        m_visitor->visit_table(pfs);
+      }
+    }
+  }
+
+private:
+  PFS_object_visitor* m_visitor;
+};
+
 void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
@@ -586,29 +775,34 @@ void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor)
   visitor->visit_global();
 
   /* For all the table shares ... */
-  PFS_table_share *share= table_share_array;
-  PFS_table_share *share_last= table_share_array + table_share_max;
-  for ( ; share < share_last; share++)
+  Proc_all_table_shares proc_shares(visitor);
+  global_table_share_container.apply(proc_shares);
+
+  /* For all the table handles ... */
+  Proc_all_table_handles proc_handles(visitor);
+  global_table_container.apply(proc_handles);
+}
+
+class Proc_one_table_share_handles
+  : public PFS_buffer_processor<PFS_table>
+{
+public:
+  Proc_one_table_share_handles(PFS_object_visitor *visitor, PFS_table_share *share)
+    : m_visitor(visitor), m_share(share)
+  {}
+
+  virtual void operator()(PFS_table *pfs)
   {
-    if (share->m_lock.is_populated() && share->m_enabled)
+    if (pfs->m_share == m_share)
     {
-      visitor->visit_table_share(share);
+      m_visitor->visit_table(pfs);
     }
   }
 
-  /* For all the table handles ... */
-  PFS_table *table= table_array;
-  PFS_table *table_last= table_array + table_max;
-  for ( ; table < table_last; table++)
-  {
-    if (table->m_lock.is_populated())
-    {
-      PFS_table_share *safe_share= sanitize_table_share(table->m_share);
-      if (safe_share != NULL && safe_share->m_enabled)
-        visitor->visit_table(table);
-    }
-  }
-}
+private:
+  PFS_object_visitor* m_visitor;
+  PFS_table_share* m_share;
+};
 
 void PFS_object_iterator::visit_tables(PFS_table_share *share,
                                        PFS_object_visitor *visitor)
@@ -620,17 +814,37 @@ void PFS_object_iterator::visit_tables(PFS_table_share *share,
 
   visitor->visit_table_share(share);
 
+#ifdef LATER
+  if (share->get_refcount() == 0)
+    return;
+#endif
+
   /* For all the table handles ... */
-  PFS_table *table= table_array;
-  PFS_table *table_last= table_array + table_max;
-  for ( ; table < table_last; table++)
+  Proc_one_table_share_handles proc(visitor, share);
+  global_table_container.apply(proc);
+}
+
+class Proc_one_table_share_indexes
+  : public PFS_buffer_processor<PFS_table>
+{
+public:
+  Proc_one_table_share_indexes(PFS_object_visitor *visitor, PFS_table_share *share, uint index)
+    : m_visitor(visitor), m_share(share), m_index(index)
+  {}
+
+  virtual void operator()(PFS_table *pfs)
   {
-    if ((table->m_share == share) && table->m_lock.is_populated())
+    if (pfs->m_share == m_share)
     {
-      visitor->visit_table(table);
+      m_visitor->visit_table_index(pfs, m_index);
     }
   }
-}
+
+private:
+  PFS_object_visitor* m_visitor;
+  PFS_table_share* m_share;
+  uint m_index;
+};
 
 void PFS_object_iterator::visit_table_indexes(PFS_table_share *share,
                                               uint index,
@@ -638,21 +852,19 @@ void PFS_object_iterator::visit_table_indexes(PFS_table_share *share,
 {
   DBUG_ASSERT(visitor != NULL);
 
-  if(!share->m_enabled)
+  if (!share->m_enabled)
     return;
 
   visitor->visit_table_share_index(share, index);
 
+#ifdef LATER
+  if (share->get_refcount() == 0)
+    return;
+#endif
+
   /* For all the table handles ... */
-  PFS_table *table= table_array;
-  PFS_table *table_last= table_array + table_max;
-  for ( ; table < table_last; table++)
-  {
-    if ((table->m_share == share) && table->m_lock.is_populated())
-    {
-      visitor->visit_table_index(table, index);
-    }
-  }
+  Proc_one_table_share_indexes proc(visitor, share, index);
+  global_table_container.apply(proc);
 }
 
 /** Connection wait visitor */
@@ -1121,9 +1333,51 @@ void PFS_connection_memory_visitor::visit_thread(PFS_thread *pfs)
   }
 }
 
-PFS_instance_wait_visitor::PFS_instance_wait_visitor()
+
+PFS_connection_status_visitor::
+PFS_connection_status_visitor(System_status_var *status_vars) : m_status_vars(status_vars)
+{
+  memset(m_status_vars, 0, sizeof(System_status_var));
+}
+
+PFS_connection_status_visitor::~PFS_connection_status_visitor()
+{}
+
+/** Aggregate from global status. */
+void PFS_connection_status_visitor::visit_global()
+{
+   /* NOTE: Requires lock on LOCK_status. */
+   mysql_mutex_assert_owner(&LOCK_status);
+   add_to_status(m_status_vars, &global_status_var, false);
+}
+
+void PFS_connection_status_visitor::visit_host(PFS_host *pfs)
+{
+  pfs->m_status_stats.aggregate_to(m_status_vars);
+}
+
+void PFS_connection_status_visitor::visit_user(PFS_user *pfs)
+{
+  pfs->m_status_stats.aggregate_to(m_status_vars);
+}
+
+void PFS_connection_status_visitor::visit_account(PFS_account *pfs)
+{
+  pfs->m_status_stats.aggregate_to(m_status_vars);
+}
+
+void PFS_connection_status_visitor::visit_thread(PFS_thread *pfs)
 {
 }
+
+void PFS_connection_status_visitor::visit_THD(THD *thd)
+{
+  add_to_status(m_status_vars, &thd->status_var, false);
+}
+
+
+PFS_instance_wait_visitor::PFS_instance_wait_visitor()
+{}
 
 PFS_instance_wait_visitor::~PFS_instance_wait_visitor()
 {}

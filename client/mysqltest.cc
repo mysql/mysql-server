@@ -7282,7 +7282,8 @@ void init_win_path_patterns()
                           "$MYSQL_SHAREDIR",
                           "$MYSQL_LIBDIR",
                           "./test/",
-                          ".ibd"};
+                          ".ibd",
+                          "ibdata"};
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
   char* p;

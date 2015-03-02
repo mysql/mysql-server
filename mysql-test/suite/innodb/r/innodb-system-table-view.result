@@ -1,22 +1,22 @@
-TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE
-11	SYS_FOREIGN	0	7	0	Antelope	Redundant	0
-12	SYS_FOREIGN_COLS	0	7	0	Antelope	Redundant	0
-13	SYS_TABLESPACES	0	6	0	Antelope	Redundant	0
-14	SYS_DATAFILES	0	5	0	Antelope	Redundant	0
-15	mysql/plugin	1	5	2	Antelope	Compact	0
-16	mysql/servers	1	12	3	Antelope	Compact	0
-17	mysql/help_topic	1	9	4	Antelope	Compact	0
-18	mysql/help_category	1	7	5	Antelope	Compact	0
-19	mysql/help_relation	1	5	6	Antelope	Compact	0
-20	mysql/help_keyword	1	5	7	Antelope	Compact	0
-21	mysql/time_zone_name	1	5	8	Antelope	Compact	0
-22	mysql/time_zone	1	5	9	Antelope	Compact	0
-23	mysql/time_zone_transition	1	6	10	Antelope	Compact	0
-24	mysql/time_zone_transition_type	1	8	11	Antelope	Compact	0
-25	mysql/time_zone_leap_second	1	5	12	Antelope	Compact	0
-31	mysql/gtid_executed	1	6	18	Antelope	Compact	0
-32	mysql/server_cost	1	7	19	Antelope	Compact	0
-33	mysql/engine_cost	1	9	20	Antelope	Compact	0
+TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
+11	SYS_FOREIGN	0	7	0	Antelope	Redundant	0	System
+12	SYS_FOREIGN_COLS	0	7	0	Antelope	Redundant	0	System
+13	SYS_TABLESPACES	0	6	0	Antelope	Redundant	0	System
+14	SYS_DATAFILES	0	5	0	Antelope	Redundant	0	System
+15	mysql/plugin	1	5	2	Antelope	Compact	0	Single
+16	mysql/servers	1	12	3	Antelope	Compact	0	Single
+17	mysql/help_topic	1	9	4	Antelope	Compact	0	Single
+18	mysql/help_category	1	7	5	Antelope	Compact	0	Single
+19	mysql/help_relation	1	5	6	Antelope	Compact	0	Single
+20	mysql/help_keyword	1	5	7	Antelope	Compact	0	Single
+21	mysql/time_zone_name	1	5	8	Antelope	Compact	0	Single
+22	mysql/time_zone	1	5	9	Antelope	Compact	0	Single
+23	mysql/time_zone_transition	1	6	10	Antelope	Compact	0	Single
+24	mysql/time_zone_transition_type	1	8	11	Antelope	Compact	0	Single
+25	mysql/time_zone_leap_second	1	5	12	Antelope	Compact	0	Single
+31	mysql/gtid_executed	1	6	18	Antelope	Compact	0	Single
+32	mysql/server_cost	1	7	19	Antelope	Compact	0	Single
+33	mysql/engine_cost	1	9	20	Antelope	Compact	0	Single
 table_id	pos	mtype	prtype	len	name
 11	0	1	524292	0	ID
 11	1	1	524292	0	FOR_NAME
@@ -146,8 +146,6 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-SET GLOBAL innodb_file_format=`Barracuda`;
-SET GLOBAL innodb_file_per_table=ON;
 DROP TABLE IF EXISTS t_redundant, t_compact, t_compressed, t_dynamic;
 CREATE TABLE t_redundant (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t_compact (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;

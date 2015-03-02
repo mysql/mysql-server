@@ -345,7 +345,9 @@ let $query=SELECT DISTINCT SUM(b) s FROM t1 GROUP BY a ORDER BY s;
 --eval EXPLAIN FORMAT=JSON $query
 FLUSH STATUS;
 --eval $query
+--disable_warnings
 SHOW SESSION STATUS WHERE (Variable_name LIKE 'Sort_%' OR Variable_name LIKE 'Created_%_tables') AND Value > 0;
+--enable_warnings
 
 DROP TABLE t1;
 

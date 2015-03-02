@@ -27,16 +27,18 @@
 
 #include "mysys_err.h"                       // EE_DELETE
 #include "connection_handler_manager.h"      // Connection_handler_manager
+#include "current_thd.h"
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
+#include "psi_memory_key.h"
 #include "rpl_filter.h"                      // binlog_filter
 #include "rpl_rli.h"                         // Relay_log_info
 #include "rpl_rli_pdb.h"                     // Slave_worker
 #include "sp_cache.h"                        // sp_cache_clear
 #include "sp_rcontext.h"                     // sp_rcontext
-#include "sql_audit.h"                       // mysql_audit_release
+#include "sql_audit.h"                       // mysql_audit_free_thd
 #include "sql_base.h"                        // close_temporary_tables
 #include "sql_callback.h"                    // MYSQL_CALLBACK
 #include "sql_handler.h"                     // mysql_ha_cleanup
@@ -279,6 +281,28 @@ THD::Attachable_trx::~Attachable_trx()
 /****************************************************************************
 ** User variables
 ****************************************************************************/
+// static
+user_var_entry* user_var_entry::create(THD *thd,
+                                       const Name_string &name,
+                                       const CHARSET_INFO *cs)
+{
+  if (check_column_name(name.ptr()))
+  {
+    my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
+    return NULL;
+  }
+
+  user_var_entry *entry;
+  size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
+    (name.length() + 1) + extra_size;
+  if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
+                                           size, MYF(MY_WME |
+                                                     ME_FATALERROR))))
+    return NULL;
+  entry->init(thd, name, cs);
+  return entry;
+}
+
 
 extern "C" uchar *get_var_key(user_var_entry *entry, size_t *length,
                               my_bool not_used __attribute__((unused)))
@@ -401,385 +425,60 @@ bool foreign_key_prefix(Key *a, Key *b)
 #endif
 }
 
-
-/****************************************************************************
-** Thread specific functions
-****************************************************************************/
-
 /**
-  Release resources of the THD, prior to destruction.
+  @brief  validate
+    Check if the foreign key options are compatible with columns
+    on which the FK is created.
 
-  @param    THD   pointer to THD object.
-*/
+  @param table_fields         List of columns 
 
-void thd_release_resources(THD *thd)
+  @return
+    false   Key valid
+  @return
+    true   Key invalid
+ */
+bool Foreign_key::validate(List<Create_field> &table_fields)
 {
-  thd->release_resources();
-}
-
-/**
-  Delete the THD object.
-
-  @param    THD   pointer to THD object.
-*/
-void destroy_thd(THD *thd)
-{
-  delete thd;
-}
-
-/**
-  Get reference to scheduler data object
-
-  @param thd            THD object
-
-  @retval               Scheduler data object on THD
-*/
-void *thd_get_scheduler_data(THD *thd)
-{
-  return thd->scheduler.data;
-}
-
-/**
-  Set reference to Scheduler data object for THD object
-
-  @param thd            THD object
-  @param psi            Scheduler data object to set on THD
-*/
-void thd_set_scheduler_data(THD *thd, void *data)
-{
-  thd->scheduler.data= data;
-}
-
-/**
-  Get reference to Performance Schema object for THD object
-
-  @param thd            THD object
-
-  @retval               Performance schema object for thread on THD
-*/
-PSI_thread *thd_get_psi(THD *thd)
-{
-  return thd->scheduler.m_psi;
-}
-
-/**
-  Get net_wait_timeout for THD object
-
-  @param thd            THD object
-
-  @retval               net_wait_timeout value for thread on THD
-*/
-ulong thd_get_net_wait_timeout(THD* thd)
-{
-  return thd->variables.net_wait_timeout;
-}
-
-/**
-  Set reference to Performance Schema object for THD object
-
-  @param thd            THD object
-  @param psi            Performance schema object for thread
-*/
-void thd_set_psi(THD *thd, PSI_thread *psi)
-{
-  thd->scheduler.m_psi= psi;
-}
-
-/**
-  Set the state on connection to killed
-
-  @param thd               THD object
-*/
-void thd_set_killed(THD *thd)
-{
-  thd->killed= THD::KILL_CONNECTION;
-}
-
-/**
-  Clear errors from the previous THD
-
-  @param thd              THD object
-*/
-void thd_clear_errors(THD *thd)
-{
-  my_errno= 0;
-  thd->mysys_var->abort= 0;
-}
-
-/**
-  Set thread stack in THD object
-
-  @param thd              Thread object
-  @param stack_start      Start of stack to set in THD object
-*/
-void thd_set_thread_stack(THD *thd, char *stack_start)
-{
-  thd->thread_stack= stack_start;
-}
-
-/**
-  Close the socket used by this connection
-
-  @param thd                THD object
-*/
-void thd_close_connection(THD *thd)
-{
-  if (thd->net.vio)
-    vio_shutdown(thd->net.vio);
-}
-
-/**
-  Get current THD object from thread local data
-
-  @retval     The THD object for the thread, NULL if not connection thread
-*/
-THD *thd_get_current_thd()
-{
-  return current_thd;
-}
-
-/**
-  Reset thread globals associated.
-
-  @param thd     THD object
-*/
-void reset_thread_globals(THD* thd)
-{
-  thd->restore_globals();
-  thd->set_mysys_var(NULL);
-}
-
-extern "C"
-void thd_binlog_pos(const THD *thd,
-                    const char **file_var,
-                    unsigned long long *pos_var)
-{
-  thd->get_trans_pos(file_var, pos_var);
-}
-
-/**
-  Set up various THD data for a new connection
-
-  thd_new_connection_setup
-
-  @param              thd            THD object
-  @param              stack_start    Start of stack for connection
-*/
-void thd_new_connection_setup(THD *thd, char *stack_start)
-{
-  DBUG_ENTER("thd_new_connection_setup");
-  thd->set_new_thread_id();
-#ifdef HAVE_PSI_INTERFACE
-  thd_set_psi(thd,
-              PSI_THREAD_CALL(new_thread)
-              (key_thread_one_connection, thd, thd->thread_id()));
-#endif
-  thd->set_time();
-  thd->thr_create_utime= thd->start_utime= my_micro_time();
-
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd_manager->add_thd(thd);
-
-  DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
-          (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
-  thd_set_thread_stack(thd, stack_start);
-  DBUG_VOID_RETURN;
-}
-
-/**
-  Lock data that needs protection in THD object
-
-  @param thd                   THD object
-*/
-void thd_lock_data(THD *thd)
-{
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-}
-
-/**
-  Unlock data that needs protection in THD object
-
-  @param thd                   THD object
-*/
-void thd_unlock_data(THD *thd)
-{
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
-}
-
-/**
-  Support method to check if connection has already started transaction
-
-  @param client_cntx    Low level client context
-
-  @retval               TRUE if connection already started transaction
-*/
-bool thd_is_transaction_active(THD *thd)
-{
-  return thd->get_transaction()->is_active(Transaction_ctx::SESSION);
-}
-
-/**
-  Check if there is buffered data on the socket representing the connection
-
-  @param thd                  THD object
-*/
-int thd_connection_has_data(THD *thd)
-{
-  Vio *vio= thd->net.vio;
-  return vio->has_data(vio);
-}
-
-/**
-  Set reading/writing on socket, used by SHOW PROCESSLIST
-
-  @param thd                       THD object
-  @param val                       Value to set it to (0 or 1)
-*/
-void thd_set_net_read_write(THD *thd, uint val)
-{
-  thd->net.reading_or_writing= val;
-}
-
-/**
-  Get reading/writing on socket from THD object
-  @param thd                       THD object
-
-  @retval               net.reading_or_writing value for thread on THD.
-*/
-uint thd_get_net_read_write(THD *thd)
-{
-  return thd->net.reading_or_writing;
-}
-
-/**
-  Set reference to mysys variable in THD object
-
-  @param thd             THD object
-  @param mysys_var       Reference to set
-*/
-void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
-{
-  thd->set_mysys_var(mysys_var);
-}
-
-/**
-  Get socket file descriptor for this connection
-
-  @param thd            THD object
-
-  @retval               Socket of the connection
-*/
-my_socket thd_get_fd(THD *thd)
-{
-  return mysql_socket_getfd(thd->net.vio->mysql_socket);
-}
-
-/**
-  Set thread specific environment required for thd cleanup in thread pool.
-
-  @param thd            THD object
-
-  @retval               1 if thread-specific enviroment could be set else 0
-*/
-int thd_store_globals(THD* thd)
-{
-  return thd->store_globals();
-}
-
-/**
-  Get thread attributes for connection threads
-
-  @retval      Reference to thread attribute for connection threads
-*/
-my_thread_attr_t *get_connection_attrib(void)
-{
-  return &connection_attrib;
-}
-
-/**
-  Get max number of connections
-
-  @retval         Max number of connections for MySQL Server
-*/
-ulong get_max_connections(void)
-{
-  return max_connections;
-}
-
-/*
-  The following functions form part of the C plugin API
-*/
-
-extern "C" int mysql_tmpfile(const char *prefix)
-{
-  char filename[FN_REFLEN];
-  File fd = create_temp_file(filename, mysql_tmpdir, prefix,
-#ifdef _WIN32
-                             O_BINARY | O_TRUNC | O_SEQUENTIAL |
-                             O_SHORT_LIVED |
-#endif /* _WIN32 */
-                             O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
-                             MYF(MY_WME));
-  if (fd >= 0) {
-#ifndef _WIN32
-    /*
-      This can be removed once the following bug is fixed:
-      Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
-                  (file not removed) (Unix)
-    */
-    unlink(filename);
-#endif /* !_WIN32 */
+  Create_field  *sql_field;
+  Key_part_spec *column;
+  List_iterator<Key_part_spec> cols(columns);
+  List_iterator<Create_field> it(table_fields);
+  DBUG_ENTER("Foreign_key::validate");
+  while ((column= cols++))
+  {
+    it.rewind();
+    while ((sql_field= it++) &&
+           my_strcasecmp(system_charset_info,
+                         column->field_name.str,
+                         sql_field->field_name)) {}
+    if (!sql_field)
+    {
+      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
+      DBUG_RETURN(TRUE);
+    }
+    if (type == KEYTYPE_FOREIGN && sql_field->gcol_info)
+    {
+      if (delete_opt == FK_OPTION_SET_NULL)
+      {
+        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
+                 "ON DELETE SET NULL");
+        DBUG_RETURN(TRUE);
+      }
+      if (update_opt == FK_OPTION_SET_NULL)
+      {
+        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
+                 "ON UPDATE SET NULL");
+        DBUG_RETURN(TRUE);
+      }
+      if (update_opt == FK_OPTION_CASCADE)
+      {
+        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
+                 "ON UPDATE CASCADE");
+        DBUG_RETURN(TRUE);
+      }
+    }
   }
-
-  return fd;
-}
-
-
-extern "C"
-int thd_in_lock_tables(const THD *thd)
-{
-  return MY_TEST(thd->in_lock_tables);
-}
-
-
-extern "C"
-int thd_tablespace_op(const THD *thd)
-{
-  return MY_TEST(thd->tablespace_op);
-}
-
-
-extern "C"
-const char *set_thd_proc_info(void *thd_arg, const char *info,
-                              const char *calling_function,
-                              const char *calling_file,
-                              const unsigned int calling_line)
-{
-  PSI_stage_info old_stage;
-  PSI_stage_info new_stage;
-
-  old_stage.m_key= 0;
-  old_stage.m_name= info;
-
-  set_thd_stage_info(thd_arg, & old_stage, & new_stage,
-                     calling_function, calling_file, calling_line);
-
-  return new_stage.m_name;
-}
-
-extern "C"
-void set_thd_stage_info(void *opaque_thd,
-                        const PSI_stage_info *new_stage,
-                        PSI_stage_info *old_stage,
-                        const char *calling_func,
-                        const char *calling_file,
-                        const unsigned int calling_line)
-{
-  THD *thd= (THD*) opaque_thd;
-  if (thd == NULL)
-    thd= current_thd;
-
-  thd->enter_stage(new_stage, old_stage, calling_func, calling_file, calling_line);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -821,211 +520,44 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 }
 
 extern "C"
-void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
-                    const PSI_stage_info *stage, PSI_stage_info *old_stage)
+void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line)
 {
+  THD *thd= static_cast<THD*>(opaque_thd);
   if (!thd)
     thd= current_thd;
 
-  return thd->ENTER_COND(cond, mutex, stage, old_stage);
+  return thd->enter_cond(cond, mutex, stage, old_stage,
+                         src_function, src_file, src_line);
 }
 
 extern "C"
-void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage)
+void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+                   int src_line)
 {
+  THD *thd= static_cast<THD*>(opaque_thd);
   if (!thd)
     thd= current_thd;
 
-  thd->EXIT_COND(stage);
-  return;
-}
-
-extern "C"
-void **thd_ha_data(const THD *thd, const struct handlerton *hton)
-{
-  return (void **) &thd->ha_data[hton->slot].ha_ptr;
-}
-
-extern "C"
-void thd_storage_lock_wait(THD *thd, long long value)
-{
-  thd->utime_after_lock+= value;
-}
-
-/**
-  Provide a handler data getter to simplify coding
-*/
-extern "C"
-void *thd_get_ha_data(const THD *thd, const struct handlerton *hton)
-{
-  return *thd_ha_data(thd, hton);
+  thd->exit_cond(stage, src_function, src_file, src_line);
 }
 
 
 /**
-  Provide a handler data setter to simplify coding
-  @see thd_set_ha_data() definition in plugin.h
-*/
-extern "C"
-void thd_set_ha_data(THD *thd, const struct handlerton *hton,
-                     const void *ha_data)
-{
-  plugin_ref *lock= &thd->ha_data[hton->slot].lock;
-  if (ha_data && !*lock)
-    *lock= ha_lock_engine(NULL, (handlerton*) hton);
-  else if (!ha_data && *lock)
-  {
-    plugin_unlock(NULL, *lock);
-    *lock= NULL;
-  }
-  *thd_ha_data(thd, hton)= (void*) ha_data;
-}
-
-
-extern "C"
-long long thd_test_options(const THD *thd, long long test_options)
-{
-  return thd->variables.option_bits & test_options;
-}
-
-extern "C"
-int thd_sql_command(const THD *thd)
-{
-  return (int) thd->lex->sql_command;
-}
-
-extern "C"
-int thd_tx_isolation(const THD *thd)
-{
-  return (int) thd->tx_isolation;
-}
-
-extern "C"
-int thd_tx_is_read_only(const THD *thd)
-{
-  return (int) thd->tx_read_only;
-}
-
-extern "C"
-int thd_tx_priority(const THD* thd)
-{
-  return (thd->thd_tx_priority != 0
-          ? thd->thd_tx_priority
-          : thd->tx_priority);
-}
-
-extern "C"
-THD* thd_tx_arbitrate(THD *requestor, THD* holder)
-{
- /* Should be different sessions. */
- DBUG_ASSERT(holder != requestor);
-
- return(thd_tx_priority(requestor) == thd_tx_priority(holder)
-	? requestor
-	: ((thd_tx_priority(requestor)
-	    > thd_tx_priority(holder)) ? holder : requestor));
-}
-
-int thd_tx_is_dd_trx(const THD *thd)
-{
-  return (int) thd->is_attachable_transaction_active();
-}
-
-extern "C"
-void thd_inc_row_count(THD *thd)
-{
-  thd->get_stmt_da()->inc_current_row_for_condition();
-}
-
-
-/**
-  Dumps a text description of a thread, its security context
-  (user, host) and the current query.
+  Returns the partition_info working copy.
+  Used to see if a table should be created with partitioning.
 
   @param thd thread context
-  @param buffer pointer to preferred result buffer
-  @param length length of buffer
-  @param max_query_len how many chars of query to copy (0 for all)
 
-  @return Pointer to string
+  @return Pointer to the working copy of partition_info or NULL.
 */
 
-extern "C"
-char *thd_security_context(THD *thd, char *buffer, size_t length,
-                           size_t max_query_len)
+partition_info *thd_get_work_part_info(THD *thd)
 {
-  String str(buffer, length, &my_charset_latin1);
-  Security_context *sctx= &thd->m_main_security_ctx;
-  char header[256];
-  size_t len;
-  /*
-    The pointers thd->query and thd->proc_info might change since they are
-    being modified concurrently. This is acceptable for proc_info since its
-    values doesn't have to very accurate and the memory it points to is static,
-    but we need to attempt a snapshot on the pointer values to avoid using NULL
-    values. The pointer to thd->query however, doesn't point to static memory
-    and has to be protected by LOCK_thd_query or risk pointing to
-    uninitialized memory.
-  */
-  const char *proc_info= thd->proc_info;
-
-  len= my_snprintf(header, sizeof(header),
-                   "MySQL thread id %u, OS thread handle %lu, query id %lu",
-                   thd->thread_id(), (ulong)thd->real_id, (ulong)thd->query_id);
-  str.length(0);
-  str.append(header, len);
-
-  if (sctx->host().length)
-  {
-    str.append(' ');
-    str.append(sctx->host().str);
-  }
-
-  if (sctx->ip().length)
-  {
-    str.append(' ');
-    str.append(sctx->ip().str);
-  }
-
-  if (sctx->user().str)
-  {
-    str.append(' ');
-    str.append(sctx->user().str);
-  }
-
-  if (proc_info)
-  {
-    str.append(' ');
-    str.append(proc_info);
-  }
-
-  mysql_mutex_lock(&thd->LOCK_thd_query);
-
-  if (thd->query().str)
-  {
-    if (max_query_len < 1)
-      len= thd->query().length;
-    else
-      len= min(thd->query().length, max_query_len);
-    str.append('\n');
-    str.append(thd->query().str, len);
-  }
-
-  mysql_mutex_unlock(&thd->LOCK_thd_query);
-
-  if (str.c_ptr_safe() == buffer)
-    return buffer;
-
-  /*
-    We have to copy the new string to the destination buffer because the string
-    was reallocated to a larger buffer to be able to fit.
-  */
-  DBUG_ASSERT(buffer != NULL);
-  length= min(static_cast<size_t>(str.length()), length-1);
-  memcpy(buffer, str.c_ptr_quick(), length);
-  /* Make sure that the new string is null terminated */
-  buffer[length]= '\0';
-  return buffer;
+  return thd->work_part_info;
 }
 
 
@@ -1097,6 +629,8 @@ THD::THD(bool enable_plugins)
    mysql(NULL),
 #endif
    query_plan(this),
+   current_mutex(NULL),
+   current_cond(NULL),
    in_sub_stmt(0),
    fill_status_recursion_level(0),
    binlog_row_event_extra_data(NULL),
@@ -1128,6 +662,7 @@ THD::THD(bool enable_plugins)
    derived_tables_processing(FALSE),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
+   work_part_info(NULL),
 #ifndef EMBEDDED_LIBRARY
    // No need to instrument, highly unlikely to have that many plugins.
    audit_class_plugins(PSI_NOT_INSTRUMENTED),
@@ -1142,6 +677,8 @@ THD::THD(bool enable_plugins)
 #endif
    skip_gtid_rollback(false),
    is_commit_in_middle_of_statement(false),
+   has_gtid_consistency_violation(false),
+   pending_gtid_state_update(false),
    main_da(false),
    m_parser_da(false),
    m_query_rewrite_plugin_da(false),
@@ -1182,7 +719,6 @@ THD::THD(bool enable_plugins)
   slave_thread = 0;
   memset(&variables, 0, sizeof(variables));
   m_thread_id= Global_THD_manager::reserved_thread_id;
-  one_shot_set= 0;
   file_id = 0;
   query_id= 0;
   query_name_consts= 0;
@@ -1209,7 +745,10 @@ THD::THD(bool enable_plugins)
   active_vio = 0;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
+                   MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -1240,7 +779,7 @@ THD::THD(bool enable_plugins)
   protocol_text.init(this);
   protocol_binary.init(this);
 
-  tablespace_op=FALSE;
+  tablespace_op= false;
   substitute_null_with_insert_id = FALSE;
 
   /*
@@ -1264,6 +803,14 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  m_token_array= NULL;
+  if (max_digest_length > 0)
+  {
+    m_token_array= (unsigned char*) my_malloc(PSI_INSTRUMENT_ME,
+                                              max_digest_length,
+                                              MYF(MY_WME));
+  }
 }
 
 
@@ -1274,6 +821,40 @@ void THD::set_transaction(Transaction_ctx *transaction_ctx)
   delete m_transaction.release();
   m_transaction.reset(transaction_ctx);
 }
+
+
+bool THD::set_db(const LEX_CSTRING &new_db)
+{
+  bool result;
+  /*
+    Acquiring mutex LOCK_thd_data as we either free the memory allocated
+    for the database and reallocating the memory for the new db or memcpy
+    the new_db to the db.
+  */
+  mysql_mutex_lock(&LOCK_thd_data);
+  /* Do not reallocate memory if current chunk is big enough. */
+  if (m_db.str && new_db.str && m_db.length >= new_db.length)
+    memcpy(const_cast<char*>(m_db.str), new_db.str, new_db.length+1);
+  else
+  {
+    my_free(const_cast<char*>(m_db.str));
+    m_db= NULL_CSTR;
+    if (new_db.str)
+      m_db.str= my_strndup(key_memory_THD_db,
+                           new_db.str, new_db.length,
+                           MYF(MY_WME | ME_FATALERROR));
+  }
+  m_db.length= m_db.str ? new_db.length : 0;
+  mysql_mutex_unlock(&LOCK_thd_data);
+  result= new_db.str && !m_db.str;
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (result)
+    PSI_THREAD_CALL(set_thread_db)(new_db.str,
+                                   static_cast<int>(new_db.length));
+#endif
+  return result;
+}
+
 
 
 void THD::push_internal_handler(Internal_error_handler *handler)
@@ -1318,7 +899,7 @@ Internal_error_handler *THD::pop_internal_handler()
 
 void THD::raise_error(uint sql_errno)
 {
-  const char* msg= ER(sql_errno);
+  const char* msg= ER_THD(this, sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
                          Sql_condition::SL_ERROR,
@@ -1331,7 +912,7 @@ void THD::raise_error_printf(uint sql_errno, ...)
   char ebuff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("THD::raise_error_printf");
   DBUG_PRINT("my", ("nr: %d  errno: %d", sql_errno, errno));
-  const char* format= ER(sql_errno);
+  const char* format= ER_THD(this, sql_errno);
   va_start(args, sql_errno);
   my_vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
@@ -1344,7 +925,7 @@ void THD::raise_error_printf(uint sql_errno, ...)
 
 void THD::raise_warning(uint sql_errno)
 {
-  const char* msg= ER(sql_errno);
+  const char* msg= ER_THD(this, sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
                          Sql_condition::SL_WARNING,
@@ -1357,7 +938,7 @@ void THD::raise_warning_printf(uint sql_errno, ...)
   char    ebuff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("THD::raise_warning_printf");
   DBUG_PRINT("enter", ("warning: %u", sql_errno));
-  const char* format= ER(sql_errno);
+  const char* format= ER_THD(this, sql_errno);
   va_start(args, sql_errno);
   my_vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
@@ -1374,7 +955,7 @@ void THD::raise_note(uint sql_errno)
   DBUG_PRINT("enter", ("code: %d", sql_errno));
   if (!(variables.option_bits & OPTION_SQL_NOTES))
     DBUG_VOID_RETURN;
-  const char* msg= ER(sql_errno);
+  const char* msg= ER_THD(this, sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
                          Sql_condition::SL_NOTE,
@@ -1390,7 +971,7 @@ void THD::raise_note_printf(uint sql_errno, ...)
   DBUG_PRINT("enter",("code: %u", sql_errno));
   if (!(variables.option_bits & OPTION_SQL_NOTES))
     DBUG_VOID_RETURN;
-  const char* format= ER(sql_errno);
+  const char* format= ER_THD(this, sql_errno);
   va_start(args, sql_errno);
   my_vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
@@ -1435,7 +1016,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (sql_errno == 0) /* Safety in release build */
     sql_errno= ER_UNKNOWN_ERROR;
   if (msg == NULL)
-    msg= ER(sql_errno);
+    msg= ER_THD(this, sql_errno);
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
@@ -1473,57 +1054,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   DBUG_RETURN(cond);
 }
 
-extern "C"
-void *thd_alloc(MYSQL_THD thd, size_t size)
-{
-  return thd->alloc(size);
-}
 
-extern "C"
-void *thd_calloc(MYSQL_THD thd, size_t size)
-{
-  return thd->mem_calloc(size);
-}
-
-extern "C"
-char *thd_strdup(MYSQL_THD thd, const char *str)
-{
-  return thd->mem_strdup(str);
-}
-
-extern "C"
-char *thd_strmake(MYSQL_THD thd, const char *str, size_t size)
-{
-  return thd->strmake(str, size);
-}
-
-extern "C"
-LEX_STRING *thd_make_lex_string(THD *thd, LEX_STRING *lex_str,
-                                const char *str, size_t size,
-                                int allocate_lex_string)
-{
-  return thd->make_lex_string(lex_str, str, size,
-                              (bool) allocate_lex_string);
-}
-
-extern "C"
-void *thd_memdup(MYSQL_THD thd, const void* str, size_t size)
-{
-  return thd->memdup(str, size);
-}
-
-extern "C"
-void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
-{
-  *xid = *(MYSQL_XID *) thd->get_transaction()->xid_state()->get_xid();
-}
-
-#if defined(_WIN32)
-extern "C"   THD *_current_thd_noinline(void)
-{
-  return my_thread_get_THR_THD();
-}
-#endif
 /*
   Init common variables that has to be reset on start and on cleanup_connection
 */
@@ -1652,7 +1183,7 @@ void THD::set_new_thread_id()
 void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
@@ -1784,7 +1315,7 @@ void THD::release_resources()
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
@@ -1814,7 +1345,6 @@ void THD::release_resources()
 
   mdl_context.destroy();
   ha_close_connection(this);
-  mysql_audit_release(this);
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
 #ifdef HAVE_MY_TIMER
@@ -1865,6 +1395,8 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
+  mysql_mutex_destroy(&LOCK_thd_sysvar);
+  mysql_mutex_destroy(&LOCK_current_cond);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif
@@ -1885,73 +1417,12 @@ THD::~THD()
 #endif
 
   free_root(&main_mem_root, MYF(0));
-  
+
+  if (m_token_array != NULL)
+  {
+    my_free(m_token_array);
+  }
   DBUG_VOID_RETURN;
-}
-
-
-/*
-  Add all status variables to another status variable array
-
-  SYNOPSIS
-   add_to_status()
-   to_var       add to this array
-   from_var     from this array
-
-  NOTES
-    This function assumes that all variables are longlong/ulonglong.
-    If this assumption will change, then we have to explictely add
-    the other variables after the while loop
-*/
-
-void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
-{
-  int        c;
-  ulonglong *end= (ulonglong*) ((uchar*) to_var +
-                                offsetof(STATUS_VAR, last_system_status_var) +
-                                sizeof(ulonglong));
-  ulonglong *to= (ulonglong*) to_var, *from= (ulonglong*) from_var;
-
-  while (to != end)
-    *(to++)+= *(from++);
-
-  to_var->com_other+= from_var->com_other;
-
-  for (c= 0; c< SQLCOM_END; c++)
-    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
-}
-
-/*
-  Add the difference between two status variable arrays to another one.
-
-  SYNOPSIS
-    add_diff_to_status
-    to_var       add to this array
-    from_var     from this array
-    dec_var      minus this array
-  
-  NOTE
-    This function assumes that all variables are longlong/ulonglong.
-*/
-
-void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
-                        STATUS_VAR *dec_var)
-{
-  int        c;
-  ulonglong *end= (ulonglong*) ((uchar*) to_var + offsetof(STATUS_VAR,
-                                                           last_system_status_var) +
-                                sizeof(ulonglong));
-  ulonglong *to= (ulonglong*) to_var,
-            *from= (ulonglong*) from_var,
-            *dec= (ulonglong*) dec_var;
-
-  while (to != end)
-    *(to++)+= *(from++) - *(dec++);
-
-  to_var->com_other+= from_var->com_other - dec_var->com_other;
-
-  for (c= 0; c< SQLCOM_END; c++)
-    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c] -dec_var->com_stat[(uint) c];
 }
 
 
@@ -2037,7 +1508,7 @@ void THD::awake(THD::killed_state state_to_set)
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
   {
-    mysql_mutex_lock(&mysys_var->mutex);
+    mysql_mutex_lock(&LOCK_current_cond);
     if (!system_thread)		// Don't abort locks
       mysys_var->abort=1;
     /*
@@ -2064,7 +1535,7 @@ void THD::awake(THD::killed_state state_to_set)
       However, there is still a small chance of failure on platforms with
       instruction or memory write reordering.
     */
-    if (mysys_var->current_cond && mysys_var->current_mutex)
+    if (current_cond && current_mutex)
     {
       DBUG_EXECUTE_IF("before_dump_thread_acquires_current_mutex",
                       {
@@ -2073,11 +1544,11 @@ void THD::awake(THD::killed_state state_to_set)
                       DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                          STRING_WITH_LEN(act)));
                       };);
-      mysql_mutex_lock(mysys_var->current_mutex);
-      mysql_cond_broadcast(mysys_var->current_cond);
-      mysql_mutex_unlock(mysys_var->current_mutex);
+      mysql_mutex_lock(current_mutex);
+      mysql_cond_broadcast(current_cond);
+      mysql_mutex_unlock(current_mutex);
     }
-    mysql_mutex_unlock(&mysys_var->mutex);
+    mysql_mutex_unlock(&LOCK_current_cond);
   }
   DBUG_VOID_RETURN;
 }
@@ -2237,8 +1708,13 @@ void THD::cleanup_after_query()
     binlog_accessed_db_names= NULL;
     m_trans_fixed_log_file= NULL;
 
-    if (gtid_mode > 0)
-      gtid_post_statement_checks(this);
+    /*
+      Strictly speaking this is only needed when GTID_MODE!=OFF.
+      However, we can only read gtid_mode while holding
+      global_sid_lock.  And gtid_post_statement_checks is very cheap,
+      so no point in calling it conditionally.
+    */
+    gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.
@@ -2466,7 +1942,7 @@ void THD::add_changed_table(const char *key, long key_length)
 }
 
 
-int THD::send_explain_fields(select_result *result)
+int THD::send_explain_fields(Query_result *result)
 {
   List<Item> field_list;
   Item *item;
@@ -2593,29 +2069,6 @@ void THD::rollback_item_tree_changes()
 ** Functions to provide a interface to select results
 *****************************************************************************/
 
-select_result::select_result():
-  thd(current_thd), unit(NULL), estimated_rowcount(0)
-{
-}
-
-void select_result::send_error(uint errcode,const char *err)
-{
-  my_message(errcode, err, MYF(0));
-}
-
-
-void select_result::cleanup()
-{
-  /* do nothing */
-}
-
-bool select_result::check_simple_select() const
-{
-  my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
-  return TRUE;
-}
-
-
 static const String default_line_term("\n",default_charset_info);
 static const String default_escaped("\\",default_charset_info);
 static const String default_field_term("\t",default_charset_info);
@@ -2643,7 +2096,12 @@ bool sql_exchange::escaped_given(void)
 }
 
 
-bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
+Query_result::Query_result()
+  : thd(current_thd), unit(NULL), estimated_rowcount(0)
+{ }
+
+
+bool Query_result_send::send_result_set_metadata(List<Item> &list, uint flags)
 {
   bool res;
   if (!(res= thd->protocol->send_result_set_metadata(&list, flags)))
@@ -2651,9 +2109,9 @@ bool select_send::send_result_set_metadata(List<Item> &list, uint flags)
   return res;
 }
 
-void select_send::abort_result_set()
+void Query_result_send::abort_result_set()
 {
-  DBUG_ENTER("select_send::abort_result_set");
+  DBUG_ENTER("Query_result_send::abort_result_set");
 
   if (is_result_set_started && thd->sp_runtime_ctx)
   {
@@ -2672,23 +2130,12 @@ void select_send::abort_result_set()
 }
 
 
-/** 
-  Cleanup an instance of this class for re-use
-  at next execution of a prepared statement/
-  stored procedure statement.
-*/
-
-void select_send::cleanup()
-{
-  is_result_set_started= FALSE;
-}
-
 /* Send data to client. Returns 0 if ok */
 
-bool select_send::send_data(List<Item> &items)
+bool Query_result_send::send_data(List<Item> &items)
 {
   Protocol *protocol= thd->protocol;
-  DBUG_ENTER("select_send::send_data");
+  DBUG_ENTER("Query_result_send::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -2718,7 +2165,7 @@ bool select_send::send_data(List<Item> &items)
   DBUG_RETURN(0);
 }
 
-bool select_send::send_eof()
+bool Query_result_send::send_eof()
 {
   /* 
     We may be passing the control from mysqld to the client: release the
@@ -2743,7 +2190,7 @@ bool select_send::send_eof()
   Handling writing to file
 ************************************************************************/
 
-void select_to_file::send_error(uint errcode,const char *err)
+void Query_result_to_file::send_error(uint errcode,const char *err)
 {
   my_message(errcode, err, MYF(0));
   if (file > 0)
@@ -2757,7 +2204,7 @@ void select_to_file::send_error(uint errcode,const char *err)
 }
 
 
-bool select_to_file::send_eof()
+bool Query_result_to_file::send_eof()
 {
   int error= MY_TEST(end_io_cache(&cache));
   if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error())
@@ -2772,7 +2219,7 @@ bool select_to_file::send_eof()
 }
 
 
-void select_to_file::cleanup()
+void Query_result_to_file::cleanup()
 {
   /* In case of error send_eof() may be not called: close the file here. */
   if (file >= 0)
@@ -2786,7 +2233,7 @@ void select_to_file::cleanup()
 }
 
 
-select_to_file::~select_to_file()
+Query_result_to_file::~Query_result_to_file()
 {
   if (file >= 0)
   {					// This only happens in case of error
@@ -2799,12 +2246,6 @@ select_to_file::~select_to_file()
 /***************************************************************************
 ** Export of select to textfile
 ***************************************************************************/
-
-select_export::~select_export()
-{
-  thd->set_sent_row_count(row_count);
-}
-
 
 /*
   Create file with IO cache
@@ -2870,8 +2311,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 }
 
 
-int
-select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   bool blob_flag=0;
   bool string_results= FALSE, non_string_results= FALSE;
@@ -2926,7 +2366,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     */
     push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
-                 ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
+                 ER_THD(thd, WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   }
   field_term_length=exchange->field.field_term->length();
   field_term_char= field_term_length ?
@@ -2957,7 +2397,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
        field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
   {
     push_warning(thd, Sql_condition::SL_WARNING,
-                 ER_AMBIGUOUS_FIELD_TERM, ER(ER_AMBIGUOUS_FIELD_TERM));
+                 ER_AMBIGUOUS_FIELD_TERM, ER_THD(thd, ER_AMBIGUOUS_FIELD_TERM));
     is_ambiguous_field_term= TRUE;
   }
   else
@@ -2973,10 +2413,10 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
                           (int) (uchar) (x) == line_sep_char  || \
                           !(x))
 
-bool select_export::send_data(List<Item> &items)
+bool Query_result_export::send_data(List<Item> &items)
 {
 
-  DBUG_ENTER("select_export::send_data");
+  DBUG_ENTER("Query_result_export::send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   char cvt_buff[MAX_FIELD_WIDTH];
   String cvt_str(cvt_buff, sizeof(cvt_buff), write_cs);
@@ -3041,7 +2481,7 @@ bool select_export::send_data(List<Item> &items)
                              res->charset(), 6);
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                            ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                            ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
                             item->item_name.ptr(), static_cast<long>(row_count));
       }
@@ -3051,7 +2491,8 @@ bool select_export::send_data(List<Item> &items)
           result is longer than UINT_MAX32 and doesn't fit into String
         */
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
+                            WARN_DATA_TRUNCATED,
+                            ER_THD(thd, WARN_DATA_TRUNCATED),
                             item->full_name(), static_cast<long>(row_count));
       }
       cvt_str.length(bytes);
@@ -3303,27 +2744,26 @@ err:
 
 
 /***************************************************************************
-** Dump  of select to a binary file
+** Dump of query to a binary file
 ***************************************************************************/
 
 
-int
-select_dump::prepare(List<Item> &list __attribute__((unused)),
-		     SELECT_LEX_UNIT *u)
+int Query_result_dump::prepare(List<Item> &list __attribute__((unused)),
+                               SELECT_LEX_UNIT *u)
 {
   unit= u;
   return (int) ((file= create_file(thd, path, exchange, &cache)) < 0);
 }
 
 
-bool select_dump::send_data(List<Item> &items)
+bool Query_result_dump::send_data(List<Item> &items)
 {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   tmp.length(0);
   Item *item;
-  DBUG_ENTER("select_dump::send_data");
+  DBUG_ENTER("Query_result_dump::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -3332,7 +2772,7 @@ bool select_dump::send_data(List<Item> &items)
   }
   if (row_count++ > 1) 
   {
-    my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
+    my_error(ER_TOO_MANY_ROWS, MYF(0));
     goto err;
   }
   while ((item=li++))
@@ -3357,24 +2797,17 @@ err:
 }
 
 
-select_subselect::select_subselect(Item_subselect *item_arg)
-{
-  item= item_arg;
-}
-
-
 /***************************************************************************
   Dump of select to variables
 ***************************************************************************/
 
-int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
+int Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
 
   if (var_list.elements != list.elements)
   {
-    my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
-               ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
+    my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
     return 1;
   }
 
@@ -3382,16 +2815,10 @@ int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 }
 
 
-bool select_dumpvar::check_simple_select() const
+bool Query_dumpvar::check_simple_select() const
 {
   my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
   return TRUE;
-}
-
-
-void select_dumpvar::cleanup()
-{
-  row_count= 0;
 }
 
 
@@ -3630,13 +3057,13 @@ Prepared_statement_map::~Prepared_statement_map()
 }
 
 
-bool select_dumpvar::send_data(List<Item> &items)
+bool Query_dumpvar::send_data(List<Item> &items)
 {
   List_iterator_fast<PT_select_var> var_li(var_list);
   List_iterator<Item> it(items);
   Item *item;
   PT_select_var *mv;
-  DBUG_ENTER("select_dumpvar::send_data");
+  DBUG_ENTER("Query_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -3645,7 +3072,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   }
   if (row_count++) 
   {
-    my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
+    my_error(ER_TOO_MANY_ROWS, MYF(0));
     DBUG_RETURN(true);
   }
   while ((mv= var_li++) && (item= it++))
@@ -3676,11 +3103,11 @@ bool select_dumpvar::send_data(List<Item> &items)
   DBUG_RETURN(thd->is_error());
 }
 
-bool select_dumpvar::send_eof()
+bool Query_dumpvar::send_eof()
 {
   if (! row_count)
     push_warning(thd, Sql_condition::SL_WARNING,
-                 ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
+                 ER_SP_FETCH_NO_DATA, ER_THD(thd, ER_SP_FETCH_NO_DATA));
   /*
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)
@@ -3772,58 +3199,13 @@ void THD::end_attachable_transaction()
 }
 
 
-/**
-  Check the killed state of a user thread
-  @param thd  user thread
-  @retval 0 the user thread is active
-  @retval 1 the user thread has been killed
-*/
-extern "C" int thd_killed(const MYSQL_THD thd)
+enum_tx_isolation thd_get_trx_isolation(const THD *thd)
 {
-  return(thd->killed);
+  return thd->tx_isolation;
 }
 
-/**
-  Set the killed status of the current statement.
 
-  @param thd  user thread connection handle
-*/
-extern "C" void thd_set_kill_status(const MYSQL_THD thd)
-{
-  thd->send_kill_message();
-}
-
-/**
-  Return the thread id of a user thread
-  @param thd user thread
-  @return thread id
-*/
-extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
-{
-  return((unsigned long)thd->thread_id());
-}
-
-/**
-  Check if batching is allowed for the thread
-  @param thd  user thread
-  @retval 1 batching allowed
-  @retval 0 batching not allowed
-*/
-extern "C" int thd_allow_batch(MYSQL_THD thd)
-{
-  if ((thd->variables.option_bits & OPTION_ALLOW_BATCH) ||
-      (thd->slave_thread && opt_slave_allow_batching))
-    return 1;
-  return 0;
-}
-
-enum_tx_isolation thd_get_trx_isolation(const MYSQL_THD thd)
-{
-	return thd->tx_isolation;
-}
-
-#ifdef INNODB_COMPATIBILITY_HOOKS
-extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
+const struct charset_info_st *thd_charset(THD *thd)
 {
   return(thd->charset());
 }
@@ -3838,7 +3220,7 @@ extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
   @note This function is not thread safe and should only be called
         from the thread owning thd. @see thd_query_safe().
 */
-extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd)
+LEX_CSTRING thd_query_unsafe(THD *thd)
 {
   DBUG_ASSERT(current_thd == thd);
   return thd->query();
@@ -3857,7 +3239,7 @@ extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd)
         accessed under mutex protection and the string is copied
         into the provided buffer. @see thd_query_unsafe().
 */
-extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen)
+size_t thd_query_safe(THD *thd, char *buf, size_t buflen)
 {
   mysql_mutex_lock(&thd->LOCK_thd_query);
   LEX_CSTRING query_string= thd->query();
@@ -3868,18 +3250,18 @@ extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen)
   return len;
 }
 
-extern "C" int thd_slave_thread(const MYSQL_THD thd)
+int thd_slave_thread(const THD *thd)
 {
   return(thd->slave_thread);
 }
 
-extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
+int thd_non_transactional_update(const THD *thd)
 {
   return thd->get_transaction()->has_modified_non_trans_table(
     Transaction_ctx::SESSION);
 }
 
-extern "C" int thd_binlog_format(const MYSQL_THD thd)
+int thd_binlog_format(const THD *thd)
 {
   if (mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG))
     return (int) thd->variables.binlog_format;
@@ -3887,35 +3269,20 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
     return BINLOG_FORMAT_UNSPEC;
 }
 
-extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all)
-{
-  DBUG_ENTER("thd_mark_transaction_to_rollback");
-  DBUG_ASSERT(thd);
-  /*
-    The parameter "all" has type int since the function is defined
-    in plugin.h. The corresponding parameter in the call below has
-    type bool. The comment in plugin.h states that "all != 0"
-    means to rollback the main transaction. Thus, check this
-    specifically.
-  */
-  thd->mark_transaction_to_rollback((all != 0));
-  DBUG_VOID_RETURN;
-}
-
-extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
+bool thd_binlog_filter_ok(const THD *thd)
 {
   return binlog_filter->db_ok(thd->db().str);
 }
 
-extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
+bool thd_sqlcom_can_generate_row_events(const THD *thd)
 {
   return sqlcom_can_generate_row_events(thd);
 }
 
-extern "C" enum durability_properties thd_get_durability_property(const MYSQL_THD thd)
+enum durability_properties thd_get_durability_property(const THD *thd)
 {
   enum durability_properties ret= HA_REGULAR_DURABILITY;
-  
+
   if (thd != NULL)
     ret= thd->durability_property;
 
@@ -3927,7 +3294,7 @@ Needed by InnoDB.
 @param thd	Thread object
 @param off	auto_increment_offset
 @param inc	auto_increment_increment */
-extern "C" void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc)
+void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc)
 {
   *off = thd->variables.auto_increment_offset;
   *inc = thd->variables.auto_increment_increment;
@@ -3942,16 +3309,13 @@ extern "C" void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc)
     @retval true  sql_mode has strict mode (all or trans).
     @retval false sql_mode has not strict mode (all or trans).
 */
-extern "C" bool thd_is_strict_mode(const MYSQL_THD thd)
+bool thd_is_strict_mode(const THD *thd)
 {
   return thd->is_strict_mode();
 }
 
 
 #ifndef EMBEDDED_LIBRARY
-extern "C" void thd_pool_wait_begin(MYSQL_THD thd, int wait_type);
-extern "C" void thd_pool_wait_end(MYSQL_THD thd);
-
 /*
   Interface for MySQL Server, plugins and storage engines to report
   when they are going to sleep/stall.
@@ -4003,7 +3367,7 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
   return;
 }
 #endif
-#endif // INNODB_COMPATIBILITY_HOOKS */
+
 
 /****************************************************************************
   Handling of statement states in functions and triggers.
@@ -4291,6 +3655,13 @@ void THD::set_command(enum enum_server_command command)
 }
 
 
+void THD::debug_assert_query_locked() const
+{
+  if (current_thd != this)
+    mysql_mutex_assert_owner(&LOCK_thd_query);
+}
+
+
 void THD::set_query(const LEX_CSTRING& query_arg)
 {
   DBUG_ASSERT(this == current_thd);
@@ -4525,3 +3896,32 @@ void THD::Query_plan::set_query_plan(enum_sql_command sql_cmd,
   is_ps= ps;
   mysql_mutex_unlock(&thd->LOCK_query_plan);
 }
+
+
+/**
+  Push an error message into MySQL diagnostic area with line
+  and position information.
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a parse error is discovered internally by the Bison generated
+  parser.
+
+  @note Parse-time only function!
+
+  @param thd            YYTHD
+  @param location       YYSTYPE object: error position
+  @param s              error message: NULL default means ER(ER_SYNTAX_ERROR)
+*/
+
+void THD::parse_error_at(const YYLTYPE &location, const char *s)
+{
+  uint lineno= location.raw.start ?
+    m_parser_state->m_lip.get_lineno(location.raw.start) : 1;
+  const char *pos= location.raw.start ? location.raw.start : "";
+  ErrConvString err(pos, variables.character_set_client);
+  my_printf_error(ER_PARSE_ERROR,  ER_THD(this, ER_PARSE_ERROR), MYF(0),
+                  s ? s : ER_THD(this, ER_SYNTAX_ERROR), err.ptr(), lineno);
+}
+

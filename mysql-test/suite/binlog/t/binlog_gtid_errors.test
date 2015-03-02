@@ -44,9 +44,10 @@
 --let $idf= ffffffff-ffff-ffff-ffff-ffffffffffff
 --let $tab= `SELECT '\t'`
 
---echo ==== Conditions for gtid_execute ====
+--echo ==== Conditions for gtid_executed ====
 
 --echo # Readable.
+--replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9-]*//
 SELECT @@GLOBAL.GTID_EXECUTED;
 SELECT @@SESSION.GTID_EXECUTED;
 --echo # Read-only.
@@ -58,6 +59,7 @@ eval SET @@SESSION.GTID_EXECUTED= '$ida:2';
 --echo ==== Conditions for gtid_purged ====
 
 --echo # Readable global variable
+--replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9-]*//
 SELECT @@GLOBAL.GTID_PURGED;
 --echo # Not a session variable
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
@@ -105,19 +107,19 @@ ROLLBACK;
 
 SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:10#';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:1-10';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:1:3';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:1,$ida:3';
 SELECT @@SESSION.GTID_NEXT;
 
@@ -129,35 +131,35 @@ SELECT @@SESSION.GTID_NEXT;
 SET @@SESSION.GTID_NEXT= 10;
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 SET @@SESSION.GTID_NEXT= '10';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:0';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:0x8000000000000000';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:-33';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:66-33';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida:33 33';
 SELECT @@SESSION.GTID_NEXT;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_MALFORMED_GTID_SPECIFICATION
 eval SET @@SESSION.GTID_NEXT= '$ida-33';
 SELECT @@SESSION.GTID_NEXT;
 
@@ -203,14 +205,14 @@ SET @@SESSION.GTID_NEXT = f();
 --connection nonsuper
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 eval SET @@SESSION.GTID_NEXT = '$ida:11';
---connection default
 
 --echo # can read even if non-SUPER
 SELECT @@SESSION.GTID_NEXT;
+--connection default
 
 --echo # can't set inside transaction
 BEGIN;
---error ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
 eval SET @@SESSION.GTID_NEXT = '$ida:12';
 INSERT INTO t1 VALUES (4);
 ROLLBACK;
@@ -228,6 +230,27 @@ eval SET @@SESSION.GTID_NEXT = '$ida:13';
 --error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
 eval SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 ROLLBACK;
+
+--echo # Can't set while owning ANONYMOUS
+--let $rpl_gtid_mode= OFF
+--source include/rpl_set_gtid_mode.inc
+
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+SET GTID_NEXT = 'ANONYMOUS';
+
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+eval SET GTID_NEXT = '$ida:1';
+
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
+SET GTID_NEXT = 'AUTOMATIC';
+
+SET GTID_NEXT = 'AUTOMATIC';
+
+--let $rpl_gtid_mode= ON
+--source include/rpl_set_gtid_mode.inc
 
 eval SET @@SESSION.GTID_NEXT = '$ida:14';
 --echo # can't do implicit commit while gtid_next=SID:GNO

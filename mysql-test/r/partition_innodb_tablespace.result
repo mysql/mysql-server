@@ -16,7 +16,6 @@ Level	Code	Message
 Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: INDEX DIRECTORY is not supported
 Error	1031	Table storage engine for 't1' doesn't have this option
-Error	6	Error on delete of './test/t1.par' (Errcode: 2 - No such file or directory)
 # Try again with innodb_file_per_table = ON and no INDEX DIRECTORY.
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE t1 (a int KEY, b text) ENGINE = InnoDB PARTITION BY HASH (a)
@@ -32,8 +31,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 name	n_cols	file_format	row_format
@@ -49,7 +48,7 @@ WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
-# Verifying .frm, .par, .isl & .ibd files
+# Verifying .frm, .isl & .ibd files
 # Verifying that there are no MyISAM files
 # Test TRUNCATE TABLE with partitioned InnoDB tables
 INSERT INTO t1 VALUES (1, "red");
@@ -71,8 +70,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 name	n_cols	file_format	row_format
@@ -88,7 +87,7 @@ WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
-# Verifying .frm, .par and MyISAM files (.MYD, MYI)
+# Verifying .frm and InnoDB files (.isl, .ibd)
 # Test RENAME TABLE with partitioned InnoDB tables
 RENAME TABLE t1 TO t11;
 SHOW CREATE TABLE t11;
@@ -99,8 +98,8 @@ t11	CREATE TABLE `t11` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 name	n_cols	file_format	row_format
@@ -116,7 +115,7 @@ WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
-# Verifying .frm, .par and MyISAM files (.MYD, MYI)
+# Verifying .frm and InnoDB files (.isl, .ibd)
 DROP TABLE t11;
 # Test the previous DDL as a prepared statement.
 SET GLOBAL innodb_file_per_table = ON;
@@ -136,8 +135,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
-(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 name	n_cols	file_format	row_format
@@ -197,14 +196,14 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE ( YEAR(purchased))
 SUBPARTITION BY HASH ( TO_DAYS(purchased))
 (PARTITION p0 VALUES LESS THAN (1990)
- (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
-  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB),
+ (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN (2000)
- (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
-  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB),
+ (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN MAXVALUE
- (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
-  SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB)) */
+ (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+  SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB)) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 name	n_cols	file_format	row_format
@@ -232,10 +231,9 @@ MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
 MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
-# Verifying .frm, .par, .isl & .ibd files
+# Verifying .frm, .isl & .ibd files
 DROP TABLE t1;
 # Same as above except with ROW_FORMAT=Dyamic.
-SET GLOBAL innodb_file_format = Barracuda;
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE t1 (id INT, purchased DATE)
 engine = innodb row_format = dynamic
@@ -279,14 +277,14 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE ( YEAR(purchased))
 SUBPARTITION BY HASH ( TO_DAYS(purchased))
 (PARTITION p0 VALUES LESS THAN (1990)
- (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
-  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB),
+ (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN (2000)
- (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
-  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB),
+ (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB),
  PARTITION p2 VALUES LESS THAN MAXVALUE
- (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
-  SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB)) */
+ (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
+  SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB)) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 name	n_cols	file_format	row_format
@@ -314,8 +312,78 @@ MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
 MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
-# Verifying .frm, .par, .isl & .ibd files
+# Verifying .frm, .isl & .ibd files
 #
 # Cleanup
 #
+DROP TABLE t1;
+CREATE TABLE t1 (a INT)
+ENGINE = InnoDB
+DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_table'
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (10)
+(SUBPARTITION sp0,
+SUBPARTITION sp1 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data_subpart',
+SUBPARTITION sp2),
+PARTITION p1 VALUES LESS THAN (20)
+DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part'
+ (SUBPARTITION sp3,
+SUBPARTITION sp4 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data_subpart',
+SUBPARTITION sp5),
+PARTITION p2 VALUES LESS THAN (30)
+(SUBPARTITION sp6,
+SUBPARTITION sp7 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data_subpart',
+SUBPARTITION sp8));
+# Verifying .frm, .isl & .ibd files
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (10)
+ (SUBPARTITION sp0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_table/' ENGINE = InnoDB,
+  SUBPARTITION sp1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_subpart/' ENGINE = InnoDB,
+  SUBPARTITION sp2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_table/' ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (20)
+ (SUBPARTITION sp3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part/' ENGINE = InnoDB,
+  SUBPARTITION sp4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_subpart/' ENGINE = InnoDB,
+  SUBPARTITION sp5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part/' ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (30)
+ (SUBPARTITION sp6 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_table/' ENGINE = InnoDB,
+  SUBPARTITION sp7 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_subpart/' ENGINE = InnoDB,
+  SUBPARTITION sp8 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_table/' ENGINE = InnoDB)) */
+DROP TABLE t1;
+call mtr.add_suppression("Plugin 'MyISAM' will be forced to shutdown");
+call mtr.add_suppression("Plugin 'MyISAM' has ref_count=. after shutdown");
+# Test of table where the engine returns the DATA DIR.
+CREATE TABLE t1
+(a int not null,
+primary key (a))
+ENGINE=InnoDB
+PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY 'MYSQL_TMP_DIR/alternate_dir/data_part',
+PARTITION p1);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part/' ENGINE = InnoDB,
+ PARTITION p1 ENGINE = InnoDB) */
+# Restart to get DATA DIRECTORY read from the engine (InnoDB dictionary)
+# restart
+ALTER TABLE t1 COALESCE PARTITION 1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part' ENGINE = InnoDB) */
 DROP TABLE t1;

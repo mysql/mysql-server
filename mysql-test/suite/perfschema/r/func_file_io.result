@@ -130,7 +130,7 @@ GROUP BY p.processlist_user, h.operation
 HAVING BYTES > 0
 ORDER BY p.processlist_user, h.operation;
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
-show status like "performance_schema%";
+show global status like "performance_schema%";
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

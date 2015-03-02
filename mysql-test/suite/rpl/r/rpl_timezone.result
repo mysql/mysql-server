@@ -67,34 +67,34 @@ set time_zone='MET';
 insert into t2 (select * from t1);
 SELECT * FROM t1 ORDER BY n;
 t	n
-2003-12-31 22:00:00	9
-2004-06-11 07:39:02	10
+2003-12-31 22:00:00	10
+2004-06-11 07:39:02	11
 include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY n;
 t	n
-2003-12-31 22:00:00	9
-2004-06-11 07:39:02	10
+2003-12-31 22:00:00	10
+2004-06-11 07:39:02	11
 delete from t2;
 set timestamp=1000072000;
 insert into t2 values (current_timestamp,NULL), (current_date,NULL), (current_time,NULL);
 include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY n;
 t	n
-2001-09-09 23:46:40	11
-2001-09-09	12
-23:46:40	13
+2001-09-09 23:46:40	12
+2001-09-09	13
+23:46:40	14
 delete from t2;
 insert into t2 values (from_unixtime(1000000000),NULL),
 (unix_timestamp('2001-09-09 03:46:40'),NULL);
 SELECT * FROM t2 ORDER BY n;
 t	n
-2001-09-09 03:46:40	14
-1000000000	15
+2001-09-09 03:46:40	15
+1000000000	16
 include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY n;
 t	n
-2001-09-09 03:46:40	14
-1000000000	15
+2001-09-09 03:46:40	15
+1000000000	16
 set global time_zone='MET';
 delete from t2;
 set time_zone='UTC';
@@ -102,13 +102,13 @@ insert into t2 values(convert_tz('2004-01-01 00:00:00','MET',@@time_zone),NULL);
 insert into t2 values(convert_tz('2005-01-01 00:00:00','MET','Japan'),NULL);
 SELECT * FROM t2 ORDER BY n;
 t	n
-2003-12-31 23:00:00	16
-2005-01-01 08:00:00	17
+2003-12-31 23:00:00	17
+2005-01-01 08:00:00	18
 include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY n;
 t	n
-2003-12-31 23:00:00	16
-2005-01-01 08:00:00	17
+2003-12-31 23:00:00	17
+2005-01-01 08:00:00	18
 drop table t1, t2;
 include/sync_slave_sql_with_master.inc
 set global time_zone= @my_time_zone;

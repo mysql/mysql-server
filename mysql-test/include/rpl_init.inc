@@ -263,6 +263,8 @@ if ($gtid_mode == 'ON')
   --let $gtid_mode_on= 1
 }
 
+--let $binlog_format= `SELECT @@GLOBAL.BINLOG_FORMAT`
+
 # Create two connections to each server; reset master/slave, select
 # database, set autoinc variables.
 --let $_rpl_server= $rpl_server_count

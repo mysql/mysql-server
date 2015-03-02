@@ -13,7 +13,7 @@
 -- source include/not_embedded.inc
 
 call mtr.add_suppression("unknown variable 'loose_mecab_rc_file");
-call mtr.add_suppression("Fulltext index charset 'eucjpms' doesn't match mecab charset");
+call mtr.add_suppression("Fulltext index charset 'big5' doesn't match mecab charset");
 call mtr.add_suppression("Mecab: param.cpp");
 call mtr.add_suppression("Plugin 'mecab' init function returned error");
 
@@ -111,11 +111,11 @@ DROP TABLE page;
 # Test charset mismatch.
 CREATE TABLE page (
   page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
-  page_title varchar(255) CHARACTER SET eucjpms NOT NULL DEFAULT '',
+  page_title varchar(255) CHARACTER SET big5 NOT NULL DEFAULT '',
   PRIMARY KEY (page_id)
 )ENGINE=InnoDB;
 
-INSERT INTO page VALUES (1,'ﾚﾓﾅ');
+INSERT INTO page VALUES (1,'日本');
 
 # We don't return charset mismatch error because of parallel fts build.
 CREATE FULLTEXT INDEX ft_idx ON page(page_title) WITH PARSER mecab;
@@ -124,12 +124,74 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 
 --error ER_ERROR_ON_WRITE
-INSERT INTO page VALUES (2,'ﾚﾓﾅ');
+INSERT INTO page VALUES (2,'日本');
 
 --error ER_ERROR_ON_WRITE
-SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ");
+SELECT * FROM page WHERE MATCH(page_title) AGAINST('日本');
 
 DROP TABLE page;
+
+# Test utf8mb4
+if ($mecab_charset == 'utf8')
+{
+  SET NAMES utf8mb4;
+
+  CREATE TABLE page (
+    page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
+    page_title varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+    PRIMARY KEY (page_id),
+    FULLTEXT KEY page_title (page_title) WITH PARSER mecab
+  ) ENGINE=InnoDB;
+
+  # insert some emoji chars with 4 bytes.
+  INSERT INTO page VALUES
+    (1,'😃ﾚﾓﾅ'),
+    (2,'鉄道😄'),
+    (3,'鉄道😊100電車');
+
+  SET GLOBAL innodb_ft_aux_table="test/page";
+  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+  SHOW CREATE TABLE page;
+
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道');
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道😄');
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道' WITH QUERY EXPANSION);
+
+  DROP TABLE page;
+}
+
+# Test eucjpms & cp932
+if ($mysql_win_charset)
+{
+  eval CREATE TABLE page (
+    page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
+    page_title varchar(255) CHARACTER SET $mysql_win_charset NOT NULL DEFAULT '',
+    PRIMARY KEY (page_id),
+    FULLTEXT KEY page_title (page_title) WITH PARSER mecab
+  ) ENGINE=InnoDB;
+
+  # insert some eucjpms & cp932 chars.
+  INSERT INTO page VALUES
+    (1,'ⅰﾚﾓﾅ'),
+    (2,'鉄道ⅹ'),
+    (3,'鉄道ⅴ100電車');
+
+  SET GLOBAL innodb_ft_aux_table="test/page";
+  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+  SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+
+  SHOW CREATE TABLE page;
+
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道');
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道ⅴ');
+  SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道' WITH QUERY EXPANSION);
+
+  DROP TABLE page;
+}
 
 SET GLOBAL innodb_ft_aux_table=default;
 

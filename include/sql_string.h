@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,9 @@
 #include "m_string.h"                           /* TRASH */
 
 #ifdef MYSQL_SERVER
+extern "C" {
 extern PSI_memory_key key_memory_String_value;
+}
 #define STRING_PSI_MEMORY_KEY key_memory_String_value
 #else
 #define STRING_PSI_MEMORY_KEY PSI_NOT_INSTRUMENTED

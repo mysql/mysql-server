@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #ifndef MYSQL_CLIENT
 #include "sql_class.h"                          // THD
+#include "current_thd.h"
 #endif
 
 #ifndef MYSQL_CLIENT
@@ -41,7 +42,8 @@ int my_decimal::check_result(uint mask, int result) const
     case E_DEC_TRUNCATED:
       // "Data truncated for column \'%s\' at row %ld"
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
+                          WARN_DATA_TRUNCATED,
+                          ER_THD(current_thd, WARN_DATA_TRUNCATED),
                           "", -1L);
       break;
     case E_DEC_OVERFLOW:
@@ -49,20 +51,21 @@ int my_decimal::check_result(uint mask, int result) const
       decimal2string(this, strbuff, &length, 0, 0, 0);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_TRUNCATED_WRONG_VALUE,
-                          ER(ER_TRUNCATED_WRONG_VALUE),
+                          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
                           "DECIMAL", strbuff);
       break;
     case E_DEC_DIV_ZERO:
       // "Division by 0"
       push_warning(current_thd, Sql_condition::SL_WARNING,
-                   ER_DIVISION_BY_ZERO, ER(ER_DIVISION_BY_ZERO));
+                   ER_DIVISION_BY_ZERO,
+                   ER_THD(current_thd, ER_DIVISION_BY_ZERO));
       break;
     case E_DEC_BAD_NUM:
       // "Incorrect %-.32s value: \'%-.128s\' for column \'%.192s\' at row %ld"
       decimal2string(this, strbuff, &length, 0, 0, 0);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                          ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                           "DECIMAL", strbuff, "", -1L);
       break;
     case E_DEC_OOM:

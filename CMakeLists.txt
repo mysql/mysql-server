@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -450,6 +450,17 @@ ELSE()
 ENDIF()
 
 INCLUDE(cmake/boost.cmake)
+
+IF (CMAKE_SYSTEM_NAME MATCHES "Linux")
+  OPTION(WITH_SYSTEMD "Enable installation of systemd support files" OFF)
+  IF (WITH_SYSTEMD)
+    INCLUDE(cmake/systemd.cmake)
+  ENDIF()
+ELSE()
+  IF (WITH_SYSTEMD)
+    MESSAGE(FATAL_ERROR "Installation of systemd support files not supported")
+  ENDIF()
+ENDIF()
 
 # Run platform tests
 INCLUDE(configure.cmake)

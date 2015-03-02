@@ -83,6 +83,15 @@ mysql_upgrade: [ERROR] 1050: Table 'session_account_connect_attrs' already exist
 mysql_upgrade: [ERROR] 1050: Table 'table_handles' already exists
 mysql_upgrade: [ERROR] 1050: Table 'metadata_locks' already exists
 mysql_upgrade: [ERROR] 1050: Table 'user_variables_by_thread' already exists
+mysql_upgrade: [ERROR] 1050: Table 'variables_by_thread' already exists
+mysql_upgrade: [ERROR] 1050: Table 'global_variables' already exists
+mysql_upgrade: [ERROR] 1050: Table 'session_variables' already exists
+mysql_upgrade: [ERROR] 1050: Table 'status_by_thread' already exists
+mysql_upgrade: [ERROR] 1050: Table 'status_by_user' already exists
+mysql_upgrade: [ERROR] 1050: Table 'status_by_host' already exists
+mysql_upgrade: [ERROR] 1050: Table 'status_by_account' already exists
+mysql_upgrade: [ERROR] 1050: Table 'global_status' already exists
+mysql_upgrade: [ERROR] 1050: Table 'session_status' already exists
 mysql_upgrade: [ERROR] 1644: Unexpected content found in the performance_schema database.
 show tables like "user_table";
 Tables_in_performance_schema (user_table)

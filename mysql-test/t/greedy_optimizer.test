@@ -451,9 +451,11 @@ CREATE TABLE t10000 LIKE t10;
 INSERT INTO t10000(I)
 SELECT X.I FROM t100 AS X, t100 AS Y;
 
+--disable_warnings
 let $total_handler_reads=
 select sum(variable_value) from information_schema.session_status
  where VARIABLE_NAME like 'Handler_read%';
+--enable_warnings
 
 
 ## All crossproducts should be executed in order t10,t100,t10000

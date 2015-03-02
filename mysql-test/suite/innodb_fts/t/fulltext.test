@@ -623,7 +623,7 @@ SELECT COUNT(*) FROM t1 WHERE MATCH(a) AGAINST("+awrd bwrd* +cwrd*" IN BOOLEAN M
 DROP TABLE t1;
 
 --echo #
---echo # Bug #49445: Assertion failed: 0, file .\item_row.cc, line 55 with 
+--echo # Bug #49445: Assertion failed: 0, file item_row.cc, line 55 with 
 --echo #   fulltext search and row op
 --echo #
 

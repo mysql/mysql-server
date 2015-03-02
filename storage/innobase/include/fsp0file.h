@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,7 +58,7 @@ public:
 		m_size(),
 		m_order(),
 		m_type(SRV_NOT_RAW),
-		m_space_id(),
+		m_space_id(ULINT_UNDEFINED),
 		m_flags(),
 		m_exists(),
 		m_is_valid(),
@@ -79,7 +79,7 @@ public:
 		m_size(size),
 		m_order(order),
 		m_type(SRV_NOT_RAW),
-		m_space_id(),
+		m_space_id(ULINT_UNDEFINED),
 		m_flags(),
 		m_exists(),
 		m_is_valid(),
@@ -168,16 +168,6 @@ public:
 	}
 
 	/** Initialize the name, size and order of this datafile
-	@param[in]	name		space name, shutdown() will free it
-	@param[in]	filepath	file name, shutdown() fill free it;
-	can be NULL if not determined
-	@param[in]	filepath	file name, or NULL if not determined
-	@param[in]	size		size in database pages
-	@param[in]	order		ordinal position or the datafile
-	in the tablespace */
-	void init(char* name, char* filepath, ulint size, ulint order);
-
-	/** Initialize the name, size and order of this datafile
 	@param[in]	name	tablespace name, will be copied
 	@param[in]	size	size in database pages
 	@param[in]	order	ordinal position or the datafile
@@ -220,6 +210,14 @@ public:
 
 	/** Set the filepath by duplicating the filepath sent in */
 	void set_filepath(const char* filepath);
+
+	/** Allocate and set the datafile or tablespace name in m_name.
+	If a name is provided, use it; else if the datafile is file-per-table,
+	extract a file-per-table tablespace name from m_filepath; else it is a
+	general tablespace, so just call it that for now. The value of m_name
+	will be freed in the destructor.
+	@param[in]	name	Tablespace Name if known, NULL if not */
+	void set_name(const char*	name);
 
 	/** Validates the datafile and checks that it conforms with
 	the expected space ID and flags.  The file should exist and be
@@ -383,7 +381,10 @@ private:
 
 	/* DATA MEMBERS */
 
-	/** Datafile name at the tablespace location */
+	/** Datafile name at the tablespace location.
+	This is either the basename of the file if an absolute path
+	was entered, or it is the relative path to the datadir or
+	Tablespace::m_path. */
 	char*			m_name;
 
 protected:

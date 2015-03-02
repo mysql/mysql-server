@@ -2768,6 +2768,9 @@ drop table t1;
 select password('a'), hex(password('a'));
 password('a')	hex(password('a'))
 *667F407DE7C6AD07358FA38DAED7828A72014B4E	2A36363746343037444537433641443037333538464133384441454437383238413732303134423445
+Warnings:
+Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
+Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 create table t1 as select password('a') as c1;
 show create table t1;
 Table	Create Table
@@ -4839,6 +4842,8 @@ SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 utf8	utf8_general_ci
 SET @ST_X=password('a');
+Warnings:
+Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 utf8	utf8_general_ci

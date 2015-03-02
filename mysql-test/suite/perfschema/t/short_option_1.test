@@ -6,15 +6,15 @@ select 'Ok, the server started' as result;
 # See the associated -master.opt file.
 
 select @@SQL_MODE;
-show variables like 'sql_mode';
+show global variables like 'sql_mode';
 
 select @@character_set_server;
-show variables like 'character_set_system';
+show global variables like 'character_set_system';
 
-show variables like 'log';
-show variables like 'general_log';
+show global variables like 'log';
+show global variables like 'general_log';
 
-show variables like 'new';
+show global variables like 'new';
 
-show variables like 'log_warnings';
+show global variables like 'log_warnings';
 

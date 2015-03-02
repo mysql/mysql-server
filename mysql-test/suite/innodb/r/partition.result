@@ -1,0 +1,174 @@
+#
+# Test of optimizer estimates
+#
+CREATE TABLE t0 (a int PRIMARY KEY, b int, c varchar(64));
+CREATE TABLE t1
+(a int,
+b int,
+c varchar(64),
+PRIMARY KEY (a),
+KEY (b),
+KEY (c,b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 5;
+# Set up the rows so that the following query would match
+# 100 PK values but only 10 'b' values. But 90 of the matching
+# PKs will be in the smallest partition.
+# Since the fix for bug#1364811 will ha_partition only check the biggest
+# partitions, but ha_innopart will check all partitions when estimating
+# numbers of records in range. Resulting in ha_partition will
+# assume there are only 10 matching PK values and choose to do search
+# by PK but ha_innopart will search by secondary index 'b' since it
+# will prefer to read 10 records from the secondary index over reading
+# 100 records from the PRIMARY index.
+# SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
+# Using t0 to prevent any issues with purge in t1.
+INSERT INTO t0 VALUES (1,0,"common"),(2,0,"common"),(3,0,"common"),
+(4,0,"common"),(5,0,"common"), (6,0,"common"),(7,0,"common"),(8,0,"common"),
+(9,0,"common"),(10,0,"common");
+INSERT INTO t0 SELECT a + 10, b, c FROM t0;
+INSERT INTO t0 SELECT a + 20, b, c FROM t0;
+INSERT INTO t0 SELECT a + 40, b, c FROM t0;
+INSERT INTO t0 SELECT a + 80, b, c FROM t0;
+INSERT INTO t0 SELECT a + 160, b, c FROM t0;
+INSERT INTO t0 SELECT a + 320, b, c FROM t0;
+INSERT INTO t0 SELECT a + 640, b, c FROM t0;
+DELETE FROM t0 WHERE a BETWEEN 13 AND 450 AND (a % 5) <> 0;
+DELETE FROM t0 WHERE a > 450 AND (a % 5) = 0 LIMIT 250;
+UPDATE t0 SET b = a, c = "MATCH!" WHERE a <= 10;
+INSERT INTO t1 SELECT * FROM t0;
+DROP TABLE t0;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	range	PRIMARY,b	b	9	NULL	10	13.09	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` between 1 and 450) and (`test`.`t1`.`b` between 1 and 10))
+FLUSH STATUS;
+SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
+a	b	c
+1	1	MATCH!
+10	10	MATCH!
+2	2	MATCH!
+3	3	MATCH!
+4	4	MATCH!
+5	5	MATCH!
+6	6	MATCH!
+7	7	MATCH!
+8	8	MATCH!
+9	9	MATCH!
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	2
+HANDLER_READ_KEY	5
+HANDLER_READ_NEXT	10
+HANDLER_WRITE	17
+DROP TABLE t1;
+# Test of index_merge and delete
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL,
+`b` int(11) NOT NULL,
+KEY `a` (`a`),
+KEY `b` (`b`)
+)
+/*!50100 PARTITION BY HASH (a)
+PARTITIONS 3 */;
+INSERT INTO t1 VALUES (0,0),(0,0),(1,0),(1,0),(2,0),(2,0),(0,0);
+INSERT INTO t1 SELECT t1.a,t1.b FROM t1, t1 t2;
+INSERT INTO t1 VALUES (1,1),(2,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE a = 4 OR b > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 4) or (`test`.`t1`.`b` > 0))
+EXPLAIN DELETE FROM t1 WHERE a = 4 OR b > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	p0,p1,p2	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
+SELECT * FROM t1 WHERE a = 4 OR b > 0;
+a	b
+1	1
+2	2
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+58
+DELETE FROM t1 WHERE a = 4 OR b > 0;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+56
+SELECT * FROM t1 WHERE a = 4 OR b > 0;
+a	b
+DROP TABLE t1;
+# more testing of index_merge and delete
+CREATE TABLE t1
+(a int not null,
+b int not null,
+INDEX(a),
+INDEX(b))
+engine=InnoDB
+PARTITION BY KEY(a,b) PARTITIONS 5;
+INSERT INTO t1 VALUES (0,0),(1,1), (2,2), (3,3), (4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO t1 SELECT a + 10, b + 10 FROM t1;
+INSERT INTO t1 SELECT a + 20, b + 20 FROM t1;
+INSERT INTO t1 SELECT a + 40, b + 40 FROM t1;
+INSERT INTO t1 SELECT a + 80, b + 80 FROM t1;
+INSERT INTO t1 SELECT a + 160, b + 160 FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE a = 4 OR b < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 4) or (`test`.`t1`.`b` < 3))
+SELECT * FROM t1 WHERE a = 4 OR b < 3;
+a	b
+0	0
+1	1
+2	2
+4	4
+EXPLAIN SELECT * FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` between 0 and 20) or (`test`.`t1`.`b` between 10 and 20))
+SELECT * FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
+a	b
+0	0
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+15	15
+10	10
+12	12
+17	17
+18	18
+19	19
+11	11
+16	16
+14	14
+13	13
+20	20
+EXPLAIN DELETE FROM t1 WHERE a = 4 OR b < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	p0,p1,p2,p3,p4	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
+DELETE FROM t1 WHERE a = 4 OR b < 3;
+EXPLAIN DELETE FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	p0,p1,p2,p3,p4	index_merge	a,b	a,b	4,4	NULL	#	100.00	Using sort_union(a,b); Using where
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+DELETE FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
+DROP TABLE t1;

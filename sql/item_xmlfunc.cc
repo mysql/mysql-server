@@ -15,6 +15,7 @@
 
 #include "item_xmlfunc.h"
 
+#include "current_thd.h"
 #include "my_xml.h"             // my_xml_node_type
 #include "item_cmpfunc.h"       // Item_bool_func
 #include "sp_pcontext.h"        // sp_variable
@@ -1151,7 +1152,17 @@ static Item *create_func_bool(MY_XPATH *xpath, Item **args, uint nargs)
 
 static Item *create_func_number(MY_XPATH *xpath, Item **args, uint nargs)
 {
-  return new Item_xpath_cast_number(args[0]);
+  Item *arg;
+
+  if (nargs > 0)
+  {
+    arg= args[0];
+  }
+  else
+  {
+    arg= xpath->context != NULL ? xpath->context : xpath->rootelement;
+  }
+  return new Item_xpath_cast_number(arg);
 }
 
 
@@ -1254,7 +1265,7 @@ static MY_XPATH_FUNC my_func_names5[]=
 static MY_XPATH_FUNC my_func_names6[]=
 {
   {"concat", 6, 2, 255, create_func_concat},
-  {"number", 6, 1, 1  , create_func_number},
+  {"number", 6, 0, 1  , create_func_number},
   {"string", 6, 0, 1  , 0},
   {0       , 0, 0, 0  , 0}
 };
@@ -2835,7 +2846,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
                 my_xml_error_string(&p));
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WRONG_VALUE,
-                        ER(ER_WRONG_VALUE), "XML", buf);
+                        ER_THD(current_thd, ER_WRONG_VALUE), "XML", buf);
   }
   my_xml_parser_free(&p);
 

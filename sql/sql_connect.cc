@@ -27,6 +27,7 @@
 #include "auth_common.h"                // SUPER_ACL
 #include "hostname.h"                   // Host_errors
 #include "log.h"                        // sql_print_information
+#include "psi_memory_key.h"
 #include "mysqld.h"                     // LOCK_user_conn
 #include "sql_audit.h"                  // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
 #include "sql_class.h"                  // THD
@@ -765,14 +766,14 @@ void end_connection(THD *thd)
     {
       Security_context *sctx= thd->security_context();
       LEX_CSTRING sctx_user= sctx->user();
-      sql_print_information(ER(ER_NEW_ABORTING_CONNECTION),
+      sql_print_information(ER_DEFAULT(ER_NEW_ABORTING_CONNECTION),
                             thd->thread_id(),
                             (thd->db().str ? thd->db().str : "unconnected"),
                             sctx_user.str ? sctx_user.str : "unauthenticated",
                             sctx->host_or_ip().str,
                             (thd->get_stmt_da()->is_error() ?
                              thd->get_stmt_da()->message_text() :
-                             ER(ER_UNKNOWN_ERROR)));
+                             ER_DEFAULT(ER_UNKNOWN_ERROR)));
     }
   }
 }
@@ -812,7 +813,7 @@ static void prepare_new_connection_state(THD* thd)
       NET *net= &thd->net;
       LEX_CSTRING sctx_user= sctx->user();
 
-      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+      sql_print_warning(ER_DEFAULT(ER_NEW_ABORTING_CONNECTION),
                         thd->thread_id(),
                         thd->db().str ? thd->db().str : "unconnected",
                         sctx_user.str ? sctx_user.str : "unauthenticated",

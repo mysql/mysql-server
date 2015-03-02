@@ -198,9 +198,13 @@ bool trans_commit(THD *thd)
     SERVER_STATUS_IN_TRANS may be set again while calling
     ha_commit_trans(...) Consequently, we need to reset it back,
     much like we are doing before calling ha_commit_trans(...).
+
+    We would really only need to do this when gtid_mode=on.  However,
+    checking gtid_mode requires holding a lock, which is costly.  So
+    we clear the bit unconditionally.  This has no side effects since
+    if gtid_mode=off the bit is already cleared.
   */
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
   thd->lex->start_transaction_opt= 0;

@@ -20,11 +20,89 @@
 #include "mysqld.h"                           // key_map
 #include "sql_bitmap.h"                       // Bitmap
 #include "sql_data_change.h"                  // enum_duplicates
-#include "sql_partition.h"                    // LIST_PART_ENTRY
+
+#define NOT_A_PARTITION_ID UINT_MAX32
 
 class partition_info;
+class Partition_share;
 class COPY_INFO;
+class Create_field;
+struct st_partition_iter;
 struct TABLE_LIST;
+
+/**
+  A "Get next" function for partition iterator.
+
+
+  Depending on whether partitions or sub-partitions are iterated, the
+  function returns next subpartition id/partition number. The sequence of
+  returned numbers is not ordered and may contain duplicates.
+
+  When the end of sequence is reached, NOT_A_PARTITION_ID is returned, and
+  the iterator resets itself (so next get_next() call will start to
+  enumerate the set all over again).
+
+  @param[in,out] part_iter Partition iterator, you call only
+                           "iter.get_next(&iter)"
+
+  @return Partition id
+    @retval NOT_A_PARTITION_ID if there are no more partitions.
+    @retval [sub]partition_id  of the next partition
+*/
+typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
+
+/**
+  Partition set iterator. Used to enumerate a set of [sub]partitions
+  obtained in partition interval analysis (see get_partitions_in_range_iter).
+
+  For the user, the only meaningful field is get_next, which may be used as
+  follows:
+             part_iterator.get_next(&part_iterator);
+
+  Initialization is done by any of the following calls:
+    - get_partitions_in_range_iter-type function call
+    - init_single_partition_iterator()
+    - init_all_partitions_iterator()
+  Cleanup is not needed.
+*/
+
+typedef struct st_partition_iter
+{
+  partition_iter_func get_next;
+  /*
+    Valid for "Interval mapping" in LIST partitioning: if true, let the
+    iterator also produce id of the partition that contains NULL value.
+  */
+  bool ret_null_part, ret_null_part_orig;
+  struct st_part_num_range
+  {
+    uint32 start;
+    uint32 cur;
+    uint32 end;
+  };
+
+  struct st_field_value_range
+  {
+    longlong start;
+    longlong cur;
+    longlong end;
+  };
+
+  union
+  {
+    struct st_part_num_range     part_nums;
+    struct st_field_value_range  field_vals;
+  };
+  partition_info *part_info;
+} PARTITION_ITERATOR;
+
+
+struct st_ddl_log_memory_entry;
+
+typedef struct {
+  longlong list_value;
+  uint32 partition_id;
+} LIST_PART_ENTRY;
 
 /* Some function typedefs */
 typedef int (*get_part_id_func)(partition_info *part_info,
@@ -33,8 +111,49 @@ typedef int (*get_part_id_func)(partition_info *part_info,
 typedef int (*get_subpart_id_func)(partition_info *part_info,
                                    uint32 *part_id);
 
-struct st_ddl_log_memory_entry;
 
+/**
+  Get an iterator for set of partitions that match given field-space interval.
+
+  Functions with this signature are used to perform "Partitioning Interval
+  Analysis". This analysis is applicable for any type of [sub]partitioning
+  by some function of a single fieldX. The idea is as follows:
+  Given an interval "const1 <=? fieldX <=? const2", find a set of partitions
+  that may contain records with value of fieldX within the given interval.
+
+  The min_val, max_val and flags parameters specify the interval.
+  The set of partitions is returned by initializing an iterator in *part_iter
+
+  @note
+    There are currently three functions of this type:
+     - get_part_iter_for_interval_via_walking
+     - get_part_iter_for_interval_cols_via_map
+     - get_part_iter_for_interval_via_mapping
+
+  @param part_info           Partitioning info
+  @param is_subpart
+  @param store_length_array  Length of fields packed in opt_range_key format
+  @param min_val             Left edge,  field value in opt_range_key format
+  @param max_val             Right edge, field value in opt_range_key format
+  @param min_len             Length of minimum value
+  @param max_len             Length of maximum value
+  @param flags               Some combination of NEAR_MIN, NEAR_MAX,
+                             NO_MIN_RANGE, NO_MAX_RANGE
+  @param part_iter           Iterator structure to be initialized
+
+  @return Operation status
+    @retval 0   No matching partitions, iterator not initialized
+    @retval 1   Some partitions would match, iterator intialized for traversing them
+    @retval -1  All partitions would match, iterator not initialized
+*/
+
+typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
+                                            bool is_subpart,
+                                            uint32 *store_length_array,
+                                            uchar *min_val, uchar *max_val,
+                                            uint min_len, uint max_len,
+                                            uint flags,
+                                            PARTITION_ITERATOR *part_iter);
 class partition_info : public Sql_alloc
 {
 public:
@@ -137,6 +256,7 @@ public:
   MY_BITMAP read_partitions;
   MY_BITMAP lock_partitions;
   bool bitmaps_are_initialized;
+  // TODO: Add first_read_partition and num_read_partitions?
 
   union {
     longlong *range_int_array;
@@ -290,21 +410,24 @@ public:
   ~partition_info() {}
 
   partition_info *get_clone();
+  partition_info *get_full_clone();
   bool set_named_partition_bitmap(const char *part_name, size_t length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
+  bool set_read_partitions(List<String> *partition_names);
   /* Answers the question if subpartitioning is used for a certain table */
-  bool is_sub_partitioned()
+  inline bool is_sub_partitioned() const
   {
     return (subpart_type == NOT_A_PARTITION ?  FALSE : TRUE);
   }
 
   /* Returns the total number of partitions on the leaf level */
-  uint get_tot_partitions()
+  inline uint get_tot_partitions() const
   {
     return num_parts * (is_sub_partitioned() ? num_subparts : 1);
   }
 
-  bool set_up_defaults_for_partitioning(handler *file, HA_CREATE_INFO *info,
+  bool set_up_defaults_for_partitioning(Partition_handler *part_handler,
+                                        HA_CREATE_INFO *info,
                                         uint start_no);
   char *find_duplicate_field();
   char *find_duplicate_name();
@@ -366,18 +489,41 @@ public:
                         bool *prune_needs_default_values,
                         MY_BITMAP *used_partitions);
   bool has_same_partitioning(partition_info *new_part_info);
+  inline bool is_partition_used(uint part_id) const
+  {
+    return bitmap_is_set(&read_partitions, part_id);
+  }
+  inline bool is_partition_locked(uint part_id) const
+  {
+    return bitmap_is_set(&lock_partitions, part_id);
+  }
+  inline uint num_partitions_used()
+  {
+    return bitmap_bits_set(&read_partitions);
+  }
+  inline uint get_first_used_partition() const
+  {
+    return bitmap_get_first_set(&read_partitions);
+  }
+  inline uint get_next_used_partition(uint part_id) const
+  {
+    return bitmap_get_next_set(&read_partitions, part_id);
+  }
+  bool same_key_column_order(List<Create_field> *create_list);
+
 private:
   static int list_part_cmp(const void* a, const void* b);
-  bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
+  bool set_up_default_partitions(Partition_handler *part_handler,
+                                 HA_CREATE_INFO *info,
                                  uint start_no);
-  bool set_up_default_subpartitions(handler *file, HA_CREATE_INFO *info);
+  bool set_up_default_subpartitions(Partition_handler *part_handler,
+                                    HA_CREATE_INFO *info);
   char *create_default_partition_names(uint part_no, uint num_parts,
                                        uint start_no);
   char *create_default_subpartition_name(uint subpart_no,
                                          const char *part_name);
-  bool prune_partition_bitmaps(TABLE_LIST *table_list);
   bool add_named_partition(const char *part_name, size_t length);
-  bool is_field_in_part_expr(List<Item> &fields);
+  bool is_fields_in_part_expr(List<Item> &fields);
   bool is_full_part_expr_in_fields(List<Item> &fields);
 };
 

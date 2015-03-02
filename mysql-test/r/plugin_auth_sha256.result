@@ -1,6 +1,10 @@
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 SET GLOBAL old_passwords= 2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET SESSION old_passwords= 2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user;
 user	plugin
@@ -53,7 +57,7 @@ USER()	CURRENT_USER()
 kristofer@localhost	kristofer@localhost
 SHOW CREATE USER 'kristofer'@'localhost';
 CREATE USER for kristofer@localhost
-CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT
+CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 DROP USER 'kristofer'@'localhost';
 GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password';
 Warnings:
@@ -63,12 +67,18 @@ Connection should fail for localhost
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
 DROP USER 'kristofer'@'33.33.33.33';
 SET GLOBAL old_passwords= 2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET SESSION old_passwords= 2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (c1 VARCHAR(10) );
 INSERT INTO t1 VALUES ('secret');
 SELECT HEX(PASSWORD(c1)) FROM t1;
 HEX(PASSWORD(c1))
 success
+Warnings:
+Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 SELECT PASSWORD(NULL), PASSWORD('');
 PASSWORD(NULL)	PASSWORD('')
@@ -83,7 +93,11 @@ PASSWORD(c1)	PASSWORD(c2)
 DROP TABLE t1;
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 SET GLOBAL old_passwords= 2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET SESSION old_passwords= 2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user;
 user	plugin
@@ -109,3 +123,5 @@ kristofer	$5$asd	sha256_password
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: YES)
 DROP USER kristofer;
 SET GLOBAL old_passwords= default;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.

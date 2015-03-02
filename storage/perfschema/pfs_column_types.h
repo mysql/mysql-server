@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -55,9 +55,6 @@
 
 /** Size of the DIGEST columns. */
 #define COL_DIGEST_SIZE 64
-
-/** Size of the DIGEST_TEXT columns. */
-#define COL_DIGEST_TEXT_SIZE 1024
 
 /**
   Enum values for the TIMER_NAME columns.

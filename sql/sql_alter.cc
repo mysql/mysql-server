@@ -34,8 +34,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   num_parts(rhs.num_parts),
   requested_algorithm(rhs.requested_algorithm),
   requested_lock(rhs.requested_lock),
-  with_validation(rhs.with_validation),
-  se_blob(rhs.se_blob)
+  with_validation(rhs.with_validation)
 {
   /*
     Make deep copies of used objects.
@@ -298,11 +297,13 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   /* Don't yet allow changing of symlinks with ALTER TABLE */
   if (create_info.data_file_name)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                        WARN_OPTION_IGNORED,
+                        ER_THD(thd, WARN_OPTION_IGNORED),
                         "DATA DIRECTORY");
   if (create_info.index_file_name)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                        WARN_OPTION_IGNORED,
+                        ER_THD(thd, WARN_OPTION_IGNORED),
                         "INDEX DIRECTORY");
   create_info.data_file_name= create_info.index_file_name= NULL;
 

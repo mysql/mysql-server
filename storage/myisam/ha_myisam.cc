@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 #include "sql_table.h"                          // tablename_to_filename
 #include "sql_class.h"                          // THD
 #include "log.h"
+#include "current_thd.h"
+#include "system_variables.h"
 
 #include <algorithm>
 
@@ -319,7 +321,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   record= table_arg->record[0];
   recpos= 0;
   recinfo_pos= recinfo;
-  while (recpos < (uint) share->reclength)
+  while (recpos < (uint) share->stored_rec_length)
   {
     Field **field, *found= 0;
     minpos= share->reclength;
@@ -647,6 +649,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
                   HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR |
+                  HA_GENERATED_COLUMNS | 
                   HA_ATTACHABLE_TRX_COMPATIBLE),
    can_enable_indexes(1)
 {}
@@ -813,7 +816,7 @@ int ha_myisam::close(void)
 
 int ha_myisam::write_row(uchar *buf)
 {
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
 
   /*
     If we have an auto_increment column and we are writing a changed row
@@ -1053,7 +1056,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno,
+    mi_check_print_error(&param, ER_THD(thd, ER_CANT_LOCK), my_errno,
                          my_strerror(errbuf, sizeof(errbuf), my_errno));
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
@@ -1582,13 +1585,13 @@ bool ha_myisam::is_crashed() const
 
 int ha_myisam::update_row(const uchar *old_data, uchar *new_data)
 {
-  ha_statistic_increment(&SSV::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count);
   return mi_update(file,old_data,new_data);
 }
 
 int ha_myisam::delete_row(const uchar *buf)
 {
-  ha_statistic_increment(&SSV::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count);
   return mi_delete(file,buf);
 }
 
@@ -1638,7 +1641,7 @@ int ha_myisam::index_read_map(uchar *buf, const uchar *key,
 {
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_INDEX_READ_ROW_DONE(error);
@@ -1652,7 +1655,7 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(pushed_idx_cond == NULL);
   DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_INDEX_READ_ROW_DONE(error);
@@ -1665,7 +1668,7 @@ int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ENTER("ha_myisam::index_read_last");
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error=mi_rkey(file, buf, active_index, key, keypart_map,
                     HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
@@ -1677,7 +1680,7 @@ int ha_myisam::index_next(uchar *buf)
 {
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
   int error=mi_rnext(file,buf,active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_INDEX_READ_ROW_DONE(error);
@@ -1688,7 +1691,7 @@ int ha_myisam::index_prev(uchar *buf)
 {
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_prev_count);
+  ha_statistic_increment(&System_status_var::ha_read_prev_count);
   int error=mi_rprev(file,buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_INDEX_READ_ROW_DONE(error);
@@ -1699,7 +1702,7 @@ int ha_myisam::index_first(uchar *buf)
 {
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
   int error=mi_rfirst(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_INDEX_READ_ROW_DONE(error);
@@ -1710,7 +1713,7 @@ int ha_myisam::index_last(uchar *buf)
 {
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   DBUG_ASSERT(inited==INDEX);
-  ha_statistic_increment(&SSV::ha_read_last_count);
+  ha_statistic_increment(&System_status_var::ha_read_last_count);
   int error=mi_rlast(file, buf, active_index);
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_INDEX_READ_ROW_DONE(error);
@@ -1724,7 +1727,7 @@ int ha_myisam::index_next_same(uchar *buf,
   int error;
   DBUG_ASSERT(inited==INDEX);
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
   do
   {
     error= mi_rnext_same(file,buf);
@@ -1746,7 +1749,7 @@ int ha_myisam::rnd_next(uchar *buf)
 {
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        TRUE);
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   int error=mi_scan(file, buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_READ_ROW_DONE(error);
@@ -1757,7 +1760,7 @@ int ha_myisam::rnd_pos(uchar *buf, uchar *pos)
 {
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        FALSE);
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   int error=mi_rrnd(file, buf, my_get_ptr(pos,ref_length));
   table->status=error ? STATUS_NOT_FOUND: 0;
   MYSQL_READ_ROW_DONE(error);
@@ -1977,11 +1980,13 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
   {
     if (ha_create_info->data_file_name)
       push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(table_arg->in_use, WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (ha_create_info->index_file_name)
       push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(table_arg->in_use, WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
   }
 
@@ -2101,7 +2106,7 @@ int ha_myisam::ft_read(uchar *buf)
   if (!ft_handler)
     return -1;
 
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
 
   error=ft_handler->please->read_next(ft_handler,(char*) buf);
 

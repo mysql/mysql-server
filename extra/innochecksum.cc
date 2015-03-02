@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1303,7 +1303,8 @@ int main(
 					if partial_page_read is enable. */
 					bytes = read_file(buf,
 							  partial_page_read,
-							  page_size.physical(),
+							  static_cast<ulong>(
+							  page_size.physical()),
 							  fil_in);
 
 					partial_page_read = false;
@@ -1340,7 +1341,8 @@ int main(
 		while (!feof(fil_in)) {
 
 			bytes = read_file(buf, partial_page_read,
-					  page_size.physical(), fil_in);
+					  static_cast<ulong>(
+					  page_size.physical()), fil_in);
 			partial_page_read = false;
 
 			if (!bytes && feof(fil_in)) {
@@ -1401,8 +1403,8 @@ int main(
 			/* Rewrite checksum */
 			if (do_write
 			    && !write_file(filename, fil_in, buf,
-					   page_size.is_compressed(),
-					   &pos, page_size.physical())) {
+					   page_size.is_compressed(), &pos,
+					   static_cast<ulong>(page_size.physical()))) {
 
 				DBUG_RETURN(1);
 			}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,23 +30,12 @@
 #include "pfs_account.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
+#include "pfs_buffer_container.h"
 
 /**
   @addtogroup Performance_schema_buffers
   @{
 */
-
-ulong account_max= 0;
-ulong account_lost= 0;
-bool account_full;
-
-PFS_account *account_array= NULL;
-
-static PFS_single_stat *account_instr_class_waits_array= NULL;
-static PFS_stage_stat *account_instr_class_stages_array= NULL;
-static PFS_statement_stat *account_instr_class_statements_array= NULL;
-static PFS_memory_stat *account_instr_class_memory_array= NULL;
-static PFS_transaction_stat *account_instr_class_transactions_array= NULL;
 
 LF_HASH account_hash;
 static bool account_hash_inited= false;
@@ -58,85 +47,8 @@ static bool account_hash_inited= false;
 */
 int init_account(const PFS_global_param *param)
 {
-  uint index;
-
-  account_max= param->m_account_sizing;
-  account_lost= 0;
-  account_full= false;
-
-  account_array= NULL;
-  account_instr_class_waits_array= NULL;
-  account_instr_class_stages_array= NULL;
-  account_instr_class_statements_array= NULL;
-  account_instr_class_transactions_array= NULL;
-  account_instr_class_memory_array= NULL;
-  uint waits_sizing= account_max * wait_class_max;
-  uint stages_sizing= account_max * stage_class_max;
-  uint statements_sizing= account_max * statement_class_max;
-  uint transactions_sizing= account_max * transaction_class_max;
-  uint memory_sizing= account_max * memory_class_max;
-
-  if (account_max > 0)
-  {
-    account_array= PFS_MALLOC_ARRAY(account_max, PFS_account,
-                                      MYF(MY_ZEROFILL));
-    if (unlikely(account_array == NULL))
-      return 1;
-  }
-
-  if (waits_sizing > 0)
-  {
-    account_instr_class_waits_array=
-      PFS_connection_slice::alloc_waits_slice(waits_sizing);
-    if (unlikely(account_instr_class_waits_array == NULL))
-      return 1;
-  }
-
-  if (stages_sizing > 0)
-  {
-    account_instr_class_stages_array=
-      PFS_connection_slice::alloc_stages_slice(stages_sizing);
-    if (unlikely(account_instr_class_stages_array == NULL))
-      return 1;
-  }
-
-  if (statements_sizing > 0)
-  {
-    account_instr_class_statements_array=
-      PFS_connection_slice::alloc_statements_slice(statements_sizing);
-    if (unlikely(account_instr_class_statements_array == NULL))
-      return 1;
-  }
-
-  if (transactions_sizing > 0)
-  {
-    account_instr_class_transactions_array=
-      PFS_connection_slice::alloc_transactions_slice(transactions_sizing);
-    if (unlikely(account_instr_class_transactions_array == NULL))
-      return 1;
-  }
-
-  if (memory_sizing > 0)
-  {
-    account_instr_class_memory_array=
-      PFS_connection_slice::alloc_memory_slice(memory_sizing);
-    if (unlikely(account_instr_class_memory_array == NULL))
-      return 1;
-  }
-
-  for (index= 0; index < account_max; index++)
-  {
-    account_array[index].set_instr_class_waits_stats(
-      &account_instr_class_waits_array[index * wait_class_max]);
-    account_array[index].set_instr_class_stages_stats(
-      &account_instr_class_stages_array[index * stage_class_max]);
-    account_array[index].set_instr_class_statements_stats(
-      &account_instr_class_statements_array[index * statement_class_max]);
-    account_array[index].set_instr_class_transactions_stats(
-      &account_instr_class_transactions_array[index * transaction_class_max]);
-    account_array[index].set_instr_class_memory_stats(
-      &account_instr_class_memory_array[index * memory_class_max]);
-  }
+  if (global_account_container.init(param->m_account_sizing))
+    return 1;
 
   return 0;
 }
@@ -144,17 +56,7 @@ int init_account(const PFS_global_param *param)
 /** Cleanup all the account buffers. */
 void cleanup_account(void)
 {
-  pfs_free(account_array);
-  account_array= NULL;
-  pfs_free(account_instr_class_waits_array);
-  account_instr_class_waits_array= NULL;
-  pfs_free(account_instr_class_stages_array);
-  account_instr_class_stages_array= NULL;
-  pfs_free(account_instr_class_statements_array);
-  account_instr_class_statements_array= NULL;
-  pfs_free(account_instr_class_memory_array);
-  account_instr_class_memory_array= NULL;
-  account_max= 0;
+  global_account_container.cleanup();
 }
 
 C_MODE_START
@@ -178,13 +80,12 @@ C_MODE_END
   Initialize the user hash.
   @return 0 on success
 */
-int init_account_hash(void)
+int init_account_hash(const PFS_global_param *param)
 {
-  if ((! account_hash_inited) && (account_max > 0))
+  if ((! account_hash_inited) && (param->m_account_sizing != 0))
   {
     lf_hash_init(&account_hash, sizeof(PFS_account*), LF_HASH_UNIQUE,
                  0, 0, account_hash_get_key, &my_charset_bin);
-    account_hash.size= account_max;
     account_hash_inited= true;
   }
   return 0;
@@ -241,12 +142,10 @@ find_or_create_account(PFS_thread *thread,
                          const char *username, uint username_length,
                          const char *hostname, uint hostname_length)
 {
-  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
-
   LF_PINS *pins= get_account_hash_pins(thread);
   if (unlikely(pins == NULL))
   {
-    account_lost++;
+    global_account_container.m_lost++;
     return NULL;
   }
 
@@ -258,8 +157,6 @@ find_or_create_account(PFS_thread *thread,
   PFS_account *pfs;
   uint retry_count= 0;
   const uint retry_max= 3;
-  uint index;
-  uint attempts= 0;
   pfs_dirty_state dirty_state;
 
 search:
@@ -276,85 +173,72 @@ search:
 
   lf_hash_search_unpin(pins);
 
-  if (account_full)
+  pfs= global_account_container.allocate(& dirty_state);
+  if (pfs != NULL)
   {
-    account_lost++;
+    pfs->m_key= key;
+    if (username_length > 0)
+      pfs->m_username= &pfs->m_key.m_hash_key[0];
+    else
+      pfs->m_username= NULL;
+    pfs->m_username_length= username_length;
+
+    if (hostname_length > 0)
+      pfs->m_hostname= &pfs->m_key.m_hash_key[username_length + 1];
+    else
+      pfs->m_hostname= NULL;
+    pfs->m_hostname_length= hostname_length;
+
+    pfs->m_user= find_or_create_user(thread, username, username_length);
+    pfs->m_host= find_or_create_host(thread, hostname, hostname_length);
+
+    pfs->init_refcount();
+    pfs->reset_stats();
+    pfs->m_disconnected_count= 0;
+
+    if (username_length > 0 && hostname_length > 0)
+    {
+      lookup_setup_actor(thread, username, username_length, hostname, hostname_length,
+                         & pfs->m_enabled);
+    }
+    else
+      pfs->m_enabled= true;
+
+    int res;
+    pfs->m_lock.dirty_to_allocated(& dirty_state);
+    res= lf_hash_insert(&account_hash, pins, &pfs);
+    if (likely(res == 0))
+    {
+      return pfs;
+    }
+
+    if (pfs->m_user)
+    {
+      pfs->m_user->release();
+      pfs->m_user= NULL;
+    }
+    if (pfs->m_host)
+    {
+      pfs->m_host->release();
+      pfs->m_host= NULL;
+    }
+
+    global_account_container.deallocate(pfs);
+
+    if (res > 0)
+    {
+      if (++retry_count > retry_max)
+      {
+        global_account_container.m_lost++;
+        return NULL;
+      }
+      goto search;
+    }
+
+    global_account_container.m_lost++;
     return NULL;
   }
 
-  while (++attempts <= account_max)
-  {
-    index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % account_max;
-    pfs= account_array + index;
-
-    if (pfs->m_lock.free_to_dirty(& dirty_state))
-    {
-      pfs->m_key= key;
-      if (username_length > 0)
-        pfs->m_username= &pfs->m_key.m_hash_key[0];
-      else
-        pfs->m_username= NULL;
-      pfs->m_username_length= username_length;
-
-      if (hostname_length > 0)
-        pfs->m_hostname= &pfs->m_key.m_hash_key[username_length + 1];
-      else
-        pfs->m_hostname= NULL;
-      pfs->m_hostname_length= hostname_length;
-
-      pfs->m_user= find_or_create_user(thread, username, username_length);
-      pfs->m_host= find_or_create_host(thread, hostname, hostname_length);
-
-      pfs->init_refcount();
-      pfs->reset_stats();
-      pfs->m_disconnected_count= 0;
-
-      if (username_length > 0 && hostname_length > 0)
-      {
-        lookup_setup_actor(thread, username, username_length, hostname, hostname_length,
-                           & pfs->m_enabled);
-      }
-      else
-        pfs->m_enabled= true;
-
-      int res;
-      pfs->m_lock.dirty_to_allocated(& dirty_state);
-      res= lf_hash_insert(&account_hash, pins, &pfs);
-      if (likely(res == 0))
-      {
-        return pfs;
-      }
-
-      if (pfs->m_user)
-      {
-        pfs->m_user->release();
-        pfs->m_user= NULL;
-      }
-      if (pfs->m_host)
-      {
-        pfs->m_host->release();
-        pfs->m_host= NULL;
-      }
-
-      pfs->m_lock.allocated_to_free();
-
-      if (res > 0)
-      {
-        if (++retry_count > retry_max)
-        {
-          account_lost++;
-          return NULL;
-        }
-        goto search;
-      }
-
-      account_lost++;
-      return NULL;
-    }
-  }
-
-  account_lost++;
-  account_full= true;
   return NULL;
 }
 
@@ -365,6 +249,7 @@ void PFS_account::aggregate(bool alive, PFS_user *safe_user, PFS_host *safe_host
   aggregate_statements(safe_user, safe_host);
   aggregate_transactions(safe_user, safe_host);
   aggregate_memory(alive, safe_user, safe_host);
+  aggregate_status(safe_user, safe_host);
   aggregate_stats(safe_user, safe_host);
 }
 
@@ -630,6 +515,54 @@ void PFS_account::aggregate_memory(bool alive, PFS_user *safe_user, PFS_host *sa
   return;
 }
 
+void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host)
+{
+  if (likely(safe_user != NULL && safe_host != NULL))
+  {
+    /*
+      Aggregate STATUS_BY_ACCOUNT to:
+      - STATUS_BY_USER
+      - STATUS_BY_HOST
+    */
+    safe_user->m_status_stats.aggregate(& m_status_stats);
+    safe_host->m_status_stats.aggregate(& m_status_stats);
+    m_status_stats.reset();
+    return;
+  }
+
+  if (safe_user != NULL)
+  {
+    /*
+      Aggregate STATUS_BY_ACCOUNT to:
+      - STATUS_BY_USER
+      - GLOBAL_STATUS
+    */
+    safe_user->m_status_stats.aggregate(& m_status_stats);
+    m_status_stats.aggregate_to(& global_status_var);
+    m_status_stats.reset();
+    return;
+  }
+
+  if (safe_host != NULL)
+  {
+    /*
+      Aggregate STATUS_BY_ACCOUNT to:
+      - STATUS_BY_HOST
+    */
+    safe_host->m_status_stats.aggregate(& m_status_stats);
+    m_status_stats.reset();
+    return;
+  }
+
+  /*
+    Aggregate STATUS_BY_ACCOUNT to:
+    - GLOBAL_STATUS
+  */
+  m_status_stats.aggregate_to(& global_status_var);
+  m_status_stats.reset();
+  return;
+}
+
 void PFS_account::aggregate_stats(PFS_user *safe_user, PFS_host *safe_host)
 {
   if (likely(safe_user != NULL && safe_host != NULL))
@@ -694,10 +627,7 @@ void PFS_account::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint ind
 
 PFS_account *sanitize_account(PFS_account *unsafe)
 {
-  if ((&account_array[0] <= unsafe) &&
-      (unsafe < &account_array[account_max]))
-    return unsafe;
-  return NULL;
+  return global_account_container.sanitize(unsafe);
 }
 
 void purge_account(PFS_thread *thread, PFS_account *account)
@@ -730,13 +660,34 @@ void purge_account(PFS_thread *thread, PFS_account *account)
         account->m_host->release();
         account->m_host= NULL;
       }
-      account->m_lock.allocated_to_free();
-      account_full= false;
+      global_account_container.deallocate(account);
     }
   }
 
   lf_hash_search_unpin(pins);
 }
+
+class Proc_purge_account
+  : public PFS_buffer_processor<PFS_account>
+{
+public:
+  Proc_purge_account(PFS_thread *thread)
+    : m_thread(thread)
+  {}
+
+  virtual void operator()(PFS_account *pfs)
+  {
+    PFS_user *user= sanitize_user(pfs->m_user);
+    PFS_host *host= sanitize_host(pfs->m_host);
+    pfs->aggregate(true, user, host);
+
+    if (pfs->get_refcount() == 0)
+      purge_account(m_thread, pfs);
+  }
+
+private:
+  PFS_thread *m_thread;
+};
 
 /** Purge non connected accounts, reset stats of connected account. */
 void purge_all_account(void)
@@ -745,45 +696,39 @@ void purge_all_account(void)
   if (unlikely(thread == NULL))
     return;
 
-  PFS_account *pfs= account_array;
-  PFS_account *pfs_last= account_array + account_max;
-  PFS_user *user;
-  PFS_host *host;
-
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-    {
-      user= sanitize_user(pfs->m_user);
-      host= sanitize_host(pfs->m_host);
-      pfs->aggregate(true, user, host);
-
-      if (pfs->get_refcount() == 0)
-        purge_account(thread, pfs);
-    }
-  }
+  Proc_purge_account proc(thread);
+  global_account_container.apply(proc);
 }
+
+class Proc_update_accounts_derived_flags
+  : public PFS_buffer_processor<PFS_account>
+{
+public:
+  Proc_update_accounts_derived_flags(PFS_thread *thread)
+    : m_thread(thread)
+  {}
+
+  virtual void operator()(PFS_account *pfs)
+  {
+    if (pfs->m_username_length > 0 && pfs->m_hostname_length > 0)
+    {
+      lookup_setup_actor(m_thread,
+                         pfs->m_username, pfs->m_username_length,
+                         pfs->m_hostname, pfs->m_hostname_length,
+                         & pfs->m_enabled);
+    }
+    else
+      pfs->m_enabled= true;
+  }
+
+private:
+  PFS_thread *m_thread;
+};
 
 void update_accounts_derived_flags(PFS_thread *thread)
 {
-  PFS_account *pfs= account_array;
-  PFS_account *pfs_last= account_array + account_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-    {
-      if (pfs->m_username_length > 0 && pfs->m_hostname_length > 0)
-      {
-        lookup_setup_actor(thread,
-                           pfs->m_username, pfs->m_username_length,
-                           pfs->m_hostname, pfs->m_hostname_length,
-                           & pfs->m_enabled);
-      }
-      else
-        pfs->m_enabled= true;
-    }
-  }
+  Proc_update_accounts_derived_flags proc(thread);
+  global_account_container.apply(proc);
 }
 
 /** @} */

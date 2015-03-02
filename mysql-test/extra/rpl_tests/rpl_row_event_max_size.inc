@@ -66,17 +66,11 @@ DROP TABLE t1;
 --source include/rpl_reset.inc
 
 # Bug #18233370
-# To avoid 1118(ER_TOO_BIG_ROWSIZE) error while running testcase with
-# innodb 4K pagesize, changing the file format to Barracuda
---let $INNODB_FILEFORMAT_ON_SLAVE= query_get_value("SHOW VARIABLES LIKE 'innodb_file_format'", Value, 1)
---eval SET GLOBAL innodb_file_format=Barracuda
 
 --echo # Test it will cause ER_MASTER_FATAL_ERROR_READING_BINLOG when the value
 --echo # of the bigger one of max_allowed_packet and binlog_row_event_max_size
 --echo # is lower than the the required size.
 connection master;
---let $INNODB_FILEFORMAT_ON_MASTER= query_get_value("SHOW VARIABLES LIKE 'innodb_file_format'", Value, 1)
---eval SET GLOBAL innodb_file_format=Barracuda
 
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
                  data2 LONGBLOB, data3 LONGBLOB, PRIMARY KEY(a)) ROW_FORMAT=DYNAMIC;
@@ -97,14 +91,6 @@ call mtr.add_suppression("Found invalid event in binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo ==== clean up ====
-
---connection master
---replace_result $INNODB_FILEFORMAT_ON_MASTER INNODB_FILE_FORMAT
---eval SET GLOBAL innodb_file_format=$INNODB_FILEFORMAT_ON_MASTER
-
---connection slave
---replace_result $INNODB_FILEFORMAT_ON_SLAVE INNODB_FILE_FORMAT
---eval SET GLOBAL innodb_file_format=$INNODB_FILEFORMAT_ON_SLAVE
 
 # clear errno
 --source include/stop_slave.inc

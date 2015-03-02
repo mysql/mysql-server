@@ -94,9 +94,6 @@ void my_thread_global_reinit()
   tmp= mysys_thread_var();
   DBUG_ASSERT(tmp);
 
-  mysql_mutex_destroy(&tmp->mutex);
-  mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
-
   mysql_cond_destroy(&tmp->suspend);
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend);
 }
@@ -257,11 +254,7 @@ my_bool my_thread_init()
   if (!(tmp= (struct st_my_thread_var *) calloc(1, sizeof(*tmp))))
     return TRUE;
 
-  mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend);
-
-  tmp->stack_ends_here= (char*)&tmp +
-                         STACK_DIRECTION * (long)my_thread_stack_size;
 
   mysql_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;
@@ -306,7 +299,6 @@ void my_thread_end()
     }
 #endif
     mysql_cond_destroy(&tmp->suspend);
-    mysql_mutex_destroy(&tmp->mutex);
     free(tmp);
 
     /*

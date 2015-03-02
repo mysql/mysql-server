@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "binary_log_types.h"
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
+#define FILENAME_CHARSET_MBMAXLEN 5
 #define NAME_CHAR_LEN	64              /* Field/table name length */
 #define USERNAME_CHAR_LENGTH 16
 #ifndef NAME_LEN
@@ -89,7 +90,12 @@ enum enum_server_command
   COM_END
 };
 
-
+/* The length of the header part for each generated column in the .frm file. */
+#define FRM_GCOL_HEADER_SIZE 4
+/*
+  Maximum length of the expression statement defined for generated columns.
+*/
+#define GENERATED_COLUMN_EXPRESSION_MAXLEN 65535 - FRM_GCOL_HEADER_SIZE
 /*
   Length of random string sent by server on handshake; this is also length of
   obfuscated password, received from client

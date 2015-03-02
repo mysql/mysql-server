@@ -1,0 +1,116 @@
+#
+# CREATE TABLESPACE related tests requiring a debug build.
+#
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+# Restarting and killing mysqld is not supported in embedded
+--source include/not_embedded.inc
+
+SET DEFAULT_STORAGE_ENGINE=InnoDB;
+
+# Set these up for show_i_s_tablespaces.inc 
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+
+--echo #
+--echo # If CREATE TABLESPACE fails after the file is created, it should not remain.
+--echo #
+SET SESSION DEBUG='+d,innodb_fail_to_update_tablespace_dict';
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd' ENGINE=InnoDB;
+SET SESSION DEBUG='-d,innodb_fail_to_update_tablespace_dict';
+--source suite/innodb/include/show_i_s_tablespaces.inc
+--echo # MYSQLD_DATADIR/
+--list_files $MYSQLD_DATADIR/ *.ibd
+DROP TABLESPACE s_def;
+
+--echo #
+--echo # Assigning general tablespace to myisam,memory is igonred
+--echo #
+USE test;
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
+CREATE TABLE t1 (a int) ENGINE=innodb TABLESPACE=s1;
+CREATE TABLE t2 (a int) ENGINE=memory TABLESPACE=s1;
+CREATE TABLE t3 (a int) ENGINE=myisam TABLESPACE=s1;
+INSERT INTO t1 VALUES ( 11);
+INSERT INTO t2 VALUES ( 21);
+INSERT INTO t3 VALUES ( 31);
+
+--source suite/innodb/include/show_i_s_tables.inc
+ALTER TABLE t2 TABLESPACE=s1;
+ALTER TABLE t3 TABLESPACE=s1;
+--source suite/innodb/include/show_i_s_tables.inc
+
+--echo # MYSQLD_DATADIR/
+--list_files $MYSQLD_DATADIR/ *.ibd
+show tables;
+--echo #restart the server
+--source include/restart_mysqld.inc
+USE test;
+show tables;
+select * from t1;
+select * from t2;
+select * from t3;
+DROP TABLE t2,t3;
+
+--echo #
+--echo # A general tablespace and its contents can be recovered.
+--echo #
+CREATE TABLE t2 (a int) ENGINE=innodb TABLESPACE=s1;
+CREATE TABLE t3 (a int) ENGINE=innodb TABLESPACE=innodb_system;
+CREATE TABLE t4 (a int) ENGINE=innodb TABLESPACE=innodb_file_per_table;
+INSERT INTO t2 VALUES (21);
+INSERT INTO t3 VALUES (31);
+INSERT INTO t4 VALUES (41);
+BEGIN;
+INSERT INTO t1 VALUES (12);
+INSERT INTO t2 VALUES (22);
+INSERT INTO t3 VALUES (32);
+INSERT INTO t4 VALUES (42);
+--source suite/innodb/include/show_i_s_tables.inc
+--source include/kill_and_restart_mysqld.inc
+--source suite/innodb/include/show_i_s_tables.inc
+select * from t1;
+select * from t2;
+select * from t3;
+select * from t4;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+BEGIN;
+INSERT INTO t1 VALUES (13);
+INSERT INTO t2 VALUES (23);
+INSERT INTO t3 VALUES (33);
+INSERT INTO t4 VALUES (43);
+RENAME TABLE t1 TO tr1;
+RENAME TABLE t2 TO tr2;
+RENAME TABLE t3 TO tr3;
+RENAME TABLE t4 TO tr4;
+--source suite/innodb/include/show_i_s_tables.inc
+--source include/kill_and_restart_mysqld.inc
+--source suite/innodb/include/show_i_s_tables.inc
+select * from tr1;
+select * from tr2;
+select * from tr3;
+select * from tr4;
+SHOW CREATE TABLE tr1;
+SHOW CREATE TABLE tr2;
+SHOW CREATE TABLE tr3;
+SHOW CREATE TABLE tr4;
+
+DROP TABLE tr1,tr2,tr3,tr4;
+DROP TABLESPACE s1;
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means that another program is using InnoDB's files");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*s_def.ibd: 'delete' returned OS error [0-9]*");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+--enable_query_log

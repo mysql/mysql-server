@@ -1,0 +1,99 @@
+--source include/have_ndb.inc
+
+#
+# Test integration of pushed joins in ha_ndbcluster
+# i.e the functionality where the mysqld calls ha_make_pushed_join()
+# providing an Abstract_query_plan(aka. AQP) for the handler to examine
+# in order to determine if some parts of the queries can be executed by
+# the storage engine natively.
+#
+
+echo Check that ndb_join_pushdown variable exists and is enabled;
+if (!`select @@ndb_join_pushdown`)
+{
+  die Need ndb_join_pushdown enabled by default;
+}
+
+--echo #####
+--echo # Create test table and data
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`)
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+--echo ####
+--echo # Check the basic pushed query
+let $push_query =
+  select * from t1
+    join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+let $push_expected = 1;
+--source pushed_join.inc
+
+--echo ####
+--echo # Check that operation is not pushed if it prevents 'join buffer'
+let $push_query =
+  select straight_join count(*)
+    from t1 as x1
+      join t1 as x2 on x1.d > x2.a + 1000
+      join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
+let $push_expected = 0;
+let $push_message = "would prevent using join buffer for table 'x2'";
+--source pushed_join.inc
+
+--echo ####
+--echo # Check that operation is not pushed if it prevents 'join buffer'
+--echo # even though other operation is pushed
+let $push_query =
+  select *
+    from t1 as x1
+      join t1 as x2 on x1.a=1 and x1.c=x2.a and x1.d=x2.b
+      join t1 as x3
+      join t1 as x4 where x4.a=x3.c and x4.b=x1.d;
+let $push_expected = 1;
+let $push_message = "would prevent using join buffer for table 'x3'";
+--source pushed_join.inc
+
+drop table t1;
+
+create table t1 (
+  a int primary key,
+  b int,
+  c int,
+  index(b,c)
+) engine = ndb;
+
+insert into t1 values (1,null, 2);
+insert into t1 values (2,1, null);
+insert into t1 values (3,2,2);
+insert into t1 values (4,null, 2);
+insert into t1 values (5,1, null);
+insert into t1 values (6,2,2);
+
+--echo ####
+--echo # The query contains a 'dynamic range'("Range checked for each
+--echo # record..") and access type can not be choosen at prepare time
+--echo # Make sure t2 is not pushed.
+let $push_query =
+  select *
+    from t1
+      join t1 as t2 on (t2.b = t1.b or t2.b = t1.a)
+      join t1 as t3 on t3.a = t2.a
+      join t1 as t4 on t4.a = t3.b /* index scan disguised as JT_ALL */;
+let $push_expected = 1;
+let $push_message =
+  "Table 't2' is not pushable: Access type was not chosen at 'prepare' time";
+--source pushed_join.inc
+
+drop table t1;
+
+

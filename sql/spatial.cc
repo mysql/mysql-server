@@ -14,10 +14,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "spatial.h"
+
 #include "sql_string.h"                         // String
 #include "my_global.h"                          // REQUIRED for HAVE_* below
 #include "gstream.h"                            // Gis_read_stream
-#include "spatial.h"
+#include "psi_memory_key.h"
+
 #include <mysqld_error.h>
 #include <set>
 #include <utility>
@@ -26,6 +29,28 @@
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif
+
+void *gis_wkb_alloc(size_t sz)
+{
+  sz+= GEOM_HEADER_SIZE;
+  char *p= static_cast<char *>(my_malloc(key_memory_Geometry_objects_data,
+                                         sz, MYF(MY_FAE)));
+  p+= GEOM_HEADER_SIZE;
+  return p;
+}
+
+
+void *gis_wkb_realloc(void *p, size_t sz)
+{
+  char *cp= static_cast<char *>(p);
+  if (cp)
+    cp-= GEOM_HEADER_SIZE;
+  sz+= GEOM_HEADER_SIZE;
+
+  p= my_realloc(key_memory_Geometry_objects_data, cp, sz, MYF(MY_FAE));
+  cp= static_cast<char *>(p);
+  return cp + GEOM_HEADER_SIZE;
+}
 
 
 /***************************** MBR *******************************/
@@ -323,27 +348,30 @@ Geometry *Geometry::create_by_typeid(Geometry_buffer *buffer, int type_id)
   rest of the GIS code assumes the internal WKB data being always little endian.
 
   @param buffer The place where the Geometry object is constructed on.
-  @param data is a byte string with srid prepending a wkb encoded byte string,
-  which is called a GEOMETRY byte string and which is the inner storage format
-  of all geometries in MySQL.
+  @param data is a byte string with an optional srid prepending a WKB format
+  byte string, which is called a GEOMETRY byte string and which is the inner
+  storage format of all geometries in MySQL.
   @param data_len number of bytes of the byte string refered by data.
+  @param has_srid whether data argument starts with an srid or not.
+  By default it's true, if false, data starts with WKB header, and caller
+  is responsible to specify an srid to this object later.
   @return Constructed geometry object.
  */
 Geometry *Geometry::construct(Geometry_buffer *buffer,
-                              const char *data, uint32 data_len)
+                              const char *data, uint32 data_len, bool has_srid)
 {
   uint32 geom_type;
   Geometry *result;
   wkbByteOrder bo;
   String wkb_le;
-
+  uint32 srid_sz= has_srid ? SRID_SIZE : 0;
   // Check the GEOMETRY byte string is valid, which would at least have an
   // SRID, a WKB header, and 4 more bytes for object count or Point
   // coordinate.
-  if (data_len < SRID_SIZE + WKB_HEADER_SIZE + 4)
+  if (data_len < srid_sz + WKB_HEADER_SIZE + 4)
     return NULL;
 
-  bo= ::get_byte_order(data + SRID_SIZE);
+  bo= ::get_byte_order(data + srid_sz);
 
   if (bo != Geometry::wkb_ndr)
   {
@@ -358,16 +386,16 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
   }
 
   /* + 1 to skip the byte order (stored in position SRID_SIZE). */
-  geom_type= uint4korr(data + SRID_SIZE + 1);
+  geom_type= uint4korr(data + srid_sz + 1);
   if (geom_type < wkb_first || geom_type > wkb_last ||
       !(result= create_by_typeid(buffer, (int) geom_type)))
     return NULL;
 
   uint32 srid= uint4korr(data);
   result->set_srid(srid);
-  result->set_data_ptr(data + SRID_SIZE + WKB_HEADER_SIZE,
-                       data_len - SRID_SIZE - WKB_HEADER_SIZE);
-  result->has_geom_header_space(true);
+  result->set_data_ptr(data + srid_sz + WKB_HEADER_SIZE,
+                       data_len - srid_sz - WKB_HEADER_SIZE);
+  result->has_geom_header_space(has_srid);
   if (result->get_geotype() == wkb_polygon)
     result->polygon_is_wkb_form(true);
 
@@ -3304,6 +3332,8 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
     collection_len= GEOM_HEADER_SIZE + 4;
     extra= GEOM_HEADER_SIZE;
     write_geometry_header(ptr, geo->get_srid(), wkb_geometrycollection, 0);
+    set_srid(geo->get_srid());
+    has_geom_header_space(true);
   }
 
   // Skip GEOMETRY header.
@@ -3355,6 +3385,8 @@ bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
     collection_len= GEOM_HEADER_SIZE + 4;
     extra= GEOM_HEADER_SIZE;
     write_geometry_header(ptr, srid, wkb_geometrycollection, 0);
+    set_srid(srid);
+    has_geom_header_space(true);
   }
   else if (srid != get_srid())
     return true;

@@ -12,10 +12,14 @@ SELECT @@session.session_track_system_variables;
 --echo
 
 --echo # via INFORMATION_SCHEMA.GLOBAL_VARIABLES
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME LIKE 'session_track%' ORDER BY VARIABLE_NAME;
+--enable_warnings
 
 --echo # via INFORMATION_SCHEMA.SESSION_VARIABLES
+--disable_warnings
 SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'session_track%' ORDER BY VARIABLE_NAME;
+--enable_warnings
 
 # Save the global value to be used to restore the original value.
 SET @global_saved_tmp =  @@global.session_track_system_variables;

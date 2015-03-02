@@ -28,6 +28,7 @@
 #include "sql_auth_cache.h"
 #include "sql_user_table.h"
 #include "sql_authentication.h"
+#include "current_thd.h"
 
 #include "tztime.h"
 #include "sql_time.h"
@@ -667,6 +668,29 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
   }
 
+  if (what_to_replace & ACCOUNT_LOCK_ATTR)
+  {
+    if (!old_row_exists ||
+        (old_row_exists && combo->alter_status.update_account_locked_column))
+    {
+      if (table->s->fields > MYSQL_USER_FIELD_ACCOUNT_LOCKED)
+      {
+        /*
+          Update the field for a new row and for the row that exists and the
+          update was enforced (ACCOUNT [UNLOCK|LOCK]).
+        */
+        table->field[MYSQL_USER_FIELD_ACCOUNT_LOCKED]->
+                      store(combo->alter_status.account_locked ? "Y" : "N", 1,
+                            system_charset_info);
+      }
+      else
+      {
+        my_error(ER_BAD_FIELD_ERROR, MYF(0), "account_locked", "mysql.user");
+        goto end;
+      }
+    }
+  }
+
   if (old_row_exists)
   {   
     /*
@@ -767,7 +791,7 @@ int replace_db_table(TABLE *table, const char *db,
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     DBUG_RETURN(-1);
   }
 
@@ -872,7 +896,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(user->host.str,user->user.str, FALSE))
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     DBUG_RETURN(-1);
   }
 
@@ -1201,8 +1225,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   */
   if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
-               MYF(0)); /* purecov: deadcode */
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));     /* purecov: deadcode */
     DBUG_RETURN(-1);                            /* purecov: deadcode */
   }
 

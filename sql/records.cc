@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_class.h"                          // THD
 #include "sql_select.h"          // JOIN_TAB
-
+#include "psi_memory_key.h"
 
 static int rr_quick(READ_RECORD *info);
 int rr_sequential(READ_RECORD *info);

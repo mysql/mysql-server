@@ -1,0 +1,167 @@
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+source include/have_innodb.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-r-batch-size': unsigned value");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+--enable_query_log
+
+--enable_connect_log
+SET @auto_commit= @@global.autocommit;
+SET @innodb_lock_wait_timeout_old=@@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout=1;
+SET @lock_wait_timeout_old=@@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout=1;
+SET @@global.autocommit=0;
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SET @wait= @@global.wait_timeout;
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "|");
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+			       "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+
+CREATE USER mysqltest1@localhost;
+COMMIT;
+connect (mysqltest1,localhost,mysqltest1,,);
+connection mysqltest1;
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c21 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+COMMIT;
+
+connection default;
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT @@global.daemon_memcached_r_batch_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.daemon_memcached_r_batch_size=100;
+
+connection mysqltest1;
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+COMMIT;
+connection default;
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11263" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results:\n";
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+--sorted_result
+SELECT c1,c2,c21 FROM test.t1;
+
+connection mysqltest1;
+--sorted_result
+SELECT c1,c2,c21 FROM t1 FOR UPDATE;
+ROLLBACK;
+
+connection default;
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11263" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results:\n";
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+--sorted_result
+SELECT c1,c2,c21 FROM test.t1;
+
+connection mysqltest1;
+
+# With latest checkin, the memcached plugin will automatically commit
+# transactions when the connection is closed. So we cannot test the
+# timeout with the memcached connection closed. If there are new ways
+# to test such, we can re-enable this
+#--error 1205
+SELECT c1,c2,c21 FROM test.t1 FOR UPDATE;
+ROLLBACK;
+
+connection default;
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11263" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results:\n";
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+--sorted_result
+SELECT c1,c2,c21 FROM test.t1;
+
+connection mysqltest1;
+--sorted_result
+SELECT c1,c2,c21 FROM t1 FOR UPDATE;
+DROP TABLE test.t1;
+COMMIT;
+
+connection default;
+disconnect mysqltest1;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+DROP USER mysqltest1@localhost;
+ 
+SET @@global.tx_isolation= @tx_isolation;
+SET  @@global.autocommit=@auto_commit;
+SET @@global.innodb_lock_wait_timeout=@innodb_lock_wait_timeout_old;
+SET @@global.lock_wait_timeout=@lock_wait_timeout_old;

@@ -44,5 +44,7 @@ bool setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 bool subquery_allows_materialization(Item_in_subselect *predicate,
                                      THD *thd, SELECT_LEX *select_lex,
                                      const SELECT_LEX *outer);
+bool validate_gc_assignment(THD * thd, List<Item> *fields,
+                            List<Item> *values, TABLE *tab);
 
 #endif /* SQL_RESOLVER_INCLUDED */

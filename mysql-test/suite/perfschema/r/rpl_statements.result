@@ -14,7 +14,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 *** Create test tables
 
-show variables like '%binlog_format%';
+show global variables like '%binlog_format%';
 Variable_name	Value
 binlog_format	MIXED
 drop table if exists test.marker;
@@ -58,7 +58,7 @@ Expect 1
 *** MASTER ***
 **************
 
-show variables like '%binlog_format%';
+show global variables like '%binlog_format%';
 Variable_name	Value
 binlog_format	MIXED
 *** Clear statement events

@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2007, 2015 Oracle and/or its affiliates. All rights reserved.
 # Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -107,7 +107,7 @@ sub create_process {
   my $input    = delete($opts{'input'});
   my $output   = delete($opts{'output'});
   my $error    = delete($opts{'error'});
-
+  my $pid_file = delete($opts{'pid_file'});
   my $open_mode= $opts{append} ? ">>" : ">";
 
   if ($^O eq "MSWin32"){
@@ -176,6 +176,14 @@ sub create_process {
     # Parent
     $pipe->reader();
     my $line= <$pipe>; # Wait for child to say it's ready
+    # if pid-file is defined, read process id from pid-file.
+    if ( defined $pid_file ) {
+      sleep 1 until -e $pid_file;
+      open FILE, $pid_file;
+      chomp(my $pid_val = <FILE>);
+      close FILE;
+      return $pid_val
+    }
     return $pid;
   }
 
@@ -206,13 +214,12 @@ sub create_process {
     }
   }
 
-  # Tell parent to continue
-  $pipe->writer();
-  print $pipe "ready\n";
-
   if ( !exec($path, @$args) ){
     croak("Failed to exec '$path': $!");
   }
+  # Tell parent to continue
+  $pipe->writer();
+  print $pipe "ready\n";
 
   croak("Should never come here");
 

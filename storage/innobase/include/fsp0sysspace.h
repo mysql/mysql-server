@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,6 +32,14 @@ Created 2013-7-26 by Kevin Lewis
 /** If the last data file is auto-extended, we add this many pages to it
 at a time. We have to make this public because it is a config variable. */
 extern ulong sys_tablespace_auto_extend_increment;
+
+#ifdef UNIV_DEBUG
+/** Control if extra debug checks need to be done for temporary tablespace.
+Default = true that is disable such checks.
+This variable is not exposed to end-user but still kept as variable for
+developer to enable it during debug. */
+extern bool srv_skip_temp_table_checks_debug;
+#endif /* UNIV_DEBUG */
 
 /** Data structure that contains the information about shared tablespaces.
 Currently this can be the system tablespace or a temporary table tablespace */
@@ -158,6 +166,11 @@ public:
 		lsn_t*	flush_lsn)
 		__attribute__((warn_unused_result));
 
+	/** Replace any records for this space_id in the Data Dictionary with
+	this name, flags & filepath..
+	@return DB_SUCCESS or error code */
+	dberr_t replace_in_dictionary();
+
 private:
 	/** Check the tablespace header for this tablespace.
 	@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN
@@ -262,7 +275,7 @@ extern SysTablespace srv_sys_space;
 /** The control info of a temporary table shared tablespace. */
 extern SysTablespace srv_tmp_space;
 
-/** Check if system-tablespace (shared + temp).
+/** Check if the space_id is for a system-tablespace (shared + temp).
 @param[in]	id	Space ID to check
 @return true if id is a system tablespace, false if not. */
 UNIV_INLINE

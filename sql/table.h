@@ -41,7 +41,7 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Table_cache_element;
 class Table_trigger_dispatcher;
-class select_union;
+class Query_result_union;
 class Temp_table_param;
 class Index_hint;
 struct Name_resolution_context;
@@ -607,9 +607,16 @@ struct TABLE_SHARE
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
+  /**
+    TABLE_SHARE version, if changed the TABLE_SHARE must be reopened.
+    NOTE: The TABLE_SHARE will not be reopened during LOCK TABLES in
+    close_thread_tables!!!
+  */
   ulong   version;
   ulong   mysql_version;		/* 0 if .frm is created before 5.0 */
   ulong   reclength;			/* Recordlength */
+  ulong   stored_rec_length;            /* Stored record length 
+                                           (no generated-only generated fields) */
 
   plugin_ref db_plugin;			/* storage engine plugin */
   inline handlerton *db_type() const	/* table_type for handler */
@@ -627,6 +634,8 @@ struct TABLE_SHARE
   enum_stats_auto_recalc stats_auto_recalc; /* Automatic recalc of stats. */
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
+  uint stored_fields;                   /* Number of stored fields 
+                                           (i.e. without generated-only ones) */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys;                            /* Number of keys defined for the table*/
   uint key_parts;                       /* Number of key parts of all keys
@@ -651,6 +660,7 @@ struct TABLE_SHARE
   uint error, open_errno, errarg;       /* error from open_table_def() */
   uint column_bitmap_size;
   uchar frm_version;
+  uint vfields;                         /* Number of generated fields */
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
@@ -678,14 +688,12 @@ struct TABLE_SHARE
   /* Name of the tablespace used for this table */
   char *tablespace;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */
   bool auto_partitioned;
   char *partition_info_str;
   uint  partition_info_str_len;
   uint  partition_info_buffer_size;
   handlerton *default_part_db_type;
-#endif
 
   /**
     Cache the checked structure of this table.
@@ -891,15 +899,9 @@ private:
   */
   bool truncated_value;
 public:
-  Blob_mem_storage() :truncated_value(false)
-  {
-    init_alloc_root(key_memory_blob_mem_storage,
-                    &storage, MAX_FIELD_VARCHARLENGTH, 0);
-  }
-  ~ Blob_mem_storage()
-  {
-    free_root(&storage, MYF(0));
-  }
+  Blob_mem_storage();
+  ~Blob_mem_storage();
+
   void reset()
   {
     free_root(&storage, MYF(MY_MARK_BLOCKS_FREE));
@@ -1041,6 +1043,7 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
+  Field **vfield;                       /* Pointer to generated fields*/
   Field *hash_field;                    /* Field used by unique constraint */
   Field *fts_doc_id_field;              /* Set if FTS_DOC_ID field is present */
 
@@ -1200,6 +1203,11 @@ public:
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  /**
+    This table must be reopened and is not to be reused.
+    NOTE: The TABLE will not be reopened during LOCK TABLES in
+    close_thread_tables!!!
+  */
   my_bool m_needs_reopen;
 private:
   bool created; /* For tmp tables. TRUE <=> tmp table has been instantiated.*/
@@ -1233,11 +1241,9 @@ public:
   Blob_mem_storage *blob_storage;
   GRANT_INFO grant;
   Filesort_info sort;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;            /* Partition related information */
   /* If true, all partitions have been pruned away */
   bool all_partitions_pruned_away;
-#endif
   MDL_ticket *mdl_ticket;
 
 private:
@@ -1259,6 +1265,8 @@ public:
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
   void mark_columns_per_binlog_row_image(void);
+  void mark_generated_columns(bool is_update);
+  bool is_field_dependent_on_generated_columns(uint field_index);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
   {
@@ -1531,6 +1539,8 @@ typedef struct st_lex_alter {
   bool update_password_expired_column;
   bool use_default_password_lifetime;
   uint16 expire_after_days;
+  bool update_account_locked_column;
+  bool account_locked;
 } LEX_ALTER;
 
 typedef struct	st_lex_user {
@@ -1711,9 +1721,6 @@ struct TABLE_LIST
   /// Allocate a buffer for inserted column values
   bool set_insert_values(MEM_ROOT *mem_root);
 
-  /// Replace specific error with a more general view-oriented error
-  void hide_view_error(THD *thd);
-
   TABLE_LIST *first_leaf_for_name_resolution();
   TABLE_LIST *last_leaf_for_name_resolution();
   bool is_leaf_for_name_resolution() const;
@@ -1876,6 +1883,30 @@ struct TABLE_LIST
   {
     DBUG_ASSERT(derived);
     return derived;
+  }
+
+  /// Set temporary name from underlying temporary table:
+  void set_name_temporary()
+  {
+    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    table_name= table->s->table_name.str;
+    table_name_length= table->s->table_name.length;
+    db= (char *)"";
+    db_length= 0;
+  }
+
+  /// Reset original name for temporary table.
+  void reset_name_temporary()
+  {
+    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT(db != view_db.str && table_name != view_name.str);
+    if (is_view())
+    {
+      db= view_db.str;
+      db_length= view_db.length;
+    }
+    table_name= view_name.str;
+    table_name_length= view_name.length;
   }
 
   /// Resolve a derived table or view reference
@@ -2063,15 +2094,13 @@ struct TABLE_LIST
   /* link in a global list of all queries tables */
   TABLE_LIST *next_global, **prev_global;
   const char *db, *table_name, *alias;
+  /*
+    Target tablespace name: When creating or altering tables, this
+    member points to the tablespace_name in the HA_CREATE_INFO struct.
+  */
+  LEX_CSTRING target_tablespace_name;
   char *schema_table_name;
   char *option;                /* Used by cache index  */
-  /**
-     Context which should be used to resolve identifiers contained in the ON
-     condition of the embedding join nest.
-     @todo When name resolution contexts are created after parsing, we should
-     be able to store this in the embedding join nest instead.
-  */
-  Name_resolution_context *context_of_embedding;
 
 private:
   /**
@@ -2134,10 +2163,10 @@ public:
   TABLE        *table;                          /* opened table */
   Table_id table_id; /* table id (from binlog) for opened table */
   /*
-    select_result for derived table to pass it from table creation to table
+    Query_result for derived table to pass it from table creation to table
     filling procedure
   */
-  select_union  *derived_result;
+  Query_result_union  *derived_result;
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:
@@ -2363,10 +2392,8 @@ public:
   /// if true, EXPLAIN can't explain view due to insufficient rights.
   bool view_no_explain;
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   /* List to carry partition names from PARTITION (...) clause in statement */
   List<String> *partition_names;
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   /// Set table number
   void set_tableno(uint tableno)
@@ -2716,6 +2743,41 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
+
+
+/**
+  Get the tablespace name from within an .FRM file.
+
+  This function will open the .FRM file for the given TABLE_LIST element
+  and find the tablespace name, if present.
+
+  @note The function does *not* consider errors. If the file is not present,
+        this does not raise an error. The reason is that this function will
+        be used for tables that may not exist, e.g. in the context of
+        'DROP TABLE IF EXISTS', which does not care whether the table
+        exists or not. If an error occurs, the function will return NULL.
+
+  @note The return value is a char pointer to the tablespace name. The
+        string is allocated in the memory root of the thd, and will be
+        freed implicitly.
+
+  @note When the tablespace name is written, there is no distinction between
+        a tablespace name which is empty, and the NULL string pointer. Thus,
+        when reading the name, we will always return a string of length 0 or
+        more, unless there is an error, in which case we will return NULL.
+
+  @note If the tablespace name is invalid, the name will be ignored, and the
+        function will return NULL.
+
+  @param thd    Thread context
+  @param table  Table for which to get the tablespace name
+
+  @return Pointer to string holding a valid tablespace name. If an error
+          occurs, the function returns NULL.
+ */
+
+const char *get_tablespace_name(THD *thd, const TABLE_LIST *table);
+
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
@@ -2802,6 +2864,9 @@ inline void mark_as_null_row(TABLE *table)
 }
 
 bool is_simple_order(ORDER *order);
+
+bool update_generated_write_fields(TABLE *table);
+bool update_generated_read_fields(TABLE *table);
 
 #endif /* MYSQL_CLIENT */
 

@@ -17,7 +17,7 @@ SET @saved_thread_cache_size = @@global.thread_cache_size;
 
 set global thread_cache_size = 0;
 
-show variables like "thread_cache_size";
+show global variables like "thread_cache_size";
 
 connect (con1, localhost, root, , );
 
@@ -91,7 +91,7 @@ select @thread_id_increment;
 
 set global thread_cache_size = 100;
 
-show variables like "thread_cache_size";
+show global variables like "thread_cache_size";
 
 connect (con1, localhost, root, , );
 
@@ -169,5 +169,5 @@ select @thread_id_increment;
 
 set global thread_cache_size = @saved_thread_cache_size;
 
-show status like "performance_schema_thread%";
+show global status like "performance_schema_thread%";
 

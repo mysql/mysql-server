@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
   Statement Digest data structures (declarations).
 */
 
-#include "my_md5.h"
 #include "pfs_column_types.h"
 #include "lf.h"
 #include "pfs_stat.h"
@@ -59,7 +58,7 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   ulonglong m_last_seen;
 
   /** Reset data for this record. */
-  void reset_data();
+  void reset_data(unsigned char* token_array, uint length);
   /** Reset data and remove index for this record. */
   void reset_index(PFS_thread *thread);
 };
@@ -67,7 +66,7 @@ struct PFS_ALIGNED PFS_statements_digest_stat
 int init_digest(const PFS_global_param *param);
 void cleanup_digest();
 
-int init_digest_hash(void);
+int init_digest_hash(const PFS_global_param *param);
 void cleanup_digest_hash(void);
 PFS_statement_stat* find_or_create_digest(PFS_thread *thread,
                                           const sql_digest_storage *digest_storage,
@@ -82,3 +81,4 @@ extern PFS_statements_digest_stat *statements_digest_stat_array;
 extern LF_HASH digest_hash;
 
 #endif
+	

@@ -530,8 +530,10 @@ select * from information_schema.OPTIMIZER_TRACE;
 drop view v1;
 
 # I_S tables
+--disable_warnings
 select * from information_schema.session_variables where
 VARIABLE_NAME="optimizer_trace";
+--enable_warnings
 select * from information_schema.OPTIMIZER_TRACE;
 
 # test that DUMPFILE does no escaping of \n

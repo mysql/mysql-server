@@ -25,16 +25,19 @@
 #include "my_bit.h"              // my_count_bits
 #include "auth_common.h"         // check_password_strength
 #include "binlog.h"              // mysql_bin_log
+#include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_cmpfunc.h"        // get_datetime_value
 #include "item_strfunc.h"        // Item_func_geohash
 #include <mysql/service_thd_wait.h>
 #include "parse_tree_helpers.h"  // PT_item_list
+#include "psi_memory_key.h"
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // msr_map
 #include "rpl_rli.h"             // Relay_log_info
 #include "sp.h"                  // sp_find_routine
 #include "sp_head.h"             // sp_name
+#include "sql_base.h"            // Internal_error_handler_holder
 #include "sql_class.h"           // THD
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
@@ -764,7 +767,7 @@ void Item_func::signal_divide_by_null()
   THD *thd= current_thd;
   if (thd->is_strict_mode())
     push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
-                 ER(ER_DIVISION_BY_ZERO));
+                 ER_THD(thd, ER_DIVISION_BY_ZERO));
   null_value= 1;
 }
 
@@ -774,7 +777,7 @@ void Item_func::signal_invalid_argument_for_log()
   THD *thd= current_thd;
   push_warning(thd, Sql_condition::SL_WARNING,
                ER_INVALID_ARGUMENT_FOR_LOGARITHM,
-               ER(ER_INVALID_ARGUMENT_FOR_LOGARITHM));
+               ER_THD(thd, ER_INVALID_ARGUMENT_FOR_LOGARITHM));
   null_value= TRUE;
 }
 
@@ -1335,7 +1338,8 @@ longlong Item_func_signed::val_int_from_str(int *error)
     ErrConvString err(res);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "INTEGER",
                         err.ptr());
   }
   return value;
@@ -1469,7 +1473,7 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 err:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WARN_DATA_OUT_OF_RANGE,
-                      ER(ER_WARN_DATA_OUT_OF_RANGE),
+                      ER_THD(current_thd, ER_WARN_DATA_OUT_OF_RANGE),
                       item_name.ptr(), 1L);
   return dec;
 }
@@ -3790,7 +3794,7 @@ longlong Item_func_validate_password_strength::val_int()
   String *field= args[0]->val_str(&value);
   if ((null_value= args[0]->null_value))
     return 0;
-  return (my_calculate_password_strength(field->ptr()));
+  return (my_calculate_password_strength(field->ptr(), field->length()));
 }
 
 
@@ -4210,7 +4214,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   if (error)
   {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
-             u_d->name.str, ER(ER_UNKNOWN_ERROR));
+             u_d->name.str, ER_THD(thd, ER_UNKNOWN_ERROR));
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
@@ -4594,22 +4598,14 @@ longlong Item_wait_for_executed_gtid_set::val_int()
   DBUG_ASSERT(fixed == 1);
   THD* thd= current_thd;
   String *gtid= args[0]->val_str(&value);
-  int result= 0;
 
   null_value= 0;
-
-  if (gtid_mode == 0)
-  {
-    my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
-    null_value= 1;
-    return result;
-  }
 
   if (gtid == NULL)
   {
     my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
     null_value= 1;
-    return result;
+    return 0;
   }
 
   // Since the function is independent of the slave threads we need to return
@@ -4617,13 +4613,26 @@ longlong Item_wait_for_executed_gtid_set::val_int()
   if (thd->slave_thread)
   {
     null_value= 1;
-    return result;
+    return 0;
   }
 
+  global_sid_lock->rdlock();
+  if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
+  {
+    global_sid_lock->unlock();
+    my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
+    null_value= 1;
+    return 0;
+  }
+  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_SID);
+  global_sid_lock->unlock();
+
   longlong timeout= (arg_count== 2) ? args[1]->val_int() : 0;
-  result= gtid_state->wait_for_gtid_set(thd, gtid, timeout);
+  int result= gtid_state->wait_for_gtid_set(thd, gtid, timeout);
   if (result == -1)
     null_value= 1;
+  gtid_state->end_gtid_wait();
+
   return result;
 }
 
@@ -4642,20 +4651,22 @@ bool Item_master_gtid_set_wait::itemize(Parse_context *pc, Item **res)
 longlong Item_master_gtid_set_wait::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  THD* thd = current_thd;
-  String *gtid= args[0]->val_str(&value);
+  DBUG_ENTER("Item_master_gtid_set_wait::val_int");
   int event_count= 0;
 
   null_value=0;
-  if (thd->slave_thread || !gtid || 0 == gtid_mode)
-  {
-    null_value = 1;
-    return event_count;
-  }
 
 #if defined(HAVE_REPLICATION)
+  String *gtid= args[0]->val_str(&value);
+  THD* thd = current_thd;
   Master_info *mi= NULL;
   longlong timeout = (arg_count>= 2) ? args[1]->val_int() : 0;
+
+  if (thd->slave_thread || !gtid)
+  {
+    null_value = 1;
+    DBUG_RETURN(0);
+  }
 
   mysql_mutex_lock(&LOCK_msr_map);
 
@@ -4665,8 +4676,9 @@ longlong Item_master_gtid_set_wait::val_int()
     String *channel_str;
     if (!(channel_str= args[2]->val_str(&value)))
     {
+      mysql_mutex_unlock(&LOCK_msr_map);
       null_value= 1;
-      return 0;
+      DBUG_RETURN(0);
     }
     mi= msr_map.get_mi(channel_str->ptr());
   }
@@ -4674,20 +4686,29 @@ longlong Item_master_gtid_set_wait::val_int()
   {
     if (msr_map.get_num_instances() > 1)
     {
+      mysql_mutex_unlock(&LOCK_msr_map);
       mi = NULL;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+      DBUG_RETURN(0);
     }
     else
       mi= msr_map.get_mi(msr_map.get_default_channel());
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+  {
+    null_value= 1;
+    mysql_mutex_unlock(&LOCK_msr_map);
+    DBUG_RETURN(0);
+  }
+  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_MSR_MAP);
 
+  mysql_mutex_unlock(&LOCK_msr_map);
 
   if (mi && mi->rli)
   {
-    if ((event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout))
-         == -2)
+    event_count = mi->rli->wait_for_gtid_set(thd, gtid, timeout);
+    if (event_count == -2)
     {
       null_value = 1;
       event_count=0;
@@ -4700,7 +4721,9 @@ longlong Item_master_gtid_set_wait::val_int()
     null_value = 1;
 #endif
 
-  return event_count;
+  gtid_state->end_gtid_wait();
+
+  DBUG_RETURN(event_count);
 }
 
 /**
@@ -5448,7 +5471,8 @@ longlong Item_func_benchmark::val_int()
       char buff[22];
       llstr(((longlong) loop_count), buff);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                          ER_WRONG_VALUE_FOR_TYPE,
+                          ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
                           "count", buff, "benchmark");
     }
 
@@ -5585,7 +5609,7 @@ longlong Item_func_sleep::val_int()
     }
     else
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          ER(ER_WRONG_ARGUMENTS), "sleep.");
+                          ER_THD(thd, ER_WRONG_ARGUMENTS), "sleep.");
   }
   /*
     On 64-bit OSX mysql_cond_timedwait() waits forever
@@ -5604,9 +5628,7 @@ longlong Item_func_sleep::val_int()
   mysql_cond_init(key_item_func_sleep_cond, &cond);
   mysql_mutex_lock(&LOCK_item_func_sleep);
 
-  THD_STAGE_INFO(thd, stage_user_sleep);
-  thd->mysys_var->current_mutex= &LOCK_item_func_sleep;
-  thd->mysys_var->current_cond=  &cond;
+  thd->ENTER_COND(&cond, &LOCK_item_func_sleep, &stage_user_sleep, NULL);
 
   error= 0;
   thd_wait_begin(thd, THD_WAIT_SLEEP);
@@ -5619,10 +5641,7 @@ longlong Item_func_sleep::val_int()
   }
   thd_wait_end(thd);
   mysql_mutex_unlock(&LOCK_item_func_sleep);
-  mysql_mutex_lock(&thd->mysys_var->mutex);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond=  0;
-  mysql_mutex_unlock(&thd->mysys_var->mutex);
+  thd->EXIT_COND(NULL);
 
   mysql_cond_destroy(&cond);
 
@@ -6824,7 +6843,7 @@ void Item_func_get_system_var::fix_length_and_dec()
   maybe_null= TRUE;
   max_length= 0;
 
-  if (var->check_type(var_type))
+  if (!var->check_scope(var_type))
   {
     if (var_type != OPT_DEFAULT)
     {
@@ -7451,19 +7470,25 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   table_ref= ((Item_field *)item)->table_ref;
-  if (!(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT))
-  {
-    my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
-    return 1;
-  }
 
   /*
     Here we make an assumption that if the engine supports
     fulltext extension(HA_CAN_FULLTEXT_EXT flag) then table
     can have FTS_DOC_ID column. Atm this is the only way
     to distinguish MyISAM and InnoDB engines.
+    Generally table_ref should be available, but in case of
+    a generated column's generation expression it's not. Thus
+    we use field's table, at this moment it's already available.
   */
-  TABLE *const table= table_ref->table;
+  TABLE *const table= table_ref ?
+    table_ref->table :
+    ((Item_field *)item)->field->table;
+
+  if (!(table->file->ha_table_flags() & HA_CAN_FULLTEXT))
+  {
+    my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
+    return 1;
+  }
 
   if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT))
   {
@@ -7481,7 +7506,10 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       is made later by JOIN::fts_index_access() function.
     */
     else
+    {
       table->no_keyread= true;
+      cleanup_table_ref= true;
+    }
   }
   else
   {
@@ -7597,8 +7625,7 @@ err:
     key=NO_SUCH_KEY;
     return 0;
   }
-  my_message(ER_FT_MATCHING_KEY_NOT_FOUND,
-             ER(ER_FT_MATCHING_KEY_NOT_FOUND), MYF(0));
+  my_error(ER_FT_MATCHING_KEY_NOT_FOUND, MYF(0));
   return 1;
 }
 
@@ -7941,11 +7968,13 @@ Item_func_sp::init_result_field(THD *thd)
   DBUG_ASSERT(m_sp == NULL);
   DBUG_ASSERT(sp_result_field == NULL);
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
   if (!(m_sp= sp_find_routine(thd, SP_TYPE_FUNCTION, m_name,
                                &thd->sp_func_cache, TRUE)))
   {
     my_missing_function_error (m_name->m_name, m_name->m_qname.str);
-    context->process_error(thd);
     DBUG_RETURN(TRUE);
   }
 
@@ -8039,13 +8068,15 @@ bool
 Item_func_sp::execute()
 {
   THD *thd= current_thd;
-  
+
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
   /* Execute function and store the return value in the field. */
 
   if (execute_impl(thd))
   {
     null_value= 1;
-    context->process_error(thd);
     if (thd->killed)
       thd->send_kill_message();
     return TRUE;
@@ -8224,7 +8255,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  /* 
+  /*
     Checking privileges to execute the function while creating view and
     executing the function of select.
    */
@@ -8240,13 +8271,17 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     /*
       Check whether user has execute privilege or not
      */
+
+    Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+      view_handler(thd, context->view_error_handler,
+                   context->view_error_handler_arg);
+
     res= check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
                               m_name->m_name.str, 0, FALSE);
     thd->set_security_context(save_security_ctx);
 
     if (res)
     {
-      context->process_error(thd);
       DBUG_RETURN(res);
     }
   }

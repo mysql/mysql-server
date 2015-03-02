@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -496,7 +496,7 @@ void cleanup_table_share_index_stat();
 PFS_table_share_index* create_table_share_index_stat(const TABLE_SHARE *share, uint index);
 void release_table_share_index_stat(PFS_table_share_index *pfs);
 
-int init_table_share_hash();
+int init_table_share_hash(const PFS_global_param *param);
 void cleanup_table_share_hash();
 int init_file_class(uint file_class_sizing);
 void cleanup_file_class();
@@ -595,13 +595,6 @@ extern ulong socket_class_max;
 extern ulong socket_class_lost;
 extern ulong memory_class_max;
 extern ulong memory_class_lost;
-extern ulong table_share_max;
-extern ulong table_share_lost;
-
-extern ulong table_share_lock_stat_max;
-extern ulong table_share_lock_stat_lost;
-extern ulong table_share_index_stat_max;
-extern ulong table_share_index_stat_lost;
 
 /* Exposing the data directly, for iterators. */
 
@@ -609,9 +602,6 @@ extern PFS_mutex_class *mutex_class_array;
 extern PFS_rwlock_class *rwlock_class_array;
 extern PFS_cond_class *cond_class_array;
 extern PFS_file_class *file_class_array;
-extern PFS_table_share *table_share_array;
-extern PFS_table_share_lock *table_share_lock_stat_array;
-extern PFS_table_share_index *table_share_index_stat_array;
 
 void reset_events_waits_by_class();
 void reset_file_class_io();

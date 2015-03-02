@@ -19,6 +19,7 @@
 #include "mysql.h"           // IS_NUM
 #include "aggregate_check.h" // Distinct_check
 #include "auth_common.h"     // get_column_grant
+#include "current_thd.h"
 #include "item_cmpfunc.h"    // COND_EQUAL
 #include "item_create.h"     // create_temporal_literal
 #include "item_func.h"       // item_func_sleep_init
@@ -341,7 +342,8 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
     ErrConvString err(res);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "DECIMAL",
                         err.ptr());
   }
   return decimal_value;
@@ -1047,7 +1049,6 @@ bool Item_field::mark_field_in_map(uchar *arg)
   return false;
 }
 
-
 /**
   Check privileges of base table column
 */
@@ -1058,11 +1059,13 @@ bool Item_field::check_column_privileges(uchar *arg)
 
   THD *thd= (THD *)arg;
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
   if (check_column_grant_in_table_ref(thd, cached_table,
                                       field_name, strlen(field_name),
                                       thd->want_privilege))
   {
-    context->process_error(thd);
     return true;
   }
 #endif
@@ -1080,11 +1083,14 @@ bool Item_direct_view_ref::check_column_privileges(uchar *arg)
 
   THD *thd= (THD *)arg;
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
+
   if (check_column_grant_in_table_ref(thd, cached_table,
                                       field_name, strlen(field_name),
                                       thd->want_privilege))
   {
-    context->process_error(thd);
     return true;
   }
 #endif
@@ -1153,11 +1159,13 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
     ErrConvString tmp(str_arg, static_cast<uint>(length_arg), cs_arg);
     if (length() == 0)
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_NAME_BECOMES_EMPTY, ER(ER_NAME_BECOMES_EMPTY),
+                          ER_NAME_BECOMES_EMPTY,
+                          ER_THD(current_thd, ER_NAME_BECOMES_EMPTY),
                           tmp.ptr());
     else
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_REMOVED_SPACES, ER(ER_REMOVED_SPACES),
+                          ER_REMOVED_SPACES,
+                          ER_THD(current_thd, ER_REMOVED_SPACES),
                           tmp.ptr());
   }
 }
@@ -3445,7 +3453,8 @@ double_from_string_with_check (const CHARSET_INFO *cs,
     ErrConvString err(cptr, org_end - cptr, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "DOUBLE",
                         err.ptr());
   }
   return tmp;
@@ -3480,7 +3489,8 @@ longlong_from_string_with_check (const CHARSET_INFO *cs,
     ErrConvString err(cptr, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "INTEGER",
                         err.ptr());
   }
   return tmp;
@@ -3719,10 +3729,11 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
 
   if (check_datetime_range(&value.time))
   {
-    make_truncated_value_warning(ErrConvString(&value.time,
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(&value.time,
                                                MY_MIN(decimals,
                                                       DATETIME_MAX_DECIMALS)),
-                                 time_type);
+                                 time_type, NullS);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 
@@ -4861,7 +4872,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
     uint sel_nr= (last->select_number < INT_MAX) ? last->select_number :
                   last->master_unit()->first_select()->select_number;
     push_warning_printf(thd, Sql_condition::SL_NOTE,
-		 ER_WARN_FIELD_RESOLVED, ER(ER_WARN_FIELD_RESOLVED),
+		 ER_WARN_FIELD_RESOLVED, ER_THD(thd, ER_WARN_FIELD_RESOLVED),
                  db_name, (db_name[0] ? "." : ""),
                  table_name, (table_name [0] ? "." : ""),
                  resolved_item->field_name,
@@ -5133,8 +5144,8 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     {
       ambiguous_fields= TRUE;
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
-                          ER(ER_NON_UNIQ_ERROR), ref->full_name(),
-                          current_thd->where);
+                          ER_THD(thd, ER_NON_UNIQ_ERROR), ref->full_name(),
+                          thd->where);
 
     }
   }
@@ -5522,6 +5533,10 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   Field *from_field= (Field *)not_found_field;
   bool outer_fixed= false;
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
+
   if (!field)					// If field is not checked
   {
     /*
@@ -5675,7 +5690,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   else if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
     TABLE *table= field->table;
-    MY_BITMAP *current_bitmap, *other_bitmap;
+    MY_BITMAP *current_bitmap;
+    MY_BITMAP *other_bitmap __attribute__((unused));
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
     {
       current_bitmap= table->read_set;
@@ -5724,7 +5740,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   return false;
 
 error:
-  context->process_error(thd);
   return true;
 }
 
@@ -6077,7 +6092,8 @@ String *Item::check_well_formed_result(String *str, bool send_error)
     }
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_INVALID_CHARACTER_STRING,
-                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
+                        ER_THD(thd, ER_INVALID_CHARACTER_STRING),
+                        cs->csname, hexbuf);
   }
   return str;
 }
@@ -7429,6 +7445,10 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   DBUG_ASSERT(fixed == 0);
   SELECT_LEX *current_sel= thd->lex->current_select();
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
+
   if (!ref || ref == not_found_item)
   {
     if (!(ref= resolve_ref_in_select_and_group(thd, this,
@@ -7653,7 +7673,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   return FALSE;
 
 error:
-  context->process_error(thd);
   return TRUE;
 }
 
@@ -8124,7 +8143,7 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   DBUG_ASSERT(*ref);
   /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
   if (!(*ref)->fixed && ((*ref)->fix_fields(thd, ref)))
-    return true;
+    return true;                     /* purecov: inspected */
 
   return Item_direct_ref::fix_fields(thd, reference);
 }
@@ -8246,6 +8265,9 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   Field *def_field;
   DBUG_ASSERT(fixed == 0);
 
+  Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+    view_handler(thd, context->view_error_handler,
+                 context->view_error_handler_arg);
   if (!arg)
   {
     fixed= 1;
@@ -8282,7 +8304,6 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   return FALSE;
 
 error:
-  context->process_error(thd);
   return TRUE;
 }
 
@@ -8310,18 +8331,17 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
     {
       if (field_arg->reset())
       {
-        my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-                   ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+        my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
         return TYPE_ERR_BAD_VALUE;
       }
 
-      if (context->error_processor == &view_error_processor)
+      if (context->view_error_handler)
       {
         TABLE_LIST *view= cached_table->top_table();
         push_warning_printf(field_arg->table->in_use,
                             Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
-                            ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
+                            ER_THD(field_arg->table->in_use, ER_NO_DEFAULT_FOR_VIEW_FIELD),
                             view->view_db.str,
                             view->view_name.str);
       }
@@ -8330,7 +8350,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
         push_warning_printf(field_arg->table->in_use,
                             Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_FIELD,
-                            ER(ER_NO_DEFAULT_FOR_FIELD),
+                            ER_THD(field_arg->table->in_use, ER_NO_DEFAULT_FOR_FIELD),
                             field_arg->field_name);
       }
       return TYPE_ERR_BAD_VALUE;
@@ -9800,21 +9820,24 @@ void Item_type_holder::get_full_info(Item *item)
     if (item->type() == Item::SUM_FUNC_ITEM &&
         (((Item_sum*)item)->sum_func() == Item_sum::MAX_FUNC ||
          ((Item_sum*)item)->sum_func() == Item_sum::MIN_FUNC))
-      item = ((Item_sum*)item)->get_arg(0);
+      item = (down_cast<Item_sum*>(item))->get_arg(0);
     /*
       We can have enum/set type after merging only if we have one enum|set
       field (or MIN|MAX(enum|set field)) and number of NULL fields
     */
-    DBUG_ASSERT((enum_set_typelib &&
-                 get_real_type(item) == MYSQL_TYPE_NULL) ||
-                (!enum_set_typelib &&
-                 item->type() == Item::FIELD_ITEM &&
-                 (get_real_type(item) == MYSQL_TYPE_ENUM ||
-                  get_real_type(item) == MYSQL_TYPE_SET) &&
-                 ((Field_enum*)((Item_field *) item)->field)->typelib));
-    if (!enum_set_typelib)
+    if (enum_set_typelib)
     {
-      enum_set_typelib= ((Field_enum*)((Item_field *) item)->field)->typelib;
+      DBUG_ASSERT(get_real_type(item) == MYSQL_TYPE_NULL);
+    }
+    else
+    {
+      Item *real_item= item->real_item();
+      Item_field *item_field= down_cast<Item_field*>(real_item);
+      Field_enum *field_enum= down_cast<Field_enum*>(item_field->field);
+      DBUG_ASSERT((get_real_type(item) == MYSQL_TYPE_ENUM ||
+                   get_real_type(item) == MYSQL_TYPE_SET) &&
+                  field_enum->typelib);
+      enum_set_typelib= field_enum->typelib;
     }
   }
 }
@@ -9851,29 +9874,6 @@ void Item_result_field::cleanup()
   Item::cleanup();
   result_field= 0;
   DBUG_VOID_RETURN;
-}
-
-/**
-  Dummy error processor used by default by Name_resolution_context.
-
-  @note
-    do nothing
-*/
-
-void dummy_error_processor(THD *thd, void *data)
-{}
-
-/**
-  Wrapper of hide_view_error call for Name_resolution_context error
-  processor.
-
-  @note
-    hide view underlying tables details in error messages
-*/
-
-void view_error_processor(THD *thd, void *data)
-{
-  ((TABLE_LIST *)data)->hide_view_error(thd);
 }
 
 

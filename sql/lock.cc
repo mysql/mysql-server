@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,6 +77,7 @@
 #include "lock.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_parse.h"                     // is_log_table_write_query
+#include "psi_memory_key.h"
 #include "auth_common.h"                   // SUPER_ACL
 #include <hash.h>
 #include <assert.h>
@@ -769,8 +770,7 @@ bool lock_schema_name(THD *thd, const char *db)
 
   if (thd->locked_tables_mode)
   {
-    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     return TRUE;
   }
 
@@ -791,6 +791,58 @@ bool lock_schema_name(THD *thd, const char *db)
 
   DEBUG_SYNC(thd, "after_wait_locked_schema_name");
   return FALSE;
+}
+
+
+/**
+  Obtain an exclusive metadata lock on a tablespace name.
+
+  @param thd         Thread handle.
+  @param tablespace  The tablespace name.
+
+  This function cannot be called while holding the LOCK_open mutex.
+  To avoid deadlocks, we do not try to obtain exclusive metadata
+  locks in LOCK TABLES mode, since in this mode there may be
+  other metadata locks already taken by the current connection,
+  and we must not wait for MDL locks while holding locks.
+
+  @retval false  Success.
+  @retval true   Failure: we're in LOCK TABLES mode, out of memory,
+                 connection was killed, or numerous other reasons.
+*/
+
+bool lock_tablespace_name(THD *thd, const char *tablespace)
+{
+  MDL_request_list mdl_requests;
+  MDL_request global_request;
+  MDL_request mdl_request;
+
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    return true;
+  }
+
+  if (thd->global_read_lock.can_acquire_protection())
+    return true;
+
+  MDL_REQUEST_INIT(&global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_STATEMENT);
+
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TABLESPACE, "", tablespace,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+  mdl_requests.push_front(&mdl_request);
+  mdl_requests.push_front(&global_request);
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    return true;
+
+  DEBUG_SYNC(thd, "after_wait_locked_tablespace_name");
+  return false;
 }
 
 
@@ -825,8 +877,7 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
 
   if (thd->locked_tables_mode)
   {
-    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     return TRUE;
   }
 

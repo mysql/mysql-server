@@ -164,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -303,6 +303,7 @@ my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
+my $daemonize_mysqld= 0;
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
@@ -1865,6 +1866,7 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
+  mtr_add_arg($args, "--secure-file-priv=\"\"");
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
@@ -1960,7 +1962,7 @@ sub collect_mysqld_features_from_running_server ()
   }
 
   mtr_add_arg($args, "--silent"); # Tab separated output
-  mtr_add_arg($args, "-e '%s'", "use mysql; SHOW VARIABLES");
+  mtr_add_arg($args, "-e '%s'", "use mysql; SHOW GLOBAL VARIABLES");
   my $cmd= "$mysql " . join(' ', @$args);
   mtr_verbose("cmd: $cmd");
 
@@ -3581,6 +3583,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
+  mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
   mtr_add_arg($args, "--innodb-log-file-size=5M");
   mtr_add_arg($args, "--core-file");
   # overwrite innodb_autoextend_increment to 8 for reducing the ibdata1 file size
@@ -5451,6 +5454,11 @@ sub mysqld_arguments ($$$) {
       # We can get an empty argument when  we set environment variables to ""
       # (e.g plugin not found). Just skip it.
     }
+    elsif ($arg eq "--daemonize")
+    {
+      $mysqld->{'daemonize'}= 1;
+      mtr_add_arg($args, "%s", $arg);
+    }
     else
     {
       mtr_add_arg($args, "%s", $arg);
@@ -5492,6 +5500,13 @@ sub mysqld_start ($$) {
     strace_server_arguments($args, \$exe, $mysqld->name());
   }
 
+  foreach my $arg (@$extra_opts)
+  {
+    if ($arg eq "--daemonize")
+    {
+      $daemonize_mysqld= 1;
+    }
+  }
 
   if ( $opt_valgrind_mysqld )
   {
@@ -5575,6 +5590,8 @@ sub mysqld_start ($$) {
        host          => undef,
        shutdown      => sub { mysqld_stop($mysqld) },
        envs          => \@opt_mysqld_envs,
+       pid_file      => $mysqld->value('pid-file'),
+       daemon_mode   => $mysqld->{'daemonize'}
       );
     mtr_verbose("Started $mysqld->{proc}");
   }
@@ -6582,7 +6599,14 @@ sub valgrind_arguments {
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--leak-check=yes");
+    if($daemonize_mysqld)
+    {
+      mtr_add_arg($args, "--leak-check=no");
+    }
+    else
+    {
+      mtr_add_arg($args, "--leak-check=yes");
+    }
     mtr_add_arg($args, "--num-callers=16");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
       if -f "$glob_mysql_test_dir/valgrind.supp";

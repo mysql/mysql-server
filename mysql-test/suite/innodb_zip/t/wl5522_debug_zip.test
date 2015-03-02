@@ -21,14 +21,10 @@
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $innodb_file_format = `SELECT @@innodb_file_format`;
 let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
 
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
@@ -133,9 +129,6 @@ DROP TABLE test_wl5522.t1;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
 
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
@@ -724,14 +717,14 @@ set global innodb_monitor_reset_all = default;
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace '.*' because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unsupported tablespace format");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test_wl5522/t1` because it could not be opened.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges_insert is already enabled");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded.");
 --enable_query_log
 
 #cleanup
@@ -739,5 +732,3 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges_insert is al
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
-eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
-eval SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;

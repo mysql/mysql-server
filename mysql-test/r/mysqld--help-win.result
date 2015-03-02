@@ -217,7 +217,7 @@ The following options may be given as the first argument:
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
  key (if it has one) near the closing bracket
- --enforce-gtid-consistency 
+ --enforce-gtid-consistency[=name] 
  Prevents execution of statements that would be impossible
  to log in a transactionally safe manner. Currently, the
  disallowed statements include CREATE TEMPORARY TABLE
@@ -277,8 +277,22 @@ The following options may be given as the first argument:
  gtid_executed_compression_period transactions, as a
  special case, if variable is 0, the thread never wakes up
  to compress the gtid_executed table.
- --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
- enabled. Can be ON or OFF.
+ --gtid-mode=name    Controls whether Global Transaction Identifiers (GTIDs)
+ are enabled. Can be OFF, OFF_PERMISSIVE, ON_PERMISSIVE,
+ or ON. OFF means that no transaction has a GTID.
+ OFF_PERMISSIVE means that new transactions (committed in
+ a client session using GTID_NEXT='AUTOMATIC') are not
+ assigned any GTID, and replicated transactions are
+ allowed to have or not have a GTID. ON_PERMISSIVE means
+ that new transactions are assigned a GTID, and replicated
+ transactions are allowed to have or not have a GTID. ON
+ means that all transactions have a GTID. ON is required
+ on a master before any slave can use
+ MASTER_AUTO_POSITION=1. To safely switch from OFF to ON,
+ first set all servers to OFF_PERMISSIVE, then set all
+ servers to ON_PERMISSIVE, then wait for all transactions
+ without a GTID to be replicated and executed on all
+ servers, and finally set all servers to GTID_MODE = ON.
  -?, --help          Display this help and exit.
  --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 
@@ -459,6 +473,8 @@ The following options may be given as the first argument:
  INSERT DELAYED statements. If set to zero INSERT DELAYED
  will be not used. This variable is deprecated along with
  INSERT DELAYED.
+ --max-digest-length=# 
+ Maximum length considered for digest text.
  --max-error-count=# Max number of errors/warnings to store for a statement
  --max-heap-table-size=# 
  Don't allow creation of heap tables bigger than this
@@ -601,7 +617,7 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-performance-schema to disable.)
  --performance-schema-accounts-size=# 
  Maximum number of instrumented user@host accounts. Use 0
- to disable, -1 for automated sizing.
+ to disable, -1 for automated scaling.
  --performance-schema-consumer-events-stages-current 
  Default startup value for the events_stages_current
  consumer.
@@ -618,6 +634,7 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-statements-history 
  Default startup value for the events_statements_history
  consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-statements-history to disable.)
  --performance-schema-consumer-events-statements-history-long 
  Default startup value for the
  events_statements_history_long consumer.
@@ -628,6 +645,7 @@ The following options may be given as the first argument:
  --performance-schema-consumer-events-transactions-history 
  Default startup value for the events_transactions_history
  consumer.
+ (Defaults to on; use --skip-performance-schema-consumer-events-transactions-history to disable.)
  --performance-schema-consumer-events-transactions-history-long 
  Default startup value for the
  events_transactions_history_long consumer.
@@ -680,7 +698,7 @@ The following options may be given as the first argument:
  to disable, -1 for automated sizing.
  --performance-schema-hosts-size=# 
  Maximum number of instrumented hosts. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-instrument[=name] 
  Default startup value for a performance schema
  instrument.
@@ -688,43 +706,45 @@ The following options may be given as the first argument:
  Maximum number of condition instruments.
  --performance-schema-max-cond-instances=# 
  Maximum number of instrumented condition objects. Use 0
- to disable, -1 for automated sizing.
+ to disable, -1 for automated scaling.
  --performance-schema-max-file-classes=# 
  Maximum number of file instruments.
  --performance-schema-max-file-handles=# 
  Maximum number of opened instrumented files.
  --performance-schema-max-file-instances=# 
  Maximum number of instrumented files. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-max-index-stat=# 
  Maximum number of index statistics for instrumented
- tables. Use 0 to disable, -1 for automated sizing.
+ tables. Use 0 to disable, -1 for automated scaling.
  --performance-schema-max-memory-classes=# 
  Maximum number of memory pool instruments.
  --performance-schema-max-metadata-locks=# 
  Maximum number of metadata locks. Use 0 to disable, -1
- for automated sizing.
+ for automated scaling.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
  Maximum number of instrumented MUTEX objects. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-prepared-statements-instances=# 
  Maximum number of instrumented prepared statements. Use 0
- to disable, -1 for automated sizing.
+ to disable, -1 for automated scaling.
  --performance-schema-max-program-instances=# 
  Maximum number of instrumented programs. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-rwlock-classes=# 
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
  Maximum number of instrumented RWLOCK objects. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-socket-classes=# 
  Maximum number of socket instruments.
  --performance-schema-max-socket-instances=# 
  Maximum number of opened instrumented sockets. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
+ --performance-schema-max-sql-text-length=# 
+ Maximum length of displayed sql text.
  --performance-schema-max-stage-classes=# 
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
@@ -733,28 +753,30 @@ The following options may be given as the first argument:
  Number of rows per thread in EVENTS_STATEMENTS_CURRENT.
  --performance-schema-max-table-handles=# 
  Maximum number of opened instrumented tables. Use 0 to
- disable, -1 for automated sizing.
+ disable, -1 for automated scaling.
  --performance-schema-max-table-instances=# 
  Maximum number of instrumented tables. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-max-table-lock-stat=# 
  Maximum number of lock statistics for instrumented
- tables. Use 0 to disable, -1 for automated sizing.
+ tables. Use 0 to disable, -1 for automated scaling.
  --performance-schema-max-thread-classes=# 
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
  Maximum number of instrumented threads. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --performance-schema-session-connect-attrs-size=# 
  Size of session attribute string buffer per thread. Use 0
  to disable, -1 for automated sizing.
  --performance-schema-setup-actors-size=# 
- Maximum number of rows in SETUP_ACTORS.
+ Maximum number of rows in SETUP_ACTORS. Use 0 to disable,
+ -1 for automated scaling.
  --performance-schema-setup-objects-size=# 
- Maximum number of rows in SETUP_OBJECTS.
+ Maximum number of rows in SETUP_OBJECTS. Use 0 to
+ disable, -1 for automated scaling.
  --performance-schema-users-size=# 
  Maximum number of instrumented users. Use 0 to disable,
- -1 for automated sizing.
+ -1 for automated scaling.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -932,6 +954,10 @@ The following options may be given as the first argument:
  --shared-memory     Enable the shared memory
  --shared-memory-base-name=name 
  Base name of shared memory
+ --show-compatibility-56 
+ SHOW commands / INFORMATION_SCHEMA tables compatible with
+ MySQL 5.6
+ (Defaults to on; use --skip-show-compatibility-56 to disable.)
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1059,8 +1085,7 @@ The following options may be given as the first argument:
  -s, --symbolic-links 
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
- write to the file. Use 0 (default) to disable synchronous
- flushing
+ write to the file. Use 0 to disable synchronous flushing
  --sync-frm          Sync .frm files to disk on creation
  (Defaults to on; use --skip-sync-frm to disable.)
  --sync-master-info=# 
@@ -1143,7 +1168,7 @@ bind-address *
 binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
-binlog-error-action IGNORE_ERROR
+binlog-error-action ABORT_SERVER
 binlog-format STATEMENT
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0
@@ -1259,6 +1284,7 @@ max-binlog-stmt-cache-size 18446744073709547520
 max-connect-errors 100
 max-connections 151
 max-delayed-threads 20
+max-digest-length 1024
 max-error-count 64
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
@@ -1310,10 +1336,10 @@ performance-schema-consumer-events-stages-current FALSE
 performance-schema-consumer-events-stages-history FALSE
 performance-schema-consumer-events-stages-history-long FALSE
 performance-schema-consumer-events-statements-current TRUE
-performance-schema-consumer-events-statements-history FALSE
+performance-schema-consumer-events-statements-history TRUE
 performance-schema-consumer-events-statements-history-long FALSE
 performance-schema-consumer-events-transactions-current TRUE
-performance-schema-consumer-events-transactions-history FALSE
+performance-schema-consumer-events-transactions-history TRUE
 performance-schema-consumer-events-transactions-history-long FALSE
 performance-schema-consumer-events-waits-current FALSE
 performance-schema-consumer-events-waits-history FALSE
@@ -1343,11 +1369,12 @@ performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
-performance-schema-max-program-instances 5000
+performance-schema-max-program-instances -1
 performance-schema-max-rwlock-classes 40
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
+performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
 performance-schema-max-statement-classes 191
 performance-schema-max-statement-stack 10
@@ -1357,8 +1384,8 @@ performance-schema-max-table-lock-stat -1
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1
-performance-schema-setup-actors-size 100
-performance-schema-setup-objects-size 100
+performance-schema-setup-actors-size -1
+performance-schema-setup-objects-size -1
 performance-schema-users-size -1
 port ####
 port-open-timeout 0
@@ -1390,7 +1417,6 @@ report-user (No default value)
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
-secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
 session-track-gtids OFF
@@ -1399,6 +1425,7 @@ session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 shared-memory FALSE
 shared-memory-base-name MYSQL
+show-compatibility-56 TRUE
 show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
@@ -1412,7 +1439,7 @@ slave-checkpoint-period 300
 slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-max-allowed-packet 1073741824
-slave-net-timeout 3600
+slave-net-timeout 60
 slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
@@ -1430,7 +1457,7 @@ sporadic-binlog-dump-fail FALSE
 sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
 symbolic-links FALSE
-sync-binlog 0
+sync-binlog 1
 sync-frm TRUE
 sync-master-info 10000
 sync-relay-log 10000

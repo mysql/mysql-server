@@ -366,12 +366,21 @@ source include/assert.inc;
 --echo # after STOP SLAVE.
 --echo
 
-source include/stop_slave.inc;
-let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
-let $ps_value= query_get_value(select Received_Transaction_Set from performance_schema.replication_connection_status, Received_Transaction_Set, 1);
-let $assert_text= Value returned by SSS and PS table for Received_Transaction_Set should be same.;
-let $assert_cond= "$sss_value" = "$ps_value";
-source include/assert.inc;
+--source include/stop_slave.inc
+--let $old_ps_value= $ps_value
+--let $assert_text= Received_Transaction_Set should not have changed after STOP SLAVE
+--let $assert_cond= "$ps_value" = "$old_ps_value";
+--source include/assert.inc
+
+--echo
+--echo # Verify that the value for 'Received_Transaction_Set' is cleared
+--echo # after RESET SLAVE.
+--echo
+
+RESET SLAVE;
+--let $assert_cond= Received_Transaction_Set = "" FROM performance_schema.replication_connection_status
+--let $assert_text= Received_Transaction_Set should be empty after RESET SLAVE
+--source include/assert.inc
 
 source include/start_slave.inc;
 source include/rpl_end.inc;

@@ -18,30 +18,47 @@
 
 #include "my_global.h"
 
+#include "partition_element.h"       // partition_state
+
 class Alter_info;
 class Alter_table_ctx;
 class Field;
 class Item;
 class String;
 class handler;
+class partition_element;
 class partition_info;
 class THD;
 struct handlerton;
 struct TABLE;
+struct TABLE_SHARE;
 struct TABLE_LIST;
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct st_key KEY;
 typedef struct st_key_range key_range;
+typedef struct st_mysql_lex_string LEX_STRING;
 template <class T> class List;
 
 /* Flags for partition handlers */
-#define HA_CAN_PARTITION       (1 << 0) /* Partition support */
+/*
+  Removed HA_CAN_PARTITION (1 << 0) since if handlerton::partition_flags
+  is set, then it implies that it have partitioning support.
+*/
 #define HA_CAN_UPDATE_PARTITION_KEY (1 << 1)
 #define HA_CAN_PARTITION_UNIQUE (1 << 2)
 /* If the engine will use auto partitioning even when not defined. */
 #define HA_USE_AUTO_PARTITION (1 << 3)
+/**
+  The handler can exchange a partition with a non-partitioned table
+  of the same handlerton/engine.
+*/
+#define HA_CAN_EXCHANGE_PARTITION (1 << 4)
+/**
+  The handler can not use FOREIGN KEYS with partitioning
+*/
+#define HA_CANNOT_PARTITION_FK (1 << 5)
 
 #define NORMAL_PART_NAME 0
 #define TEMP_PART_NAME 1
@@ -67,22 +84,13 @@ typedef struct st_lock_param_type
 } ALTER_PARTITION_PARAM_TYPE;
 
 typedef struct {
-  longlong list_value;
-  uint32 partition_id;
-} LIST_PART_ENTRY;
-
-typedef struct {
   uint32 start_part;
   uint32 end_part;
 } part_id_range;
 
-struct st_partition_iter;
-#define NOT_A_PARTITION_ID UINT_MAX32
-
 bool is_partition_in_list(char *part_name, List<char> list_part_names);
 char *are_partitions_in_table(partition_info *new_part_info,
                               partition_info *old_part_info);
-handler *get_ha_partition(partition_info *part_info);
 int get_parts_for_update(const uchar *old_data, uchar *new_data,
                          const uchar *rec0, partition_info *part_info,
                          uint32 *old_part_id, uint32 *new_part_id,
@@ -125,134 +133,25 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
 bool check_part_func_fields(Field **ptr, bool ok_with_charsets);
 bool field_is_partition_charset(Field *field);
 Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs);
+/**
+  Append all fields in read_set to string
+
+  @param[in,out] str   String to append to.
+  @param[in]     row   Row to append.
+  @param[in]     table Table containing read_set and fields for the row.
+*/
+void append_row_to_str(String &str, const uchar *row, TABLE *table);
 void mem_alloc_error(size_t size);
 void truncate_partition_filename(char *path);
 
-/*
-  A "Get next" function for partition iterator.
-
-  SYNOPSIS
-    partition_iter_func()
-      part_iter  Partition iterator, you call only "iter.get_next(&iter)"
-
-  DESCRIPTION
-    Depending on whether partitions or sub-partitions are iterated, the
-    function returns next subpartition id/partition number. The sequence of
-    returned numbers is not ordered and may contain duplicates.
-
-    When the end of sequence is reached, NOT_A_PARTITION_ID is returned, and
-    the iterator resets itself (so next get_next() call will start to
-    enumerate the set all over again).
-
-  RETURN
-    NOT_A_PARTITION_ID if there are no more partitions.
-    [sub]partition_id  of the next partition
-*/
-
-typedef uint32 (*partition_iter_func)(st_partition_iter* part_iter);
-
-
-/*
-  Partition set iterator. Used to enumerate a set of [sub]partitions
-  obtained in partition interval analysis (see get_partitions_in_range_iter).
-
-  For the user, the only meaningful field is get_next, which may be used as
-  follows:
-             part_iterator.get_next(&part_iterator);
-
-  Initialization is done by any of the following calls:
-    - get_partitions_in_range_iter-type function call
-    - init_single_partition_iterator()
-    - init_all_partitions_iterator()
-  Cleanup is not needed.
-*/
-
-typedef struct st_partition_iter
-{
-  partition_iter_func get_next;
-  /*
-    Valid for "Interval mapping" in LIST partitioning: if true, let the
-    iterator also produce id of the partition that contains NULL value.
-  */
-  bool ret_null_part, ret_null_part_orig;
-  struct st_part_num_range
-  {
-    uint32 start;
-    uint32 cur;
-    uint32 end;
-  };
-
-  struct st_field_value_range
-  {
-    longlong start;
-    longlong cur;
-    longlong end;
-  };
-
-  union
-  {
-    struct st_part_num_range     part_nums;
-    struct st_field_value_range  field_vals;
-  };
-  partition_info *part_info;
-} PARTITION_ITERATOR;
-
-
-/*
-  Get an iterator for set of partitions that match given field-space interval
-
-  SYNOPSIS
-    get_partitions_in_range_iter()
-      part_info            Partitioning info
-      is_subpart
-      store_length_array   Length of fields packed in opt_range_key format
-      min_val              Left edge,  field value in opt_range_key format
-      max_val              Right edge, field value in opt_range_key format
-      min_len              Length of minimum value
-      max_len              Length of maximum value
-      flags                Some combination of NEAR_MIN, NEAR_MAX, NO_MIN_RANGE,
-                           NO_MAX_RANGE
-      part_iter            Iterator structure to be initialized
-
-  DESCRIPTION
-    Functions with this signature are used to perform "Partitioning Interval
-    Analysis". This analysis is applicable for any type of [sub]partitioning
-    by some function of a single fieldX. The idea is as follows:
-    Given an interval "const1 <=? fieldX <=? const2", find a set of partitions
-    that may contain records with value of fieldX within the given interval.
-
-    The min_val, max_val and flags parameters specify the interval.
-    The set of partitions is returned by initializing an iterator in *part_iter
-
-  NOTES
-    There are currently three functions of this type:
-     - get_part_iter_for_interval_via_walking
-     - get_part_iter_for_interval_cols_via_map
-     - get_part_iter_for_interval_via_mapping
-
-  RETURN
-    0 - No matching partitions, iterator not initialized
-    1 - Some partitions would match, iterator intialized for traversing them
-   -1 - All partitions would match, iterator not initialized
-*/
-
-typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
-                                            bool is_subpart,
-                                            uint32 *store_length_array,
-                                            uchar *min_val, uchar *max_val,
-                                            uint min_len, uint max_len,
-                                            uint flags,
-                                            PARTITION_ITERATOR *part_iter);
-
-#include "partition_info.h"
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-uint fast_alter_partition_table(THD *thd, TABLE *table,
+bool fast_alter_partition_table(THD *thd,
+                                TABLE *table,
                                 Alter_info *alter_info,
                                 HA_CREATE_INFO *create_info,
                                 TABLE_LIST *table_list,
                                 char *db,
-                                const char *table_name);
+                                const char *table_name,
+                                partition_info *new_part_info);
 bool set_part_state(Alter_info *alter_info,
                     partition_info *tab_part_info,
                     enum partition_state part_state,
@@ -263,7 +162,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
-                           bool *fast_alter_table);
+                           partition_info **new_part_info);
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options,
@@ -274,7 +173,6 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
                                 uint32 part_id);
 bool compare_partition_options(HA_CREATE_INFO *table_create_info,
                                partition_element *part_elem);
-#endif
 
 void create_partition_name(char *out, const char *in1,
                            const char *in2, uint name_variant,
@@ -282,10 +180,39 @@ void create_partition_name(char *out, const char *in1,
 void create_subpartition_name(char *out, const char *in1,
                               const char *in2, const char *in3,
                               uint name_variant);
-
 void set_field_ptr(Field **ptr, const uchar *new_buf, const uchar *old_buf);
 void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
                        const uchar *old_buf);
+/** Set up table for creating a partition.
+Copy info from partition to the table share so the created partition
+has the correct info.
+  @param thd               THD object
+  @param share             Table share to be updated.
+  @param info              Create info to be updated.
+  @param part_elem         partition_element containing the info.
+
+  @return    status
+    @retval  TRUE  Error
+    @retval  FALSE Success
+
+  @details
+    Set up
+    1) Comment on partition
+    2) MAX_ROWS, MIN_ROWS on partition
+    3) Index file name on partition
+    4) Data file name on partition
+*/
+bool set_up_table_before_create(THD *thd,
+                                TABLE_SHARE *share,
+                                const char *partition_name_with_path,
+                                HA_CREATE_INFO *info,
+                                partition_element *part_elem);
+
+enum enum_partition_keywords
+{
+  PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR,
+  PKW_COLUMNS, PKW_ALGORITHM
+};
 
 extern const LEX_STRING partition_keywords[];
 

@@ -233,6 +233,7 @@ enum mysql_user_table_field
   MYSQL_USER_FIELD_PASSWORD_EXPIRED,
   MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED,
   MYSQL_USER_FIELD_PASSWORD_LIFETIME,
+  MYSQL_USER_FIELD_ACCOUNT_LOCKED,
   MYSQL_USER_FIELD_COUNT
 };
 
@@ -265,6 +266,7 @@ bool acl_check_host(const char *host, const char *ip);
 #define RESOURCE_ATTR           8    /* ex: MAX_QUERIES_PER_HOUR.. */
 #define PASSWORD_EXPIRE_ATTR    16   /* update password expire col */
 #define ACCESS_RIGHTS_ATTR      32   /* update privileges */
+#define ACCOUNT_LOCK_ATTR       64   /* update account lock status */
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb);
@@ -353,11 +355,8 @@ get_cached_schema_access(GRANT_INTERNAL_INFO *grant_internal_info,
 
 bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
                      TABLE_LIST *first_table);
-bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
-bool update_precheck(THD *thd, TABLE_LIST *tables);
 bool delete_precheck(THD *thd, TABLE_LIST *tables);
-bool insert_precheck(THD *thd, TABLE_LIST *tables);
 bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
@@ -412,8 +411,6 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
                    bool no_errors)
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
-
-/* These was under the INNODB_COMPATIBILITY_HOOKS */
 
 bool check_global_access(THD *thd, ulong want_access);
 

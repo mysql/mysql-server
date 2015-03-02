@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ This file contains the implementation of error and warnings related
 #include "sql_error.h"
 #include "sp_rcontext.h"
 #include "log.h"          // sql_print_warning
+#include "current_thd.h"
 
 using std::min;
 using std::max;
@@ -426,7 +427,7 @@ void Diagnostics_area::set_eof_status(THD *thd)
 void Diagnostics_area::set_error_status(uint mysql_errno)
 {
   set_error_status(mysql_errno,
-                   ER(mysql_errno),
+                   ER_THD(current_thd, mysql_errno),
                    mysql_errno_to_sqlstate(mysql_errno));
 }
 

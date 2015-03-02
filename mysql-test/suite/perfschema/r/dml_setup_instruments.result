@@ -7,13 +7,13 @@ NAME	ENABLED	TIMED
 wait/synch/mutex/sql/Commit_order_manager::m_mutex	YES	YES
 wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state	YES	YES
 wait/synch/mutex/sql/Gtid_state	YES	YES
+wait/synch/mutex/sql/Gtid_state::gtid_executed::free_intervals_mutex	YES	YES
 wait/synch/mutex/sql/hash_filo::lock	YES	YES
 wait/synch/mutex/sql/key_mts_gaq_LOCK	YES	YES
 wait/synch/mutex/sql/key_mts_temp_table_LOCK	YES	YES
 wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
 wait/synch/mutex/sql/LOCK_compress_gtid_table	YES	YES
 wait/synch/mutex/sql/LOCK_connection_count	YES	YES
-wait/synch/mutex/sql/LOCK_crypt	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
@@ -23,12 +23,12 @@ wait/synch/rwlock/sql/Binlog_relay_IO_delegate::lock	YES	YES
 wait/synch/rwlock/sql/Binlog_storage_delegate::lock	YES	YES
 wait/synch/rwlock/sql/Binlog_transmit_delegate::lock	YES	YES
 wait/synch/rwlock/sql/gtid_commit_rollback	YES	YES
+wait/synch/rwlock/sql/gtid_mode_lock	YES	YES
 wait/synch/rwlock/sql/LOCK_dboptions	YES	YES
 wait/synch/rwlock/sql/LOCK_grant	YES	YES
 wait/synch/rwlock/sql/LOCK_system_variables_hash	YES	YES
 wait/synch/rwlock/sql/LOCK_sys_init_connect	YES	YES
 wait/synch/rwlock/sql/LOCK_sys_init_slave	YES	YES
-wait/synch/rwlock/sql/LOGGER::LOCK_logger	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Cond/sql/%'
   and name not in (

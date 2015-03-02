@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -159,29 +159,29 @@ static struct st_mysql_show_var simple_status[]=
 {
   { "Audit_null_called",
     (char *) &number_of_calls,
-    SHOW_INT },
+    SHOW_INT, SHOW_SCOPE_GLOBAL },
   { "Audit_null_general_log",
     (char *) &number_of_calls_general_log,
-    SHOW_INT },
+    SHOW_INT, SHOW_SCOPE_GLOBAL },
   { "Audit_null_general_error",
     (char *) &number_of_calls_general_error,
-    SHOW_INT },
+    SHOW_INT, SHOW_SCOPE_GLOBAL },
   { "Audit_null_general_result",
     (char *) &number_of_calls_general_result,
-    SHOW_INT },
+    SHOW_INT, SHOW_SCOPE_GLOBAL },
   { "Audit_null_general_status",
     (char *) &number_of_calls_general_status,
-    SHOW_INT },
+    SHOW_INT, SHOW_SCOPE_GLOBAL },
   { "Audit_null_connection_connect",
     (char *) &number_of_calls_connection_connect,
-    SHOW_INT },
+    SHOW_INT, SHOW_SCOPE_GLOBAL },
   { "Audit_null_connection_disconnect",
     (char *) &number_of_calls_connection_disconnect,
-    SHOW_INT },
+    SHOW_INT, SHOW_SCOPE_GLOBAL },
   { "Audit_null_connection_change_user",
     (char *) &number_of_calls_connection_change_user,
-    SHOW_INT },
-  { 0, 0, 0}
+    SHOW_INT, SHOW_SCOPE_GLOBAL },
+  { 0, 0, 0, SHOW_SCOPE_GLOBAL}
 };
 
 

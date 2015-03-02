@@ -60,6 +60,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
@@ -139,6 +140,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
@@ -190,6 +192,7 @@ authentication_string
 password_expired	N
 password_last_changed	DTVALUE
 password_lifetime	NULL
+account_locked	N
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
@@ -2736,8 +2739,6 @@ ERROR 1862 (HY000): Your password has expired. To log in you must change it usin
 # Doing something should fail
 SELECT 1;
 ERROR HY000: You must SET PASSWORD before executing this statement
-# Setting variables should work
-SET old_passwords=0;
 # Setting password should work
 ALTER USER wl7131 IDENTIFIED BY 'new_wl7131';
 # Doing something should pass

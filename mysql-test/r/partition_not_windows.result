@@ -11,6 +11,7 @@ partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'MYSQLTEST_VARDIR/tmp' INDEX 
 (SUBPARTITION subpart20, SUBPARTITION subpart21));
 # Checking if file exists after alter
 drop table t1;
+set innodb_strict_mode=off;
 Warnings:
 Warning	1618	<INDEX DIRECTORY> option ignored
 set @org_mode=@@sql_mode;

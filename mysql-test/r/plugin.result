@@ -33,9 +33,15 @@ ERROR HY000: Table storage engine for 't1' doesn't have this option
 DROP TABLE t1;
 set global example_ulong_var=500;
 set global example_enum_var= e1;
-show status like 'example%';
-Variable_name	Value
-example_func_example	enum_var is 0, ulong_var is 500, double_var is 8.500000, really
+select * from information_schema.global_status where variable_name like 'example%' order by variable_name;
+VARIABLE_NAME	VARIABLE_VALUE
+EXAMPLE_FUNC_EXAMPLE	enum_var is 0, ulong_var is 500, double_var is 8.500000, really
+EXAMPLE_STATUS_ARRAY_VAR1	100
+EXAMPLE_STATUS_ARRAY_VAR2	20.010000
+EXAMPLE_STATUS_VAR3	three hundred
+EXAMPLE_STATUS_VAR4	ON
+EXAMPLE_STATUS_VAR5	OFF
+EXAMPLE_STATUS_VAR6	8250
 show variables like 'example%';
 Variable_name	Value
 example_double_thdvar	8.500000
@@ -188,8 +194,6 @@ call p_install();;
 connection con1;
 COUNT(*)
 #
-Warnings:
-#	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 SET DEBUG_SYNC='RESET';
 connection default;
 ERROR HY000: Can't open shared library
@@ -211,9 +215,6 @@ ERROR HY000: Can't open shared library
 connection default;
 COUNT(*)
 #
-Warnings:
-#	1639	debug sync point wait timed out
-#	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 disconnect con2;
 # Case 18008907_3: Testing Concurrent "Show Variables" and "Plugin Uninstall" operations.
 INSTALL PLUGIN example SONAME 'ha_example.so';
@@ -228,8 +229,6 @@ SET DEBUG_SYNC='now SIGNAL go';
 connection con1;
 COUNT(*)
 #
-Warnings:
-#	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 connection con2;
 connection default;
 DROP PROCEDURE p_show_vars;

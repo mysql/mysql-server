@@ -1,0 +1,89 @@
+#
+# Test Auto increment generation and release of overbooked values.
+#
+call mtr.add_suppression(".Warning. Unsafe statement written .* = STATEMENT.");
+CREATE TABLE t1 (a SERIAL) ENGINE = InnoDB
+PARTITION BY KEY ALGORITHM = 1 () PARTITIONS 3;
+INSERT INTO t1 VALUES (10);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release";
+INSERT INTO t1 VALUES (3), (NULL), (4);
+# Con1
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (5);
+# Not really a bug, since no row has been assigned the number between
+# this and the next auto_inc value.
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+AUTO_INCREMENT
+14
+SET DEBUG_SYNC="now SIGNAL release";
+# Default
+# Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+AUTO_INCREMENT
+12
+# Test with generating an auto inc value in Con1
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES (10);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release";
+INSERT INTO t1 VALUES (3), (NULL), (4);
+# Con1
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (NULL);
+# Not really a bug, since no row has been assigned the number between
+# this and the next auto_inc value.
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+AUTO_INCREMENT
+15
+SET DEBUG_SYNC="now SIGNAL release";
+# Default
+# Reaping INSERT INTO t1 VALUES (3), (NULL), (4);
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+AUTO_INCREMENT
+15
+#
+# Test with INSERT SELECT
+#
+TRUNCATE TABLE t1;
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (10);
+INSERT INTO t2 VALUES (3), (NULL), (4);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release TIMEOUT 2";
+INSERT INTO t1 SELECT * FROM t2;
+# Con1
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (5);
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+AUTO_INCREMENT
+12
+SET DEBUG_SYNC="now SIGNAL release";
+# Default
+# Reaping: INSERT INTO t1 SELECT * FROM t2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+Warning	1639	debug sync point wait timed out
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+AUTO_INCREMENT
+12
+# Test with generating an auto inc value in Con1
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES (10);
+SET DEBUG_SYNC="release_auto_increment SIGNAL auto_inc_held WAIT_FOR release TIMEOUT 2";
+INSERT INTO t1 SELECT * FROM t2;
+# Con1
+SET DEBUG_SYNC="now WAIT_FOR auto_inc_held";
+INSERT INTO t1 VALUES (NULL);
+# Not really a bug, since no row has been assigned the number between
+# this and the next auto_inc value.
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+AUTO_INCREMENT
+13
+SET DEBUG_SYNC="now SIGNAL release";
+# Default
+# Reaping: INSERT INTO t1 SELECT * FROM t2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+AUTO_INCREMENT
+13
+DROP TABLE t1, t2;
+SET DEBUG_SYNC='RESET';

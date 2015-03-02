@@ -22,31 +22,31 @@ flush status;
 
 select * from t1;
 
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
+show global status like "Qcache_queries_in_cache";
+show global status like "Qcache_inserts";
+show global status like "Qcache_hits";
 
 select * from t1;
 
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
+show global status like "Qcache_queries_in_cache";
+show global status like "Qcache_inserts";
+show global status like "Qcache_hits";
 
 select spins from performance_schema.events_waits_current order by event_name limit 1;
 
 select * from performance_schema.setup_timers where name='wait';
 
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
+show global status like "Qcache_queries_in_cache";
+show global status like "Qcache_inserts";
+show global status like "Qcache_hits";
 
 select spins from performance_schema.events_waits_current order by event_name limit 1;
 
 select * from performance_schema.setup_timers where name='wait';
 
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
+show global status like "Qcache_queries_in_cache";
+show global status like "Qcache_inserts";
+show global status like "Qcache_hits";
 
 SET GLOBAL query_cache_size= default;
 

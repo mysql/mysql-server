@@ -16,8 +16,9 @@
 #ifndef SQL_DELETE_INCLUDED
 #define SQL_DELETE_INCLUDED
 
-#include "my_base.h"   // ha_rows
-#include "sql_class.h" // select_result_interceptor
+#include "my_base.h"     // ha_rows
+#include "sql_class.h"   // Query_result_interceptor
+#include "sql_cmd_dml.h" // Sql_cmd_dml
 
 class THD;
 class Unique;
@@ -27,7 +28,7 @@ bool mysql_prepare_delete(THD *thd);
 bool mysql_delete(THD *thd, ha_rows rows);
 int mysql_multi_delete_prepare(THD *thd, uint *table_count);
 
-class multi_delete :public select_result_interceptor
+class Query_result_delete :public Query_result_interceptor
 {
   TABLE_LIST *delete_tables;
   /// Pointers to temporary files used for delayed deletion of rows
@@ -56,8 +57,8 @@ class multi_delete :public select_result_interceptor
   bool error_handled;
 
 public:
-  multi_delete(TABLE_LIST *dt, uint num_of_tables);
-  ~multi_delete();
+  Query_result_delete(TABLE_LIST *dt, uint num_of_tables);
+  ~Query_result_delete();
   virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -72,5 +73,48 @@ public:
   }
   virtual void abort_result_set();
 };
+
+
+class Sql_cmd_delete : public Sql_cmd_dml
+{
+public:
+  virtual enum_sql_command sql_command_code() const { return SQLCOM_DELETE; }
+
+  virtual bool execute(THD *thd);
+
+  virtual bool prepared_statement_test(THD *thd);
+  virtual bool prepare(THD *thd)
+  {
+    // TODO: move the mysql_prepare_delete() call there
+    return false;
+  }
+
+private:
+  bool mysql_prepare_delete(THD *thd);
+  bool mysql_delete(THD *thd, ha_rows rows);
+};
+
+
+class Sql_cmd_delete_multi : public Sql_cmd_dml
+{
+public:
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_DELETE_MULTI;
+  }
+
+  virtual bool execute(THD *thd);
+
+  virtual bool prepared_statement_test(THD *thd);
+  virtual bool prepare(THD *thd)
+  {
+    uint table_count;
+    return mysql_multi_delete_prepare(thd, &table_count);
+  }
+
+private:
+  int mysql_multi_delete_prepare(THD *thd, uint *table_count);
+};
+
 
 #endif /* SQL_DELETE_INCLUDED */

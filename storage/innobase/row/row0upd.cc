@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -171,7 +171,7 @@ NOTE that this function will temporarily commit mtr and lose the
 pcur position!
 
 @return DB_SUCCESS or an error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_check_references_constraints(
 /*=================================*/
@@ -1591,7 +1591,7 @@ srv_mbr_print(const byte* data)
 Updates a secondary index entry of a row.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_sec_index_entry(
 /*====================*/
@@ -1680,8 +1680,10 @@ row_upd_sec_index_entry(
 
 		/* We can only buffer delete-mark operations if there
 		are no foreign key constraints referring to the index.
-		Change buffering is disabled for temporary tables. */
-		mode = (referenced || dict_table_is_temporary(index->table))
+		Change buffering is disabled for temporary tables and
+		spatial index. */
+		mode = (referenced || dict_table_is_temporary(index->table)
+			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE_MARK;
@@ -1693,12 +1695,17 @@ row_upd_sec_index_entry(
 
 		/* We can only buffer delete-mark operations if there
 		are no foreign key constraints referring to the index.
-		Change buffering is disabled for temporary tables. */
-		mode = (referenced || dict_table_is_temporary(index->table))
+		Change buffering is disabled for temporary tables and
+		spatial index. */
+		mode = (referenced || dict_table_is_temporary(index->table)
+			|| dict_index_is_spatial(index))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
+	}
 
-		ut_ad(!dict_index_is_spatial(index) || mode & BTR_DELETE_MARK);
+	if (dict_index_is_spatial(index)) {
+		ut_ad(mode & BTR_MODIFY_LEAF);
+		mode |= BTR_RTREE_DELETE_MARK;
 	}
 
 	/* Set the query thread, so that ibuf_insert_low() will be
@@ -1815,7 +1822,7 @@ Updates the secondary index record if it is changed in the row update or
 deletes it if this is a delete.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_sec_step(
 /*=============*/
@@ -1933,7 +1940,7 @@ fields of the clustered index record change. This should be quite rare in
 database applications.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_clust_rec_by_insert(
 /*========================*/
@@ -2060,7 +2067,7 @@ Updates a clustered index record of a row when the ordering fields do
 not change.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_clust_rec(
 /*==============*/
@@ -2198,7 +2205,7 @@ func_exit:
 /***********************************************************//**
 Delete marks a clustered index record.
 @return DB_SUCCESS if operation successfully completed, else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_del_mark_clust_rec(
 /*=======================*/
@@ -2251,7 +2258,7 @@ row_upd_del_mark_clust_rec(
 Updates the clustered index record.
 @return DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT
 in case of a lock wait, else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_clust_step(
 /*===============*/

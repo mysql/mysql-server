@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,7 +44,7 @@ ut_dbg_assertion_failed(
 	const char*	expr,	/*!< in: the failed assertion */
 	const char*	file,	/*!< in: source file containing the assertion */
 	ulint		line)	/*!< in: line number of the assertion */
-	UNIV_COLD __attribute__((nonnull(2), noreturn));
+	UNIV_COLD __attribute__((noreturn));
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */

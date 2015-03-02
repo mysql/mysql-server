@@ -160,7 +160,7 @@ IF(NOT FIND_PROC AND CMAKE_SYSTEM_NAME MATCHES "SunOS")
 ENDIF()
 
 IF(NOT FIND_PROC)
-  # BSD style
+  # BSD styl
   EXECUTE_PROCESS(COMMAND ps -uaxww OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE result)
   IF(result MATCHES 0) 
      SET( FIND_PROC
@@ -310,12 +310,21 @@ ELSE()
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_config.pl ESCAPE_QUOTES @ONLY)
   # On Unix, most of the files end up in the bin directory
   SET(mysql_config_COMPONENT COMPONENT Development)
-  SET(BIN_SCRIPTS
-    mysql_config
-    mysqldumpslow
-    mysqld_multi
-    mysqld_safe
-  )
+
+  IF(WITH_SYSTEMD)
+    SET(BIN_SCRIPTS
+      mysql_config
+      mysqldumpslow
+      )
+  ELSE()
+    SET(BIN_SCRIPTS
+      mysql_config
+      mysqldumpslow
+      mysqld_multi
+      mysqld_safe
+      )
+  ENDIF()
+
   FOREACH(file ${BIN_SCRIPTS})
     IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${file}.sh)
       CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.sh
@@ -344,6 +353,39 @@ ELSE()
       ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_config
       DESTINATION ${INSTALL_BINDIR}
       COMPONENT ${mysql_server_config_COMPONENT}
+    )
+  ENDIF()
+
+  # Systemd files
+  IF(WITH_SYSTEMD)
+    CONFIGURE_FILE(systemd/mysqld_pre_systemd.in
+      ${CMAKE_CURRENT_BINARY_DIR}/mysqld_pre_systemd ESCAPE_QUOTES @ONLY)
+
+    CONFIGURE_FILE(systemd/mysqld.service.in
+      ${CMAKE_CURRENT_BINARY_DIR}/${SYSTEMD_SERVICE_NAME}.service ESCAPE_QUOTES @ONLY)
+
+    CONFIGURE_FILE(systemd/mysqld.tmpfiles.d.in
+      ${CMAKE_CURRENT_BINARY_DIR}/mysql.conf ESCAPE_QUOTES @ONLY)
+
+    INSTALL_SCRIPT(
+      ${CMAKE_CURRENT_BINARY_DIR}/mysqld_pre_systemd
+      DESTINATION ${INSTALL_BINDIR}
+      COMPONENT Server
+    )
+
+    IF(INSTALL_LAYOUT MATCHES "STANDALONE")
+      SET(SYSTEMD_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/")
+    ELSE()
+      SET(SYSTEMD_INSTALL_PREFIX "")
+    ENDIF()
+
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${SYSTEMD_SERVICE_NAME}.service
+       DESTINATION ${SYSTEMD_INSTALL_PREFIX}${SYSTEMD_SERVICES_DIR} COMPONENT Server
+       PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+    )
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql.conf
+       DESTINATION ${SYSTEMD_INSTALL_PREFIX}${SYSTEMD_TMPFILES_DIR} COMPONENT Server
+       PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
     )
   ENDIF()
 ENDIF()

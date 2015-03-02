@@ -19,6 +19,7 @@
 
 #include "rpl_gtid_persist.h"      // gtid_table_persistor
 #include "sql_class.h"             // THD
+#include "debug_sync.h"            // DEBUG_SYNC
 
 
 int Gtid_state::clear(THD *thd)
@@ -49,7 +50,7 @@ int Gtid_state::clear(THD *thd)
 enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
 {
   DBUG_ENTER("Gtid_state::acquire_ownership");
-  // caller must take lock on the SIDNO.
+  // caller must take both global_sid_lock and lock on the SIDNO.
   global_sid_lock->assert_some_lock();
   gtid_state->assert_sidno_lock_owner(gtid.sidno);
   DBUG_ASSERT(!executed_gtids.contains_gtid(gtid));
@@ -143,37 +144,10 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd)
 void Gtid_state::update_on_commit(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_commit");
-  if (!thd->owned_gtid.is_empty())
-  {
-    global_sid_lock->rdlock();
-    if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
-    {
-      Gtid *gtid= &thd->owned_gtid;
-#ifndef DBUG_OFF
-      lock_sidno(gtid->sidno);
-      DBUG_ASSERT(!executed_gtids.contains_gtid(*gtid));
-      unlock_sidno(gtid->sidno);
-#endif
-      /*
-        If binlog is disabled, any session adds transaction owned GTID
-        into global executed_gtids.
-        If binlog is enabled and log_slave_updates is disabled, slave
-        SQL thread or slave worker thread adds transaction owned GTID
-        into global executed_gtids and gtids_only_in_table.
-      */
-      lock_sidno(gtid->sidno);
-      DBUG_EXECUTE_IF(
-        "rpl_gtid_update_on_commit_simulate_out_of_memory",
-        DBUG_SET("+d,rpl_gtid_get_free_interval_simulate_out_of_memory"););
-      executed_gtids._add_gtid(*gtid);
-      if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
-        gtids_only_in_table._add_gtid(*gtid);
-      unlock_sidno(gtid->sidno);
-    }
 
-    update_gtids_impl(thd, true);
-    global_sid_lock->unlock();
-  }
+  update_gtids_impl(thd, true);
+  DEBUG_SYNC(thd, "end_of_gtid_state_update_on_commit");
+
   DBUG_VOID_RETURN;
 }
 
@@ -182,18 +156,25 @@ void Gtid_state::update_on_rollback(THD *thd)
 {
   DBUG_ENTER("Gtid_state::update_on_rollback");
 
-  if (!thd->owned_gtid.is_empty())
+  /*
+    The administrative commands [CHECK|REPAIR|OPTIMIZE|ANALYZE] TABLE
+    are written to the binary log even when they fail.  When the
+    commands fail, they will call update_on_rollback; later they will
+    write the binary log.  But we must not do any of the things in
+    update_gtids_impl if we are going to write the binary log.  So
+    these statements set the skip_gtid_rollback flag, which tells
+    update_on_rollback to return early.  When the statements are
+    written to the binary log they will call update_on_commit as
+    usual.
+  */
+  if (thd->skip_gtid_rollback)
   {
-    if (thd->skip_gtid_rollback)
-    {
-      DBUG_PRINT("info",("skipping the gtid_rollback"));
-      DBUG_VOID_RETURN;
-    }
-
-    global_sid_lock->rdlock();
-    update_gtids_impl(thd, false);
-    global_sid_lock->unlock();
+    DBUG_PRINT("info", ("skipping gtid rollback because "
+                        "thd->skip_gtid_rollback is set"));
+    DBUG_VOID_RETURN;
   }
+
+  update_gtids_impl(thd, false);
 
   DBUG_VOID_RETURN;
 }
@@ -203,8 +184,69 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
 {
   DBUG_ENTER("Gtid_state::update_gtids_impl");
 
-  // Caller must take lock on the SIDNO.
-  global_sid_lock->assert_some_lock();
+  /*
+    If we don't own anything, there is nothing to do, so we do an
+    early return.  Except if there is a GTID consistency violation;
+    then we need to decrement the counter, so then we go ahead and
+    call update_gtids_impl.
+  */
+  if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation)
+  {
+    thd->pending_gtid_state_update= false;
+    DBUG_PRINT("info", ("skipping update_gtids_impl because "
+                        "thread does not own anything and does not violate "
+                        "gtid consistency"));
+    DBUG_VOID_RETURN;
+  }
+
+  /*
+    This variable is true for anonymous transactions, when the
+    'transaction' has been split into multiple transactions in the
+    binlog, and the present transaction is not the last one.
+
+    This means two things:
+
+    - We should not release anonymous ownership in case
+      gtid_next=anonymous.  If we did, it would be possible for user
+      to set GTID_MODE=ON from a concurrent transaction, making it
+      impossible to commit the current transaction.
+
+    - We should not decrease the counters for GTID-violating
+      statements.  If we did, it would be possible for a concurrent
+      client to set ENFORCE_GTID_CONSISTENCY=ON despite there is an
+      ongoing transaction that violates GTID consistency.
+
+    The flag is set in two cases:
+
+     1. We are committing the statement cache when there are more
+        changes in the transaction cache.
+
+        This happens either because a single statement in the
+        beginning of a transaction updates both transactional and
+        non-transactional tables, or because we are committing a
+        non-transactional update in the middle of a transaction when
+        binlog_direct_non_transactional_updates=1.
+
+        In this case, the flag is set further down in this function.
+
+     2. The statement is one of the special statements that may
+        generate multiple transactions: CREATE...SELECT, DROP TABLE,
+        DROP DATABASE. See comment for THD::owned_gtid in
+        sql/sql_class.h.
+
+        In this case, the THD::is_commit_in_middle_of_statement flag
+        is set by the caller and the flag becomes true here.
+  */
+  bool more_transactions_with_same_gtid_next=
+    thd->is_commit_in_middle_of_statement;
+  DBUG_PRINT("info", ("query='%s' thd->is_commit_in_middle_of_statement=%d",
+                      thd->query().str,
+                      thd->is_commit_in_middle_of_statement));
+
+  DEBUG_SYNC(thd, "update_gtid_state_before_global_sid_lock");
+  global_sid_lock->rdlock();
+  DEBUG_SYNC(thd, "update_gtid_state_after_global_sid_lock");
+
   if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET)
   {
 #ifdef HAVE_GTID_NEXT_LIST
@@ -225,6 +267,12 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
     if (is_commit && !thd->owned_gtid_set.is_empty())
       thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_gtid_executed_update(thd);
+
+    thd->variables.gtid_next.set_undefined();
+    thd->owned_gtid.dbug_print(NULL,
+                               "set owned_gtid (clear; old was gtid_set) "
+                               "in update_gtids_impl");
+    thd->clear_owned_gtids();
 #else
     DBUG_ASSERT(0);
 #endif
@@ -232,49 +280,145 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   else if (thd->owned_gtid.sidno > 0)
   {
     lock_sidno(thd->owned_gtid.sidno);
+    DBUG_ASSERT(!executed_gtids.contains_gtid(thd->owned_gtid));
     owned_gtids.remove_gtid(thd->owned_gtid);
 
     if (is_commit)
     {
+      DBUG_EXECUTE_IF(
+        "rpl_gtid_update_on_commit_simulate_out_of_memory",
+        DBUG_SET("+d,rpl_gtid_get_free_interval_simulate_out_of_memory"););
+      /*
+        Any session adds transaction owned GTID into global executed_gtids.
+
+        If binlog is disabled, we report @@GLOBAL.GTID_PURGED from
+        executed_gtids, since @@GLOBAL.GTID_PURGED and @@GLOBAL.GTID_EXECUTED
+        are always same, so we did not save gtid into lost_gtids for every
+        transaction for improving performance.
+
+        If binlog is enabled and log_slave_updates is disabled, slave
+        SQL thread or slave worker thread adds transaction owned GTID
+        into global executed_gtids, lost_gtids and gtids_only_in_table.
+      */
       executed_gtids._add_gtid(thd->owned_gtid);
       thd->rpl_thd_ctx.session_gtids_ctx().
         notify_after_gtid_executed_update(thd);
+      if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
+      {
+        lost_gtids._add_gtid(thd->owned_gtid);
+        gtids_only_in_table._add_gtid(thd->owned_gtid);
+      }
+    }
+
+    broadcast_owned_sidnos(thd);
+    unlock_owned_sidnos(thd);
+
+    thd->clear_owned_gtids();
+    if (thd->variables.gtid_next.type == GTID_GROUP)
+    {
+      DBUG_ASSERT(!more_transactions_with_same_gtid_next);
+      thd->variables.gtid_next.set_undefined();
+    }
+    else
+    {
+      /*
+        Can be UNDEFINED for statements where
+        gtid_pre_statement_checks skips the test for undefined,
+        e.g. ROLLBACK.
+      */
+      DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
+                  thd->variables.gtid_next.type == UNDEFINED_GROUP);
     }
   }
-
-  /*
-    There may be commands that cause implicit commits, e.g.
-    SET AUTOCOMMIT=1 may cause the previous statements to commit
-    without executing a COMMIT command or be on auto-commit mode.
-  */
-  broadcast_owned_sidnos(thd);
-  unlock_owned_sidnos(thd);
-  if (thd->variables.gtid_next.type == GTID_GROUP)
-    thd->variables.gtid_next.set_undefined();
-  /*
-    This early return prevents releasing anonymous ownership when a
-    non-transactional statement is flushed to the binary log in the
-    middle of a transaction.  If we would release ownership in the
-    middle of a transaction when gtid_next.type==ANONYMOUS_GROUP, it
-    would be possible for a concurrent transaction to change GTID_MODE
-    to ON in the middle of a transaction, making it impossible to
-    commit.
-  */
-  if (opt_bin_log && thd->variables.gtid_next.type == ANONYMOUS_GROUP)
+  else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
   {
-    // Needed before is_binlog_cache_empty.
-    thd->binlog_setup_trx_data();
-    if (!thd->is_binlog_cache_empty(true))
-      DBUG_VOID_RETURN;
+    DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP ||
+                thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+    /*
+      If there is more in the transaction cache, set
+      more_transactions_with_same_gtid_next to indicate this.
+
+      See comment for the declaration of
+      more_transactions_with_same_gtid_next.
+    */
+    if (opt_bin_log)
+    {
+      // Needed before is_binlog_cache_empty.
+      thd->binlog_setup_trx_data();
+      if (!thd->is_binlog_cache_empty(true))
+      {
+        more_transactions_with_same_gtid_next= true;
+        DBUG_PRINT("info", ("Transaction cache is non-empty: setting "
+                            "more_transaction_with_same_gtid_next="
+                            "true."));
+      }
+    }
+    if (!(more_transactions_with_same_gtid_next &&
+          thd->variables.gtid_next.type == ANONYMOUS_GROUP))
+    {
+      release_anonymous_ownership();
+      thd->clear_owned_gtids();
+    }
   }
-  if (!(thd->variables.gtid_next.type == ANONYMOUS_GROUP &&
-        thd->is_commit_in_middle_of_statement))
-    thd->clear_owned_gtids();
+  else
+  {
+    /*
+      Nothing is owned.  There are two cases when this happens:
+
+      - Normally, it is a rollback of an automatic transaction, so
+        then is_commit is false and gtid_next=automatic.
+
+      - There is also a corner case. If CREATE...SELECT is logged in
+        row format, it gets logged as CREATE without select, followed
+        by a transaction containing row events.  For this case, there
+        is a commit after the table has been created, before rows have
+        been selected.  After this commit,
+        thd->pending_gtid_state_update is set to true by the
+        CREATE...SELECT code.  This means that later, when the part of
+        the statement that selects rows calls
+        MYSQL_BIN_BINLOG::commit, if there were no matching rows so
+        that there is nothing to commit, MYSQL_BIN_LOG::commit does a
+        direct call to gtid_state->update_on_[commit|rollback] since
+        other functions called from MYSQL_BIN_LOG::commit did not do
+        this.  Then, if GTID_NEXT=AUTOMATIC, nothing will be owned at
+        this point.  Thus, to cover this case we add the
+        '||thd->pending_gtid_state_update' clause.
+    */
+    DBUG_ASSERT(!is_commit || thd->pending_gtid_state_update);
+    DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
+  }
+
+  global_sid_lock->unlock();
+
+  if (!more_transactions_with_same_gtid_next)
+    end_gtid_violating_transaction(thd);
+
   thd->owned_gtid.dbug_print(NULL,
                              "set owned_gtid (clear) in update_gtids_impl");
 
+  thd->pending_gtid_state_update= false;
+
   DBUG_VOID_RETURN;
 }
+
+
+void Gtid_state::end_gtid_violating_transaction(THD *thd)
+{
+  DBUG_ENTER("end_gtid_violating_transaction");
+  if (thd->has_gtid_consistency_violation)
+  {
+    if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
+      end_automatic_gtid_violating_transaction();
+    else
+    {
+      DBUG_ASSERT(thd->variables.gtid_next.type == ANONYMOUS_GROUP);
+      end_anonymous_gtid_violating_transaction();
+    }
+    thd->has_gtid_consistency_violation= false;
+  }
+  DBUG_VOID_RETURN;
+}
+
 
 int Gtid_state::wait_for_gtid_set(THD* thd, String* gtid_set_text, longlong timeout)
 {
@@ -284,6 +428,7 @@ int Gtid_state::wait_for_gtid_set(THD* thd, String* gtid_set_text, longlong time
   DBUG_ENTER("Gtid_state::wait_for_gtid_set");
   DBUG_PRINT("info", ("Waiting for %s timeout %lld", gtid_set_text->c_ptr_safe(),
              timeout));
+  DEBUG_SYNC(thd, "begin_wait_for_executed_gtid_set");
 
   Sid_map sid_map(NULL);
   Gtid_set wait_gtid_set(&sid_map, NULL);
@@ -404,17 +549,20 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
   enum_return_status ret= RETURN_STATUS_OK;
 
   DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
-  DBUG_ASSERT(specified_sidno >= 0 && specified_gno >= 0);
+  DBUG_ASSERT(specified_sidno >= 0);
+  DBUG_ASSERT(specified_gno >= 0);
+  DBUG_ASSERT(thd->owned_gtid.is_empty());
 
-  // If GTID_MODE = UPGRADE_STEP_2 or ON, generate a new GTID
-  if (gtid_mode >= GTID_MODE_UPGRADE_STEP_2)
+  sid_lock->rdlock();
+
+  // If GTID_MODE = ON_PERMISSIVE or ON, generate a new GTID
+  if (get_gtid_mode(GTID_MODE_LOCK_SID) >= GTID_MODE_ON_PERMISSIVE)
   {
     Gtid automatic_gtid= { specified_sidno, specified_gno };
 
     if (automatic_gtid.sidno == 0)
       automatic_gtid.sidno= get_server_sidno();
 
-    sid_lock->rdlock();
     lock_sidno(automatic_gtid.sidno);
 
     if (automatic_gtid.gno == 0)
@@ -426,17 +574,19 @@ enum_return_status Gtid_state::generate_automatic_gtid(THD *thd,
       ret= RETURN_STATUS_REPORTED_ERROR;
 
     unlock_sidno(automatic_gtid.sidno);
-    sid_lock->unlock();
   }
   else
   {
-    // If GTID_MODE = OFF or UPGRADE_STEP_1, just mark this thread as
+    // If GTID_MODE = OFF or OFF_PERMISSIVE, just mark this thread as
     // using an anonymous transaction.
     thd->owned_gtid.sidno= THD::OWNED_SIDNO_ANONYMOUS;
     thd->owned_gtid.gno= 0;
+    acquire_anonymous_ownership();
     thd->owned_gtid.dbug_print(NULL,
                                "set owned_gtid (anonymous) in generate_automatic_gtid");
   }
+
+  sid_lock->unlock();
 
   gtid_set_performance_schema_values(thd);
 
@@ -462,6 +612,8 @@ int Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeo
     error= sid_locks.wait(thd, gtid.sidno, timeout);
   else
     sid_locks.wait(thd, gtid.sidno);
+  // Can't call sid_locks.unlock() as that requires global_sid_lock.
+  mysql_mutex_unlock(thd->current_mutex);
   thd->EXIT_COND(&old_stage);
   DBUG_RETURN(error);
 }
@@ -579,7 +731,7 @@ int Gtid_state::save(THD *thd)
 {
   DBUG_ENTER("Gtid_state::save(THD *thd)");
   DBUG_ASSERT(gtid_table_persistor != NULL);
-  DBUG_ASSERT(!thd->owned_gtid.is_empty());
+  DBUG_ASSERT(thd->owned_gtid.sidno > 0);
   int error= 0;
 
   int ret= gtid_table_persistor->save(thd, &thd->owned_gtid);
@@ -613,43 +765,54 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation)
   DBUG_ENTER("Gtid_state::save_gtids_of_last_binlog_into_table");
   int ret= 0;
 
-  Gtid_set logged_gtids_last_binlog(global_sid_map, global_sid_lock);
+  /*
+    Use local Sid_map, so that we don't need a lock while inserting
+    into the table.
+  */
+  Sid_map sid_map(NULL);
+  Gtid_set logged_gtids_last_binlog(&sid_map, NULL);
+  // Allocate some intervals on stack to reduce allocation.
+  static const int PREALLOCATED_INTERVAL_COUNT= 64;
+  Gtid_set::Interval iv[PREALLOCATED_INTERVAL_COUNT];
+  logged_gtids_last_binlog.add_interval_memory(PREALLOCATED_INTERVAL_COUNT, iv);
   /*
     logged_gtids_last_binlog= executed_gtids - previous_gtids_logged -
                               gtids_only_in_table
   */
   global_sid_lock->wrlock();
-  if ((ret = (logged_gtids_last_binlog.add_gtid_set(&executed_gtids) !=
-              RETURN_STATUS_OK)) == 0)
+  ret= (logged_gtids_last_binlog.add_gtid_set(&executed_gtids) !=
+        RETURN_STATUS_OK);
+  if (!ret)
   {
     logged_gtids_last_binlog.remove_gtid_set(&previous_gtids_logged);
     logged_gtids_last_binlog.remove_gtid_set(&gtids_only_in_table);
     if (!logged_gtids_last_binlog.is_empty())
     {
-      /* Save set of GTIDs of the last binlog into gtid_executed table */
-      ret= save(&logged_gtids_last_binlog);
       /* Prepare previous_gtids_logged for next binlog on binlog rotation */
-      if (!ret && on_rotation)
+      if (on_rotation)
         ret= previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog);
+      global_sid_lock->unlock();
+      /* Save set of GTIDs of the last binlog into gtid_executed table */
+      if (!ret)
+        ret= save(&logged_gtids_last_binlog);
     }
+    else
+      global_sid_lock->unlock();
   }
-  global_sid_lock->unlock();
+  else
+    global_sid_lock->unlock();
 
   DBUG_RETURN(ret);
 }
 
 
-int Gtid_state::fetch_gtids(Gtid_set *gtid_set)
+int Gtid_state::read_gtid_executed_from_table()
 {
-  DBUG_ENTER("Gtid_state::fetch_gtids");
-  int ret= gtid_table_persistor->fetch_gtids(gtid_set);
-  DBUG_RETURN(ret);
+  return gtid_table_persistor->fetch_gtids(&executed_gtids);
 }
 
 
 int Gtid_state::compress(THD *thd)
 {
-  DBUG_ENTER("Gtid_state::compress");
-  int ret= gtid_table_persistor->compress(thd);
-  DBUG_RETURN(ret);
+  return gtid_table_persistor->compress(thd);
 }

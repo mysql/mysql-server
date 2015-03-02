@@ -1,0 +1,158 @@
+SET @@session.default_storage_engine = 'InnoDB';
+#            - UNIQUE KEY
+#            - INDEX
+#            - FULLTEXT INDEX
+#            - SPATIAL INDEX (not supported)
+#            - FOREIGN INDEX (partially supported)
+#            - CHECK (allowed but not used)
+# UNIQUE
+create table t1 (a int, b int generated always as (a*2) virtual unique);
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+create table t1 (a int, b int generated always as (a*2) stored unique);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES	UNI	NULL	STORED GENERATED
+drop table t1;
+create table t1 (a int, b int generated always as (a*2) virtual, unique key (b));
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+create table t1 (a int, b int generated always as (a*2) stored, unique (b));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES	UNI	NULL	STORED GENERATED
+drop table t1;
+create table t1 (a int, b int generated always as (a*2) virtual);
+alter table t1 add unique key (b);
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+drop table t1;
+create table t1 (a int, b int generated always as (a*2) stored);
+alter table t1 add unique key (b);
+drop table t1;
+# Testing data manipulation operations involving UNIQUE keys 
+# on generated columns can be found in:
+#  - gcol_ins_upd.inc
+#  - gcol_select.inc
+# 
+# INDEX
+create table t1 (a int, b int generated always as (a*2) virtual, index (b));
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+create table t1 (a int, b int generated always as (a*2) virtual, index (a,b));
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+create table t1 (a int, b int generated always as (a*2) stored, index (b));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES	MUL	NULL	STORED GENERATED
+drop table t1;
+create table t1 (a int, b int generated always as (a*2) stored, index (a,b));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a*2) STORED,
+  KEY `a` (`a`,`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES	MUL	NULL	
+b	int(11)	YES		NULL	STORED GENERATED
+drop table t1;
+create table t1 (a int, b int generated always as (a*2) virtual);
+alter table t1 add index (b);
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+alter table t1 add index (a,b);
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+drop table t1;
+create table t1 (a int, b int generated always as (a*2) stored);
+alter table t1 add index (b);
+drop table t1;
+create table t1 (a int, b int generated always as (a*2) stored);
+alter table t1 add index (a,b);
+create table t2 like t1;
+drop table t2;
+drop table t1;
+# Testing data manipulation operations involving INDEX
+# on generated columns can be found in:
+#  - gcol_select.inc
+#
+# TODO: FULLTEXT INDEX
+# SPATIAL INDEX
+# FOREIGN KEY
+# Rejected FK options.
+create table t1 (a int, b int generated always as (a+1) stored,
+foreign key (b) references t2(a) on update set null);
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
+create table t1 (a int, b int generated always as (a+1) stored,
+foreign key (b) references t2(a) on update cascade);
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
+create table t1 (a int, b int generated always as (a+1) stored,
+foreign key (b) references t2(a) on delete set null);
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
+create table t1 (a int, b int generated always as (a+1) stored);
+alter table t1 add foreign key (b) references t2(a) on update set null;
+ERROR HY000: Cannot define foreign key with ON UPDATE SET NULL clause on a generated column.
+alter table t1 add foreign key (b) references t2(a) on update cascade;
+ERROR HY000: Cannot define foreign key with ON UPDATE CASCADE clause on a generated column.
+alter table t1 add foreign key (b) references t2(a) on delete set null;
+ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.
+drop table t1;
+create table t1 (a int, b int generated always as (a+1) virtual,
+foreign key (b) references t2(a));
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+create table t1 (a int, b int generated always as (a+1) virtual);
+alter table t1 add foreign key (b) references t2(a);
+ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+drop table t1;
+# Allowed FK options.
+create table t2 (a int primary key, b char(5));
+create table t1 (a int, b int generated always as (a % 10) stored,
+foreign key (b) references t2(a) on update restrict);
+drop table t1;
+create table t1 (a int, b int generated always as (a % 10) stored,
+foreign key (b) references t2(a) on update no action);
+drop table t1;
+create table t1 (a int, b int generated always as (a % 10) stored,
+foreign key (b) references t2(a) on delete restrict);
+drop table t1;
+create table t1 (a int, b int generated always as (a % 10) stored,
+foreign key (b) references t2(a) on delete cascade);
+drop table t1;
+create table t1 (a int, b int generated always as (a % 10) stored,
+foreign key (b) references t2(a) on delete no action);
+drop table t1;
+
+# Testing data manipulation operations involving FOREIGN KEY 
+# on generated columns can be found in:
+#  - gcol_ins_upd.inc
+#  - gcol_select.inc
+#
+# TODO: CHECK
+DROP VIEW  IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TRIGGER IF EXISTS trg2;
+set sql_warnings = 0;

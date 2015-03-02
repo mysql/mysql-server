@@ -5,6 +5,7 @@
 # ==== Usage ====
 #
 #   [--let $rpl_server_count= N]
+#   [--let $rpl_extra_connections_per_server= 1]
 #   [--let $rpl_check_server_ids= 1]
 #   [--let $rpl_skip_reset_master_and_slave= 1]
 #   [--let $rpl_skip_change_master= 1]
@@ -18,10 +19,10 @@
 #   --source include/master-slave.inc
 #
 # Parameters:
-#   $rpl_check_server_ids, $rpl_skip_reset_master_and_slave,
-#   $rpl_skip_change_master, $rpl_skip_start_slave, $rpl_debug,
-#   $slave_timeout, $use_gtids, $rpl_gtid_utils,
-#   $rpl_set_gtid_next_anonymous_in_new_connection,
+#   $rpl_extra_connections_per_server, $rpl_check_server_ids,
+#   $rpl_skip_reset_master_and_slave, $rpl_skip_change_master,
+#   $rpl_skip_start_slave, $rpl_debug, $slave_timeout, $use_gtids,
+#   $rpl_gtid_utils, $rpl_set_gtid_next_anonymous_in_new_connection,
 #   $rpl_skip_group_replication_start
 #     See include/rpl_init.inc
 #

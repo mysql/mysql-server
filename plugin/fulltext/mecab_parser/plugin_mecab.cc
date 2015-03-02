@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015,  Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -260,9 +260,21 @@ mecab_parser_parse(
 	uchar*		end = *start + param->length;
 	FT_WORD		word = {NULL, 0, 0};
 	int		ret = 0;
+	const char*	csname = NULL;
+
+	/* Mecab supports utf8mb4(utf8), eucjpms(ujis) and cp932(sjis). */
+	if (strcmp(param->cs->csname, MY_UTF8MB4) == 0) {
+		csname = "utf8";
+	} else if (strcmp(param->cs->csname, "eucjpms") == 0) {
+		csname = "ujis";
+	} else if (strcmp(param->cs->csname, "cp932") == 0) {
+		csname = "sjis";
+	} else {
+		csname = param->cs->csname;
+	}
 
 	/* Check charset */
-	if (strcmp(mecab_charset, param->cs->csname) != 0) {
+	if (strcmp(mecab_charset, csname) != 0) {
 		char	error_msg[128];
 
 		my_snprintf(error_msg, 127, "Fulltext index charset '%s'"
@@ -331,8 +343,8 @@ static struct st_mysql_ftparser mecab_parser_descriptor =
 /* MeCab plugin status variables */
 static struct st_mysql_show_var mecab_status[] =
 {
-	{"mecab_charset", mecab_charset, SHOW_CHAR},
-	{0, 0, enum_mysql_show_type(0)}
+	{"mecab_charset", mecab_charset, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
+	{0, 0, enum_mysql_show_type(0), SHOW_SCOPE_GLOBAL}
 };
 
 static MYSQL_SYSVAR_STR(rc_file, mecab_rc_file,

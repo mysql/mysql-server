@@ -61,7 +61,7 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 
 #ifdef HAVE_REPLICATION
 
-#define SLAVE_NET_TIMEOUT  3600
+#define SLAVE_NET_TIMEOUT  60
 
 #define MAX_SLAVE_ERROR    2000
 
@@ -218,10 +218,13 @@ extern bool server_id_supplied;
       mi.run_lock, rli.run_lock, (init_relay_log_pos) rli.data_lock,
       relay.log_lock
 
+    Sys_var_gtid_mode::global_update:
+      gtid_mode_lock, LOCK_msr_map, binlog.LOCK_log, global_sid_lock
+
   So the DAG of lock acquisition order (not counting the buggy
   purge_logs) is, empirically:
 
-    LOCK_msr_map, mi.run_lock, rli.run_lock,
+    gtid_mode_lock, LOCK_msr_map, mi.run_lock, rli.run_lock,
       ( rli.data_lock,
         ( LOCK_thd_list,
           (
@@ -293,6 +296,26 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all);
 int reset_slave(THD *thd);
 int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
+/**
+  Call mi->init_info() and/or mi->rli->init_info(), which will read
+  the replication configuration from repositories.
+
+  This takes care of creating a transaction context in case table
+  repository is needed.
+
+  @param mi The Master_info object to use.
+
+  @param ignore_if_no_info If this is false, and the repository does
+  not exist, it will be created. If this is true, and the repository
+  does not exist, nothing is done.
+
+  @param thread_mask Indicate which repositories will be initialized:
+  if (thread_mask&SLAVE_IO)!=0, then mi->init_info is called; if
+  (thread_mask&SLAVE_SQL)!=0, then mi->rli->init_info is called.
+
+  @retval 0 Success
+  @retval nonzero Error
+*/
 int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
 void end_info(Master_info* mi);
 int remove_info(Master_info* mi);
@@ -388,7 +411,6 @@ extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);
 bool net_request_file(NET* net, const char* fname);
 
-extern bool volatile abort_loop;
 extern Master_info *active_mi;      /* active_mi  for multi-master */
 extern LIST master_list;
 extern my_bool replicate_same_server_id;

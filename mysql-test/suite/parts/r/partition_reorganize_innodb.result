@@ -1,7 +1,6 @@
 SET default_storage_engine=InnoDB;
 SET SESSION innodb_strict_mode = ON;
 SET GLOBAL innodb_file_per_table=ON;
-SET GLOBAL innodb_file_format=barracuda;
 #
 # CREATE a table with SUBPARTITIONS
 #
@@ -41,11 +40,11 @@ emp	CREATE TABLE `emp` (
 /*!50100 PARTITION BY RANGE (store_id)
 SUBPARTITION BY HASH (store_id)
 (PARTITION northeast VALUES LESS THAN (50)
- (SUBPARTITION ne0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_northeast' ENGINE = InnoDB,
-  SUBPARTITION ne1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_northeast' ENGINE = InnoDB),
+ (SUBPARTITION ne0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_northeast/' ENGINE = InnoDB,
+  SUBPARTITION ne1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_northeast/' ENGINE = InnoDB),
  PARTITION southwest VALUES LESS THAN (100)
- (SUBPARTITION sw2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = InnoDB,
-  SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = InnoDB)) */
+ (SUBPARTITION sw2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest/' ENGINE = InnoDB,
+  SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest/' ENGINE = InnoDB)) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables
 WHERE name LIKE 'test%' ORDER BY name;
@@ -75,7 +74,6 @@ emp#p#northeast#sp#ne1.isl
 emp#p#southwest#sp#sw2.isl
 emp#p#southwest#sp#sw3.isl
 emp.frm
-emp.par
 ---- MYSQL_TMP_DIR/alt_dir_northeast/test
 emp#p#northeast#sp#ne0.ibd
 emp#p#northeast#sp#ne1.ibd
@@ -176,7 +174,6 @@ emp#p#south#sp#s1.isl
 emp#p#west#sp#w0.isl
 emp#p#west#sp#w1.isl
 emp.frm
-emp.par
 ---- MYSQL_TMP_DIR/alt_dir_northeast/test
 ---- MYSQL_TMP_DIR/alt_dir_southwest/test
 ---- MYSQL_TMP_DIR/alt_dir_east/test

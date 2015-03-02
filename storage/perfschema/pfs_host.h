@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@ public:
   void aggregate_statements(void);
   void aggregate_transactions(void);
   void aggregate_memory(bool alive);
+  void aggregate_status(void);
   void aggregate_stats(void);
   void release(void);
 
@@ -94,7 +95,7 @@ private:
 
 int init_host(const PFS_global_param *param);
 void cleanup_host(void);
-int init_host_hash(void);
+int init_host_hash(const PFS_global_param *param);
 void cleanup_host_hash(void);
 
 PFS_host *find_or_create_host(PFS_thread *thread,
@@ -103,14 +104,7 @@ PFS_host *find_or_create_host(PFS_thread *thread,
 PFS_host *sanitize_host(PFS_host *unsafe);
 void purge_all_host(void);
 
-/* For iterators and show status. */
-
-extern ulong host_max;
-extern ulong host_lost;
-
-/* Exposing the data directly, for iterators. */
-
-extern PFS_host *host_array;
+/* For show status. */
 
 extern LF_HASH host_hash;
 

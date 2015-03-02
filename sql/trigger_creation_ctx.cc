@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ Trigger_creation_ctx::create(THD *thd,
     push_warning_printf(thd,
                         Sql_condition::SL_WARNING,
                         ER_TRG_INVALID_CREATION_CTX,
-                        ER(ER_TRG_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_TRG_INVALID_CREATION_CTX),
                         (const char *) db_name.str,
                         (const char *) table_name.str);
   }

@@ -1,6 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
    Copyright (C) 2008 MySQL AB
-   Use is subject to license terms
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,8 +179,8 @@ static SYS_VAR* semi_sync_slave_system_vars[]= {
 /* plugin status variables */
 static SHOW_VAR semi_sync_slave_status_vars[]= {
   {"Rpl_semi_sync_slave_status",
-   (char*) &rpl_semi_sync_slave_status,    SHOW_BOOL},
-  {NULL, NULL, SHOW_BOOL},
+   (char*) &rpl_semi_sync_slave_status, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
+  {NULL, NULL, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
 };
 
 Binlog_relay_IO_observer relay_io_observer = {

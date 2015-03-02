@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -60,6 +60,13 @@ que_thr_t*
 dict_create_table_step(
 /*===================*/
 	que_thr_t*	thr);		/*!< in: query thread */
+
+/** Builds a tablespace to store various objects.
+@param[in,out]	tablespace	Tablespace object describing what to build.
+@return DB_SUCCESS or error code. */
+dberr_t
+dict_build_tablespace(
+	Tablespace*	tablespace);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]	table	Table to build in its own tablespace.
@@ -197,7 +204,7 @@ dict_create_add_foreigns_to_dictionary(
 	const dict_foreign_set&	local_fk_set,
 	const dict_table_t*	table,
 	trx_t*			trx)
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /****************************************************************//**
 Creates the tablespaces and datafiles system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
@@ -225,6 +232,27 @@ dict_replace_tablespace_in_dictionary(
 	trx_t*		trx,
 	bool		commit);
 
+/** Add another datafile to the data dictionary for a given space_id.
+@param[in]	space	Tablespace ID
+@param[in]	path	Tablespace path
+@param[in,out]	trx	Transaction**
+@return error code or DB_SUCCESS */
+dberr_t
+dict_add_datafile_to_dictionary(
+	ulint		space_id,
+	const char*	path,
+	trx_t*		trx);
+
+/** Delete records from SYS_TABLESPACES and SYS_DATAFILES associated
+with a particular tablespace ID.
+@param[in]	space	Tablespace ID
+@param[in,out]	trx	Current transaction
+@return DB_SUCCESS if OK, dberr_t if the operation failed */
+dberr_t
+dict_delete_tablespace_and_datafiles(
+	ulint		space,
+	trx_t*		trx);
+
 /********************************************************************//**
 Add a foreign key definition to the data dictionary tables.
 @return error code or DB_SUCCESS */
@@ -234,7 +262,7 @@ dict_create_add_foreign_to_dictionary(
 	const char*		name,	/*!< in: table name */
 	const dict_foreign_t*	foreign,/*!< in: foreign key */
 	trx_t*			trx)	/*!< in/out: dictionary transaction */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /* Table create node structure */
 struct tab_node_t{

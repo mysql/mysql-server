@@ -52,6 +52,10 @@ PROG=/usr/bin/mysqld_safe
 # Lock directory
 lockfile=/var/lock/subsys/mysql
 
+# Support for extra options passed to mysqld
+command=$1 && shift
+extra_opts="$@"
+
 get_option () {
     local section=$1
     local option=$2
@@ -152,7 +156,7 @@ start () {
 	rc_failed 6 ; rc_status -v ; rc_exit
     fi
 
-    $PROG --basedir=/usr --datadir="$datadir" --pid-file="$pidfile" >/dev/null 2>&1 &
+    $PROG --basedir=/usr --datadir="$datadir" --pid-file="$pidfile" $extra_opts >/dev/null 2>&1 &
     if pinger $! ; then
 	echo -n "Starting service MySQL:"
 	touch $lockfile
@@ -232,7 +236,7 @@ status () {
    rc_status -v
 }  
 
-case "$1" in
+case "$command" in
     start  ) start   ;;
     stop   ) stop    ;;
     restart) restart ;;

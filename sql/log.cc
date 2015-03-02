@@ -33,6 +33,8 @@
 #include "sql_audit.h"
 #include "mysql/service_my_plugin_log.h"
 #include "sql_plugin_ref.h"
+#include "current_thd.h"
+#include "psi_memory_key.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -1300,9 +1302,11 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
 */
 static bool log_command(THD *thd, enum_server_command command)
 {
+#ifndef EMBEDDED_LIBRARY
   /* Audit notification when no general log handler present */
   mysql_audit_general_log(thd, command_name[(uint) command].str,
                           command_name[(uint) command].length);
+#endif
 
   if (what_to_log & (1L << (uint) command))
   {
@@ -1335,7 +1339,7 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
   mysql_rwlock_rdlock(&LOCK_logger);
 
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
-  size_t user_host_len= make_user_name(thd, user_host_buff);
+  size_t user_host_len= make_user_name(thd->security_context(), user_host_buff);
   ulonglong current_utime= thd->current_utime();
 
   bool error= false;
@@ -1893,7 +1897,8 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
 
     if (log_syslog_enabled
 #ifdef _WIN32
-    && !abort_loop // Don't write to the eventlog during shutdown.
+        // Don't write to the eventlog during shutdown.
+	 && !connection_events_loop_aborted()
 #endif
       )
     {

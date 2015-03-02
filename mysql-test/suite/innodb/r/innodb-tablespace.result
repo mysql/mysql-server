@@ -103,6 +103,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -139,6 +140,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -185,6 +187,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -231,6 +234,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -278,6 +282,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -325,6 +330,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -368,6 +374,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -529,9 +536,9 @@ emp	CREATE TABLE `emp` (
   `store_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (store_id)
-(PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,
- PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north' ENGINE = InnoDB,
- PARTITION west VALUES IN (70,80,100) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west' ENGINE = InnoDB) */
+(PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
+ PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north/' ENGINE = InnoDB,
+ PARTITION west VALUES IN (70,80,100) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west/' ENGINE = InnoDB) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables
 WHERE name LIKE 'test%'
@@ -544,6 +551,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -582,7 +590,6 @@ emp#p#east.isl
 emp#p#north.isl
 emp#p#west.isl
 emp.frm
-emp.par
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
 ---- MYSQL_TMP_DIR/alt_dir_north/test
@@ -602,8 +609,8 @@ emp	CREATE TABLE `emp` (
   `store_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (store_id)
-(PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,
- PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north' ENGINE = InnoDB) */
+(PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
+ PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north/' ENGINE = InnoDB) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables
 WHERE name LIKE 'test%'
@@ -615,6 +622,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -649,7 +657,6 @@ id	store_name	parts	store_id
 emp#p#east.isl
 emp#p#north.isl
 emp.frm
-emp.par
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
 ---- MYSQL_TMP_DIR/alt_dir_north/test
@@ -670,8 +677,8 @@ emp	CREATE TABLE `emp` (
   `store_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (store_id)
-(PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,
- PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north' ENGINE = InnoDB,
+(PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
+ PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north/' ENGINE = InnoDB,
  PARTITION west VALUES IN (70,80,100) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west' ENGINE = InnoDB) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables
@@ -685,6 +692,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -724,7 +732,6 @@ emp#p#east.isl
 emp#p#north.isl
 emp#p#west.isl
 emp.frm
-emp.par
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
 ---- MYSQL_TMP_DIR/alt_dir_north/test
@@ -744,8 +751,8 @@ emp	CREATE TABLE `emp` (
   `store_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (store_id)
-(PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,
- PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north' ENGINE = InnoDB,
+(PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
+ PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north/' ENGINE = InnoDB,
  PARTITION west VALUES IN (70,80,100) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west' ENGINE = InnoDB) */
 SELECT name,n_cols,file_format,row_format
 FROM information_schema.innodb_sys_tables
@@ -759,6 +766,7 @@ SELECT name,file_format,row_format
 FROM information_schema.innodb_sys_tablespaces
 ORDER BY name;
 name	file_format	row_format
+innodb_system	Antelope	Compact or Redundant
 mysql/engine_cost	Antelope	Compact or Redundant
 mysql/gtid_executed	Antelope	Compact or Redundant
 mysql/help_category	Antelope	Compact or Redundant
@@ -802,7 +810,6 @@ emp#p#east.isl
 emp#p#north.isl
 emp#p#west.isl
 emp.frm
-emp.par
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
 ---- MYSQL_TMP_DIR/alt_dir_north/test

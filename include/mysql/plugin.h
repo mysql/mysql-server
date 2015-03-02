@@ -79,7 +79,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0105
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0106
 
 /*
   The allowable types of plugins
@@ -135,7 +135,7 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0,0}}
 
 /**
-  declarations for SHOW STATUS support in plugins
+  Declarations for SHOW STATUS support in plugins
 */
 enum enum_mysql_show_type
 {
@@ -154,12 +154,34 @@ enum enum_mysql_show_type
 #endif
 };
 
-struct st_mysql_show_var {
+/**
+  Status variable scope.
+  Only GLOBAL status variable scope is available in plugins.
+*/
+enum enum_mysql_show_scope
+{
+  SHOW_SCOPE_UNDEF,
+  SHOW_SCOPE_GLOBAL
+#ifdef MYSQL_SERVER
+  /* Server-only values. Not supported in plugins. */
+  ,
+  SHOW_SCOPE_SESSION,
+  SHOW_SCOPE_ALL
+#endif
+};
+
+/**
+  SHOW STATUS Server status variable
+*/
+struct st_mysql_show_var
+{
   const char *name;
   char *value;
   enum enum_mysql_show_type type;
+  enum enum_mysql_show_scope scope;
 };
 
+#define SHOW_VAR_MAX_NAME_LEN 64
 #define SHOW_VAR_FUNC_BUFF_SIZE 1024
 typedef int (*mysql_show_var_func)(MYSQL_THD, struct st_mysql_show_var*, char *);
 
@@ -575,7 +597,10 @@ int thd_in_lock_tables(const MYSQL_THD thd);
 int thd_tablespace_op(const MYSQL_THD thd);
 long long thd_test_options(const MYSQL_THD thd, long long test_options);
 int thd_sql_command(const MYSQL_THD thd);
-const char *thd_proc_info(MYSQL_THD thd, const char *info);
+const char *set_thd_proc_info(MYSQL_THD thd, const char *info,
+                              const char *calling_func,
+                              const char *calling_file,
+                              const unsigned int calling_line);
 void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 void thd_storage_lock_wait(MYSQL_THD thd, long long value);
 int thd_tx_isolation(const MYSQL_THD thd);

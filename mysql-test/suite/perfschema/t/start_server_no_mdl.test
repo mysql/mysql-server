@@ -8,12 +8,16 @@
 select count(*) from performance_schema.metadata_locks;
 
 # Expect metadata locks lost
+--disable_warnings
 select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_METADATA_LOCK_LOST';
+--enable_warnings
 
 # While at it, check that flush status resets the lost counter
 FLUSH STATUS;
 
+--disable_warnings
 select variable_value from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_METADATA_LOCK_LOST';
+--enable_warnings
 

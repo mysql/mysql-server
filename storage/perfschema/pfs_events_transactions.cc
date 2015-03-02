@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 #include "pfs_user.h"
 #include "pfs_events_transactions.h"
 #include "pfs_atomic.h"
+#include "pfs_buffer_container.h"
+#include "pfs_builtin_memory.h"
 #include "m_string.h"
 
 PFS_ALIGNED ulong events_transactions_history_long_size= 0;
@@ -59,7 +61,8 @@ int init_events_transactions_history_long(uint events_transactions_history_long_
     return 0;
 
   events_transactions_history_long_array=
-    PFS_MALLOC_ARRAY(events_transactions_history_long_size, PFS_events_transactions,
+    PFS_MALLOC_ARRAY(& builtin_memory_transactions_history_long,
+                     events_transactions_history_long_size, PFS_events_transactions,
                      MYF(MY_ZEROFILL));
 
   return (events_transactions_history_long_array ? 0 : 1);
@@ -68,7 +71,9 @@ int init_events_transactions_history_long(uint events_transactions_history_long_
 /** Cleanup table EVENTS_TRANSACTIONS_HISTORY_LONG. */
 void cleanup_events_transactions_history_long(void)
 {
-  pfs_free(events_transactions_history_long_array);
+  PFS_FREE_ARRAY(& builtin_memory_transactions_history_long,
+                 events_transactions_history_long_size, PFS_events_transactions,
+                 events_transactions_history_long_array);
   events_transactions_history_long_array= NULL;
 }
 
@@ -132,34 +137,32 @@ void insert_events_transactions_history_long(PFS_events_transactions *transactio
   copy_events_transactions(&events_transactions_history_long_array[index], transaction);
 }
 
+static void fct_reset_events_transactions_current(PFS_thread *pfs)
+{
+  pfs->m_transaction_current.m_class= NULL;
+}
+
 /** Reset table EVENTS_TRANSACTIONS_CURRENT data. */
 void reset_events_transactions_current(void)
 {
-  PFS_thread *pfs_thread= thread_array;
-  PFS_thread *pfs_thread_last= thread_array + thread_max;
+  global_thread_container.apply_all(fct_reset_events_transactions_current);
+}
 
-  for ( ; pfs_thread < pfs_thread_last; pfs_thread++)
-  {
-    pfs_thread->m_transaction_current.m_class= NULL;
-  }
+static void fct_reset_events_transactions_history(PFS_thread *pfs_thread)
+{
+  PFS_events_transactions *pfs= pfs_thread->m_transactions_history;
+  PFS_events_transactions *pfs_last= pfs + events_transactions_history_per_thread;
+
+  pfs_thread->m_transactions_history_index= 0;
+  pfs_thread->m_transactions_history_full= false;
+  for ( ; pfs < pfs_last; pfs++)
+    pfs->m_class= NULL;
 }
 
 /** Reset table EVENTS_TRANSACTIONS_HISTORY data. */
 void reset_events_transactions_history(void)
 {
-  PFS_thread *pfs_thread= thread_array;
-  PFS_thread *pfs_thread_last= thread_array + thread_max;
-
-  for ( ; pfs_thread < pfs_thread_last; pfs_thread++)
-  {
-    PFS_events_transactions *pfs= pfs_thread->m_transactions_history;
-    PFS_events_transactions *pfs_last= pfs + events_transactions_history_per_thread;
-
-    pfs_thread->m_transactions_history_index= 0;
-    pfs_thread->m_transactions_history_full= false;
-    for ( ; pfs < pfs_last; pfs++)
-      pfs->m_class= NULL;
-  }
+  global_thread_container.apply_all(fct_reset_events_transactions_history);
 }
 
 /** Reset table EVENTS_TRANSACTIONS_HISTORY_LONG data. */
@@ -174,70 +177,53 @@ void reset_events_transactions_history_long(void)
     pfs->m_class= NULL;
 }
 
+static void fct_reset_events_transactions_by_thread(PFS_thread *thread)
+{
+  PFS_account *account= sanitize_account(thread->m_account);
+  PFS_user *user= sanitize_user(thread->m_user);
+  PFS_host *host= sanitize_host(thread->m_host);
+  aggregate_thread_transactions(thread, account, user, host);
+}
+
 /** Reset table EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME data. */
 void reset_events_transactions_by_thread()
 {
-  PFS_thread *thread= thread_array;
-  PFS_thread *thread_last= thread_array + thread_max;
-  PFS_account *account;
-  PFS_user *user;
-  PFS_host *host;
+  global_thread_container.apply(fct_reset_events_transactions_by_thread);
+}
 
-  for ( ; thread < thread_last; thread++)
-  {
-    if (thread->m_lock.is_populated())
-    {
-      account= sanitize_account(thread->m_account);
-      user= sanitize_user(thread->m_user);
-      host= sanitize_host(thread->m_host);
-      aggregate_thread_transactions(thread, account, user, host);
-    }
-  }
+static void fct_reset_events_transactions_by_account(PFS_account *pfs)
+{
+  PFS_user *user= sanitize_user(pfs->m_user);
+  PFS_host *host= sanitize_host(pfs->m_host);
+  pfs->aggregate_transactions(user, host);
 }
 
 /** Reset table EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME data. */
 void reset_events_transactions_by_account()
 {
-  PFS_account *pfs= account_array;
-  PFS_account *pfs_last= account_array + account_max;
-  PFS_user *user;
-  PFS_host *host;
+  global_account_container.apply(fct_reset_events_transactions_by_account);
+}
 
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-    {
-      user= sanitize_user(pfs->m_user);
-      host= sanitize_host(pfs->m_host);
-      pfs->aggregate_transactions(user, host);
-    }
-  }
+static void fct_reset_events_transactions_by_user(PFS_user *pfs)
+{
+  pfs->aggregate_transactions();
 }
 
 /** Reset table EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME data. */
 void reset_events_transactions_by_user()
 {
-  PFS_user *pfs= user_array;
-  PFS_user *pfs_last= user_array + user_max;
+  global_user_container.apply(fct_reset_events_transactions_by_user);
+}
 
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-      pfs->aggregate_transactions();
-  }
+static void fct_reset_events_transactions_by_host(PFS_host *pfs)
+{
+  pfs->aggregate_transactions();
 }
 
 /** Reset table EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME data. */
 void reset_events_transactions_by_host()
 {
-  PFS_host *pfs= host_array;
-  PFS_host *pfs_last= host_array + host_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-  {
-    if (pfs->m_lock.is_populated())
-      pfs->aggregate_transactions();
-  }
+  global_host_container.apply(fct_reset_events_transactions_by_host);
 }
 
 /** Reset table EVENTS_TRANSACTIONS_GLOBAL_BY_EVENT_NAME data. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,19 +89,34 @@ void (*fatal_error_handler_hook)(uint error, const char *str, myf MyFlags)=
 void (*local_message_hook)(enum loglevel ll, const char *format, va_list args)=
   my_message_local_stderr;
 
-static void proc_info_dummy(void *a __attribute__((unused)),
-                            const PSI_stage_info *b __attribute__((unused)),
-                            PSI_stage_info *c __attribute__((unused)),
-                            const char *d __attribute__((unused)),
-                            const char *e __attribute__((unused)),
-                            const unsigned int f __attribute__((unused)))
-{
-  return;
-}
+static void enter_cond_dummy(void *a __attribute__((unused)),
+                             mysql_cond_t *b __attribute__((unused)),
+                             mysql_mutex_t *c __attribute__((unused)),
+                             const PSI_stage_info *d __attribute__((unused)),
+                             PSI_stage_info *e __attribute__((unused)),
+                             const char *f __attribute__((unused)),
+                             const char *g __attribute__((unused)),
+                             int h __attribute__((unused)))
+{ };
 
-/* this is to be able to call set_thd_proc_info from the C code */
-void (*proc_info_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
-                       const char *, const char *, const unsigned int)= proc_info_dummy;
+static void exid_cond_dummy(void *a __attribute__((unused)),
+                            const PSI_stage_info *b __attribute__((unused)),
+                            const char *c __attribute__((unused)),
+                            const char *d __attribute__((unused)),
+                            int e __attribute__((unused)))
+{ };
+
+/*
+  Initialize these hooks to dummy implementations. The real server
+  implementations will be set during server startup by
+  init_server_components().
+*/
+void (*enter_cond_hook)(void *, mysql_cond_t *, mysql_mutex_t *,
+                        const PSI_stage_info *, PSI_stage_info *,
+                        const char *, const char *, int)= enter_cond_dummy;
+
+void (*exit_cond_hook)(void *, const PSI_stage_info *,
+                       const char *, const char *, int)= exid_cond_dummy;
 
 #if defined(ENABLED_DEBUG_SYNC)
 /**

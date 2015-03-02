@@ -19,17 +19,17 @@
   @file
   "public" interface to sys_var - server configuration variables.
 */
-
 #include "my_global.h"
 
-#include "m_string.h"       // LEX_CSTRING
-#include "my_getopt.h"      // get_opt_arg_type
-#include "mysql_com.h"      // Item_result
-#include "typelib.h"        // TYPELIB
-#include "mysql/plugin.h"   // enum_mysql_show_type
-#include "sql_alloc.h"      // Sql_alloc
-#include "sql_const.h"      // SHOW_COMP_OPTION
-#include "sql_plugin_ref.h" // plugin_ref
+#include "m_string.h"         // LEX_CSTRING
+#include "my_getopt.h"        // get_opt_arg_type
+#include "mysql_com.h"        // Item_result
+#include "typelib.h"          // TYPELIB
+#include "mysql/plugin.h"     // enum_mysql_show_type
+#include "sql_alloc.h"        // Sql_alloc
+#include "sql_const.h"        // SHOW_COMP_OPTION
+#include "sql_plugin_ref.h"   // plugin_ref
+#include "prealloced_array.h" // Prealloced_array
 
 #include <vector>
 
@@ -44,10 +44,15 @@ class THD;
 struct st_lex_user;
 typedef ulonglong sql_mode_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;
+typedef enum enum_mysql_show_scope SHOW_SCOPE;
 typedef struct st_mysql_show_var SHOW_VAR;
 template <class T> class List;
 
 extern TYPELIB bool_typelib;
+
+/* Number of system variable elements to preallocate. */
+#define SHOW_VAR_PREALLOC 200
+typedef Prealloced_array<SHOW_VAR, SHOW_VAR_PREALLOC, false> Show_var_array;
 
 struct sys_var_chain
 {
@@ -75,8 +80,16 @@ class sys_var
 public:
   sys_var *next;
   LEX_CSTRING name;
-  enum flag_enum { GLOBAL, SESSION, ONLY_SESSION, SCOPE_MASK=1023,
-                   READONLY=1024, ALLOCATED=2048, INVISIBLE=4096 };
+  enum flag_enum
+  {
+    GLOBAL=       0x0001,
+    SESSION=      0x0002,
+    ONLY_SESSION= 0x0004,
+    SCOPE_MASK=   0x03FF, // 1023
+    READONLY=     0x0400, // 1024
+    ALLOCATED=    0x0800, // 2048
+    INVISIBLE=    0x1000  // 4096
+  };
   static const int PARSE_EARLY= 1;
   static const int PARSE_NORMAL= 2;
   /**
@@ -122,6 +135,7 @@ public:
   virtual sys_var_pluginvar *cast_pluginvar() { return 0; }
 
   bool check(THD *thd, set_var *var);
+  uchar *value_ptr(THD *running_thd, THD *target_thd, enum_var_type type, LEX_STRING *base);
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   virtual void update_default(longlong new_def_value)
   { option.def_value= new_def_value; }
@@ -147,16 +161,23 @@ public:
   bool is_written_to_binlog(enum_var_type type)
   { return type != OPT_GLOBAL && binlog_status == SESSION_VARIABLE_IN_BINLOG; }
   virtual bool check_update_type(Item_result type) = 0;
-  bool check_type(enum_var_type type)
+  
+  /**
+    Return TRUE for success if:
+      Global query and variable scope is GLOBAL or SESSION, or
+      Session query and variable scope is SESSION or ONLY_SESSION.
+  */
+  bool check_scope(enum_var_type query_type)
   {
-    switch (scope())
+    switch (query_type)
     {
-    case GLOBAL:       return type != OPT_GLOBAL;
-    case SESSION:      return false; // always ok
-    case ONLY_SESSION: return type == OPT_GLOBAL;
+      case OPT_GLOBAL:  return scope() & (GLOBAL | SESSION);
+      case OPT_SESSION: return scope() & (SESSION | ONLY_SESSION);
+      case OPT_DEFAULT: return scope() & (SESSION | ONLY_SESSION);
     }
-    return true; // keep gcc happy
+    return false;
   }
+
   bool register_option(std::vector<my_option> *array, int parse_flags)
   {
     return (option.id != -1) && (m_parse_flag & parse_flags) &&
@@ -182,7 +203,7 @@ protected:
     It must be of show_val_type type (bool for SHOW_BOOL, int for SHOW_INT,
     longlong for SHOW_LONGLONG, etc).
   */
-  virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base);
+  virtual uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base);
   virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base);
 
   /**
@@ -322,11 +343,13 @@ extern SHOW_COMP_OPTION have_compress;
 extern SHOW_COMP_OPTION have_statement_timeout;
 
 /*
-  Prototypes for helper functions
+  Helper functions
 */
+ulong get_system_variable_hash_records(void);
+ulonglong get_system_variable_hash_version(void);
 
-SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type);
-
+bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
+                        bool sort, enum enum_var_type type, bool strict);
 void lock_plugin_mutex();
 void unlock_plugin_mutex();
 sys_var *find_sys_var(THD *thd, const char *str, size_t length=0);

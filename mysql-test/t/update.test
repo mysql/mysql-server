@@ -546,3 +546,51 @@ UPDATE t2 SET c = 10 ORDER BY a, b DESC LIMIT 5;
 SHOW STATUS LIKE 'HANDLER_UPDATE';
 ROLLBACK;
 DROP TABLE t1, t2;
+
+--echo # Bug#18439019 Assert in mysql_multi_update with ordered view
+
+CREATE TABLE t1 (
+a int unsigned not null auto_increment primary key,
+b int unsigned
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+a int unsigned not null auto_increment primary key,
+b int unsigned
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (NULL, 0);
+INSERT INTO t1 SELECT NULL, 0 FROM t1;
+INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
+
+CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+
+let $query=
+UPDATE t2, v1 AS t SET t2.b = t.a+5 ;
+
+eval explain $query;
+eval $query;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
+
+--echo # Bug#20454533: Assertion failed: sargables == 0 || *keyfields ...
+
+CREATE TABLE t1(
+ a int,
+ c int,
+ e int,
+ f int,
+ g blob,
+ h int,
+ i int,
+ j blob,
+ unique key (g(221),c),
+ unique key (c,a,j(148)),
+ key (i)
+) engine=innodb;
+
+UPDATE (SELECT 1 AS a FROM t1 NATURAL JOIN t1 AS t2) AS x, t1
+SET t1.e= x.a;
+
+DROP TABLE t1;

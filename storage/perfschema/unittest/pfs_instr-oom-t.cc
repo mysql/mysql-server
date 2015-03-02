@@ -22,6 +22,7 @@
 #include <tap.h>
 
 #include "stub_pfs_global.h"
+#include "stub_global_status_var.h"
 
 #include <string.h> /* memset */
 

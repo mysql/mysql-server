@@ -1779,29 +1779,29 @@ ER_WRONG_AUTO_KEY 42000 S1009
         swe "Det får finnas endast ett AUTO_INCREMENT-fält och detta måste vara en nyckel"
         ukr "Невірне визначення таблиці; Може бути лише один автоматичний стовбець, що повинен бути визначений як ключ"
 ER_READY  
-        cze "%s: připraven na spojení\nVersion: '%s'  socket: '%s'  port: %d""
-        dan "%s: klar til tilslutninger\nVersion: '%s'  socket: '%s'  port: %d""
-        nla "%s: klaar voor verbindingen\nVersion: '%s'  socket: '%s'  port: %d""
+        cze "%s: připraven na spojení\nVersion: '%s'  socket: '%s'  port: %d"
+        dan "%s: klar til tilslutninger\nVersion: '%s'  socket: '%s'  port: %d"
+        nla "%s: klaar voor verbindingen\nVersion: '%s'  socket: '%s'  port: %d"
         eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d"
-        est "%s: ootab ühendusi\nVersion: '%s'  socket: '%s'  port: %d""
-        fre "%s: Prêt pour des connexions\nVersion: '%s'  socket: '%s'  port: %d""
+        est "%s: ootab ühendusi\nVersion: '%s'  socket: '%s'  port: %d"
+        fre "%s: Prêt pour des connexions\nVersion: '%s'  socket: '%s'  port: %d"
         ger "%s: Bereit für Verbindungen.\nVersion: '%s'  Socket: '%s'  Port: %d"
-        greek "%s: σε αναμονή συνδέσεων\nVersion: '%s'  socket: '%s'  port: %d""
-        hun "%s: kapcsolatra kesz\nVersion: '%s'  socket: '%s'  port: %d""
-        ita "%s: Pronto per le connessioni\nVersion: '%s'  socket: '%s'  port: %d""
-        jpn "%s: 接続準備完了。\nバージョン: '%s'  socket: '%s'  port: %d""
-        kor "%s: 연결 준비중입니다\nVersion: '%s'  socket: '%s'  port: %d""
-        nor "%s: klar for tilkoblinger\nVersion: '%s'  socket: '%s'  port: %d""
-        norwegian-ny "%s: klar for tilkoblingar\nVersion: '%s'  socket: '%s'  port: %d""
-        pol "%s: gotowe do poł?czenia\nVersion: '%s'  socket: '%s'  port: %d""
-        por "%s: Pronto para conexões\nVersion: '%s'  socket: '%s'  port: %d""
-        rum "%s: sint gata pentru conectii\nVersion: '%s'  socket: '%s'  port: %d""
+        greek "%s: σε αναμονή συνδέσεων\nVersion: '%s'  socket: '%s'  port: %d"
+        hun "%s: kapcsolatra kesz\nVersion: '%s'  socket: '%s'  port: %d"
+        ita "%s: Pronto per le connessioni\nVersion: '%s'  socket: '%s'  port: %d"
+        jpn "%s: 接続準備完了。\nバージョン: '%s'  socket: '%s'  port: %d"
+        kor "%s: 연결 준비중입니다\nVersion: '%s'  socket: '%s'  port: %d"
+        nor "%s: klar for tilkoblinger\nVersion: '%s'  socket: '%s'  port: %d"
+        norwegian-ny "%s: klar for tilkoblingar\nVersion: '%s'  socket: '%s'  port: %d"
+        pol "%s: gotowe do poł?czenia\nVersion: '%s'  socket: '%s'  port: %d"
+        por "%s: Pronto para conexões\nVersion: '%s'  socket: '%s'  port: %d"
+        rum "%s: sint gata pentru conectii\nVersion: '%s'  socket: '%s'  port: %d"
         rus "%s: Готов принимать соединения.\nВерсия: '%s'  сокет: '%s'  порт: %d"
-        serbian "%s: Spreman za konekcije\nVersion: '%s'  socket: '%s'  port: %d""
-        slo "%s: pripravený na spojenie\nVersion: '%s'  socket: '%s'  port: %d""
-        spa "%s: preparado para conexiones\nVersion: '%s'  socket: '%s'  port: %d""
-        swe "%s: klar att ta emot klienter\nVersion: '%s'  socket: '%s'  port: %d""
-        ukr "%s: Готовий для з'єднань!\nVersion: '%s'  socket: '%s'  port: %d""
+        serbian "%s: Spreman za konekcije\nVersion: '%s'  socket: '%s'  port: %d"
+        slo "%s: pripravený na spojenie\nVersion: '%s'  socket: '%s'  port: %d"
+        spa "%s: preparado para conexiones\nVersion: '%s'  socket: '%s'  port: %d"
+        swe "%s: klar att ta emot klienter\nVersion: '%s'  socket: '%s'  port: %d"
+        ukr "%s: Готовий для з'єднань!\nVersion: '%s'  socket: '%s'  port: %d"
 ER_NORMAL_SHUTDOWN  
         cze "%s: normální ukončení\n"
         dan "%s: Normal nedlukning\n"
@@ -6045,7 +6045,7 @@ ER_ONLY_INTEGERS_ALLOWED
         eng "Only integers allowed as number here"
         ger "An dieser Stelle sind nur Ganzzahlen zulässig"
 ER_UNSUPORTED_LOG_ENGINE
-        eng "This storage engine cannot be used for log tables""
+        eng "This storage engine cannot be used for log tables"
         ger "Diese Speicher-Engine kann für Logtabellen nicht verwendet werden"
 ER_BAD_LOG_STATEMENT
         eng "You cannot '%s' a log table if logging is enabled"
@@ -6212,8 +6212,8 @@ ER_CONFLICT_FN_PARSE_ERROR
   eng "Error in parsing conflict function. Message: %-.64s"
   ger "Fehler beim Parsen einer Konflikt-Funktion. Meldung: %-.64s"
 ER_EXCEPTIONS_WRITE_ERROR
-  eng "Write to exceptions table failed. Message: %-.128s""
-  ger "Schreiben in Ausnahme-Tabelle fehlgeschlagen. Meldung: %-.128s""
+  eng "Write to exceptions table failed. Message: %-.128s"
+  ger "Schreiben in Ausnahme-Tabelle fehlgeschlagen. Meldung: %-.128s"
 ER_TOO_LONG_TABLE_COMMENT
   eng "Comment for table '%-.64s' is too long (max = %lu)"
   por "Comentário para a tabela '%-.64s' é longo demais (max = %lu)"
@@ -6675,7 +6675,7 @@ ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
 ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST
   eng "The system variable @@SESSION.GTID_NEXT has the value %.200s, which is not listed in @@SESSION.GTID_NEXT_LIST."
 
-ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION_WHEN_GTID_NEXT_LIST_IS_NULL
+ER_CANT_CHANGE_GTID_NEXT_IN_TRANSACTION
   eng "The system variable @@SESSION.GTID_NEXT cannot change inside a transaction."
 
 ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION
@@ -6702,17 +6702,17 @@ ER_GNO_EXHAUSTED
 ER_BAD_SLAVE_AUTO_POSITION
   eng "Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active."
 
-ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
-  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON."
+ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF
+  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF."
 
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
   eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 
-ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
-  eng "@@GLOBAL.GTID_MODE = ON or UPGRADE_STEP_2 requires @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
+ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
+  eng "GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON."
 
 ER_GTID_MODE_REQUIRES_BINLOG
-  eng "@@GLOBAL.GTID_MODE = ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates."
+  eng "@@GLOBAL.GTID_MODE = ON or ON_PERMISSIVE or OFF_PERMISSIVE requires --log-bin and --log-slave-updates."
 
 ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF
   eng "@@SESSION.GTID_NEXT cannot be set to UUID:NUMBER when @@GLOBAL.GTID_MODE = OFF."
@@ -6723,20 +6723,20 @@ ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
 ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF
   eng "@@SESSION.GTID_NEXT_LIST cannot be set to a non-NULL value when @@GLOBAL.GTID_MODE = OFF."
 
-ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF
+ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF__UNUSED
   eng "Found a Gtid_log_event when @@GLOBAL.GTID_MODE = OFF."
 
 ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
-  eng "When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
+  eng "Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
 
 ER_GTID_UNSAFE_CREATE_SELECT
-  eng "CREATE TABLE ... SELECT is forbidden when @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
+  eng "Statement violates GTID consistency: CREATE TABLE ... SELECT."
 
 ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
- eng "When @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1."
+  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context."
 
 ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
-  eng "The value of @@GLOBAL.GTID_MODE can only change one step at a time: OFF <-> UPGRADE_STEP_1 <-> UPGRADE_STEP_2 <-> ON. Also note that this value must be stepped up or down simultaneously on all servers; see the Manual for instructions." 
+  eng "The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions."
 
 ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
   eng "The slave is connecting using CHANGE MASTER TO MASTER_AUTO_POSITION = 1, but the master has purged binary logs containing GTIDs that the slave requires."
@@ -7381,6 +7381,75 @@ ER_RUN_HOOK_ERROR
 ER_TRANSACTION_ROLLBACK_DURING_COMMIT
   eng "Plugin instructed the server to rollback the current transaction."
 
+ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+  eng "Expression of generated column '%s' contains a disallowed function."
+
+ER_KEY_BASED_ON_GENERATED_COLUMN
+  eng "Key/Index cannot be defined on a virtual generated column."
+
+ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
+  eng "Cannot define foreign key with %s clause on a generated column."
+
+ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+  eng "The value specified for generated column '%s' in table '%s' is not allowed."
+
+ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+  eng "'%s' is not supported for generated columns."
+
+ER_GENERATED_COLUMN_NON_PRIOR
+  eng "Generated column can refer only to generated columns defined prior to it."
+
+ER_DEPENDENT_BY_GENERATED_COLUMN
+  eng "Column '%s' has a generated column dependency."
+
+ER_GENERATED_COLUMN_REF_AUTO_INC
+  eng "Stored generated column '%s' cannot refer auto-increment column."
+
+ER_FEATURE_NOT_AVAILABLE
+  eng "The '%-.64s' feature is not available; you need to remove '%-.64s' or use MySQL built with '%-.64s'"
+
+ER_CANT_SET_GTID_MODE
+  eng "SET @@GLOBAL.GTID_MODE = %-.64s is not allowed because %-.384s."
+
+ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF
+  eng "The replication receiver thread for channel '%s' cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF."
+
+ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
+  eng "Cannot replicate anonymous transaction when AUTO_POSITION = 1, at file %.512s, position %lld."
+
+ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
+  eng "Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON, at file %.512s, position %lld."
+
+ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
+  eng "Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF, at file %.512s, position %lld."
+
+ER_CANT_SET_ENFORCE_GTID_CONSISTENCY_ON_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS
+  eng "Cannot set ENFORCE_GTID_CONSISTENCY = ON because there are ongoing transactions that violate GTID consistency."
+
+ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS
+  eng "There are ongoing transactions that violate GTID consistency."
+
+ER_ACCOUNT_HAS_BEEN_LOCKED
+  eng "Access denied for user '%-.48s'@'%-.64s'. Account is locked."
+  pol "Odmowa dostępu dla użytkownika '%-.48s'@'%-.64s'. Konto zablokowane."
+
+ER_WRONG_TABLESPACE_NAME 42000
+  eng "Incorrect tablespace name `%-.192s`"
+
+ER_TABLESPACE_IS_NOT_EMPTY
+  eng "Tablespace `%-.192s` is not empty."
+
+ER_WRONG_FILE_NAME
+  eng "Incorrect File Name '%s'."
+
+ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
+  eng "Inconsistent intersection points."
 #
 #  End of 5.7 error messages.
+#
+
+start-error-number 3500
+
+#
+#  End of 5.8 error messages.
 #

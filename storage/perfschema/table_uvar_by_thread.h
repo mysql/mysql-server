@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ public:
   {}
 
   PFS_variable_name_row m_name;
-  PFS_variable_value_row m_value;
+  PFS_user_variable_value_row m_value;
 };
 
 class User_variables
@@ -104,7 +104,7 @@ struct row_uvar_by_thread
   /** Column VARIABLE_NAME. */
   const PFS_variable_name_row *m_variable_name;
   /** Column VARIABLE_VALUE. */
-  const PFS_variable_value_row *m_variable_value;
+  const PFS_user_variable_value_row *m_variable_value;
 };
 
 /**
@@ -125,9 +125,6 @@ struct pos_uvar_by_thread
     m_index_1= 0;
     m_index_2= 0;
   }
-
-  inline bool has_more_thread(void)
-  { return (m_index_1 < thread_max); }
 
   inline void next_thread(void)
   {

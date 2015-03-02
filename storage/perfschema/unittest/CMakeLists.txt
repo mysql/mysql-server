@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 ADD_DEFINITIONS(-DMYSQL_SERVER ${SSL_DEFINES})
 
 ADD_CONVENIENCE_LIBRARY(pfs_server_stubs pfs_server_stubs.cc)
+
+ADD_DEPENDENCIES(pfs_server_stubs GenError)
 
 MACRO (PFS_ADD_TEST name)
   ADD_EXECUTABLE(${name}-t ${name}-t.cc)

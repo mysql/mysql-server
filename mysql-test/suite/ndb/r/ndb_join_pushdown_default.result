@@ -79,7 +79,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 16,
           "rows_produced_per_join": 16,
-          "filtered": 100,
+          "filtered": "100.00",
           "pushed_join": "Parent of 2 pushed join@1",
           "cost_info": {
             "read_cost": "16000.00",
@@ -124,7 +124,7 @@ EXPLAIN
           ],
           "rows_examined_per_scan": 1,
           "rows_produced_per_join": 16,
-          "filtered": 100,
+          "filtered": "100.00",
           "pushed_join": "Child of 't1' in pushed join@1",
           "cost_info": {
             "read_cost": "16.00",

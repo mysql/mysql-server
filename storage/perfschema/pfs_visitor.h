@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #define PFS_VISITOR_H
 
 #include "pfs_stat.h"
+
+struct System_status_var;
 
 /**
   @file storage/perfschema/pfs_visitor.h
@@ -70,6 +72,8 @@ public:
   virtual void visit_user(PFS_user *pfs) {}
   /** Visit a thread. */
   virtual void visit_thread(PFS_thread *pfs) {}
+  /** Visit a THD associated with a thread. */
+  virtual void visit_THD(THD *thd) {}
 };
 
 /**
@@ -85,37 +89,45 @@ public:
     @param with_users when true, visit also all users.
     @param with_accounts when true, visit also all user+host.
     @param with_threads when true, visit also all threads.
+    @param with_THDs when true, visit also all threads THD.
     @param visitor the visitor to call
   */
   static void visit_global(bool with_hosts, bool with_users,
                            bool with_accounts, bool with_threads,
+                           bool with_THDs,
                            PFS_connection_visitor *visitor);
   /**
     Visit all connections of a host.
     @param host the host to visit.
     @param with_accounts when true, visit also all related user+host.
     @param with_threads when true, visit also all related threads.
+    @param with_THDs when true, visit also all related threads THD.
     @param visitor the visitor to call
   */
   static void visit_host(PFS_host *host, bool with_accounts, bool with_threads,
+                         bool with_THDs,
                          PFS_connection_visitor *visitor);
   /**
     Visit all connections of a user.
     @param user the user to visit.
     @param with_accounts when true, visit also all related user+host.
     @param with_threads when true, visit also all related threads.
+    @param with_THDs when true, visit also all related threads THD.
     @param visitor the visitor to call
   */
   static void visit_user(PFS_user *user, bool with_accounts, bool with_threads,
+                         bool with_THDs,
                          PFS_connection_visitor *visitor);
   /**
     Visit all connections of a user+host.
     @param account the user+host to visit.
     @param with_threads when true, visit also all related threads.
+    @param with_THDs when true, visit also all related threads THD.
     @param visitor the visitor to call
   */
   static void visit_account(PFS_account *account, bool with_threads,
-                              PFS_connection_visitor *visitor);
+                            bool with_THDs,
+                            PFS_connection_visitor *visitor);
   /**
     Visit a thread or connection.
     @param thread the thread to visit.
@@ -124,6 +136,13 @@ public:
   static inline void visit_thread(PFS_thread *thread,
                                   PFS_connection_visitor *visitor)
   { visitor->visit_thread(thread); }
+
+  /**
+    Visit THD.
+    @param thd the THD to visit.
+    @param visitor the visitor to call.
+  */
+  static void visit_THD(THD *thd, PFS_connection_visitor *visitor);
 };
 
 /**
@@ -478,6 +497,27 @@ public:
   uint m_index;
   /** Statement statistic collected. */
   PFS_memory_stat m_stat;
+};
+
+/**
+  A concrete connection visitor that aggregates
+  status variables.
+*/
+class PFS_connection_status_visitor : public PFS_connection_visitor
+{
+public:
+  /** Constructor. */
+  PFS_connection_status_visitor(System_status_var *status_vars);
+  virtual ~PFS_connection_status_visitor();
+  virtual void visit_global();
+  virtual void visit_host(PFS_host *pfs);
+  virtual void visit_account(PFS_account *pfs);
+  virtual void visit_user(PFS_user *pfs);
+  virtual void visit_thread(PFS_thread *pfs);
+  virtual void visit_THD(THD *thd);
+
+private:
+  System_status_var *m_status_vars;
 };
 
 /**

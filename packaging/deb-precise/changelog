@@ -1,3 +1,10 @@
+mysql-community (5.8.0-m17-1ubuntu12.04) precise; urgency=low
+
+  * new upstream release
+  * updated d/extra/my.cnf to remove option sql_mode
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 13 Feb 2015 16:22:33 +0530
+
 mysql-community (5.7.6-m16-1ubuntu12.04) precise; urgency=low
 
   * new upstream release
@@ -15,8 +22,11 @@ mysql-community (5.7.6-m16-1ubuntu12.04) precise; urgency=low
     rewriter
     rewrite_example
   * new binary mysql_ssl_rsa_setup added to d/mysql-*-server.install
+  * provisioned handling of data files directory /var/lib/mysql-files
+  * cmake option to specify data dir in d/rules is now removed
+    as default path in cmake layout for DEB is now /var/lib/mysql
 
- -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 16 Jan 2015 17:14:45 +0530
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 23 Jan 2015 19:59:33 +0530
 
 mysql-community (5.7.5-m15-1ubuntu12.04) precise; urgency=low
 

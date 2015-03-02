@@ -20,6 +20,7 @@
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
 
 #ifndef MYSQL_CLIENT
+#include "current_thd.h"
 #include "debug_sync.h"        // debug_sync_set_action
 #include "my_dir.h"            // my_dir
 #include "log.h"               // Log_throttle
@@ -51,9 +52,21 @@ slave_ignored_err_throttle(window_size,
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_CLIENT */
 
+#include <base64.h>
+#include <my_bitmap.h>
+#include <map>
+#include "rpl_utility.h"
+/* This is necessary for the List manipuation */
+#include "sql_list.h"                           /* I_List */
+#include "hash.h"
+#include "sql_digest.h"
+#include "rpl_gtid.h"
+
+extern "C" {
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
+}
 
 using std::min;
 using std::max;
@@ -743,6 +756,24 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
 /**************************************************************************
 	Log_event methods (= the parent class of all events)
 **************************************************************************/
+
+#ifdef MYSQL_SERVER
+
+time_t Log_event::get_time()
+{
+  /* Not previously initialized */
+  if (!common_header->when.tv_sec && !common_header->when.tv_usec)
+  {
+    THD *tmp_thd= thd ? thd : current_thd;
+    if (tmp_thd)
+      common_header->when= tmp_thd->start_time;
+    else
+      my_micro_time_to_timeval(my_micro_time(), &(common_header->when));
+  }
+  return (time_t) common_header->when.tv_sec;
+}
+
+#endif
 
 /**
   @return
@@ -3734,26 +3765,23 @@ bool Query_log_event::write(IO_CACHE* file)
       }
     }
 
-    if (invoker_user.length > 0)
-    {
-      *start++= Q_INVOKER;
+    *start++= Q_INVOKER;
 
-      /*
-        Store user length and user. The max length of use is 16, so 1 byte is
-        enough to store the user's length.
-       */
-      *start++= (uchar)invoker_user.length;
-      memcpy(start, invoker_user.str, invoker_user.length);
-      start+= invoker_user.length;
+    /*
+      Store user length and user. The max length of use is 16, so 1 byte is
+      enough to store the user's length.
+     */
+    *start++= (uchar)invoker_user.length;
+    memcpy(start, invoker_user.str, invoker_user.length);
+    start+= invoker_user.length;
 
-      /*
-        Store host length and host. The max length of host is 60, so 1 byte is
-        enough to store the host's length.
-       */
-      *start++= (uchar)invoker_host.length;
-      memcpy(start, invoker_host.str, invoker_host.length);
-      start+= invoker_host.length;
-    }
+    /*
+      Store host length and host. The max length of host is 60, so 1 byte is
+      enough to store the host's length.
+     */
+    *start++= (uchar)invoker_host.length;
+    memcpy(start, invoker_host.str, invoker_host.length);
+    start+= invoker_host.length;
   }
 
   if (thd && thd->get_binlog_accessed_db_names() != NULL)
@@ -4702,6 +4730,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         THD_STAGE_INFO(thd, stage_starting);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
                                  thd->query().length);
+        if (thd->m_digest != NULL)
+          thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
         mysql_parse(thd, &parser_state);
         /* Finalize server status flags after executing a statement. */
@@ -4736,7 +4766,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         clear_all_errors(thd, const_cast<Relay_log_info*>(rli)); /* Can ignore query */
       else
       {
-        rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER, ER(ER_ERROR_ON_MASTER),
+        rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER,
+                    ER_THD(thd, ER_ERROR_ON_MASTER),
                     expected_error, thd->query().str);
         thd->is_slave_error= 1;
       }
@@ -4790,7 +4821,8 @@ compare_errors:
         !ignored_error_code(actual_error) &&
         !ignored_error_code(expected_error))
     {
-      rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR, ER(ER_INCONSISTENT_ERROR),
+      rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR,
+                  ER_THD(thd, ER_INCONSISTENT_ERROR),
                   ER_THD(thd, expected_error), expected_error,
                   (actual_error ?
                    thd->get_stmt_da()->message_text() :
@@ -4933,13 +4965,7 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
     after a SET ONE_SHOT, because SET ONE_SHOT should not be separated
     from its following updating query.
   */
-  int ret= 0;
-  if (thd->one_shot_set)
-  {
-    rli->inc_event_relay_log_pos();
-  }
-  else
-    ret= Log_event::do_update_pos(rli);
+  int ret= Log_event::do_update_pos(rli);
 
   DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
        if (!strcmp("COMMIT", query))
@@ -6320,7 +6346,7 @@ error:
     else
     {
       sql_errno=ER_UNKNOWN_ERROR;
-      err=ER(sql_errno);       
+      err=ER_THD(thd, sql_errno);
     }
     rli->report(ERROR_LEVEL, sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
@@ -6340,7 +6366,7 @@ Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
                 print_slave_db_safe(remember_db));
 
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER(ER_SLAVE_FATAL_ERROR), buf);
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR), buf);
     return 1;
   }
 
@@ -8372,7 +8398,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
                                   opt_slave_sql_verify_checksum)) ||
       lev->get_type_code() != binary_log::NEW_LOAD_EVENT)
   {
-    rli->report(ERROR_LEVEL, ER_FILE_CORRUPT, ER(ER_FILE_CORRUPT),
+    rli->report(ERROR_LEVEL, ER_FILE_CORRUPT, ER_THD(thd, ER_FILE_CORRUPT),
                 fname);
     goto err;
   }
@@ -8664,7 +8690,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   if (buf == NULL)
   {
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER(ER_SLAVE_FATAL_ERROR), "Not enough memory");
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR), "Not enough memory");
     return 1;
   }
 
@@ -11640,14 +11666,14 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                   table_list->table_id.id());
 
       if (thd->slave_thread)
-        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
-                    ER(ER_SLAVE_FATAL_ERROR), buf);
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR), buf);
       else
         /* 
           For the cases in which a 'BINLOG' statement is set to 
           execute in a user session 
          */
-        my_printf_error(ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR), 
+        my_printf_error(ER_SLAVE_FATAL_ERROR, ER_THD(thd, ER_SLAVE_FATAL_ERROR),
                         MYF(0), buf);
     } 
     
@@ -12617,7 +12643,7 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
   }
    
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
-              ER(ER_SLAVE_INCIDENT),
+              ER_THD(thd, ER_SLAVE_INCIDENT),
               description(),
               message_length > 0 ? message : "<none>");
   DBUG_RETURN(1);
@@ -13007,7 +13033,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     this case the only sensible thing to do is to discard the
     truncated transaction and move on.
   */
-  if (thd->owned_gtid.sidno)
+  if (!thd->owned_gtid.is_empty())
   {
     /*
       Slave will execute this code if a previous Gtid_log_event was applied
@@ -13036,38 +13062,21 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     gtid_state->update_on_rollback(thd);
   }
 
-  if (spec.type == ANONYMOUS_GROUP)
+  global_sid_lock->rdlock();
+
+  // make sure that sid has been converted to sidno
+  if (spec.type == GTID_GROUP)
   {
-    if (gtid_mode == GTID_MODE_ON)
+    if (get_sidno(false) < 0)
     {
-      rli->report(ERROR_LEVEL,
-                  ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON,
-                  "%s",
-                  ER(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON));
-      DBUG_RETURN(1);
-    }
-    thd->variables.gtid_next.set_anonymous();
-  }
-  else
-  {
-    if (gtid_mode == GTID_MODE_OFF)
-    {
-      rli->report(ERROR_LEVEL,
-                  ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF,
-                  "%s",
-                  ER(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF));
-      DBUG_RETURN(1);
-    }
-    rpl_sidno sidno= get_sidno(true);
-    if (sidno < 0)
+      global_sid_lock->unlock();
       DBUG_RETURN(1); // out of memory
-
-    thd->variables.gtid_next.set(sidno, spec.gtid.gno);
-
-    DBUG_PRINT("info", ("setting gtid_next=%d:%lld",
-                        sidno, spec.gtid.gno));
+    }
   }
-  if (gtid_acquire_ownership_single(thd))
+
+  // set_gtid_next releases global_sid_lock
+  if (set_gtid_next(thd, spec))
+    // This can happen e.g. if gtid_mode is incompatible with spec.
     DBUG_RETURN(1);
 
   thd->set_currently_executing_gtid_for_slave_thread();
@@ -13590,6 +13599,10 @@ void View_change_log_event::print(FILE *file,
 
  int View_change_log_event::do_apply_event(Relay_log_info const *rli)
  {
+   if(written_to_binlog)
+     return 0;
+
+   written_to_binlog= true;
    return mysql_bin_log.write_event_into_log_file(this);
  }
 
@@ -13609,6 +13622,7 @@ bool View_change_log_event::write_data_header(IO_CACHE* file){
   memcpy(buf, view_id, ENCODED_VIEW_ID_MAX_LEN);
   int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
   int4store(buf + ENCODED_CERT_INFO_SIZE_OFFSET, certification_info.size());
+  buf[ENCODED_WRITTEN_FLAG_OFFSET]= written_to_binlog;
   DBUG_RETURN(wrapper_my_b_safe_write(file,(const uchar *) buf,
                                       Binary_log_event::VIEW_CHANGE_HEADER_LEN));
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,8 @@
 
 // Required to get server definitions for mysql/plugin.h right
 #include "sql_plugin.h"
-#include "sql_partition.h"                 // partition_info.h: LIST_PART_ENTRY
-                                           // NOT_A_PARTITION_ID
-#include "partition_info.h"
+#include "partition_info.h"                   // LIST_PART_ENTRY
+                                              // NOT_A_PARTITION_ID
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "auth_common.h"                      // *_ACL
 #include "table.h"                            // TABLE_LIST
@@ -27,9 +26,8 @@
 #include "sql_base.h"                         // fill_record
 #include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
 #include "trigger_chain.h"                    // Trigger_chain
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-#include "ha_partition.h"
+#include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
+#include "current_thd.h"
 
 
 partition_info *partition_info::get_clone()
@@ -48,6 +46,7 @@ partition_info *partition_info::get_clone()
   memset(&(clone->lock_partitions), 0, sizeof(clone->lock_partitions));
   clone->bitmaps_are_initialized= FALSE;
   clone->partitions.empty();
+  clone->temp_partitions.empty();
 
   while ((part= (part_it++)))
   {
@@ -77,6 +76,18 @@ partition_info *partition_info::get_clone()
   DBUG_RETURN(clone);
 }
 
+partition_info *partition_info::get_full_clone()
+{
+  partition_info *clone;
+  DBUG_ENTER("partition_info::get_full_clone");
+  clone= get_clone();
+  if (!clone)
+    DBUG_RETURN(NULL);
+  memcpy(&clone->read_partitions, &read_partitions, sizeof(read_partitions));
+  memcpy(&clone->lock_partitions, &lock_partitions, sizeof(lock_partitions));
+  clone->bitmaps_are_initialized= bitmaps_are_initialized;
+  DBUG_RETURN(clone);
+}
 
 /**
   Mark named [sub]partition to be used/locked.
@@ -161,19 +172,20 @@ bool partition_info::set_named_partition_bitmap(const char *part_name,
     @param table_list  Table list pointing to table to prune.
 
   @return Operation status
-    @retval true  Failure
     @retval false Success
+    @retval true  Failure
 */
-bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
+bool partition_info::set_read_partitions(List<String> *partition_names)
 {
-  List_iterator<String> partition_names_it(*(table_list->partition_names));
-  uint num_names= table_list->partition_names->elements;
-  uint i= 0;
-  DBUG_ENTER("partition_info::prune_partition_bitmaps");
-
-  if (num_names < 1)
+  DBUG_ENTER("partition_info::set_read_partitions");
+  if (!partition_names || !partition_names->elements)
+  {
     DBUG_RETURN(true);
+  }
 
+  uint num_names= partition_names->elements;
+  List_iterator<String> partition_names_it(*partition_names);
+  uint i= 0;
   /*
     TODO: When adding support for FK in partitioned tables, the referenced
     table must probably lock all partitions for read, and also write depending
@@ -232,7 +244,7 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
         my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
         DBUG_RETURN(true);
     }
-    if (prune_partition_bitmaps(table_list))
+    if (set_read_partitions(table_list->partition_names))
       DBUG_RETURN(TRUE);
   }
   else
@@ -304,6 +316,20 @@ bool partition_info::can_prune_insert(THD* thd,
       DBUG_RETURN(false);
   }
 
+  /*
+    Can't prune partitions over generated columns, as their values are
+    calculated much later.
+  */
+  if (table->vfield)
+  {
+    Field **fld;
+    for (fld= table->vfield; *fld; fld++)
+    {
+      if (bitmap_is_set(&full_part_field_set, (*fld)->field_index))
+        DBUG_RETURN(false);
+    }
+  }
+
   if (table->found_next_number_field)
   {
     /*
@@ -337,7 +363,7 @@ bool partition_info::can_prune_insert(THD* thd,
     /*
       TODO: add check for static update values, which can be pruned.
     */
-    if (is_field_in_part_expr(update_fields))
+    if (is_fields_in_part_expr(update_fields))
       DBUG_RETURN(false);
 
     /*
@@ -405,7 +431,7 @@ bool partition_info::can_prune_insert(THD* thd,
     If no partitioning field in set (e.g. defaults) check pruning only once.
   */
   if (fields.elements &&
-      !is_field_in_part_expr(fields))
+      !is_fields_in_part_expr(fields))
     *can_prune_partitions= PRUNE_DEFAULTS;
   else
     *can_prune_partitions= PRUNE_YES;
@@ -639,14 +665,23 @@ char *partition_info::create_default_subpartition_name(uint subpart_no,
     The external routine needing this code is check_partition_info
 */
 
-bool partition_info::set_up_default_partitions(handler *file,
+bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
                                                HA_CREATE_INFO *info,
                                                uint start_no)
 {
-  uint i;
+  uint i, default_partitions;
   char *default_name;
   bool result= TRUE;
   DBUG_ENTER("partition_info::set_up_default_partitions");
+
+  if (!part_handler)
+  {
+    default_partitions= 1;
+  }
+  else
+  {
+    default_partitions= part_handler->get_default_num_partitions(info);
+  }
 
   if (part_type != HASH_PARTITION)
   {
@@ -660,7 +695,7 @@ bool partition_info::set_up_default_partitions(handler *file,
   }
 
   if ((num_parts == 0) &&
-      ((num_parts= file->get_default_no_partitions(info)) == 0))
+      ((num_parts= default_partitions) == 0))
   {
     my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
     goto end;
@@ -720,17 +755,27 @@ end:
     The external routine needing this code is check_partition_info
 */
 
-bool partition_info::set_up_default_subpartitions(handler *file,
-                                                  HA_CREATE_INFO *info)
+bool
+partition_info::set_up_default_subpartitions(Partition_handler *part_handler,
+                                             HA_CREATE_INFO *info)
 {
-  uint i, j;
+  uint i, j, default_partitions;
   bool result= TRUE;
   partition_element *part_elem;
   List_iterator<partition_element> part_it(partitions);
   DBUG_ENTER("partition_info::set_up_default_subpartitions");
 
+  if (!part_handler)
+  {
+    default_partitions= 1;
+  }
+  else
+  {
+    default_partitions= part_handler->get_default_num_partitions(info);
+  }
+
   if (num_subparts == 0)
-    num_subparts= file->get_default_no_partitions(info);
+    num_subparts= default_partitions;
   if (unlikely((num_parts * num_subparts) > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
@@ -785,9 +830,10 @@ end:
     this will return an error.
 */
 
-bool partition_info::set_up_defaults_for_partitioning(handler *file,
-                                                      HA_CREATE_INFO *info,
-                                                      uint start_no)
+bool partition_info::
+set_up_defaults_for_partitioning(Partition_handler *part_handler,
+                                 HA_CREATE_INFO *info,
+                                 uint start_no)
 {
   DBUG_ENTER("partition_info::set_up_defaults_for_partitioning");
 
@@ -795,10 +841,10 @@ bool partition_info::set_up_defaults_for_partitioning(handler *file,
   {
     default_partitions_setup= TRUE;
     if (use_default_partitions)
-      DBUG_RETURN(set_up_default_partitions(file, info, start_no));
+      DBUG_RETURN(set_up_default_partitions(part_handler, info, start_no));
     if (is_sub_partitioned() &&
         use_default_subpartitions)
-      DBUG_RETURN(set_up_default_subpartitions(file, info));
+      DBUG_RETURN(set_up_default_subpartitions(part_handler, info));
   }
   DBUG_RETURN(FALSE);
 }
@@ -1145,7 +1191,7 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
   }
   DBUG_PRINT("info", ("out: engine_type = %s",
                        ha_resolve_storage_engine_name(engine_type)));
-  DBUG_ASSERT(engine_type != partition_hton);
+  DBUG_ASSERT(!is_ha_partition_handlerton(engine_type));
   DBUG_RETURN(FALSE);
 error:
   /*
@@ -1547,11 +1593,13 @@ static void warn_if_dir_in_part_elem(THD *thd, partition_element *part_elem)
   {
     if (part_elem->data_file_name)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(thd, WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (part_elem->index_file_name)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(thd, WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     part_elem->data_file_name= part_elem->index_file_name= NULL;
   }
@@ -1590,7 +1638,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   bool result= TRUE, table_engine_set;
   char *same_name;
   DBUG_ENTER("partition_info::check_partition_info");
-  DBUG_ASSERT(default_engine_type != partition_hton);
+  DBUG_ASSERT(!is_ha_partition_handlerton(table_engine));
 
   DBUG_PRINT("info", ("default table_engine = %s",
                       ha_resolve_storage_engine_name(table_engine)));
@@ -1630,8 +1678,12 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     my_error(ER_SUBPARTITION_ERROR, MYF(0));
     goto end;
   }
-  if (unlikely(set_up_defaults_for_partitioning(file, info, (uint)0)))
+  if (unlikely(set_up_defaults_for_partitioning(file->get_partition_handler(),
+                                                info,
+                                                (uint)0)))
+  {
     goto end;
+  }
   if (!(tot_partitions= get_tot_partitions()))
   {
     my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
@@ -1656,10 +1708,12 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   {
     table_engine_set= TRUE;
     table_engine= info->db_type;
-    /* if partition_hton, use thd->lex->create_info */
-    if (table_engine == partition_hton)
+    /* if partition hton, use thd->lex->create_info */
+    if (is_ha_partition_handlerton(table_engine))
+    {
       table_engine= thd->lex->create_info.db_type;
-    DBUG_ASSERT(table_engine != partition_hton);
+    }
+    DBUG_ASSERT(!is_ha_partition_handlerton(table_engine));
     DBUG_PRINT("info", ("Using table_engine = %s",
                         ha_resolve_storage_engine_name(table_engine)));
   }
@@ -1671,7 +1725,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       table_engine_set= TRUE;
       DBUG_PRINT("info", ("No create, table_engine = %s",
                           ha_resolve_storage_engine_name(table_engine)));
-      DBUG_ASSERT(table_engine && table_engine != partition_hton);
+      DBUG_ASSERT(table_engine &&
+                  !is_ha_partition_handlerton(table_engine));
     }
   }
 
@@ -1797,8 +1852,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     goto end;
   }
 
-  DBUG_ASSERT(table_engine != partition_hton &&
-              default_engine_type == table_engine);
+  DBUG_ASSERT(table_engine == default_engine_type &&
+              !is_ha_partition_handlerton(table_engine));
   if (eng_type)
     *eng_type= table_engine;
 
@@ -1847,7 +1902,8 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
                                 SELECT_ACL, &table_list, TRUE))
   {
     my_message(ER_NO_PARTITION_FOR_GIVEN_VALUE,
-               ER(ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), MYF(0));
+               ER_THD(current_thd, ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT),
+               MYF(0));
   }
   else
   {
@@ -2164,7 +2220,7 @@ void partition_info::report_part_expr_error(bool use_subpart_expr)
     @retval false No field is within any partitioning expression.
 */
 
-bool partition_info::is_field_in_part_expr(List<Item> &fields)
+bool partition_info::is_fields_in_part_expr(List<Item> &fields)
 {
   List_iterator<Item> it(fields);
   Item *item;
@@ -2861,7 +2917,7 @@ static bool strcmp_null(const char *a, const char *b)
 
   @note Currently only used to allow changing from non-set key_algorithm
   to a specified key_algorithm, to avoid rebuild when upgrading from 5.1 of
-  such partitioned tables using numeric colums in the partitioning expression.
+  such partitioned tables using numeric columns in the partitioning expression.
   For more info see bug#14521864.
   Does not check if columns etc has changed, i.e. only for
   alter_info->flags == ALTER_PARTITION.
@@ -3083,6 +3139,59 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info)
   DBUG_RETURN(true);
 }
 
+static bool has_same_column_order(List<Create_field> *create_list,
+	                          Field** field_array)
+{
+  Field **f_ptr;
+  List_iterator_fast<Create_field> new_field_it;
+  Create_field *new_field= NULL;
+  new_field_it.init(*create_list);
+
+  for (f_ptr= field_array; *f_ptr; f_ptr++)
+  {
+    while ((new_field= new_field_it++))
+    {
+      if (new_field->field == *f_ptr)
+        break;
+    }
+    if (!new_field)
+      break;
+  }
+
+  if (!new_field)
+  {
+    /* Not same order!*/
+    return false;
+  }
+  return true;
+}
+
+
+/**
+  Check if the partitioning columns are in the same order as the given list.
+
+  Used to see if INPLACE alter can be allowed or not. If the order is
+  different then the rows must be redistributed for KEY [sub]partitioning.
+
+  @param[in] create_list Column list after ALTER TABLE.
+  @return true is same order as before ALTER TABLE, else false.
+*/
+bool partition_info::same_key_column_order(List<Create_field> *create_list)
+{
+  /* Only need to check for KEY [sub] partitioning. */
+  if (list_of_part_fields && !column_list)
+  {
+    if (!has_same_column_order(create_list, part_field_array))
+      return false;
+  }
+  if (list_of_subpart_fields)
+  {
+    if (!has_same_column_order(create_list, subpart_field_array))
+      return false;
+  }
+  return true;
+}
+
 
 void partition_info::print_debug(const char *str, uint *value)
 {
@@ -3093,50 +3202,3 @@ void partition_info::print_debug(const char *str, uint *value)
     DBUG_PRINT("info", ("parser: %s", str));
   DBUG_VOID_RETURN;
 }
-#else /* WITH_PARTITION_STORAGE_ENGINE */
- /*
-   For builds without partitioning we need to define these functions
-   since we they are called from the parser. The parser cannot
-   remove code parts using ifdef, but the code parts cannot be called
-   so we simply need to add empty functions to make the linker happy.
- */
-part_column_list_val *partition_info::add_column_value()
-{
-  return NULL;
-}
-
-bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
-                                   char *end_token, bool is_subpart)
-{
-  (void)start_token;
-  (void)item_ptr;
-  (void)end_token;
-  (void)is_subpart;
-  return FALSE;
-}
-
-bool partition_info::reorganize_into_single_field_col_val()
-{
-  return 0;
-}
-
-bool partition_info::init_column_part()
-{
-  return FALSE;
-}
-
-bool partition_info::add_column_list_value(THD *thd, Item *item)
-{
-  return FALSE;
-}
-
-bool partition_info::add_max_value()
-{
-  return false;
-}
-
-void partition_info::print_debug(const char *str, uint *value)
-{
-}
-
-#endif /* WITH_PARTITION_STORAGE_ENGINE */

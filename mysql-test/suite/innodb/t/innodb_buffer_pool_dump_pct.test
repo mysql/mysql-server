@@ -53,9 +53,11 @@ SELECT @@global.innodb_buffer_pool_dump_pct;
 #***********************************************************
 
 # Read the current value to compare with the new value.
+--disable_warnings
 SELECT variable_value INTO @IBPDS
 FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+--enable_warnings
 
 --echo # Take the dump file
 SET GLOBAL innodb_buffer_pool_dump_now=ON;
@@ -65,11 +67,13 @@ SET GLOBAL innodb_buffer_pool_dump_now=ON;
 --sleep 1
 
 --echo # Wait until the system table get updated & dump get created
+--disable_warnings
 let $wait_condition = SELECT count(*) = 1
 FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
 AND variable_value != @IBPDS
 AND variable_value like 'Buffer pool(s) dump completed at%';
+--enable_warnings
 
 --echo # Check the dump file exist in the DATADIR
 --file_exists $MYSQLD_DATADIR/ib_buffer_pool100
@@ -84,9 +88,11 @@ SET GLOBAL innodb_buffer_pool_dump_pct=50;
 SELECT @@global.innodb_buffer_pool_dump_pct;
 
 # Read the current value to compare with the new value.
+--disable_warnings
 SELECT variable_value INTO @IBPDS
 FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
+--enable_warnings
 
 --echo # Take the dump file
 SET GLOBAL innodb_buffer_pool_dump_now=ON;
@@ -96,11 +102,13 @@ SET GLOBAL innodb_buffer_pool_dump_now=ON;
 --sleep 1
 
 --echo # Wait until the system table get updated & dump get created
+--disable_warnings
 let $wait_condition = SELECT count(*) = 1
 FROM information_schema.global_status
 WHERE variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS'
 AND variable_value != @IBPDS
 AND variable_value like 'Buffer pool(s) dump completed at%'; 
+--enable_warnings
 
 --echo # Check the dump file exist in the DATADIR
 --file_exists $MYSQLD_DATADIR/ib_buffer_pool50

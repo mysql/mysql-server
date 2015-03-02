@@ -97,15 +97,15 @@ my_bool my_init()
   set_crt_report_leaks();
 #endif
 
-  my_umask= 0660;                       /* Default umask for new files */
-  my_umask_dir= 0700;                   /* Default umask for new directories */
+  my_umask= 0640;                       /* Default umask for new files */
+  my_umask_dir= 0750;                   /* Default umask for new directories */
 
   /* Default creation of new files */
   if ((str= getenv("UMASK")) != 0)
-    my_umask= (int) (atoi_octal(str) | 0600);
+    my_umask= (int) (atoi_octal(str) | 0640);
   /* Default creation of new dir's */
   if ((str= getenv("UMASK_DIR")) != 0)
-    my_umask_dir= (int) (atoi_octal(str) | 0700);
+    my_umask_dir= (int) (atoi_octal(str) | 0750);
 
   instrumented_stdin.m_file= stdin;
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
@@ -444,7 +444,7 @@ PSI_stage_info stage_waiting_for_table_level_lock=
 
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
-  key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
+  key_THR_LOCK_charset, key_THR_LOCK_heap,
   key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
   key_THR_LOCK_open, key_THR_LOCK_threads,
@@ -456,7 +456,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
   { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},
   { &key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0},
-  { &key_my_thread_var_mutex, "my_thread_var::mutex", 0},
   { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_GLOBAL},

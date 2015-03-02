@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -111,6 +111,10 @@ the file cannot be closed. We take the file nodes with pending i/o-operations
 out of the LRU-list and keep a count of pending operations. When an operation
 completes, we decrement the count and return the file node to the LRU-list if
 the count drops to zero. */
+
+/* This tablespace name is used internally during recovery to open a
+general tablesapce before the data dictionary are recovered and available. */
+const char general_space_name[] = "innodb_general";
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and mysqlbackup it is not the default
@@ -2736,7 +2740,7 @@ fil_close_tablespace(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/** Deletes an IBD tablespace.
+/** Deletes an IBD tablespace, either general or single-table.
 The tablespace must be cached in the memory cache. This will delete the
 datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
 @param[in]	space_id	Tablespace id
@@ -3402,13 +3406,12 @@ func_exit:
 	return(success);
 }
 
-/** Creates a new Single-Table tablespace
+/** Create a new General or Single-Table tablespace
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name in dbname/tablename format.
 For general tablespaces, the 'dbname/' part may be missing.
 @param[in]	path		Path and filename of the datafile to create.
 @param[in]	flags		Tablespace flags
-@param[in]	is_temp		true if this is a temporary table
 @param[in]	size		Initial size of the tablespace file in pages,
 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
@@ -3418,7 +3421,6 @@ fil_ibd_create(
 	const char*	name,
 	const char*	path,
 	ulint		flags,
-	bool		is_temp,
 	ulint		size)
 {
 	os_file_t	file;
@@ -3426,7 +3428,9 @@ fil_ibd_create(
 	byte*		buf2;
 	byte*		page;
 	bool		success;
+	bool		is_temp = FSP_FLAGS_GET_TEMPORARY(flags);
 	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
+	bool		has_shared_space = FSP_FLAGS_GET_SHARED(flags);
 	fil_space_t*	space = NULL;
 
 	ut_ad(!is_system_tablespace(space_id));
@@ -3437,8 +3441,9 @@ fil_ibd_create(
 
 	/* Create the subdirectories in the path, if they are
 	not there already. */
-	if (!os_file_create_subdirs_if_needed(path)) {
-		return(DB_ERROR);
+	err = os_file_create_subdirs_if_needed(path);
+	if (err != DB_SUCCESS) {
+		return(err);
 	}
 
 	file = os_file_create(
@@ -3621,7 +3626,7 @@ fil_ibd_create(
 	These labels reflect the order in which variables are assigned or
 	actions are done. */
 error_exit_1:
-	if (err != DB_SUCCESS && has_data_dir) {
+	if (err != DB_SUCCESS && (has_data_dir || has_shared_space)) {
 		RemoteDatafile::delete_link_file(name);
 	}
 
@@ -3659,7 +3664,8 @@ statement to update the dictionary tables if they are incorrect.
 @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
 @param[in]	id		Tablespace ID
 @param[in]	flags		Tablespace flags
-@param[in]	tablename	Table name in the databasename/tablename format.
+@param[in]	space_name	Tablespace name of the datafile.
+If file-per-table, it is the table name in the databasename/tablename format.
 @param[in]	path_in		Tablespace filepath if found in SYS_DATAFILES
 @return DB_SUCCESS or error code */
 dberr_t
@@ -3669,7 +3675,7 @@ fil_ibd_open(
 	fil_type_t	purpose,
 	ulint		id,
 	ulint		flags,
-	const char*	tablename,
+	const char*	space_name,
 	const char*	path_in)
 {
 	dberr_t		err = DB_SUCCESS;
@@ -3693,9 +3699,9 @@ fil_ibd_open(
 		return(DB_CORRUPTION);
 	}
 
-	df_default.init(tablename, 0, 0);
-	df_dict.init(tablename, 0, 0);
-	df_remote.init(tablename, 0, 0);
+	df_default.init(space_name, 0, 0);
+	df_dict.init(space_name, 0, 0);
+	df_remote.init(space_name, 0, 0);
 
 	/* Discover the correct filepath.  We will always look for an ibd
 	in the default location. If it is remote, it should not be here. */
@@ -3787,7 +3793,7 @@ fil_ibd_open(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 		ib::error() << "Could not find a valid tablespace file for `"
-			<< tablename << "`. " << TROUBLESHOOT_DATADICT_MSG;
+			<< space_name << "`. " << TROUBLESHOOT_DATADICT_MSG;
 
 		return(DB_CORRUPTION);
 	}
@@ -3795,7 +3801,7 @@ fil_ibd_open(
 	/* Do not open any tablespaces if more than one tablespace with
 	the correct space ID and flags were found. */
 	if (tablespaces_found > 1) {
-		ib::error() << "A tablespace for `" << tablename
+		ib::error() << "A tablespace for `" << space_name
 			<< "` has been found in multiple places;";
 
 		if (df_default.is_open()) {
@@ -3826,7 +3832,7 @@ fil_ibd_open(
 		any bad tablespaces. */
 		if (valid_tablespaces_found > 1 || srv_force_recovery > 0) {
 			ib::error() << "Will not open tablespace `"
-				<< tablename << "`";
+				<< space_name << "`";
 
 			/* If the file is not open it cannot be valid. */
 			ut_ad(df_default.is_open() || !df_default.is_valid());
@@ -3886,7 +3892,7 @@ fil_ibd_open(
 		} else if (df_default.is_open()) {
 			dict_update_filepath(id, df_default.filepath());
 			if (link_file_is_bad) {
-				RemoteDatafile::delete_link_file(tablename);
+				RemoteDatafile::delete_link_file(space_name);
 			}
 
 		} else if (!link_file_found || link_file_is_bad) {
@@ -3894,9 +3900,9 @@ fil_ibd_open(
 			/* Fix the link file if we got our filepath
 			from the dictionary but a link file did not
 			exist or it did not point to a valid file. */
-			RemoteDatafile::delete_link_file(tablename);
+			RemoteDatafile::delete_link_file(space_name);
 			RemoteDatafile::create_link_file(
-				tablename, df_dict.filepath());
+				space_name, df_dict.filepath());
 		}
 
 	} else if (df_remote.is_open()) {
@@ -3907,14 +3913,25 @@ fil_ibd_open(
 			/* SYS_DATAFILES record for this space ID
 			was not found. */
 			dict_replace_tablespace_and_filepath(
-				id, tablename, df_remote.filepath(), flags);
+				id, space_name, df_remote.filepath(), flags);
 		}
+
+	} else if (df_default.is_open()
+		   && path_in == NULL
+		   && (DICT_TF_HAS_DATA_DIR(flags)
+		       || DICT_TF_HAS_SHARED_SPACE(flags))) {
+		/* SYS_DATAFILES record for this tablespace ID
+		was not supplied and it should have been.
+		Replace whatever was there with this filepath,
+		name and flags. */
+		dict_replace_tablespace_and_filepath(
+			id, space_name, df_default.filepath(), flags);
 	}
 
 skip_validate:
 	if (err == DB_SUCCESS) {
-		fil_space_t*	space = fil_space_create(tablename, id, flags,
-							 purpose);
+		fil_space_t*	space = fil_space_create(
+			space_name, id, flags, purpose);
 
 		/* We do not measure the size of the file, that is why
 		we pass the 0 below */
@@ -3994,16 +4011,14 @@ fil_space_read_name_and_filepath(
 
 /** Convert a file name to a tablespace name.
 @param[in]	filename	directory/databasename/tablename.ibd
-@param[in]	filename_len	length of the file name, in bytes
 @return database/tablename string, to be freed with ut_free() */
-static
 char*
 fil_path_to_space_name(
-	const char*	filename,
-	ulint		filename_len)
+	const char*	filename)
 {
 	/* Strip the file name prefix and suffix, leaving
 	only databasename/tablename. */
+	ulint		filename_len	= strlen(filename);
 	const char*	end		= filename + filename_len;
 #ifdef HAVE_MEMRCHR
 	const char*	tablename	= 1 + static_cast<const char*>(
@@ -4050,7 +4065,12 @@ fil_path_to_space_name(
 /** Open an ibd tablespace and add it to the InnoDB data structures.
 This is similar to fil_ibd_open() except that it is used while processing
 the REDO log, so the data dictionary is not available and very little
-validation is done.
+validation is done. The tablespace name is extracred from the
+dbname/tablename.ibd portion of the filename, which assumes that the file
+is a file-per-table tablespace.  Any name will do for now.  General
+tablespace names will be read from the dictionary after it has been
+recovered.  The tablespace flags are read at this time from the first page
+of the file in validate_for_recovery().
 @param[in]	space_id	tablespace ID
 @param[in]	filename	path/to/databasename/tablename.ibd
 @param[in]	filename_len	the length of the filename, in bytes
@@ -4065,25 +4085,30 @@ fil_ibd_load(
 {
 	Datafile	file;
 
-	file.init(fil_path_to_space_name(filename, filename_len),
-		  mem_strdupl(filename, filename_len), 0, 0);
+	file.set_filepath(filename);
 
-	/* If the space is already in the file system cache with the
-	correct space ID, then there is nothing to do. */
+	/* If the a space is already in the file system cache with this
+	space ID, then there is nothing to do. */
 	mutex_enter(&fil_system->mutex);
-	space = fil_space_get_by_name(file.name());
+	space = fil_space_get_by_id(space_id);
 	mutex_exit(&fil_system->mutex);
 
 	if (space != NULL) {
-		if (space->id != space_id) {
-			ib::info() << "Ignoring space ID " << space_id
-				<< " for data file '" << filename
-				<< "' which now is space ID " << space->id
-				<< ".";
-			space = NULL;
-		}
+		/* Compare the filename we are trying to open with the
+		filename from the first node of the tablespace we opened
+		previously. Fail if it is different. */
+		fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
 
-		return(space != NULL ? FIL_LOAD_OK : FIL_LOAD_ID_CHANGED);
+		if (0 != strcmp(file.filepath(), node->name)) {
+			ib::info() << "Ignoring data file '" << filename
+				<< "' with space ID " << space->id
+				<< ". Another data file called " << node->name
+				<< " exists with the same space ID.";
+
+				space = NULL;
+				return(FIL_LOAD_ID_CHANGED);
+		}
+		return(FIL_LOAD_OK);
 	}
 
 	if (file.open_read_only(false) != DB_SUCCESS) {
@@ -4094,15 +4119,17 @@ fil_ibd_load(
 
 	os_offset_t	size;
 
-	/* Read and validate the first page of the tablespace */
+	/* Read and validate the first page of the tablespace.
+	Assign a tablespace name based on the tablespace type. */
 	switch (file.validate_for_recovery()) {
 		os_offset_t	minimum_size;
 	case DB_SUCCESS:
 		if (file.space_id() != space_id) {
 			ib::info() << "Ignoring data file '" << filename
 				<< "' with space ID " << file.space_id()
-				<< ", which used to be space ID " << space_id
-				<< ".";
+				<< ", since the redo log references "
+				<< filename << " with space ID "
+				<< space_id << ".";
 			return(FIL_LOAD_ID_CHANGED);
 		}
 
@@ -4206,8 +4233,10 @@ fil_ibd_load(
 	}
 #endif /* UNIV_HOTBACKUP */
 
+	bool is_temp = FSP_FLAGS_GET_TEMPORARY(file.flags());
 	space = fil_space_create(
-		file.name(), space_id, file.flags(), FIL_TYPE_TABLESPACE);
+		file.name(), space_id, file.flags(),
+		is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 
 	if (space == NULL) {
 		return(FIL_LOAD_INVALID);
@@ -4302,7 +4331,7 @@ fil_space_for_table_exists_in_mem(
 	mem_heap_t*	heap,
 	table_id_t	table_id)
 {
-	fil_space_t*	fnamespace;
+	fil_space_t*	fnamespace = NULL;
 	fil_space_t*	space;
 
 	ut_ad(fil_system);
@@ -4313,23 +4342,53 @@ fil_space_for_table_exists_in_mem(
 
 	space = fil_space_get_by_id(id);
 
-	/* Look if there is a space with the same name; the name is the
-	directory path from the datadir to the file */
-
-	fnamespace = fil_space_get_by_name(name);
-	if (space && space == fnamespace) {
-		/* Found */
+	if (space != NULL
+	    && FSP_FLAGS_GET_SHARED(space->flags)
+	    && adjust_space
+	    && srv_sys_tablespaces_open
+	    && 0 == strncmp(space->name, general_space_name,
+			    strlen(general_space_name))) {
+		/* This name was assigned during recovery in fil_ibd_load().
+		This general tablespace was opened from an MLOG_FILE_NAME log
+		entry where the tablespace name does not exist.  Replace the
+		temporary name with this name and return this space. */
+		HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
+			    ut_fold_string(space->name), space);
+		ut_free(space->name);
+		space->name = mem_strdup(name);
+		HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
+			    ut_fold_string(space->name), space);
 
 		mutex_exit(&fil_system->mutex);
 
 		return(true);
 	}
 
+	if (space != NULL) {
+		if (FSP_FLAGS_GET_SHARED(space->flags)
+		    && !srv_sys_tablespaces_open) {
+
+			/* No need to check the name */
+			mutex_exit(&fil_system->mutex);
+			return(true);
+		}
+
+		/* If this space has the expected name, use it. */
+		fnamespace = fil_space_get_by_name(name);
+		if (space == fnamespace) {
+			/* Found */
+
+			mutex_exit(&fil_system->mutex);
+
+			return(true);
+		}
+	}
+
 	/* Info from "fnamespace" comes from the ibd file itself, it can
-	be different from data obtained from System tables since it is
-	not transactional. If adjust_space is set, and the mismatching
-	space are between a user table and its temp table, we shall
-	adjust the ibd file name according to system table info */
+	be different from data obtained from System tables since file
+	operations are not transactional. If adjust_space is set, and the
+	mismatching space are between a user table and its temp table, we
+	shall adjust the ibd file name according to system table info */
 	if (adjust_space
 	    && space != NULL
 	    && row_is_mysql_tmp_table_name(space->name)
@@ -5116,6 +5175,15 @@ fil_io(
 	if (node->size <= cur_page_no
 	    && space->id != 0
 	    && fil_type_is_data(space->purpose)) {
+
+		if (ignore_nonexistent_pages != 0) {
+			/* If we can tolerate the non-existent pages, we
+			should return with DB_ERROR and let caller decide
+			what to do. */
+			fil_node_complete_io(node, fil_system, type);
+			mutex_exit(&fil_system->mutex);
+			return(DB_ERROR);
+		}
 
 		fil_report_invalid_page_access(
 			cur_page_no, page_id.space(),

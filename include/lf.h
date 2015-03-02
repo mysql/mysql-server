@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,10 @@
 #ifndef _lf_h
 #define _lf_h
 
-#include <my_atomic.h>
+#include "my_global.h"
+#include "my_atomic.h"
 #include "my_sys.h"
+#include "hash.h"
 
 C_MODE_START
 
@@ -139,15 +141,6 @@ static inline void lf_alloc_direct_free(LF_ALLOCATOR *allocator, void *addr)
 }
 
 void *lf_alloc_new(LF_PINS *pins);
-
-C_MODE_END
-
-/*
-  extendible hash, lf_hash.c
-*/
-#include <hash.h>
-
-C_MODE_START
 
 struct st_lf_hash;
 typedef uint lf_hash_func(const struct st_lf_hash *, const uchar *, size_t);

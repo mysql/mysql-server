@@ -71,6 +71,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_security_ctx.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
+  current_thd.cc
   datadict.cc
   debug_sync.cc
   derror.cc
@@ -113,6 +114,7 @@ SET(SQL_SHARED_SOURCES
   opt_costconstants.cc
   opt_costmodel.cc
   opt_explain.cc
+  opt_explain_format.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
   opt_range.cc
@@ -128,8 +130,10 @@ SET(SQL_SHARED_SOURCES
   select_lex_visitor.cc
   parser_service.cc
   partition_info.cc
+  partitioning/partition_handler.cc
   procedure.cc 
   protocol.cc
+  psi_memory_key.cc
   records.cc
   rpl_group_replication.cc
   rpl_handler.cc
@@ -151,7 +155,6 @@ SET(SQL_SHARED_SOURCES
   sql_alloc_error_handler.cc
   sql_alter.cc
   sql_analyse.cc
-  sql_audit.cc
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
@@ -194,11 +197,13 @@ SET(SQL_SHARED_SOURCES
   sql_select.cc
   sql_servers.cc
   sql_show.cc
+  sql_show_status.cc
   sql_signal.cc
   sql_state.c
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
+  sql_thd_api.cc
   sql_time.cc
   sql_tmp_table.cc
   sql_trigger.cc
@@ -210,6 +215,7 @@ SET(SQL_SHARED_SOURCES
   strfunc.cc
   sys_vars.cc
   sys_vars_resource_mgr.cc
+  system_variables.cc
   table.cc
   table_cache.cc
   table_trigger_dispatcher.cc
@@ -256,8 +262,13 @@ SET(SQL_SOURCE
   mysqld.cc
   mysqld_thd_manager.cc
   signal_handler.cc
+  sql_audit.cc
   sql_client.cc
   )
+
+IF(NOT WIN32)
+  LIST(APPEND SQL_SOURCE mysqld_daemon.cc)
+ENDIF()
 
 IF(WIN32)
   LIST(APPEND SQL_SOURCE
@@ -313,9 +324,6 @@ IF(HAVE_MY_TIMER)
   SET(SQL_SOURCE ${SQL_SOURCE} sql_timer.cc)
 ENDIF()
 
-MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
-RECOMPILE_FOR_EMBEDDED)
-
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 ADD_DEPENDENCIES(sql GenDigestServerSource)
@@ -361,25 +369,6 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-
-######################### GUnit Lib #################################
-
-SET(SQL_GUNIT_LIB_SOURCE 
-  filesort_utils.cc 
-  mdl.cc 
-  sql_list.cc 
-  ../sql-common/sql_string.cc
-  thr_malloc.cc
-  )
-
-IF(WIN32)
-  LIST(APPEND SQL_GUNIT_LIB_SOURCE named_pipe.cc)
-ENDIF()
-
-ADD_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
-ADD_DEPENDENCIES(sqlgunitlib GenError)
-
-######################### GUnit Lib #################################
 
 
 IF(WIN32)

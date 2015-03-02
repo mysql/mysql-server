@@ -16,22 +16,13 @@
 #ifndef SQL_INSERT_INCLUDED
 #define SQL_INSERT_INCLUDED
 
+#include "sql_class.h"            // Query_result_interceptor
+#include "sql_cmd_dml.h"          // Sql_cmd_dml
 #include "sql_data_change.h"      // enum_duplicates
-#include "sql_class.h"            // select_result_interceptor
 
 struct TABLE_LIST;
 typedef List<Item> List_item;
 
-bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
-                          TABLE_LIST **insert_table_ref,
-                          List<Item> &fields, List_item *values,
-                          List<Item> &update_fields,
-                          List<Item> &update_values, enum_duplicates duplic,
-                          Item **where, bool select_insert,
-                          bool check_fields);
-bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
-                  List<List_item> &values, List<Item> &update_fields,
-                  List<Item> &update_values, enum_duplicates flag);
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
 void prepare_triggers_for_insert_stmt(TABLE *table);
@@ -40,7 +31,8 @@ int write_record(THD *thd, TABLE *table,
 bool validate_default_values_of_unset_fields(THD *thd, TABLE *table);
 bool mysql_insert_select_prepare(THD *thd);
 
-class select_insert :public select_result_interceptor {
+class Query_result_insert :public Query_result_interceptor
+{
 public:
   TABLE_LIST *table_list;
   TABLE *table;
@@ -61,7 +53,7 @@ public:
   bool insert_into_view;
 
   /**
-     Creates a select_insert for routing a result set to an existing
+     Creates a Query_result_insert for routing a result set to an existing
      table.
 
      @param table_list_par   The table reference for the destination table.
@@ -77,7 +69,7 @@ public:
      @todo This constructor takes 8 arguments, 6 of which are used to
      immediately construct a COPY_INFO object. Obviously the constructor
      should take the COPY_INFO object as argument instead. Also, some
-     select_insert members initialized here are totally redundant, as they are
+     Query_result_insert members initialized here are totally redundant, as they are
      found inside the COPY_INFO.
 
      The target_columns and target_or_source_columns arguments are set by
@@ -106,13 +98,13 @@ public:
      target_columns is columns1, if not empty then 'info' must manage defaults
      of other columns than columns1.
   */
-  select_insert(TABLE_LIST *table_list_par,
-                TABLE *table_par,
-                List<Item> *target_columns,
-                List<Item> *target_or_source_columns,
-                List<Item> *update_fields,
-                List<Item> *update_values,
-                enum_duplicates duplic)
+  Query_result_insert(TABLE_LIST *table_list_par,
+                      TABLE *table_par,
+                      List<Item> *target_columns,
+                      List<Item> *target_or_source_columns,
+                      List<Item> *update_fields,
+                      List<Item> *update_values,
+                      enum_duplicates duplic)
     :table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
@@ -135,7 +127,7 @@ public:
 
 
 public:
-  ~select_insert();
+  ~Query_result_insert();
   virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   virtual int prepare2(void);
@@ -144,7 +136,7 @@ public:
   void send_error(uint errcode,const char *err);
   bool send_eof();
   virtual void abort_result_set();
-  /* not implemented: select_insert is never re-used in prepared statements */
+  /* not implemented: Query_result_insert is never re-used in prepared statements */
   void cleanup();
 };
 
@@ -154,7 +146,7 @@ public:
    line with good programming practices and the inheritance should be broken
    up.
 */
-class select_create: public select_insert {
+class Query_result_create: public Query_result_insert {
   TABLE_LIST *create_table;
   HA_CREATE_INFO *create_info;
   TABLE_LIST *select_tables;
@@ -165,18 +157,19 @@ class select_create: public select_insert {
   /* m_lock or thd->extra_lock */
   MYSQL_LOCK **m_plock;
 public:
-  select_create (TABLE_LIST *table_arg,
-		 HA_CREATE_INFO *create_info_par,
-                 Alter_info *alter_info_arg,
-		 List<Item> &select_fields,enum_duplicates duplic,
-                 TABLE_LIST *select_tables_arg)
-    :select_insert (NULL, // table_list_par
-                    NULL, // table_par
-                    NULL, // target_columns
-                    &select_fields,
-                    NULL, // update_fields
-                    NULL, // update_values
-                    duplic),
+  Query_result_create(TABLE_LIST *table_arg,
+                      HA_CREATE_INFO *create_info_par,
+                      Alter_info *alter_info_arg,
+                      List<Item> &select_fields,
+                      enum_duplicates duplic,
+                      TABLE_LIST *select_tables_arg)
+    :Query_result_insert (NULL, // table_list_par
+                          NULL, // table_par
+                          NULL, // target_columns
+                          &select_fields,
+                          NULL, // update_fields
+                          NULL, // update_values
+                          duplic),
      create_table(table_arg),
      create_info(create_info_par),
      select_tables(select_tables_arg),
@@ -195,6 +188,128 @@ public:
   const THD *get_thd(void) { return thd; }
   const HA_CREATE_INFO *get_create_info() { return create_info; };
   int prepare2(void);
+};
+
+
+class Sql_cmd_insert_base : public Sql_cmd_dml
+{
+  /*
+    field_list was created for view and should be removed before PS/SP
+    rexecuton
+  */
+  bool empty_field_list_on_rset;
+
+protected:
+  const bool is_replace;
+
+public:
+  /**
+    Field list to insert/replace
+
+    One of two things:
+    1. For the INSERT/REPLACE ... (col1, ... colN) VALUES ... syntax
+       this is a list of col1, ..., colN fields.
+    2. For the INSERT/REPLACE ... SET col1=x1, ... colM=xM syntax extension
+       this is a list of col1, ... colM fields as well.
+  */
+  List<Item>          insert_field_list;
+  /**
+    ON DUPLICATE KEY UPDATE data value list
+  */
+  List<Item>          insert_value_list;
+  /**
+    ON DUPLICATE KEY UPDATE field list
+  */
+  List<Item>          insert_update_list;
+  /**
+    Row data to insert/replace
+
+    One of two things:
+    1. For the INSERT/REPLACE ... VALUES (row1), (row2), ... (rowN) syntax
+       the list contains N List_item lists: one List_item per row.
+    2. For the INSERT/REPLACE ... SET col1=x1, ... colM=xM syntax extension
+       this list contains only 1 List_item of M data values: this way we
+       emulate this syntax:
+         INSERT/REPLACE ... (col1, ... colM) VALUE (x1, ..., xM);
+  */
+  List<List_item>     insert_many_values; // TODO: move to Sql_cmd_insert
+
+  const enum_duplicates duplicates;
+
+  explicit
+  Sql_cmd_insert_base(bool is_replace_arg, enum_duplicates duplicates_arg)
+  : empty_field_list_on_rset(false),
+    is_replace(is_replace_arg),
+    duplicates(duplicates_arg)
+  {}
+
+  virtual void cleanup(THD *thd)
+  {
+    if (empty_field_list_on_rset)
+    {
+      empty_field_list_on_rset= false;
+      insert_field_list.empty();
+    }
+  }
+
+
+protected:
+  bool mysql_prepare_insert(THD *thd,
+                            TABLE_LIST *table_list,
+                            TABLE_LIST **insert_table_ref,
+                            List_item *values,
+                            bool select_insert);
+  bool insert_precheck(THD *thd, TABLE_LIST *tables);
+  bool mysql_prepare_insert_check_table(THD *thd,
+                                        TABLE_LIST *table_list,
+                                        List<Item> &fields,
+                                        bool select_insert);
+};
+
+
+class Sql_cmd_insert : public Sql_cmd_insert_base
+{
+public:
+  explicit
+  Sql_cmd_insert(bool is_replace_arg, enum_duplicates duplicates_arg)
+  : Sql_cmd_insert_base(is_replace_arg, duplicates_arg)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return is_replace ?  SQLCOM_REPLACE : SQLCOM_INSERT;
+  }
+
+  virtual bool execute(THD *thd);
+  virtual bool prepared_statement_test(THD *thd);
+  virtual bool prepare(THD *thd) { return false; }
+
+private:
+  bool mysql_insert(THD *thd,TABLE_LIST *table);
+
+  bool mysql_test_insert(THD *thd, TABLE_LIST *table_list);
+};
+
+
+class Sql_cmd_insert_select : public Sql_cmd_insert_base
+{
+public:
+  explicit
+  Sql_cmd_insert_select(bool is_replace_arg, enum_duplicates duplicates_arg)
+  : Sql_cmd_insert_base(is_replace_arg, duplicates_arg)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return is_replace ? SQLCOM_REPLACE_SELECT : SQLCOM_INSERT_SELECT;
+  }
+
+  virtual bool execute(THD *thd);
+  virtual bool prepared_statement_test(THD *thd);
+  virtual bool prepare(THD *thd);
+
+protected:
+  bool mysql_insert_select_prepare(THD *thd);
 };
 
 #endif /* SQL_INSERT_INCLUDED */

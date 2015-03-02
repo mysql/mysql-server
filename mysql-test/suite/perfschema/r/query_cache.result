@@ -10,13 +10,13 @@ a
 1
 2
 3
-show status like "Qcache_queries_in_cache";
+show global status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-show status like "Qcache_inserts";
+show global status like "Qcache_inserts";
 Variable_name	Value
 Qcache_inserts	1
-show status like "Qcache_hits";
+show global status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	0
 select * from t1;
@@ -24,13 +24,13 @@ a
 1
 2
 3
-show status like "Qcache_queries_in_cache";
+show global status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-show status like "Qcache_inserts";
+show global status like "Qcache_inserts";
 Variable_name	Value
 Qcache_inserts	1
-show status like "Qcache_hits";
+show global status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
 select spins from performance_schema.events_waits_current order by event_name limit 1;
@@ -39,13 +39,13 @@ NULL
 select * from performance_schema.setup_timers where name='wait';
 NAME	TIMER_NAME
 wait	CYCLE
-show status like "Qcache_queries_in_cache";
+show global status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-show status like "Qcache_inserts";
+show global status like "Qcache_inserts";
 Variable_name	Value
 Qcache_inserts	1
-show status like "Qcache_hits";
+show global status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
 select spins from performance_schema.events_waits_current order by event_name limit 1;
@@ -54,13 +54,13 @@ NULL
 select * from performance_schema.setup_timers where name='wait';
 NAME	TIMER_NAME
 wait	CYCLE
-show status like "Qcache_queries_in_cache";
+show global status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
-show status like "Qcache_inserts";
+show global status like "Qcache_inserts";
 Variable_name	Value
 Qcache_inserts	1
-show status like "Qcache_hits";
+show global status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
 SET GLOBAL query_cache_size= default;

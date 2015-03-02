@@ -9,7 +9,7 @@ CREATE TABLE t1 ( a VARCHAR(10) );
 SET @pattern1 =
 'SELECT * FROM test.t1 WHERE a = "digest_collision.test" ' ||
 repeat ( 'UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"',
-100 );
+120 );
 SET @pattern2 = concat ( @pattern1, 'UNION SELECT 1' );
 SET @nonmatching_query = concat ( @pattern1, 'UNION SELECT 2' );
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement  )
@@ -25,8 +25,8 @@ digests_indeed_collide
 1
 SELECT char_length(pattern) FROM query_rewrite.rewrite_rules;
 char_length(pattern)
-6156
-6170
+7376
+7390
 PREPARE pattern1_stmt FROM @pattern1;
 Warnings:
 Note	1105	Query 'SELECT * FROM test.t1 WHERE a = "digest_collision.test" UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"UNION SELECT * FROM test.t1 WHERE a = "digest_collision.test"UNION SELECT * FROM t
@@ -54,7 +54,7 @@ SELECT search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELE
 'WHERE a = "digest_collision.test"%' );
 search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELECT * FROM test.t1 ' ||
 'WHERE a = "digest_collision.test"%' )
-[Note] Plugin Rewriter reported: 'Statement "SELECT * FROM test.t1 WHERE a = "digest_collision.test" UNION SELECT * FROM test.t1 WHERE a = "diges..." with digest "ffe6eb8866fa395663c0a86fcd093d35" matched some rule but had different parse tree and/or literals.'
+[Note] Plugin Rewriter reported: 'Statement "SELECT * FROM test.t1 WHERE a = "digest_collision.test" UNION SELECT * FROM test.t1 WHERE a = "diges..." with digest "845f81d4d80270e2e6eaa14b65c2536b" matched some rule but had different parse tree and/or literals.'
 DROP TABLE t1;
 # Query rewrite plugin was uninstalled.
 DROP TABLE error_log;

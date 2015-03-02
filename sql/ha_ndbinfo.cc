@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -232,7 +232,7 @@ static int err2mysql(int error)
     break;
   }
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                      ER_GET_ERRNO, ER(ER_GET_ERRNO), error);
+                      ER_GET_ERRNO, ER_THD(current_thd, ER_GET_ERRNO), error);
   DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 }
 
