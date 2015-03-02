@@ -9818,6 +9818,10 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SET @old_depth=@@optimizer_search_depth;
 SET optimizer_search_depth=4;
 EXPLAIN SELECT col_datetime_key
@@ -9833,11 +9837,11 @@ ON alias5.col_int_key < alias4.col_int_key
 ON alias5.col_varchar_key = alias4.col_varchar_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index; Start temporary
-1	SIMPLE	alias1	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	50.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias5	NULL	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index
+1	SIMPLE	alias1	NULL	ref	col_datetime_key	col_datetime_key	5	test.outr.col_datetime_key	1	100.00	Using index; Start temporary
+1	SIMPLE	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	alias5	NULL	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	100.00	Using where; Using index
+1	SIMPLE	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` semi join (`test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias5`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`)))) where (`test`.`alias1`.`col_datetime_key` = `test`.`outr`.`col_datetime_key`)
 SELECT col_datetime_key
@@ -9987,70 +9991,6 @@ pk	pk
 2	2
 DROP TABLE t1;
 # End of test for bug#13838810.
-#
-# BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
-# --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
-#
-CREATE TABLE t1 (
-col_int_key INT(11) NOT NULL,
-col_datetime_key DATETIME NOT NULL,
-col_varchar_key VARCHAR(1) NOT NULL,
-col_varchar_nokey VARCHAR(1) NOT NULL,
-KEY col_int_key (col_int_key),
-KEY col_datetime_key (col_datetime_key),
-KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
-INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
-CREATE TABLE t2 (
-col_int_key INT(11) NOT NULL,
-col_datetime_key DATETIME NOT NULL,
-col_varchar_key VARCHAR(1) NOT NULL,
-col_varchar_nokey VARCHAR(1) NOT NULL,
-KEY col_int_key (col_int_key),
-KEY col_datetime_key (col_datetime_key),
-KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
-SET @old_depth=@@optimizer_search_depth;
-SET optimizer_search_depth=4;
-EXPLAIN SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-SELECT alias1.col_datetime_key
-FROM t1 AS alias1
-LEFT JOIN t1 as alias3
-STRAIGHT_JOIN ( t2 AS alias4
-JOIN t1 AS alias5
-ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-ON alias5.col_int_key < alias4.col_int_key
-ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index; Start temporary
-1	SIMPLE	alias1	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	50.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias5	NULL	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
-Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` semi join (`test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias5`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`)))) where (`test`.`alias1`.`col_datetime_key` = `test`.`outr`.`col_datetime_key`)
-SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-SELECT alias1.col_datetime_key
-FROM t1 AS alias1
-LEFT JOIN t1 as alias3
-STRAIGHT_JOIN ( t2 AS alias4
-JOIN t1 AS alias5
-ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-ON alias5.col_int_key < alias4.col_int_key
-ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-col_datetime_key
-2002-02-13 17:30:06
-2008-09-27 00:34:58
-DROP TABLE t1,t2;
-SET @@optimizer_search_depth=@old_depth;
 #
 # Bug#13845930: Segfault in st_join_table::and_with_condition
 #
