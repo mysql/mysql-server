@@ -146,6 +146,7 @@ DROP TABLE t1;
 # Some other simple tests with the current character set
 #
 create table t1 (a varchar(10), key(a), fulltext (a)) ENGINE = InnoDB;
+analyze table t1;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 select * from t1 where a like "abc%";
 select * from t1 where a like "test%";
