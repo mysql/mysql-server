@@ -29,7 +29,6 @@
 #include "partition_info.h"              // partition_info
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
-#include "sql_derived.h"                 // mysql_handle_single_derived
 #include "sql_parse.h"                   // check_stack_overrun
 #include "sql_partition.h"               // mysql_unpack_partition
 #include "sql_plugin.h"                  // plugin_unlock
