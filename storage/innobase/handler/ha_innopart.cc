@@ -1496,7 +1496,7 @@ ha_innopart::try_semi_consistent_read(
 	bool	yes)
 {
 	ha_innobase::try_semi_consistent_read(yes);
-	for (ulint i = m_part_info->get_first_used_partition();
+	for (uint i = m_part_info->get_first_used_partition();
 	     i < m_tot_parts;
 	     i = m_part_info->get_next_used_partition(i)) {
 
@@ -3378,9 +3378,9 @@ ha_innopart::info_low(
 					checked_sys_tablespace = true;
 				}
 
-				ulint	space;
-				space = fsp_get_available_space_in_free_extents(
-							ib_table->space);
+				ulint	space = static_cast<ulint>(
+					fsp_get_available_space_in_free_extents(
+						ib_table->space));
 				if (space == ULINT_UNDEFINED) {
 					ut_ad(0);
 					avail_space = space;
