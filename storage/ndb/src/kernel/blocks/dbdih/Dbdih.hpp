@@ -1238,7 +1238,6 @@ private:
   void sendMASTER_LCPCONF(Signal * signal, Uint32 fromLine);
   void sendSTART_RECREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_INFOREQ(Signal *, Uint32 nodeId, Uint32);
-  void sendSTART_TOREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTOP_ME_REQ(Signal *, Uint32 nodeId, Uint32);
   void sendTC_CLOPSIZEREQ(Signal *, Uint32 nodeId, Uint32);
   void sendTCGETOPSIZEREQ(Signal *, Uint32 nodeId, Uint32);

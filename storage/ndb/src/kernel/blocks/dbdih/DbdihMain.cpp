@@ -322,12 +322,6 @@ void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
 }//Dbdih::sendSTART_RECREQ()
 
-void Dbdih::sendSTART_TOREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
-{
-  BlockReference ref = calcDihBlockRef(nodeId);
-  sendSignal(ref, GSN_START_TOREQ, signal, StartToReq::SignalLength, JBB);
-}//Dbdih::sendSTART_TOREQ()
-
 void Dbdih::sendSTOP_ME_REQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 {
   if (nodeId != getOwnNodeId()) {
@@ -8465,7 +8459,16 @@ Dbdih::check_take_over_completed_correctly()
   ndbrequire(c_active_copy_threads_list.isEmpty());
   ndbrequire(c_activeThreadTakeOverPtr.i == RNIL);
   ndbrequire(c_mainTakeOverPtr.i != RNIL);
-  ndbrequire(c_takeOverPool.getUsed() == 1);
+  /**
+   * We could be master in system restart where we had to
+   * restart with aid of another node and thus perform
+   * synchronize with this other node. In this case we
+   * have 2 take over records, one for master part and
+   * one for start copy part.
+   */
+  ndbrequire((c_takeOverPool.getUsed() == 1) ||
+             (cmasterdihref == reference() &&
+              c_takeOverPool.getUsed() == 2));
 }
 
 void
@@ -17073,7 +17076,13 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
 
   if (senderData != RNIL)
   {
-
+    jam();
+    /**
+     * This is normally a node restart, but it could also be second
+     * phase of a system restart where a node is restored from a more
+     * alive node, in this case we could even be the master node although
+     * we arrive here.
+     */
     g_eventLogger->info("Restore Database Off-line Completed");
     infoEvent("Restore Database Off-line Completed on node %u",
               senderNodeId);
