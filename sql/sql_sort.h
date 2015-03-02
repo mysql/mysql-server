@@ -18,6 +18,7 @@
 
 #include "my_global.h"                          /* uchar */
 #include "my_base.h"                            /* ha_rows */
+#include "my_byteorder.h"
 #include "sql_array.h"
 #include "mysql_com.h"
 #include "filesort_utils.h"

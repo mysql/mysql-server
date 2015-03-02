@@ -163,7 +163,7 @@ search:
   entry= reinterpret_cast<PFS_account**>
     (lf_hash_search(&account_hash, pins,
                     key.m_hash_key, key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     pfs= *entry;
     pfs->inc_refcount();
@@ -641,7 +641,7 @@ void purge_account(PFS_thread *thread, PFS_account *account)
     (lf_hash_search(&account_hash, pins,
                     account->m_key.m_hash_key,
                     account->m_key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     DBUG_ASSERT(*entry == account);
     if (account->get_refcount() == 0)

@@ -3010,8 +3010,8 @@ public:
       INSERT/UPDATE/DELETE...).
     */
     DBUG_PRINT("debug",
-               ("temporary_tables: %s, in_sub_stmt: %s, system_thread: %s",
-                YESNO(temporary_tables), YESNO(in_sub_stmt),
+               ("temporary_tables: %d, in_sub_stmt: %d, system_thread: %s",
+                temporary_tables != NULL, in_sub_stmt != 0,
                 show_system_thread(system_thread)));
     if (in_sub_stmt == 0)
     {

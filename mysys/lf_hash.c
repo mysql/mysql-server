@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -563,8 +563,8 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   @retval A pointer to an element with the given key (if a hash is not unique
           and there're many elements with this key - the "first" matching
           element).
-  @retval NULL      - if nothing is found
-  @retval MY_ERRPTR - if OOM
+  @retval NULL         - if nothing is found
+  @retval MY_LF_ERRPTR - if OOM
 
   @note Uses pins[0..2]. On return pins[0..1] are removed and pins[2]
         is used to pin object found. It is also not removed in case when
@@ -583,9 +583,9 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   bucket= hashnr % hash->size;
   el= lf_dynarray_lvalue(&hash->array, bucket);
   if (unlikely(!el))
-    return MY_ERRPTR;
+    return MY_LF_ERRPTR;
   if (*el == NULL && unlikely(initialize_bucket(hash, el, bucket, pins)))
-    return MY_ERRPTR;
+    return MY_LF_ERRPTR;
   found= lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
                  (uchar *)key, keylen, pins);
   return found ? found+1 : 0;
@@ -608,8 +608,8 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
                    list needs to be started.
 
   @retval A pointer to a random element matching condition.
-  @retval NULL      - if nothing is found
-  @retval MY_ERRPTR - OOM.
+  @retval NULL         - if nothing is found
+  @retval MY_LF_ERRPTR - OOM.
 
   @note This function follows the same pinning protocol as lf_hash_search(),
         i.e. uses pins[0..2]. On return pins[0..1] are removed and pins[2]
@@ -637,7 +637,7 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
 
   el= lf_dynarray_lvalue(&hash->array, bucket);
   if (unlikely(!el))
-    return MY_ERRPTR;
+    return MY_LF_ERRPTR;
   /*
     Bucket might be totally empty if it has not been accessed since last
     time LF_HASH::size has been increased. In this case we initialize it
@@ -646,7 +646,7 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
     access the same bucket.
   */
   if (*el == NULL && unlikely(initialize_bucket(hash, el, bucket, pins)))
-    return MY_ERRPTR;
+    return MY_LF_ERRPTR;
 
   /*
     To avoid bias towards the first matching element in the bucket, we start
@@ -669,7 +669,7 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
     */
     el= lf_dynarray_lvalue(&hash->array, 0);
     if (unlikely(!el))
-      return MY_ERRPTR;
+      return MY_LF_ERRPTR;
     res= lfind_match(el, 1, rev_hashnr, match, &cursor, pins);
   }
 

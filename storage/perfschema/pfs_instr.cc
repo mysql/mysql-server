@@ -813,7 +813,7 @@ search:
   entry= reinterpret_cast<PFS_file**>
     (lf_hash_search(&filename_hash, pins,
                     normalized_filename, normalized_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     pfs= *entry;
     pfs->m_file_stat.m_open_count++;

@@ -630,12 +630,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
   if (!opt_bootstrap)
     servers_init(0);
 
-#ifdef HAVE_DLOPEN
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!opt_noacl)
 #endif
     udf_init();
-#endif
 
   start_handle_manager();
 

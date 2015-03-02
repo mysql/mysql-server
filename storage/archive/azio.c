@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "my_byteorder.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 

@@ -150,7 +150,7 @@ search:
   entry= reinterpret_cast<PFS_host**>
     (lf_hash_search(&host_hash, pins,
                     key.m_hash_key, key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     PFS_host *pfs;
     pfs= *entry;
@@ -323,7 +323,7 @@ void purge_host(PFS_thread *thread, PFS_host *host)
   entry= reinterpret_cast<PFS_host**>
     (lf_hash_search(&host_hash, pins,
                     host->m_key.m_hash_key, host->m_key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     DBUG_ASSERT(*entry == host);
     if (host->get_refcount() == 0)

@@ -146,14 +146,12 @@ plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   finalize_rewrite_plugin
 };
 
-#ifdef HAVE_DLOPEN
 static const char *plugin_interface_version_sym=
                    "_mysql_plugin_interface_version_";
 static const char *sizeof_st_plugin_sym=
                    "_mysql_sizeof_struct_st_plugin_";
 static const char *plugin_declarations_sym= "_mysql_plugin_declarations_";
 static int min_plugin_interface_version= MYSQL_PLUGIN_INTERFACE_VERSION & ~0xFF;
-#endif
 
 static void*	innodb_callback_data;
 
@@ -449,8 +447,6 @@ static int item_val_real(st_mysql_value *value, double *buf)
   Plugin support code
 ****************************************************************************/
 
-#ifdef HAVE_DLOPEN
-
 static st_plugin_dl *plugin_dl_find(const LEX_STRING *dl)
 {
   DBUG_ENTER("plugin_dl_find");
@@ -489,15 +485,12 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(st_plugin_dl *plugin_dl)
                                            sizeof(st_plugin_dl)));
   DBUG_RETURN(tmp);
 }
-#endif /* HAVE_DLOPEN */
 
 
 static inline void free_plugin_mem(st_plugin_dl *p)
 {
-#ifdef HAVE_DLOPEN
   if (p->handle)
     dlclose(p->handle);
-#endif
   my_free(p->dl.str);
   if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
     my_free(p->plugins);
@@ -506,7 +499,6 @@ static inline void free_plugin_mem(st_plugin_dl *p)
 
 static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 {
-#ifdef HAVE_DLOPEN
   char dlpath[FN_REFLEN];
   uint dummy_errors, i;
   size_t plugin_dir_len, dlpathlen;
@@ -715,17 +707,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     DBUG_RETURN(NULL);
   }
   DBUG_RETURN(tmp);
-#else
-  DBUG_ENTER("plugin_dl_add");
-  report_error(report, ER_FEATURE_DISABLED, "plugin", "HAVE_DLOPEN");
-  DBUG_RETURN(NULL);
-#endif
 }
 
 
 static void plugin_dl_del(const LEX_STRING *dl)
 {
-#ifdef HAVE_DLOPEN
   DBUG_ENTER("plugin_dl_del");
 
   mysql_mutex_assert_owner(&LOCK_plugin);
@@ -749,7 +735,6 @@ static void plugin_dl_del(const LEX_STRING *dl)
     }
   }
   DBUG_VOID_RETURN;
-#endif
 }
 
 

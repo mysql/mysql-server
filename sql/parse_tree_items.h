@@ -343,7 +343,6 @@ public:
       return true;
 
     THD *thd= pc->thd;
-#ifdef HAVE_DLOPEN
     udf= 0;
     if (using_udf_functions &&
         (udf= find_udf(ident.str, ident.length)) &&
@@ -351,7 +350,6 @@ public:
     {
       pc->select->in_sum_expr++;
     }
-#endif
 
     if (sp_check_name(&ident))
       return true;
@@ -370,7 +368,6 @@ public:
       *res= builder->create_func(thd, ident, opt_udf_expr_list);
     else
     {
-#ifdef HAVE_DLOPEN
       if (udf)
       {
         if (udf->type == UDFTYPE_AGGREGATE)
@@ -381,7 +378,6 @@ public:
         *res= Create_udf_func::s_singleton.create(thd, udf, opt_udf_expr_list);
       }
       else
-#endif
       {
         builder= find_qualified_function_builder(thd);
         DBUG_ASSERT(builder);

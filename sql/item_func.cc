@@ -4026,8 +4026,6 @@ longlong Item_func_bit_count::val_int()
 ** Rewritten by monty.
 ****************************************************************************/
 
-#ifdef HAVE_DLOPEN
-
 void udf_handler::cleanup()
 {
   if (!not_original)
@@ -4495,10 +4493,6 @@ udf_handler::~udf_handler()
   /* Everything should be properly cleaned up by this moment. */
   DBUG_ASSERT(not_original || !(initialized || buffers));
 }
-
-#else
-bool udf_handler::get_arguments() { return 0; }
-#endif /* HAVE_DLOPEN */
 
 
 bool Item_master_pos_wait::itemize(Parse_context *pc, Item **res)

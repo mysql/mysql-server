@@ -132,7 +132,6 @@ extern Create_func * find_native_function_builder(THD *thd, LEX_STRING name);
 extern Create_qfunc * find_qualified_function_builder(THD *thd);
 
 
-#ifdef HAVE_DLOPEN
 /**
   Function builder for User Defined Functions.
 */
@@ -160,7 +159,6 @@ protected:
   /** Destructor. */
   virtual ~Create_udf_func() {}
 };
-#endif
 
 
 /**

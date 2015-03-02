@@ -149,7 +149,7 @@ search:
   entry= reinterpret_cast<PFS_user**>
     (lf_hash_search(&user_hash, pins,
                     key.m_hash_key, key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     pfs= *entry;
     pfs->inc_refcount();
@@ -284,7 +284,7 @@ void purge_user(PFS_thread *thread, PFS_user *user)
   entry= reinterpret_cast<PFS_user**>
     (lf_hash_search(&user_hash, pins,
                     user->m_key.m_hash_key, user->m_key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     DBUG_ASSERT(*entry == user);
     if (user->get_refcount() == 0)

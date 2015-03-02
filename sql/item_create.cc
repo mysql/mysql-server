@@ -3852,7 +3852,6 @@ Create_qfunc::create_func(THD *thd, LEX_STRING name, PT_item_list *item_list)
 }
 
 
-#ifdef HAVE_DLOPEN
 Create_udf_func Create_udf_func::s_singleton;
 
 Item*
@@ -3905,7 +3904,6 @@ Create_udf_func::create(THD *thd, udf_func *udf, PT_item_list *item_list)
   }
   DBUG_RETURN(func);
 }
-#endif /* HAVE_DLOPEN */
 
 
 Create_sp_func Create_sp_func::s_singleton;

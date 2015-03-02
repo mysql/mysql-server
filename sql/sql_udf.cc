@@ -39,7 +39,6 @@
 #include <dlfcn.h>
 #endif
 
-#ifdef HAVE_DLOPEN
 #include <stdarg.h>
 #include <hash.h>
 
@@ -645,5 +644,3 @@ exit:
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(error);
 }
-
-#endif /* HAVE_DLOPEN */

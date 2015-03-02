@@ -18,6 +18,7 @@
 #define _m_string_h
 
 #include "my_global.h"                          /* HAVE_* */
+#include "my_byteorder.h"                       /* uint8korr */
 
 #include <string.h>
 

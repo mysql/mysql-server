@@ -2900,8 +2900,6 @@ double Item_variance_field::val_real()
 ** Rewritten by: Monty.
 ****************************************************************************/
 
-#ifdef HAVE_DLOPEN
-
 bool Item_udf_sum::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -3072,8 +3070,6 @@ String *Item_sum_udf_str::val_str(String *str)
   null_value = !res;
   DBUG_RETURN(res);
 }
-
-#endif /* HAVE_DLOPEN */
 
 
 /*****************************************************************************

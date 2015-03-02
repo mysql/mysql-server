@@ -45,7 +45,9 @@ using std::min;
 using std::string;
 using std::list;
 using binary_log::checksum_crc32;
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
+#define YESNO(X) ((X) ? "yes" : "no")
 
 #define LOG_PREFIX	"ML"
 

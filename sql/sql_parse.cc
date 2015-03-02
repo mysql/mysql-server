@@ -3555,13 +3555,8 @@ end_with_restore_list:
   {
     if (check_access(thd, INSERT_ACL, "mysql", NULL, NULL, 1, 0))
       break;
-#ifdef HAVE_DLOPEN
     if (!(res = mysql_create_function(thd, &lex->udf)))
       my_ok(thd);
-#else
-    my_error(ER_CANT_OPEN_LIBRARY, MYF(0), lex->udf.dl, 0, "feature disabled");
-    res= TRUE;
-#endif
     break;
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -3938,7 +3933,6 @@ end_with_restore_list:
       goto error;
 
     name= lex->sphead->name(&namelen);
-#ifdef HAVE_DLOPEN
     if (lex->sphead->m_type == SP_TYPE_FUNCTION)
     {
       udf_func *udf = find_udf(name, namelen);
@@ -3949,7 +3943,6 @@ end_with_restore_list:
         goto error;
       }
     }
-#endif
 
     if (sp_process_definer(thd))
       goto error;
@@ -4192,7 +4185,6 @@ end_with_restore_list:
   case SQLCOM_DROP_PROCEDURE:
   case SQLCOM_DROP_FUNCTION:
     {
-#ifdef HAVE_DLOPEN
       if (lex->sql_command == SQLCOM_DROP_FUNCTION &&
           ! lex->spname->m_explicit_name)
       {
@@ -4232,7 +4224,6 @@ end_with_restore_list:
         }
         /* Fall thought to test for a stored function */
       }
-#endif
 
       const char *db= lex->spname->m_db.str;
       char *name= lex->spname->m_name.str;

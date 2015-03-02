@@ -1421,9 +1421,7 @@ void clean_up(bool print_message)
   item_create_cleanup();
   if (!opt_noacl)
   {
-#ifdef HAVE_DLOPEN
     udf_free();
-#endif
   }
   table_def_start_shutdown();
   plugin_shutdown();
@@ -4907,9 +4905,7 @@ int mysqld_main(int argc, char **argv)
 
   if (!opt_noacl)
   {
-#ifdef HAVE_DLOPEN
     udf_init();
-#endif
   }
 
   init_status_vars();
@@ -7031,11 +7027,7 @@ static int mysql_init_variables(void)
 
   have_symlink= SHOW_OPTION_YES;
 
-#ifdef HAVE_DLOPEN
   have_dlopen=SHOW_OPTION_YES;
-#else
-  have_dlopen=SHOW_OPTION_NO;
-#endif
 
   have_query_cache=SHOW_OPTION_YES;
 

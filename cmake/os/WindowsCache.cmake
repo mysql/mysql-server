@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 # From configure.cmake, in order of appearance 
 #
 SET(HAVE_LLVM_LIBCPP CACHE  INTERNAL "")
-# Hardcoded in configure.cmake _LARGEFILE_SOURCE
 SET(CMAKE_HAVE_PTHREAD_H CACHE  INTERNAL "") # Only needed by CMake
 
 # Libraries
@@ -82,7 +81,6 @@ SET(HAVE_DIRECTIO CACHE  INTERNAL "")
 SET(HAVE_FTRUNCATE CACHE  INTERNAL "")
 SET(HAVE_COMPRESS CACHE  INTERNAL "")
 SET(HAVE_CRYPT CACHE  INTERNAL "")
-SET(HAVE_DLOPEN CACHE  INTERNAL "")
 SET(HAVE_FCHMOD CACHE  INTERNAL "")
 SET(HAVE_FCNTL CACHE  INTERNAL "")
 SET(HAVE_FDATASYNC CACHE  INTERNAL "")

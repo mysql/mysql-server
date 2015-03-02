@@ -1,7 +1,7 @@
 #ifndef SQL_UDF_INCLUDED
 #define SQL_UDF_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -132,11 +132,9 @@ class udf_handler :public Sql_alloc
 };
 
 
-#ifdef HAVE_DLOPEN
 void udf_init(void),udf_free(void);
 udf_func *find_udf(const char *name, size_t len=0,bool mark_used=0);
 void free_udf(udf_func *udf);
 int mysql_create_function(THD *thd,udf_func *udf);
 int mysql_drop_function(THD *thd,const LEX_STRING *name);
-#endif
 #endif /* SQL_UDF_INCLUDED */

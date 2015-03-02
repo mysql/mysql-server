@@ -1673,9 +1673,6 @@ public:
 };
 
 
-
-#ifdef HAVE_DLOPEN
-
 class Item_udf_func :public Item_func
 {
   typedef Item_func super;
@@ -1885,7 +1882,6 @@ public:
   void fix_length_and_dec();
 };
 
-#endif /* HAVE_DLOPEN */
 
 void mysql_ull_cleanup(THD *thd);
 void mysql_ull_set_explicit_lock_duration(THD *thd);

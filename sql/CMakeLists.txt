@@ -527,7 +527,7 @@ ADD_CUSTOM_TARGET(
 )
 
 
-IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
+IF(NOT DISABLE_SHARED)
   ADD_LIBRARY(udf_example MODULE udf_example.cc)
   SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
   # udf_example depends on strings 

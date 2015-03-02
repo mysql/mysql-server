@@ -159,6 +159,8 @@ typedef unsigned short ushort;
 
 #define swap_variables(t, a, b) { t dummy; dummy= a; a= b; b= dummy; }
 #define MY_TEST(a)		((a) ? 1 : 0)
+#define MY_MAX(a, b)	((a) > (b) ? (a) : (b))
+#define MY_MIN(a, b)	((a) < (b) ? (a) : (b))
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
@@ -318,10 +320,6 @@ typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 #define ONCE_ALLOC_INIT		(uint) (4096-MALLOC_OVERHEAD)
 	/* Typical record cash */
 #define RECORD_CACHE_SIZE	(uint) (64*1024-MALLOC_OVERHEAD)
-	/* Typical key cash */
-#define KEY_CACHE_SIZE		(uint) (8*1024*1024)
-	/* Default size of a key cache block  */
-#define KEY_CACHE_BLOCK_SIZE	(uint) 1024
 
 
 /* Some defines of functions for portability */
@@ -489,8 +487,6 @@ typedef long long intptr;
 #error sizeof(void *) is neither sizeof(int) nor sizeof(long) nor sizeof(long long)
 #endif
 
-#define MY_ERRPTR ((void*)(intptr)1)
-
 #if defined(_WIN32)
 typedef unsigned long long my_off_t;
 typedef unsigned long long os_off_t;
@@ -536,29 +532,17 @@ typedef ulonglong nesting_map;  /* Used for flags of nesting constructs */
 typedef int		myf;	/* Type of MyFlags in my_funcs */
 typedef char		my_bool; /* Small bool */
 
+#if !defined(__cplusplus) && !defined(bool)
+#define bool In_C_you_should_use_my_bool_instead()
+#endif
+
 /* Macros for converting *constants* to the right type */
 #define MYF(v)		(myf) (v)
-
-/* Some helper macros */
-#define YESNO(X) ((X) ? "yes" : "no")
-
-#define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
-
-#include <my_byteorder.h>
-
-#ifdef HAVE_CHARSET_utf8
-#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
-#else
-#define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
-#endif
 
 #if defined(_WIN32)
 #define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
-#ifndef HAVE_DLOPEN
-#define HAVE_DLOPEN
-#endif
 #define DLERROR_GENERATE(errmsg, error_number) \
   char win_errormsg[2048]; \
   if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, \
@@ -586,14 +570,6 @@ typedef char		my_bool; /* Small bool */
 
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21U
-
-/* Define some useful general macros (should be done after all headers). */
-#define MY_MAX(a, b)	((a) > (b) ? (a) : (b))
-#define MY_MIN(a, b)	((a) < (b) ? (a) : (b))
-
-#if !defined(__cplusplus) && !defined(bool)
-#define bool In_C_you_should_use_my_bool_instead()
-#endif
 
 /* 
   MYSQL_PLUGIN_IMPORT macro is used to export mysqld data
