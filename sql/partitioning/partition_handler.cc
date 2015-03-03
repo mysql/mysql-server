@@ -328,6 +328,41 @@ const char *Partition_share::get_partition_name(size_t part_id) const
   }
   return reinterpret_cast<const char*>(partition_names[part_id]);
 }
+
+
+int Partition_handler::truncate_partition()
+{
+  handler *file= get_handler();
+  if (!file)
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
+  DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
+              file->m_lock_type == F_WRLCK);
+  file->mark_trx_read_write();
+  return truncate_partition_low();
+}
+
+
+int Partition_handler::change_partitions(HA_CREATE_INFO *create_info,
+                                         const char *path,
+                                         ulonglong * const copied,
+                                         ulonglong * const deleted)
+{
+  handler *file= get_handler();
+  if (!file)
+  {
+    my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
+              file->m_lock_type != F_UNLCK);
+  file->mark_trx_read_write();
+  return change_partitions_low(create_info, path, copied, deleted);
+}
+
+
+
 /*
   Implementation of Partition_helper class.
 */
@@ -427,6 +462,22 @@ void Partition_helper::close_partitioning()
   DBUG_ASSERT(!m_ordered_rec_buffer);
   destroy_record_priority_queue();
 }
+
+
+void Partition_helper::lock_auto_increment()
+{
+  /* lock already taken */
+  if (m_auto_increment_safe_stmt_log_lock)
+    return;
+  DBUG_ASSERT(!m_auto_increment_lock);
+  if(m_table->s->tmp_table == NO_TMP_TABLE)
+  {
+    m_auto_increment_lock= true;
+    m_part_share->lock_auto_inc();
+  }
+}
+
+
 
 /****************************************************************************
                 MODULE change record

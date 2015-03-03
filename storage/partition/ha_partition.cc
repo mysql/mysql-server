@@ -62,6 +62,7 @@
 #include "sql_show.h"                        // append_identifier
 #include "sql_admin.h"                       // SQL_ADMIN_MSG_TEXT_SIZE
 #include "myisam.h"                          // TT_FOR_UPGRADE
+#include "sql_class.h"                       // THD
 #include "sql_plugin.h"                      // plugin_unlock_list
 #include "log.h"                             // sql_print_error
 #include "current_thd.h"

@@ -18,7 +18,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "partitioning/partition_handler.h"  /* Partition_handler */
-
+#include "item.h"                            /* enum_monotonicity_info */
 
 /** class where to save partitions Handler_share's */
 class Parts_share_refs

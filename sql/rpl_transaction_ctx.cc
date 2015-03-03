@@ -18,7 +18,7 @@
 #include "mysqld_thd_manager.h" // Global_THD_manager
 #include "rpl_gtid.h"           // rpl_sidno
 #include "sql_class.h"          // THD
-#include "sql_parse.h"          // Find_thd_with_id
+#include "mysqld_thd_manager.h" // Find_thd_with_id
 
 
 Rpl_transaction_ctx::Rpl_transaction_ctx()

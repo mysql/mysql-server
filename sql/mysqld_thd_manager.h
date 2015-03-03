@@ -70,6 +70,24 @@ public:
 
 
 /**
+  Callback function used by kill_one_thread and timer_notify functions
+  to find "thd" based on the thread id.
+
+  @note It acquires LOCK_thd_data mutex when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_thd_with_id: public Find_THD_Impl
+{
+public:
+  Find_thd_with_id(ulong value): m_id(value) {}
+  virtual bool operator()(THD *thd);
+
+private:
+  ulong m_id;
+};
+
+
+/**
   This class maintains THD object of all registered threads.
   It provides interface to perform functions such as find, count,
   perform some action for each THD object in the list.
