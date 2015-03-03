@@ -6415,25 +6415,6 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   DBUG_RETURN(error);
 }
 
-int
-MYSQL_BIN_LOG::write_event_into_log_file(Log_event* event){
-
-  DBUG_ENTER("MYSQL_BIN_LOG::write_event_into_log_file(Log_event *)");
-
-  mysql_mutex_lock(&LOCK_log);
-
-  int error= event->write(&log_file);
-
-  if (!error && !(error= flush_and_sync()))
-  {
-    update_binlog_end_pos();
-  }
-
-  mysql_mutex_unlock(&LOCK_log);
-
-  DBUG_RETURN(error);
-}
-
 /**
   Write an event to the binary log.
 */

@@ -565,8 +565,6 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
     }
   case binary_log::ROTATE_EVENT:
     DBUG_RETURN(false);
-  case binary_log::VIEW_CHANGE_EVENT:
-    DBUG_RETURN(false);
   }
   DBUG_RETURN(in_exclude_group);
 }

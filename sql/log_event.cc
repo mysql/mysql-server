@@ -13500,8 +13500,8 @@ void Transaction_context_log_event::add_read_set(const char *hash)
 #ifndef MYSQL_CLIENT
 View_change_log_event::View_change_log_event(char* raw_view_id)
   : binary_log::View_change_event(raw_view_id),
-    Log_event(header(), footer(),
-            Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
+    Log_event(header(), footer(), Log_event::EVENT_TRANSACTIONAL_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(char*)");
 
@@ -13524,6 +13524,10 @@ View_change_log_event(const char *buffer,
 
   if (strlen(view_id) != 0)
     is_valid_param= true;
+
+  //Change the cache/logging types to allow writing to the binary log cache
+  event_cache_type= EVENT_TRANSACTIONAL_CACHE;
+  event_logging_type= EVENT_NORMAL_LOGGING;
 
   DBUG_VOID_RETURN;
 }
@@ -13599,11 +13603,27 @@ void View_change_log_event::print(FILE *file,
 
  int View_change_log_event::do_apply_event(Relay_log_info const *rli)
  {
-   if(written_to_binlog)
+   enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+   if (state == GTID_STATEMENT_SKIP)
      return 0;
 
+   if (state == GTID_STATEMENT_CANCEL ||
+          (state == GTID_STATEMENT_EXECUTE &&
+           gtid_pre_statement_post_implicit_commit_checks(thd)))
+   {
+      uint error= thd->get_stmt_da()->mysql_errno();
+      DBUG_ASSERT(error != 0);
+      rli->report(ERROR_LEVEL, error,
+                  "Error executing View Change event: '%s'",
+                  thd->get_stmt_da()->message_text());
+      thd->is_slave_error= 1;
+      return -1;
+   }
+
    written_to_binlog= true;
-   return mysql_bin_log.write_event_into_log_file(this);
+   //Set the event as sequencial to guarantee the correct order on MTS
+   common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
+   return mysql_bin_log.write_event(this);
  }
 
 int View_change_log_event::do_update_pos(Relay_log_info *rli)
