@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,6 +154,9 @@ extern CHARSET_INFO *default_client_charset_info;
 MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,
                            uint fields, my_bool default_value,
                            uint server_capabilities);
+MYSQL_FIELD * cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
+                                   unsigned long field_count,
+                                   unsigned int fields);
 MYSQL_FIELD * cli_read_metadata(MYSQL *mysql, unsigned long field_count,
                                unsigned int fields);
 void free_rows(MYSQL_DATA *cur);

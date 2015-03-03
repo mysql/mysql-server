@@ -1491,7 +1491,8 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
-    if (!(stmt->fields= cli_read_metadata(mysql, field_count, 7)))
+    if (!(stmt->fields= cli_read_metadata_ex(mysql, &stmt->mem_root,
+                                             field_count, 7)))
       DBUG_RETURN(1);
   }
 
