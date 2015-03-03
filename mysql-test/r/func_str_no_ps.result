@@ -18,6 +18,8 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ' 7,]'
 Warning	1292	Truncated incorrect INTEGER value: ' 7,]'
 do upper(right(198039009115594390000000000000000000000.000000,35));
+do concat('111','11111111111111111111111111',
+substring_index(uuid(),0,1.111111e+308));
 do replace(ltrim(from_unixtime(0,' %T ')), '0', '1');
 do insert(ltrim(from_unixtime(0,' %T ')), 2, 1, 'hi');
 set @old_collation_connection=@@collation_connection;

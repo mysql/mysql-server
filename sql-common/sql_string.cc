@@ -444,6 +444,8 @@ void String::strip_sp()
 
 bool String::append(const String &s)
 {
+  DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
+  DBUG_ASSERT(!s.uses_buffer_owned_by(this));
   if (s.length())
   {
     if (mem_realloc(m_length+s.length()))
