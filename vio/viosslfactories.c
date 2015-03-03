@@ -18,8 +18,7 @@
 
 #ifdef HAVE_OPENSSL
 
-static my_bool     ssl_algorithms_added    = FALSE;
-static my_bool     ssl_error_strings_loaded= FALSE;
+static my_bool     ssl_initialized         = FALSE;
 
 /*
   Diffie-Hellman key.
@@ -175,21 +174,199 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
   DBUG_RETURN(0);
 }
 
+#ifndef HAVE_YASSL
+/* OpenSSL specific */
+
+#ifdef HAVE_PSI_INTERFACE
+static PSI_rwlock_key key_rwlock_openssl;
+
+static PSI_rwlock_info openssl_rwlocks[]=
+{
+  { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0}
+};
+#endif
+
+
+typedef struct CRYPTO_dynlock_value
+{
+  mysql_rwlock_t lock;
+} openssl_lock_t;
+
+
+/* Array of locks used by openssl internally for thread synchronization.
+   The number of locks is equal to CRYPTO_num_locks.
+*/
+static openssl_lock_t *openssl_stdlocks;
+
+/*OpenSSL callback functions for multithreading. We implement all the functions
+  as we are using our own locking mechanism.
+*/
+static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
+  int line)
+{
+  int err;
+  char const *what;
+
+  switch (mode) {
+    case CRYPTO_LOCK|CRYPTO_READ:
+      what = "read lock";
+      err= mysql_rwlock_rdlock(&lock->lock);
+      break;
+    case CRYPTO_LOCK|CRYPTO_WRITE:
+      what = "write lock";
+      err= mysql_rwlock_wrlock(&lock->lock);
+      break;
+    case CRYPTO_UNLOCK|CRYPTO_READ:
+    case CRYPTO_UNLOCK|CRYPTO_WRITE:
+      what = "unlock";
+      err= mysql_rwlock_unlock(&lock->lock);
+      break;
+    default:
+      /* Unknown locking mode. */
+      DBUG_PRINT("error",
+        ("Fatal OpenSSL: %s:%d: interface problem (mode=0x%x)\n",
+          file, line, mode));
+
+      fprintf(stderr, "Fatal: OpenSSL interface problem (mode=0x%x)", mode);
+      fflush(stderr);
+      abort();
+  }
+  if (err)
+  {
+    DBUG_PRINT("error",
+      ("Fatal OpenSSL: %s:%d: can't %s OpenSSL lock\n",
+        file, line, what));
+
+    fprintf(stderr, "Fatal: can't %s OpenSSL lock", what);
+    fflush(stderr);
+    abort();
+  }
+}
+
+static void openssl_lock_function(int mode, int n, const char *file, int line)
+{
+  if (n < 0 || n > CRYPTO_num_locks())
+  {
+    /* Lock number out of bounds. */
+    DBUG_PRINT("error",
+      ("Fatal OpenSSL: %s:%d: interface problem (n = %d)", file, line, n));
+
+    fprintf(stderr, "Fatal: OpenSSL interface problem (n = %d)", n);
+    fflush(stderr);
+    abort();
+  }
+  openssl_lock(mode, &openssl_stdlocks[n], file, line);
+}
+
+static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
+{
+  openssl_lock_t *lock;
+
+  DBUG_PRINT("info", ("openssl_dynlock_create: %s:%d", file, line));
+
+  lock= (openssl_lock_t*)
+    my_malloc(PSI_NOT_INSTRUMENTED,sizeof(openssl_lock_t),MYF(0));
+
+#ifdef HAVE_PSI_INTERFACE
+  mysql_rwlock_init(key_rwlock_openssl, &lock->lock);
+#else
+  mysql_rwlock_init(0, &lock->lock);
+#endif
+  return lock;
+}
+
+
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
+  int line)
+{
+  DBUG_PRINT("info", ("openssl_dynlock_destroy: %s:%d", file, line));
+
+  mysql_rwlock_destroy(&lock->lock);
+  my_free(lock);
+}
+
+static unsigned long openssl_id_function()
+{
+  return (unsigned long) my_thread_self();
+}
+
+//End of mutlithreading callback functions
+
+static void init_ssl_locks()
+{
+  int i= 0;
+#ifdef HAVE_PSI_INTERFACE
+  const char* category= "sql";
+  int count= array_elements(openssl_rwlocks);
+  mysql_rwlock_register(category, openssl_rwlocks, count);
+#endif
+
+  openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
+    sizeof(openssl_lock_t));
+  for (i= 0; i < CRYPTO_num_locks(); ++i)
+#ifdef HAVE_PSI_INTERFACE
+    mysql_rwlock_init(key_rwlock_openssl, &openssl_stdlocks[i].lock);
+#else
+    mysql_rwlock_init(0, &openssl_stdlocks[i].lock);
+#endif
+}
+
+static void set_lock_callback_functions(my_bool init)
+{
+  CRYPTO_set_locking_callback(init ? openssl_lock_function : NULL);
+  CRYPTO_set_id_callback(init ? openssl_id_function : NULL);
+  CRYPTO_set_dynlock_create_callback(init ? openssl_dynlock_create : NULL);
+  CRYPTO_set_dynlock_destroy_callback(init ? openssl_dynlock_destroy : NULL);
+  CRYPTO_set_dynlock_lock_callback(init ? openssl_lock : NULL);
+}
+
+static void init_lock_callback_functions()
+{
+  set_lock_callback_functions(TRUE);
+}
+
+static void deinit_lock_callback_functions()
+{
+  set_lock_callback_functions(FALSE);
+}
+
+void vio_ssl_end()
+{
+  int i= 0;
+
+  if (ssl_initialized) {
+    ERR_remove_state(0);
+    ERR_free_strings();
+    EVP_cleanup();
+
+    CRYPTO_cleanup_all_ex_data();
+
+    deinit_lock_callback_functions();
+
+    for (; i < CRYPTO_num_locks(); ++i)
+      mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
+    OPENSSL_free(openssl_stdlocks);
+
+    ssl_initialized= FALSE;
+  }
+}
+
+#endif //OpenSSL specific
 
 void ssl_start()
 {
-  if (!ssl_algorithms_added)
+  if (!ssl_initialized)
   {
-    ssl_algorithms_added= TRUE;
+    ssl_initialized= TRUE;
+
     SSL_library_init();
     OpenSSL_add_all_algorithms();
-
-  }
-
-  if (!ssl_error_strings_loaded)
-  {
-    ssl_error_strings_loaded= TRUE;
     SSL_load_error_strings();
+
+#ifndef HAVE_YASSL
+    init_ssl_locks();
+    init_lock_callback_functions();
+#endif
   }
 }
 
@@ -216,7 +393,6 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
               crl_file ? crl_file : "NULL",
               crl_path ? crl_path : "NULL"));
 
-  ssl_start();
 
   if (!(ssl_fd= ((struct st_VioSSLFd*)
                  my_malloc(key_memory_vio_ssl_fd,
