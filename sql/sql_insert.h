@@ -16,12 +16,13 @@
 #ifndef SQL_INSERT_INCLUDED
 #define SQL_INSERT_INCLUDED
 
-#include "sql_class.h"            // Query_result_interceptor
+#include "query_result.h"         // Query_result_interceptor
 #include "sql_cmd_dml.h"          // Sql_cmd_dml
 #include "sql_data_change.h"      // enum_duplicates
 
 struct TABLE_LIST;
 typedef List<Item> List_item;
+typedef struct st_mysql_lock MYSQL_LOCK;
 
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
@@ -56,6 +57,7 @@ public:
      Creates a Query_result_insert for routing a result set to an existing
      table.
 
+     @param thd              Thread handle
      @param table_list_par   The table reference for the destination table.
      @param table_par        The destination table. May be NULL.
      @param target_columns   See details.
@@ -98,14 +100,16 @@ public:
      target_columns is columns1, if not empty then 'info' must manage defaults
      of other columns than columns1.
   */
-  Query_result_insert(TABLE_LIST *table_list_par,
+  Query_result_insert(THD *thd,
+                      TABLE_LIST *table_list_par,
                       TABLE *table_par,
                       List<Item> *target_columns,
                       List<Item> *target_or_source_columns,
                       List<Item> *update_fields,
                       List<Item> *update_values,
                       enum_duplicates duplic)
-    :table_list(table_list_par),
+    :Query_result_interceptor(thd),
+     table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
      bulk_insert_started(false),
@@ -157,13 +161,15 @@ class Query_result_create: public Query_result_insert {
   /* m_lock or thd->extra_lock */
   MYSQL_LOCK **m_plock;
 public:
-  Query_result_create(TABLE_LIST *table_arg,
+  Query_result_create(THD *thd,
+                      TABLE_LIST *table_arg,
                       HA_CREATE_INFO *create_info_par,
                       Alter_info *alter_info_arg,
                       List<Item> &select_fields,
                       enum_duplicates duplic,
                       TABLE_LIST *select_tables_arg)
-    :Query_result_insert (NULL, // table_list_par
+    :Query_result_insert (thd,
+                          NULL, // table_list_par
                           NULL, // table_par
                           NULL, // target_columns
                           &select_fields,

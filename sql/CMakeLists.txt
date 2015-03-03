@@ -138,6 +138,7 @@ SET(SQL_SHARED_SOURCES
   procedure.cc 
   protocol.cc
   psi_memory_key.cc
+  query_result.cc
   records.cc
   rpl_group_replication.cc
   rpl_handler.cc

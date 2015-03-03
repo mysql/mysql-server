@@ -158,7 +158,7 @@ bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 }
 
 
-bool sp_rcontext::push_cursor(sp_instr_cpush *i)
+bool sp_rcontext::push_cursor(THD *thd, sp_instr_cpush *i)
 {
   /*
     We should create cursors on the system heap because:
@@ -167,7 +167,7 @@ bool sp_rcontext::push_cursor(sp_instr_cpush *i)
      - a cursor can be pushed/popped many times in a loop, having these objects
        on callers' mem-root would lead to a memory leak in every iteration.
   */
-  sp_cursor *c= new (std::nothrow) sp_cursor(i);
+  sp_cursor *c= new (std::nothrow) sp_cursor(thd, i);
 
   if (!c)
   {

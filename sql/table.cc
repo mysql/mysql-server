@@ -29,6 +29,7 @@
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
 #include "psi_memory_key.h"
+#include "query_result.h"                // Query_result
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_parse.h"                   // check_stack_overrun

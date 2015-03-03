@@ -32,6 +32,7 @@
 #include "log.h"              // sql_print_error
 #include "opt_trace.h"        // Opt_trace_object
 #include "psi_memory_key.h"
+#include "query_result.h"     // Query_result
 #include "sql_base.h"         // fill_record
 #include "sql_join_buffer.h"  // st_cache_field
 #include "sql_optimizer.h"    // JOIN

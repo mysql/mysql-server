@@ -798,17 +798,6 @@ int Sql_cmd_delete_multi::mysql_multi_delete_prepare(THD *thd,
 }
 
 
-Query_result_delete::Query_result_delete(TABLE_LIST *dt,
-                                         uint num_of_tables_arg)
-  : delete_tables(dt), tempfiles(NULL), tables(NULL), deleted(0), found(0),
-    num_of_tables(num_of_tables_arg), error(0),
-    delete_table_map(0), delete_immediate(0),
-    transactional_table_map(0), non_transactional_table_map(0),
-    do_delete(0), non_transactional_deleted(false), error_handled(false)
-{
-}
-
-
 int Query_result_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_delete::prepare");
@@ -1392,7 +1381,7 @@ bool Sql_cmd_delete_multi::execute(THD *thd)
   }
 
   if (!thd->is_fatal_error &&
-      (del_result= new Query_result_delete(aux_tables, del_table_count)))
+      (del_result= new Query_result_delete(thd, aux_tables, del_table_count)))
   {
     DBUG_ASSERT(select_lex->having_cond() == NULL &&
                 !select_lex->order_list.elements &&

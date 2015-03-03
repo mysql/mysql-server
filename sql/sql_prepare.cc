@@ -1349,7 +1349,8 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (select_precheck(thd, lex, tables, lex->select_lex->table_list.first))
     goto error;
 
-  if (!lex->result && !(lex->result= new (stmt->mem_root) Query_result_send))
+  if (!lex->result &&
+      !(lex->result= new (stmt->mem_root) Query_result_send(thd)))
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
              static_cast<int>(sizeof(Query_result_send)));
@@ -1378,7 +1379,7 @@ static int mysql_test_select(Prepared_statement *stmt,
         We need proper output recordset metadata for SELECT ... PROCEDURE ANALUSE()
       */
       if ((result= analyse_result=
-             new Query_result_analyse(result, lex->proc_analyse)) == NULL)
+           new Query_result_analyse(thd, result, lex->proc_analyse)) == NULL)
         goto error; // OOM
     }
 
@@ -2892,10 +2893,6 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, size_t packet_length)
 /***************************************************************************
  Select_fetch_protocol_binary
 ****************************************************************************/
-
-Query_fetch_protocol_binary::Query_fetch_protocol_binary(THD *thd_arg)
-  :protocol(thd_arg)
-{}
 
 bool Query_fetch_protocol_binary::send_result_set_metadata(List<Item> &list,
                                                            uint flags)

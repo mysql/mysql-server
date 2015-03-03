@@ -1638,7 +1638,7 @@ bool mysql_multi_update(THD *thd,
   bool res;
   DBUG_ENTER("mysql_multi_update");
 
-  if (!(*result= new Query_result_update(select_lex->get_table_list(),
+  if (!(*result= new Query_result_update(thd, select_lex->get_table_list(),
                                          select_lex->leaf_tables,
                                          fields, values,
                                          handle_duplicates)))
@@ -1664,19 +1664,6 @@ bool mysql_multi_update(THD *thd,
   }
   DBUG_RETURN(res);
 }
-
-
-Query_result_update::Query_result_update(TABLE_LIST *table_list,
-                                         TABLE_LIST *leaves_list,
-                                         List<Item> *field_list,
-                                         List<Item> *value_list,
-                                    enum enum_duplicates handle_duplicates_arg)
-  :all_tables(table_list), leaves(leaves_list), update_tables(0),
-   tmp_tables(0), updated(0), found(0), fields(field_list),
-   values(value_list), table_count(0), copy_field(0),
-   handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(1),
-   transactional_tables(0), error_handled(0), update_operations(NULL)
-{}
 
 
 /*

@@ -1989,7 +1989,7 @@ public:
     LEX *lex= pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
     if (!(lex->exchange= new sql_exchange(file_name, 0)) ||
-        !(lex->result= new Query_result_export(lex->exchange)))
+        !(lex->result= new Query_result_export(pc->thd, lex->exchange)))
       return true;
 
     lex->exchange->cs= charset;
@@ -2022,7 +2022,7 @@ public:
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
       if (!(lex->exchange= new sql_exchange(file_name, 1)))
         return true;
-      if (!(lex->result= new Query_result_dump(lex->exchange)))
+      if (!(lex->result= new Query_result_dump(pc->thd, lex->exchange)))
         return true;
     }
     return false;
@@ -2111,7 +2111,7 @@ public:
     if (lex->describe)
       return false;
 
-    Query_dumpvar *dumpvar= new (pc->mem_root) Query_dumpvar;
+    Query_dumpvar *dumpvar= new (pc->mem_root) Query_dumpvar(pc->thd);
     if (dumpvar == NULL)
       return true;
 

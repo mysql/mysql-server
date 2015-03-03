@@ -3087,7 +3087,8 @@ bool Sql_cmd_insert_select::execute(THD *thd)
       select_lex->context.first_name_resolution_table= second_table;
 
     res= mysql_insert_select_prepare(thd);
-    if (!res && (sel_result= new Query_result_insert(first_table,
+    if (!res && (sel_result= new Query_result_insert(thd,
+                                                     first_table,
                                                      first_table->table,
                                                      &insert_field_list,
                                                      &insert_field_list,

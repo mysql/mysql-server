@@ -17,7 +17,8 @@
 #define SQL_UNION_INCLUDED
 
 #include "my_global.h"          // ulong
-#include "sql_class.h"          // Query_result_interceptor
+#include "query_result.h"       // Query_result_interceptor
+#include "sql_class.h"          // Temp_table_param
 
 struct LEX;
 
@@ -29,7 +30,8 @@ class Query_result_union :public Query_result_interceptor
 public:
   TABLE *table;
 
-  Query_result_union() :table(0) {}
+  Query_result_union(THD *thd)
+    : Query_result_interceptor(thd), table(0) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   /**
     Do prepare() and prepare2() if they have been postponed until

@@ -60,7 +60,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     DBUG_ASSERT(sl->context.outer_context == NULL);
   }
 #endif
-  if (!(derived_result= new (thd->mem_root) Query_result_union))
+  if (!(derived_result= new (thd->mem_root) Query_result_union(thd)))
     DBUG_RETURN(true);              /* purecov: inspected */
 
   /*

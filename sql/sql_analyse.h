@@ -21,7 +21,7 @@
 
 #include "my_global.h"
 #include "my_tree.h"          // TREE
-#include "sql_class.h"        // Query_result_send
+#include "query_result.h"     // Query_result_send
 
 class Item_proc;
 
@@ -344,8 +344,10 @@ public:
   const uint max_treemem; //< maximum amount of memory to allocate per column
 
 public:
-  Query_result_analyse(Query_result *result, const Proc_analyse_params *params)
-  : result(result), f_info(NULL), f_end(NULL), rows(0), output_str_length(0),
+  Query_result_analyse(THD *thd, Query_result *result,
+                     const Proc_analyse_params *params)
+  : Query_result_send(thd),
+    result(result), f_info(NULL), f_end(NULL), rows(0), output_str_length(0),
     max_tree_elements(params->max_tree_elements),
     max_treemem(params->max_treemem)
   {}

@@ -1938,7 +1938,7 @@ bool explain_single_table_modification(THD *ethd,
                                        SELECT_LEX *select)
 {
   DBUG_ENTER("explain_single_table_modification");
-  Query_result_send result;
+  Query_result_send result(ethd);
   const THD *const query_thd= select->master_unit()->thd;
   const bool other= (query_thd != ethd);
   bool ret;
@@ -2159,11 +2159,11 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
     explain_result= unit->query_result() ?
                     unit->query_result() : unit->first_select()->query_result();
 
-  Query_result_explain explain_wrapper(unit, explain_result);
+  Query_result_explain explain_wrapper(ethd, unit, explain_result);
 
   if (other)  
   {
-    if (!((explain_result= new Query_result_send)))
+    if (!((explain_result= new Query_result_send(ethd))))
       return true; /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||

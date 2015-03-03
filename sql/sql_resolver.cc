@@ -33,6 +33,7 @@
 #include "opt_explain_format.h"
 #include "sql_test.h"            // print_where
 #include "aggregate_check.h"
+#include "query_result.h"
 
 static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
 

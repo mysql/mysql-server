@@ -2808,7 +2808,8 @@ case SQLCOM_PREPARE:
           Query_result_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.
         */
-        if ((result= new Query_result_create(create_table,
+        if ((result= new Query_result_create(thd,
+                                             create_table,
                                              &create_info,
                                              &alter_info,
                                              select_lex->item_list,
@@ -4666,7 +4667,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         to prepend EXPLAIN to any query and receive output for it,
         even if the query itself redirects the output.
       */
-      Query_result *const result= new Query_result_send;
+      Query_result *const result= new Query_result_send(thd);
       if (!result)
         return true; /* purecov: inspected */
       res= handle_query(thd, lex, result, 0, 0);
@@ -4674,14 +4675,14 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     else
     {
       Query_result *result= lex->result;
-      if (!result && !(result= new Query_result_send()))
+      if (!result && !(result= new Query_result_send(thd)))
         return true;                            /* purecov: inspected */
       Query_result *save_result= result;
       Query_result *analyse_result= NULL;
       if (lex->proc_analyse)
       {
         if ((result= analyse_result=
-               new Query_result_analyse(result, lex->proc_analyse)) == NULL)
+             new Query_result_analyse(thd, result, lex->proc_analyse)) == NULL)
           return true;
       }
       res= handle_query(thd, lex, result, 0, 0);
