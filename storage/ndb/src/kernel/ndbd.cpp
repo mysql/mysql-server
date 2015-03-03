@@ -182,11 +182,86 @@ compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
       lqhInstances = globalData.ndbMtLqhWorkers;
     }
     
-    accmem += lqhInstances * (32 / 4); // Added as safty in Configuration.cpp
+    accmem += lqhInstances * (32 / 4); // Added as safety in Configuration.cpp
   }
   return Uint32(accmem);
 }
 
+/**
+ * We currently allocate the following large chunks of memory:
+ * -----------------------------------------------------------
+ *
+ * RG_DATAMEM:
+ * This is a resource which one sets the min == max. This means that
+ * we cannot overallocate this resource. The size of the resource
+ * is based on the sum of the configuration variables DataMemory
+ * and IndexMemory. It's used for main memory tuples, indexes and
+ * hash indexes. We add an extra 8 32kB pages for safety reasons
+ * if IndexMemory is set.
+ *
+ * RG_FILE_BUFFERS:
+ * This is a resource used by the REDO log handler in DBLQH. It is
+ * also a resource we cannot overallocate. The size of it is based
+ * on the multiplication of the config variables NoOfLogFileParts
+ * and RedoBuffer. In addition we add a constant 1 MByte per each
+ * log file part to handle some extra outstanding requests.
+ *
+ * RG_JOB_BUFFERS:
+ * This is a resource used to allocate job buffers by multithreaded
+ * NDB scheduler to handle various job buffers and alike. It has
+ * a complicated algorithm to calculate its size. It allocates a
+ * bit more than 2 MByte per thread and it also allocates a 1 MByte
+ * buffer in both directions for all threads that can communicate.
+ * For large configurations this becomes a fairly large memory
+ * that can consume up to a number of GBytes of memory. It is
+ * also a resource that cannot be overallocated.
+ *
+ * RG_TRANSPORTER_BUFFERS:
+ * This is a resource used for send buffers in ndbmtd. It is set to
+ * a size of the sum of TotalSendBufferMemory and ExtraSendBufferMemory.
+ * It is a resource that can be overallocated by 25%.
+ * TotalSendBufferMemory is by default set to 0. In this the this
+ * variable is calculated by summing the send buffer memory per node.
+ * The default value per send buffer per node is 2 MByte. So this
+ * means that in a system with 4 data nodes and 8 client nodes the
+ * data nodes will have 11 * 2 MByte of total memory. The extra
+ * memory is by default 0. However for ndbmtd we also add more memory
+ * in the extra part. We add 2 MBytes per thread used in the node.
+ * So with 4 LDM threads, 2 TC threads, 1 main thread, 1 rep thread,
+ * and 2 receive threads then we have 10 threads and allocate another
+ * extra 20 MBytes. The user can never set this below 16MByte +
+ * 2 MByte per thread + 256 kByte per node. So default setting is
+ * 2MByte * (#nodes + #threads) and we can oversubscribe by 25% by
+ * using the SharedGlobalMemory.
+ *
+ * RG_DISK_PAGE_BUFFER:
+ * This is a resource that is used for the disk page buffer. It cannot
+ * be overallocated. Its size is calculated based on the config variable
+ * DiskPageBufferMemory.
+ * 
+ * RG_SCHEMA_TRANS_MEMORY:
+ * This is a resource that is set to a minimum of 2 MByte. It can be
+ * overallocated at any size as long as there is still memory
+ * remaining.
+ *
+ * RG_DISK_OPERATIONS:
+ * This is a resource that is either set to zero size but can be overallocated
+ * without limit. If a log file group is allocated based on the config, then
+ * the size of the UNDO log buffer is used to set the size of this resource.
+ * This resource is only used to allocate the UNDO log buffer of an UNDO log
+ * file group and there can only be one such group. It is using overallocating
+ * if this happens through an SQL command.
+ *
+ * Overallocating and total memory
+ * -------------------------------
+ * The total memory allocated by the global memory manager is the sum of the
+ * sizes of the above resources. On top of this one also adds the global
+ * shared memory resource. The size of this is set to the config variable
+ * SharedGlobalMemory. The global shared memory resource is the resource used
+ * when we're overallocating as is currently possible for the UNDO log
+ * memory and also for schema transaction memory. GlobalSharedMemory cannot
+ * be set lower than 128 MByte.
+ */
 static int
 init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
 {
@@ -292,6 +367,12 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint32 sbpages = 0;
   if (globalTransporterRegistry.get_using_default_send_buffer() == false)
   {
+    /**
+     * This path is normally always taken for ndbmtd as the transporter
+     * registry defined in mt.cpp is hard coded to set this to false.
+     * For ndbd it is hard coded similarly to be set to true in
+     * TransporterCallback.cpp. So for ndbd this code isn't executed.
+     */
     Uint64 mem;
     {
       Uint32 tot_mem = 0;
@@ -490,7 +571,7 @@ ndbd_exit(int code)
     code = 255;
 
 // gcov will not produce results when using _exit
-#ifdef HAVE_gcov
+#ifdef HAVE_GCOV
   exit(code);
 #else
   _exit(code);

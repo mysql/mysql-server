@@ -146,6 +146,7 @@ class NdbTransaction
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbOperation;
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
@@ -308,6 +309,14 @@ public:
    *                      successful, otherwise NULL
    */
   NdbIndexOperation* getNdbIndexOperation(const NdbDictionary::Index *anIndex);
+
+  /**
+   * Enable/disable schema object ownership check: check that objects used by this 
+   * transaction belong to the dictionary owned by this connection. This is a 
+   * debugging feature for when multiple cluster connections are in use, and has a 
+   * performance cost. 
+   */
+  void setSchemaObjOwnerChecks(bool runChecks) { m_enable_schema_obj_owner_check = runChecks; }
 
   /** 
    * @name Execute Transaction
@@ -1034,6 +1043,9 @@ private:
   void		setOperationErrorCodeAbort(int anErrorCode, int abortOption = -1);
 
   int		checkMagicNumber();		       // Verify correct object
+  Uint32        getMagicNumberFromObject() const;
+  static Uint32 getMagicNumber() { return (Uint32)0x37412619; }
+
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
                                 NdbOperation* aNextOp = 0,
                                 bool useRec= false);
@@ -1182,13 +1194,17 @@ private:
 
   static void sendTC_COMMIT_ACK(class NdbImpl *, NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
-				Uint32 aBlockRef);
+				Uint32 aBlockRef,
+                                bool send_immediate);
 
   void completedFail(const char * s);
 #ifdef VM_TRACE
   void printState();
 #endif
   bool checkState_TransId(const Uint32 * transId) const;
+
+  // Check table and index objects wrt current connection - for debugging
+  bool checkSchemaObjects(const NdbTableImpl *tab, const NdbIndexImpl *idx=0);
 
   void remove_list(NdbOperation*& head, NdbOperation*);
   void define_scan_op(NdbIndexScanOperation*);
@@ -1216,6 +1232,8 @@ private:
   NdbQueryImpl* m_scanningQuery;
 
   Uint32 m_tcRef;
+
+  bool m_enable_schema_obj_owner_check;
 };
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1240,10 +1258,17 @@ NdbTransaction::set_send_size(Uint32 send_size)
 #endif
 
 inline
+Uint32
+NdbTransaction::getMagicNumberFromObject() const
+{
+  return theMagicNumber;
+}
+
+inline
 int
 NdbTransaction::checkMagicNumber()
 {
-  if (theMagicNumber == 0x37412619)
+  if (theMagicNumber == getMagicNumber())
     return 0;
   else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1255,11 +1280,14 @@ NdbTransaction::checkMagicNumber()
 
 inline
 bool
-NdbTransaction::checkState_TransId(const Uint32 * transId) const {
+NdbTransaction::checkState_TransId(const Uint32 * transId) const
+{
+  const NdbTransaction::ConStatusType tStatus = theStatus;
+  const Uint64 tTransactionId = theTransactionId;
   const Uint32 tTmp1 = transId[0];
   const Uint32 tTmp2 = transId[1];
   Uint64 tRecTransId = (Uint64)tTmp1 + ((Uint64)tTmp2 << 32);
-  bool b = theStatus == Connected && theTransactionId == tRecTransId;
+  bool b = (tStatus == Connected) && (tTransactionId == tRecTransId);
   return b;
 }
 

@@ -208,6 +208,23 @@ public:
   void assignToThread(ThreadContext ctx);
   /* For multithreaded ndbd, get the id of owning thread. */
   uint32 getThreadId() const { return m_threadId; }
+  /**
+   * To call EXECUTE_DIRECT on THRMAN we need to get its instance number.
+   * Its instance number is always 1 higher than the thread id since 0
+   * is used for the proxy instance and then there is one instance per
+   * thread.
+   */
+  Uint32 getThrmanInstance() const
+  {
+    if (isNdbMt())
+    {
+      return m_threadId + 1;
+    }
+    else
+    {
+      return 0;
+    }
+  }
   static bool isMultiThreaded();
 
   /* Configuration based alternative.  Applies only to this node */
@@ -291,7 +308,9 @@ protected:
   static Callback TheNULLCallback;
   void execute(Signal* signal, Callback & c, Uint32 returnCode);
   
-  
+
+  void getSendBufferLevel(NodeId node, SB_LevelType &level);
+
   /**********************************************************
    * Send signal - dialects
    */
@@ -1364,6 +1383,13 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
    * by using an explicit instance argument.
    * By default instance of sender is used.  This is automatically thread-safe
    * for worker instances (instance != 0).
+   *
+   * We also need to use this function when calling blocks that don't belong
+   * to the same module, so e.g. LDM blocks can all call each other without
+   * using this method. But e.g. no block can call THRMAN using implicit
+   * instance id since the instance numbers of the LDM blocks and the THRMAN
+   * blocks are not the same. There is one THRMAN instance for each thread,
+   * not only for the LDM threads.
    */
   signal->header.theSendersBlockRef = reference();
   signal->setLength(len);

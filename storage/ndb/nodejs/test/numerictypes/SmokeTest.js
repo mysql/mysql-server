@@ -30,7 +30,7 @@ var test = new harness.SmokeTest("SmokeTest");
 
 test.run = function() {
   var t = this;
-  harness.SQL.create(this.suite, function(error) {
+  sqlCreate(this.suite, function(error) {
     if (error) {
       t.fail('createSQL failed: ' + error);
     } else {

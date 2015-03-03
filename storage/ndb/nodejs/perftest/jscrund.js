@@ -23,11 +23,13 @@
 /*global JSCRUND */
 global.JSCRUND = {};
 
+// Modules:
 JSCRUND.mynode = require("..");
 JSCRUND.unified_debug = require("../Adapter/api/unified_debug");
 JSCRUND.udebug = JSCRUND.unified_debug.getLogger("jscrund.js");
 JSCRUND.stats  = require("../Adapter/api/stats");
 JSCRUND.lib    = require("./lib");
+
 // Backends:
 JSCRUND.mysqljs = require('./jscrund_mysqljs');
 JSCRUND.sqlAdapter = require('./jscrund_sql');
@@ -36,8 +38,7 @@ JSCRUND.nullAdapter = require('./jscrund_null');
 
 JSCRUND.errors  = [];
 
-var DEBUG  = JSCRUND.udebug.is_debug();
-var DETAIL = JSCRUND.udebug.is_detail();
+var DEBUG, DETAIL;
 
 // webkit-devtools-agent allows you to profile the process from a Chrome browser
 try {
@@ -49,6 +50,10 @@ function usage() {
   "Usage:  node jscrund [options]\n" +
   "   --help:\n" +
   "   -h      :  Print help (this message)\n" +
+  "   -A      :  Run \"A\" tests (default)\n" +
+  "   -B      :  Run \"B\" tests\n" +
+  "   --varchar=size\n" +
+  "           :  Specify varchar size in B tests (default 10)\n" +
   "   --adapter=ndb\n" +
   "   -n      :  Use ndb adapter (default)\n" +
   "   --adapter=mysql\n" +
@@ -88,6 +93,12 @@ function parse_command_line(options) {
     case '--help':
     case '-h':
       options.exit = true;
+      break;
+    case '-A':
+      options.doClass = "A";
+      break;
+    case '-B':
+      options.doClass = "B";
       break;
     case '-n':
       options.adapter = "ndb";
@@ -192,6 +203,8 @@ function parse_command_line(options) {
             case 'persist':
             case 'find':
             case 'remove':
+            case 'setVarchar':
+            case 'clearVarchar':
               break;
             default:
               console.log('Invalid test ' + options.testNames[t]);
@@ -201,8 +214,6 @@ function parse_command_line(options) {
           break;
         case '-df':
           unified_debug.on();
-          var client = require(path.join(build_dir,"ndb_adapter")).debug;
-          unified_debug.register_client(client);
           unified_debug.set_file_level(values[1], 5);
           break;
         case '--delay':
@@ -210,7 +221,9 @@ function parse_command_line(options) {
           options.delay_pre = delays[0];
           options.delay_post = delays[1];
           break;
-
+        case '--varchar':
+          options.B_varchar_size = values[1];
+          break;
         default:
           console.log('Invalid option ' + val);
           options.exit = true;
@@ -223,16 +236,67 @@ function parse_command_line(options) {
   }
 }
 
+/** Error reporter 
+ */
+function appendError(error) {
+  JSCRUND.errors.push(error);
+  if ((options.printStackTraces) && typeof(error.stack) !== 'undefined') {
+    JSCRUND.errors.push(error.stack);
+  }
+};
+
+function verifyObject(that) {
+  for (var prop in this) {
+    // only verify immediate properties, not inherited ones
+    if (this.hasOwnProperty(prop)) {
+      // only compare value, not type, since long numbers mapped to string
+      //if (this[prop] !== that[prop])
+      if (this[prop] != that[prop])
+          appendError('Error: data mismatch for property '
+                      + this.constructor.name + '.' + prop
+                      + ' expected: ' + JSON.stringify(this[prop])
+                      + ' actual: ' + JSON.stringify(that[prop]));
+    }
+  }
+};
+
 /** Constructor for domain object for A mapped to table a.
  */
 function A() {
 }
+
+A.prototype.init = function(i) {
+  this.id = i;
+  this.cint = -i;
+  this.clong = -i;
+  this.cfloat = -i;
+  this.cdouble = -i;
+};
+
+A.prototype.verify = verifyObject;
 
 /** Constructor for domain object for B mapped to table b.
  */
 function B() {
 }
 
+B.prototype.init = function(i) {
+  this.id = i;
+  this.cint = -i;
+  this.clong = -i;
+  this.cfloat = -i;
+  this.cdouble = -i;
+};
+
+B.prototype.setVarchar = function(len) {
+  this.cvarchar_def = ___;
+};
+
+B.prototype.verify = verifyObject;
+
+
+/** Result Logging
+ */
 function currentDateString() {
   function zpad(s) {
     return (s.length == 1) ? "0" + s : s;
@@ -284,10 +348,11 @@ function main() {
 
   /* Default options: */
   var options = {
+    'doClass' : 'A',
     'adapter' : 'ndb',
     'database': 'jscrund',
     'modes': 'indy,each,bulk',
-    'tests': 'persist,find,remove',
+    'tests': null,
     'iterations': [4000],
     'stats': false,
     'spi': false,
@@ -295,7 +360,8 @@ function main() {
     'nRuns': 1,
     'setProp' : {},
     'delay_pre' : 0,
-    'delay_post' : 0
+    'delay_post' : 0,
+    'B_varchar_size' : 10
   };
 
   /* Options from config file */
@@ -322,6 +388,18 @@ function main() {
   if (options.exit) {
     usage();
     process.exit(0);
+  }
+
+  /* Global udebug level; may have been set by options */
+  DEBUG  = JSCRUND.udebug.is_debug();
+  DETAIL = JSCRUND.udebug.is_detail();
+
+  /* Create the string value for varchar tests */
+  if(options.B_varchar_size > 0) {
+    options.B_varchar_value = "";
+    for(var i = 0 ; i < options.B_varchar_size ; i++) {
+      options.B_varchar_value += String.fromCharCode(48 + (i % 64));
+    }
   }
 
   /* Fetch the backend implementation */
@@ -384,46 +462,18 @@ function main() {
   };
 
   var generateObject = function(i) {
-    var result = new A();
-    //var result = new B();
+    var result;
+    if(options.doClass == "A") {
+      result = new A();
+    } else if(options.doClass == "B") {
+      result = new B();
+    } else {
+      assert(false);
+    }
     result.init(i);
     return result;
   };
 
-  var initAB = function(i) {
-    this.id = i;
-    this.cint = i;
-    this.clong = i;
-    this.cfloat = i;
-    this.cdouble = i;
-  }
-
-  var verifyObject = function(that) {
-    for (var prop in this) {
-      // only verify immediate properties, not inherited ones
-      if (this.hasOwnProperty(prop)) {
-        // only compare value, not type, since long numbers mapped to string
-        //if (this[prop] !== that[prop])
-        if (this[prop] != that[prop])
-            appendError('Error: data mismatch for property '
-                        + this.constructor.name + '.' + prop
-                        + ' expected: ' + JSON.stringify(this[prop])
-                        + ' actual: ' + JSON.stringify(that[prop]));
-      }
-    }
-  };
-
-  A.prototype.init = initAB;
-  B.prototype.init = initAB;
-  A.prototype.verify = verifyObject;
-  B.prototype.verify = verifyObject;
-
-  var appendError = function(error) {
-    JSCRUND.errors.push(error);
-    if ((options.printStackTraces) && typeof(error.stack) !== 'undefined') {
-      JSCRUND.errors.push(error.stack);
-    }
-  };
 
   // mainTestLoop (-r 10)
   //   batchSizeLoop (-i 1,10,100)
@@ -439,7 +489,7 @@ function main() {
     var mode;
     var modeName;
 
-    var testNames = options.tests.split('\,');
+    var testNames;
     var testNumber = 0;
     var operation;
     var testName;
@@ -461,6 +511,21 @@ function main() {
     var resultStats = [];
 
     var parameters;
+
+    /* Which tests to run */
+    if(options.tests) {  // Explicit test names
+      testNames = options.tests.split('\,');
+    } else {
+      switch(options.doClass) {
+        case 'B':
+          testNames = [ 'persist', 'setVarchar', 'find', 'clearVarchar', 'remove' ];
+          break;
+        case 'A':
+        default:
+          testNames = [ 'persist', 'find', 'remove' ];
+          break;
+      };
+    }
 
     /** Recursively call the operation numberOfIterations times in autocommit mode
      * and then call the operationsDoneCallback

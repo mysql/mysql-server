@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,14 +13,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 942
-Next NDBCNTR 1004
+Next QMGR 943
+Next NDBCNTR 1006
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4039
-Next DBLQH 5075
+Next DBLQH 5088
 Next DBDICT 6216
-Next DBDIH 7237
+Next DBDIH 7245
 Next DBTC 8108
 Next CMVMI 9000
 Next BACKUP 10042
@@ -122,6 +122,34 @@ Delay GCP_SAVEREQ by 10 secs
 
 7194: Force removeNodeFromStored to complete in the middle of MASTER_LCPCONF
 
+Following are used to test GCP Monitor and take an extra argument
+which default to 0, but if 1 will disable 'normal' handling of
+GCP Stop so that isolation is required to remove a node.
+
+7241: Delay COPY_GCIREQ processing indefinitely
+7242: No initiation of GCP_COMMIT from Master
+7243: No initiation of GCP_SAVE_REQ from Master
+7237: Delay GCP_SAVEREQ processing indefinitely
+7238: Delay GCP_PREPARE processing indefinitely
+7239: Delay GCP_COMMIT processing indefinitely
+7244: Delay SUB_GCP_COMPLETE_REP processing indefinitely
+
+Related (LQH):
+  5085 : Ignore request to kill via DUMP 2305
+  5087 : Treat request to kill via DUMP 2305 as CRASH_INSERTION
+         (expected way for testcase to kill node)
+
+Related (NDBCNTR)
+  1004 : Ignore SYSTEM_ERROR for GCP Stop
+  1005 : Treat SYSTEM_ERROR for GCP Stop as CRASH_INSERTION
+         (expected way for testcase to kill node)
+
+Related (QMGR)
+  942  : Test 'forced isolation' (ISOLATE_ORD) by other nodes
+         - Ignore ISOLATE_ORD signals
+         - Ignore FAIL_REP signals for us with forced-isolation cause
+         - Treat DISCONNECT_REP of others as CRASH_INSERTION
+
 ERROR CODES FOR TESTING NODE FAILURE, LOCAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
 
@@ -209,6 +237,13 @@ And crash when all have "not" been sent
 7236: while doing LCP init, delay the last CONTINUEB with ZINIT_LCP so
       that all the tables are TLS_ACTIVE but the global c_lcpStatus.lcpState 
       is not yet changed from LCP_INIT_TABLES to LCP_STATUS_ACTIVE. 
+
+LQH
+5086: Ignore DUMP 2309, used by LCP Scan Frag watchdog to kill process
+
+QMGR
+942:  (See above) 
+
 
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------

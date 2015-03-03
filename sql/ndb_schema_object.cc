@@ -54,7 +54,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
                                          bool create_if_not_exists)
 {
   NDB_SCHEMA_OBJECT *ndb_schema_object;
-  uint length= (uint) strlen(key);
+  size_t length= strlen(key);
   DBUG_ENTER("ndb_get_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
@@ -88,7 +88,10 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     native_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
                 sizeof(ndb_schema_object->slock)*8, FALSE);
-    bitmap_clear_all(&ndb_schema_object->slock_bitmap);
+    // Expect answer from all other nodes by default(those
+    // who are not subscribed will be filtered away by
+    // the Coordinator which keep track of that stuff)
+    bitmap_set_all(&ndb_schema_object->slock_bitmap);
     break;
   }
   if (ndb_schema_object)

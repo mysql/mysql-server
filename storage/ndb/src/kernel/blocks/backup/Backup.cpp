@@ -66,6 +66,11 @@
 #include <NdbTick.h>
 #include <dbtup/Dbtup.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
+#include <math.h>
+
 #define JAM_FILE_ID 475
 
 static const Uint32 WaitDiskBufferCapacityMillis = 1;
@@ -97,10 +102,20 @@ Backup::execSTTOR(Signal* signal)
 
   if (startphase == 1)
   {
+    ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
+    m_words_written_this_period = 0;
+    last_disk_write_speed_report = 0;
+    next_disk_write_speed_report = 0;
     m_monitor_words_written = 0;
     m_monitor_snapshot_start = NdbTick_getCurrentTicks();
-    m_curr_disk_write_speed = c_defaults.m_disk_write_speed_sr;
+    m_curr_disk_write_speed = c_defaults.m_disk_write_speed_max_own_restart;
     m_overflow_disk_write = 0;
+    slowdowns_due_to_io_lag = 0;
+    slowdowns_due_to_high_cpu = 0;
+    disk_write_speed_set_to_min = 0;
+    m_is_any_node_restarting = false;
+    m_node_restart_check_sent = false;
+    m_our_node_started = false;
     m_reset_disk_speed_time = NdbTick_getCurrentTicks();
     m_reset_delay_used = Backup::DISK_SPEED_CHECK_DELAY;
     signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
@@ -119,7 +134,8 @@ Backup::execSTTOR(Signal* signal)
   {
     m_monitor_words_written = 0;
     m_monitor_snapshot_start = NdbTick_getCurrentTicks();
-    m_curr_disk_write_speed = c_defaults.m_disk_write_speed;
+    m_curr_disk_write_speed = c_defaults.m_disk_write_speed_min;
+    m_our_node_started = true;
   }
 
   if(startphase == 7 && g_TypeOfStart == NodeState::ST_INITIAL_START &&
@@ -193,6 +209,374 @@ Backup::createSequence(Signal* signal)
 }
 
 void
+Backup::handle_overflow(void)
+{
+  jam();
+  /**
+   * If we overflowed in the last period, count it in 
+   * this new period, potentially overflowing again into
+   * future periods...
+   * 
+   * The overflow can only come from the last write we did in this
+   * period, but potentially this write is bigger than what we are
+   * allowed to write during one period.
+   *
+   * Calculate the overflow to pass into the new period
+   * (overflowThisPeriod). It can never be more than what is
+   * allowed to be written during a period.
+   *
+   * We could rarely end up in the case that the overflow of the
+   * last write in the period even overflows the entire next period.
+   * If so we put this into the remainingOverFlow and put this into
+   * m_overflow_disk_write (in this case nothing will be written in
+   * this period so ready_to_write need not worry about this case
+   * when setting m_overflow_disk_write since it isn't written any time
+   * in this case and in all other cases only written by the last write
+   * in a period.
+   */
+  Uint32 overflowThisPeriod = MIN(m_overflow_disk_write, 
+                                  m_curr_disk_write_speed + 1);
+    
+  /* How much overflow remains after this period? */
+  Uint32 remainingOverFlow = m_overflow_disk_write - overflowThisPeriod;
+  
+  if (overflowThisPeriod)
+  {
+    jam();
+#ifdef DEBUG_CHECKPOINTSPEED
+    ndbout_c("Overflow of %u bytes (max/period is %u bytes)",
+             overflowThisPeriod * 4, m_curr_disk_write_speed * 4);
+#endif
+    if (remainingOverFlow)
+    {
+      jam();
+#ifdef DEBUG_CHECKPOINTSPEED
+      ndbout_c("  Extra overflow : %u bytes, will take %u further periods"
+               " to clear", remainingOverFlow * 4,
+                 remainingOverFlow / m_curr_disk_write_speed);
+#endif
+    }
+  }
+  m_words_written_this_period = overflowThisPeriod;
+  m_overflow_disk_write = remainingOverFlow;
+}
+
+void
+Backup::calculate_next_delay(const NDB_TICKS curr_time)
+{
+  /**
+   * Adjust for upto 10 millisecond delay of this signal. Longer
+   * delays will not be handled, in this case the system is most
+   * likely under too high load and it won't matter very much that
+   * we decrease the speed of checkpoints.
+   *
+   * We use a technique where we allow an overflow write in one
+   * period. This overflow will be removed from the next period
+   * such that the load will at average be as specified.
+   * Calculate new delay time based on if we overslept or underslept
+   * this time. We will never regulate more than 10ms, if the
+   * oversleep is bigger than we will simply ignore it. We will
+   * decrease the delay by as much as we overslept or increase it by
+   * as much as we underslept.
+   */
+  int delay_time = m_reset_delay_used;
+  int sig_delay = int(NdbTick_Elapsed(m_reset_disk_speed_time,
+                                      curr_time).milliSec());
+  if (sig_delay > delay_time + 10)
+  {
+    delay_time = Backup::DISK_SPEED_CHECK_DELAY - 10;
+  }
+  else if (sig_delay < delay_time - 10)
+  {
+    delay_time = Backup::DISK_SPEED_CHECK_DELAY + 10;
+  }
+  else
+  {
+    delay_time = Backup::DISK_SPEED_CHECK_DELAY -
+                 (sig_delay - delay_time);
+  }
+  m_reset_delay_used= delay_time;
+  m_reset_disk_speed_time = curr_time;
+#if 0
+  ndbout << "Signal delay was = " << sig_delay;
+  ndbout << " Current time = " << curr_time << endl;
+  ndbout << " Delay time will be = " << delay_time << endl << endl;
+#endif
+}
+
+void
+Backup::report_disk_write_speed_report(Uint64 bytes_written_this_period,
+                                       Uint64 millis_passed)
+{
+  Uint32 report = next_disk_write_speed_report;
+  disk_write_speed_rep[report].backup_lcp_bytes_written =
+    bytes_written_this_period;
+  disk_write_speed_rep[report].millis_passed =
+    millis_passed;
+  disk_write_speed_rep[report].redo_bytes_written =
+    c_lqh->report_redo_written_bytes();
+  disk_write_speed_rep[report].target_disk_write_speed =
+    m_curr_disk_write_speed * CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS;
+
+  next_disk_write_speed_report++;
+  if (next_disk_write_speed_report == DISK_WRITE_SPEED_REPORT_SIZE)
+  {
+    next_disk_write_speed_report = 0;
+  }
+  if (next_disk_write_speed_report == last_disk_write_speed_report)
+  {
+    last_disk_write_speed_report++;
+    if (last_disk_write_speed_report == DISK_WRITE_SPEED_REPORT_SIZE)
+    {
+      last_disk_write_speed_report = 0;
+    }
+  }
+}
+
+/**
+ * This method is a check that we haven't been writing faster than we're
+ * supposed to during the last interval.
+ */
+void
+Backup::monitor_disk_write_speed(const NDB_TICKS curr_time,
+                                 const Uint64 millisPassed)
+{
+  /**
+   * Independent check of DiskCheckpointSpeed.
+   * We check every second or so that we are roughly sticking
+   * to our diet.
+   */
+  jam();
+  const Uint64 periodsPassed =
+    (millisPassed / DISK_SPEED_CHECK_DELAY) + 1;
+  const Uint64 quotaWordsPerPeriod = m_curr_disk_write_speed;
+  const Uint64 maxOverFlowWords = c_defaults.m_maxWriteSize / 4;
+  const Uint64 maxExpectedWords = (periodsPassed * quotaWordsPerPeriod) +
+                                  maxOverFlowWords;
+        
+  if (unlikely(m_monitor_words_written > maxExpectedWords))
+  {
+    jam();
+    /**
+     * In the last monitoring interval, we have written more words
+     * than allowed by the quota (DiskCheckpointSpeed), including
+     * transient spikes due to a single MaxBackupWriteSize write
+     */
+    ndbout << "Backup : Excessive Backup/LCP write rate in last"
+           << " monitoring period - recorded = "
+           << (m_monitor_words_written * 4 * 1000) / millisPassed
+           << " bytes/s, "
+           << endl
+           << "Current speed is = "
+           << m_curr_disk_write_speed *
+                CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS
+           << " bytes/s"
+           << endl;
+    ndbout << "Backup : Monitoring period : " << millisPassed
+           << " millis. Bytes written : " << m_monitor_words_written
+           << ".  Max allowed : " << maxExpectedWords << endl;
+    ndbassert(false);
+  }
+  report_disk_write_speed_report(4 * m_monitor_words_written, millisPassed);
+  m_monitor_words_written = 0;
+  m_monitor_snapshot_start = curr_time;
+}
+
+void
+Backup::adjust_disk_write_speed_down(int adjust_speed)
+{
+  m_curr_disk_write_speed -= adjust_speed;
+  if (m_curr_disk_write_speed < c_defaults.m_disk_write_speed_min)
+  {
+    disk_write_speed_set_to_min++;
+    m_curr_disk_write_speed = c_defaults.m_disk_write_speed_min;
+  }
+}
+
+void
+Backup::adjust_disk_write_speed_up(int adjust_speed)
+{
+  Uint64 max_disk_write_speed = m_is_any_node_restarting ?
+    c_defaults.m_disk_write_speed_max_other_node_restart :
+    c_defaults.m_disk_write_speed_max;
+
+  m_curr_disk_write_speed += adjust_speed;
+  if (m_curr_disk_write_speed > max_disk_write_speed)
+  {
+    m_curr_disk_write_speed = max_disk_write_speed;
+  }
+}
+
+/**
+ * Calculate new disk checkpoint write speed based on the new
+ * multiplication factor, we decrease in steps of 10% per second
+ */
+void
+Backup::calculate_disk_write_speed(Signal *signal)
+{
+  Uint64 max_disk_write_speed = m_is_any_node_restarting ?
+    c_defaults.m_disk_write_speed_max_other_node_restart :
+    c_defaults.m_disk_write_speed_max;
+  /**
+   * Calculate the max - min and divide by 12 to get the adjustment parameter
+   * which is 8% of max - min. We will never adjust faster than this to avoid
+   * to quick adaptiveness. For adjustments down we will adapt faster for IO
+   * lags, for CPU speed we will adapt a bit slower dependent on how high
+   * the CPU load is.
+   */
+  int diff_disk_write_speed =
+    max_disk_write_speed -
+      c_defaults.m_disk_write_speed_min;
+
+  int adjust_speed_up = diff_disk_write_speed / 12;
+  int adjust_speed_down_high = diff_disk_write_speed / 7;
+  int adjust_speed_down_medium = diff_disk_write_speed / 10;
+  int adjust_speed_down_low = diff_disk_write_speed / 14;
+  
+  jam();
+  if (diff_disk_write_speed <= 0 ||
+      adjust_speed_up == 0)
+  {
+    jam();
+    /**
+     * The min == max which gives no room to adapt the LCP speed.
+     * or the difference is too small to adapt it.
+     */
+    return;
+  }
+  if (!m_our_node_started)
+  {
+    /* No adaptiveness while we're still starting. */
+    jam();
+    return;
+  }
+  if (c_lqh->is_ldm_instance_io_lagging())
+  {
+    /**
+     * With IO lagging behind we will decrease the LCP speed to accomodate
+     * for more REDO logging bandwidth. The definition of REDO log IO lagging
+     * is kept in DBLQH, but will be a number of seconds of outstanding REDO
+     * IO requests that LQH is still waiting for completion of.
+     * This is a harder condition, so here we will immediately slow down fast.
+     */
+    jam();
+    slowdowns_due_to_io_lag++;
+    adjust_disk_write_speed_down(adjust_speed_down_high);
+  }
+  else
+  {
+    /**
+     * Get CPU usage of this LDM thread during last second.
+     * If CPU usage is over or equal to 95% we will decrease the LCP speed
+     * If CPU usage is below 90% we will increase the LCP speed
+     * one more step. Otherwise we will keep it where it currently is.
+     *
+     * The speed of writing backups and LCPs are fairly linear to the
+     * amount of bytes written. So e.g. writing 10 MByte/second gives
+     * roughly about 10% CPU usage in one CPU. So by writing less we have a
+     * more or less linear decrease of CPU usage. Naturally the speed of
+     * writing is very much coupled to the CPU speed. CPUs today have all
+     * sorts of power save magic, but this algorithm doesn't kick in until
+     * we're at very high CPU loads where we won't be in power save mode.
+     * Obviously it also works in the opposite direction that we can easily
+     * speed up things when the CPU is less used.
+     * 
+     * One complication of this algorithm is that we only measure the thread
+     * CPU usage, so we don't really know here the level of CPU usage in total
+     * of the system. Getting this information is quite complex and can
+     * quickly change if the user is also using the machine for many other
+     * things. In this case the algorithm will simply go up to the current
+     * maximum value. So it will work much the same as before this algorithm
+     * was put in place with the maximum value as the new DiskCheckpointSpeed
+     * parameter.
+     *
+     * The algorithm will work best in cases where the user has locked the
+     * thread to one or more CPUs and ensures that the thread can always run
+     * by not allocating more than one thread per CPU.
+     *
+     * The reason we put the CPU usage limits fairly high is that the LDM
+     * threads become more and more efficient as loads goes up. The reason
+     * for this is that as more and more signals are executed in each loop
+     * before checking for new signals. This means that as load goes up we
+     * spend more and more time doing useful work. At low loads we spend a
+     * significant time simply waiting for new signals to arrive and going to
+     * sleep and waking up. So being at 95% load still means that we have
+     * a bit more than 5% capacity left and even being at 90% means we
+     * might have as much as 20% more capacity to use.
+     */
+    jam();
+    EXECUTE_DIRECT(THRMAN,
+                   GSN_GET_CPU_USAGE_REQ,
+                   signal,
+                   1,
+                   getThrmanInstance());
+    Uint32 cpu_usage = signal->theData[0];
+    if (cpu_usage < 90)
+    {
+      jamEntry();
+      adjust_disk_write_speed_up(adjust_speed_up);
+    }
+    else if (cpu_usage < 95)
+    {
+      jamEntry();
+    }
+    else if (cpu_usage < 97)
+    {
+      jamEntry();
+      /* 95-96% load, slightly slow down */
+      slowdowns_due_to_high_cpu++;
+      adjust_disk_write_speed_down(adjust_speed_down_low);
+    }
+    else if (cpu_usage < 99)
+    {
+      jamEntry();
+      /* 97-98% load, slow down */
+      slowdowns_due_to_high_cpu++;
+      adjust_disk_write_speed_down(adjust_speed_down_medium);
+    }
+    else
+    {
+      jamEntry();
+      /* 99-100% load, slow down a bit faster */
+      slowdowns_due_to_high_cpu++;
+      adjust_disk_write_speed_down(adjust_speed_down_high);
+    }
+  }
+}
+
+void
+Backup::send_next_reset_disk_speed_counter(Signal *signal)
+{
+  signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
+  sendSignalWithDelay(reference(),
+                      GSN_CONTINUEB,
+                      signal,
+                      m_reset_delay_used,
+                      1);
+  return;
+}
+
+void
+Backup::execCHECK_NODE_RESTARTCONF(Signal *signal)
+{
+  bool old_is_any_node_restarting = m_is_any_node_restarting;
+  m_is_any_node_restarting = (signal->theData[0] == 1);
+  if (old_is_any_node_restarting != m_is_any_node_restarting)
+  {
+    if (old_is_any_node_restarting)
+    {
+      g_eventLogger->info("We are adjusting Max Disk Write Speed,"
+                          " no restarts ongoing anymore");
+    }
+    else
+    {
+      g_eventLogger->info("We are adjusting Max Disk Write Speed,"
+                          " a restart is ongoing now");
+    }
+  }
+}
+
+void
 Backup::execCONTINUEB(Signal* signal)
 {
   jamEntry();
@@ -204,109 +588,47 @@ Backup::execCONTINUEB(Signal* signal)
   case BackupContinueB::RESET_DISK_SPEED_COUNTER:
   {
     jam();
-    /*
-      Adjust for upto 10 millisecond delay of this signal. Longer
-      delays will not be handled, in this case the system is most
-      likely under too high load and it won't matter very much that
-      we decrease the speed of checkpoints.
-
-      We use a technique where we allow an overflow write in one
-      period. This overflow will be removed from the next period
-      such that the load will at average be as specified.
-    */
-    int delay_time = m_reset_delay_used;
     const NDB_TICKS curr_time = NdbTick_getCurrentTicks();
-    int sig_delay = int(NdbTick_Elapsed(m_reset_disk_speed_time,curr_time).milliSec());
-
-    /* If we overflowed in the last period, count it in 
-     * this new period, potentially overflowing again into
-     * future periods...
+    const Uint64 millisPassed = 
+      NdbTick_Elapsed(m_monitor_snapshot_start,curr_time).milliSec();
+    if (millisPassed >= 800 && !m_node_restart_check_sent)
+    {
+      /**
+       * Check for node restart ongoing, we will check for it and use
+       * the cached copy of the node restart state when deciding on the
+       * disk checkpoint speed. We will start this check a few intervals
+       * before calculating the new disk checkpoint speed. We will send
+       * such a check once per interval we are changing disk checkpoint
+       * speed.
+       *
+       * So we call DIH asynchronously here after 800ms have passed such
+       * that when 1000 ms have passed and we will check disk speeds we
+       * have information about if there is a node restart ongoing or not.
+       * This information will only affect disk write speed, so it's not
+       * a problem to rely on up to 200ms old information.
+       */
+      jam();
+      m_node_restart_check_sent = true;
+      signal->theData[0] = reference();
+      sendSignal(DBDIH_REF, GSN_CHECK_NODE_RESTARTREQ, signal, 1, JBB);
+    }
+    /**
+     * We check for millis passed larger than 989 to handle the situation
+     * when we wake up slightly too early. Since we only wake up once every
+     * 100 millisecond, this should be better than occasionally get intervals
+     * of 1100 milliseconds. All the calculations takes the real interval into
+     * account, so it should not corrupt any data.
      */
-    /* How much overflow will we 'consume' this period?
-     * +1 to ensure that in the 'period full' case we
-     * do not write any more this period
-     */
-    Uint32 overflowThisPeriod = MIN(m_overflow_disk_write, 
-                                    m_curr_disk_write_speed + 1);
-    
-    /* How much overflow remains after this period? */
-    Uint32 remainingOverFlow = m_overflow_disk_write - overflowThisPeriod;
-    
-    if (overflowThisPeriod)
+    if (millisPassed > 989)
     {
       jam();
-#ifdef DEBUG_CHECKPOINTSPEED
-      ndbout_c("Overflow of %u bytes (max/period is %u bytes)",
-               overflowThisPeriod * 4, m_curr_disk_write_speed * 4);
-#endif
-      if (remainingOverFlow)
-      {
-        jam();
-#ifdef DEBUG_CHECKPOINTSPEED
-        ndbout_c("  Extra overflow : %u bytes, will take %u further periods to clear",
-                 remainingOverFlow * 4,
-                 remainingOverFlow / m_curr_disk_write_speed);
-#endif
-      }
+      m_node_restart_check_sent = false;
+      monitor_disk_write_speed(curr_time, millisPassed);
+      calculate_disk_write_speed(signal);
     }
-
-    m_words_written_this_period = overflowThisPeriod;
-    m_overflow_disk_write = remainingOverFlow;
-    m_reset_disk_speed_time = curr_time;
-
-    if (sig_delay > delay_time + 10)
-      delay_time = Backup::DISK_SPEED_CHECK_DELAY - 10;
-    else if (sig_delay < delay_time - 10)
-      delay_time = Backup::DISK_SPEED_CHECK_DELAY + 10;
-    else
-      delay_time = Backup::DISK_SPEED_CHECK_DELAY - (sig_delay - delay_time);
-    m_reset_delay_used= delay_time;
-    signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay_time, 1);
-
-    {
-      /* Independent check of DiskCheckpointSpeed.
-       * We check every second or so that we are roughly sticking
-       * to our diet.
-       */
-      const Uint64 millisPassed = 
-        NdbTick_Elapsed(m_monitor_snapshot_start,curr_time).milliSec();
-
-      if (millisPassed >= 1000)
-      {
-        jam();
-        const Uint64 periodsPassed = (millisPassed / DISK_SPEED_CHECK_DELAY) + 1;
-        const Uint64 quotaWordsPerPeriod = m_curr_disk_write_speed;
-        const Uint64 maxOverFlowWords = c_defaults.m_maxWriteSize / 4;
-        const Uint64 maxExpectedWords = (periodsPassed * quotaWordsPerPeriod) + maxOverFlowWords;
-        
-        if (unlikely(m_monitor_words_written > maxExpectedWords))
-        {
-          jam();
-          /* In the last monitoring interval, we have written more words
-           * than allowed by the quota (DiskCheckpointSpeed), including
-           * transient spikes due to a single MaxBackupWriteSize write
-           */
-          ndbout << "Backup : Excessive Backup/LCP write rate in last monitoring period - recorded = "
-                 << (m_monitor_words_written * 4 * 1000) / millisPassed
-                 << " bytes/s, configured = "
-                 << m_curr_disk_write_speed * 4 * 10
-                 << " bytes/s" << endl;
-          ndbout << "Backup : Monitoring period : " << millisPassed
-                 << " millis. Bytes written : " << m_monitor_words_written
-                 << ".  Max allowed : " << maxExpectedWords << endl;
-          ndbassert(false);
-        }
-        /* Reset the monitor */
-        m_monitor_words_written = 0;
-        m_monitor_snapshot_start = curr_time;
-      }
-    }
-#if 0
-    ndbout << "Signal delay was = " << sig_delay;
-    ndbout << " Current time = " << curr_time << endl;
-    ndbout << " Delay time will be = " << delay_time << endl << endl;
-#endif
+    handle_overflow();
+    calculate_next_delay(curr_time);
+    send_next_reset_disk_speed_counter(signal);
     break;
   }
   case BackupContinueB::BACKUP_FRAGMENT_INFO:
@@ -554,6 +876,37 @@ Backup::execBACKUP_LOCK_TAB_REF(Signal *signal)
   ndbrequire(false /* Not currently possible. */);
 }
 
+Uint64 Backup::get_new_speed_val64(Signal *signal)
+{
+  if (signal->length() == 3)
+  {
+    jam();
+    Uint64 val = Uint64(signal->theData[1]);
+    val <<= 32;
+    val += Uint64(signal->theData[2]);
+    return val;
+  }
+  else
+  {
+    jam();
+    return 0;
+  }
+}
+
+Uint64 Backup::get_new_speed_val32(Signal *signal)
+{
+  if (signal->length() == 2)
+  {
+    jam();
+    return Uint64(signal->theData[1]);
+  }
+  else
+  {
+    jam();
+    return 0;
+  }
+}
+
 void
 Backup::execDUMP_STATE_ORD(Signal* signal)
 {
@@ -580,6 +933,100 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     }
     if (!reported)
       reportStatus(signal, ptr, result_ref);
+    return;
+  }
+  case DumpStateOrd::BackupMinWriteSpeed32:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val32(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100001 MinDiskWriteSpeed");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_min = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMaxWriteSpeed32:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val32(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100002 MaxDiskWriteSpeed");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_max = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMaxWriteSpeedOtherNodeRestart32:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val32(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100003 MaxDiskWriteSpeedOtherNodeRestart");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_max_other_node_restart = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMinWriteSpeed64:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val64(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100004 MinDiskWriteSpeed(MSB) "
+                          "MinDiskWriteSpeed(LSB)");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_min = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMaxWriteSpeed64:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val64(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100005 MaxDiskWriteSpeed(MSB) "
+                          "MaxDiskWriteSpeed(LSB)");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_max = new_val;
+    calculate_real_disk_write_speed_parameters();
+    return;
+  }
+  case DumpStateOrd::BackupMaxWriteSpeedOtherNodeRestart64:
+  {
+    jam();
+    Uint64 new_val = get_new_speed_val64(signal);
+    if (new_val < Uint64(1024*1024))
+    {
+      jam();
+      g_eventLogger->info("Use: DUMP 100006"
+                          " MaxDiskWriteSpeedOtherNodeRestart(MSB)"
+                          " MaxDiskWriteSpeedOtherNodeRestart(LSB)");
+      return;
+    }
+    restore_disk_write_speed_numbers();
+    c_defaults.m_disk_write_speed_max_other_node_restart = new_val;
+    calculate_real_disk_write_speed_parameters();
     return;
   }
   default:
@@ -658,9 +1105,11 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     const Uint64 resetElapsed = NdbTick_Elapsed(m_reset_disk_speed_time,now).milliSec();
     const Uint64 millisPassed = NdbTick_Elapsed(m_monitor_snapshot_start,now).milliSec();
     /* Dump measured disk write speed since last RESET_DISK_SPEED */
-    ndbout_c("m_curr_disk_write_speed: %u  m_words_written_this_period:"
-             " %u  m_overflow_disk_write: %u",
-              m_curr_disk_write_speed, m_words_written_this_period, m_overflow_disk_write);
+    ndbout_c("m_curr_disk_write_speed: %ukb  m_words_written_this_period:"
+             " %ukwords  m_overflow_disk_write: %ukb",
+              Uint32(4 * m_curr_disk_write_speed / 1024),
+              Uint32(m_words_written_this_period / 1024),
+              Uint32(m_overflow_disk_write / 1024));
     ndbout_c("m_reset_delay_used: %u  time since last RESET_DISK_SPEED: %llu millis",
              m_reset_delay_used, resetElapsed);
     /* Dump measured rate since last snapshot start */
@@ -669,7 +1118,8 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
              " %llu bytes/s : (%u pct of config)",
              m_monitor_words_written, millisPassed, 
              byteRate,
-             (Uint32) (100 * byteRate / (4 * 10)) / m_curr_disk_write_speed);
+             (Uint32) ((100 * byteRate / (4 * 10)) /
+                       (m_curr_disk_write_speed + 1)));
 
     for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
     {
@@ -771,6 +1221,241 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
   }
 }
 
+/**
+ * We are using a round buffer of measurements, to simplify the code we
+ * use this routing to quickly derive the disk write record from an index
+ * (how many seconds back we want to check).
+ */
+Uint32
+Backup::get_disk_write_speed_record(Uint32 start_index)
+{
+  ndbassert(start_index < DISK_WRITE_SPEED_REPORT_SIZE);
+  if (next_disk_write_speed_report == last_disk_write_speed_report)
+  {
+    /* No speed reports generated yet */
+    return DISK_WRITE_SPEED_REPORT_SIZE;
+  }
+  if (start_index < next_disk_write_speed_report)
+  {
+    return (next_disk_write_speed_report - (start_index + 1));
+  }
+  else if (last_disk_write_speed_report == 0)
+  {
+    /**
+     * We might still be in inital phase when not all records have
+     * been written yet.
+     */
+    return DISK_WRITE_SPEED_REPORT_SIZE;
+  }
+  else
+  {
+    return (DISK_WRITE_SPEED_REPORT_SIZE -
+            ((start_index + 1) - next_disk_write_speed_report));
+  }
+  ndbassert(false);
+  return 0;
+}
+
+/**
+ * Calculates the average speed for a number of seconds back.
+ * reports the numbers in number of milliseconds that actually
+ * passed and the number of bytes written in this period.
+ */
+void
+Backup::calculate_disk_write_speed_seconds_back(Uint32 seconds_back,
+                                         Uint64 & millis_passed,
+                                         Uint64 & backup_lcp_bytes_written,
+                                         Uint64 & redo_bytes_written)
+{
+  Uint64 millis_back = (MILLIS_IN_A_SECOND * seconds_back) -
+    MILLIS_ADJUST_FOR_EARLY_REPORT;
+  Uint32 start_index = 0;
+
+  ndbassert(seconds_back > 0);
+
+  millis_passed = 0;
+  backup_lcp_bytes_written = 0;
+  redo_bytes_written = 0;
+  jam();
+  while (millis_passed < millis_back &&
+         start_index < DISK_WRITE_SPEED_REPORT_SIZE)
+  {
+    jam();
+    Uint32 disk_write_speed_record = get_disk_write_speed_record(start_index);
+    if (disk_write_speed_record == DISK_WRITE_SPEED_REPORT_SIZE)
+      break;
+    millis_passed +=
+      disk_write_speed_rep[disk_write_speed_record].millis_passed;
+    backup_lcp_bytes_written +=
+      disk_write_speed_rep[disk_write_speed_record].backup_lcp_bytes_written;
+    redo_bytes_written +=
+      disk_write_speed_rep[disk_write_speed_record].redo_bytes_written;
+    start_index++;
+  }
+  /**
+   * Always report at least one millisecond to avoid risk of division
+   * by zero later on in the code.
+   */
+  jam();
+  if (millis_passed == 0)
+  {
+    jam();
+    millis_passed = 1;
+  }
+  return;
+}
+
+void
+Backup::calculate_std_disk_write_speed_seconds_back(Uint32 seconds_back,
+                             Uint64 millis_passed_total,
+                             Uint64 backup_lcp_bytes_written,
+                             Uint64 redo_bytes_written,
+                             Uint64 & std_dev_backup_lcp_in_bytes_per_sec,
+                             Uint64 & std_dev_redo_in_bytes_per_sec)
+{
+  Uint32 start_index = 0;
+  Uint64 millis_passed = 0;
+  Uint64 millis_back = (MILLIS_IN_A_SECOND * seconds_back) -
+    MILLIS_ADJUST_FOR_EARLY_REPORT;
+  Uint64 millis_passed_this_period;
+
+  Uint64 avg_backup_lcp_bytes_per_milli;
+  Uint64 backup_lcp_bytes_written_this_period;
+  Uint64 avg_backup_lcp_bytes_per_milli_this_period;
+  long double backup_lcp_temp_sum;
+  long double backup_lcp_square_sum;
+
+  Uint64 avg_redo_bytes_per_milli;
+  Uint64 redo_bytes_written_this_period;
+  Uint64 avg_redo_bytes_per_milli_this_period;
+  long double redo_temp_sum;
+  long double redo_square_sum;
+
+  ndbassert(seconds_back > 0);
+  if (millis_passed_total == 0)
+  {
+    jam();
+    std_dev_backup_lcp_in_bytes_per_sec = 0;
+    std_dev_redo_in_bytes_per_sec = 0;
+    return;
+  }
+  avg_backup_lcp_bytes_per_milli = backup_lcp_bytes_written /
+                                   millis_passed_total;
+  avg_redo_bytes_per_milli = redo_bytes_written / millis_passed_total;
+  backup_lcp_square_sum = 0;
+  redo_square_sum = 0;
+  jam();
+  while (millis_passed < millis_back &&
+         start_index < DISK_WRITE_SPEED_REPORT_SIZE)
+  {
+    jam();
+    Uint32 disk_write_speed_record = get_disk_write_speed_record(start_index);
+    if (disk_write_speed_record == DISK_WRITE_SPEED_REPORT_SIZE)
+      break;
+    millis_passed_this_period =
+      disk_write_speed_rep[disk_write_speed_record].millis_passed;
+    backup_lcp_bytes_written_this_period =
+      disk_write_speed_rep[disk_write_speed_record].backup_lcp_bytes_written;
+    redo_bytes_written_this_period =
+      disk_write_speed_rep[disk_write_speed_record].redo_bytes_written;
+    millis_passed += millis_passed_this_period;
+
+    if (millis_passed_this_period != 0)
+    {
+      /**
+       * We use here a calculation of standard deviation that firsts
+       * calculates the variance. The variance is calculated as the square
+       * mean of the difference. To get standard intervals we compute the
+       * average per millisecond and then sum over all milliseconds. To
+       * simplify the calculation we then multiply the square of the diffs
+       * per milli to the number of millis passed in a particular measurement.
+       * We divide by the total number of millis passed. We do this first to
+       * avoid too big numbers. We use long double in all calculations to
+       * ensure that we don't overflow.
+       *
+       * We also try to avoid divisions by zero in the code in multiple
+       * places when we query this table before the first measurement have
+       * been logged.
+       *
+       * Calculating standard deviation as:
+       * Sum of X(i) - E(X) squared where X(i) is the average per millisecond
+       * in this time period and E(X) is the average over the entire period.
+       * We divide by number of periods, but to get it more real, we divide
+       * by total_millis / millis_in_this_period since the periods aren't
+       * exactly the same. Finally we take square root of the sum of those
+       * (X(i) - E(X))^2 / #periods. Actually the standard deviation should
+       * be calculated using #periods - 1 as divisor. Finally we also need
+       * to convert it from standard deviation per millisecond to standard
+       * deviation per second. We make that simple by multiplying the
+       * result from this function by 1000.
+       */
+      jam();
+      avg_backup_lcp_bytes_per_milli_this_period =
+        backup_lcp_bytes_written_this_period / millis_passed_this_period;
+      backup_lcp_temp_sum = (long double)avg_backup_lcp_bytes_per_milli;
+      backup_lcp_temp_sum -=
+        (long double)avg_backup_lcp_bytes_per_milli_this_period;
+      backup_lcp_temp_sum *= backup_lcp_temp_sum;
+      backup_lcp_temp_sum /= (long double)millis_passed_total;
+      backup_lcp_temp_sum *= (long double)millis_passed_this_period;
+      backup_lcp_square_sum += backup_lcp_temp_sum;
+
+      avg_redo_bytes_per_milli_this_period =
+        redo_bytes_written_this_period / millis_passed_this_period;
+      redo_temp_sum = (long double)avg_redo_bytes_per_milli;
+      redo_temp_sum -= (long double)avg_redo_bytes_per_milli_this_period;
+      redo_temp_sum *= redo_temp_sum;
+      redo_temp_sum /= (long double)millis_passed_total;
+      redo_temp_sum *= (long double)millis_passed_this_period;
+      redo_square_sum += redo_temp_sum;
+    }
+    start_index++;
+  }
+  if (millis_passed == 0)
+  {
+    jam();
+    std_dev_backup_lcp_in_bytes_per_sec = 0;
+    std_dev_redo_in_bytes_per_sec = 0;
+    return;
+  }
+  /**
+   * Calculate standard deviation per millisecond
+   * We use long double for the calculation, but we want to report it to
+   * it in bytes per second, so this is easiest to do with an unsigned
+   * integer number. Conversion from long double to Uint64 is a real
+   * conversion that we leave to the compiler to generate code to make.
+   */
+  std_dev_backup_lcp_in_bytes_per_sec = (Uint64)sqrtl(backup_lcp_square_sum);
+  std_dev_redo_in_bytes_per_sec = (Uint64)sqrtl(redo_square_sum);
+
+  /**
+   * Convert to standard deviation per second
+   * We calculated it in bytes per millisecond, so simple multiplication of
+   * 1000 is sufficient here.
+   */
+  std_dev_backup_lcp_in_bytes_per_sec*= (Uint64)1000;
+  std_dev_redo_in_bytes_per_sec*= (Uint64)1000;
+}
+
+Uint64
+Backup::calculate_millis_since_finished(Uint32 start_index)
+{
+  Uint64 millis_passed = 0;
+  jam();
+  if (start_index == 0)
+  {
+    jam();
+    return 0;
+  }
+  for (Uint32 i = 0; i < start_index; i++)
+  {
+    Uint32 disk_write_speed_record = get_disk_write_speed_record(i);
+    millis_passed +=
+      disk_write_speed_rep[disk_write_speed_record].millis_passed;
+  }
+  return millis_passed;
+}
+
 void Backup::execDBINFO_SCANREQ(Signal *signal)
 {
   jamEntry();
@@ -858,6 +1543,142 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
       {
         jam();
         ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
+    }
+    break;
+  }
+  case Ndbinfo::DISK_WRITE_SPEED_AGGREGATE_TABLEID:
+  {
+
+    jam();
+    Uint64 backup_lcp_bytes_written;
+    Uint64 redo_bytes_written;
+    Uint64 std_dev_backup_lcp;
+    Uint64 std_dev_redo;
+    Uint64 millis_passed;
+    Ndbinfo::Row row(signal, req);
+    Uint32 ldm_instance = instance();
+ 
+    if (ldm_instance > 0)
+    {
+      /* Always start counting instances from 0 */
+      ldm_instance--;
+    }
+    row.write_uint32(getOwnNodeId());
+    row.write_uint32(ldm_instance);
+
+    /* Report last second */
+    calculate_disk_write_speed_seconds_back(1,
+                                            millis_passed,
+                                            backup_lcp_bytes_written,
+                                            redo_bytes_written);
+
+    row.write_uint64((backup_lcp_bytes_written / millis_passed ) * 1000);
+    row.write_uint64((redo_bytes_written / millis_passed) * 1000);
+
+    /* Report average and std_dev of last 10 seconds */
+    calculate_disk_write_speed_seconds_back(10,
+                                            millis_passed,
+                                            backup_lcp_bytes_written,
+                                            redo_bytes_written);
+
+    row.write_uint64((backup_lcp_bytes_written * 1000) / millis_passed);
+    row.write_uint64((redo_bytes_written * 1000) / millis_passed);
+
+    calculate_std_disk_write_speed_seconds_back(10,
+                                                millis_passed,
+                                                backup_lcp_bytes_written,
+                                                redo_bytes_written,
+                                                std_dev_backup_lcp,
+                                                std_dev_redo);
+
+    row.write_uint64(std_dev_backup_lcp);
+    row.write_uint64(std_dev_redo);
+ 
+    /* Report average and std_dev of last 60 seconds */
+    calculate_disk_write_speed_seconds_back(60,
+                                            millis_passed,
+                                            backup_lcp_bytes_written,
+                                            redo_bytes_written);
+
+    row.write_uint64((backup_lcp_bytes_written / millis_passed ) * 1000);
+    row.write_uint64((redo_bytes_written / millis_passed) * 1000);
+
+    calculate_std_disk_write_speed_seconds_back(60,
+                                                millis_passed,
+                                                backup_lcp_bytes_written,
+                                                redo_bytes_written,
+                                                std_dev_backup_lcp,
+                                                std_dev_redo);
+
+    row.write_uint64(std_dev_backup_lcp);
+    row.write_uint64(std_dev_redo);
+
+    row.write_uint64(slowdowns_due_to_io_lag);
+    row.write_uint64(slowdowns_due_to_high_cpu);
+    row.write_uint64(disk_write_speed_set_to_min);
+    row.write_uint64(m_curr_disk_write_speed *
+                     CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS);
+
+    ndbinfo_send_row(signal, req, row, rl);
+    break;
+  }
+  case Ndbinfo::DISK_WRITE_SPEED_BASE_TABLEID:
+  {
+    jam();
+    Uint32 ldm_instance = instance();
+ 
+    if (ldm_instance > 0)
+    {
+      /* Always start counting instances from 0 */
+      ldm_instance--;
+    }
+    Uint32 start_index = cursor->data[0];
+    for ( ; start_index < DISK_WRITE_SPEED_REPORT_SIZE;)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(ldm_instance);
+      Uint32 disk_write_speed_record = get_disk_write_speed_record(start_index);
+      if (disk_write_speed_record != DISK_WRITE_SPEED_REPORT_SIZE)
+      {
+        jam();
+        Uint64 backup_lcp_bytes_written_this_period =
+          disk_write_speed_rep[disk_write_speed_record].
+            backup_lcp_bytes_written;
+        Uint64 redo_bytes_written_this_period =
+          disk_write_speed_rep[disk_write_speed_record].
+            redo_bytes_written;
+        Uint64 millis_passed_this_period =
+          disk_write_speed_rep[disk_write_speed_record].millis_passed;
+        Uint64 millis_since_finished =
+          calculate_millis_since_finished(start_index);
+        Uint64 target_disk_write_speed =
+          disk_write_speed_rep[disk_write_speed_record].target_disk_write_speed;
+
+        row.write_uint64(millis_since_finished);
+        row.write_uint64(millis_passed_this_period);
+        row.write_uint64(backup_lcp_bytes_written_this_period);
+        row.write_uint64(redo_bytes_written_this_period);
+        row.write_uint64(target_disk_write_speed);
+      }
+      else
+      {
+        jam();
+        row.write_uint64((Uint64)0);
+        row.write_uint64((Uint64)0);
+        row.write_uint64((Uint64)0);
+        row.write_uint64((Uint64)0);
+        row.write_uint64((Uint64)0);
+      }
+      ndbinfo_send_row(signal, req, row, rl);
+      start_index++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, start_index);
         return;
       }
     }
@@ -4826,7 +5647,7 @@ Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
       We have a buffer ready to write or we have reached end of
       file and thus we must write the last before closing the
       file.
-      We have already check that we are allowed to write at this
+      We have already checked that we are allowed to write at this
       moment. We only worry about history of last 100 milliseconds.
       What happened before that is of no interest since a disk
       write that was issued more than 100 milliseconds should be

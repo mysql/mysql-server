@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-var udebug = require(path.join(api_dir, "unified_debug")).getLogger("BadRecordLogger.js");
+var udebug = unified_debug.getLogger("BadRecordLogger.js");
 
 var theController, theBadRecordLogger;
 

@@ -18,7 +18,7 @@
  02110-1301  USA
 */
 
-/*global unified_debug, exports, api_dir, path */
+/*global unified_debug, exports */
 
 "use strict";
 
@@ -31,13 +31,16 @@ var stats = {
   "connections"         : { "successful" : 0, "failed" : 0 }	
 };
 
+var path = require("path");
 var mysql = require("mysql");
 var mysqlConnection = require("./MySQLConnection.js");
 var mysqlDictionary = require("./MySQLDictionary.js");
 var udebug = unified_debug.getLogger("MySQLConnectionPool.js");
 var util = require('util');
-var stats_module = require(path.join(api_dir, "stats.js"));
+var stats_module = require(mynode.api.stats);
 var MySQLTime = require("../common/MySQLTime.js");
+var DBTableHandler = require("../common/DBTableHandler.js").DBTableHandler;
+var meta = require("../../api/TableMapping.js").meta;
 
 stats_module.register(stats, "spi","mysql","DBConnectionPool");
 
@@ -152,6 +155,7 @@ DatabaseTypeConverterDateTime.prototype.fromDB =  function fromDB(dbDateTime) {
 /* Constructor saves properties but doesn't actually do anything with them until connect is called.
 */
 exports.DBConnectionPool = function(props) {
+  this.props = props;
   this.driverproperties = getDriverProperties(props);
   udebug.log('MySQLConnectionPool constructor with driverproperties: ' + util.inspect(this.driverproperties));
   // connections that are being used (wrapped by DBSession)
@@ -451,3 +455,151 @@ exports.DBConnectionPool.prototype.listTables = function(databaseName, dbSession
     connectionPool.getConnection(listTablesOnConnection);
   }
 };
+
+function defaultFieldMeta(fieldMapping) {
+  if (fieldMapping.fieldName == 'id') {
+    return 'id INT PRIMARY KEY';
+  } 
+  return fieldMapping.fieldName + ' VARCHAR(32) ';
+}
+
+function pn(nullable) {return nullable? '': ' NOT NULL ';}
+function pu(unsigned) {return unsigned? ' UNSIGNED' : '';}
+
+var translateMeta = {};
+
+translateMeta.binary = function(length, nullable) {return 'BINARY(' + length + ')' +  pn(nullable);};
+translateMeta.char = function(length, nullable) {return 'CHAR(' + length + ')' +  pn(nullable);};
+translateMeta.date = function(nullable) {return 'DATE' +  pn(nullable);};
+translateMeta.datetime = function(fsp, nullable) {return 'DATETIME(' +  fsp + ')' + pn(nullable);};
+translateMeta.decimal = function(precision, scale, nullable) {return 'DECIMAL(' + precision + ', ' + scale + ')' +  pn(nullable);};
+translateMeta.double = function(nullable) {return 'DOUBLE' +  pn(nullable);};
+translateMeta.float = function(nullable) {return 'FLOAT' +  pn(nullable);};
+translateMeta.integer = function(bits, unsigned, nullable) {
+  var u = pu(unsigned);
+  var n = pn(nullable);
+  if (bits < 8) return 'BIT' + u + n;
+  if (bits == 8) return 'TINYINT' + u + n;
+  if (bits <= 16) return 'SMALLINT' + u + n;
+  if (bits <= 24) return 'MEDIUMINT' + u + n;
+  if (bits <= 32) return 'INT' + u + n;
+  return 'BIGINT' + u + n;
+};
+translateMeta.interval = function(fsp, nullable) {return 'TIME' + pn(nullable);};
+translateMeta.time = function(fsp, nullable) {return 'TIME' + pn(nullable);};
+translateMeta.timestamp = function(fsp, nullable) {return 'TIMESTAMP' + pn(nullable);};
+translateMeta.varbinary = function(length, lob, nullable) {
+  if (lob) {
+    return 'BLOB(' + length + ')' + pn(nullable);
+  }
+  return 'VARBINARY(' + length + ')' + pn(nullable);
+};
+translateMeta.varchar = function(length, lob, nullable) {
+  if (lob) {
+    return 'TEXT(' + length + ')' + pn(nullable);
+  }
+  return 'VARCHAR(' + length + ')' + pn(nullable);
+};
+translateMeta.year = function(nullable) {return 'YEAR' + pn(nullable);};
+
+function sqlForTableCreation(tableMapping, defaultDatabaseName, engine) {
+  udebug.log('sqlForTableCreation tableMapping', tableMapping, engine);
+  var i, field, delimiter = '';
+  var tableMeta;
+  var sql = 'CREATE TABLE ';
+  var columnMeta;
+  sql += tableMapping.database || defaultDatabaseName;
+  sql += '.';
+  sql += tableMapping.table;
+  sql += '(';
+  for (i = 0; i < tableMapping.fields.length; ++i) {
+    sql += delimiter;
+    delimiter = ', ';
+    field = tableMapping.fields[i];
+    sql += field.columnName;
+    sql += ' ';
+    meta = field.meta;
+    if (meta) {
+      columnMeta = meta.doit(translateMeta);
+      sql += columnMeta;
+      sql += meta.isPrimaryKey? ' PRIMARY KEY ' : '';
+      sql += meta.isUniqueKey? ' UNIQUE KEY ': '';
+      udebug.log('sqlForTableCreation field:', field.fieldName, 'column:', field.columnName, 'meta:', meta, 'columnMeta:', columnMeta);
+    } else {
+      sql += defaultFieldMeta(field);
+    }
+  }
+  // process meta for the table
+  // need to support PRIMARY and HASH
+  for (i = 0; i < tableMapping.meta.length; ++i) {
+    tableMeta = tableMapping.meta[i];
+    if (tableMeta.index) {
+      sql += delimiter;
+      // index name calculation
+      sql += tableMeta.unique?' UNIQUE': '';
+      sql += ' INDEX ' + tableMeta.columns + ' ( ' + tableMeta.columns + ') ';
+    }
+  }
+  sql += ') ENGINE=' + engine;
+  udebug.log('sqlForTableMapping sql: ', sql);
+  return sql;
+}
+
+/** Create the table in the database for the mapping.
+ * @param tableMapping the mapping for this table
+ * @param session the session to use for database operations
+ * @param sessionFactory the session factory to use for database operations
+ * @param user_callback the user callback(err)
+ * @return err if any errors
+ */
+exports.DBConnectionPool.prototype.createTable = function(tableMapping, session, sessionFactory, user_callback) {
+  var connectionPool = this;
+  var createTableSQL, connection, dictionary, databaseName, tableName, qualifiedTableName, tableHandler;
+  tableName = tableMapping.table;
+  databaseName = tableMapping.database || connectionPool.driverproperties.database;
+  qualifiedTableName = databaseName + '.' + tableName;
+  function createTableOnTableMetadata(err, tableMetadata) {
+    udebug.log('createTableOnTableMetadata with err:', err, '\n', util.inspect(tableMetadata));
+    // remember the table metadata in the session factory
+    sessionFactory.tableMetadatas[qualifiedTableName] = tableMapping;
+    // create the table handler
+    tableHandler = new DBTableHandler(tableMetadata, tableMapping, null);
+    // remember the table handler in the session factory
+    sessionFactory.tableHandlers[qualifiedTableName] = tableHandler;
+    if (!session || !session.dbSession) {
+      // return the connection we got just for this call
+      connectionPool.releaseConnection(connection);
+    }    
+    user_callback(err);
+  }
+  function createTableOnTableCreation(err) {
+    if (err) {
+      user_callback(err);
+    } else {
+      // create the table metadata and table handler for the new table
+      dictionary = new mysqlDictionary.DataDictionary(connection, connectionPool);
+      dictionary.getTableMetadata(databaseName, tableName, createTableOnTableMetadata);
+    }
+  }
+  function createTableOnConnection(err, c) {
+    if (err) {
+      user_callback(err);
+    } else {
+      connection = c;
+      createTableSQL = sqlForTableCreation(tableMapping, databaseName, connectionPool.props.engine);
+    connection.query(createTableSQL, createTableOnTableCreation);
+    }
+  }
+
+  // createTable starts here
+  
+  udebug.log('createTable for tableMapping:', util.inspect(tableMapping));
+  if (session && session.dbSession) {
+    // dbSession exists; use the connection in the db session
+    createTableOnConnection(null, session.dbSession.pooledConnection);
+  } else {
+    // dbSession does not exist; get a connection for the call
+    connectionPool.getConnection(createTableOnConnection);
+  }
+};
+

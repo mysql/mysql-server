@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ NdbReceiver::~NdbReceiver()
 int
 NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
 {
-  theMagicNumber = 0x11223344;
+  theMagicNumber = getMagicNumber();
   m_type = type;
   m_using_ndb_record= useRec;
   m_owner = owner;
@@ -126,7 +126,7 @@ void
 NdbReceiver::prepareReceive(char *buf)
 {
   /* Set pointers etc. to prepare for receiving the first row of the batch. */
-  assert(theMagicNumber == 0x11223344);
+  assert(theMagicNumber == getMagicNumber());
   m_received_result_length = 0;
   m_expected_result_length = 0;
   if (m_using_ndb_record)
@@ -140,7 +140,7 @@ void
 NdbReceiver::prepareRead(char *buf, Uint32 rows)
 {
   /* Set pointers etc. to prepare for reading the first row of the batch. */
-  assert(theMagicNumber == 0x11223344);
+  assert(theMagicNumber == getMagicNumber());
   m_current_row = 0;
   m_result_rows = rows;
   if (m_using_ndb_record)
@@ -394,19 +394,6 @@ err:
 }
 
 
-/* Set NdbRecord field to non-NULL value. */
-static void assignToRec(const NdbRecord::Attr *col,
-                        char *row,
-                        const Uint8 *src,
-                        Uint32 byteSize)
-{
-  /* Set NULLable attribute to "not NULL". */
-  if (col->flags & NdbRecord::IsNullable)
-    row[col->nullbit_byte_offset]&= ~(1 << col->nullbit_bit_in_byte);
-
-  memcpy(&row[col->offset], src, byteSize);
-}
-
 /* Set NdbRecord field to NULL. */
 static void setRecToNULL(const NdbRecord::Attr *col,
                          char *row)
@@ -436,13 +423,14 @@ NdbReceiver::get_range_no() const
  * Packed bitfield handling for NdbRecord - also deals with 
  * mapping the bitfields into MySQLD format if necessary.
  */
+ATTRIBUTE_NOINLINE
 static void
 handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
                           const Uint8*& src,
                           Uint32& bitPos,
-                          Uint32& len,
                           char* row)
 {
+  Uint32 len = col->bitCount;
   if (col->flags & NdbRecord::IsNullable)
   {
     /* Clear nullbit in row */
@@ -465,7 +453,9 @@ handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
     dest= (char*) &mysqldSpace;
   }
   else
+  {
     dest= row + col->offset;
+  }
   
   /* Copy bitfield to memory starting at dest */
   src = pad(src, 0, 0);
@@ -474,8 +464,10 @@ handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
   bitPos = (bitPos + len) & 31;
   
   if (isMDBitfield)
+  {
     /* Rearrange bitfield from stack to row storage */
     col->put_mysqld_bitfield(row, dest);
+  }
 }
 
 
@@ -487,92 +479,221 @@ handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
  */
 Uint32
 NdbReceiver::receive_packed_ndbrecord(Uint32 bmlen, 
-                                      const Uint32* aDataPtr,
-                                      char* row)
+                                      register const Uint32* aDataPtr)
 {
-  const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
-  Uint32 bitPos = 0;
-  const NdbRecord* rec= m_record.m_ndb_record;
-  const Uint32 maxAttrId= rec->columns[rec->noOfColumns -1].attrId;
-  const Uint32 bmSize= bmlen << 5;
-
   /* Use bitmap to determine which columns have been sent */
-  for (Uint32 i = 0, attrId = 0; 
-       (i < bmSize) && (attrId <= maxAttrId);
-       i++, attrId++)
+  /*
+    We save precious registers for the compiler by putting
+    three values in one i_attrId variable:
+    bit_index : Bit 0-15
+    attrId    : Bit 16-31
+    maxAttrId : Bit 32-47
+
+    We use the same principle to store 3 variables in
+    bitPos_next_index variable:
+    next_index : Bit 0-15
+    bitPos     : Bit 48-52
+    rpm_bmlen  : Bit 32-47
+    0's        : Bit 16-31
+
+    So we can also get bmSize by shifting 27 instead of 32 which
+    is equivalent to shift right 32 followed by shift left 5 when
+    one knows there are zeroes in the  lower bits.
+
+    The compiler has to have quite a significant amount of live
+    variables in parallel here, so by the above handling we increase
+    the access time of these registers by 1-2 cycles, but this is
+    better than using the stack that has high chances of cache
+    misses.
+
+    This routine can easily be executed millions of times per
+    second in one CPU, it's called once for each record retrieved
+    from NDB data nodes in scans.
+  */
+#define rpn_pack_attrId(bit_index, attrId, maxAttrId) \
+  Uint64((bit_index)) + \
+    (Uint64((attrId)) << 16) + \
+    (Uint64((maxAttrId)) << 32)
+#define rpn_bit_index(index_attrId) ((index_attrId) & 0xFFFF)
+#define rpn_attrId(index_attrId) (((index_attrId) >> 16) & 0xFFFF)
+#define rpn_maxAttrId(index_attrId) ((index_attrId) >> 32)
+#define rpn_inc_bit_index() Uint64(1)
+#define rpn_inc_attrId() (Uint64(1) << 16)
+
+#define rpn_pack_bitPos_next_index(bitPos, bmlen, next_index) \
+  Uint64((next_index) & 0xFFFF) + \
+    (Uint64((bmlen)) << 32) + \
+    (Uint64((bitPos)) << 48)
+#define rpn_bmSize(bm_index) (((bm_index) >> 27) & 0xFFFF)
+#define rpn_bmlen(bm_index) (((bm_index) >> 32) & 0xFFFF)
+#define rpn_bitPos(bm_index) (((bm_index) >> 48) & 0x1F)
+#define rpn_next_index(bm_index) ((bm_index) & 0xFFFF)
+#define rpn_zero_bitPos(bm_index) \
+{ \
+  register Uint64 tmp_bitPos_next_index = bm_index; \
+  tmp_bitPos_next_index <<= 16; \
+  tmp_bitPos_next_index >>= 16; \
+  bm_index = tmp_bitPos_next_index; \
+}
+#define rpn_set_bitPos(bm_index, bitPos) \
+{ \
+  register Uint64 tmp_bitPos_next_index = bm_index; \
+  tmp_bitPos_next_index <<= 16; \
+  tmp_bitPos_next_index >>= 16; \
+  tmp_bitPos_next_index += (Uint64(bitPos) << 48); \
+  bm_index = tmp_bitPos_next_index; \
+}
+#define rpn_set_next_index(bm_index, val_next_index) \
+{ \
+  register Uint64 tmp_2_bitPos_next_index = Uint64(val_next_index); \
+  register Uint64 tmp_1_bitPos_next_index = bm_index; \
+  tmp_1_bitPos_next_index >>= 16; \
+  tmp_1_bitPos_next_index <<= 16; \
+  tmp_2_bitPos_next_index &= 0xFFFF; \
+  tmp_1_bitPos_next_index += tmp_2_bitPos_next_index; \
+  bm_index = tmp_1_bitPos_next_index; \
+}
+
+/**
+  * Both these routines can be called with an overflow value
+  * in val_next_index, to protect against this we ensure it
+  * doesn't overflow its 16 bits of space and affect other
+  * variables.
+  */
+
+  assert(bmlen <= 0x07FF);
+  register const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
+  register const NdbRecord* rec= m_record.m_ndb_record;
+  Uint32 noOfCols = rec->noOfColumns;
+  const NdbRecord::Attr* max_col = &rec->columns[noOfCols - 1];
+
+  const Uint64 maxAttrId = max_col->attrId;
+  assert(maxAttrId <= 0xFFFF);
+
+  /**
+   * Initialise the 3 fields stored in bitPos_next_index
+   *
+   * bitPos set to 0
+   * next_index set to rec->m_attrId_indexes[0]
+   * bmlen initialised
+   * bmSize is always bmlen / 32
+   */
+  register Uint64 bitPos_next_index =
+    rpn_pack_bitPos_next_index(0, bmlen, rec->m_attrId_indexes[0]);
+
+  /**
+   * Initialise the 3 fields stored in i_attrId
+   *
+   * bit_index set to 0
+   * attrId set to 0
+   * maxAttrId initialised
+   */
+  for (register Uint64 i_attrId = rpn_pack_attrId(0, 0, maxAttrId) ;
+       (rpn_bit_index(i_attrId) < rpn_bmSize(bitPos_next_index)) &&
+        (rpn_attrId(i_attrId) <= rpn_maxAttrId(i_attrId));
+        i_attrId += (rpn_inc_attrId() + rpn_inc_bit_index()))
   {
-    if (BitmaskImpl::get(bmlen, aDataPtr, i))
+    const NdbRecord::Attr* col = &rec->columns[rpn_next_index(bitPos_next_index)];
+    if (BitmaskImpl::get(rpn_bmlen(bitPos_next_index),
+                                   aDataPtr,
+                                   rpn_bit_index(i_attrId)))
     {
       /* Found bit in column presence bitmask, get corresponding
        * Attr struct from NdbRecord
        */
-      assert(attrId < rec->m_attrId_indexes_length);
-      assert((Uint32) rec->m_attrId_indexes[attrId] 
-             < rec->noOfColumns);
-      const NdbRecord::Attr* col= &rec->columns[rec->m_attrId_indexes[attrId]];
+      Uint32 align = col->orgAttrSize;
 
+      assert(rpn_attrId(i_attrId) < rec->m_attrId_indexes_length);
+      assert (rpn_next_index(bitPos_next_index) < rec->noOfColumns);
       assert((col->flags & NdbRecord::IsBlob) == 0);
 
-      /* If col is nullable, check for null and 
-       * set bit
-       */ 
+      /* If col is nullable, check for null and set bit */
       if (col->flags & NdbRecord::IsNullable)
       {
-	if (BitmaskImpl::get(bmlen, aDataPtr, ++i))
-	{
+        i_attrId += rpn_inc_bit_index();
+        if (BitmaskImpl::get(rpn_bmlen(bitPos_next_index),
+                             aDataPtr,
+                             rpn_bit_index(i_attrId)))
+        {
           setRecToNULL(col, m_record.m_row_recv);
-
-          // Next column...
-	  continue;
-	}
+          assert(rpn_bitPos(bitPos_next_index) < 32);
+          rpn_set_next_index(bitPos_next_index,
+                             rec->m_attrId_indexes[rpn_attrId(i_attrId) + 1]);
+          continue; /* Next column */
+        }
       }
-      
-      Uint32 align = col->orgAttrSize;
-      Uint32 sz = col->maxSize;
-      Uint32 len = col->bitCount;
-      Uint32 arrayType = 
-        (col->flags & NdbRecord::IsVar1ByteLen)? 
-        NDB_ARRAYTYPE_SHORT_VAR :
-        (
-         (col->flags & NdbRecord::IsVar2ByteLen)?
-         NDB_ARRAYTYPE_MEDIUM_VAR : 
-         NDB_ARRAYTYPE_FIXED);
-
-      switch(align){
-      case DictTabInfo::aBit: // Bit
+      if (likely(align != DictTabInfo::aBit))
+      {
+        src = pad(src, align, rpn_bitPos(bitPos_next_index));
+        rpn_zero_bitPos(bitPos_next_index);
+      }
+      else
+      {
+        Uint32 bitPos = rpn_bitPos(bitPos_next_index);
+        const Uint8 *loc_src = src;
         handle_bitfield_ndbrecord(col,
-                                  src,
+                                  loc_src,
                                   bitPos,
-                                  len,
-                                  row);
-        continue; // Next column
-      default:
-        src = pad(src, align, bitPos);
+                                  m_record.m_row_recv);
+        rpn_set_bitPos(bitPos_next_index, bitPos);
+        src = loc_src;
+        assert(rpn_bitPos(bitPos_next_index) < 32);
+        rpn_set_next_index(bitPos_next_index,
+                           rec->m_attrId_indexes[rpn_attrId(i_attrId) + 1]);
+        continue; /* Next column */
       }
-      switch(arrayType){
-      case NDB_ARRAYTYPE_FIXED:
-        break;
-      case NDB_ARRAYTYPE_SHORT_VAR:
-        sz = 1 + src[0];
-        break;
-      case NDB_ARRAYTYPE_MEDIUM_VAR:
-	sz = 2 + src[0] + 256 * src[1];
-        break;
-      default:
-        abort();
-      }
-      
-      bitPos = 0;
-      assignToRec(col,
-                  row,
-                  src,
-                  sz);
 
-      src += sz;
+      {
+        char *row = m_record.m_row_recv;
+
+        /* Set NULLable attribute to "not NULL". */
+        if (col->flags & NdbRecord::IsNullable)
+        {
+          row[col->nullbit_byte_offset]&= ~(1 << col->nullbit_bit_in_byte);
+        }
+
+        do
+        {
+          Uint32 sz;
+          char *col_row_ptr = &row[col->offset];
+          Uint32 flags = col->flags &
+                         (NdbRecord::IsVar1ByteLen |
+                          NdbRecord::IsVar2ByteLen);
+          if (!flags)
+          {
+            sz = col->maxSize;
+            if (likely(sz == 4))
+            {
+              col_row_ptr[0] = src[0];
+              col_row_ptr[1] = src[1];
+              col_row_ptr[2] = src[2];
+              col_row_ptr[3] = src[3];
+              src += sz;
+              break;
+            }
+          }
+          else if (flags & NdbRecord::IsVar1ByteLen)
+          {
+            sz = 1 + src[0];
+          }
+          else
+          {
+            sz = 2 + src[0] + 256 * src[1];
+          }
+          const Uint8 *source = src;
+          src += sz;
+          memcpy(col_row_ptr, source, sz);
+        } while (0);
+      }
     }
+    rpn_set_next_index(bitPos_next_index,
+                       rec->m_attrId_indexes[rpn_attrId(i_attrId) + 1]);
   }
-
-  return (Uint32)(((Uint32*)pad(src, 0, bitPos)) - aDataPtr);
+  Uint32 len = (Uint32)(((Uint32*)pad(src,
+                                      0,
+                                      rpn_bitPos(bitPos_next_index))) -
+                                        aDataPtr);
+  return len;
 }
 
 
@@ -633,15 +754,11 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
    *   NdbRecAttr only scan read result
    *   Mixed scan read results
    */
-  Uint32 exp= m_expected_result_length;
-  Uint32 tmp= m_received_result_length + aLength;
   Uint32 origLength=aLength;
-  NdbRecAttr* currRecAttr = theCurrentRecAttr;
   Uint32 save_pos= 0;
-
+ 
   bool ndbrecord_part_done= !m_using_ndb_record;
-  const bool isScan= (m_type == NDB_SCANRECEIVER) ||
-    (m_type == NDB_QUERY_OPERATION);
+  char *row = m_record.m_row_recv;
 
   /* Read words from the incoming signal train.
    * The length passed in is enough for one row, either as an individual
@@ -655,154 +772,213 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
     Uint32 attrSize= ah.getByteSize();
     aLength--;
 
-    if (!ndbrecord_part_done)
+    if (likely(!ndbrecord_part_done))
     {
-      /* Special case for RANGE_NO, which is received first and is
-       * stored just after the row. */
-      if (attrId == AttributeHeader::RANGE_NO)
-      {
-        assert(m_record.m_read_range_no);
-        assert(attrSize==4);
-        assert (m_record.m_row_offset >= m_record.m_ndb_record->m_row_size+attrSize);
-        memcpy(m_record.m_row_recv+m_record.m_ndb_record->m_row_size, 
-               aDataPtr++, 4);
-        aLength--;
-        continue; // Next
-      }
-
       /* Normal case for all NdbRecord primary key, index key, table scan
        * and index scan reads.  Extract all requested columns from packed
        * format into the row.
        */
-      if (attrId == AttributeHeader::READ_PACKED)
+      if (likely(attrId == AttributeHeader::READ_PACKED))
       {
         assert (m_record.m_row_offset >= m_record.m_ndb_record->m_row_size);
         Uint32 len= receive_packed_ndbrecord(attrSize >> 2, // Bitmap length
-                                             aDataPtr,
-                                             m_record.m_row_recv);
+                                             aDataPtr);
         aDataPtr+= len;
+        assert(aLength >= len);
         aLength-= len;
-        continue;  // Next
       }
-
-      /* If we get here then we must have 'extra getValues' - columns
-       * requested outwith the normal NdbRecord + bitmask mechanism.
-       * This could be : pseudo columns, columns read via an old-Api 
-       * scan, or just some extra columns added by the user to an 
-       * NdbRecord operation.
-       * If the extra values are part of a scan then they get copied
-       * to a special area after the end of the normal row data.  
-       * When the user calls NdbScanOperation.nextResult() they will
-       * be copied into the correct NdbRecAttr objects.
-       * If the extra values are not part of a scan then they are
-       * put into their NdbRecAttr objects now.
-       */
-      if (isScan)
+      else if (likely(attrId == AttributeHeader::RANGE_NO))
       {
-        /* For scans, we save the extra information at the end of the
-         * row buffer, in reverse order.  When nextResult() is called,
-         * this data is copied into the correct NdbRecAttr objects.
-         */
-        
-        /* Save this extra getValue */
-        save_pos+= sizeof(Uint32);
-        memcpy(m_record.m_row_recv + m_record.m_row_offset - save_pos,
-               &attrSize, sizeof(Uint32));
-        if (attrSize > 0)
-        {
-          save_pos+= attrSize;
-          assert (save_pos<=m_record.m_row_offset);
-          memcpy(m_record.m_row_recv + m_record.m_row_offset - save_pos,
-                 aDataPtr, attrSize);
-        }
-
-        Uint32 sizeInWords= (attrSize+3)>>2;
-        aDataPtr+= sizeInWords;
-        aLength-= sizeInWords;
-        continue; // Next
+        /* Special case for RANGE_NO, which is received first and is
+         * stored just after the row. */
+        assert(m_record.m_read_range_no);
+        assert(attrSize==4);
+        assert (m_record.m_row_offset >= m_record.m_ndb_record->m_row_size+attrSize);
+        memcpy(row + m_record.m_ndb_record->m_row_size, 
+               aDataPtr,
+               4);
+        aLength--;
+        aDataPtr++;
       }
       else
       {
-        /* Not a scan, so extra information is added to RecAttrs in
-         * the 'normal' way.
-         */
-        assert(theCurrentRecAttr != NULL);
-        assert(theCurrentRecAttr->attrId() == attrId);
-        /* Handle extra attributes requested with getValue(). */
-        /* This implies that we've finished with the NdbRecord part
-           of the read, so move onto NdbRecAttr */
-        ndbrecord_part_done=true;
-        // Fall through to RecAttr handling
+
+        const bool isScan= (m_type == NDB_SCANRECEIVER) ||
+                           (m_type == NDB_QUERY_OPERATION);
+
+        Uint32 loc_aLength = aLength;
+        aDataPtr = handle_extra_get_values(save_pos,
+                                           &loc_aLength,
+                                           aDataPtr,
+                                           attrSize,
+                                           isScan,
+                                           attrId,
+                                           origLength,
+                                           ndbrecord_part_done);
+        aLength = loc_aLength;
       }
-    } // / if (!ndbrecord_part_done)
-    
-    /* If we get here then there are some attribute values to be
-     * read into the attached list of NdbRecAttrs.
-     * This occurs for old-Api primary and unique index keyed operations
-     * and for NdbRecord primary and unique index keyed operations
-     * using 'extra GetValues'.
-     */
-    if (ndbrecord_part_done)
+    }
+    else
     {
-      // We've processed the NdbRecord part of the TRANSID_AI, if
-      // any.  There are signal words left, so they must be
-      // RecAttr data
-      //
-      if (attrId == AttributeHeader::READ_PACKED)
-      {
-        assert(!m_using_ndb_record);
-        NdbRecAttr* tmp = currRecAttr;
-        Uint32 len = receive_packed_recattr(&tmp, attrSize>>2, aDataPtr, origLength);
-        aDataPtr += len;
-        aLength -= len;
-        currRecAttr = tmp;
-        continue;
-      }
-      /**
-       * Skip over missing attributes
-       * TODO : How can this happen?
-       */
-      while(currRecAttr && currRecAttr->attrId() != attrId){
-            currRecAttr = currRecAttr->next();
-      }
+      Uint32 loc_aLength = aLength;
+      aDataPtr = handle_attached_rec_attrs(attrId,
+                                           aDataPtr,
+                                           origLength,
+                                           attrSize,
+                                           &loc_aLength);
+      aLength = loc_aLength;
+    }
+  } // while (aLength > 0)
 
-      if(currRecAttr && currRecAttr->receive_data(aDataPtr, attrSize))
-      {
-        Uint32 add= (attrSize + 3) >> 2;
-        aLength -= add;
-        aDataPtr += add;
-        currRecAttr = currRecAttr->next();
-      } else {
-        /*
-          This should not happen: we got back an attribute for which we have no
-          stored NdbRecAttr recording that we requested said attribute (or we got
-          back attributes in the wrong order).
-          So dump some info for debugging, and abort.
-        */
-        ndbout_c("this=%p: attrId: %d currRecAttr: %p theCurrentRecAttr: %p "
-                 "attrSize: %d %d", this,
-	         attrId, currRecAttr, theCurrentRecAttr, attrSize,
-                 currRecAttr ? currRecAttr->get_size_in_bytes() : 0);
-        currRecAttr = theCurrentRecAttr;
-        while(currRecAttr != 0){
-	  ndbout_c("%d ", currRecAttr->attrId());
-	  currRecAttr = currRecAttr->next();
-        }
-        abort();
-        return -1;
-      } // if (currRecAttr...)      
-    } // /if (ndbrecord_part_done)
-  } // / while (aLength > 0)
-
-  theCurrentRecAttr = currRecAttr;
-
-  m_received_result_length = tmp;
+  Uint32 exp = m_expected_result_length;
+  Uint32 recLen = m_received_result_length + origLength;
 
   if (m_using_ndb_record) {
     /* Move onto next row in scan buffer */
-    m_record.m_row_recv+= m_record.m_row_offset;
+    m_record.m_row_recv = row + m_record.m_row_offset;
   }
-  return (tmp == exp || (exp > TcKeyConf::DirtyReadBit) ? 1 : 0);
+  m_received_result_length = recLen;
+  return (recLen == exp || (exp > TcKeyConf::DirtyReadBit) ? 1 : 0);
+}
+
+ATTRIBUTE_NOINLINE
+const Uint32 *
+NdbReceiver::handle_extra_get_values(Uint32 &save_pos,
+                                     Uint32 *aLength,
+                                     const Uint32 *aDataPtr,
+                                     Uint32 attrSize,
+                                     bool isScan,
+                                     Uint32 attrId,
+                                     Uint32 origLength,
+                                     bool &ndbrecord_part_done)
+{
+  /* If we get here then we must have 'extra getValues' - columns
+   * requested outwith the normal NdbRecord + bitmask mechanism.
+   * This could be : pseudo columns, columns read via an old-Api 
+   * scan, or just some extra columns added by the user to an 
+   * NdbRecord operation.
+   * If the extra values are part of a scan then they get copied
+   * to a special area after the end of the normal row data.  
+   * When the user calls NdbScanOperation.nextResult() they will
+   * be copied into the correct NdbRecAttr objects.
+   * If the extra values are not part of a scan then they are
+   * put into their NdbRecAttr objects now.
+   */
+  if (isScan)
+  {
+    /* For scans, we save the extra information at the end of the
+     * row buffer, in reverse order.  When nextResult() is called,
+     * this data is copied into the correct NdbRecAttr objects.
+     */
+    
+    /* Save this extra getValue */
+    save_pos+= sizeof(Uint32);
+    memcpy(m_record.m_row_recv + m_record.m_row_offset - save_pos,
+           &attrSize,
+           sizeof(Uint32));
+    if (attrSize > 0)
+    {
+      save_pos+= attrSize;
+      assert (save_pos<=m_record.m_row_offset);
+      memcpy(m_record.m_row_recv + m_record.m_row_offset - save_pos,
+             aDataPtr, attrSize);
+    }
+
+    Uint32 sizeInWords= (attrSize+3)>>2;
+    aDataPtr+= sizeInWords;
+    (*aLength)-= sizeInWords;
+  }
+  else
+  {
+    /* Not a scan, so extra information is added to RecAttrs in
+     * the 'normal' way.
+     */
+    assert(theCurrentRecAttr != NULL);
+    assert(theCurrentRecAttr->attrId() == attrId);
+    /* Handle extra attributes requested with getValue(). */
+    /* This implies that we've finished with the NdbRecord part
+       of the read, so move onto NdbRecAttr */
+    aDataPtr = handle_attached_rec_attrs(attrId,
+                                         aDataPtr,
+                                         origLength,
+                                         attrSize,
+                                         aLength);
+    ndbrecord_part_done = true;
+  }
+  return aDataPtr;
+}
+
+ATTRIBUTE_NOINLINE
+const Uint32 *
+NdbReceiver::handle_attached_rec_attrs(Uint32 attrId,
+                                       const Uint32 *aDataPtr,
+                                       Uint32 origLength,
+                                       Uint32 attrSize,
+                                       Uint32 *aLengthRef)
+{
+  NdbRecAttr* currRecAttr = theCurrentRecAttr;
+  Uint32 aLength = *aLengthRef;
+
+  /* If we get here then there are some attribute values to be
+   * read into the attached list of NdbRecAttrs.
+   * This occurs for old-Api primary and unique index keyed operations
+   * and for NdbRecord primary and unique index keyed operations
+   * using 'extra GetValues'.
+   */
+  // We've processed the NdbRecord part of the TRANSID_AI, if
+  // any.  There are signal words left, so they must be
+  // RecAttr data
+  //
+  if (attrId == AttributeHeader::READ_PACKED)
+  {
+    assert(!m_using_ndb_record);
+    NdbRecAttr* tmp = currRecAttr;
+    Uint32 len = receive_packed_recattr(&tmp,
+                                        attrSize>>2,
+                                        aDataPtr,
+                                        origLength);
+    aDataPtr += len;
+    aLength -= len;
+    currRecAttr = tmp;
+    goto end;
+  }
+  /**
+   * Skip over missing attributes
+   * TODO : How can this happen?
+   */
+  while(currRecAttr && currRecAttr->attrId() != attrId){
+        currRecAttr = currRecAttr->next();
+  }
+
+  if(currRecAttr && currRecAttr->receive_data(aDataPtr, attrSize))
+  {
+    Uint32 add= (attrSize + 3) >> 2;
+    aLength -= add;
+    aDataPtr += add;
+    currRecAttr = currRecAttr->next();
+  } else {
+    /*
+      This should not happen: we got back an attribute for which we have no
+      stored NdbRecAttr recording that we requested said attribute (or we got
+      back attributes in the wrong order).
+      So dump some info for debugging, and abort.
+    */
+    ndbout_c("this=%p: attrId: %d currRecAttr: %p theCurrentRecAttr: %p "
+             "attrSize: %d %d", this,
+      attrId, currRecAttr, theCurrentRecAttr, attrSize,
+             currRecAttr ? currRecAttr->get_size_in_bytes() : 0);
+    currRecAttr = theCurrentRecAttr;
+    while(currRecAttr != 0){
+      ndbout_c("%d ", currRecAttr->attrId());
+               currRecAttr = currRecAttr->next();
+    }
+    abort();
+    return NULL;
+  } // if (currRecAttr...)
+end:
+  theCurrentRecAttr = currRecAttr;
+  *aLengthRef = aLength;
+  return aDataPtr;
 }
 
 int

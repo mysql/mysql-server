@@ -1,0 +1,59 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE mysql.ndb_replication
+(db VARBINARY(63),
+table_name VARBINARY(63),
+server_id INT UNSIGNED,
+binlog_type INT UNSIGNED,
+conflict_fn VARBINARY(128),
+PRIMARY KEY USING HASH (db,table_name,server_id))
+ENGINE=NDB PARTITION BY KEY(db,table_name);
+Log update-as-update
+insert into mysql.ndb_replication values ("test", "t1", 0, 7, NULL);
+Create table with one row missing on slave
+create table test.t1 (a int primary key, b int) engine=ndb;
+insert into test.t1 values (3,3), (4,4);
+select * from test.t1 order by a;
+a	b
+3	3
+4	4
+delete from test.t1 where a=4;
+select * from test.t1 order by a;
+a	b
+3	3
+Now create epoch transaction at master with 1 applicable and
+n unapplicable operations
+We hope that at least some of the unapplicable operations
+will run in the same batch as the applicable one (so attempting
+to get a COMMIT_ACK_MARKER), but will have their error handling
+run afterwards.
+begin;
+update test.t1 set b=30 where a=3;
+update test.t1 set b=40 where a=4;
+commit;
+select * from test.t1 order by a;
+a	b
+3	30
+Wait for LQH + TC Commit Ack Marker count to get to zero.
+OK
+Abort cleanup check
+begin;
+delete from test.t1;
+rollback;
+Wait for LQH + TC Commit Ack Marker count to get to zero.
+OK
+Batched and multi-batch commit cleanup test
+begin;
+insert into test.t1 values (6,6),(7,7),(8,8),(9,9),(10,10);
+insert into test.t1 values (11,11);
+insert into test.t1 values (12,12);
+commit;
+Wait for LQH + TC Commit Ack Marker count to get to zero.
+OK
+Cleanup
+drop table test.t1;
+drop table mysql.ndb_replication;
+include/rpl_end.inc

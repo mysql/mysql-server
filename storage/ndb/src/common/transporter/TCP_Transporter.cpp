@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,17 +95,17 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      0, false, 
 	      conf->checksum,
 	      conf->signalId,
-              conf->tcp.sendBufferSize)
+	      conf->tcp.sendBufferSize),
+  reportFreq(4096),
+  receiveCount(0), receiveSize(0),
+  sendCount(0), sendSize(0), 
+  receiveBuffer()
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
   // Initialize member variables
   my_socket_invalidate(&theSocket);
 
-  sendCount      = receiveCount = 0;
-  sendSize       = receiveSize  = 0;
-  reportFreq     = 4096; 
-  
   sockOptNodelay    = 1;
   setIf(sockOptRcvBufSize, conf->tcp.tcpRcvBufSize, 0);
   setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 0);
@@ -141,7 +141,15 @@ TCP_Transporter::~TCP_Transporter() {
     doDisconnect();
   
   // Delete receive buffer!!
+  assert(!isConnected());
   receiveBuffer.destroy();
+}
+
+void
+TCP_Transporter::resetBuffers()
+{
+  assert(!isConnected());
+  receiveBuffer.clear();
 }
 
 bool TCP_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
@@ -275,7 +283,6 @@ TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
   if (!my_socket_valid(fd))
     return false;
 
-  poller.clear();
   poller.add(fd, false, true, false);
 
   if (poller.poll_unsafe(timeout_millisec) <= 0)
@@ -288,14 +295,14 @@ TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
                                  (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
 
 
-int
+bool
 TCP_Transporter::doSend() {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
 
   if (cnt == 0)
   {
-    return 0;
+    return false;
   }
 
   Uint32 sum = 0;
@@ -324,12 +331,14 @@ TCP_Transporter::doSend() {
     int nBytesSent = (int)my_socket_writev(theSocket, iov+pos, iovcnt);
     assert(nBytesSent <= (int)remain);
 
-    if (Uint32(nBytesSent) == remain)
+    if (Uint32(nBytesSent) == remain)  //Completed this send
     {
       sum_sent += nBytesSent;
-      goto ok;
+      assert(sum >= sum_sent);
+      remain = sum - sum_sent;
+      break;
     }
-    else if (nBytesSent > 0)
+    else if (nBytesSent > 0)           //Sent some, more pending
     {
       sum_sent += nBytesSent;
       remain -= nBytesSent;
@@ -345,28 +354,16 @@ TCP_Transporter::doSend() {
         cnt--;
       }
 
-      if (nBytesSent)
+      if (nBytesSent > 0)
       {
         assert(iov[pos].iov_len > Uint32(nBytesSent));
         iov[pos].iov_len -= nBytesSent;
         iov[pos].iov_base = ((char*)(iov[pos].iov_base))+nBytesSent;
       }
-      continue;
     }
-    else
+    else                               //Send failed, terminate
     {
-      int err = my_socket_errno();
-      if (!(DISCONNECT_ERRNO(err, nBytesSent)))
-      {
-        if (sum_sent)
-        {
-          goto ok;
-        }
-        else
-        {
-          return remain;
-        }
-      }
+      const int err = my_socket_errno();
 
 #if defined DEBUG_TRANSPORTER
       g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
@@ -376,14 +373,20 @@ TCP_Transporter::doSend() {
                            remoteNodeId, nBytesSent, my_socket_errno(),
                            (char*)ndbstrerror(err));
 #endif
-      do_disconnect(err);
-      return 0;
+
+      if ((DISCONNECT_ERRNO(err, nBytesSent)))
+      {
+        do_disconnect(err); //Initiate pending disconnect
+        remain = 0;
+      }
+      break;
     }
   }
 
-ok:
-  assert(sum >= sum_sent);
-  iovec_data_sent(sum_sent);
+  if (sum_sent > 0)
+  {
+    iovec_data_sent(sum_sent);
+  }
   sendCount += send_cnt;
   sendSize  += sum_sent;
   m_bytes_sent += sum_sent;
@@ -394,7 +397,7 @@ ok:
     sendSize  = 0;
   }
 
-  return sum - sum_sent; // 0 if every thing flushed else >0
+  return (remain>0); // false if nothing remains or disconnected, else true
 }
 
 int
@@ -456,11 +459,11 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 }
 
 void
-TCP_Transporter::disconnectImpl() {
+TCP_Transporter::disconnectImpl()
+{
   get_callback_obj()->lock_transporter(remoteNodeId);
 
   NDB_SOCKET_TYPE sock = theSocket;
-  receiveBuffer.clear();
   my_socket_invalidate(&theSocket);
 
   get_callback_obj()->unlock_transporter(remoteNodeId);

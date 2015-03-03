@@ -102,10 +102,11 @@ public:
     ZINIT = 1, 		        /* All nodes start in phase INIT         */
     ZSTARTING = 2, 		/* Node is connecting to cluster         */
     ZRUNNING = 3, 		/* Node is running in the cluster        */
-    ZPREPARE_FAIL = 4,       /* PREPARATION FOR FAILURE               */
-    ZFAIL_CLOSING = 5,             /* API/NDB IS DISCONNECTING              */
+    ZPREPARE_FAIL = 4,          /* PREPARATION FOR FAILURE               */
+    ZFAIL_CLOSING = 5,          /* API/NDB IS DISCONNECTING              */
     ZAPI_ACTIVE = 6,            /* API IS RUNNING IN NODE                */
-    ZAPI_INACTIVE = 7           /* Inactive API */
+    ZAPI_INACTIVE = 7,          /* Inactive API */
+    ZAPI_ACTIVATION_ONGOING = 8 /* API is being activated */
   };
 
   struct StartRecord {
@@ -370,6 +371,9 @@ private:
   // Ndbinfo signal
   void execDBINFO_SCANREQ(Signal *signal);
 
+  // NDBCNTR informing us our node is fully started
+  void execNODE_STARTED_REP(Signal *signal);
+
   // Statement blocks
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal* signal);
@@ -583,6 +587,8 @@ private:
   Uint32& set_hb_count(Uint32 nodeId) {
     return globalData.set_hb_count(nodeId);
   }
+
+  void execISOLATE_ORD(Signal* signal);
 };
 
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,6 +56,7 @@ NdbScanOperation::~NdbScanOperation()
     theNdb->releaseNdbScanRec(m_receivers[i]);
   }
   delete[] m_array;
+  assert(m_scan_buffer==NULL);
 }
 
 void
@@ -125,6 +126,7 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_current_api_receiver = 0;
   m_sent_receivers_count = 0;
   m_conf_receivers_count = 0;
+  assert(m_scan_buffer==NULL);
   return 0;
 }
 
@@ -1703,7 +1705,7 @@ NdbScanOperation::executeCursor(int nodeId)
     if (theImpl->get_node_alive(nodeId) &&
         (theImpl->getNodeSequence(nodeId) == seq)) {
       
-      tCon->theMagicNumber = 0x37412619;
+      tCon->theMagicNumber = tCon->getMagicNumber();
       
       if (doSendScan(nodeId) == -1)
       {
@@ -1886,16 +1888,25 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
 
   if(theError.code)
   {
-    if (theError.code == Err_scanAlreadyComplete)
-    {
-      /**
-       * The scan is already complete. There must be a bug in the api 
-       * application such that is calls nextResult()/nextResultNdbRecord() 
-       * again after getting return value 1 (meaning end of scan).
-       */
-      return -1;
-    }
-    goto err4;
+    /**
+     * The scan is already complete (Err_scanAlreadyComplete)
+     * or is in some error.
+     *
+     * Either there is a bug in the api application such that
+     * it calls nextResult()/nextResultNdbRecord() again
+     * after getting return value 1 (meaning end of scan) or
+     * -1 (for error).
+     *
+     * Or there seems to be a bug in ndbapi that put operation
+     * in error between calls.
+     *
+     * Or an error have been received.
+     *
+     * In any case, keep and propagate error and fail.
+     */
+    if (theError.code != Err_scanAlreadyComplete)
+      setErrorCode(theError.code);
+    return -1;
   }
 
   if(seq == theImpl->getNodeSequence(nodeId) &&
@@ -1975,6 +1986,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
   case 2:
     return retVal;
   case -1:
+    ndbout << "1:4008 on connection " << theNdbCon->ptr2int() << endl;
     setErrorCode(4008); // Timeout
     break;
   case -2:
@@ -1983,10 +1995,6 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
   case -3: // send_next_scan -> return fail (set error-code self)
     if(theError.code == 0)
       setErrorCode(4028); // seq changed = Node fail
-    break;
-  case -4:
-err4:
-    setErrorCode(theError.code);
     break;
   }
 
@@ -2095,6 +2103,15 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
     */
     PollGuard poll_guard(* theNdb->theImpl);
     close_impl(forceSend, &poll_guard);
+  }
+
+  /* Free buffer used to store scan result set.
+   * Result set lifetime ends when the cursor is closed.
+   */
+  if (m_scan_buffer)
+  {
+    delete[] m_scan_buffer;
+    m_scan_buffer= NULL;
   }
 
   // Keep in local variables, as "this" might be destructed below
@@ -3789,6 +3806,7 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
       if (ret_code == 0 && seq == impl->getNodeSequence(nodeId))
         continue;
       if(ret_code == -1){
+        ndbout << "2:4008 on connection " << theNdbCon->ptr2int() << endl;
         setErrorCode(4008);
       } else {
         setErrorCode(4028);
@@ -3890,6 +3908,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
+      ndbout << "3:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
     case -2:
       m_api_receivers_count = 0;
@@ -3959,6 +3978,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
+      ndbout << "4:4008 on connection " << theNdbCon->ptr2int() << endl;
       setErrorCode(4008);
     case -2:
       m_api_receivers_count = 0;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1224,6 +1224,40 @@ public:
   void set_eventbuf_max_alloc(unsigned sz);
   unsigned get_eventbuf_max_alloc();
 
+  /**
+   * Set/get free_percent- the % of event buffer memory
+   * that should be available before resuming buffering,
+   * after the max_alloc limit is hit.
+   */
+  int set_eventbuffer_free_percent(unsigned sz);
+  unsigned get_eventbuffer_free_percent();
+
+  struct EventBufferMemoryUsage
+  {
+    EventBufferMemoryUsage() :
+      allocated_bytes(0),
+      used_bytes(0),
+      usage_percent(0)
+    {}
+
+    Uint32 allocated_bytes;
+    Uint32 used_bytes;
+    Uint32 usage_percent; // (used_bytes)*100/eventbuf_max_alloc
+  };
+  /**
+   * Get event buffer usauge as a percentage of eventbuf_max_alloc limit.
+   * In/out parameter : struct EventBufferMemoryUsage&, which contains
+   *  allocated_bytes : total event buffer memory allocated in bytes
+   *  used_bytes : total memory used in bytes
+   *  usage_percent : event buffer memory usage percent = (100*used/max_alloc).
+   * Usage_percent is allowed to go over 100% temporarily
+   * for some period of time or permanently if eventbuf_max_alloc
+   * and eventbuffer_free_percent are not configured
+   * according to the event data load. The latter causes frequent gaps
+   * and thus should be avoided.
+   */
+  void get_event_buffer_memory_usage(EventBufferMemoryUsage&);
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Wait for Ndb object to successfully set-up connections to 
@@ -1284,21 +1318,90 @@ public:
    */
   int dropEventOperation(NdbEventOperation* eventOp);
 
+private:
+  // Help functions for pollEvents() and nextEvent()
+
+  // Inform event buffer overflow and exit
+  void printOverflowErrorAndExit();
+public:
+
   /**
-   * Wait for an event to occur. Will return as soon as an event
-   * is detected on any of the created events.
+   * Wait for an event to occur. Will return as soon as an event data
+   * is available on any of the created events. PollEvents() also moves
+   * the complete event data of an epoch to the event queue.
    *
    * @param aMillisecondNumber
    *        maximum time to wait
+   * aMillisecondNumber < 0 will cause a long wait
+   *
+   * @param OUT highestQueuedEpoch: if highestQueuedEpoch is non-null and
+   * there is some new event data available in the event queue,
+   * it will be set to the highest epoch among the available event data.
+   *
+   * @return > 0 if events available, 0 if no events available, < 0 on failure.
+   *
+   * @pollEvents2 will also return >0 when there is an event data
+   * representing empty or error epoch available.
+   */
+  int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch= 0);
+
+  /**
+   * Wait for an event to occur. Will return as soon as an event
+   * is available on any of the created events.
+   *
+   * @param aMillisecondNumber
+   *        maximum time to wait
+   * aMillisecondNumber < 0 will cause a long wait
    *
    * @return > 0 if events available, 0 if no events available, < 0 on failure
+   *
+   * This is a backward compatibility wrapper to pollEvents2().
+   * However it does not maintain the old behaviour: performing the following
+   * when it encounters exceptional event data on the head of the event queue:
+   * - returns 0 for event data representing inconsistent epoch,
+   * - does not have empty epochs in the available data queue,
+   * - crashes for event data representing event-buffer-overflow epoch.
+   * Instead it returns 1  when there is an event data representing
+   * empty or error epoch is available, like pollEvents2()
    */
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
+
+  /**
+   * Returns the event operation associated with the dequeued
+   * event data from the event queue. This should be called after
+   * pollEvents() populates the queue, and then can be called repeatedly
+   * until the event queue becomes empty.
+   *
+   * @return an event operation that has data or exceptional epoch data,
+   * or NULL if the queue is empty.
+   *
+   * nextEvent2() will return non-null event operation for event data
+   * representing exceptional (empty or error) epochs as well.
+   * NdbEventOperation::getEpoch2() should be called  after
+   * nextEvent2() to find the epoch, then
+   * NdbEventOperation::getEventType2() should be called to check the
+   * type of the returned event data
+   * and proper handling should be performed for the newly introduced
+   * exceptional event types:
+   * NdbDictionary::Event::TE_EMPTY, TE_INCONSISTENT and TE_OUT_OF_MEMORY.
+   * No other methods defined on NdbEventOperation than the above two
+   * should be called for exceptional epochs.
+   * Returning empty epoch (TE_EMPTY) is new and may overflood the
+   * application when ndb data nodes are idling. If this is not desirable,
+   * applications should do extra handling to filter out empty epochs.
+   */
+  NdbEventOperation *nextEvent2();
 
   /**
    * Returns an event operation that has data after a pollEvents
    *
    * @return an event operations that has data, NULL if no events left with data.
+   * This is a backward compatibility wrapper to nextEvent2(),
+   * It maintains the old behaviour :
+   * - returns NULL for inconsistent epochs,
+   * - will not have empty epochs in the event queue (i.e. remove them),
+   * - crashes the node when it encounters an event data representing
+   *   an event buffer overflow.
    */
   NdbEventOperation *nextEvent();
 
@@ -1335,9 +1438,29 @@ public:
    * Set *iter=0 to start.  Returns NULL when no more.  If event_types
    * is not NULL, it returns bitmask of received event types.
    */
+
+  const NdbEventOperation*
+    getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types);
+
+  /**
+   * Iterate over distinct event operations which are part of current
+   * GCI.  Valid after nextEvent.  Used to get summary information for
+   * the epoch (e.g. list of all tables) before processing event data.
+   *
+   * Set *iter=0 to start.  Returns NULL when no more.  If event_types
+   * is not NULL, it returns bitmask of received event types.
+   *
+   * This is a wrapper for getNextEventOpInEpoch2, but retains the
+   * old name in order to preserve backward compatibility.
+   */
   const NdbEventOperation*
     getGCIEventOperations(Uint32* iter, Uint32* event_types);
   
+  /** Get the highest epoch that have entered into the event queue.
+   * This value can be higher than the epoch returned by the last
+   * pollEvents() call, if new epochs have been received and queued later.
+   */
+  Uint64 getHighestQueuedEpoch();
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int flushIncompleteEvents(Uint64 gci);
@@ -1934,11 +2057,6 @@ private:
   Uint32                insert_completed_list(NdbTransaction*);
   Uint32                insert_sent_list(NdbTransaction*);
 
-  // Handle a received signal. Used by both
-  // synchronous and asynchronous interface
-  void handleReceivedSignal(const NdbApiSignal* anApiSignal,
-			    const struct LinearSectionPtr ptr[3]);
-  
   int			sendRecSignal(Uint16 aNodeId,
 				      Uint32 aWaitState,
 				      NdbApiSignal* aSignal,
@@ -2030,13 +2148,6 @@ private:
   const BaseString getDatabaseFromInternalName(const char * internalName);
   static 
   const BaseString getSchemaFromInternalName(const char * internalName);
-
-  void*              int2void     (Uint32 val);
-  NdbReceiver*       void2rec     (void* val);
-  NdbTransaction*     void2con     (void* val);
-  NdbOperation*      void2rec_op  (void* val);
-  NdbIndexOperation* void2rec_iop (void* val);
-  NdbTransaction* lookupTransactionFromOperation(const class TcKeyConf *);
 
   Uint64 allocate_transaction_id();
 

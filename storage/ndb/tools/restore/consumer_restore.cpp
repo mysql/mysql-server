@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -602,6 +602,11 @@ BackupRestore::m_allowed_promotion_attrs[] = {
   {NDBCOL::Text,           NDBCOL::Varchar,        check_compat_text_to_char,
    NULL},
   {NDBCOL::Text,           NDBCOL::Longvarchar,    check_compat_text_to_char,
+   NULL},
+
+  // text to text promotions (uses staging table)
+  // required when part lengths of text columns are not equal 
+  {NDBCOL::Text,           NDBCOL::Text,           check_compat_text_to_text,
    NULL},
 
   // integral promotions
@@ -2143,6 +2148,61 @@ BackupRestore::column_compatible_check(const char* tableName,
   return similarEnough;
 }
 
+bool is_array(NDBCOL::Type type)
+{
+  if (type == NDBCOL::Char ||
+      type == NDBCOL::Binary ||
+      type == NDBCOL::Varchar ||
+      type == NDBCOL::Varbinary ||
+      type == NDBCOL::Longvarchar ||
+      type == NDBCOL::Longvarbinary)
+  {
+    return true;
+  }
+  return false;
+ 
+}
+
+bool
+BackupRestore::check_blobs(TableS & tableS)
+{
+  /**
+   * For blob tables, check if there is a conversion on any PK of the main table.
+   * If there is, the blob table PK needs the same conversion as the main table PK.
+   * Copy the conversion to the blob table. 
+   */
+  if(match_blob(tableS.getTableName()) == -1)
+    return true;
+
+  int mainColumnId = tableS.getMainColumnId();
+  const TableS *mainTableS = tableS.getMainTable();
+  if(mainTableS->m_dictTable->getColumn(mainColumnId)->getBlobVersion() == NDB_BLOB_V1)
+    return true; /* only to make old ndb_restore_compat* tests on v1 blobs pass */
+
+  /* check all PK columns in v2 blob table */
+  for(int i=0; i<tableS.m_dictTable->getNoOfColumns(); i++)
+  {
+    NDBCOL *col = tableS.m_dictTable->getColumn(i);
+    AttributeDesc *attrDesc = tableS.getAttributeDesc(col->getAttrId());
+  
+    /* get corresponding pk column in main table */
+    NDBCOL *mainCol = mainTableS->m_dictTable->getColumn(col->getName());
+    if(!mainCol || !mainCol->getPrimaryKey()) 
+      return true; /* no more PKs */
+
+    int mainTableAttrId = mainCol->getAttrId();
+    AttributeDesc *mainTableAttrDesc = mainTableS->getAttributeDesc(mainTableAttrId);
+    if(mainTableAttrDesc->convertFunc)
+    {
+      /* copy convertFunc from main table PK to blob table PK */
+      attrDesc->convertFunc = mainTableAttrDesc->convertFunc;     
+      attrDesc->parameter = malloc(mainTableAttrDesc->parameterSz);
+      memcpy(attrDesc->parameter, mainTableAttrDesc->parameter, mainTableAttrDesc->parameterSz);
+    }
+  }
+  return true;
+}
+
 bool
 BackupRestore::table_compatible_check(TableS & tableS)
 {
@@ -2371,6 +2431,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
       s->n_new = m_attrSize * m_arraySize;
       memset(s->new_row, 0 , m_attrSize * m_arraySize + 2);
       attr_desc->parameter = s;
+      attr_desc->parameterSz = size + 2;
     }
     else if (type_in_backup == NDBCOL::Time ||
              type_in_backup == NDBCOL::Datetime ||
@@ -2403,6 +2464,7 @@ BackupRestore::table_compatible_check(TableS & tableS)
         exitHandler();
       }
       memset(attr_desc->parameter, 0, size + 2);
+      attr_desc->parameterSz = size + 2;
     }
 
     info << "Data for column "
@@ -2465,8 +2527,35 @@ BackupRestore::table_compatible_check(TableS & tableS)
       if (attr_desc->m_exclude)
         continue;
       attr_desc->attrId = (uint32)(j++);
-      attr_desc->convertFunc = NULL;
-      stagingTable->addColumn(*col_in_backup);
+      if(attr_desc->convertFunc)
+      {
+        const NDBCOL * col_in_kernel = tab->getColumn(col_in_backup->getName());
+       
+        // Skip built-in conversions from smaller array types 
+        // to larger array types so that they are handled by staging.
+        // This prevents staging table from growing too large and
+        // causing ndb_restore to fail with error 738: record too big.
+        NDBCOL::Type type_in_backup = col_in_backup->getType();
+        NDBCOL::Type type_in_kernel = col_in_kernel->getType();
+        if(is_array(type_in_backup) && is_array(type_in_kernel) && 
+           col_in_kernel->getLength() > col_in_backup->getLength()) 
+        {
+          stagingTable->addColumn(*col_in_backup);
+          attr_desc->convertFunc = NULL;
+        }
+        else
+        {
+          // Add column of destination type to staging table so that
+          // built-in conversion is done while loading data into
+          // staging table. 
+          stagingTable->addColumn(*col_in_kernel);
+        }
+      } 
+      else 
+      {
+        stagingTable->addColumn(*col_in_backup);
+        attr_desc->convertFunc = NULL;
+      }
     }
 
     if (m_tableChangesMask & TCM_EXCLUDE_MISSING_COLUMNS)
@@ -3269,6 +3358,28 @@ int BackupRestore::restoreAutoIncrement(restore_callback_t *cb,
   return result;
 }
 
+bool BackupRestore::isMissingTable(const TableS& table)
+{
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+  const char* tablename = table.getTableName();
+  BaseString db_name, schema_name, table_name;
+  Vector<BaseString> split;
+  BaseString tmp(tablename);
+  if (tmp.split(split, "/") != 3) {
+    return false;
+  }
+  db_name = split[0];
+  schema_name = split[1];
+  table_name = split[2];
+  m_ndb->setDatabaseName(db_name.c_str());
+  m_ndb->setSchemaName(schema_name.c_str());
+
+  const NdbDictionary::Table* tab = dict->getTable(table_name.c_str());
+
+  /* 723 == NoSuchTableExisted */
+  return ((tab == NULL) && (dict->getNdbError().code == 723));
+}
+
 void BackupRestore::cback(int result, restore_callback_t *cb)
 {
   m_transactions--;
@@ -3763,6 +3874,28 @@ BackupRestore::check_compat_text_to_char(const NDBCOL &old_col,
   }
   return ACT_STAGING_LOSSY;
 }
+
+AttrConvType
+BackupRestore::check_compat_text_to_text(const NDBCOL &old_col,
+                                         const NDBCOL &new_col)
+{
+  if(old_col.getCharset() != new_col.getCharset()) 
+  {
+    info << "convert to field with different charset not supported" << endl; 
+    return ACT_UNSUPPORTED;
+  }
+  if(old_col.getPartSize() > new_col.getPartSize()) 
+  {
+   // TEXT/MEDIUMTEXT/LONGTEXT to TINYTEXT conversion is potentially lossy at the 
+   // Ndb level because there is a hard limit on the TINYTEXT size.
+   // TEXT/MEDIUMTEXT/LONGTEXT is not lossy at the Ndb level, but can be at the 
+   // MySQL level.
+   // Both conversions require the lossy switch, but they are not lossy in the same way.
+    return ACT_STAGING_LOSSY;
+  }
+  return ACT_STAGING_PRESERVING;
+}
+
 
 // ----------------------------------------------------------------------
 // explicit template instantiations

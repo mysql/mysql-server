@@ -19,7 +19,8 @@
  */
 
 "use strict";
-var udebug          = unified_debug.getLogger("composition/lib.js");
+var udebug = unified_debug.getLogger("composition/lib.js");
+var util = require("util");
 
 function Customer(id, first, last) {
   if (typeof id !== 'undefined') {
@@ -246,17 +247,14 @@ function createLineItem(line, quantity, itemid) {
 }
 
 function sortFunction(a, b) {
-//  console.log('sort\n', a, '\n', b);
   // sort based on id if it exists, or on line if it exists or throw an exception
   if (typeof(a.id) !== 'undefined' && typeof(b.id) !== 'undefined') {
     return a.id - b.id;
-  } else {
-    if (typeof(a.line) !== 'undefined' && typeof(b.line) !== 'undefined') {
-      return a.line - b.line;
-    } else {
-      throw new Error('Error: can only sort objects containing properties id or line.');
-    }
   }
+  if (typeof(a.line) !== 'undefined' && typeof(b.line) !== 'undefined') {
+    return a.line - b.line;
+  }
+  throw new Error('Error: can only sort objects containing properties id or line.');
 }
 
 function verifyProjection(tc, p, e, a) {
@@ -278,16 +276,16 @@ function verifyProjection(tc, p, e, a) {
       var expectedRelationship;
       var actualRelationship;
       // check that the actual object exists and is unexpected
-      if (expected !== null && actual === null ||
-          typeof expected !== 'undefined' && typeof actual === 'undefined') {
+      if ((expected !== null && actual === null) ||
+           (typeof expected !== 'undefined' && typeof actual === 'undefined')) {
         testCase.appendErrorMessage('\n' + testCase.name +
               ' VerifyProjection failure for ' + domainObjectName +
               '\nexpected: ' + util.inspect(expected) + '\nactual: ' + actual);
         continue;
       }
       // check for null and undefined 
-      if (typeof expected === 'undefined' && typeof actual === 'undefined' ||
-          expected === null && actual === null) {
+      if ((typeof expected === 'undefined' && typeof actual === 'undefined') ||
+          (expected === null && actual === null)) {
         continue;
       }
       // verify the fields first
@@ -331,10 +329,10 @@ function verifyProjection(tc, p, e, a) {
             }
           } else {
             // expected value is an object
-            if (typeof expectedRelationship === 'undefined' && typeof actualRelationship !== 'undefined' ||
-                expectedRelationship === null && actualRelationship !== null ||
-                typeof expectedRelationship !== 'undefined' & typeof actualRelationship === 'undefined' ||
-                expectedRelationship !== null && actualRelationship === null) {
+            if ((typeof expectedRelationship === 'undefined' && typeof actualRelationship !== 'undefined') ||
+                (expectedRelationship === null && actualRelationship !== null) ||
+                (typeof expectedRelationship !== 'undefined' & typeof actualRelationship === 'undefined') ||
+                (expectedRelationship !== null && actualRelationship === null)) {
               // error
               testCase.appendErrorMessage('\n' + testCase.name +
                   ' VerifyProjection failure for ' + domainObjectName +
@@ -342,8 +340,8 @@ function verifyProjection(tc, p, e, a) {
                   '\nexpected relationship: ' + util.inspect(expectedRelationship) +
                   '\nactual relationship: ' + util.inspect(actualRelationship));
             } else {
-              if (!(typeof expectedRelationship === 'undefined' && typeof actualRelationship === 'undefined' ||
-                    expectedRelationship === null && actualRelationship === null)) {
+              if (!((typeof expectedRelationship === 'undefined' && typeof actualRelationship === 'undefined') ||
+                    (expectedRelationship === null && actualRelationship === null))) {
                 // we need to check the values
                 projectionVerifications.push([projection.relationships[relationshipName],
                   expectedRelationship, actualRelationship]);

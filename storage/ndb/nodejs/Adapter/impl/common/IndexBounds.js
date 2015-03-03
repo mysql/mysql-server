@@ -19,8 +19,10 @@
  */
 
 "use strict";
-var BitMask            = require("./BitMask.js");
-var udebug             = unified_debug.getLogger("IndexBounds.js");
+var assert     = require("assert");
+var util       = require("util");
+var BitMask    = require("./BitMask.js");
+var udebug     = unified_debug.getLogger("IndexBounds.js");
 
 
 /* Evaluation of Column Bounds from a Query

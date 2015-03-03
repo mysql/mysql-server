@@ -621,3 +621,63 @@ let $mgm_cmd = $mgm_cmd --verbose=0;
 
 --echo # Trying to start another backup as nowait with same id should not return error
 --exec $mgm_cmd -e "start backup $the_backup_id nowait"
+
+#
+# Bug#11764704 Exclude missing tables when restoring a backup
+#
+create database db1;
+use db1;
+CREATE TABLE t1 (a INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (b INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t3 (c INT) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (4),(5),(6);
+INSERT INTO t3 VALUES (7),(8),(9);
+--source include/ndb_backup.inc
+truncate t1;
+truncate t2;
+drop table t3;
+--echo #without 'exclude-missing-tables' should fail
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--echo #calling 'exclude-missing-tables' with 'restore-meta' should fail
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r -m --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--echo #with 'exclude-missing-tables'
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #with exclusive include, exclude tables arguments
+--echo #exclude non missing table
+truncate t1;
+truncate t2;
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --exclude-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --exclude-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #exclude missing table
+truncate t1;
+truncate t2;
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --exclude-tables=db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --exclude-tables=db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #include non missing table
+truncate t1;
+truncate t2;
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --include-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --include-tables=db1.t1 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #include missing table
+truncate t1;
+truncate t2;
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --print_meta --include-tables=db1.t1,db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --print_meta --include-tables=db1.t1,db1.t3 --exclude-missing-tables $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select count(*) from t1;
+select count(*) from t2;
+--echo #clearup
+drop database db1;

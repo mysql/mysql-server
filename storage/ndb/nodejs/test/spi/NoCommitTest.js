@@ -21,9 +21,9 @@
 "use strict";
 
 var spi_lib = require("./lib.js");
-var dbtablehandler = require(path.join(spi_dir, "common", "DBTableHandler.js"));
-var TableMapping = require(path.join(api_dir, "TableMapping")).TableMapping;
-var udebug = unified_debug.getLogger("NoCommitTest.js");
+var dbtablehandler = require(mynode.common.DBTableHandler);
+var TableMapping   = require(mynode.api.TableMapping).TableMapping;
+var udebug         = unified_debug.getLogger("NoCommitTest.js");
 
 var dbSession = null;
 var mapping = new TableMapping("test.tbl4");

@@ -72,6 +72,10 @@ IF(WIN32)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml.in
                    ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml
                    @ONLY NEWLINE_STYLE WIN32)
+    # copy logging.properties to all clusterj subprojects
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/logging.properties 
+                   ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${CLUSTERJ_PROJECT}/
+                   COPYONLY)
   ENDFOREACH(CLUSTERJ_PROJECT in CLUSTERJ_PROJECTS)
 
   # build the mvn_install_ndbjtie for windows
@@ -90,6 +94,10 @@ ELSE(WIN32)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml.in
                    ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${CLUSTERJ_PROJECT}/pom.xml
                    @ONLY NEWLINE_STYLE UNIX)
+    # copy logging.properties to all clusterj subprojects
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/logging.properties 
+                   ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${CLUSTERJ_PROJECT}
+                   COPYONLY)
   ENDFOREACH(CLUSTERJ_PROJECT in CLUSTERJ_PROJECTS)
 
   # build the mvn_install_ndbjtie for *nix

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +31,7 @@ class NdbQueryOperationImpl;
 class NdbReceiver
 {
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbOperation;
   friend class NdbQueryImpl;
   friend class NdbQueryOperationImpl;
@@ -69,13 +69,15 @@ public:
   ReceiverType getType() const {
     return m_type;
   }
-  
-  inline NdbTransaction * getTransaction() const;
+ 
+  inline NdbTransaction * getTransaction(ReceiverType type) const;
   void* getOwner() const {
     return m_owner;
   }
   
   bool checkMagicNumber() const;
+  static Uint32 getMagicNumber() { return (Uint32)0x11223344; }
+  Uint32 getMagicNumberFromObject() const;
 
   inline void next(NdbReceiver* next_arg) { m_next = next_arg;}
   inline NdbReceiver* next() { return m_next; }
@@ -133,6 +135,21 @@ private:
   int execTRANSID_AI(const Uint32* ptr, Uint32 len); 
   int execTCOPCONF(Uint32 len);
   int execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows);
+
+  /* Assist functions to execTRANSID_AI */
+  const Uint32 * handle_extra_get_values(Uint32 & save_pos,
+                                         Uint32 * aLength,
+                                         const Uint32 *aDataPtr,
+                                         Uint32 attrSize,
+                                         bool isScan,
+                                         Uint32 attrId,
+                                         Uint32 origLength,
+                                         bool & ndbrecord_part_done);
+  const Uint32 * handle_attached_rec_attrs(Uint32 attrId,
+                                           const Uint32 *aDataPtr,
+                                           Uint32 origLength,
+                                           Uint32 attrSize,
+                                           Uint32 * aLength);
 
   /*
     We keep different state for old NdbRecAttr based operation and for
@@ -212,8 +229,7 @@ private:
   Uint32 receive_packed_recattr(NdbRecAttr**, Uint32 bmlen, 
                                 const Uint32* aDataPtr, Uint32 aLength);
   Uint32 receive_packed_ndbrecord(Uint32 bmlen,
-                                  const Uint32* aDataPtr,
-                                  char* row);
+                                  const Uint32* aDataPtr);
   /* get_row() returns the next available row during NdbRecord scans. */
   const char *get_row();
   /*
@@ -242,7 +258,7 @@ private:
 inline
 bool 
 NdbReceiver::checkMagicNumber() const {
-  bool retVal = (theMagicNumber == 0x11223344);
+  bool retVal = (theMagicNumber == getMagicNumber());
 #ifdef NDB_NO_DROPPED_SIGNAL
   if(!retVal){
     abort();
@@ -252,10 +268,17 @@ NdbReceiver::checkMagicNumber() const {
 }
 
 inline
+Uint32
+NdbReceiver::getMagicNumberFromObject() const
+{
+  return theMagicNumber;
+}
+
+inline
 void
 NdbReceiver::prepareSend(){
   /* Set pointers etc. to prepare for receiving the first row of the batch. */
-  theMagicNumber = 0x11223344;
+  theMagicNumber = getMagicNumber();
   m_current_row = 0;
   m_result_rows = 0;
   m_received_result_length = 0;

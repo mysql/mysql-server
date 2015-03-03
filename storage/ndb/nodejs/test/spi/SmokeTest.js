@@ -23,8 +23,6 @@
     This tests the loading of required compiled code in shared library files.
  */
 
-/*global assert, spi_module, harness */
-
 "use strict";
 
 try {
@@ -47,7 +45,7 @@ test.run = function() {
       test.fail("Connection error " + err);
       return;
     }
-    harness.SQL.create(test.suite, onCreate);  
+    sqlCreate(test.suite, onCreate);  
   }
 
   lib.getConnectionPool(onConnected);

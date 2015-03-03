@@ -19,6 +19,8 @@
  */
 "use strict";
 
+var util    = require("util");
+
 var mindb = 1;
 var maxdb = 8;
 var numberOfDBs = maxdb - mindb + 1;
@@ -71,16 +73,14 @@ var badtbl9 = function(i, j) {
 var properties = mynode.ConnectionProperties(global.adapter);
 // make a local copy of the properties
 var propertiesList = [];
-for (var p = mindb; p < mindb + numberOfDBs; ++p) {
-  var x, props = {};
-  for (x in properties) {
-    if (properties.hasOwnProperty(x)) {
-      props[x] = properties[x];
-    }
-    props.database = 'mysqljs_multidb_test' + p;
-    propertiesList[p] = props;
+var p, x, props = {};
+for (p = mindb; p < mindb + numberOfDBs; ++p) {
+  for (x in properties) if (properties.hasOwnProperty(x)) {
+    props[x] = properties[x];
   }
-};
+  props.database = 'mysqljs_multidb_test' + p;
+  propertiesList[p] = props;
+}
 
 var connectWithDefaultDb = function(testCase, db, callback) {
   console.log('ConnectTest openSession with', propertiesList[db].database);
@@ -99,7 +99,7 @@ var connectWithDefaultDb = function(testCase, db, callback) {
 
 var verifyTableMetadataCached = function(testCase, sessionFactory, qualifiedTableName) {
   // look in sessionFactory to see if there is a cached table metadata
-  var split = qualifiedTableName.split('\.');
+  var split = qualifiedTableName.split('\.'); 
   var databaseName = split[0];
   var tableName = split[1];
   var tableMetadata = sessionFactory.tableMetadatas[qualifiedTableName];
@@ -185,7 +185,8 @@ t5.run = function() {
   var testCase = this;
   mynode.openSession(propertiesList[5], 'tbl5', function(err, session) {
     if (err) {
-      testCase.appendErrorMessage('t5 error on openSession with tbl5 ' + err);
+      testCase.appendErrorMessage('t5 error on openSession with tbl5 with properties ' + 
+          '\n' + util.inspect(propertiesList[5]) + '\n' + err);
     } else {
       testCase.session = session;
       verifyTableMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test5.tbl5');
@@ -199,7 +200,8 @@ t6.run = function() {
   var testCase = this;
   mynode.connect(propertiesList[6], 'tbl6', function(err, sessionFactory) {
     if (err) {
-      testCase.appendErrorMessage('t6 error on connect with tbl6 ' + err);
+      testCase.appendErrorMessage('t6 error on connect with tbl6 with properties ' + 
+          '\n' + util.inspect(propertiesList[6]) + '\n' + err);
     } else {
       verifyTableMetadataCached(testCase, sessionFactory, 'mysqljs_multidb_test6.tbl6');
     }
@@ -212,7 +214,8 @@ t7.run = function() {
   var testCase = this;
   mynode.openSession(propertiesList[7], tbl7, function(err, session) {
     if (err) {
-      testCase.appendErrorMessage('t7 error on openSession with tbl7 ' + err);
+      testCase.appendErrorMessage('t7 error on openSession with tbl7 with properties ' + 
+          '\n' + util.inspect(propertiesList[7]) + '\n' + err);
     } else {
       testCase.session = session;
       verifyConstructorMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test7.tbl7', tbl7);
@@ -238,7 +241,7 @@ function reportResults(testCase) {
   if (++testCase.actualResultCount > testCase.expectedResultCount) {
     testCase.failOnError();
   }
-};
+}
 
 var t9 = new harness.ConcurrentTest('testFailureCases');
 t9.run = function() {

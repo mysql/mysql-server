@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -738,6 +738,13 @@ int runUseTableUntilStopped2(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   const NdbDictionary::Table* pTab2 = 
     NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+
+  if (pTab2 == NULL) {
+    g_err << "Table: " << pTab->getName() 
+          << ", not 'discovered' on line " << __LINE__
+          << endl;
+    return NDBT_FAILED;
+  }
   HugoTransactions hugoTrans(*pTab2);
 
   int i = 0;
@@ -790,6 +797,12 @@ int runUseTableUntilStopped3(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
   const NdbDictionary::Table* pTab2 =
     NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
+  if (pTab2 == NULL) {
+    g_err << "Table : " << pTab->getName() 
+          << ", not 'discovered' on line " << __LINE__
+          << endl;
+    return NDBT_FAILED;
+  }
   HugoTransactions hugoTrans(*pTab2);
 
   int i = 0;
@@ -863,25 +876,25 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
 
   /**
    * This error insert makes LQH resend the DROP_TAB_REQ to itself (with a
-   * delay) rather than executing it, until the error insert is reset.
+   * long delay) rather than executing it.
    * This makes it appear as if though the LQH block spends a long time 
    * executing the DROP_TAB_REQ signal.
    */
   g_info << "Insert error 5076 in node " << nonMasterNodeId << endl;
-  require(restarter.insertErrorInNode(nonMasterNodeId, 5076) == 0);
+  restarter.insertErrorInNode(nonMasterNodeId, 5076);
   /**
    * This error insert makes the master node crash when one of its LQH 
    * blocks tries to execute a DROP_TAB_REQ signal. This will then trigger
    * a takeover.
    */
   g_info << "Insert error 5077 in node " << masterNodeId << endl;
-  require(restarter.insertErrorInNode(masterNodeId, 5077) == 0);
+  restarter.insertErrorInNode(masterNodeId, 5077);
 
-  // This dropTable should fail, since the master node dies.
+  // dropTable should succeed with the new master.
   g_info << "Trying to drop table " << copyName << endl;
-  if (dict->dropTable(copyName) == 0)
+  if (dict->dropTable(copyName))
   {
-    g_err << "Unexpectedly managed to drop table " << copyName << endl;
+    g_err << "Unexpectedly failed to drop table " << copyName << endl;
     return NDBT_FAILED;
   }
 
@@ -896,10 +909,6 @@ runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
   
-  // Reset error insert.
-  g_info << "insert error 0 in node " << nonMasterNodeId << endl;
-  require(restarter.insertErrorInNode(nonMasterNodeId, 0) == 0);
-
   // Verify that old master comes back up, and that no other node crashed.
   g_info << "Waiting for all nodes to be up." << endl;
   if (restarter.waitClusterStarted() != 0)
@@ -1862,7 +1871,9 @@ runTableAddAttrs(NDBT_Context* ctx, NDBT_Step* step){
     }
 
     {
-      HugoTransactions afterTrans(* dict->getTable(pTabName.c_str()));
+      const NdbDictionary::Table* pTab = dict->getTable(pTabName.c_str());
+      CHECK2(pTab != NULL, "Table not found");
+      HugoTransactions afterTrans(*pTab);
 
       ndbout << "delete...";
       if (afterTrans.clearTable(pNdb) != 0)
@@ -1977,6 +1988,7 @@ runTableAddAttrsDuring(NDBT_Context* ctx, NDBT_Step* step){
 
       dict->invalidateTable(myTab.getName());
       const NdbDictionary::Table * newTab = dict->getTable(myTab.getName());
+      CHECK2(newTab != NULL, "'newTab' not found");
       HugoTransactions hugoTrans(* newTab);
       hugoTrans.scanUpdateRecords(pNdb, records);
     }
@@ -2770,12 +2782,28 @@ runBug21755(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   {
-    HugoTransactions t0 (*pDic->getTable(pTab0.getName()));
+    const NdbDictionary::Table* pTab = pDic->getTable(pTab0.getName());
+    if (pTab == NULL) {
+      g_err << "Table 'pTab0': " << pTab0.getName()
+            << ", not found on line " << __LINE__
+            <<", error: " << pDic->getNdbError()
+            << endl;
+      return NDBT_FAILED;
+    }
+    HugoTransactions t0 (*pTab);
     t0.loadTable(pNdb, 1000);
   }
 
   {
-    HugoTransactions t1 (*pDic->getTable(pTab1.getName()));
+    const NdbDictionary::Table* pTab = pDic->getTable(pTab1.getName());
+    if (pTab == NULL) {
+      g_err << "Table 'pTab1': " << pTab1.getName()
+            << ", not found on line " << __LINE__
+            <<", error: " << pDic->getNdbError()
+            << endl;
+      return NDBT_FAILED;
+    }
+    HugoTransactions t1 (*pTab);
     t1.loadTable(pNdb, 1000);
   }
   
@@ -3249,6 +3277,13 @@ RandSchemaOp::create_table(Ndb* ndb)
 
   ndbout_c("create table %s",  pTab.getName());
   const NdbDictionary::Table* tab2 = pDict->getTable(pTab.getName());
+  if (tab2 == NULL) {
+    g_err << "Table : " << pTab.getName()
+          << ", not found on line " << __LINE__
+          <<", error: " << pDict->getNdbError()
+          << endl;
+    return NDBT_FAILED;
+  }
   HugoTransactions trans(*tab2);
   trans.loadTable(ndb, 1000);
 
@@ -3468,6 +3503,14 @@ RandSchemaOp::validate(Ndb* ndb)
     {
       const NdbDictionary::Table* tab2 = 
         pDict->getTable(m_objects[i]->m_name.c_str());
+
+      if (tab2 == NULL) {
+        g_err << "Table: " << m_objects[i]->m_name.c_str()
+              << ", not found on line " << __LINE__
+              <<", error: " << pDict->getNdbError()
+              << endl;
+        return NDBT_FAILED;
+      }
       HugoTransactions trans(*tab2);
       trans.scanUpdateRecords(ndb, 1000);
       trans.clearTable(ndb);
@@ -5620,9 +5663,11 @@ static int
 st_load_table(ST_Con& c, ST_Tab& tab, int rows = 1000)
 {
   g_info << tab.name << ": load data rows:" << rows << endl;
-  require(tab.tab_r != 0);
-  HugoTransactions ht(*tab.tab_r);
-  chk1(ht.loadTable(c.ndb, rows) == 0);
+  chk1(tab.tab_r != NULL);
+  {
+    HugoTransactions ht(*tab.tab_r);
+    chk1(ht.loadTable(c.ndb, rows) == 0);
+  }
   return 0;
 err:
   return -1;
@@ -6658,7 +6703,7 @@ st_test_snf_parse(ST_Con& c, int arg = -1)
       uint rand = urandom(c.numdbnodes);
       node_id = c.restarter->getRandomNotMasterNodeId(rand);
       g_info << "restart node " << node_id << " (async)" << endl;
-      int flags = 0;
+      const int flags = NdbRestarter::NRRF_NOSTART;
       chk1(c.restarter->restartOneDbNode2(node_id, flags) == 0);
       chk1(c.restarter->waitNodesNoStart(&node_id, 1) == 0);
       chk1(c.restarter->startNodes(&node_id, 1) == 0);
@@ -6698,7 +6743,7 @@ st_test_mnf_parse(ST_Con& c, int arg = -1)
       require(c.numdbnodes > 1);
       node_id = c.restarter->getMasterNodeId();
       g_info << "restart node " << node_id << " (async)" << endl;
-      int flags = 0;
+      const int flags = NdbRestarter::NRRF_NOSTART;
       chk1(c.restarter->restartOneDbNode2(node_id, flags) == 0);
       chk1(c.restarter->waitNodesNoStart(&node_id, 1) == 0);
       chk1(c.restarter->startNodes(&node_id, 1) == 0);
@@ -7256,9 +7301,9 @@ st_test_list[] = {
   { "x5", 2, 0,
     func(st_test_mnf_commit2),
     "master node fail in end of commit phase" },
-  { "y1", 2, FAIL_BEGIN,
+  { "y1", 2, SUCCEED_COMMIT,
     func(st_test_mnf_start_partial),
-    "master node fail in start phase, partial rollback" },
+    "master node fail in start phase, retry will succeed" },
   { "y2", 2, FAIL_CREATE,
     func(st_test_mnf_parse_partial),
     "master node fail in parse phase, partial rollback" },
@@ -7713,7 +7758,9 @@ runTableAddPartition(NDBT_Context* ctx, NDBT_Step* step){
 
 #if 1
     // Load table
-    HugoTransactions beforeTrans(*ctx->getTab());
+    const NdbDictionary::Table* pTab;
+    CHECK((pTab = ctx->getTab()) != NULL);
+    HugoTransactions beforeTrans(*pTab);
     if (beforeTrans.loadTable(pNdb, records) != 0){
       return NDBT_FAILED;
     }
@@ -8099,6 +8146,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
   {
     const NdbDictionary::Table * org = pDic->getTable(tab.getName());
     {
+      CHECK(org != NULL);
       HugoTransactions trans(* org);
       CHECK2(trans.loadTable(pNdb, records) == 0,
            "load table failed");
@@ -8202,6 +8250,7 @@ runBug46585(NDBT_Context* ctx, NDBT_Step* step)
     pDic->invalidateTable(tab.getName());
     {
       const NdbDictionary::Table * alteredP = pDic->getTable(tab.getName());
+      CHECK(alteredP != NULL);
       HugoTransactions trans(* alteredP);
 
       int cnt;
@@ -9163,34 +9212,56 @@ runGetTabInfoRef(NDBT_Context* ctx, NDBT_Step* step)
    * This error insert makes DICT respond with GET_TABINFOREF where
    * error==busy when receiving the next GET_TABINFOREQ signal.
    */
-  require(restarter.insertErrorInAllNodes(6026) == 0);
+  restarter.insertErrorInAllNodes(6026);
 
-  int nodeSet[MAX_NDB_NODES];
-  for (int i = 0; i < restarter.getNumDbNodes() - 1; i++)
+  /* Find a node in each nodegroup to restart. */
+  Vector<int> nodeSet;
+  Bitmask<MAX_NDB_NODES/32> nodeGroupMap;
+  for (int i = 0; i < restarter.getNumDbNodes(); i++)
   {
-    nodeSet[i] = restarter.getDbNodeId(i);
-    g_info << "Node " << nodeSet[i] << " will be stopped." << endl;
+    const int node = restarter.getDbNodeId(i);
+    const int ng = restarter.getNodeGroup(node);
+    if (!nodeGroupMap.get(ng))
+    {
+      g_info << "Node " << node << " will be stopped." << endl;
+      nodeSet.push_back(node);
+      nodeGroupMap.set(ng);
+    }
   }
 
-  require(restarter.restartNodes(nodeSet, restarter.getNumDbNodes() - 1,
-                                 NdbRestarter::NRRF_NOSTART |
-                                 NdbRestarter::NRRF_ABORT) == 0);
+  if (restarter.restartNodes(nodeSet.getBase(), (int)nodeSet.size(),
+                             NdbRestarter::NRRF_NOSTART |
+                             NdbRestarter::NRRF_ABORT))
+  {
+    g_err << "Failed to stop nodes" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
 
   g_info << "Waiting for nodes to stop." << endl;
-  require(restarter.waitNodesNoStart(nodeSet, restarter.getNumDbNodes() - 1)
-          == 0);
+  if (restarter.waitNodesNoStart(nodeSet.getBase(), (int)nodeSet.size()))
+  {
+    g_err << "Failed to wait for nodes to stop" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
 
-  require(restarter.startNodes(nodeSet, restarter.getNumDbNodes() - 1) == 0);
+  if (restarter.startNodes(nodeSet.getBase(), (int)nodeSet.size()))
+  {
+    g_err << "Failed to restart nodes" << endl;
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
 
   g_info << "Waiting for nodes to start again." << endl;
   if (restarter.waitClusterStarted() != 0)
   {
     g_err << "Failed to restart cluster " << endl;
-    require(restarter.insertErrorInAllNodes(0) == 0);
+    restarter.insertErrorInAllNodes(0);
     return NDBT_FAILED;
   }
 
-  require(restarter.insertErrorInAllNodes(0) == 0);
+  restarter.insertErrorInAllNodes(0);
   return NDBT_OK;
 } // runGetTabInfoRef()
 

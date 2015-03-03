@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <md5_hash.hpp>
 
 #include <ndb_version.h>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/TuxBound.hpp>
 #include <signaldata/AccScan.hpp>
 #include <signaldata/CopyActive.hpp>
@@ -76,6 +77,7 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/SystemError.hpp>
 #include <signaldata/FireTrigOrd.hpp>
+#include <signaldata/IsolateOrd.hpp>
 #include <NdbEnv.h>
 #include <Checksum.hpp>
 
@@ -905,7 +907,7 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
 
   if (do_init)
   {
-    g_eventLogger->info("LDM instance %u: Starting REDO log initialisation",
+    g_eventLogger->info("LDM(%u): Starting REDO log initialisation",
                         instance());
   }
   ndbrequire(cnoLogFiles != 0);
@@ -977,9 +979,9 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
   if (!do_init)
   {
     jam();
-    g_eventLogger->info("LDM instance %u: Started LDM restart phase 1"
-                        " (read REDO log page headers for initialisation"
-                        " of REDO log data structures)",
+    g_eventLogger->info("LDM(%u): Started LDM restart phase 1"
+                        " (read REDO log page headers to init"
+                        " REDO log data)",
                         instance());
     sendNdbSttorryLab(signal);
   }
@@ -1277,15 +1279,17 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   if (globalData.ndbLogParts != 4 &&
       globalData.ndbLogParts != 6 &&
       globalData.ndbLogParts != 8 &&
+      globalData.ndbLogParts != 10 &&
       globalData.ndbLogParts != 12 &&
       globalData.ndbLogParts != 16 &&
+      globalData.ndbLogParts != 20 &&
       globalData.ndbLogParts != 24 &&
       globalData.ndbLogParts != 32)
   {
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf),
       "Trying to start with %d log parts, number of log parts can"
-      " only be set to 4, 6, 8, 12, 16, 24 or 32.",
+      " only be set to 4, 6, 8, 10, 12, 16, 20, 24 or 32.",
       globalData.ndbLogParts);
     progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
   }
@@ -1991,6 +1995,9 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     fragptr.p->lqhInstanceKey = getInstanceKey(tabptr.i, req->fragId);
   }
 
+  /* Init per-frag op counters */
+  fragptr.p->m_useStat.init();
+
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
     jam();
     // find corresponding primary table fragment
@@ -2506,6 +2513,7 @@ void
 Dblqh::dropTab_wait_usage(Signal* signal){
 
   TablerecPtr tabPtr;
+  FragrecordPtr loc_fragptr;
   tabPtr.i = signal->theData[1];
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
 
@@ -2528,19 +2536,20 @@ Dblqh::dropTab_wait_usage(Signal* signal){
   {
     jam();
 
-    if(lcpPtr.p->currentFragment.lcpFragOrd.tableId == tabPtr.i)
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragrec); i++)
     {
       jam();
-      lcpDone = false;
-    }
-   
-    for (Uint32 i = 0; i < lcpPtr.p->numFragLcpsQueued; i++)
-    {
-      if (lcpPtr.p->queuedFragment[i].lcpFragOrd.tableId == tabPtr.i)
+      loc_fragptr.i = tabPtr.p->fragrec[i];
+      if (loc_fragptr.i != RNIL)
       {
         jam();
-        lcpDone = false;
-        break;
+        c_fragment_pool.getPtr(loc_fragptr);
+        if (loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED ||
+            loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_EXECUTING)
+        {
+          jam();
+          lcpDone = false;
+        }
       }
     }
   }
@@ -2573,7 +2582,8 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
      * while there is an outstanding DROP_TAB_REQ.
      */
     jam();
-    sendSignalWithDelay(reference(), GSN_DROP_TAB_REQ, signal, 1000,
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_DROP_TAB_REQ, signal, 10000,
                         signal->getLength());
     return;
   }
@@ -3087,7 +3097,6 @@ void Dblqh::timer_handling(Signal *signal)
 	 << "   firstLcpLocTup=" << TlcpPtr.p->firstLcpLocTup << endl
 	 << "   lcpAccptr=" << TlcpPtr.p->lcpAccptr << endl
 	 << "   lastFragmentFlag=" << TlcpPtr.p->lastFragmentFlag << endl
-	 << "   numFragLcpsQueued=" << TlcpPtr.p->numFragLcpsQueued << endl
 	 << "   reportEmptyref=" << TlcpPtr.p->reportEmptyRef << endl
 	 << "   reportEmpty=" << TlcpPtr.p->reportEmpty << endl;
 #endif
@@ -3484,7 +3493,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       lqhKeyConf->readLen = sig3;
       lqhKeyConf->transId1 = sig4;
       lqhKeyConf->transId2 = sig5;
-      lqhKeyConf->noFiredTriggers = sig6;
+      lqhKeyConf->numFiredTriggers = sig6;
       jamBuffer()->markEndOfSigExec();
       execLQHKEYCONF(signal);
       Tstep += LqhKeyConf::SignalLength;
@@ -3496,7 +3505,30 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       sig1 = TpackedData[Tstep + 2];
       signal->theData[0] = sig0;
       signal->theData[1] = sig1;
-      signal->header.theLength = 2;
+      if ((TpackedData[Tstep] & 1) == 0)
+      {
+        /**
+         * This is the normal path where we remove a marker
+         * after commit.
+         */
+        signal->header.theLength = 2;
+      }
+      else
+      {
+        /**
+         * This is a new path that is used when removing a marker
+         * after an API node failure. We indicate this in packed
+         * signal by setting one of the 28 unused bits in the
+         * packed signal (the first word only uses the last 4 bits
+         * in the first 32-bit word.
+         *
+         * We indicate this to the execREMOVE_MARKER_ORD method
+         * by setting the Length of the signal to 3 (we cannot
+         * add an extra parameter since the signal can be sent
+         * directly and not through the packed signal interface.
+         */
+        signal->header.theLength = 3;
+      }
       jamBuffer()->markEndOfSigExec();
       execREMOVE_MARKER_ORD(signal);
       Tstep += 3;
@@ -3536,22 +3568,65 @@ Dblqh::execREMOVE_MARKER_ORD(Signal* signal)
   CommitAckMarker key;
   key.transid1 = signal->theData[0];
   key.transid2 = signal->theData[1];
+  bool removed_by_fail_api = (signal->header.theLength == 3);
   jamEntry();
   
   CommitAckMarkerPtr removedPtr;
   m_commitAckMarkerHash.remove(removedPtr, key);
-#if (defined VM_TRACE || defined ERROR_INSERT) && defined(wl4391_todo)
-  ndbrequire(removedPtr.i != RNIL);
-  m_commitAckMarkerPool.release(removedPtr);
-#else
   if (removedPtr.i != RNIL)
   {
     jam();
     ndbrequire(removedPtr.p->in_hash);
     removedPtr.p->in_hash = false;
-    m_commitAckMarkerPool.release(removedPtr);
+    removedPtr.p->reference_count = 0;
+    removedPtr.p->removed_by_fail_api = removed_by_fail_api;
+    m_commitAckMarkerPool.releaseLast(removedPtr);
   }
+  else
+  {
+    /**
+     * This can happen in a special situation. This is when a large transaction
+     * commits. As it decides to commit it sends of the commit decision to the
+     * API. As soon as the API receives this it will send a TC_COMMIT_ACK
+     * message back to DBTC. This message could arrive before the transaction
+     * is fully completed. When the TC_COMMIT_ACK it is received it is
+     * immediately transferred to the DBLQH's of the transaction owning the
+     * commit ack markers. Next if the node where DBTC resides fails after
+     * completing the sending of the TC_COMMIT_ACK, but before the transaction
+     * is completed. This can happen in cases with a large transaction doing a
+     * commit.
+     *
+     * Next step that happens is that a new DBTC takes over the transaction to
+     * complete it. It will complete the parts remaining and since all parts
+     * heard of were in the Committed state, the transaction will be committed
+     * and a TCKEY_FAILCONF will be sent to the API. This TCKEY_FAILCONF will
+     * trigger a new TC_COMMIT_ACK which will be passed through the new DBTC
+     * and sent onwards to the participating DBLQH's. The REMOVE_MARKER_ORD
+     * signal is received from DBTC here in DBLQH can thus in some cases be
+     * received when multiple times, possibly even more than twice since there
+     * could be multiple failures serially. The second and further times will
+     * end up in this else-branch. There is no longer any record in DBLQH
+     * with the received transaction id.
+     *
+     * This only happens as part of normal TC_COMMIT_ACK reception, so not when
+     * the flag removed_by_fail_api is set.
+     *
+     * It can also happen in a situation where we are performing a TC takeover.
+     * If an LQH instance reports having a marker, then the new TC inserts all
+     * LQH instances as having the marker. So this means that a lot of LQH
+     * instances will receive this message even when they haven't claimed to
+     * have the marker. This is so since the protocol in LQH_TRANSCONF doesn't
+     * specify which LQH instances that sent the LQH_TRANSCONF. Actually this
+     * isn't entirely true since the senders block reference is always received
+     * as part of Protocol6, thus we can actually find the LQH instance from
+     * this. But for now we take this safe approach and send too many signals.
+     * These signals will also end up in this branch.
+     */
+#if (defined VM_TRACE || defined ERROR_INSERT) && defined(wl4391_todo)
+    ndbout_c("%u Rem marker failed[%.8x %.8x] remove_by_fail_api = %u", instance(),
+             key.transid1, key.transid2, removed_by_fail_api);
 #endif
+  }
 #ifdef MARKER_TRACE
   ndbout_c("%u Rem marker[%.8x %.8x]", instance(), key.transid1, key.transid2);
 #endif
@@ -3708,10 +3783,17 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
 
   switch (regTcPtr.p->transactionState) {
   case TcConnectionrec::WAIT_TUP:
-    jam();
-    if (regTcPtr.p->seqNoReplica == 0) // Primary replica
-      regTcPtr.p->noFiredTriggers = tupKeyConf->noFiredTriggers;
-    tupkeyConfLab(signal, regTcPtr.p);
+    {
+      jam();
+      if (regTcPtr.p->seqNoReplica == 0) // Primary replica
+        regTcPtr.p->numFiredTriggers = tupKeyConf->numFiredTriggers;
+      
+      Fragrecord::UsageStat& useStat = regFragptr.p->m_useStat;
+      useStat.m_keyReqWordsReturned += tupKeyConf->readLength;
+      useStat.m_keyInstructionCount += tupKeyConf->noExecInstructions;
+      
+      tupkeyConfLab(signal, regTcPtr.p);
+    }
     break;
   case TcConnectionrec::COPY_TUPKEY:
     jam();
@@ -3800,8 +3882,13 @@ void Dblqh::execTUPKEYREF(Signal* signal)
 
   switch (tcConnectptr.p->transactionState) {
   case TcConnectionrec::WAIT_TUP:
-    jam();
-    abortErrorLab(signal);
+    {
+      jam();
+      Fragrecord::UsageStat& useStat = regFragptr.p->m_useStat;
+      useStat.m_keyRefCount++;
+      useStat.m_keyInstructionCount += tupKeyRef->noExecInstructions;
+      abortErrorLab(signal);
+    }
     break;
   case TcConnectionrec::COPY_TUPKEY:
     copyTupkeyRefLab(signal);
@@ -4106,11 +4193,11 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
   Uint32 readlenAi = tcConnectptr.p->readlenAi;
   Uint32 transid1 = tcConnectptr.p->transid[0];
   Uint32 transid2 = tcConnectptr.p->transid[1];
-  Uint32 noFiredTriggers = tcConnectptr.p->noFiredTriggers;
+  Uint32 numFiredTriggers = tcConnectptr.p->numFiredTriggers;
   lqhKeyConf->readLen = readlenAi;
   lqhKeyConf->transId1 = transid1;
   lqhKeyConf->transId2 = transid2;
-  lqhKeyConf->noFiredTriggers = noFiredTriggers;
+  lqhKeyConf->numFiredTriggers = numFiredTriggers;
 
   if (!send_packed)
   {
@@ -4675,6 +4762,25 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
   return;
 }
 
+// Get size of interpreted program, in words.
+static inline Uint32 getProgramWordCount(SegmentedSectionPtr attrInfo)
+{
+  /*
+    The second word of 'attrinfo' contains the length of the interpreted
+    program, and the fifth contains the length of associated subroutines. 
+    (There should be a header of 5 length fields at the start of
+    'attrinfo'.)
+  */
+  assert(attrInfo.sz>=5);
+  SectionReader aiReader(attrInfo, g_sectionSegmentPool);
+  Uint32 header[5];
+  const bool ok = 
+    aiReader.getWords(header, sizeof(header)/sizeof(header[0]));
+  assert(ok);
+  (void) ok; // Prevent compiler warning.
+  return header[1]+header[4];
+}
+
 /* ------------------------------------------------------------------------- */
 /* -------                TAKE CARE OF LQHKEYREQ                     ------- */
 /* LQHKEYREQ IS THE SIGNAL THAT STARTS ALL OPERATIONS IN THE LQH BLOCK       */
@@ -4763,10 +4869,14 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     return;
   }
   
-  cTotalLqhKeyReqCount++;
-  c_Counters.operations++;
+  Uint32 tot_lqh_key_req_count = cTotalLqhKeyReqCount;
+  Uint32 num_operations = c_Counters.operations;
 
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
+  jamLine(tcConnectptr.i & 0xFFFF);
+  c_Counters.operations = num_operations + 1;
+  cTotalLqhKeyReqCount = tot_lqh_key_req_count + 1;
+
   Uint32 senderRef = regTcPtr->clientBlockref = signal->senderBlockRef();
   regTcPtr->clientConnectrec = sig0;
   regTcPtr->tcOprec = sig0;
@@ -4803,7 +4913,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       ((op == ZREAD || op == ZREAD_EX) && !getAllowRead()))
   {
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_SHUTDOWN_IN_PROGESS);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_SHUTDOWN_IN_PROGRESS);
     return;
   }
 
@@ -4811,7 +4921,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
   {
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_FAILURE_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_SHUTDOWN_IN_PROGRESS);
     return;
   }
   
@@ -4854,6 +4964,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
         We increase the reference count to ensure we don't remove the
         commit ack marker prematurely.
       */
+      ndbrequire(markerPtr.p->in_hash == true);
+      ndbrequire(markerPtr.p->reference_count > 0);
       markerPtr.p->reference_count++;
 #ifdef MARKER_TRACE
       ndbout_c("Inc marker[%.8x %.8x] op: %u ref: %u", 
@@ -4920,7 +5032,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
                           (regTcPtr->opSimple || regTcPtr->dirtyOp) &&
                           refToNode(signal->senderBlockRef()) != cownNodeid));
 
-  regTcPtr->noFiredTriggers = lqhKeyReq->noFiredTriggers;
+  regTcPtr->numFiredTriggers = lqhKeyReq->numFiredTriggers;
 
   UintR TapplAddressInd = LqhKeyReq::getApplicationAddressFlag(Treqinfo);
   UintR nextPos = (TapplAddressInd << 1);
@@ -5203,6 +5315,53 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       c_fragCopyRowsIns++;
     
     c_fragBytesCopied+= (signal->length() << 2);
+  }
+  else
+  {
+    Fragrecord::UsageStat& useStat = fragptr.p->m_useStat;
+    /* Don't count for NR fragcopy, just 'normal' operation */
+    switch (op)
+    {
+    case ZREAD:
+    case ZREAD_EX:
+    case ZUNLOCK:
+      useStat.m_readKeyReqCount++;
+      break;
+
+    case ZUPDATE:
+      useStat.m_updKeyReqCount++;
+      break;
+      
+    case ZINSERT:
+      useStat.m_insKeyReqCount++;
+      break;
+      
+    case ZWRITE:
+      useStat.m_writeKeyReqCount++;
+      break;
+      
+    case ZDELETE:
+      useStat.m_delKeyReqCount++;
+      break;
+      
+    default:
+      // ZREFRESH is not counted.
+      break;
+    }
+    useStat.m_keyReqAttrWords += regTcPtr->totReclenAi;
+    useStat.m_keyReqKeyWords += TitcKeyLen;
+    if (unlikely(LqhKeyReq::getInterpretedFlag(Treqinfo) && isLongReq))
+    {
+      /* 
+        Complete attrinfo may not have been received yet for short-signal 
+        lookups. We ignore these, since they only happen during online 
+        upgrade.
+      */
+      ndbassert(regTcPtr->attrInfoIVal != RNIL);
+      SegmentedSectionPtr attrInfo;
+      getSection(attrInfo, regTcPtr->attrInfoIVal);
+      useStat.m_keyProgramWords += getProgramWordCount(attrInfo);
+    }
   }
   
   Uint8 TcopyType = fragptr.p->fragCopy;
@@ -6187,7 +6346,7 @@ void Dblqh::handleUserUnlockRequest(Signal* signal)
   regTcPtr->readlenAi = tcOpRecIndex;
 
   /* Clear number of fired triggers */
-  regTcPtr->noFiredTriggers = 0;
+  regTcPtr->numFiredTriggers = 0;
   
   /* Now send the LQHKEYCONF to TC */
   sendLqhkeyconfTc(signal, regTcPtr->tcBlockref);
@@ -7153,7 +7312,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   lqhKeyReq->fragmentData = sig1;
   lqhKeyReq->transId1 = sig2;
   lqhKeyReq->transId2 = sig3;
-  lqhKeyReq->noFiredTriggers = regTcPtr->noFiredTriggers;
+  lqhKeyReq->numFiredTriggers = regTcPtr->numFiredTriggers;
   lqhKeyReq->variableData[0] = sig4;
   lqhKeyReq->variableData[1] = sig5;
   lqhKeyReq->variableData[2] = sig6;
@@ -7885,7 +8044,7 @@ Dblqh::execFIRE_TRIG_REQ(Signal* signal)
       conf->tcOpRec = tcOprec;
       conf->transId[0] = transid1;
       conf->transId[1] = transid2;
-      conf->noFiredTriggers = cnt;
+      conf->numFiredTriggers = cnt;
       sendFireTrigConfTc(signal, regTcPtr->tcBlockref, Tdata);
       return;
     }
@@ -8873,8 +9032,45 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
            instance(), tmp.p->transid1, tmp.p->transid2,
            Uint32(regTcPtr - tcConnectionrec), tmp.p->reference_count);
 #endif
+  if (tmp.p->in_hash == false)
+  {
+    ndbout_c("%u remove_commit_marker failed[%.8x %.8x]"
+             " remove_by_fail_api = %u"
+             " ack marker transid[%.8x %.8x]"
+             " ack marker ref count = %d",
+             instance(),
+             regTcPtr->transid[0],
+             regTcPtr->transid[1],
+             tmp.p->removed_by_fail_api,
+             tmp.p->transid1,
+             tmp.p->transid2,
+             tmp.p->reference_count);
+    ndbrequire(tmp.p->reference_count == 0);
+    ndbrequire(false);
+    return;
+  }
   ndbrequire(tmp.p->reference_count > 0);
-  ndbrequire(tmp.p->in_hash);
+  if (regTcPtr->transid[0] != tmp.p->transid1 ||
+      regTcPtr->transid[1] != tmp.p->transid2)
+  {
+    /**
+     * We refer to a commit ack marker that have already been removed
+     * and even reused by another transaction.
+     */
+    ndbout_c("%u remove_commit_marker failed, moved[%.8x %.8x]"
+             " remove_by_fail_api = %u"
+             " ack marker transid[%.8x %.8x]"
+             " ack marker ref count = %d",
+             instance(),
+             regTcPtr->transid[0],
+             regTcPtr->transid[1],
+             tmp.p->removed_by_fail_api,
+             tmp.p->transid1,
+             tmp.p->transid2,
+             tmp.p->reference_count);
+    ndbrequire(false);
+    return;
+  }
   tmp.p->reference_count--;
   if (tmp.p->reference_count == 0)
   {
@@ -8887,7 +9083,7 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
     ndbrequire(removedPtr.i != RNIL);
     ndbrequire(removedPtr.i == tmp.i);
     removedPtr.p->in_hash = false;
-    m_commitAckMarkerPool.release(removedPtr);
+    m_commitAckMarkerPool.releaseLast(removedPtr);
   }
 }
 
@@ -9048,6 +9244,7 @@ void Dblqh::execACCKEYREF(Signal* signal)
   switch (tcPtr->transactionState) {
   case TcConnectionrec::WAIT_ACC:
     jam();
+    c_fragment_pool.getPtr(tcPtr->fragmentptr)->m_useStat.m_keyRefCount++;
     break;
   case TcConnectionrec::WAIT_ACC_ABORT:
   case TcConnectionrec::ABORT_QUEUED:
@@ -11135,6 +11332,21 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
        * these sections, usually via releaseOprec()
        */
       handle.clear();
+
+      /* 
+         Update per fragment statistics. 'attrInfoPtr' is not defined for 
+         short-signal scans, so we ignore these, since they only happen 
+         during online upgrades.
+       */
+      if (!ScanFragReq::getLcpScanFlag(reqinfo))
+      {
+        jam();
+        Fragrecord::UsageStat& useStat =
+          c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+        useStat.m_scanFragReqCount++;
+        useStat.m_scanBoundWords+= keyLen;
+        useStat.m_scanProgramWords+= getProgramWordCount(attrInfoPtr);
+      }
     }
 
     if (ScanFragReq::getCorrFactorFlag(reqinfo))
@@ -11966,6 +12178,16 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   UintR tdata5 = conf->lastRow;
   c_scanRecordPool.getPtr(scanptr);
 
+  if (!scanptr.p->lcpScan)
+  {
+    Fragrecord::UsageStat& useStat = 
+      c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+    ndbassert(useStat.m_scanFragReqCount > 0);
+
+    useStat.m_scanRowsExamined++;
+    useStat.m_scanInstructionCount += conf->noExecInstructions;
+  }
+
   regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
 
   ScanRecord * const scanPtr = scanptr.p;
@@ -12094,6 +12316,19 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
   c_scanRecordPool.getPtr(scanptr);
   ScanRecord * const scanPtr = scanptr.p;
   regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
+
+  if (!scanptr.p->lcpScan)
+  {
+    Fragrecord::UsageStat& useStat = 
+      c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+    ndbassert(useStat.m_scanFragReqCount > 0);
+
+    useStat.m_scanRowsExamined++;
+
+    const TupKeyRef* const ref =
+      reinterpret_cast<const TupKeyRef*>(signal->getDataPtr());
+    useStat.m_scanInstructionCount += ref->noExecInstructions;
+  }
 
   Uint32 rows = scanPtr->m_curr_batch_size_rows;
   Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanPtr, rows, false);
@@ -12261,12 +12496,25 @@ void Dblqh::tupScanCloseConfLab(Signal* signal)
     jam();
     sendScanFragConf(signal, ZSCAN_FRAG_CLOSED);
   }//if
-  finishScanrec(signal);
-  releaseScanrec(signal);
-  tcConnectptr.p->tcScanRec = RNIL;
-  deleteTransidHash(signal);
-  releaseOprec(signal);
-  releaseTcrec(signal, tcConnectptr);
+  {
+    ScanRecordPtr restart;
+    bool restart_flag = finishScanrec(signal, restart);
+    releaseScanrec(signal);
+    tcConnectptr.p->tcScanRec = RNIL;
+    deleteTransidHash(signal);
+    releaseOprec(signal);
+    releaseTcrec(signal, tcConnectptr);
+    if (restart_flag)
+    {
+      jam();
+      tcConnectptr.i = restart.p->scanTcrec;
+      ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+      scanptr = restart;
+      continueAfterReceivingAllAiLab(signal);
+      return;
+    }
+    return;
+  }
 }//Dblqh::tupScanCloseConfLab()
 
 /* ========================================================================= 
@@ -12425,7 +12673,17 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   }
   ndbrequire((start < 32 * tFragPtr.p->m_scanNumberMask.Size) &&
              (stop < 32 * tFragPtr.p->m_scanNumberMask.Size));
-  Uint32 free = tFragPtr.p->m_scanNumberMask.find(start);
+
+  /*
+    This error insert causes an SPJ index scan to be queued (see ndbinfo.test).
+    Checking 5084 twice to ensure that the optimized build will see this as 
+    'testQueue = false' and not generate code to evaluate subsequent terms.
+  */
+  const bool testQueue = ERROR_INSERTED(5084) && rangeScan && 
+    refToMain(resultRef)==DBSPJ && ERROR_INSERTED_CLEAR(5084);
+
+  const Uint32 free = testQueue ? Fragrecord::ScanNumberMask::NotFound : 
+    tFragPtr.p->m_scanNumberMask.find(start);
   
   if(free == Fragrecord::ScanNumberMask::NotFound || free >= stop){
     jam();
@@ -12439,11 +12697,12 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
      * Put on queue
      */
     scanPtr->scanState = ScanRecord::IN_QUEUE;
-    LocalDLFifoList<ScanRecord> queue(c_scanRecordPool,
-				      tupScan == 0 ? 
-                                      fragptr.p->m_queuedScans :
-                                      fragptr.p->m_queuedTupScans);
+    LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
+                                       tupScan == 0 ? 
+                                       fragptr.p->m_queuedScans :
+                                       fragptr.p->m_queuedTupScans);
     queue.addLast(scanptr);
+    fragptr.p->m_useStat.m_queuedScanCount++;
     return ZOK;
   }
   
@@ -12451,7 +12710,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   tFragPtr.p->m_scanNumberMask.clear(free);// Update mask  
   
   {
-    LocalDLList<ScanRecord> active(c_scanRecordPool, fragptr.p->m_activeScans);
+    LocalDLCList<ScanRecord> active(c_scanRecordPool, fragptr.p->m_activeScans);
     active.addFirst(scanptr);
   }
   if(scanPtr->scanKeyinfoFlag){
@@ -12535,19 +12794,19 @@ void Dblqh::initScanTc(const ScanFragReq* req,
  * 
  *       REMOVE SCAN RECORD FROM PER FRAGMENT LIST.
  * ========================================================================= */
-void Dblqh::finishScanrec(Signal* signal)
+bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
 {
   ScanRecord * const scanPtr = scanptr.p;
   release_acc_ptr_list(scanPtr);
 
   Uint32 tupScan = scanPtr->tupScan;
-  LocalDLFifoList<ScanRecord> queue(c_scanRecordPool,
-                                    tupScan == 0 ? 
-                                    fragptr.p->m_queuedScans :
-                                    fragptr.p->m_queuedTupScans);
   
   if (scanPtr->scanState == ScanRecord::IN_QUEUE)
   {
+    LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
+                                       tupScan == 0 ? 
+                                       fragptr.p->m_queuedScans :
+                                       fragptr.p->m_queuedTupScans);
     jam();
     if (scanPtr->m_reserved == 0)
     {
@@ -12560,11 +12819,11 @@ void Dblqh::finishScanrec(Signal* signal)
       queue.remove(scanptr);
       m_reserved_scans.addFirst(scanptr);
     }
-
-    return;
+    return false;
   }
 
-  if(scanPtr->scanKeyinfoFlag){
+  if (scanPtr->scanKeyinfoFlag)
+  {
     jam();
     ScanRecordPtr tmp;
 #ifdef TRACE_SCAN_TAKEOVER
@@ -12588,7 +12847,7 @@ void Dblqh::finishScanrec(Signal* signal)
      * can easily lead to false positives in asserts in the template
      * code generated by the object.
      */
-    LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
+    LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
     if (scanPtr->m_reserved == 0)
     {
       jam();
@@ -12610,36 +12869,38 @@ void Dblqh::finishScanrec(Signal* signal)
   ndbrequire(!tFragPtr.p->m_scanNumberMask.get(scanNumber));
   ScanRecordPtr restart;
 
-  /**
-   * Start of queued scans
-   */
-  if(scanNumber == NR_ScanNo || !queue.first(restart)){
-    jam();
-    tFragPtr.p->m_scanNumberMask.set(scanNumber);
-    return;
-  }
-
-  if(ERROR_INSERTED(5034)){
-    jam();
-    tFragPtr.p->m_scanNumberMask.set(scanNumber);
-    return;
-  }
-
-  ndbrequire(restart.p->scanState == ScanRecord::IN_QUEUE);
-
-  ScanRecordPtr tmpScan = scanptr;
-  TcConnectionrecPtr tmpTc = tcConnectptr;
-  
-  tcConnectptr.i = restart.p->scanTcrec;
-  ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-  restart.p->scanNumber = scanNumber;
-
-  queue.remove(restart);
   {
-    LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
+    LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
+                                       tupScan == 0 ? 
+                                       fragptr.p->m_queuedScans :
+                                       fragptr.p->m_queuedTupScans);
+    /**
+     * Start of queued scans
+     */
+    if (scanNumber == NR_ScanNo || !queue.first(restart))
+    {
+      jam();
+      tFragPtr.p->m_scanNumberMask.set(scanNumber);
+      return false;
+    }
+
+    if(ERROR_INSERTED(5034))
+    {
+      jam();
+      tFragPtr.p->m_scanNumberMask.set(scanNumber);
+      return false;
+    }
+    ndbrequire(restart.p->scanState == ScanRecord::IN_QUEUE);
+    queue.remove(restart);
+  }
+
+  restart.p->scanNumber = scanNumber;
+  {
+    LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
     scans.addFirst(restart);
   }
-  if(restart.p->scanKeyinfoFlag){
+  if(restart.p->scanKeyinfoFlag)
+  {
     jam();
 #if defined VM_TRACE || defined ERROR_INSERT
     ScanRecordPtr tmp;
@@ -12657,16 +12918,17 @@ void Dblqh::finishScanrec(Signal* signal)
   restart.p->scanState = ScanRecord::SCAN_FREE;
   if(tcConnectptr.p->transactionState == TcConnectionrec::SCAN_STATE_USED)
   {
-    scanptr = restart;
-    continueAfterReceivingAllAiLab(signal);  
+    jam();
+    restart_scan = restart;
+    return true;
   }
   else
   {
-    ndbrequire(tcConnectptr.p->transactionState == TcConnectionrec::WAIT_SCAN_AI);
+    jam();
+    ndbrequire(tcConnectptr.p->transactionState ==
+               TcConnectionrec::WAIT_SCAN_AI);
+    return false;
   }
-  
-  scanptr = tmpScan;
-  tcConnectptr = tmpTc;
 }//Dblqh::finishScanrec()
 
 /* ========================================================================= 
@@ -12837,6 +13099,18 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
     return;
   }
 
+  if (!scanPtr->lcpScan)
+  {
+    jam();
+    Fragrecord::UsageStat& useStat = 
+      c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+    ndbassert(useStat.m_scanFragReqCount > 0);
+
+    useStat.m_scanRowsReturned += scanPtr->m_curr_batch_size_rows;
+    useStat.m_scanWordsReturned += 
+      scanPtr->m_curr_batch_size_bytes/sizeof(Uint32);
+  }
+
   if(!scanPtr->scanLockHold)
   {
     jam();
@@ -12947,7 +13221,7 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
   if (c_fragmentCopyStart == 0)
   {
     c_fragmentCopyStart = NdbTick_CurrentMillisecond();
-    g_eventLogger->info("LDM instance %u: Starting to copy fragments.",
+    g_eventLogger->info("LDM(%u): Starting to copy fragments.",
                         instance());
   }
   c_fragmentsCopied++;
@@ -13043,7 +13317,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   }//if
 
   {
-    LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
+    LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
     ndbrequire(m_reserved_scans.first(scanptr));
     m_reserved_scans.remove(scanptr);
     scans.addFirst(scanptr);
@@ -13896,11 +14170,24 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal)
     }//if
   }//if
   releaseActiveCopy(signal);
-  tcConnectptr.p->tcScanRec = RNIL;
-  finishScanrec(signal);
-  releaseOprec(signal);
-  releaseTcrec(signal, tcConnectptr);
-  releaseScanrec(signal);
+  {
+    ScanRecordPtr restart;
+    bool restart_flag = finishScanrec(signal, restart);
+    releaseScanrec(signal);
+    tcConnectptr.p->tcScanRec = RNIL;
+    releaseOprec(signal);
+    releaseTcrec(signal, tcConnectptr);
+    if (restart_flag)
+    {
+      jam();
+      tcConnectptr.i = restart.p->scanTcrec;
+      ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+      scanptr = restart;
+      continueAfterReceivingAllAiLab(signal);
+      return;
+    }
+    return;
+  }
 }//Dblqh::tupCopyCloseConfLab()
 
 /*---------------------------------------------------------------------------*/
@@ -14222,6 +14509,11 @@ void Dblqh::sendCopyActiveConf(Signal* signal, Uint32 tableId)
  * ------------------------------------------------------------------------- */
 void Dblqh::execEMPTY_LCP_REQ(Signal* signal)
 {
+  /**
+   * This code executes only in ndbd nodes. In ndbmtd the Dblqh Proxy will
+   * take over of this processing. But since ndbd have no proxy block we have
+   * to handle it for ndbd here in the local Dblqh block.
+   */
   jamEntry();
   CRASH_INSERTION(5008);
   EmptyLcpReq * const emptyLcpOrd = (EmptyLcpReq*)&signal->theData[0];
@@ -14249,10 +14541,6 @@ void Dblqh::execEMPTY_LCP_REQ(Signal* signal)
       sendEMPTY_LCP_CONF(signal, false);
       break;
     case LCP_CLOSE_STARTED:
-      jam();
-    case ACC_LCP_CLOSE_COMPLETED:
-      jam();
-    case TUP_LCP_CLOSE_COMPLETED:
       jam();
       ok = true;
       break;
@@ -14294,7 +14582,7 @@ Dblqh::force_lcp(Signal* signal)
   }
 
   c_last_force_lcp_time = cLqhTimeOutCount;
-  signal->theData[0] = 7099;
+  signal->theData[0] = DumpStateOrd::DihStartLcpImmediately;
   sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
 }
 
@@ -14311,33 +14599,6 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
   
-  lcpPtr.p->lastFragmentFlag = lcpFragOrd->lastFragmentFlag;
-  if (lcpFragOrd->lastFragmentFlag)
-  {
-    jam();
-    CRASH_INSERTION(5054);
-    if (lcpPtr.p->lcpState == LcpRecord::LCP_IDLE) {
-      jam();
-      /* ----------------------------------------------------------
-       *       NOW THE COMPLETE LOCAL CHECKPOINT ROUND IS COMPLETED.  
-       * -------------------------------------------------------- */
-      if (cnoOfFragsCheckpointed > 0) {
-        jam();
-        completeLcpRoundLab(signal, lcpId);
-      } else {
-        jam();
-        clcpCompletedState = LCP_IDLE;
-        sendLCP_COMPLETE_REP(signal, lcpId);
-      }//if
-    }
-    return;
-  }//if
-  tabptr.i = lcpFragOrd->tableId;
-  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  
-  lcpPtr.i = 0;
-  ptrAss(lcpPtr, lcpRecord);
-
   if (c_lcpId < lcpFragOrd->lcpId)
   {
     jam();
@@ -14368,10 +14629,74 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     setLogTail(signal, lcpFragOrd->keepGci);
     ndbrequire(clcpCompletedState == LCP_IDLE);
     clcpCompletedState = LCP_RUNNING;
+
+    /**
+     * We preset some variables that will stay the same for the entire
+     * LCP execution.
+     */
+    lcpPtr.p->currentFragment.lcpFragOrd.lcpId = c_lcpId;
+    lcpPtr.p->currentFragment.lcpFragOrd.keepGci = lcpFragOrd->keepGci;
+    lcpPtr.p->currentFragment.lcpFragOrd.lastFragmentFlag = FALSE;
+    /* These should be set before each LCP fragment execution */
+    lcpPtr.p->currentFragment.lcpFragOrd.tableId = RNIL;
+    lcpPtr.p->currentFragment.lcpFragOrd.fragmentId = RNIL;
+    lcpPtr.p->currentFragment.lcpFragOrd.lcpNo = RNIL;
+  }
+  else
+  {
+    jam();
+    ndbrequire(c_lcpId == lcpFragOrd->lcpId);
+    if (lcpPtr.p->lastFragmentFlag)
+    {
+      jam();
+      /**
+       * Drop any message received after LCP_FRAG_ORD with last fragment
+       * marker, must be ndbd we're running since Proxy should handle this.
+       * Can happen after a master takeover.
+       *
+       * DIH doesn't keep track of number of outstanding messages, so
+       * no need to do anything when receiving multiple LCP_FRAG_ORDs
+       * that are discarded.
+       */
+      ndbrequire(!isNdbMtLqh());
+      return;
+    }
   }
   
-  if (! (tabptr.p->tableStatus == Tablerec::TABLE_DEFINED || tabptr.p->tableStatus == Tablerec::TABLE_READ_ONLY))
+  if (lcpFragOrd->lastFragmentFlag)
   {
+    jam();
+    lcpPtr.p->lastFragmentFlag = true;
+    CRASH_INSERTION(5054);
+    if (lcpPtr.p->lcpState == LcpRecord::LCP_IDLE) {
+      jam();
+      /* ----------------------------------------------------------
+       *       NOW THE COMPLETE LOCAL CHECKPOINT ROUND IS COMPLETED.  
+       * -------------------------------------------------------- */
+      if (cnoOfFragsCheckpointed > 0) {
+        jam();
+        completeLcpRoundLab(signal, lcpId);
+      } else {
+        jam();
+        sendLCP_COMPLETE_REP(signal, lcpId);
+      }//if
+    }
+    return;
+  }//if
+
+  tabptr.i = lcpFragOrd->tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+  
+  if (! (tabptr.p->tableStatus == Tablerec::TABLE_DEFINED ||
+         tabptr.p->tableStatus == Tablerec::TABLE_READ_ONLY))
+  {
+    /**
+     * There is no way to discover if we had multiple messages for this
+     * since the table is already deleted and we don't keep information
+     * about it anymore. Should not be a problem since the signal is
+     * likely to be dropped somewhere and an extra LCP_FRAG_REP to a
+     * dropped table will simply be dropped again in DBDIH.
+     */
     jam();
     LcpRecord::FragOrd fragOrd;
     fragOrd.fragPtrI = RNIL;
@@ -14384,21 +14709,55 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     return;
   }
 
-  cnoOfFragsCheckpointed++;
   ndbrequire(getFragmentrec(signal, lcpFragOrd->fragmentId));
+
+  if (fragptr.p->lcp_frag_ord_lcp_id == lcpFragOrd->lcpId)
+  {
+    /**
+     * The LCP_FRAG_ORD have already been received, we need to send a report
+     * back to the Proxy for ndbmtd to keep the outstanding counter up-to-date.
+     * For ndbd we can simply drop the signal.
+     */
+    jam();
+    if (!isNdbMtLqh())
+    {
+      jam();
+      return;
+    }
+    /**
+     * This signal is identified by its length, it will be used to decrease
+     * the number of outstanding LCP_FRAG_ORD operations to the LQH instances.
+     * From a modular point of view DBLQH will always drop this LCP_FRAG_ORD
+     * since it already received it. In the case of ndbmtd we do however need
+     * to ensure that DBLQH proxy also knows about the drop since it keeps
+     * track of the number of outstanding LCP_FRAG_ORDs. When DBLQH proxy
+     * receives this signal it will update the counter and then drop the
+     * signal. So no signal will be sent to DBDIH in any case.
+     */
+    sendSignal(DBLQH_REF, GSN_LCP_FRAG_REP, signal, 1, JBB);
+    return;
+  }
+
+  /**
+   * Add the fragment to the queue of LCP_FRAG_ORDs.
+   * We need to store lcpId as a flag that we received an
+   * LCP_FRAG_ORD for this LCP, we need the lcpNo for
+   * later when executing the LCP and we need the state
+   * to indicate if we have completed the LCP yet which
+   * is needed for drop table.
+   */
+  fragptr.p->lcp_frag_ord_lcp_no = lcpFragOrd->lcpNo;
+  fragptr.p->lcp_frag_ord_lcp_id = lcpFragOrd->lcpId;
+  fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_QUEUED;
+  c_queued_lcp_frag_ord.addLast(fragptr);
+
+  cnoOfFragsCheckpointed++;
 
   if (lcpPtr.p->lcpState != LcpRecord::LCP_IDLE)
   {
-    Uint32 index = lcpPtr.p->numFragLcpsQueued;
-    lcpPtr.p->queuedFragment[index].fragPtrI = fragptr.i;
-    lcpPtr.p->queuedFragment[index].lcpFragOrd = * lcpFragOrd;
-    lcpPtr.p->numFragLcpsQueued++;
+    jam();
     return;
   }//if
-  
-  lcpPtr.p->currentFragment.fragPtrI = fragptr.i;
-  lcpPtr.p->currentFragment.lcpFragOrd = * lcpFragOrd;
-  
   sendLCP_FRAGIDREQ(signal);
 }//Dblqh::execLCP_FRAGORD()
 
@@ -14718,26 +15077,20 @@ void Dblqh::contChkpNextFragLab(Signal* signal)
   /**
    * Send rep when fragment is done + unblocked
    */
-  sendLCP_FRAG_REP(signal, lcpPtr.p->currentFragment,
-                   c_fragment_pool.getPtr(lcpPtr.p->currentFragment.fragPtrI));
+  FragrecordPtr curr_fragptr;
+  curr_fragptr.i = lcpPtr.p->currentFragment.fragPtrI;
+  c_fragment_pool.getPtr(curr_fragptr);
+  curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+  sendLCP_FRAG_REP(signal, lcpPtr.p->currentFragment, curr_fragptr.p);
   
   /* ------------------------------------------------------------------------
    *       WE ALSO RELEASE THE LOCAL LCP RECORDS.
    * ----------------------------------------------------------------------- */
-  if (lcpPtr.p->numFragLcpsQueued) {
+  if (!c_queued_lcp_frag_ord.isEmpty())
+  {
     jam();
     /* ----------------------------------------------------------------------
-     *  Transfer the state from the queued to the active LCP.
-     * --------------------------------------------------------------------- */
-    lcpPtr.p->currentFragment = lcpPtr.p->queuedFragment[0];
-    for (Uint32 i = 1; i < lcpPtr.p->numFragLcpsQueued; i++)
-    {
-      lcpPtr.p->queuedFragment[i - 1] = lcpPtr.p->queuedFragment[i];
-    }
-    lcpPtr.p->numFragLcpsQueued--;
-    
-    /* ----------------------------------------------------------------------
-     *       START THE QUEUED LOCAL CHECKPOINT.
+     *       START THE FIRST QUEUED LOCAL CHECKPOINT.
      * --------------------------------------------------------------------- */
     sendLCP_FRAGIDREQ(signal);
     return;
@@ -14762,9 +15115,23 @@ void Dblqh::contChkpNextFragLab(Signal* signal)
 
 void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
 {
+  FragrecordPtr curr_fragptr;
   TablerecPtr tabPtr;
-  tabPtr.i = lcpPtr.p->currentFragment.lcpFragOrd.tableId;
-  ptrAss(tabPtr, tablerec);
+  /* ----------------------------------------------------------------------
+   *  Remove first queued fragment from queue.
+   *  Transfer the state from the queued to the active LCP.
+   * --------------------------------------------------------------------- */
+  c_queued_lcp_frag_ord.first(curr_fragptr);
+  c_queued_lcp_frag_ord.removeFirst(curr_fragptr);
+
+  tabPtr.i = curr_fragptr.p->tabRef;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+  curr_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTING;
+  lcpPtr.p->currentFragment.fragPtrI = curr_fragptr.i;
+  lcpPtr.p->currentFragment.lcpFragOrd.lcpNo =
+    curr_fragptr.p->lcp_frag_ord_lcp_no;
+  lcpPtr.p->currentFragment.lcpFragOrd.fragmentId = curr_fragptr.p->fragId;
+  lcpPtr.p->currentFragment.lcpFragOrd.tableId = tabPtr.i;
 
   if(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED)
   {
@@ -14896,7 +15263,6 @@ void Dblqh::execEND_LCPCONF(Signal* signal)
   if(lcpPtr.p->m_outstanding == 0)
   {
     jam();
-    clcpCompletedState = LCP_IDLE;
     sendLCP_COMPLETE_REP(signal, lcpPtr.p->currentFragment.lcpFragOrd.lcpId);
 
     CRASH_INSERTION(5056);
@@ -14912,8 +15278,8 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   lcpPtr.i = 0;
   ptrAss(lcpPtr, lcpRecord);
 
-  infoEvent("LDM instance %u: Completed LCP, num fragments = %u"
-            " num records = %llu, num bytes = %llu",
+  infoEvent("LDM(%u): Completed LCP, #frags = %u"
+            " #records = %llu, #bytes = %llu",
             instance(),
             cnoOfFragsCheckpointed,
             lcpPtr.p->m_no_of_records,
@@ -14924,6 +15290,7 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   lcpPtr.p->m_no_of_records = 0;
   lcpPtr.p->m_no_of_bytes = 0;
   cnoOfFragsCheckpointed = 0;
+  clcpCompletedState = LCP_IDLE;
   
   LcpCompleteRep* rep = (LcpCompleteRep*)signal->getDataPtrSend();
   rep->nodeId = getOwnNodeId();
@@ -16640,7 +17007,7 @@ void Dblqh::closingInitLab(Signal* signal)
 void Dblqh::checkInitCompletedLab(Signal* signal) 
 {
   logPartPtr.p->logPartState = LogPartRecord::SR_FIRST_PHASE_COMPLETED;
-  g_eventLogger->info("LDM instance %u: Completed REDO log initialisation of"
+  g_eventLogger->info("LDM(%u): Completed REDO log initialisation of"
                       " logPart = %u",
                       instance(),
                       logPartPtr.i);
@@ -16678,7 +17045,7 @@ void Dblqh::checkInitCompletedLab(Signal* signal)
 #ifdef VM_TRACE
   enable_global_variables();
 #endif
-  g_eventLogger->info("LDM instance %u: Completed REDO initialisation",
+  g_eventLogger->info("LDM(%u): Completed REDO initialisation",
                       instance());
   logfileInitCompleteReport(signal);
   sendNdbSttorryLab(signal);
@@ -17598,7 +17965,7 @@ void Dblqh::closingSrLab(Signal* signal)
   /* ------------------------------------------------------------------------
    *       THE FIRST PHASE HAVE BEEN COMPLETED.
    * ------------------------------------------------------------------------ */
-  g_eventLogger->info("LDM instance %u:"
+  g_eventLogger->info("LDM(%u):"
                       "Ready to start execute REDO log phase,"
                       " prepare REDO log phase completed",
                       instance());
@@ -18099,9 +18466,11 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   jam();
   csrExecUndoLogState = EULS_COMPLETED;
 
-  g_eventLogger->info("LDM instance %u: Completed DD Undo log application",
+  g_eventLogger->info("LDM(%u): Completed DD Undo log application",
                       instance());
 
+  sendLOCAL_RECOVERY_COMPLETE_REP(signal,
+           LocalRecoveryCompleteRep::UNDO_DD_COMPLETED);
   if (cstartType == NodeState::ST_INITIAL_NODE_RESTART)
   {
     jam();
@@ -18111,11 +18480,41 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
     return;
   }
 
-  g_eventLogger->info("LDM instance %u: Starting REDO log execution"
+  g_eventLogger->info("LDM(%u): Starting REDO log execution"
                       " phase %u",
                       instance(), 
                       csrPhasesCompleted);
   startExecSr(signal);
+}
+
+void Dblqh::sendLOCAL_RECOVERY_COMPLETE_REP(Signal *signal,
+                                  LocalRecoveryCompleteRep::PhaseIds phaseId)
+{
+  LocalRecoveryCompleteRep *rep =
+    (LocalRecoveryCompleteRep*)signal->getDataPtrSend();
+
+  rep->nodeId = getOwnNodeId();
+  rep->phaseId = phaseId;
+  if (isNdbMtLqh())
+  {
+    jam();
+    rep->senderData = cstartRecReqData;
+    rep->instanceId = instance();
+    sendSignal(DBLQH_REF, GSN_LOCAL_RECOVERY_COMP_REP, signal,
+               LocalRecoveryCompleteRep::SignalLengthLocal, JBB);
+  }
+  else
+  {
+    jam();
+    Uint32 master_node_id = refToNode(cmasterDihBlockref);
+    Uint32 master_version = getNodeInfo(master_node_id).m_version;
+    if (master_version >= NDBD_NODE_RECOVERY_STATUS_VERSION)
+    {
+      jam();
+      sendSignal(cmasterDihBlockref, GSN_LOCAL_RECOVERY_COMP_REP, signal,
+                 LocalRecoveryCompleteRep::SignalLengthMaster, JBB);
+    }
+  }
 }
 
 /* ***************> */
@@ -18135,10 +18534,12 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
   if (tableId == 0)
   {
     jam();
-    g_eventLogger->info("LDM instance %u: Starting to rebuild ordered indexes",
+    g_eventLogger->info("LDM(%u): Starting to rebuild ordered indexes",
                         instance());
-  }
 
+    sendLOCAL_RECOVERY_COMPLETE_REP(signal,
+                    LocalRecoveryCompleteRep::EXECUTE_REDO_LOG_COMPLETED);
+  }
   if (tableId >= ctabrecFileSize)
   {
     jam();
@@ -18178,7 +18579,7 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal,
                StartRecConf::SignalLength, JBB);
 
-    g_eventLogger->info("LDM instance %u: We have completed restoring our"
+    g_eventLogger->info("LDM(%u): We have completed restoring our"
                         " fragments and executed REDO log and rebuilt"
                         " ordered indexes",
                         instance());
@@ -18231,7 +18632,7 @@ Dblqh::execBUILD_INDX_IMPL_CONF(Signal* signal)
   BuildIndxImplConf * conf = (BuildIndxImplConf*)signal->getDataPtr();
   Uint32 tableId = conf->senderData;
   rebuildOrderedIndexes(signal, tableId + 1);
-  g_eventLogger->info("LDM instance %u: index id %u rebuild done",
+  g_eventLogger->info("LDM(%u): index id %u rebuild done",
                       instance(),
                       tableId);
 }
@@ -18415,7 +18816,7 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
   jamEntry();
   Uint32 nodeId = signal->theData[0];
   arrGuard(nodeId, MAX_NDB_NODES);
-  g_eventLogger->info("LDM instance %u: Node %u completed LDM start"
+  g_eventLogger->info("LDM(%u): Node %u completed LDM restart"
                       " phase 3",
                       instance(),
                       nodeId);
@@ -18486,7 +18887,7 @@ void Dblqh::execSrCompletedLab(Signal* signal)
      * HAVE TO FIND THE ACTUAL PAGE NUMBER AND PAGE INDEX WHERE TO 
      * CONTINUE WRITING THE LOG AFTER THE SYSTEM RESTART.
      * --------------------------------------------------------------------- */
-    g_eventLogger->info("LDM instance %u: REDO log execution completed, now"
+    g_eventLogger->info("LDM(%u): REDO log execution completed, now"
                         " finding the new log head + tail",
                         instance());
 
@@ -18534,7 +18935,7 @@ void Dblqh::execSrCompletedLab(Signal* signal)
      *   WE MUST INITIALISE DATA FOR NEXT PHASE AND SEND START SIGNAL.
      * --------------------------------------------------------------------- */
     csrPhaseStarted = ZSR_PHASE1_COMPLETED; // Set correct state first...
-    g_eventLogger->info("LDM instance %u: Starting REDO log execution"
+    g_eventLogger->info("LDM(%u): Starting REDO log execution"
                         " phase %u",
                         instance(), 
                         csrPhasesCompleted);
@@ -18551,7 +18952,7 @@ void Dblqh::execEXEC_SRREQ(Signal* signal)
   jamEntry();
   Uint32 nodeId = signal->theData[0];
   ndbrequire(nodeId < MAX_NDB_NODES);
-  g_eventLogger->info("LDM instance %d: Node %u ready to execute REDO log",
+  g_eventLogger->info("LDM(%u): Node %u ready to execute REDO log",
                       instance(),
                       nodeId);
   m_sr_exec_sr_req.set(nodeId);
@@ -18567,7 +18968,7 @@ void Dblqh::execEXEC_SRREQ(Signal* signal)
    * ----------------------------------------------------------------------- */
   m_sr_exec_sr_req.clear();
 
-  g_eventLogger->info("LDM instance %u: All starting nodes ready"
+  g_eventLogger->info("LDM(%u): All starting nodes ready"
                       " to execute REDO log.  Phases completed = %u",
                       instance(),
                       csrPhasesCompleted);
@@ -18593,7 +18994,7 @@ void Dblqh::execEXEC_SRREQ(Signal* signal)
    *  COMPLETED. THIS HANDLING IS PERFORMED IN THE FILE SYSTEM MODULE
    * ----------------------------------------------------------------------- */
 
-  g_eventLogger->info("LDM instance %u:"
+  g_eventLogger->info("LDM(%u):"
                       "Ready to start execute REDO log phase,"
                       " collect REDO log execution info phase completed",
                       instance());
@@ -18741,7 +19142,7 @@ void Dblqh::srGciLimits(Signal* signal)
 
     logFilePtr.i = logPartPtr.p->lastLogfile;
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
-    g_eventLogger->info("LDM instance %u: Log part %u will execute REDO log"
+    g_eventLogger->info("LDM(%u): Log part %u will execute REDO log"
                         " records from GCI %u -> %u and last log file is "
                         "number %u and last MByte in this file is %u",
                         instance(), 
@@ -18916,7 +19317,7 @@ void Dblqh::srLogLimits(Signal* signal)
     ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
     logFilePtr.p->logFileStatus = LogFileRecord::OPEN_EXEC_SR_START;
     openFileRw(signal, logFilePtr);
-    g_eventLogger->info("LDM instance %u: Start executing REDO log for"
+    g_eventLogger->info("LDM(%u): Start executing REDO log for"
                         " part %u",
                         instance(),
                         logPartPtr.p->logPartNo);
@@ -18927,7 +19328,7 @@ void Dblqh::srLogLimits(Signal* signal)
   {
     jam();
 
-    g_eventLogger->info("LDM instance %u: Found log limits for REDO"
+    g_eventLogger->info("LDM(%u): Found log limits for REDO"
                         " post-restart for log part %u",
                         instance(),
                         logPartPtr.p->logPartNo);
@@ -20188,13 +20589,13 @@ void Dblqh::execLogComp(Signal* signal)
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   logPartPtr.p->logTcConrec = RNIL;
   releaseTcrecLog(signal, tcConnectptr);
-  g_eventLogger->info("LDM instance %u: Completed REDO log execution on"
+  g_eventLogger->info("LDM(%u): Completed REDO log execution on"
                       " part %u, ops executed = %llu, bytes executed = %llu,",
                       instance(),
                       logPartPtr.p->logPartNo,
                       logPartPtr.p->m_redoWorkStats.m_opsExecuted,
                       logPartPtr.p->m_redoWorkStats.m_bytesExecuted);
-  g_eventLogger->info("LDM instance %u: Log part %u stats:"
+  g_eventLogger->info("LDM(%u): Log part %u stats:"
                       " ops skipped = %llu, ops prepared %llu,"
                       " pages read = %llu,"
                       " GCIs executed = %u",
@@ -20320,7 +20721,7 @@ void Dblqh::srPhase3Comp(Signal* signal)
 {
   jamEntry();
 
-  g_eventLogger->info("LDM instance %u: Completed LDM start phase 3",
+  g_eventLogger->info("LDM(%u): Completed LDM start phase 3",
                       instance());
 
   signal->theData[0] = cownNodeid;
@@ -20544,7 +20945,7 @@ void Dblqh::srFourthComp(Signal* signal)
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
   logPartPtr.p->logPartState = LogPartRecord::SR_FOURTH_PHASE_COMPLETED;
 
-  g_eventLogger->info("LDM instance %u: Completed old Redo head invalidation"
+  g_eventLogger->info("LDM(%u): Completed old Redo head invalidation"
                       " on log part %u",
                       instance(),
                       logPartPtr.p->logPartNo);
@@ -20579,7 +20980,7 @@ void Dblqh::srFourthComp(Signal* signal)
     logPartPtr.p->logPartState = LogPartRecord::IDLE;
   }//for
 
-  g_eventLogger->info("LDM instance %u: All redo actions complete (apply,"
+  g_eventLogger->info("LDM(%u): All redo actions complete (apply,"
                       " invalidate)",
                       instance());
 
@@ -21451,7 +21852,6 @@ void Dblqh::initialiseLcpRec(Signal* signal)
     for (lcpPtr.i = 0; lcpPtr.i < clcpFileSize; lcpPtr.i++) {
       ptrAss(lcpPtr, lcpRecord);
       lcpPtr.p->lcpState = LcpRecord::LCP_IDLE;
-      lcpPtr.p->numFragLcpsQueued = 0;
       lcpPtr.p->reportEmpty = false;
       lcpPtr.p->firstFragmentFlag = false;
       lcpPtr.p->lastFragmentFlag = false;
@@ -21894,7 +22294,6 @@ void Dblqh::initLcpSr(Signal* signal,
                       Uint32 fragId,
                       Uint32 fragPtr) 
 {
-  lcpPtr.p->numFragLcpsQueued = 0;
   lcpPtr.p->currentFragment.fragPtrI = fragPtr;
   lcpPtr.p->currentFragment.lcpFragOrd.lcpNo = lcpNo;
   lcpPtr.p->currentFragment.lcpFragOrd.lcpId = lcpId;
@@ -23772,8 +24171,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	      TlcpPtr.p->currentFragment.fragPtrI);
     infoEvent("currentFragment.lcpFragOrd.tableId=%d",
 	      TlcpPtr.p->currentFragment.lcpFragOrd.tableId);
-    infoEvent(" numFragLcpsQueued=%d reportEmpty=%d",
-	      TlcpPtr.p->numFragLcpsQueued,
+    infoEvent(" reportEmpty=%d",
 	      TlcpPtr.p->reportEmpty);
     char buf[8*_NDB_NODE_BITMASK_SIZE+1];
     infoEvent(" m_EMPTY_LCP_REQ=%s",
@@ -23893,6 +24291,13 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
     if(arg== 2305)
     {
+      if (ERROR_INSERTED(5085))
+      {
+        g_eventLogger->info("LQH instance %u ignoring DUMP 2305 (GCP_STOP kill)",
+                            instance());
+        return;
+      }
+      CRASH_INSERTION(5087);
       progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
 		"Please report this as a bug. "
 		"Provide as much info as possible, expecially all the "
@@ -24435,6 +24840,13 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
   if(arg == 2309)
   {
+    if (ERROR_INSERTED(5086))
+    {
+      g_eventLogger->info("LQH instance %u discards DUMP 2309",
+                          instance());
+      return;
+    }
+
     CRASH_INSERTION(5075);
 
     progError(__LINE__, NDBD_EXIT_LCP_SCAN_WATCHDOG_FAIL,
@@ -24530,7 +24942,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     Uint64 duration = 0;
     Uint64 rate = 0;
 
-    ndbassert(c_fragmentCopyStart > 0);
+    if (c_fragmentCopyStart == 0)
+    {
+      infoEvent("LDM(%u): CopyFrag complete no fragments copied",
+                instance());
+      return;
+    }
     duration = NdbTick_CurrentMillisecond() - c_fragmentCopyStart;
     
     if (duration == 0)
@@ -24538,7 +24955,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
      
     rate = (c_totalBytesCopied * 1000) / duration;
 
-    infoEvent("LDM instance %u: CopyFrag complete. %u frags,"
+    infoEvent("LDM(%u): CopyFrag complete. %u frags,"
               " +%llu/-%llu rows, "
               "%llu bytes/%llu ms %llu bytes/s.",
               instance(),
@@ -24700,6 +25117,99 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
     }
     break;
   }
+  case Ndbinfo::FRAG_OPERATIONS_TABLEID:
+  {
+    Uint32 tableid = cursor->data[0];
+    
+    for (;tableid < ctabrecFileSize; tableid++)
+    {
+      TablerecPtr tabPtr;
+      tabPtr.i = tableid;
+      ptrAss(tabPtr, tablerec);
+      if (tabPtr.p->tableStatus != Tablerec::NOT_DEFINED)
+      {
+        jam();
+        // Loop over all fragments for this table.
+        for (Uint32 f = 0; f<NDB_ARRAY_SIZE(tabPtr.p->fragrec); f++)
+        {
+          if (tabPtr.p->fragrec[f] != RNIL)
+          {
+            jam();
+            Fragrecord* const frag = 
+              c_fragment_pool.getPtr(tabPtr.p->fragrec[f]);
+
+            Uint64 commitCount = 0;
+            if (frag->accFragptr != RNIL)
+            {
+              // Fetch 'commit_count'.
+              Uint32* const sigData = signal->getDataPtrSend();
+              sigData[0] = frag->accFragptr;
+              sigData[1] = AttributeHeader::COMMIT_COUNT;
+              EXECUTE_DIRECT(DBACC, GSN_READ_PSEUDO_REQ, signal, 2);
+              /*
+                Must use memcpy rather than assignment, since sigData may not 
+                be suitably aligned.
+              */
+              memcpy(&commitCount, sigData, sizeof commitCount);
+            }
+
+            Fragrecord::UsageStat& useStat = frag->m_useStat;
+
+            Ndbinfo::Row row(signal, req);
+            row.write_uint32(getOwnNodeId());
+            row.write_uint32(instance());
+            row.write_uint32(tableid);
+            row.write_uint32(frag->fragId);
+            row.write_uint64(useStat.m_readKeyReqCount);
+            row.write_uint64(useStat.m_insKeyReqCount);
+            row.write_uint64(useStat.m_updKeyReqCount);
+            row.write_uint64(useStat.m_writeKeyReqCount);
+            row.write_uint64(useStat.m_delKeyReqCount);
+            row.write_uint64(useStat.m_keyRefCount);
+            row.write_uint64(useStat.m_keyReqAttrWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_keyReqKeyWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_keyProgramWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_keyInstructionCount);
+            row.write_uint64(useStat.m_keyReqWordsReturned * sizeof(Uint32));
+            row.write_uint64(useStat.m_scanFragReqCount);
+            row.write_uint64(useStat.m_scanRowsExamined);
+            row.write_uint64(useStat.m_scanRowsReturned);
+            row.write_uint64(useStat.m_scanWordsReturned * sizeof(Uint32));
+            row.write_uint64(useStat.m_scanProgramWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_scanBoundWords * sizeof(Uint32));
+            row.write_uint64(useStat.m_scanInstructionCount);
+            row.write_uint64(useStat.m_queuedScanCount);
+
+            row.write_uint32(LocalDLCList<ScanRecord>
+                             (c_scanRecordPool, frag->m_activeScans).count());
+
+            row.write_uint32(LocalDLCFifoList<ScanRecord>
+                             (c_scanRecordPool, frag->m_queuedScans).count());
+
+            row.write_uint32(LocalDLCFifoList<ScanRecord> 
+                             (c_scanRecordPool, 
+                              frag->m_queuedTupScans).count());
+            
+            row.write_uint64(commitCount);
+            ndbinfo_send_row(signal, req, row, rl);
+          }
+        }
+      }
+
+      /*
+        If a break is needed, break on a table bondary, as we use the table id
+        as a cursor.
+      */
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, tableid + 1);
+        return;
+      }
+    }
+    
+    break;
+  }
   case Ndbinfo::FRAG_MEM_USE_TABLEID:
   {
     /*
@@ -24810,6 +25320,50 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
     
     break;
   }
+  case Ndbinfo::POOLS_TABLEID:
+  {
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Commit ACK Marker",
+        m_commitAckMarkerPool.getUsed(),
+        m_commitAckMarkerPool.getSize(),
+        m_commitAckMarkerPool.getEntrySize(),
+        m_commitAckMarkerPool.getUsedHi(),
+        { CFG_DB_NO_LOCAL_OPS, CFG_DB_NO_OPS,0,0 }},
+      { NULL, 0,0,0,0,{0,0,0,0} }
+    };
+
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+    Uint32 pool = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(pools[pool].poolname)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance());   // block instance
+      row.write_string(pools[pool].poolname);
+
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
+      ndbinfo_send_row(signal, req, row, rl);
+      pool++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
+    }
+    break;
+  }
+
   default:
     break;
   }
@@ -25127,9 +25681,36 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
         ds->args[0] = DumpStateOrd::LqhDumpLcpState;
         sendSignal(cownref, GSN_DUMP_STATE_ORD, signal, 1, JBA);
         
+        const Uint32 ShutdownDelayMillis = 5 * 1000;
         /* Delay self-execution to give time for dump output */
         ds->args[0] = 2309;
-        sendSignalWithDelay(cownref, GSN_DUMP_STATE_ORD, signal, 5*1000, 1);
+        sendSignalWithDelay(cownref, 
+                            GSN_DUMP_STATE_ORD, 
+                            signal, 
+                            ShutdownDelayMillis, 
+                            1);
+
+        /**
+         * Ask other nodes to isolate me in delay + 500 millis if I have
+         * not failed by then
+         */
+        {
+          IsolateOrd* ord = (IsolateOrd*) signal->theData;
+          ord->senderRef = reference();
+          ord->isolateStep = IsolateOrd::IS_REQ;
+          ord->delayMillis = ShutdownDelayMillis + 500;
+          
+          NdbNodeBitmask victims;
+          victims.set(cownNodeid);
+          victims.copyto(NdbNodeBitmask::Size, ord->nodesToIsolate);
+
+          /* QMGR handles this */
+          sendSignal(QMGR_REF,
+                     GSN_ISOLATE_ORD,
+                     signal,
+                     IsolateOrd::SignalLength,
+                     JBA);
+        }
       }
       
       return;
@@ -25745,6 +26326,8 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
   if ((t / SAMPLE_TIME) == (now / SAMPLE_TIME))
     return 0;
 
+  m_redo_written_bytes += m_sample_completed_bytes;
+
   m_current_time = now;
   if (m_sample_completed_bytes >= m_sample_sent_bytes)
   {
@@ -25771,11 +26354,13 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
     Uint32 lag = bps ? m_sum_outstanding_bytes / bps : 30;
     if (false && lag >= 30)
     {
-      g_eventLogger->info("part: %u tick(%u) m_sample_completed_bytes: %u "
-                          "m_sample_sent_bytes: %u elapsed: %u kbps: %u lag:"
+      g_eventLogger->info("part: %u tick(%u) m_sample_completed_bytes: %ukb "
+                          "m_sample_sent_bytes: %ukb elapsed: %u kbps: %u lag:"
                           " %u",
                           m_log_part_no,
-                          now, m_sample_completed_bytes, m_sample_sent_bytes,
+                          now,
+                          Uint32(m_sample_completed_bytes / 1024),
+                          Uint32(m_sample_sent_bytes/1024),
                           elapsed, bps/1000, lag);
     }
 
@@ -25791,6 +26376,8 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
       ((Uint64(m_sum_outstanding_bytes) / 1000) *
         Uint64(m_curr_elapsed_millis)) / m_curr_written_bytes :
       0;
+
+    m_lag_in_seconds = lag;
 
     if (lag > maxlag)
     {
@@ -25843,8 +26430,8 @@ Dblqh::IOTracker::tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt)
                           " %ukb avg_elapsed: %ums time to complete:"
                           " %u lag_cnt: %u => %u retVal: %d",
                           m_log_part_no,
-                          m_sum_outstanding_bytes / 1024,
-                          m_curr_written_bytes/1024,
+                          Uint32(m_sum_outstanding_bytes / 1024),
+                          Uint32(m_curr_written_bytes/1024),
                           m_curr_elapsed_millis,
                           lag,
                           save_lag_cnt,
@@ -25900,14 +26487,17 @@ Dblqh::mark_end_of_lcp_restore(Signal* signal)
   /* Todo : Summarise non-trans copy stats if relevant */
 
   /* Summarise our work */
-  g_eventLogger->info("LDM instance %u: Completed fuzzy restore %u fragments (%u from LCP,"
+  g_eventLogger->info("LDM(%u): Completed fuzzy restore %u fragments (%u from LCP,"
                       " %u by non-trans copy)",
                       instance(),
                       c_fragmentsStarted,
                       c_fragmentsStarted - c_fragmentsStartedWithCopy,
                       c_fragmentsStartedWithCopy);
-  g_eventLogger->info("LDM instance %u: Starting DD Undo log application",
+  g_eventLogger->info("LDM(%u): Starting DD Undo log application",
                       instance());
+
+  sendLOCAL_RECOVERY_COMPLETE_REP(signal,
+                 LocalRecoveryCompleteRep::RESTORE_FRAG_COMPLETED);
 }
 
 void
@@ -25935,7 +26525,7 @@ Dblqh::log_fragment_copied(Signal* signal)
                            : 0);
   
   /* Have already copied a fragment...report on it now */
-  g_eventLogger->info("LDM instance %u: Completed copy of fragment T%uF%u. "
+  g_eventLogger->info("LDM(%u): Completed copy of fragment T%uF%u. "
                       "Changed +%llu/-%llu rows, %llu bytes. "
                       "%llu pct churn to %llu rows.",
                       instance(),
@@ -25953,4 +26543,41 @@ Dblqh::log_fragment_copied(Signal* signal)
   c_fragCopyRowsIns = 0;
   c_fragCopyRowsDel = 0;
   c_fragBytesCopied = 0;
+}
+
+/**
+ * We assist the Backup block in reporting disk write speeds by sending the
+ * number of bytes written and completed since last time we were asked.
+ */
+Uint64
+Dblqh::report_redo_written_bytes()
+{
+  Uint64 redo_written_bytes = 0;
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+  {
+    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+    redo_written_bytes +=
+      logPartPtr.p->m_io_tracker.get_and_reset_redo_written_bytes();
+  }
+  return redo_written_bytes;
+}
+
+/**
+ * We define REDO log IO lagging as when at least 2 seconds of log data has been
+ * sent to the file system and not yet been completed.
+ */
+bool
+Dblqh::is_ldm_instance_io_lagging()
+{
+  for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+  {
+    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+    if (logPartPtr.p->m_io_tracker.get_lag_in_seconds() >= 2)
+    {
+      jam();
+      return true;
+    }
+    jam();
+  }
+  return false;
 }
