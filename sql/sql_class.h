@@ -4141,6 +4141,14 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+public:
+  /**
+    This is only used by master dump threads.
+    When the master receives a new connection from a slave with a UUID that
+    is already connected, it will set this flag TRUE before killing the old
+    slave connection.
+  */
+  bool duplicate_slave_uuid;
 };
 
 
