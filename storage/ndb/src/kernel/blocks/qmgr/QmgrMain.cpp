@@ -3401,9 +3401,6 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
     jam();
     failReportLab(signal, aFailedNode, FailRep::ZLINK_FAILURE, getOwnNodeId());
     return;
-  case ZFAIL_CLOSING:
-    jam();
-    return;
   case ZSTARTING:
     /**
      * bug#42422
@@ -3413,7 +3410,14 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
     failedNodePtr.p->phase = ZRUNNING;
     failReportLab(signal, aFailedNode, FailRep::ZLINK_FAILURE, getOwnNodeId());
     return;
-  default:
+  case ZFAIL_CLOSING:  // Close already in progress
+    jam();
+    return;
+  case ZPREPARE_FAIL:  // PREP_FAIL already sent CLOSE_COMREQ
+    jam();
+    return;
+  case ZINIT:
+  {
     jam();
     /*---------------------------------------------------------------------*/
     // The other node is still not in the cluster but disconnected. 
@@ -3434,7 +3438,18 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
     NodeBitmask::set(closeCom->theNodes, failedNodePtr.i);
     sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
                CloseComReqConf::SignalLength, JBB);
-  }//if
+    return;
+  }
+  case ZAPI_ACTIVE:     // Unexpected states handled in ::api_failed()
+    ndbrequire(false);
+  case ZAPI_INACTIVE:
+    ndbrequire(false);
+  case ZAPI_ACTIVATION_ONGOING:
+    ndbrequire(false);
+  default:
+    ndbrequire(false);  // Unhandled state
+  }//switch
+
   return;
 }
 
