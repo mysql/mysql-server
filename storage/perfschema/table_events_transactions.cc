@@ -70,8 +70,18 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("XID") },
-    { C_STRING_WITH_LEN("varchar(132") },
+    { C_STRING_WITH_LEN("XID_FORMAT_ID") },
+    { C_STRING_WITH_LEN("int(11)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("XID_GTRID") },
+    { C_STRING_WITH_LEN("varchar(130)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("XID_BQUAL") },
+    { C_STRING_WITH_LEN("varchar(130)") },
     { NULL, 0}
   },
   {
@@ -148,7 +158,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_events_transactions_current::m_field_def=
-{22 , field_types };
+{24 , field_types };
 
 PFS_engine_table_share
 table_events_transactions_current::m_share=
@@ -284,41 +294,65 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
   return;
 }
 
+/** Size of XID converted to null-terminated hex string prefixed with 0x. */
+static const ulong XID_BUFFER_SIZE= XIDDATASIZE*2 + 2 + 1;
+
 /**
   Convert the XID to HEX string prefixed by '0x'
-  @buf has to be at least (XIDDATASIZE*2+2+1) in size
+
+  @param[out] buf     output hex string buffer, null-terminated
+  @param buf_len size of buffer, must be at least @c XID_BUFFER_SIZE
+  @param xid     XID structure
+  @param offset  offset into XID.data[]
+  @param length  number of bytes to process
+  @return number of bytes in hex string
 */
-static uint xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid)
+static uint xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset, size_t length)
 {
+  DBUG_ASSERT(buf_len >= XID_BUFFER_SIZE);
+  DBUG_ASSERT(offset + length <= XIDDATASIZE);
   *buf++= '0';
   *buf++= 'x';
-  return bin_to_hex_str(buf, buf_len-2, (char*)&xid->data,
-                        xid->gtrid_length + xid->bqual_length) + 2;
+  return bin_to_hex_str(buf, buf_len-2, (char*)(xid->data + offset), length) + 2;
 }
 
 /**
   Store the XID in printable format if possible, otherwise convert
   to a string of hex digits.
+
+  @param  field   Record field
+  @param  xid     XID structure
+  @param  offset  offset into XID.data[]
+  @param  length  number of bytes to process
 */
-static void xid_store(Field *field, PSI_xid *xid)
+static void xid_store(Field *field, PSI_xid *xid, size_t offset, size_t length)
 {
-  if(xid_printable(xid))
+  DBUG_ASSERT(!xid->is_null());
+  if (xid_printable(xid, offset, length))
   {
-    field->store(xid->data, xid->gtrid_length + xid->bqual_length,
-                 &my_charset_bin);
+    field->store(xid->data + offset, length, &my_charset_bin);
   }
   else
   {
-    uint xid_str_len;
     /*
       xid_buf contains enough space for 0x followed by hex representation of
       the binary XID data and one null termination character.
     */
-    char xid_buf[XIDDATASIZE * 2 + 2 + 1];
+    char xid_buf[XID_BUFFER_SIZE];
 
-    xid_str_len= xid_to_hex(xid_buf, sizeof(xid_buf), xid);
+    size_t xid_str_len= xid_to_hex(xid_buf, sizeof(xid_buf), xid, offset, length);
     field->store(xid_buf, xid_str_len, &my_charset_bin);
   }
+}
+
+static void xid_store_bqual(Field *field, PSI_xid *xid)
+{
+  xid_store(field, xid, xid->gtrid_length, xid->bqual_length);
+}
+
+static void xid_store_gtrid(Field *field, PSI_xid *xid)
+{
+  xid_store(field, xid, 0, xid->gtrid_length);
 }
 
 int table_events_transactions_common::read_row_values(TABLE *table,
@@ -370,68 +404,80 @@ int table_events_transactions_common::read_row_values(TABLE *table,
       case 6: /* GTID */
         set_field_varchar_utf8(f, m_row.m_gtid, m_row.m_gtid_length);
         break;
-      case 7: /* XID */
+      case 7: /* XID_FORMAT_ID */
         if (!m_row.m_xa || m_row.m_xid.is_null())
           f->set_null();
         else
-          xid_store(f, &m_row.m_xid);
+          set_field_long(f, m_row.m_xid.formatID);
         break;
-      case 8: /* XA STATE */
+      case 8: /* XID_GTRID */
+        if (!m_row.m_xa || m_row.m_xid.is_null() || m_row.m_xid.gtrid_length <= 0)
+          f->set_null();
+        else
+          xid_store_gtrid(f, &m_row.m_xid);
+        break;
+      case 9: /* XID_BQUAL */
+        if (!m_row.m_xa || m_row.m_xid.is_null() || m_row.m_xid.bqual_length <= 0)
+          f->set_null();
+        else
+          xid_store_bqual(f, &m_row.m_xid);
+        break;
+      case 10: /* XA STATE */
         if (!m_row.m_xa || m_row.m_xid.is_null())
           f->set_null();
         else
           set_field_xa_state(f, m_row.m_xa_state);
         break;
-      case 9: /* SOURCE */
+      case 11: /* SOURCE */
         set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
         break;
-      case 10: /* TIMER_START */
+      case 12: /* TIMER_START */
         if (m_row.m_timer_start != 0)
           set_field_ulonglong(f, m_row.m_timer_start);
         else
           f->set_null();
         break;
-      case 11: /* TIMER_END */
+      case 13: /* TIMER_END */
         if (m_row.m_timer_end != 0)
           set_field_ulonglong(f, m_row.m_timer_end);
         else
           f->set_null();
         break;
-      case 12: /* TIMER_WAIT */
+      case 14: /* TIMER_WAIT */
         if (m_row.m_timer_wait != 0)
           set_field_ulonglong(f, m_row.m_timer_wait);
         else
           f->set_null();
         break;
-      case 13: /* ACCESS_MODE */
+      case 15: /* ACCESS_MODE */
         set_field_enum(f, m_row.m_read_only ? TRANS_MODE_READ_ONLY
                                             : TRANS_MODE_READ_WRITE);
         break;
-      case 14: /* ISOLATION_LEVEL */
+      case 16: /* ISOLATION_LEVEL */
         set_field_isolation_level(f, m_row.m_isolation_level);
         break;
-      case 15: /* AUTOCOMMIT */
+      case 17: /* AUTOCOMMIT */
         set_field_enum(f, m_row.m_autocommit ? ENUM_YES : ENUM_NO);
         break;
-      case 16: /* NUMBER_OF_SAVEPOINTS */
+      case 18: /* NUMBER_OF_SAVEPOINTS */
         set_field_ulonglong(f, m_row.m_savepoint_count);
         break;
-      case 17: /* NUMBER_OF_ROLLBACK_TO_SAVEPOINT */
+      case 19: /* NUMBER_OF_ROLLBACK_TO_SAVEPOINT */
         set_field_ulonglong(f, m_row.m_rollback_to_savepoint_count);
         break;
-      case 18: /* NUMBER_OF_RELEASE_SAVEPOINT */
+      case 20: /* NUMBER_OF_RELEASE_SAVEPOINT */
         set_field_ulonglong(f, m_row.m_release_savepoint_count);
         break;
-      case 19: /* OBJECT_INSTANCE_BEGIN */
+      case 21: /* OBJECT_INSTANCE_BEGIN */
         f->set_null();
         break;
-      case 20: /* NESTING_EVENT_ID */
+      case 22: /* NESTING_EVENT_ID */
         if (m_row.m_nesting_event_id != 0)
           set_field_ulonglong(f, m_row.m_nesting_event_id);
         else
           f->set_null();
         break;
-      case 21: /* NESTING_EVENT_TYPE */
+      case 23: /* NESTING_EVENT_TYPE */
         if (m_row.m_nesting_event_id != 0)
           set_field_enum(f, m_row.m_nesting_event_type);
         else
