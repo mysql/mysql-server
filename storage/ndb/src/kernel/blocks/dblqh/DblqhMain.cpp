@@ -14646,7 +14646,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   {
     jam();
     ndbrequire(c_lcpId == lcpFragOrd->lcpId);
-    if (lcpPtr.p->lastFragmentFlag)
+    if (lcpPtr.p->lastFragmentFlag || clcpCompletedState == LCP_IDLE)
     {
       jam();
       /**
