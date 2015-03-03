@@ -529,6 +529,7 @@ Handler_read_rnd	4
 Handler_read_rnd_next	4
 PREPARE stmt1 FROM "SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1";
+RESET QUERY CACHE;
 FLUSH STATUS;
 EXECUTE stmt1;
 f1	f2	f3
@@ -545,6 +546,7 @@ Handler_read_next	20
 Handler_read_prev	0
 Handler_read_rnd	4
 Handler_read_rnd_next	4
+RESET QUERY CACHE;
 FLUSH STATUS;
 EXECUTE stmt1;
 f1	f2	f3
