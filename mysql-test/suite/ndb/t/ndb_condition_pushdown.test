@@ -2496,7 +2496,7 @@ drop table t1;
 --echo # 
 create table t1(a int, b char(0)) engine=ndbcluster;
 insert into t1 values(1,''), (2, NULL);
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1 where b = '';
 select * from t1 where b = '';
 drop table t1;
