@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -369,9 +369,14 @@ CPCD::loadProcessList(){
     }
   }
 
+/*
+  File is ignored anyways, so don't load it,
+  kept for future use of config file.
+
   CPCDAPISession sess(f, *this);
-  fclose(f);
   sess.loadFile();
+*/
+  fclose(f);
   loadingProcessList = false;
 
   unsigned i;
