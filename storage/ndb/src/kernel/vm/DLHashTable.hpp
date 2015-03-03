@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved. 
-   rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,13 +122,19 @@ public:
 
   /**
    * Remove element and return to pool
+   * release releases object and places it first in free list
+   * releaseLast releases object and places it last in free list
    */
   void release(Uint32 i);
+  void releaseLast(Uint32 i);
 
   /**
    * Remove element and return to pool
+   * release releases object and places it first in free list
+   * releaseLast releases object and places it last in free list
    */
   void release(Ptr<T> &);
+  void releaseLast(Ptr<T> &);
 
   class Iterator {
   public:
@@ -199,20 +204,15 @@ DLMHashTable<P, T, M>::setSize(Uint32 size)
   Uint32 i = 1;
   while (i < size) i *= 2;
 
-  if (mask == (i - 1))
+  if (hashValues != NULL)
   {
-    /**
-     * The size is already set to <b>size</b>
-     */
-    return true;
-  }
-
-  if (mask != 0)
-  {
-    /**
-     * The mask is already set
-     */
-    return false;
+    /*
+      If setSize() is called twice with different size values then this is 
+      most likely a bug.
+    */
+    assert(mask == i-1); 
+    // Return true if size already set to 'size', false otherwise.
+    return mask == i-1;
   }
 
   mask = (i - 1);
@@ -365,6 +365,26 @@ DLMHashTable<P, T, M>::release(Uint32 i)
   tmp.i = i;
   tmp.p = thePool.getPtr(i);
   release(tmp);
+}
+
+template <typename P, typename T, typename M>
+inline
+void
+DLMHashTable<P, T, M>::releaseLast(Uint32 i)
+{
+  Ptr<T> tmp;
+  tmp.i = i;
+  tmp.p = thePool.getPtr(i);
+  releaseLast(tmp);
+}
+
+template <typename P, typename T, typename M>
+inline
+void
+DLMHashTable<P, T, M>::releaseLast(Ptr<T> & ptr)
+{
+  remove(ptr);
+  thePool.releaseLast(ptr);
 }
 
 template <typename P, typename T, typename M>

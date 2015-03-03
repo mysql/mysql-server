@@ -35,13 +35,15 @@ var op_stats = {
 
 var index_stats = {};
 
-var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
-    doc           = require(path.join(spi_doc_dir, "DBOperation")),
-    stats_module  = require(path.join(api_dir,"stats.js")),
-    QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
+var path          = require("path"),
+    assert        = require("assert"),
+    adapter       = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")).ndb,
+    doc           = require(path.join(mynode.fs.spi_doc_dir, "DBOperation")),
+    stats_module  = require(mynode.api.stats),
+    QueuedAsyncCall = require(mynode.common.QueuedAsyncCall).QueuedAsyncCall,
     prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
-    getIndexBounds = require("../common/IndexBounds.js").getIndexBounds,
-    markQuery     = require("../common/IndexBounds.js").markQuery,
+    getIndexBounds = require(mynode.common.IndexBounds).getIndexBounds,
+    markQuery     = require(mynode.common.IndexBounds).markQuery,
     bufferForText = adapter.impl.bufferForText,
     textFromBuffer = adapter.impl.textFromBuffer,
     COMMIT        = adapter.ndbapi.Commit,

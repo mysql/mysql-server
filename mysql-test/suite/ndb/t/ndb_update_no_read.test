@@ -353,6 +353,8 @@ commit;
 
 --disable_info
 
+--disable_info
+
 drop table t1;
 
 --source suite/ndb/include/restore_sql_mode_after_turn_off_strict.inc

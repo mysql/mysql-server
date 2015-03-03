@@ -954,7 +954,7 @@ mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
 #   Remove last version of package   0 "
 #
 #  http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch09s04s05.html
- 
+
 if [ $1 = 0 ] ; then
         # Stop MySQL before uninstalling it
         if [ -x %{_sysconfdir}/init.d/mysql ] ; then
@@ -1094,6 +1094,7 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
@@ -1145,6 +1146,7 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/ndb_move_data
 %attr(755, root, root) %{_bindir}/ndb_print_backup_file
 %attr(755, root, root) %{_bindir}/ndb_print_file
+%attr(755, root, root) %{_bindir}/ndb_print_frag_file 
 %attr(755, root, root) %{_bindir}/ndb_print_schema_file
 %attr(755, root, root) %{_bindir}/ndb_print_sys_file
 %attr(755, root, root) %{_bindir}/ndb_redo_log_reader

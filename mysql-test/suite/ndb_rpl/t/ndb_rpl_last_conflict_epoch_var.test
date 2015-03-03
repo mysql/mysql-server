@@ -81,7 +81,7 @@ where Variable_name="Ndb_last_commit_epoch_session";
 --enable_result_log
 
 --echo Show that last_conflict_epoch is 0
-show status like 'ndb_slave_last_conflict_epoch';
+show status like 'ndb_conflict_last_conflict_epoch';
 
 --echo Restart Secondary->Primary replication
 start slave;
@@ -105,7 +105,7 @@ select @max_replicated_epoch < @master_session_epoch;
 --disable_result_log
 select @conflict_detected_epoch:=Variable_value
 from information_schema.global_status
-where Variable_name="Ndb_slave_last_conflict_epoch";
+where Variable_name="ndb_conflict_last_conflict_epoch";
 --enable_result_log
 
 --echo Some invariants :
@@ -135,7 +135,7 @@ where Variable_name="Ndb_slave_max_replicated_epoch";
 
 select @conflict_detected_epoch:=Variable_value
 from information_schema.global_status
-where Variable_name="Ndb_slave_last_conflict_epoch";
+where Variable_name="ndb_conflict_last_conflict_epoch";
 
 --enable_result_log
 select @max_replicated_epoch = @conflict_detected_epoch;

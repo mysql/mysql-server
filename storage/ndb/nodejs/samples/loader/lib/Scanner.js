@@ -40,7 +40,8 @@
    BEGINDATA
 */
 
-var udebug = require(path.join(api_dir, "unified_debug")).getLogger("Scanner.js");
+var assert = require("assert"),
+    udebug = unified_debug.getLogger("Scanner.js");
 
 function tokenize (source) {
   var operators = "(),;:.";   // Legal one-character operators

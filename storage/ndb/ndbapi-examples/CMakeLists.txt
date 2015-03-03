@@ -14,6 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 # NdbApi examples
+ADD_EXECUTABLE(ndb_ndbapi_array_simple ndbapi_array_simple/ndbapi_array_simple.cpp)
+ADD_EXECUTABLE(ndb_ndbapi_array_using_adapter ndbapi_array_using_adapter/ndbapi_array_using_adapter.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_async ndbapi_async/ndbapi_async.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_async1 ndbapi_async1/ndbapi_async1.cpp)
 ADD_EXECUTABLE(ndb_ndbapi_blob ndbapi_blob/ndbapi_blob.cpp)
@@ -33,6 +35,8 @@ ADD_EXECUTABLE(ndb_mgmapi_logevent2 mgmapi_logevent2/main.cpp)
 
 # Link each example program with both ndbclient and mysql libraries
 SET(EXAMPLES
+  ndb_ndbapi_array_simple
+  ndb_ndbapi_array_using_adapter
   ndb_ndbapi_async
   ndb_ndbapi_async1
   ndb_ndbapi_blob

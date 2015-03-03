@@ -3045,8 +3045,7 @@ storage/ndb/**/target
 storage/ndb/**/*.class
 storage/ndb/src/ndbjtie/**/*.sh
 storage/ndb/src/ndbjtie/**/*.log
-storage/ndb/src/ndbjtie/**/*.cmd
-storage/ndb/src/ndbjtie/**/*_test
+storage/ndb/src/ndbjtie/jtie/test/myapi/myapi_test
 storage/ndb/clusterj/**/*MANIFEST.MF
 storage/ndb/clusterj/**/*manifest.mf
 storage/ndb/test/crund/*.cnf
@@ -3129,10 +3128,6 @@ Docs/INFO_SRC
 Testing
 FilesCopied
 source_downloads
-storage/ndb/include/ndb_config.h
-storage/ndb/memcache/memcached_path.pl
-storage/ndb/memcache/sandbo*
-storage/ndb/memcache/include/ndbmemcache_config.h
 client/mysql_plugin
 support-files/plugins.files
 storage/perfschema/pfs_lex_token.h

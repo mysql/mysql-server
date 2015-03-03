@@ -18,9 +18,8 @@
  02110-1301  USA
  */
 
-var unified_debug = require(path.join(api_dir, "unified_debug")),
-    udebug = unified_debug.getLogger("Controller.js"),
-    DbWriter     = require("./DbWriter.js").DbWriter,
+var udebug = unified_debug.getLogger("Controller.js"),
+    DbWriter = require("./DbWriter.js").DbWriter,
     BadRecordLogger = require("./BadRecordLogger.js").BadRecordLogger,
     DataSource = require("./DataSource.js"),
     RandomDataSource = DataSource.RandomDataSource,

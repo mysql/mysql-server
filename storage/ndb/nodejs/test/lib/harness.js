@@ -18,19 +18,19 @@
  02110-1301  USA
  */
 
-/*global unified_debug, fs, path, util, assert, suites_dir,
-         test_conn_properties
-*/
 
 "use strict";
 
 /* This test harness is documented in the README file.
 */
 
+var path   = require("path"),
+    fs     = require("fs"),
+    assert = require("assert"),
+    util   = require("util");
+
 var udebug = unified_debug.getLogger("harness.js");
-var exec = require("child_process").exec;
 var re_matching_test_case = /Test\.js$/;
-var SQL = {};
 var disabledTests = {};
 try {
   disabledTests = require("../disabled-tests.conf").disabledTests;
@@ -151,6 +151,8 @@ Test.prototype.appendErrorMessage = function(message) {
   this.errorMessages += message;
   this.errorMessages += '\n';
 };
+
+Test.prototype.error = Test.prototype.appendErrorMessage;
 
 Test.prototype.failOnError = function() {
   if (this.errorMessages !== '') {
@@ -299,7 +301,7 @@ function Suite(name, path) {
 }
 
 Suite.prototype.addTest = function(filename, test) {
-  this.filename = path.relative(suites_dir, filename);
+  this.filename = path.relative(mynode.fs.suites_dir, filename);
   udebug.log_detail('Suite', this.name, 'adding test', test.name, 'from', this.filename);
   test.filename = filename;
   test.suite = this;
@@ -664,52 +666,6 @@ Result.prototype.skip = function(t, reason) {
   this.driver.testCompleted(t);
 };
 
-/* SQL DDL Utilities
-*/
-var runSQL = function(sqlPath, source, callback) {  
-
-  function childProcess(error, stdout, stderr) {
-    udebug.log_detail('harness runSQL process completed.');
-    udebug.log_detail(source + ' stdout: ' + stdout);
-    udebug.log_detail(source + ' stderr: ' + stderr);
-    if (error !== null) {
-      udebug.log(source + 'exec error: ' + error);
-    } else {
-      udebug.log_detail(source + ' exec OK');
-    }
-    if(callback) {
-      callback(error);  
-    }
-  }
-
-  // prepend the file containing the engine.sql (ndb.sql or innodb.sql) to the file containing the sql commands 
-  var enginesqlPath = path.join(suites_dir, global.engine + '.sql ');
-  var cmd = 'cat ' + enginesqlPath + ' ' + sqlPath + ' | mysql';
-  
-  var p = test_conn_properties;
-  if(p) {
-    if(p.mysql_socket)     { cmd += " --socket=" + p.mysql_socket; }
-    else if(p.mysql_port)  { cmd += " --port=" + p.mysql_port; }
-    if(p.mysql_host)     { cmd += " -h " + p.mysql_host; }
-    if(p.mysql_user)     { cmd += " -u " + p.mysql_user; }
-    if(p.mysql_password) { cmd += " --password=" + p.mysql_password; }
-  }
-  udebug.log_detail('harness runSQL forking process...' + cmd);
-  var child = exec(cmd, childProcess);
-};
-
-SQL.create =  function(suite, callback) {
-  var sqlPath = path.join(suite.path, 'create.sql');
-  udebug.log_detail("createSQL path: " + sqlPath);
-  runSQL(sqlPath, 'createSQL', callback);
-};
-
-SQL.drop = function(suite, callback) {
-  var sqlPath = path.join(suite.path, 'drop.sql');
-  udebug.log_detail("dropSQL path: " + sqlPath);
-  runSQL(sqlPath, 'dropSQL', callback);
-};
-
 
 /* Exports from this module */
 exports.Test              = Test;
@@ -722,6 +678,3 @@ exports.SmokeTest         = SmokeTest;
 exports.ConcurrentTest    = ConcurrentTest;
 exports.SerialTest        = SerialTest;
 exports.ClearSmokeTest    = ClearSmokeTest;
-exports.SQL               = SQL;
-
-

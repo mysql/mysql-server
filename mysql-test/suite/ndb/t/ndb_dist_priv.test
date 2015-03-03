@@ -182,6 +182,17 @@ flush privileges;
 # BUG#16226274 MYSQL_UPGRADE FAILED WHEN USING DISTRIBUTED GRANTS
 #
 
+# Supress the warning which occurs on the other mysqld when
+# mysql_upgrade tries to create the performance_schema database
+# although it already exists(since the DROP DATABASE was not allowed
+# due to local tables)
+--disable_query_log
+connection server2;
+call mtr.add_suppression("Can\'t create database \'performance_schema\'; database exists");
+connection server1;
+call mtr.add_suppression("Can\'t create database \'performance_schema\'; database exists");
+--enable_query_log
+
 let $log_file = $MYSQLTEST_VARDIR/tmp/ndb_dist_priv_upgrade.log;
 --echo mysql_upgrade first mysqld...
 --exec $MYSQL_UPGRADE --skip-verbose --force > $log_file 2>&1

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ struct TFPage
     m_bytes = 0;
     m_start = 0;
     m_ref_count = 0;
+    m_next = 0;
     /*
       Ensure compiler and developer not adds any fields without
       ensuring alignment still holds.
@@ -108,12 +109,13 @@ struct TFSentinel
 
 struct TFBuffer
 {
-  TFBuffer() { m_bytes_in_buffer = 0; m_head = m_tail = 0;}
+  TFBuffer() : m_head(NULL), m_tail(NULL), m_bytes_in_buffer(0) {}
   struct TFPage * m_head;
   struct TFPage * m_tail;
   Uint32 m_bytes_in_buffer;
 
   void validate() const;
+  void clear() { m_bytes_in_buffer = 0; m_head = m_tail = NULL;}
 };
 
 struct TFBufferGuard
@@ -134,7 +136,10 @@ struct TFBufferGuard
 
 class TFPool
 {
+  friend class TFMTPool;
   unsigned char * m_alloc_ptr;
+  Uint64 m_tot_send_buffer;
+  Uint64 m_tot_used_send_buffer;
   TFPage * m_first_free;
 public:
   TFPool();
@@ -146,8 +151,17 @@ public:
   TFPage* try_alloc(Uint32 N); // Return linked list of most N pages
   Uint32 try_alloc(struct iovec tmp[], Uint32 cnt);
 
-  void release(TFPage* first, TFPage* last);
-  void release_list(TFPage*);
+  void release(TFPage* first, TFPage* last, Uint32 page_count);
+  void release_list(TFPage* first);
+
+  Uint64 get_total_send_buffer_size()
+  {
+    return m_tot_send_buffer;
+  }
+  Uint64 get_total_used_send_buffer_size()
+  {
+    return m_tot_used_send_buffer;
+  }
 };
 
 class TFMTPool : private TFPool
@@ -168,16 +182,28 @@ public:
     return TFPool::try_alloc(N);
   }
 
-  void release(TFPage* first, TFPage* last) {
+  void release(TFPage* first, TFPage* last, Uint32 page_count) {
     Guard g(&m_mutex);
-    TFPool::release(first, last);
+    TFPool::release(first, last, page_count);
   }
 
   void release_list(TFPage* head) {
     TFPage * tail = head;
+    Uint32 page_count = 1;
     while (tail->m_next != 0)
+    {
       tail = tail->m_next;
-    release(head, tail);
+      page_count++;
+    }
+    release(head, tail, page_count);
+  }
+  Uint64 get_total_send_buffer_size()
+  {
+    return m_tot_send_buffer;
+  }
+  Uint64 get_total_used_send_buffer_size()
+  {
+    return m_tot_used_send_buffer;
   }
 };
 
@@ -194,6 +220,7 @@ TFPool::try_alloc(Uint32 n)
     {
       prev = p;
       p = p->m_next;
+      m_tot_used_send_buffer += 32768;
       n--;
     }
     prev->m_next = 0;
@@ -222,10 +249,11 @@ TFPool::try_alloc(struct iovec tmp[], Uint32 cnt)
 
 inline
 void
-TFPool::release(TFPage* first, TFPage* last)
+TFPool::release(TFPage* first, TFPage* last, Uint32 page_count)
 {
   last->m_next = m_first_free;
   m_first_free = first;
+  m_tot_used_send_buffer -= (32768 * page_count);
 }
 
 inline
@@ -233,9 +261,13 @@ void
 TFPool::release_list(TFPage* head)
 {
   TFPage * tail = head;
+  Uint32 page_count = 1;
   while (tail->m_next != 0)
+  {
     tail = tail->m_next;
-  release(head, tail);
+    page_count++;
+  }
+  release(head, tail, page_count);
 }
 
 #endif

@@ -74,9 +74,9 @@ private:
   union {
     /**
      * When sent from  TC -> LQH this variable contains scanInfo
-     * When send from LQH -> LQH this variable contains noFiredTriggers
+     * When send from LQH -> LQH this variable contains numFiredTriggers
      */
-    UintR noFiredTriggers;	// DATA 10 
+    UintR numFiredTriggers;	// DATA 10 
     Uint32 scanInfo;            // DATA 10
   };
 
@@ -741,7 +741,7 @@ private:
   };
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 noFiredTriggers; // bit 31 defered trigger
+  Uint32 numFiredTriggers; // bit 31 defered trigger
 
   static Uint32 getFiredCount(Uint32 v) {
     return NoOfFiredTriggers::getFiredCount(v);

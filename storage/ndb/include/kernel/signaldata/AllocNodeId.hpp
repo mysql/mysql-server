@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,6 +74,16 @@ public:
   Uint32 nodeId;
   Uint32 errorCode;
   Uint32 masterRef;
+};
+
+class AllocNodeIdRep
+{
+private:
+  friend class Dbdih;
+  friend class Qmgr;
+  STATIC_CONST( SignalLength = 1);
+
+  Uint32 nodeId;
 };
 
 #undef JAM_FILE_ID

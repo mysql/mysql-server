@@ -83,10 +83,10 @@ public class ClusterConnectionServiceImpl
         }
     }
 
-    public ClusterConnection create(String connectString, int nodeId) {
+    public ClusterConnection create(String connectString, int nodeId, int connectTimeoutMgm) {
         loadSystemLibrary("ndbclient");
         try {
-            return new ClusterConnectionImpl(connectString, nodeId);
+            return new ClusterConnectionImpl(connectString, nodeId, connectTimeoutMgm);
         } catch (ClusterJFatalUserException cjex) {
             throw cjex;
         } catch (Exception e) {

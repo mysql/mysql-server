@@ -22,9 +22,9 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 alter table child algorithm=inplace, drop foreign key fk1;
 show create table child;
@@ -36,8 +36,8 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
- CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 alter table child algorithm=inplace, drop foreign key fk2;
 show create table child;
@@ -49,7 +49,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
- CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 alter table child algorithm=inplace, drop foreign key fk3;
 show create table child;

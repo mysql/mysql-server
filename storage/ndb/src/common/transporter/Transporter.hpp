@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,12 @@ public:
   virtual ~Transporter();
 
   /**
+   * Clear any data buffered in the transporter.
+   * Should only be called in a disconnected state.
+   */
+  virtual void resetBuffers() {};
+
+  /**
    * None blocking
    *    Use isConnected() to check status
    */
@@ -53,7 +59,7 @@ public:
   /**
    * Blocking
    */
-  virtual void doDisconnect();
+  void doDisconnect();
 
   /**
    * Are we currently connected
@@ -73,18 +79,16 @@ public:
   /**
    * Get port we're connecting to (signed)
    */
-  int get_s_port() { return m_s_port; };
+  int get_s_port() const {
+    return m_s_port;
+  }
   
   /**
    * Set port to connect to (signed)
    */
   void set_s_port(int port) {
     m_s_port = port;
-    if(port<0)
-      port= -port;
-    if(m_socket_client)
-      m_socket_client->set_port(port);
-  };
+  }
 
   void update_status_overloaded(Uint32 used)
   {
@@ -94,7 +98,7 @@ public:
                                                used >= m_slowdown_limit);
   }
 
-  virtual int doSend() = 0;
+  virtual bool doSend() = 0;
 
   bool has_data_to_send()
   {

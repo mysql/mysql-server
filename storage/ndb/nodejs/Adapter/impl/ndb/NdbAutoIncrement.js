@@ -20,11 +20,10 @@
 
 "use strict";
 
-
-var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
-    stats_module    = require(path.join(api_dir,"stats.js")),
-    QueuedAsyncCall = require(path.join(spi_dir,"common","QueuedAsyncCall.js")).QueuedAsyncCall,
-    OP_INSERT       = require(path.join(spi_doc_dir,"DBOperation")).OperationCodes.OP_INSERT,
+var path            = require("path"),
+    adapter         = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")).ndb,
+    stats_module    = require(mynode.api.stats),
+    QueuedAsyncCall = require(mynode.common.QueuedAsyncCall).QueuedAsyncCall,
     udebug          = unified_debug.getLogger("NdbAutoIncrement.js");
 
 

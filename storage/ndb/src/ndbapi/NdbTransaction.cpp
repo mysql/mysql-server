@@ -90,7 +90,8 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   m_firstActiveQuery(NULL),
   m_scanningQuery(NULL),
   //
-  m_tcRef(numberToRef(DBTC, 0))
+  m_tcRef(numberToRef(DBTC, 0)),
+  m_enable_schema_obj_owner_check(false)
 {
   theListState = NotInList;
   theError.code = 0;
@@ -153,7 +154,7 @@ NdbTransaction::init()
   theReleaseOnClose       = false;
   theSimpleState          = true;
   theSendStatus           = InitState;
-  theMagicNumber          = 0x37412619;
+  theMagicNumber          = getMagicNumber();
 
   // Query operations
   m_firstQuery            = NULL;
@@ -1470,6 +1471,70 @@ NdbTransaction::getNdbOperation(const char* aTableName)
 }//NdbTransaction::getNdbOperation()
 
 /*****************************************************************************
+NdbTransaction::checkSchemaObjects(const NdbTableImpl *tab,
+                                   const NdbIndexImpl *idx)
+Return value:    true if objects are all valid, false otherwise
+Parameters:      table, optional index 
+Remark:          If the schema object ownership check is enabled while creating 
+                 the Ndb_cluster_connection, check that the connection is not
+                 using schema objects which have been acquired by another 
+                 connection. 
+*****************************************************************************/
+bool
+NdbTransaction::checkSchemaObjects(const NdbTableImpl *tab,
+                                   const NdbIndexImpl *idx)
+{
+  bool ret = true;
+  if(m_enable_schema_obj_owner_check)
+  {
+    if(tab->m_indexType != NdbDictionary::Object::TypeUndefined)
+      return ret; // skip index table passed by getNdbIndexScanOperation
+
+    // check that table and index objects are owned by current connection - get 
+    // dict objects from current connection and compare.
+    char db[MAX_TAB_NAME_SIZE];
+    tab->getDbName(db, sizeof(db));
+
+    const char *old_db= theNdb->getDatabaseName();
+
+    bool change_db= false; 
+    if(strcmp(db, old_db) != 0)
+      change_db = true;
+    if(change_db && (strcmp(db, "") != 0)) // switch to db of current table if not blank
+      theNdb->setDatabaseName(db);
+
+    NdbDictionary::Table *dictTab = NULL;
+    NdbDictionary::Index *dictIdx = NULL;
+ 
+    dictTab = theNdb->theDictionary->getTable(tab->getName());
+    if(idx)
+      dictIdx = theNdb->theDictionary->getIndex(idx->getName(), tab->getName());
+     
+    if(change_db && strcmp(old_db, "") != 0) // restore original value of db if not blank
+      theNdb->setDatabaseName(old_db);
+
+    if(dictTab && (dictTab->getObjectId() == tab->getObjectId())
+               && (dictTab->getObjectVersion() == tab->getObjectVersion())
+               && (tab != &(NdbTableImpl::getImpl(*dictTab))))
+    {
+      ndbout << "Schema object ownership check failed: table " << tab->getName() 
+             << " not owned by connection" << endl;
+      ret = false;
+    }
+    if(idx && dictIdx && (dictTab->getObjectId() == idx->getObjectId())
+               && (dictIdx->getObjectVersion() == idx->getObjectVersion())
+               && (idx != &(NdbIndexImpl::getImpl(*dictIdx))))
+    {
+      ndbout << "Schema object ownership check failed: index " 
+             << idx->getName() << " not owned by connection" << endl;
+      ret = false;
+    }
+  }
+  return ret;
+} //NdbTransaction::checkSchemaObjects
+
+
+/*****************************************************************************
 NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp,
                               bool useRec)
 
@@ -1498,6 +1563,12 @@ NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
   tOp = theNdb->getOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
+
+  if (!checkSchemaObjects(tab))
+  {
+    setErrorCode(1231);
+    return NULL;
+  } 
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
@@ -1609,6 +1680,11 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
     const NdbTableImpl * indexTable = index->getIndexTable();
     if (indexTable != 0){
       NdbIndexScanOperation* tOp = getNdbScanOperation(indexTable);
+      if (!checkSchemaObjects(table, index))
+      {
+        setErrorCode(1231);
+        return NULL;
+      } 
       if(tOp)
       {
 	tOp->m_currentTable = table;
@@ -1674,6 +1750,11 @@ NdbTransaction::getNdbScanOperation(const NdbTableImpl * tab)
   tOp = theNdb->getScanOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
+  if (!checkSchemaObjects(tab))
+  {
+    setErrorCode(1231);
+    return NULL;
+  } 
   
   if (tOp->init(tab, this) != -1) {
     define_scan_op(tOp);
@@ -1802,6 +1883,12 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
   tOp = theNdb->getIndexOperation();
   if (tOp == NULL)
     goto getNdbOp_error1;
+
+  if (!checkSchemaObjects(aTable, anIndex))
+  {
+    setErrorCode(1231);
+    return NULL;
+  } 
   if (aNextOp == NULL) {
     if (theLastOpInList != NULL) {
        theLastOpInList->next(tOp);
@@ -2155,7 +2242,7 @@ from other transactions.
     Uint32 tNoComp = theNoOfOpCompleted;
     for (Uint32 i = 0; i < tNoOfOperations ; i++) {
       NdbReceiver* const tReceiver = 
-        theNdb->void2rec(theNdb->int2void(*tPtr++));
+        NdbImpl::void2rec(theNdb->theImpl->int2void(*tPtr++));
       const Uint32 tAttrInfoLen = *tPtr++;
       if(tReceiver && tReceiver->checkMagicNumber()){
         Uint32 done;

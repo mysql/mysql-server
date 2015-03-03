@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -64,6 +64,15 @@ class NdbRecordBlobImpl extends BlobImpl {
         this.operation = operation;
         this.storeColumn = ndbRecordBlobImpl2.storeColumn;
         this.data = ndbRecordBlobImpl2.data;
+    }
+
+    /** Release any resources associated with this object.
+     * This method is called by the owner of this object.
+     */
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("NdbRecordBlobImpl.release");
+        this.data = null;
+        this.operation = null;
     }
 
     public int getColumnId() {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -549,7 +549,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
       Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id;
 
       err = c_lgman->alloc_log_space(logfile_group_id,
-				     sizeof(Disk_undo::AllocExtent)>>2);
+				     sizeof(Disk_undo::AllocExtent)>>2,
+                                     jamBuffer());
       jamEntry();
       if(unlikely(err))
       {
@@ -564,7 +565,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
 	err= 2;
 #if NOT_YET_UNDO_ALLOC_EXTENT
 	c_lgman->free_log_space(logfile_group_id, 
-				sizeof(Disk_undo::AllocExtent)>>2);
+				sizeof(Disk_undo::AllocExtent)>>2,
+                                jamBuffer());
 #endif
 	c_page_request_pool.release(req);
 	ndbout_c("no free extent info");
@@ -576,7 +578,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
 	jamEntry();
 #if NOT_YET_UNDO_ALLOC_EXTENT
 	c_lgman->free_log_space(logfile_group_id, 
-				sizeof(Disk_undo::AllocExtent)>>2);
+				sizeof(Disk_undo::AllocExtent)>>2,
+                                jamBuffer());
 #endif
 	c_extent_pool.release(ext);
 	c_page_request_pool.release(req);
@@ -700,7 +703,6 @@ Dbtup::disk_page_prealloc(Signal* signal,
   
   Page_cache_client pgman(this, c_pgman);
   int res= pgman.get_page(signal, preq, flags);
-  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -914,14 +916,8 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
   Ptr<Extent_info> extentPtr;
   c_extent_pool.getPtr(extentPtr, req.p->m_extent_info_ptr);
 
-  if (tabPtr.p->m_attributes[DD].m_no_of_varsize == 0)
-  {
-    convertThPage((Fix_page*)pagePtr.p, tabPtr.p, DD);
-  }
-  else
-  {
-    abort();
-  }
+  ndbrequire(tabPtr.p->m_attributes[DD].m_no_of_varsize == 0);
+  convertThPage((Fix_page*)pagePtr.p, tabPtr.p, DD);
 
   pagePtr.p->m_page_no= req.p->m_key.m_page_no;
   pagePtr.p->m_file_no= req.p->m_key.m_file_no;
@@ -1265,7 +1261,6 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
 
   Page_cache_client pgman(this, c_pgman);
   int res= pgman.get_page(signal, req, flags);
-  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -1604,7 +1599,6 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
   int flags = 0;
   Page_cache_client pgman(this, c_pgman);
   int res= pgman.get_page(signal, preq, flags);
-  m_pgman_ptr = pgman.m_ptr;
   jamEntry();
   switch(res)
   {
@@ -1773,7 +1767,8 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
 //  key.m_file_no = pagePtr.p->m_file_no;
   
   Uint64 lsn = 0;
-  lsn += pagePtr.p->m_page_header.m_page_lsn_hi; lsn <<= 32;
+  lsn += pagePtr.p->m_page_header.m_page_lsn_hi;
+  lsn <<= 32;
   lsn += pagePtr.p->m_page_header.m_page_lsn_lo;
 
   undo->m_page_ptr = pagePtr;

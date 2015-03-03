@@ -18,12 +18,11 @@
  02110-1301  USA
  */
 
-/*global assert, path, api_doc_dir, unified_debug */
-
 "use strict";
 
 var udebug       = unified_debug.getLogger("Projection.js"),
-    doc          = require(path.join(api_doc_dir, "Projection"));
+    path         = require("path"),
+    doc          = require(path.join(mynode.fs.api_doc_dir, "Projection"));
 
 function Projection(domainObject) {
   if (typeof domainObject === 'function') {

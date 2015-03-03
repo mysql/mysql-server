@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,6 +113,12 @@ public class NdbRecordOperationImpl implements Operation {
     /** The db for this operation */
     protected DbImpl db;
 
+    /** If autoincrement is defined for any column */
+    protected boolean autoIncrement = false;
+
+    /** The autoincrement column id or zero if none */
+    protected int autoIncrementColumnId = 0;
+
     /** Constructor used for smart value handler for new instances,
      * and the cluster transaction is not yet known. There is only one
      * NdbRecord and one buffer, so all operations result in using
@@ -125,6 +131,12 @@ public class NdbRecordOperationImpl implements Operation {
     public NdbRecordOperationImpl(ClusterConnectionImpl clusterConnection, Db db, Table storeTable) {
         this.db = (DbImpl)db;
         this.storeTable = storeTable;
+        Column autoIncrementColumn = storeTable.getAutoIncrementColumn();
+        if (autoIncrementColumn != null) {
+            this.autoIncrement = true;
+            this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
+        }
+        logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterConnection.getCachedNdbRecordImpl(storeTable);
         this.ndbRecordKeys = ndbRecordValues;
@@ -147,6 +159,13 @@ public class NdbRecordOperationImpl implements Operation {
         this.clusterTransaction = clusterTransaction;
         this.db = clusterTransaction.db;
         this.bufferManager = clusterTransaction.getBufferManager();
+        this.storeTable = storeTable;
+        Column autoIncrementColumn = storeTable.getAutoIncrementColumn();
+        if (autoIncrementColumn != null) {
+            this.autoIncrement = true;
+            this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
+        }
+        logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.valueBufferSize = ndbRecordValues.getBufferSize();
@@ -184,7 +203,37 @@ public class NdbRecordOperationImpl implements Operation {
         resetMask();
     }
 
+    /** Release any resources associated with this object.
+     * This method is called by the owner of this object.
+     */
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("NdbRecordOperationImpl.release");
+        this.ndbRecordValues = null;
+        this.ndbRecordKeys = null;
+        this.valueBuffer = null;
+        this.keyBuffer = null;
+        this.bufferManager = null;
+        if (this.blobs != null) {
+            for (int i = 0; i < this.blobs.length; ++i) {
+                if (this.blobs[i] != null) {
+                  this.blobs[i].release();
+                  this.blobs[i] = null;
+                }
+            }
+            this.blobs = null;
+        }
+    }
+
     public NdbOperationConst insert(ClusterTransactionImpl clusterTransactionImpl) {
+        // (only) if the autoincrement column has not been set by the user, get the autoincrement value
+        if (autoIncrement && !isModified(autoIncrementColumnId)) {
+            long value = db.getAutoincrementValue(storeTable);
+            if (logger.isDebugEnabled()) {
+                logger.debug("insert for " + storeTable.getName() + " autoincrement value: " + value);
+            }
+            ndbRecordValues.setAutoIncrementValue(valueBuffer, value);
+            columnSet(autoIncrementColumnId);
+        }
         // position the buffer at the beginning for ndbjtie
         valueBuffer.limit(valueBufferSize);
         valueBuffer.position(0);

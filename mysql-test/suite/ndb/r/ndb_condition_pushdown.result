@@ -2557,3 +2557,16 @@ insert into t1 values ('00:00:00'),('01:01:01');
 select 1 from t1 where a >= NULL;
 1
 drop table t1;
+#
+# BUG#14798022 "CHAR (0)" DATATYPE CAUSING ERROR 1296
+# Verify there is no push down support for char(0)
+# 
+create table t1(a int, b char(0)) engine=ndbcluster;
+insert into t1 values(1,''), (2, NULL);
+explain select * from t1 where b = '';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where
+select * from t1 where b = '';
+a	b
+1	
+drop table t1;

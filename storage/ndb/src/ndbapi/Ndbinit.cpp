@@ -212,6 +212,7 @@ NdbWaiter::NdbWaiter(trp_client* clnt)
 
 NdbWaiter::~NdbWaiter()
 {
+  m_clnt = NULL;
 }
 
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
@@ -228,7 +229,8 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     theWaiter(this),
     wakeHandler(0),
     m_ev_op(0),
-    customData(0)
+    customData(0),
+    send_TC_COMMIT_ACK_immediate_flag(false)
 {
   int i;
   for (i = 0; i < MAX_NDB_NODES; i++) {
@@ -261,5 +263,10 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 
 NdbImpl::~NdbImpl()
 {
+  m_next_ndb_object = NULL;
+  m_prev_ndb_object = NULL;
+  theWaiter = NULL;
+  wakeHandler = NULL;
+  m_ev_op = NULL;
 }
 

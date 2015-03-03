@@ -30,7 +30,7 @@ commit;
 Capturing session epoch from Master
 Show that last_conflict_epoch is 0
 Variable_name	Value
-Ndb_slave_last_conflict_epoch	0
+Ndb_conflict_last_conflict_epoch	0
 Restart Secondary->Primary replication
 Check that max_replicated_epoch is 
 still < the saved session epoch

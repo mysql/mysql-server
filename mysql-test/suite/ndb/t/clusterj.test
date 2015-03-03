@@ -29,6 +29,10 @@
 --echo Clean up tables used in the JUnit tests.
 DROP TABLE a;
 DROP TABLE allprimitives;
+DROP TABLE autopkint;
+DROP TABLE autopkbigint;
+DROP TABLE autopksmallint;
+DROP TABLE autopktinyint;
 DROP TABLE b0;
 DROP TABLE bigintegertypes;
 DROP TABLE binarypk;

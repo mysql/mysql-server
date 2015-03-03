@@ -20,7 +20,7 @@
 
 "use strict";
 
-var udebug = require(path.join(api_dir, "unified_debug")).getLogger("DbWriter.js");
+var udebug = unified_debug.getLogger("DbWriter.js");
 
 /* File Scope singletons */
 var theController;

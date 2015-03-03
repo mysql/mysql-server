@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,8 +12,9 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
+
 
 //**************************************************************************** 
 // 
@@ -113,6 +114,16 @@ public:
    *
    */
   virtual ~TransporterReceiveHandle() { };
+
+#ifndef NDEBUG
+  /**
+   * 'm_active' is used by 'class TransporterReceiveWatchdog' in 
+   * DEBUG to detect concurrent calls to ::update_connections and
+   * ::performReceive() which isn't allowed.
+   */
+  TransporterReceiveHandle() : m_active(false) {};
+  volatile bool m_active;
+#endif
 };
 
 /**
@@ -238,6 +249,13 @@ public:
    * yet been marked as really sent from bytes_sent()).
    */
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio) = 0;
+
+  /**
+   * Provide a mechanism to check the level of risk in using the send buffer.
+   * This is useful in long-running activities to ensure that they don't
+   * jeopardize short, high priority actions in the cluster.
+   */
+  virtual void getSendBufferLevel(NodeId node, SB_LevelType &level) = 0;
 
   /**
    * Called during prepareSend() if send buffer gets full, to do an emergency

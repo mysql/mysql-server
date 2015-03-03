@@ -18,8 +18,9 @@
  02110-1301  USA
  */
 
-var udebug     = unified_debug.getLogger("spi/lib.js");
-var exec = require("child_process").exec;
+var path     = require("path");
+var udebug   = unified_debug.getLogger("spi/lib.js");
+var exec     = require("child_process").exec;
 
 var SQL = {};
     
@@ -95,19 +96,19 @@ Timer.prototype.stop = function() {
       str = (onRight ? str + ' ' : ' ' + str);
     return str;
   }
-  function rpad12(str) {
-    return pad(str, 12, true);
+  function rpad(num, str) {
+    return pad(str, num, true);
   }
-  function lpad6(str) {
-    return pad(str, 6, false);
+  function lpad(num, str) {
+    return pad(str, num, false);
   }
   this.interval = Date.now() - this.current;
   this.average = this.interval / this.numberOfIterations;
   var ops = Math.round(this.numberOfIterations * 1000 / this.interval);
-  console.log(rpad12(this.mode + ' ' + this.operation),
-              '    time: ' + lpad6(this.interval.toString()) + 'ms',
-              '    avg latency: ' + lpad6(this.average.toFixed(3)) + 'ms',
-              '    ops/s: ' + lpad6(ops.toString()));
+  console.log(rpad(18, this.mode + ' ' + this.operation),
+              '    time: ' + lpad(4, this.interval.toString()) + 'ms',
+              '    avg latency: ' + lpad(4, this.average.toFixed(3)) + 'ms',
+              '    ops/s: ' + lpad(4, ops.toString()));
 };
 
 exports.SQL = SQL;

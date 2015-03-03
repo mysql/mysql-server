@@ -20,12 +20,14 @@
 
 "use strict";
 
-/*global assert, util */
+var assert    = require("assert"),
+    util      = require("util"),
+    http      = require("http");
+
 var global_stats;
 var running_servers = {};
 var unified_debug = require("./unified_debug");
 var udebug = unified_debug.getLogger("STATS");
-var http = require("http");
 var DETAIL = udebug.is_detail();
 
 /* Because modules are cached, this initialization should happen only once. 

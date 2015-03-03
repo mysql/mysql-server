@@ -438,7 +438,8 @@ private:
       m_log_waits(0),
       m_page_requests_direct_return(0),
       m_page_requests_wait_q(0),
-      m_page_requests_wait_io(0)
+      m_page_requests_wait_io(0),
+      m_entries_high(0)
     {}
     Uint32 m_num_pages;         // current number of cache pages
     Uint32 m_num_hot_pages;
@@ -452,6 +453,7 @@ private:
     Uint64 m_page_requests_direct_return;
     Uint64 m_page_requests_wait_q;
     Uint64 m_page_requests_wait_io;
+    Uint32 m_entries_high;
   } m_stats;
 
   enum CallbackIndex {
@@ -502,7 +504,7 @@ private:
   void lirs_reference(Ptr<Page_entry> ptr);
 
   void do_stats_loop(Signal*);
-  void do_busy_loop(Signal*, bool direct = false);
+  void do_busy_loop(Signal*, bool direct, EmulatedJamBuffer *jamBuf);
   void do_cleanup_loop(Signal*);
   void do_lcp_loop(Signal*);
 

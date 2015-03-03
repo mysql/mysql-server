@@ -31,6 +31,7 @@ class PollGuard;
 class NdbScanOperation : public NdbOperation {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbTransaction;
   friend class NdbResultSet;
   friend class NdbOperation;

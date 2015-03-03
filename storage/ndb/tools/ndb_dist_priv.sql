@@ -29,10 +29,10 @@ create function mysql.mysql_cluster_privileges_are_distributed()
 returns bool
 reads sql data
 begin
- declare distributed_count bool default 0;
+ declare distributed bool default 0;
 
  select COUNT(table_name) = 6
-   into distributed_count
+   into distributed
      from information_schema.tables
        where table_schema = "mysql" and
              table_name IN ("user", "db", "tables_priv",
@@ -41,7 +41,7 @@ begin
              table_type = 'BASE TABLE' and
              engine = 'NDBCLUSTER';
 
- return distributed_count;
+ return distributed;
 end|
 
 create procedure mysql.mysql_cluster_backup_privileges()
