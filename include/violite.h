@@ -176,6 +176,9 @@ struct st_VioSSLFd
                       const char *cipher, enum enum_ssl_init_error *error,
                       const char *crl_file, const char *crl_path);
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
+
+void vio_ssl_end();
+
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 
