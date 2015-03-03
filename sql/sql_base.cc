@@ -30,9 +30,6 @@
 #include "auth_common.h" // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
                          // get_column_grant
-#include "sql_derived.h" // mysql_derived_prepare,
-                         // mysql_handle_derived,
-                         // mysql_derived_filling
 #include "sql_handler.h" // mysql_ha_flush
 #include "partition_info.h"                     // partition_info
 #include "log_event.h"                          // Query_log_event

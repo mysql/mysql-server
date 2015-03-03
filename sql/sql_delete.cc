@@ -27,7 +27,7 @@
 #include "opt_trace.h"                // Opt_trace_object
 #include "psi_memory_key.h"
 #include "records.h"                  // READ_RECORD
-#include "sql_base.h"                 // open_normal_and_derived_tables
+#include "sql_base.h"                 // open_tables_for_query
 #include "sql_optimizer.h"            // optimize_cond
 #include "sql_resolver.h"             // setup_order
 #include "sql_select.h"               // free_underlaid_joins

@@ -28,7 +28,6 @@
 #include "opt_trace.h"           // OPT_TRACE_TRANSFORM
 #include "parse_tree_nodes.h"    // PT_subselect
 #include "sql_class.h"           // THD
-#include "sql_derived.h"         // mysql_derived_create
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "sql_lex.h"             // st_select_lex
 #include "sql_optimizer.h"       // JOIN

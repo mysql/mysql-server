@@ -35,7 +35,6 @@
 #include "opt_explain.h"         // join_type_str
 #include "opt_trace.h"           // Opt_trace_object
 #include "sql_base.h"            // init_ftfuncs
-#include "sql_derived.h"         // mysql_derived_optimize
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "sql_parse.h"           // check_stack_overrun
 #include "sql_planner.h"         // calculate_condition_filter
