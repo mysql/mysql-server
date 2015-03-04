@@ -3031,6 +3031,8 @@ row_sel_store_mysql_field_func(
 						templ->icp_rec_field_no */
 	const mysql_row_templ_t*templ)		/*!< in: row template */
 {
+	DBUG_ENTER("row_sel_store_mysql_field_func");
+
 	const byte*	data;
 	ulint		len;
 
@@ -3084,7 +3086,7 @@ row_sel_store_mysql_field_func(
 
 			ut_a(prebuilt->trx->isolation_level
 			     == TRX_ISO_READ_UNCOMMITTED);
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		}
 
 		ut_a(len != UNIV_SQL_NULL);
@@ -3115,7 +3117,7 @@ row_sel_store_mysql_field_func(
 			       (const byte*) prebuilt->default_rec
 			       + templ->mysql_col_offset,
 			       templ->mysql_col_len);
-			return(TRUE);
+			DBUG_RETURN(TRUE);
 		}
 
 		if (DATA_LARGE_MTYPE(templ->type)
@@ -3137,6 +3139,8 @@ row_sel_store_mysql_field_func(
 			if (prebuilt->blob_heap == NULL) {
 				prebuilt->blob_heap = mem_heap_create(
 					UNIV_PAGE_SIZE);
+				DBUG_PRINT("anna", ("blob_heap allocated: %p",
+						    prebuilt->blob_heap));
 			}
 
 			data = static_cast<byte*>(
@@ -3157,7 +3161,7 @@ row_sel_store_mysql_field_func(
 			&= ~(byte) templ->mysql_null_bit_mask;
 	}
 
-	return(TRUE);
+	DBUG_RETURN(TRUE);
 }
 
 /**************************************************************//**
@@ -3184,13 +3188,13 @@ row_sel_store_mysql_rec(
 					rec_get_offsets(rec) */
 {
 	ulint	i;
+	DBUG_ENTER("row_sel_store_mysql_rec");
 
 	ut_ad(rec_clust || index == prebuilt->index);
 	ut_ad(!rec_clust || dict_index_is_clust(index));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
-		mem_heap_free(prebuilt->blob_heap);
-		prebuilt->blob_heap = NULL;
+		row_mysql_prebuilt_free_blob_heap(prebuilt);
 	}
 
 	for (i = 0; i < prebuilt->n_template; i++) {
@@ -3207,7 +3211,7 @@ row_sel_store_mysql_rec(
 		if (!row_sel_store_mysql_field(mysql_rec, prebuilt,
 					       rec, index, offsets,
 					       field_no, templ)) {
-			return(FALSE);
+			DBUG_RETURN(FALSE);
 		}
 	}
 
@@ -3223,7 +3227,7 @@ row_sel_store_mysql_rec(
 			prebuilt->table, rec, NULL);
 	}
 
-	return(TRUE);
+	DBUG_RETURN(TRUE);
 }
 
 /*********************************************************************//**
@@ -4299,6 +4303,8 @@ row_search_mvcc(
 	ulint		match_mode,
 	ulint		direction)
 {
+	DBUG_ENTER("row_search_mvcc");
+
 	dict_index_t*	index		= prebuilt->index;
 	ibool		comp		= dict_table_is_comp(index->table);
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
@@ -4341,7 +4347,7 @@ row_search_mvcc(
 	So anything related to traditional index query would not apply to
 	it. */
 	if (prebuilt->index->type & DICT_FTS) {
-		return(DB_END_OF_INDEX);
+		DBUG_RETURN(DB_END_OF_INDEX);
 	}
 
 	{
@@ -4351,19 +4357,19 @@ row_search_mvcc(
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 
-		return(DB_TABLESPACE_DELETED);
+		DBUG_RETURN(DB_TABLESPACE_DELETED);
 
 	} else if (prebuilt->table->ibd_file_missing) {
 
-		return(DB_TABLESPACE_NOT_FOUND);
+		DBUG_RETURN(DB_TABLESPACE_NOT_FOUND);
 
 	} else if (!prebuilt->index_usable) {
 
-		return(DB_MISSING_HISTORY);
+		DBUG_RETURN(DB_MISSING_HISTORY);
 
 	} else if (dict_index_is_corrupted(prebuilt->index)) {
 
-		return(DB_CORRUPTION);
+		DBUG_RETURN(DB_CORRUPTION);
 	}
 
 	/*-------------------------------------------------------------*/
@@ -5832,7 +5838,7 @@ func_exit:
 
 	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
 
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /********************************************************************//**
