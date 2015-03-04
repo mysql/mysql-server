@@ -13460,6 +13460,15 @@ ha_innobase::extra(
 	obsolete! */
 
 	switch (operation) {
+	case HA_EXTRA_EXPORT:
+		if (DICT_TF_HAS_SHARED_SPACE(m_prebuilt->table->flags)) {
+			ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR,
+				    ER_NOT_SUPPORTED_YET,
+				    "FLUSH TABLES FOR EXPORT on a table in"
+				     " general tablespace.");
+			return(HA_ERR_UNSUPPORTED);
+		}
+		break;
 	case HA_EXTRA_FLUSH:
 		if (m_prebuilt->blob_heap) {
 			row_mysql_prebuilt_free_blob_heap(m_prebuilt);
