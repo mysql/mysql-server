@@ -217,7 +217,6 @@ st_parsing_options::reset()
   allows_variable= TRUE;
   allows_select_into= TRUE;
   allows_select_procedure= TRUE;
-  allows_derived= TRUE;
 }
 
 /**

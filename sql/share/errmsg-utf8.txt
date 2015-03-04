@@ -5269,7 +5269,8 @@ ER_NONUPDATEABLE_COLUMN
         ger "Feld '%-.192s' ist nicht aktualisierbar"
         rus "Столбец '%-.192s' не обновляемый"
         ukr "Стовбець '%-.192s' не може бути зминений"
-ER_VIEW_SELECT_DERIVED  
+# Unused since MySQL 5.8.0
+ER_VIEW_SELECT_DERIVED_UNUSED
         eng "View's SELECT contains a subquery in the FROM clause"
         ger "SELECT der View enthält eine Subquery in der FROM-Klausel"
         rus "View SELECT содержит подзапрос в конструкции FROM"
