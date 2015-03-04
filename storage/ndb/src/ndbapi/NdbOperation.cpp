@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
   theLockHandle(NULL),
   m_blob_lock_upgraded(false)
 {
-  theReceiver.init(NdbReceiver::NDB_OPERATION, false, this);
+  theReceiver.init(NdbReceiver::NDB_OPERATION, this);
   theError.code = 0;
   m_customData = NULL;
 }
@@ -133,8 +133,8 @@ NdbOperation::setErrorCodeAbort(int anErrorCode) const
  *****************************************************************************/
 
 int
-NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
-                   bool useRec){
+NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
+{
   NdbApiSignal* tSignal;
   theStatus		= Init;
   theError.code		= 0;
@@ -189,7 +189,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
   tcKeyReq->scanInfo = 0;
   theKEYINFOptr = &tcKeyReq->keyInfo[0];
   theATTRINFOptr = &tcKeyReq->attrInfo[0];
-  if (theReceiver.init(NdbReceiver::NDB_OPERATION, useRec, this))
+  if (theReceiver.init(NdbReceiver::NDB_OPERATION, this))
   {
     // theReceiver sets the error code of its owner
     return -1;
