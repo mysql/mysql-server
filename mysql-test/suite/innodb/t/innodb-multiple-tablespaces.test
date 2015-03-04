@@ -413,7 +413,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
 # TODO: This could fail to refuse startup, in case there was a log
 # checkpoint after the INSERT INTO yn.
---error 1
+--error 3
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*alt_dir.test.yn.ibd;

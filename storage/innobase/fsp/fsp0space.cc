@@ -146,16 +146,17 @@ Tablespace::open_or_create(bool is_temp)
 			break;
 		}
 
+		bool	atomic_write;
+
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-		/* Note: This should really be per node and not per
-		tablespace because a tablespace can contain multiple
-		files (nodes). The implication is that all files of
-		the tablespace should be on the same medium. */
-
 		if (!srv_use_doublewrite_buf) {
-			fil_fusionio_enable_atomic_write(it->m_handle);
+			atomic_write = fil_fusionio_enable_atomic_write(
+				it->m_handle);
+		} else {
+			atomic_write = false;
 		}
-
+#else
+		atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 		/* We can close the handle now and open the tablespace
@@ -180,7 +181,9 @@ Tablespace::open_or_create(bool is_temp)
 
 		/* Create the tablespace node entry for this data file. */
 		if (!fil_node_create(
-			    it->m_filepath, it->m_size, space, false)) {
+			    it->m_filepath, it->m_size, space, false,
+			    atomic_write)) {
+
 		       err = DB_ERROR;
 		       break;
 		}

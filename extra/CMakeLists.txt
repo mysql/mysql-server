@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,6 +86,9 @@ MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
+
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/lz4.cmake)
+
   # Add path to the InnoDB headers
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include ${CMAKE_SOURCE_DIR}/sql)
   # We use the InnoDB code directly in case the code changes.
@@ -96,6 +99,7 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
       ../storage/innobase/ut/ut0ut.cc
       ../storage/innobase/buf/buf0buf.cc
       ../storage/innobase/page/page0zip.cc
+      ../storage/innobase/os/os0file.cc
      )
 
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})

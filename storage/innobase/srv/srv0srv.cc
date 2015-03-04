@@ -166,6 +166,11 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 my_bool	srv_use_native_aio = TRUE;
 
+#ifdef UNIV_DEBUG
+/** Force all user tables to use page compression. */
+ulong	srv_debug_compress;
+#endif /* UNIV_DEBUG */
+
 /*------------------------- LOG FILES ------------------------ */
 char*	srv_log_group_home_dir	= NULL;
 
@@ -2282,13 +2287,12 @@ suspend_thread:
 	DBUG_RETURN(0);
 }
 
-/*********************************************************************//**
+/**
 Check if purge should stop.
 @return true if it should shutdown. */
 static
 bool
 srv_purge_should_exit(
-/*==============*/
 	ulint		n_purged)	/*!< in: pages purged in last batch */
 {
 	switch (srv_shutdown_state) {
@@ -2808,4 +2812,18 @@ srv_is_tablespace_truncated(ulint space_id)
 
 }
 
+/** Call exit(3) */
+void
+srv_fatal_error()
+{
 
+	ib::error() << "Cannot continue operation.";
+
+	fflush(stderr);
+
+	ut_d(innodb_calling_exit = true);
+
+	srv_shutdown_all_bg_threads();
+
+	exit(3);
+}

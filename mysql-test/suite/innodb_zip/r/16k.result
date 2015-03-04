@@ -34,13 +34,13 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 {id}	test/t2	1	5	{id}	Antelope	Compact	0	Single
 {id}	test/t3	41	5	{id}	Barracuda	Compressed	8192	Single
 {id}	test/t4	33	5	{id}	Barracuda	Dynamic	0	Single
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+SELECT SPACE, NAME, FLAG, FILE_FORMAT, ROW_FORMAT, PAGE_SIZE, ZIP_PAGE_SIZE FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
 WHERE name LIKE 'test%' ORDER BY space;
-SPACE	NAME	FLAG	FILE_FORMAT	ROW_FORMAT	PAGE_SIZE	ZIP_PAGE_SIZE	SPACE_TYPE
-{id}	test/t1	0	Antelope	Compact or Redundant	16384	0	Single
-{id}	test/t2	0	Antelope	Compact or Redundant	16384	0	Single
-{id}	test/t3	41	Barracuda	Compressed	16384	8192	Single
-{id}	test/t4	33	Barracuda	Dynamic	16384	0	Single
+SPACE	NAME	FLAG	FILE_FORMAT	ROW_FORMAT	PAGE_SIZE	ZIP_PAGE_SIZE
+{id}	test/t1	0	Antelope	Compact or Redundant	16384	0
+{id}	test/t2	0	Antelope	Compact or Redundant	16384	0
+{id}	test/t3	41	Barracuda	Compressed	16384	8192
+{id}	test/t4	33	Barracuda	Dynamic	16384	0
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
 WHERE path LIKE '%test%' ORDER BY space;
 SPACE	PATH

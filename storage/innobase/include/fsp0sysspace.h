@@ -287,6 +287,17 @@ is_system_tablespace(
 	       || id == srv_tmp_space.space_id());
 }
 
+/** Check if it is a shared tablespace.
+@param[in]	id	Space ID to check
+@return true if id is a shared tablespace, false if not. */
+UNIV_INLINE
+bool
+is_shared_tablespace(
+	ulint	id)
+{
+	return(is_system_tablespace(id));
+}
+
 /** Check if shared-system or undo tablespace.
 @return true if shared-system or undo tablespace */
 UNIV_INLINE

@@ -105,6 +105,11 @@ Created 2/16/1996 Heikki Tuuri
 # include "ut0crc32.h"
 # include "ut0new.h"
 
+#ifdef HAVE_LZO1X
+#include <lzo/lzo1x.h>
+extern bool srv_lzo_disabled;
+#endif /* HAVE_LZO1X */
+
 /** Log sequence number immediately after startup */
 lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
@@ -166,7 +171,6 @@ static char*	srv_monitor_file_name;
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
 /** */
-#define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
 #ifdef UNIV_PFS_THREAD
@@ -433,17 +437,21 @@ create_log_files(
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
-		log_space, false);
+		log_space, false, false);
 	ut_a(logfile0);
 
 	for (unsigned i = 1; i < srv_n_log_files; i++) {
+
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
 
 		if (!fil_node_create(logfilename,
 				     (ulint) srv_log_file_size,
-				     log_space, false)) {
-			ib::error() << "Cannot create file node for log file "
+				     log_space, false, false)) {
+
+			ib::error()
+				<< "Cannot create file node for log file "
 				<< logfilename;
+
 			return(DB_ERROR);
 		}
 	}
@@ -638,10 +646,16 @@ srv_undo_tablespace_open(
 		os_offset_t	size;
 		fil_space_t*	space;
 
+		bool	atomic_write;
+
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 		if (!srv_use_doublewrite_buf) {
-			fil_fusionio_enable_atomic_write(fh);
+			atomic_write = fil_fusionio_enable_atomic_write(fh);
+		} else {
+			atomic_write = false;
 		}
+#else
+		atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 		size = os_file_get_size(fh);
@@ -674,7 +688,9 @@ srv_undo_tablespace_open(
 		is 64 bits. It is OK to cast the n_pages to ulint because
 		the unit has been scaled to pages and page number is always
 		32 bits. */
-		if (fil_node_create(name, (ulint) n_pages, space, false)) {
+		if (fil_node_create(
+			name, (ulint) n_pages, space, false, atomic_write)) {
+
 			err = DB_SUCCESS;
 		}
 	}
@@ -1171,11 +1187,10 @@ srv_start_state_is_set(
 	return(srv_start_state & state);
 }
 
-/****************************************************************//**
+/**
 Shutdown all background threads created by InnoDB. */
 void
 srv_shutdown_all_bg_threads()
-/*=========================*/
 {
 	ulint	i;
 
@@ -1372,7 +1387,6 @@ innobase_start_or_create_for_mysql(void)
 	ulint		tablespace_size_in_header;
 	dberr_t		err;
 	ulint		srv_n_log_files_found = srv_n_log_files;
-	ulint		io_limit;
 	mtr_t		mtr;
 	purge_pq_t*	purge_queue;
 	char		logfilename[10000];
@@ -1394,6 +1408,28 @@ innobase_start_or_create_for_mysql(void)
 		doublewrite mechanism completely. */
 		srv_use_doublewrite_buf = FALSE;
 	}
+
+#ifdef HAVE_LZO1X
+	if (lzo_init() != LZO_E_OK) {
+		ib::warn() << "lzo_init() failed, support disabled";
+		srv_lzo_disabled = true;
+	} else {
+		ib::info() << "LZO1X support available";
+		srv_lzo_disabled = false;
+	}
+#endif /* HAVE_LZO1X */
+
+#ifdef HAVE_LZ4
+	ib::info() << "LZ4 support available";
+#else
+	ib::info() << "LZ4 support not available";
+#endif /* HAVE_LZ4 */
+
+#ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
+	ib::info() << "PUNCH HOLE support available";
+#else
+	ib::info() << "PUNCH HOLE support not available";
+#endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
 
 	if (sizeof(ulint) != sizeof(void*)) {
 		ib::error() << "Size of InnoDB's ulint is " << sizeof(ulint)
@@ -1687,19 +1723,7 @@ innobase_start_or_create_for_mysql(void)
 
 	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
 
-	io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
-
-	/* On Windows when using native aio the number of aio requests
-	that a thread can handle at a given time is limited to 32
-	i.e.: SRV_N_PENDING_IOS_PER_THREAD */
-# ifdef _WIN32
-	if (srv_use_native_aio) {
-		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
-	}
-# endif /* _WIN32 */
-
-	if (!os_aio_init(io_limit,
-			 srv_n_read_io_threads,
+	if (!os_aio_init(srv_n_read_io_threads,
 			 srv_n_write_io_threads,
 			 SRV_MAX_N_PENDING_SYNC_IOS)) {
 
@@ -2009,7 +2033,7 @@ innobase_start_or_create_for_mysql(void)
 
 			if (!fil_node_create(logfilename,
 					     (ulint) srv_log_file_size,
-					     log_space, false)) {
+					     log_space, false, false)) {
 				return(srv_init_abort(DB_ERROR));
 			}
 		}
@@ -2137,6 +2161,17 @@ files_checked:
 		}
 
 		if (err != DB_SUCCESS) {
+
+			/* A tablespace was not found during recovery. The
+			user must force recovery. */
+
+			if (err == DB_TABLESPACE_NOT_FOUND) {
+
+				srv_fatal_error();
+
+				ut_error;
+			}
+
 			return(srv_init_abort(DB_ERROR));
 		}
 

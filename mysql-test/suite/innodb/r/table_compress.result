@@ -1,0 +1,185 @@
+DROP TABLE IF EXISTS t1;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION = "ZLIB" ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMPRESS='ZLIB'
+INSERT INTO t1 VALUES(1),(2),(3),(4);
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+ALTER TABLE t1 COMPRESSION = "";
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+ALTER TABLE t1 COMPRESSION = "ZLIB";
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMPRESS='ZLIB'
+SELECT NAME, COMPRESSION
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME LIKE '%t1';
+NAME	COMPRESSION
+test/t1	Zlib
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+ALTER TABLE t1 COMPRESSION = "BLAH";
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Unsupported compression algorithm 'BLAH'
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMPRESS='ZLIB'
+ALTER TABLE t1 COMPRESSION = "NONE";
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMPRESS='NONE'
+SELECT NAME, COMPRESSION
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+WHERE NAME LIKE '%t1';
+NAME	COMPRESSION
+test/t1	None
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION = "zlibX" ENGINE = InnoDB;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Unsupported compression algorithm 'zlibX'
+Error	1031	Table storage engine for 't1' doesn't have this option
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SET @long_str = REPEAT('ZLIB', 32768);
+SET @s = CONCAT('CREATE TABLE t1(c1 INT) ENGINE=InnoDB, COMPRESSION = "', @long_str, '"');
+PREPARE stmt from @s;
+EXECUTE stmt;
+ERROR HY000: String 'ZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZLIBZL' is too long for COMPRESS (should be no longer than 2048)
+DEALLOCATE PREPARE stmt;
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SET SESSION innodb_strict_mode = on;
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION = "zlibX" ENGINE = InnoDB;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1112	InnoDB: Unsupported compression algorithm 'zlibX'
+Error	1031	Table storage engine for 't1' doesn't have this option
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t1 COMPRESSION = "BLAH";
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SET SESSION innodb_strict_mode = off;
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB;
+ALTER TABLE t1 COMPRESSION = 'abcdefghijklmnopqrstuvwxyz';
+Warnings:
+Warning	138	InnoDB: Unsupported compression algorithm 'abcdefghijklmnopqrstuvwxyz'
+SELECT TABLE_NAME, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	COMPRESS="abcdefg"
+SELECT NAME, COMPRESSION
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+WHERE NAME LIKE '%t1';
+NAME	COMPRESSION
+test/t1	None
+DROP TABLE t1;
+SET GLOBAL INNODB_FILE_PER_TABLE = 0;
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="zlib";
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Compression not supported for shared tablespaces
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="blah";
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Unsupported compression algorithm 'blah'
+Warning	138	InnoDB: Compression not supported for shared tablespaces
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TEMPORARY TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="zlib";
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Cannot compress pages of shared tablespaces
+Warning	138	InnoDB: Compression not supported for temporary tables
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
+CREATE TEMPORARY TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="blah";
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Cannot compress pages of shared tablespaces
+Warning	138	InnoDB: Unsupported compression algorithm 'blah'
+Warning	138	InnoDB: Compression not supported for temporary tables
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SET GLOBAL INNODB_FILE_PER_TABLE=1;

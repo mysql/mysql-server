@@ -399,6 +399,10 @@ database name and table name. In addition, 14 bytes is added for:
 #define MAX_FULL_NAME_LEN				\
 	(MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
 
+/** Maximum length of the compression alogrithm string. Currently we support
+only (NONE | ZLIB | LZ4). */
+#define MAX_COMPRESSION_LEN     4
+
 /** The maximum length in bytes that a database name can occupy when stored in
 UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
 mysql_com.h if you are to use this macro. */
@@ -651,6 +655,8 @@ typedef void* os_thread_ret_t;
 
 extern ulong	srv_page_size_shift;
 extern ulong	srv_page_size;
+
+static const size_t UNIV_SECTOR_SIZE = 512;
 
 /* Dimension of spatial object we support so far. It has its root in
 myisam/sp_defs.h. We only support 2 dimension data */

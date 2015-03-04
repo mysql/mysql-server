@@ -3199,11 +3199,32 @@ prepare_inplace_alter_table_dict(
 			ctx->new_table->fts->doc_col = fts_doc_id_col;
 		}
 
+		const char*	compression;
+
+		compression = ha_alter_info->create_info->compress.str;
+
+                if (Compression::validate(compression) != DB_SUCCESS) {
+
+                        compression = NULL;
+                }
+
 		error = row_create_table_for_mysql(
-			ctx->new_table, ctx->trx, false);
+			ctx->new_table, compression, ctx->trx, false);
 
 		switch (error) {
 			dict_table_t*	temp_table;
+		case DB_IO_NO_PUNCH_HOLE_FS:
+
+			push_warning_printf(
+				ctx->prebuilt->trx->mysql_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"XPunch hole not supported by the file system. "
+				"Compression disabled for '%s'",
+				ctx->new_table->name.m_name);
+
+			error = DB_SUCCESS;
+
 		case DB_SUCCESS:
 			/* We need to bump up the table ref count and
 			before we can use it we need to open the
@@ -3227,6 +3248,10 @@ prepare_inplace_alter_table_dict(
 		case DB_DUPLICATE_KEY:
 			my_error(HA_ERR_TABLE_EXIST, MYF(0),
 				 altered_table->s->table_name.str);
+			goto new_clustered_failed;
+		case DB_UNSUPPORTED:
+			my_error(ER_UNSUPPORTED_EXTENSION, MYF(0),
+				 ctx->new_table->name.m_name);
 			goto new_clustered_failed;
 		default:
 			my_error_innodb(error, table_name, flags);
@@ -6858,8 +6883,12 @@ foreign_fail:
 		}
 	}
 
-	innobase_parse_hint_from_comment(m_user_thd, m_prebuilt->table,
-					 altered_table->s);
+	/* We don't support compression for the system tablespace nor
+	the temporary tablespace. Only because they are shared tablespaces.
+	There is no other technical reason. */
+
+	innobase_parse_hint_from_comment(
+		m_user_thd, m_prebuilt->table, altered_table->s);
 
 	/* TODO: Also perform DROP TABLE and DROP INDEX after
 	the MDL downgrade. */

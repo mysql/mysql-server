@@ -541,6 +541,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  COMPACT_SYM
 %token  COMPLETION_SYM
 %token  COMPRESSED_SYM
+%token  COMPRESSION_SYM
 %token  CONCURRENT
 %token  CONDITION_SYM                 /* SQL-2003-R, SQL-2008-R */
 %token  CONNECTION_SYM
@@ -5879,6 +5880,11 @@ create_table_option:
             Lex->create_info.comment=$3;
             Lex->create_info.used_fields|= HA_CREATE_USED_COMMENT;
           }
+        | COMPRESSION_SYM opt_equal TEXT_STRING_sys
+	  {
+            Lex->create_info.used_fields|= HA_CREATE_USED_COMPRESS;
+            Lex->create_info.compress= $3;
+	  }
         | AUTO_INC opt_equal ulonglong_num
           {
             Lex->create_info.auto_increment_value=$3;
@@ -13184,6 +13190,7 @@ keyword_sp:
         | COMPACT_SYM              {}
         | COMPLETION_SYM           {}
         | COMPRESSED_SYM           {}
+        | COMPRESSION_SYM          {}
         | CONCURRENT               {}
         | CONNECTION_SYM           {}
         | CONSISTENT_SYM           {}
