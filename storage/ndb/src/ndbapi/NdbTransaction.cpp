@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1475,8 +1475,7 @@ Remark:         Get an operation from NdbOperation object idlelist and
 *****************************************************************************/
 NdbOperation*
 NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
-                                NdbOperation* aNextOp,
-                                bool useRec)
+                                NdbOperation* aNextOp)
 { 
   NdbOperation* tOp;
 
@@ -1510,7 +1509,7 @@ NdbTransaction::getNdbOperation(const NdbTableImpl * tab,
     }
     tOp->next(aNextOp);
   }
-  if (tOp->init(tab, this, useRec) != -1) {
+  if (tOp->init(tab, this) != -1) {
     return tOp;
   } else {
     theNdb->releaseOperation(tOp);
@@ -1784,8 +1783,7 @@ Remark:         Get an operation from NdbIndexOperation object idlelist and get 
 NdbIndexOperation*
 NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex, 
                                      const NdbTableImpl * aTable,
-                                     NdbOperation* aNextOp,
-                                     bool useRec)
+                                     NdbOperation* aNextOp)
 { 
   NdbIndexOperation* tOp;
   
@@ -1814,7 +1812,7 @@ NdbTransaction::getNdbIndexOperation(const NdbIndexImpl * anIndex,
     }
     tOp->next(aNextOp);
   }
-  if (tOp->indxInit(anIndex, aTable, this, useRec)!= -1) {
+  if (tOp->indxInit(anIndex, aTable, this)!= -1) {
     return tOp;
   } else {
     theNdb->releaseOperation(tOp);
@@ -2481,7 +2479,7 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   if (key_record->flags & NdbRecord::RecIsIndex)
   {
     op= getNdbIndexOperation(key_record->table->m_index,
-                             attribute_record->table, NULL, true);
+                             attribute_record->table, NULL);
   }
   else
   {
@@ -2490,7 +2488,7 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
       setOperationErrorCodeAbort(4287);
       return NULL;
     }
-    op= getNdbOperation(attribute_record->table, NULL, true);
+    op= getNdbOperation(attribute_record->table, NULL);
   }
   if(!op)
     return NULL;

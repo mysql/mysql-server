@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1111,7 +1111,7 @@ protected:
 //--------------------------------------------------------------
 // Initialise after allocating operation to a transaction		      
 //--------------------------------------------------------------
-  int init(const class NdbTableImpl*, NdbTransaction* aCon, bool useRec);
+  int init(const class NdbTableImpl*, NdbTransaction* aCon);
   void initInterpreter();
 
   NdbOperation(Ndb* aNdb, Type aType = PrimaryKeyAccess);	
@@ -1626,7 +1626,7 @@ inline
 const NdbRecAttr*
 NdbOperation::getFirstRecAttr() const 
 {
-  return theReceiver.theFirstRecAttr;
+  return theReceiver.m_firstRecAttr;
 }
 
 /******************************************************************************

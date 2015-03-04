@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -594,7 +594,8 @@ protected:
   int getFirstATTRINFOScan();
   int doSendScan(int ProcessorId);
   int finaliseScanOldApi();
-  int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
+  int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId,
+                      const Uint32 * readMask);
   
   int fix_receivers(Uint32 parallel);
   void reset_receivers(Uint32 parallel, Uint32 ordered);
@@ -678,8 +679,12 @@ protected:
   bool m_multi_range; // Mark if operation is part of multi-range scan
   bool m_executed; // Marker if operation should be released at close
 
-  /* Buffer for rows received during NdbRecord scans, or NULL. */
-  char *m_scan_buffer;
+  /* Buffer given to NdbReceivers for batch of rows received 
+     during NdbRecord scans, or NULL. Buffer is chunked up
+     to construct several NdbReceiverBuffer, but is allocated
+     as a single chunk from the NdbScanOperation
+  */
+  Uint32 *m_scan_buffer;
   
   /* Initialise scan operation with user provided information */
   virtual int processTableScanDefs(LockMode lock_mode, 
