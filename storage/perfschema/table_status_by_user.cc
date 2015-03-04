@@ -145,7 +145,7 @@ int table_status_by_user::rnd_next(void)
     threads associated with the user.
   */
   bool has_more_user= true;
-  
+
   for (m_pos.set_at(&m_next_pos);
        has_more_user;
        m_pos.next_user())
