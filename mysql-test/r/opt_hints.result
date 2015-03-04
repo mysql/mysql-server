@@ -1387,4 +1387,4 @@ Warnings:
 Warning	1064	Optimizer hint syntax error near '? bad syntax */ 1' at line 2
 DROP TABLE t1, t2;
 SELECT /*+ 10;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*+ 10' at line 1
