@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1043,14 +1043,12 @@ private:
 
   int		checkMagicNumber();		       // Verify correct object
   NdbOperation* getNdbOperation(const class NdbTableImpl* aTable,
-                                NdbOperation* aNextOp = 0,
-                                bool useRec= false);
+                                NdbOperation* aNextOp = 0);
 
   NdbIndexScanOperation* getNdbScanOperation(const class NdbTableImpl* aTable);
   NdbIndexOperation* getNdbIndexOperation(const class NdbIndexImpl* anIndex, 
                                           const class NdbTableImpl* aTable,
-                                          NdbOperation* aNextOp = 0,
-                                          bool useRec= false);
+                                          NdbOperation* aNextOp = 0);
   NdbIndexScanOperation* getNdbIndexScanOperation(const NdbIndexImpl* index,
 						  const NdbTableImpl* table);
   
