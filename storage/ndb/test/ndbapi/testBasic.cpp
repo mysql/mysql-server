@@ -2749,14 +2749,36 @@ int collectEvents(Ndb* ndb,
                   Vector<NdbRecAttr*>* afterAttrs)
 {
   int MaxTimeouts = 5;
+  int MaxEmptyPollsAfterData = 10;
+  bool some_event_data_received = false;
   while (true)
   {
-    int res = ndb->pollEvents(1000);
+    NdbEventOperation* pOp = NULL;
 
-    if (res > 0)
+    int res = ndb->pollEvents(1000);
+    if (res <= 0)
     {
-      NdbEventOperation* pOp;
-      while ((pOp = ndb->nextEvent()))
+      if (--MaxTimeouts == 0)
+        break;
+    }
+    else
+    {
+      assert(res == 1);
+      pOp = ndb->nextEvent();
+      if (!pOp)
+      {
+        /* pollEvents returning 1 and nextEvent returning 0 means
+         * empty epochs found in the event queue. After we receive
+         * some event data, we wait some empty epoch poll rounds
+         * to make sure that no more event data arrives.
+         */
+        if (some_event_data_received && --MaxEmptyPollsAfterData == 0)
+          break;
+      }
+    }
+
+    {
+      while (pOp)
       {
         bool isDelete = (pOp->getEventType() == NdbDictionary::Event::TE_DELETE);
         Vector<NdbRecAttr*>* whichVersion =
@@ -2835,17 +2857,11 @@ int collectEvents(Ndb* ndb,
         ei.gci = gci;
 
         receivedEvents.push_back(ei);
-      }
-    }
-    else
-    {
-      if (--MaxTimeouts == 0)
-      {
-        break;
+        some_event_data_received = true;
+        pOp = ndb->nextEvent();
       }
     }
   }
-
   return NDBT_OK;
 }
 
