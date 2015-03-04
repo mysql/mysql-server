@@ -7410,11 +7410,10 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     */
     if (fld == view_ref_found)
     {
-      Item *const it= (*ref)->real_item();
       Mark_field mf(thd->mark_used_columns);
-      it->walk(&Item::mark_field_in_map,
-               Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-               (uchar *)&mf);
+      (*ref)->walk(&Item::mark_field_in_map,
+                   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                   (uchar *)&mf);
     }
     else  // surely fld != NULL (see outer if())
       fld->table->mark_column_used(thd, fld, thd->mark_used_columns);
