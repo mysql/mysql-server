@@ -367,7 +367,8 @@ public:
 
         MYSQL_SOCKET s= mysql_socket_socket(0, AF_INET6, SOCK_STREAM, 0);
         ipv6_available= mysql_socket_getfd(s) != INVALID_SOCKET;
-        mysql_socket_close(s);
+        if (ipv6_available)
+          mysql_socket_close(s);
       }
       if (ipv6_available)
       {
