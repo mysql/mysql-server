@@ -140,7 +140,7 @@ bool PFS_table_context::initialize(void)
     /* Restore context from TLS. */
     PFS_table_context *context= static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
     DBUG_ASSERT(context != NULL);
-    
+
     if(context)
     {
       m_last_version= context->m_current_version;
@@ -155,7 +155,7 @@ bool PFS_table_context::initialize(void)
     /* Check that TLS is not in use. */
     PFS_table_context *context= static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
     //DBUG_ASSERT(context == NULL);
-    
+
     context= this;
 
     /* Initialize a new context, store in TLS. */
