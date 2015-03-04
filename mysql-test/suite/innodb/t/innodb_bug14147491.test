@@ -18,8 +18,10 @@ CALL mtr.add_suppression("\\[ERROR\\] \\[FATAL\\] InnoDB: Unable to read page \\
 CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Database page corruption on disk or a failed");
 --enable_query_log
 
+# Disable compression for this table, otherwise our pattern matching below
+# will not work
 --echo # Create and populate the table to be corrupted
-CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) COMPRESSION="none", ENGINE=InnoDB;
 INSERT INTO t1 (b) VALUES ('corrupt me');
 --disable_query_log
 --let $i = 10

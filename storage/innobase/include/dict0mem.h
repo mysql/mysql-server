@@ -1179,7 +1179,7 @@ struct dict_table_t {
 	id_name_t				tablespace;
 
 	/** Space where the clustered index of the table is placed. */
-	unsigned				space:32;
+	uint32_t				space;
 
 	/** Stores information about:
 	1 row format (redundant or compact),

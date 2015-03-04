@@ -1,0 +1,19 @@
+SET GLOBAL innodb_file_per_table=1;
+CREATE TABLE test.wl7696_no_comp (c INTEGER);
+DROP TABLE test.wl7696_no_comp;
+DROP TABLE IF EXISTS test.wl7696_zlib;
+CREATE TABLE test.wl7696_zlib (t LONGTEXT) COMPRESSION='zlib';
+DROP TABLE IF EXISTS test.wl7696_lz4;
+CREATE TABLE test.wl7696_lz4 (t LONGTEXT) COMPRESSION='lz4';
+INSERT INTO test.wl7696_zlib VALUES (REPEAT('z',142857));
+INSERT INTO test.wl7696_lz4 VALUES (REPEAT('4',142857));
+COMMIT;
+FLUSH TABLES test.wl7696_zlib WITH READ LOCK;
+UNLOCK TABLES;
+FLUSH TABLES test.wl7696_lz4 WITH READ LOCK;
+UNLOCK TABLES;
+test/wl7696_lz4 is compressed, or does not exist
+test/wl7696_zlib is compressed
+DROP TABLE IF EXISTS test.wl7696_zlib;
+DROP TABLE IF EXISTS test.wl7696_lz4;
+SET GLOBAL innodb_file_per_table=1;
