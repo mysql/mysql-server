@@ -20,11 +20,12 @@
 #include "my_sys.h"                     // wild_many, wild_one, wild_prefix
 #include <string.h>                     // strchr
 #include "mysql_com.h"                  // SCRAMBLE_LENGTH
+#include "mysql_time.h"                 // MYSQL_TIME
 #include "violite.h"                    // SSL_type
 #include "hash_filo.h"                  // HASH, hash_filo
 #include "records.h"                    // READ_RECORD
 #include "read_write_lock.h"            // Write_lock, Read_lock, lock_at
-
+#include "sql_connect.h"                // USER_RESOURCES
 #include "prealloced_array.h"
 
 /* Forward Declarations */

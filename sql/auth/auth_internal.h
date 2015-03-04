@@ -28,6 +28,7 @@ class GRANT_NAME;
 class GRANT_TABLE;
 class GRANT_COLUMN;
 struct TABLE;
+typedef struct user_resources USER_RESOURCES;
 
 /* sql_authentication */
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);

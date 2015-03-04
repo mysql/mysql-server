@@ -44,6 +44,8 @@
 #include "sql_parse.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
+#include "sql_class.h"
+
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.
   Read locked when only reading data and write-locked for all other access.

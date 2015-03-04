@@ -78,6 +78,7 @@ SET(SQL_SHARED_SOURCES
   debug_sync.cc
   derror.cc
   discover.cc
+  error_handler.cc
   field.cc
   field_conv.cc 
   filesort.cc

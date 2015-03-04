@@ -29,6 +29,8 @@
 #include "sql_user_table.h"
 #include "sql_authentication.h"
 #include "current_thd.h"
+#include "sql_class.h"
+#include "field.h"
 
 #include "tztime.h"
 #include "sql_time.h"

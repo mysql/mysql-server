@@ -35,6 +35,8 @@
 #include "sql_plugin_ref.h"
 #include "current_thd.h"
 #include "psi_memory_key.h"
+#include "sql_class.h"
+#include "field.h"
 
 #include <my_dir.h>
 #include <stdarg.h>

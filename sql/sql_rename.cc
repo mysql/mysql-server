@@ -27,6 +27,7 @@
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "datadict.h"
 #include "log.h"
+#include "sql_class.h"
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);

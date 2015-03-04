@@ -27,6 +27,7 @@
 #include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
 #include "trigger_chain.h"                    // Trigger_chain
 #include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
+#include "sql_class.h"                        // THD
 #include "current_thd.h"
 
 

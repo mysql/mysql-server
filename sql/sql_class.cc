@@ -561,31 +561,6 @@ partition_info *thd_get_work_part_info(THD *thd)
 }
 
 
-/**
-  Implementation of Drop_table_error_handler::handle_condition().
-  The reason in having this implementation is to silence technical low-level
-  warnings during DROP TABLE operation. Currently we don't want to expose
-  the following warnings during DROP TABLE:
-    - Some of table files are missed or invalid (the table is going to be
-      deleted anyway, so why bother that something was missed);
-    - A trigger associated with the table does not have DEFINER (One of the
-      MySQL specifics now is that triggers are loaded for the table being
-      dropped. So, we may have a warning that trigger does not have DEFINER
-      attribute during DROP TABLE operation).
-
-  @return true if the condition is handled.
-*/
-bool Drop_table_error_handler::handle_condition(THD *thd,
-                                                uint sql_errno,
-                                                const char* sqlstate,
-                                                Sql_condition::enum_severity_level *level,
-                                                const char* msg)
-{
-  return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
-          sql_errno == ER_TRG_NO_DEFINER);
-}
-
-
 void Open_tables_state::set_open_tables_state(Open_tables_state *state)
 {
   this->open_tables= state->open_tables;

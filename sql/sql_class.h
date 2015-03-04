@@ -27,6 +27,7 @@
 #include "auth/sql_security_ctx.h"        // Security_context
 #include "derror.h"                       // ER_THD
 #include "discrete_interval.h"            // Discrete_interval
+#include "error_handler.h"                // Internal_error_handler
 #include "handler.h"                      // KEY_CREATE_INFO
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "protocol.h"                     // Protocol_text
@@ -795,122 +796,6 @@ show_system_thread(enum_thread_type thread)
   }
 #undef RETURN_NAME_AS_STRING
 }
-
-/**
-  This class represents the interface for internal error handlers.
-  Internal error handlers are exception handlers used by the server
-  implementation.
-*/
-class Internal_error_handler
-{
-protected:
-  Internal_error_handler() :
-    m_prev_internal_handler(NULL)
-  {}
-
-  virtual ~Internal_error_handler() {}
-
-public:
-  /**
-    Handle a sql condition.
-    This method can be implemented by a subclass to achieve any of the
-    following:
-    - mask a warning/error internally, prevent exposing it to the user,
-    - mask a warning/error and throw another one instead.
-    When this method returns true, the sql condition is considered
-    'handled', and will not be propagated to upper layers.
-    It is the responsability of the code installing an internal handler
-    to then check for trapped conditions, and implement logic to recover
-    from the anticipated conditions trapped during runtime.
-
-    This mechanism is similar to C++ try/throw/catch:
-    - 'try' correspond to <code>THD::push_internal_handler()</code>,
-    - 'throw' correspond to <code>my_error()</code>,
-    which invokes <code>my_message_sql()</code>,
-    - 'catch' correspond to checking how/if an internal handler was invoked,
-    before removing it from the exception stack with
-    <code>THD::pop_internal_handler()</code>.
-
-    @param thd the calling thread
-    @param cond the condition raised.
-    @return true if the condition is handled
-  */
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg) = 0;
-
-private:
-  Internal_error_handler *m_prev_internal_handler;
-  friend class THD;
-};
-
-
-/**
-  Implements the trivial error handler which cancels all error states
-  and prevents an SQLSTATE to be set.
-*/
-
-class Dummy_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
-  {
-    /* Ignore error */
-    return true;
-  }
-};
-
-
-/**
-  This class is an internal error handler implementation for
-  DROP TABLE statements. The thing is that there may be warnings during
-  execution of these statements, which should not be exposed to the user.
-  This class is intended to silence such warnings.
-*/
-
-class Drop_table_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg);
-};
-
-
-/**
-  Internal error handler to process an error from MDL_context::upgrade_lock()
-  and mysql_lock_tables(). Used by implementations of HANDLER READ and
-  LOCK TABLES LOCAL.
-*/
-
-class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
-  {
-    if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
-      m_need_reopen= true;
-
-    return m_need_reopen;
-  }
-
-  bool need_reopen() const { return m_need_reopen; };
-  void init() { m_need_reopen= false; };
-private:
-  bool m_need_reopen;
-};
 
 
 /**
@@ -3822,6 +3707,39 @@ public:
 
   void parse_error_at(const YYLTYPE &location, const char *s= NULL);
 };
+
+
+/**
+  A simple holder for Internal_error_handler.
+  The class utilizes RAII technique to not forget to pop the handler.
+
+  @tparam Error_handler      Internal_error_handler to instantiate.
+  @tparam Error_handler_arg  Type of the error handler ctor argument.
+*/
+template<typename Error_handler, typename Error_handler_arg>
+class Internal_error_handler_holder
+{
+  THD *m_thd;
+  bool m_activate;
+  Error_handler m_error_handler;
+
+public:
+  Internal_error_handler_holder(THD *thd, bool activate,
+                                Error_handler_arg *arg)
+    : m_thd(thd), m_activate(activate), m_error_handler(arg)
+  {
+    if (activate)
+      thd->push_internal_handler(&m_error_handler);
+  }
+
+
+  ~Internal_error_handler_holder()
+  {
+    if (m_activate)
+      m_thd->pop_internal_handler();
+  }
+};
+
 
 /**
   A simple holder for the Prepared Statement Query_arena instance in THD.

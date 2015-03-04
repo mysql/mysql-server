@@ -345,6 +345,7 @@ TODO list:
 #include "transaction.h"
 #include "current_thd.h"
 #include "psi_memory_key.h"
+#include "sql_class.h"
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"

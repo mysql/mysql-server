@@ -16,20 +16,26 @@
 #ifndef SQL_BASE_INCLUDED
 #define SQL_BASE_INCLUDED
 
-#include "sql_class.h"                          /* enum_mark_columns */
+#include "my_global.h"
+#include "hash.h"                   // my_hash_value_type
+#include "sql_array.h"              // Bounds_checked_array
+#include "table.h"                  // TABLE_LIST
+#include "trigger_def.h"            // enum_trigger_event_type
 
 class Item_ident;
-struct Name_resolution_context;
+class MDL_savepoint;
 class Open_table_context;
+class Open_tables_backup;
 class Open_tables_state;
 class Prelocking_strategy;
-struct TABLE_LIST;
-class THD;
-struct handlerton;
-struct TABLE;
-class Table_trigger_dispatcher;
+class Query_tables_list;
+class sp_head;
+class Sroutine_hash_entry;
+struct Name_resolution_context;
 
+typedef struct st_open_table_list OPEN_TABLE_LIST;
 typedef class st_select_lex SELECT_LEX;
+typedef Bounds_checked_array<Item*> Ref_ptr_array;
 
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 
@@ -594,172 +600,6 @@ inline bool is_temporary_table(TABLE_LIST *tl)
 
   return tl->table->s->tmp_table != NO_TMP_TABLE;
 }
-
-/**
-  A simple holder for Internal_error_handler.
-  The class utilizes RAII technique to not forget to pop the handler.
-
-  @tparam Error_handler      Internal_error_handler to instantiate.
-  @tparam Error_handler_arg  Type of the error handler ctor argument.
-*/
-template<typename Error_handler, typename Error_handler_arg>
-class Internal_error_handler_holder
-{
-  THD *m_thd;
-  bool m_activate;
-  Error_handler m_error_handler;
-
-public:
-  Internal_error_handler_holder(THD *thd, bool activate,
-                                Error_handler_arg *arg)
-    : m_thd(thd), m_activate(activate), m_error_handler(arg)
-  {
-    if (activate)
-      thd->push_internal_handler(&m_error_handler);
-  }
-
-
-  ~Internal_error_handler_holder()
-  {
-    if (m_activate)
-      m_thd->pop_internal_handler();
-  }
-};
-
-/**
-   An Internal_error_handler that suppresses errors regarding views'
-   underlying tables that occur during privilege checking. It hides errors which
-   show view underlying table information.
-   This happens in the cases when
-
-   - A view's underlying table (e.g. referenced in its SELECT list) does not
-     exist or columns of underlying table are altered. There should not be an
-     error as no attempt was made to access it per se.
-
-   - Access is denied for some table, column, function or stored procedure
-     such as mentioned above. This error gets raised automatically, since we
-     can't untangle its access checking from that of the view itself.
-
-    There are currently two mechanisms at work that handle errors for views
-    based on an Internal_error_handler. This one and another one is
-    Show_create_error_handler. The latter handles errors encountered during
-    execution of SHOW CREATE VIEW, while this mechanism using this method is
-    handles SELECT from views. The two methods should not clash.
-
-*/
-class View_error_handler : public Internal_error_handler
-{
-  TABLE_LIST *m_top_view;
-
-public:
-  View_error_handler(TABLE_LIST *top_view) :
-  m_top_view(top_view)
-  {}
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *message);
-};
-
-/**
-  This internal handler is used to trap ER_NO_SUCH_TABLE.
-*/
-
-class No_such_table_error_handler : public Internal_error_handler
-{
-public:
-  No_such_table_error_handler()
-    : m_handled_errors(0), m_unhandled_errors(0)
-  {}
-
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
-  {
-    if (sql_errno == ER_NO_SUCH_TABLE)
-    {
-      m_handled_errors++;
-      return true;
-    }
-
-    m_unhandled_errors++;
-    return false;
-  }
-
-  /**
-    Returns true if one or more ER_NO_SUCH_TABLE errors have been
-    trapped and no other errors have been seen. false otherwise.
-  */
-  bool safely_trapped_errors() const
-  {
-    /*
-      If m_unhandled_errors != 0, something else, unanticipated, happened,
-      so the error is not trapped but returned to the caller.
-      Multiple ER_NO_SUCH_TABLE can be raised in case of views.
-    */
-    return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
-  }
-
-private:
-  int m_handled_errors;
-  int m_unhandled_errors;
-};
-
-
-/**
-  This internal handler implements downgrade from SL_ERROR to SL_WARNING
-  for statements which support IGNORE.
-*/
-
-class Ignore_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg);
-};
-
-/**
-  This internal handler implements upgrade from SL_WARNING to SL_ERROR
-  for the error codes affected by STRICT mode. Currently STRICT mode does
-  not affect SELECT statements.
-*/
-
-class Strict_error_handler : public Internal_error_handler
-{
-public:
-  enum enum_set_select_behavior
-  {
-    DISABLE_SET_SELECT_STRICT_ERROR_HANDLER,
-    ENABLE_SET_SELECT_STRICT_ERROR_HANDLER
-  };
-
-  Strict_error_handler()
-    : m_set_select_behavior(DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
-  {}
-
-  Strict_error_handler(enum_set_select_behavior param)
-    : m_set_select_behavior(param)
-  {}
-
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg);
-
-private:
-  /*
-    For SELECT and SET statement, we do not always give error in STRICT mode.
-    For triggers, Strict_error_handler is pushed in the beginning of statement.
-    If a SELECT or SET is executed from the Trigger, it should not always give
-    error. We use this flag to choose when to give error and when warning.
-  */
-  enum_set_select_behavior m_set_select_behavior;
-};
 
 void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set);
 
