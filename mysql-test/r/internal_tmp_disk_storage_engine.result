@@ -3054,6 +3054,30 @@ c24, c25, c26, c27, c28, c29, c30, c31, c32, c33, c34, c35;
 sum(b)
 4
 DROP TABLE t1;
+#
+# Bug#20454833 PREFIX INDEX FIELD, ON AN INAPPROPRIATE DATA TYPE
+#
+set sql_mode='';
+create table t1 (a blob,b int) engine=innodb;
+create table t2 (b blob) engine=innodb;
+select t2.b,t1.b,t1.a
+from t2 inner join t1 on 1 cross join t2 a  on 1
+group by t1.b;
+b	b	a
+set sql_mode=default;
+drop table t1,t2;
+#
+# Bug#20506527 FAILING ASSERTION: !MBMAXLEN || !(PREFIX_LEN % MBMAXLEN)
+#
+set names utf8, sql_mode='';
+create table t1(a date,b text charset utf8,c linestring not null);
+insert into t1 values ('2015-01-01','a',linestring(point(1,1),point(2,2)));
+select distinct nullif(a,b) as c from t1 z order by z.c;
+c
+201
+Warnings:
+Warning	1292	Incorrect date value: 'a' for column 'a' at row 1
+set names default, sql_mode=default;
 SET GLOBAL innodb_large_prefix=default;
 Warnings:
 Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html

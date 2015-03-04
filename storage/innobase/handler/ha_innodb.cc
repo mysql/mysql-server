@@ -9140,25 +9140,16 @@ create_index(
 		specified number of first bytes of the column to
 		the index field.) The flag does not seem to be
 		properly set by MySQL. Let us fall back on testing
-		the length of the key part versus the column. */
+		the length of the key part versus the column.
+		We first reach to the table's column; if the index is on a
+		prefix, key_part->field is not the table's column (it's a
+		"fake" field forged in open_table_from_share() with length
+		equal to the length of the prefix); so we have to go to
+		form->fied. */
+		Field*	field= form->field[key_part->field->field_index];
+		if (field == NULL)
+		  ut_error;
 
-		Field*	field = NULL;
-
-		for (ulint j = 0; j < form->s->fields; j++) {
-
-			field = form->field[j];
-
-			if (0 == innobase_strcasecmp(
-				    field->field_name,
-				    key_part->field->field_name)) {
-				/* Found the corresponding column */
-
-				goto found;
-			}
-		}
-
-		ut_error;
-found:
 		const char*	field_name = key_part->field->field_name;
 		if (handler != NULL && dict_table_is_intrinsic(handler)) {
 
