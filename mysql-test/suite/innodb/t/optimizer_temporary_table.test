@@ -46,40 +46,6 @@ let $restart_parameters = restart: --innodb-read-only --big-tables=1;
 let $restart_parameters = restart;
 --source include/restart_mysqld.inc
 
-#------------------------------------------------------------------------------
-#
-# make sure intrinsic table open and close doesn't affect monitoring count.
-#
-set global innodb_monitor_enable = metadata_table_reference_count;
-set global innodb_monitor_reset = metadata_table_reference_count;
-select name, count, status from information_schema.innodb_metrics where name like 'metadata%';
-#
-create table t (a int, b varchar(20)) engine=innodb STATS_PERSISTENT=0;
-create temporary table tt (a int, b varchar(20)) engine=innodb STATS_PERSISTENT=0;
-#
-insert into t values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
-insert into tt values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
-#
-select name, count, status from information_schema.innodb_metrics where name like 'metadata%';
-set big_tables = 1;
-select sql_buffer_result * from t;
-select sql_buffer_result * from tt;
-select name, count, status from information_schema.innodb_metrics where name like 'metadata%';
-#
-drop table t;
-drop table tt;
-#
-select name, count, status from information_schema.innodb_metrics where name like 'metadata%';
-set global innodb_monitor_reset = metadata_table_reference_count;
-set global innodb_monitor_disable = metadata_table_reference_count;
---disable_warnings
-set global innodb_monitor_enable = default;
-set global innodb_monitor_disable = default;
-set global innodb_monitor_reset = default;
-set global innodb_monitor_reset_all = default;
---enable_warnings
-
-
 #-----------------------------------------------------------------------------
 #
 # remove test bed.
