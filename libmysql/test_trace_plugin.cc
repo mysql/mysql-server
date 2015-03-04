@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 #include <ctype.h>                              /* isprint() */
 #include <string.h>                             /* memset() */
 #include <my_global.h>
+#include "my_byteorder.h"
 #include "mysql.h"
 #include "mysql_trace.h"
 #include <mysql/service_my_snprintf.h>          /* my_snprintf() */
