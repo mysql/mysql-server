@@ -165,7 +165,7 @@ table_variables_by_thread::rnd_pos(const void *pos)
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index_1 < global_thread_container.get_row_count());
- 
+
   PFS_thread *pfs_thread= global_thread_container.get(m_pos.m_index_1);
     /*
     Only materialize threads that were previously materialized by rnd_next().
