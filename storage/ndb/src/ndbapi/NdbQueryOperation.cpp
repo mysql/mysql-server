@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -372,17 +372,12 @@ public:
   explicit NdbResultSet();
 
   void init(NdbQueryImpl& query,
-            Uint32 maxRows, Uint32 rowSize);
+            Uint32 maxRows, Uint32 bufferSize);
 
   void prepareReceive(NdbReceiver& receiver)
   {
     m_rowCount = 0;
     receiver.prepareReceive(m_buffer);
-  }
-
-  void prepareRead(NdbReceiver& receiver)
-  {
-    receiver.prepareRead(m_buffer,m_rowCount);
   }
 
   Uint32 getRowCount() const
@@ -394,15 +389,10 @@ private:
   NdbResultSet& operator=(const NdbResultSet&);
 
   /** The buffers which we receive the results into */
-  char* m_buffer;
-
-  /** Used for checking if buffer overrun occurred. */
-  Uint32* m_batchOverflowCheck;
+  NdbReceiverBuffer* m_buffer;
 
   /** Array of TupleCorrelations for all rows in m_buffer */
   TupleCorrelation* m_correlations;
-
-  Uint32 m_rowSize;
 
   /** The current #rows in 'm_buffer'.*/
   Uint32 m_rowCount;
@@ -446,7 +436,7 @@ public:
   { return m_receiver; }
 
   const char* getCurrentRow()
-  { return m_receiver.get_row(); }
+  { return m_receiver.getCurrentRow(); }
 
   /**
    * Process an incomming tuple for this stream. Extract parent and own tuple 
@@ -678,27 +668,19 @@ void* NdbBulkAllocator::allocObjMem(Uint32 noOfObjs)
 ///////////////////////////////////////////
 NdbResultSet::NdbResultSet() :
   m_buffer(NULL),
-  m_batchOverflowCheck(NULL),
   m_correlations(NULL),
-  m_rowSize(0),
   m_rowCount(0)
 {}
 
 void
 NdbResultSet::init(NdbQueryImpl& query,
                    Uint32 maxRows,
-                   Uint32 rowSize)
+                   Uint32 bufferSize)
 {
-  m_rowSize = rowSize;
   {
-    const int bufferSize = rowSize * maxRows;
     NdbBulkAllocator& bufferAlloc = query.getRowBufferAlloc();
-    m_buffer = reinterpret_cast<char*>(bufferAlloc.allocObjMem(bufferSize));
-
-    // So that we can test for buffer overrun.
-    m_batchOverflowCheck = 
-      reinterpret_cast<Uint32*>(bufferAlloc.allocObjMem(sizeof(Uint32)));
-    *m_batchOverflowCheck = 0xacbd1234;
+    Uint32 *buffer = reinterpret_cast<Uint32*>(bufferAlloc.allocObjMem(bufferSize));
+    m_buffer = NdbReceiver::initReceiveBuffer(buffer, bufferSize, maxRows);
 
     if (query.getQueryDef().isScanQuery())
     {
@@ -747,37 +729,41 @@ NdbResultStream::~NdbResultStream()
 void
 NdbResultStream::prepare()
 {
-  const Uint32 rowSize = m_operation.getRowSize();
   NdbQueryImpl &query = m_operation.getQuery();
 
-  /* Parent / child correlation is only relevant for scan type queries
-   * Don't create a m_tupleSet with these correlation id's for lookups!
-   */
+  const Uint32 batchBufferSize = m_operation.getBatchBufferSize();
   if (isScanQuery())
   {
+    /* Parent / child correlation is only relevant for scan type queries
+     * Don't create a m_tupleSet with these correlation id's for lookups!
+     */
     m_maxRows  = m_operation.getMaxBatchRows();
     m_tupleSet = 
       new (query.getTupleSetAlloc().allocObjMem(m_maxRows)) 
       TupleSet[m_maxRows];
 
-    // Scan results may be doublebuffered
-    m_resultSets[0].init(query, m_maxRows, rowSize); 
-    m_resultSets[1].init(query, m_maxRows, rowSize);
+    // Scan results may be double buffered
+    m_resultSets[0].init(query, m_maxRows, batchBufferSize); 
+    m_resultSets[1].init(query, m_maxRows, batchBufferSize);
   }
   else
   {
     m_maxRows = 1;
-    m_resultSets[0].init(query, m_maxRows, rowSize);
+    m_resultSets[0].init(query, m_maxRows, batchBufferSize);
   }
 
-  m_receiver.init(NdbReceiver::NDB_QUERY_OPERATION, false, &m_operation);
+  /* Alloc buffer for unpacked NdbRecord row */
+  const Uint32 rowSize = m_operation.getRowSize();
+  assert((rowSize % sizeof(Uint32)) == 0);
+  char *rowBuffer = reinterpret_cast<char*>(query.getRowBufferAlloc().allocObjMem(rowSize));
+  assert(rowBuffer != NULL);
+
+  m_receiver.init(NdbReceiver::NDB_QUERY_OPERATION, &m_operation);
   m_receiver.do_setup_ndbrecord(
                           m_operation.getNdbRecord(),
-                          m_maxRows, 
-                          0 /*key_size*/, 
-                          0 /*read_range_no*/, 
-                          rowSize,
-                          m_resultSets[m_recv].m_buffer);
+                          rowBuffer,
+                          false, /*read_range_no*/
+                          false  /*read_key_info*/);
 } //NdbResultStream::prepare
 
 /** Locate, and return 'tupleNo', of first tuple with specified parentId.
@@ -864,7 +850,8 @@ NdbResultStream::firstResult()
   if ((m_currentRow=findTupleWithParentId(parentId)) != tupleNotFound)
   {
     m_iterState = Iter_started;
-    m_receiver.setCurrentRow(m_resultSets[m_read].m_buffer, m_currentRow);
+    const char *p = m_receiver.getRow(m_resultSets[m_read].m_buffer, m_currentRow);
+    assert(p != NULL);  ((void)p);
     return m_currentRow;
   }
 
@@ -880,7 +867,8 @@ NdbResultStream::nextResult()
       (m_currentRow=findNextTuple(m_currentRow)) != tupleNotFound)
   {
     m_iterState = Iter_started;
-    m_receiver.setCurrentRow(m_resultSets[m_read].m_buffer, m_currentRow);
+    const char *p = m_receiver.getRow(m_resultSets[m_read].m_buffer, m_currentRow);
+    assert(p != NULL);  ((void)p);
     return m_currentRow;
   }
   m_iterState = Iter_finished;
@@ -955,10 +943,7 @@ NdbResultStream::prepareResultSet(Uint32 remainingScans)
    */
   const bool newResults = (m_read != m_recv);
   m_read = m_recv;
-  NdbResultSet& readResult = m_resultSets[m_read];
-
-  // Set correct buffer and #rows received by this ResultSet.
-  readResult.prepareRead(m_receiver);
+  const NdbResultSet& readResult = m_resultSets[m_read];
 
   if (m_tupleSet!=NULL)
   {
@@ -1046,10 +1031,6 @@ void
 NdbResultStream::buildResultCorrelations()
 {
   const NdbResultSet& readResult = m_resultSets[m_read];
-
-  // Buffer overrun check.
-  assert(readResult.m_batchOverflowCheck==NULL || 
-         *readResult.m_batchOverflowCheck==0xacbd1234);
 
 //if (m_tupleSet!=NULL)
   {
@@ -2740,13 +2721,19 @@ NdbQueryImpl::prepareSend()
   for (Uint32 opNo = 0; opNo < getNoOfOperations(); opNo++)
   {
     const NdbQueryOperationImpl& op = getQueryOperation(opNo);
-    // Add space for m_correlations, m_buffer & m_batchOverflowCheck
-    totalBuffSize += (sizeof(TupleCorrelation) * op.getMaxBatchRows());
-    totalBuffSize += (op.getRowSize() * op.getMaxBatchRows());
-    totalBuffSize += sizeof(Uint32); // Overflow check
-  }
 
-  m_rowBufferAlloc.init(2 * m_rootFragCount * totalBuffSize);
+    // Add space for batchBuffer & m_correlations
+    Uint32 opBuffSize = op.getBatchBufferSize();
+    if (getQueryDef().isScanQuery())
+    {
+      opBuffSize += (sizeof(TupleCorrelation) * op.getMaxBatchRows());
+      opBuffSize *= 2;              // Scans are double buffered
+    }
+    opBuffSize += op.getRowSize();  // Unpacked row from buffers
+    totalBuffSize += opBuffSize;
+  }
+  m_rowBufferAlloc.init(m_rootFragCount * totalBuffSize);
+
   if (getQueryDef().isScanQuery())
   {
     Uint32 totalRows = 0;
@@ -3793,7 +3780,8 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_diskInUserProjection(false),
   m_parallelism(def.getQueryOperationIx() == 0
                 ? Parallelism_max : Parallelism_adaptive),
-  m_rowSize(0xffffffff)
+  m_rowSize(0xffffffff),
+  m_batchBufferSize(0xffffffff)
 { 
   if (errno == ENOMEM)
   {
@@ -4144,23 +4132,9 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
   m_isRowNull = false;
   if (m_firstRecAttr != NULL)
   {
-    NdbRecAttr* recAttr = m_firstRecAttr;
-    Uint32 posInRow = 0;
-    while (recAttr != NULL)
-    {
-      const char *attrData = NULL;
-      Uint32 attrSize = 0;
-      const int retVal1 = resultStream.getReceiver()
-        .getScanAttrData(attrData, attrSize, posInRow);
-      UNUSED(retVal1);
-      assert(retVal1==0);
-      assert(attrData!=NULL);
-      const bool retVal2 = recAttr
-        ->receive_data(reinterpret_cast<const Uint32*>(attrData), attrSize);
-      UNUSED(retVal2);
-      assert(retVal2);
-      recAttr = recAttr->next();
-    }
+    // Retrieve any RecAttr (getValues()) for current row
+    const int retVal = resultStream.getReceiver().get_AttrValues(m_firstRecAttr);
+    assert(retVal==0);  ((void)retVal);
   }
   if (m_ndbRecord != NULL)
   {
@@ -4173,8 +4147,7 @@ NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
     {
       assert(m_resultBuffer!=NULL);
       // Copy result to buffer supplied by application.
-      memcpy(m_resultBuffer, buff, 
-             resultStream.getReceiver().m_record.m_ndb_record->m_row_size);
+      memcpy(m_resultBuffer, buff, m_ndbRecord->m_row_size);
     }
   }
 } // NdbQueryOperationImpl::fetchRow
@@ -5280,9 +5253,63 @@ Uint32 NdbQueryOperationImpl::getRowSize() const
   if (m_rowSize == 0xffffffff)
   {
     m_rowSize = 
-      NdbReceiver::ndbrecord_rowsize(m_ndbRecord, m_firstRecAttr, 0, false);
+      NdbReceiver::ndbrecord_rowsize(m_ndbRecord, false);
   }
   return m_rowSize;
+}
+
+Uint32 NdbQueryOperationImpl::getBatchBufferSize() const
+{
+  // Check if batch buffer size has been computed yet.
+  if (m_batchBufferSize == 0xffffffff)
+  {
+    Uint32 batchRows = getMaxBatchRows();
+    Uint32 batchByteSize = 0;
+    Uint32 batchFrags = 1;
+
+    if (m_operationDef.isScanOperation())
+    {
+      const Ndb* const ndb = getQuery().getNdbTransaction().getNdb();
+      NdbReceiver::calculate_batch_size(* ndb->theImpl,
+                                        getQuery().getRootFragCount(),
+                                        batchRows,
+                                        batchByteSize);
+      assert(batchRows == getMaxBatchRows());
+
+      /**
+       * When LQH reads a scan batch, the size of the batch is limited 
+       * both to a maximal number of rows and a maximal number of bytes.
+       * The latter limit is interpreted such that the batch ends when the 
+       * limit has been exceeded. Consequently, the buffer must be able to
+       * hold max_no_of_bytes plus one extra row. In addition,  when the
+       * SPJ block executes a (pushed) child scan operation, it scans a 
+       * number of fragments (possibly all) in parallel, and divides the
+       * row and byte limits by the number of parallel fragments.
+       * Consequently, a child scan operation may return max_no_of_bytes,
+       * plus one extra row for each fragment.
+       */
+      if (getParentOperation() != NULL)
+      {
+        batchFrags = getQuery().getRootFragCount();
+      }
+    }
+
+    AttributeMask readMask;
+    if (m_ndbRecord != NULL)
+    {
+      m_ndbRecord->copyMask(readMask.rep.data, m_read_mask);
+    }
+
+    m_batchBufferSize = NdbReceiver::result_bufsize(
+                                                  batchRows, 
+                                                  batchByteSize,
+                                                  batchFrags,
+                                                  m_ndbRecord,
+                                                  readMask.rep.data,
+                                                  m_firstRecAttr,
+                                                  0, 0);
+  }
+  return m_batchBufferSize;
 }
 
 /** For debugging.*/

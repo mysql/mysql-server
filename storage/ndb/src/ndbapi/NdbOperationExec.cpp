@@ -1,5 +1,5 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/*
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1066,7 +1066,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
      * header + inline data
      * Disk flag set when getValues were processed.
      */
-    const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
+    const NdbRecAttr *ra= theReceiver.m_firstRecAttr;
     while (ra)
     {
       res= insertATTRINFOHdr_NdbRecord(ra->attrId(), 0);
