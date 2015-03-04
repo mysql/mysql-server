@@ -645,6 +645,14 @@ row_quiesce_set_state(
 
 		return(DB_UNSUPPORTED);
 
+	} else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+		std::ostringstream err_msg;
+		err_msg << "FLUSH TABLES FOR EXPORT on table " << table->name
+			<< " in a general tablespace.";
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_NOT_SUPPORTED_YET, err_msg.str().c_str());
+
+		return(DB_UNSUPPORTED);
 	} else if (row_quiesce_table_has_fts_index(table)) {
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
