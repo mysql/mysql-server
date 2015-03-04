@@ -1425,11 +1425,13 @@ innobase_start_or_create_for_mysql(void)
 	ib::info() << "LZ4 support not available";
 #endif /* HAVE_LZ4 */
 
-#ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
+#ifdef UNIV_LINUX
+# ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
 	ib::info() << "PUNCH HOLE support available";
-#else
+# else
 	ib::info() << "PUNCH HOLE support not available";
-#endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
+# endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
+#endif /* UNIV_LINUX */
 
 	if (sizeof(ulint) != sizeof(void*)) {
 		ib::error() << "Size of InnoDB's ulint is " << sizeof(ulint)
