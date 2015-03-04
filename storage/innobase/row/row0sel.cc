@@ -192,6 +192,8 @@ row_sel_sec_rec_is_for_clust_rec(
 		return(FALSE);
 	}
 
+	heap = mem_heap_create(256);
+
 	clust_offs = rec_get_offsets(clust_rec, clust_index, clust_offs,
 				     ULINT_UNDEFINED, &heap);
 	sec_offs = rec_get_offsets(sec_rec, sec_index, sec_offs,
@@ -252,6 +254,17 @@ row_sel_sec_rec_is_for_clust_rec(
 				const_cast<byte*>(clust_field);
 
 			ut_ad(clust_len != UNIV_SQL_NULL);
+
+			/* For externally stored field, we need to get full
+			geo data to generate the MBR for comparing. */
+			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
+				dptr = btr_copy_externally_stored_field(
+					&clust_len, dptr,
+					dict_tf_get_page_size(
+						sec_index->table->flags),
+					len, heap);
+			}
+
 			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
 					   static_cast<uint>(clust_len
 					   - GEO_DATA_HEADER_SIZE),
