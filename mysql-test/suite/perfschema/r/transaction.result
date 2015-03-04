@@ -41,7 +41,7 @@ SELECT @@global.autocommit;
 1
 SELECT @@global.binlog_format;
 @@global.binlog_format
-STATEMENT
+ROW
 SELECT @@tx_isolation;
 @@tx_isolation
 REPEATABLE-READ
@@ -50,7 +50,7 @@ SELECT @@autocommit;
 0
 SELECT @@binlog_format;
 @@binlog_format
-STATEMENT
+ROW
 
 # STEP 2.1 - START/COMMIT
 

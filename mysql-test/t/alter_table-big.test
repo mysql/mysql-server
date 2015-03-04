@@ -12,7 +12,7 @@
 --source include/have_debug.inc
 # Also we are using SBR to check that statements are executed
 # in proper order.
---source include/have_binlog_format_mixed_or_statement.inc
+--source include/force_binlog_format_statement.inc
 
 #
 # Test for Bug#25044 ALTER TABLE ... ENABLE KEYS acquires global
@@ -176,3 +176,4 @@ source include/show_binlog_events.inc;
 
 
 --echo End of 5.1 tests
+--source include/restore_default_binlog_format.inc

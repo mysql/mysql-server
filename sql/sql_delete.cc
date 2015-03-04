@@ -160,13 +160,15 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     - The condition is constant
     - If there is a condition, then it it produces a non-zero value
     - If the current command is DELETE FROM with no where clause, then:
-      - We should not be binlogging this statement in row-based, and
+      - We will not be binlogging this statement in row-based, and
       - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond_result &&
       !(specialflag & SPECIAL_NO_NEW_FUNC) &&
-       (!thd->is_current_stmt_binlog_format_row() &&
-        !(table->triggers && table->triggers->has_delete_triggers())))
+      ((!thd->is_current_stmt_binlog_format_row() ||   /* not ROW binlog-format */
+        thd->is_current_stmt_binlog_disabled() || /* no binlog for this command */
+        !mysql_bin_log.is_open()) &&                   /* binary log is not opened */
+       !(table->triggers && table->triggers->has_delete_triggers())))
   {
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -184,8 +186,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     if (!(error=table->file->ha_delete_all_rows()))
     {
       /*
-        If delete_all_rows() is used, it is not possible to log the
-        query in row format, so we have to log it in statement format.
+        As delete_all_rows() was used, we have to log it in statement format.
       */
       query_type= THD::STMT_QUERY_TYPE;
       error= -1;
@@ -548,9 +549,9 @@ cleanup:
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
 
       /*
-        [binlog]: If 'handler::delete_all_rows()' was called and the
-        storage engine does not inject the rows itself, we replicate
-        statement-based; otherwise, 'ha_delete_row()' was used to
+        [binlog]: As we don't allow the use of 'handler:delete_all_rows()' when
+        binlog_format == ROW, if 'handler::delete_all_rows()' was called
+        we replicate statement-based; otherwise, 'ha_delete_row()' was used to
         delete specific rows which we might log row-based.
       */
       int log_result= thd->binlog_query(query_type,
