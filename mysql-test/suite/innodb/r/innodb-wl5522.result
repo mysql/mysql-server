@@ -1025,8 +1025,12 @@ DROP TABLE t1;
 #
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB, TABLESPACE=s_def;
-FLUSH TABLE t1 FOR EXPORT;
-ERROR 42000: This version of MySQL doesn't yet support 'FLUSH TABLES FOR EXPORT on a table in general tablespace.'
+CREATE TABLE t2(a INT PRIMARY KEY);
+FLUSH TABLE t1,t2 FOR EXPORT;
+Warnings:
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES FOR EXPORT on table `test`.`t1` in a general tablespace.'
+UNLOCK TABLES;
 DROP TABLE t1;
+DROP TABLE t2;
 DROP TABLESPACE s_def;
 SET GLOBAL INNODB_FILE_PER_TABLE=1;
