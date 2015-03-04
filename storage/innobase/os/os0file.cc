@@ -4121,15 +4121,12 @@ os_file_create_simple_func(
 
 			DWORD	temp;
 
-			BOOL	retval = DeviceIoControl(
-				file, FSCTL_SET_SPARSE,
-				NULL, 0, NULL, 0, &temp, NULL);
+			/* This is a best effort use case, if it fails then
+			we will find out when we try and punch the hole. */
 
-			if (!retval) {
-				ib::warn()
-					<< "Unable to set the sparse file "
-					<< "flag '" << name << "'";
-			}
+			DeviceIoControl(
+				file, FSCTL_SET_SPARSE, NULL, 0, NULL, 0,
+				&temp, NULL);
 		}
 
 	} while (retry);
@@ -4484,15 +4481,11 @@ os_file_create_func(
 
 			DWORD	temp;
 
-			BOOL	retval = DeviceIoControl(
-				file, FSCTL_SET_SPARSE,
-				NULL, 0, NULL, 0, &temp, NULL);
-
-			if (!retval) {
-				ib::warn()
-					<< "Unable to set the sparse file "
-					<< "flag '" << name << "'";
-			}
+			/* This is a best effort use case, if it fails then
+			we will find out when we try and punch the hole. */
+			DeviceIoControl(
+				file, FSCTL_SET_SPARSE, NULL, 0, NULL, 0,
+				&temp, NULL);
 		}
 
 	} while (retry);
