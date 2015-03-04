@@ -24,28 +24,35 @@
 #include "pfs_column_types.h"
 #include "pfs_events.h"
 #include "rpl_gtid.h"
+#include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
 
 struct PFS_thread;
 struct PFS_account;
 struct PFS_user;
 struct PFS_host;
 
-#define PSI_XIDDATASIZE 128
 /**
   struct PSI_xid is binary compatible with the XID structure as
   in the X/Open CAE Specification, Distributed Transaction Processing:
   The XA Specification, X/Open Company Ltd., 1991.
   http://www.opengroup.org/bookstore/catalog/c193.htm
 
+  A value of -1 in formatID means that the XID is null.
+  Max length for bqual and gtrid is 64 bytes each.
+
   @see XID in sql/handler.h
   @see MYSQL_XID in mysql/plugin.h
 */
 struct PSI_xid
 {
+  /** Format identifier. */
   long formatID;
+  /** GTRID length, value 1-64. */
   long gtrid_length;
+  /** BQUAL length, value 1-64. */
   long bqual_length;
-  char data[PSI_XIDDATASIZE];  /* Not \0-terminated */
+  /** XID raw data, not \0-terminated */
+  char data[MYSQL_XIDDATASIZE];
 
   PSI_xid() {null();}
   bool is_null() { return formatID == -1; }
@@ -84,7 +91,7 @@ struct PFS_events_transactions : public PFS_events
   ulonglong m_release_savepoint_count;
 };
 
-bool xid_printable(PSI_xid *xid);
+bool xid_printable(PSI_xid *xid, size_t offset, size_t length);
 
 void insert_events_transactions_history(PFS_thread *thread, PFS_events_transactions *transaction);
 void insert_events_transactions_history_long(PFS_events_transactions *transaction);
