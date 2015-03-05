@@ -10559,6 +10559,12 @@ create_table_info_t::create_table()
 		dict_table_close(innobase_table, TRUE, FALSE);
 
 		if (error) {
+			trx_rollback_to_savepoint(m_trx, NULL);
+			m_trx->error_state = DB_SUCCESS;
+
+			row_drop_table_for_mysql(m_table_name, m_trx, FALSE);
+
+			m_trx->error_state = DB_SUCCESS;
 			DBUG_RETURN(error);
 		}
 	}

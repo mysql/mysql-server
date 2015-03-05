@@ -10,11 +10,11 @@
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
 # Use this coversion to make the result file consistent. This string gets printed
-# in the result file in numerous places.  Since ".ibd" is one of the patterns that
+# in the result file in numerous places.  Since ".ibd" or ".isl" is one of the patterns that
 # makes a whitespace delimited word recognized as a path, the '\' characters will
 # get converted to '/' in the result file on Windows, but not on Unix.
-# So just look for ".ib".
-LET $regexp=/FTS_([0-9a-f_]+)([A-Z0-9_]+)\.ib/FTS_AUX_\2.ib/;
+# So just look for ".i".
+LET $regexp=/FTS_([0-9a-f_]+)([A-Z0-9_]+)\.i/FTS_AUX_\2.i/;
 
 # Set up some variables
 LET $MYSQL_DATA_DIR = `select @@datadir`;
