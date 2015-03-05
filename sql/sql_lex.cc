@@ -891,22 +891,30 @@ static bool consume_optimizer_hints(Lex_input_stream *lip)
       lip->yyPeekn(whitespace + 2) == '+')
   {
     lip->yylineno+= newlines;
-    lip->yySkipn(whitespace + 3); // skip whitespace and "/*+"
+    lip->yySkipn(whitespace); // skip whitespace
 
     Hint_scanner hint_scanner(lip->m_thd, lip->yylineno, lip->get_ptr(),
                               lip->get_end_of_query() - lip->get_ptr());
     PT_hint_list *hint_list= NULL;
     int rc= HINT_PARSER_parse(lip->m_thd, &hint_scanner, &hint_list);
     if (rc == 2)
-      return true; // OOM
-    else if (rc == 1 && hint_list == NULL)
-      return true; // fatal hint syntax error: open commentary
+      return true; // Bison's internal OOM error
+    else if (rc == 1)
+    {
+      /*
+        This branch is for 2 cases:
+        1. YYABORT in the hint parser grammar (we use it to process OOM errors),
+        2. open commentary error.
+      */
+      lip->start_token(); // adjust error message text pointer to "/*+"
+      return true;
+    }
     else
     {
       lip->yylineno= hint_scanner.get_lineno();
       lip->yySkipn(hint_scanner.get_ptr() - lip->get_ptr());
-      lip->yylval->optimizer_hints= hint_list;
-      return false; // NULL in case of syntax error
+      lip->yylval->optimizer_hints= hint_list; // NULL in case of syntax error
+      return false;
     }
   }
   else
