@@ -713,6 +713,7 @@ SET @have_password= (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE
                     AND TABLE_NAME='user'
                     AND column_name='password');
 SET @str=IF(@have_password <> 0, "UPDATE user SET authentication_string = password where LENGTH(password) > 0 and plugin = 'mysql_native_password'", "SET @dummy = 0");
+# We have already put mysql_native_password as plugin value in cases where length(PASSWORD) is either 0 or 41.
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -720,8 +721,6 @@ SET @str=IF(@have_password <> 0, "ALTER TABLE user DROP password", "SET @dummy =
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
--- Fix plugin column value
-UPDATE user SET plugin=IF((length(authentication_string) = 41) OR (length(authentication_string) = 0), 'mysql_native_password', '') WHERE plugin = '';
 
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
