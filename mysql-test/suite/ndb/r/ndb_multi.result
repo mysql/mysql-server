@@ -313,3 +313,33 @@ ERROR 42000: Unknown database 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmn
 CREATE DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz1234;
 ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz1234' is too long
+#
+# 1. Check that DROP DATABASE removes leftover .ndb file
+#    in the database directory
+#
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+create table t2(b int primary key) engine=ndb;
+create table t3_default_engine(c int primary key);
+drop database db;
+#
+# 2. Check that DROP DATABASE removes leftover .ndb file
+#    in the database directory on participating mysqld.
+#    This is the same testcase as BUG44529 with comments
+#
+# Create DATABASE and one table on first mysqld
+create database db;
+use db;
+create table t1(x int) engine=ndb;
+# Show that DATABASE exist on the pariticipant(second mysqld)
+# and create a .ndb file without corresponding table in NDB
+use db;
+show tables;
+Tables_in_db
+t1
+# Drop the DATABASE from first mysqld
+drop database db;
+# Check that the pariticipant has dropped the DATABASE
+use db;
+ERROR 42000: Unknown database 'db'
