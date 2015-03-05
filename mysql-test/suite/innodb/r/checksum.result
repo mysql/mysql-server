@@ -1,5 +1,5 @@
 #
-# Bug#19500258 ZERO CAN BE A VALID INNODB CHECKSUM, 
+# Bug#19500258 ZERO CAN BE A VALID INNODB CHECKSUM,
 # BUT VALIDATION WILL FAIL LATER
 #
 SET GLOBAL innodb_checksum_algorithm = 'CRC32';
@@ -9,5 +9,5 @@ INSERT INTO t1 VALUES (1, X'666F72636520637263333220a0be0639');
 SELECT count(*) FROM t1;
 count(*)
 1
-SET GLOBAL innodb_checksum_algorithm = 'innodb';;
+SET GLOBAL innodb_checksum_algorithm = 'innodb';
 drop table t1;
