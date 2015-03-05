@@ -219,7 +219,7 @@ struct SyncDebug {
 		m_enabled(),
 		m_destroy_at_exit(destroy_mutex_at_exit)
 	{
-		new (&m_mutex) SyncMutex();
+		new (&m_mutex) SyncMutex(destroy_mutex_at_exit);
 
 		m_mutex.init(".sync_debug_mutex", __FILE__, __LINE__);
 	}

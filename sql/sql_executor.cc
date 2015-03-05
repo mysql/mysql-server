@@ -123,7 +123,7 @@ JOIN::exec()
   if (prepare_result())
     DBUG_VOID_RETURN;
 
-  select_result *const query_result= select_lex->query_result();
+  Query_result *const query_result= select_lex->query_result();
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions

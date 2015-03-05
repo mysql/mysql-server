@@ -13,6 +13,8 @@ DROP TABLE IF EXISTS table_11733 ;
 # READ_ONLY does nothing to SUPER users
 # so we use a non-SUPER one:
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 grant CREATE, SELECT, DROP on *.* to test@localhost;
 
 connect (con1,localhost,test,,test);
@@ -48,6 +50,7 @@ disconnect con1;
 #
 # Test 1: read only mode
 GRANT CREATE, SELECT, DROP ON *.* TO test@localhost;
+set sql_mode= @orig_sql_mode;
 connect(con1, localhost, test, , test);
 
 connection default;

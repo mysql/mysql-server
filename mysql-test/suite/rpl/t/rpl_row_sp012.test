@@ -24,7 +24,10 @@ DROP PROCEDURE IF EXISTS test.p3;
 
 # Begin test section 1 
 # Create user user1 with no particular access rights
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 grant usage on *.* to user1@localhost;
+set sql_mode= @orig_sql_mode;
 flush privileges;
 
 SELECT CURRENT_USER();

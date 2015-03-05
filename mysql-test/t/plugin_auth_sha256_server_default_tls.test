@@ -1,6 +1,11 @@
 --source include/not_embedded.inc
 --source include/have_ssl.inc
 
+set @orig_sql_mode_session= @@SESSION.sql_mode;
+set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
+set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
+
 CREATE USER 'kristofer';
 # Bootstrap did not follow the startup variables while creating root account,
 # hence need to change old_passwords variable.
@@ -76,4 +81,5 @@ disconnect con3;
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
 DROP USER 'kristofer'@'localhost';
 
-
+set GLOBAL sql_mode= @orig_sql_mode_global;
+set SESSION sql_mode= @orig_sql_mode_session;

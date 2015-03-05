@@ -10,6 +10,15 @@ call mtr.add_suppression("Did not write failed .* into binary log while "
 # Test of GRANT commands
 
 SET NAMES binary;
+
+#
+# Remove NO_AUTO_CREATE_USER sql mode (default from 5.7)
+#
+set @orig_sql_mode_session= @@SESSION.sql_mode;
+set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
+set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
+
 connect (master,localhost,root,,);
 connection master;
 
@@ -205,6 +214,9 @@ disconnect conn1;
 connection default;
 DROP USER 'user2'@'%';
 DROP DATABASE temp;
+
+set GLOBAL sql_mode= @orig_sql_mode_global;
+set SESSION sql_mode= @orig_sql_mode_session;
 
 --echo End of 5.0 tests
 

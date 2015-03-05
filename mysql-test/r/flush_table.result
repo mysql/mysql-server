@@ -290,6 +290,10 @@ DROP TABLE t1;
 #
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine= InnoDB;
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 GRANT RELOAD, SELECT, LOCK TABLES ON *.* TO user1@localhost;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
@@ -305,6 +309,9 @@ Warning	1287	Using GRANT for creating new user is deprecated and will be removed
 GRANT RELOAD, LOCK TABLES ON *.* TO user5@localhost;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 # Connection con1 as user1
 FLUSH TABLE db1.t1 FOR EXPORT;
 UNLOCK TABLES;

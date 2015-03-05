@@ -794,9 +794,9 @@ uint QEP_TAB::get_sj_strategy() const
 
 uint JOIN_TAB::get_sj_strategy() const
 {
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join());
   if (first_sj_inner() == NO_PLAN_IDX)
     return SJ_OPT_NONE;
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join());
   JOIN_TAB *tab= join()->best_ref[first_sj_inner()];
   uint s= tab->position()->sj_strategy;
   DBUG_ASSERT(s != SJ_OPT_NONE);
@@ -6558,7 +6558,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
         return; // Can't use left join optimize
       exists_optimize= KEY_OPTIMIZE_EXISTS;
     }
-    else
+    else if (tl->table->reginfo.join_tab)
     {
       JOIN_TAB *stat= tl->table->reginfo.join_tab;
       key_map possible_keys=field->key_start;
@@ -7833,7 +7833,17 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
     for (i=0 ; i < keyuse->size()-1 ; i++,use++)
     {
       TABLE *const table= use->table_ref->table;
-
+      if (!table->reginfo.join_tab)
+      {
+        /*
+          Due to a bug in IN-to-EXISTS (grep for real_item() in
+          item_subselect.cc for more info), an index over a field from an
+          outer query might be considered here, which is incorrect. Their
+          query has been fully optimized already so their reginfo.join_tab is
+          NULL and we reject them.
+        */
+        continue;
+      }
       if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
         table->const_key_parts[use->key]|= use->keypart_map;
       if (use->keypart != FT_KEYPART)

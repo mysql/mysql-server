@@ -1,6 +1,6 @@
 --source include/force_myisam_default.inc
 
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/force_binlog_format_statement.inc
 -- source include/have_gb18030.inc
 
 RESET MASTER;
@@ -40,3 +40,5 @@ SELECT hex(f1), f1 FROM t1;
 DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE t2;
+
+--source include/restore_default_binlog_format.inc

@@ -309,7 +309,7 @@ Threads_running	#
 prepare stmt4 from ' show variables like ''sql_mode'' ';
 execute stmt4;
 Variable_name	Value
-sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 prepare stmt4 from ' show engine myisam logs ';
 execute stmt4;
 Type	Name	Status
@@ -422,6 +422,8 @@ prepare stmt3 from ' commit ' ;
 prepare stmt3 from ' rollback ' ;
 prepare stmt4 from ' SET sql_mode=ansi ';
 execute stmt4;
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select 'a' || 'b' ;
 'a' || 'b'
 ab

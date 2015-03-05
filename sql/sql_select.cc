@@ -94,7 +94,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys);
     contains one query block and no fake_select_lex separately.
     Such queries are executed with a more direct code path.
 */
-bool handle_query(THD *thd, LEX *lex, select_result *result,
+bool handle_query(THD *thd, LEX *lex, Query_result *result,
                   ulonglong added_options, ulonglong removed_options)
 {
   DBUG_ENTER("handle_query");
@@ -1866,7 +1866,8 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
 
   /* 
-    Set up the table to write to, do as select_union::create_result_table does
+    Set up the table to write to, do as
+    Query_result_union::create_result_table does
   */
   sjm_exec->table_param= Temp_table_param();
   count_field_types(select_lex, &sjm_exec->table_param,
@@ -3293,23 +3294,23 @@ void JOIN::clear()
 
 
 /**
-  Change the select_result object of the query block.
+  Change the Query_result object of the query block.
 
   If old_result is not used, forward the call to the current
-  select_result in case it is a wrapper around old_result.
+  Query_result in case it is a wrapper around old_result.
 
-  Call prepare() and prepare2() on the new select_result if we decide
+  Call prepare() and prepare2() on the new Query_result if we decide
   to use it.
 
-  @param new_result New select_result object
-  @param old_result Old select_result object (NULL to force change)
+  @param new_result New Query_result object
+  @param old_result Old Query_result object (NULL to force change)
 
   @retval false Success
   @retval true  Error
 */
 
-bool SELECT_LEX::change_query_result(select_result_interceptor *new_result,
-                                     select_result_interceptor *old_result)
+bool SELECT_LEX::change_query_result(Query_result_interceptor *new_result,
+                                     Query_result_interceptor *old_result)
 {
   DBUG_ENTER("SELECT_LEX::change_query_result");
   if (old_result == NULL || query_result() == old_result)

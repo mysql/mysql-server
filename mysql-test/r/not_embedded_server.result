@@ -55,6 +55,8 @@ DROP USER nopriv_user@localhost;
 #
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 # USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
 CREATE USER 'user\'s_12601974'@'localhost';
 CREATE USER 'user\'s_12601974'@'localhost';
@@ -131,5 +133,7 @@ DROP USER 'user\_s_12601974'@'localhost';
 
 # END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
 SET @@sql_mode= @org_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 #End of Test for Bug#12601974 

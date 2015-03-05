@@ -157,6 +157,10 @@
   }
 
 
+#define GIS_ZERO 0.00000000001
+
+extern bool simplify_multi_geometry(String *str);
+
 using std::auto_ptr;
 
 /// A wrapper and interface for all geometry types used here. Make these
