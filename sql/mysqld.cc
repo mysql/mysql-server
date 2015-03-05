@@ -391,6 +391,7 @@ mysql_mutex_t LOCK_default_password_lifetime;
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+my_bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password_proxy_users= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -3021,7 +3022,6 @@ int init_common_variables()
     return 1;
   init_client_errs();
   mysql_client_plugin_init();
-  lex_init();
   if (item_create_init())
     return 1;
   item_init();
@@ -3106,6 +3106,12 @@ int init_common_variables()
                               MY_CS_PRIMARY, MYF(MY_WME))))
     return 1;
   global_system_variables.character_set_filesystem= character_set_filesystem;
+
+  if (lex_init())
+  {
+    sql_print_error("Out of memory");
+    return 1;
+  }
 
   if (!(my_default_lc_time_names=
         my_locale_by_name(lc_time_names_name)))

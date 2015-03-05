@@ -334,6 +334,7 @@ Partition_helper::Partition_helper(handler *main_handler)
   :
   m_handler(main_handler),
   m_part_info(),
+  m_tot_parts(),
   m_last_part(),
   m_err_rec(),
   m_ordered(),
@@ -362,7 +363,14 @@ Partition_helper::~Partition_helper()
 void Partition_helper::set_part_info_low(partition_info *part_info,
                                          bool early)
 {
-  if (m_part_info == NULL || !early)
+  /* 
+    ha_partition will set m_tot_parts from the .par file during creating
+    the new handler.
+    And this call can be earlier than the partition_default_handling(),
+    so get_tot_partitions() may return zero.
+  */
+  if (m_tot_parts == 0 &&
+      (m_part_info == NULL || !early))
   {
     m_tot_parts= part_info->get_tot_partitions();
   }

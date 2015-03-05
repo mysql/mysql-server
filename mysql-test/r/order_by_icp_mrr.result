@@ -1166,7 +1166,7 @@ CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 SELECT * FROM t1 ORDER BY id;
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	k2	k3	5	NULL	111	6613.51	Using where
+1	SIMPLE	t2	NULL	index	k2	k3	5	NULL	111	17.92	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`c3` AS `c3` from `test`.`t2` where (`test`.`t2`.`c2` = 11) order by `test`.`t2`.`c3` limit 20
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 4000;
@@ -1176,7 +1176,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`c3` AS `c3` from `test`.`t2` where (`test`.`t2`.`c2` = 11) order by `test`.`t2`.`c3` limit 4000
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2 BETWEEN 10 AND 12 ORDER BY c3 LIMIT 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	k2	k3	5	NULL	73	15349.32	Using where
+1	SIMPLE	t2	NULL	index	k2	k3	5	NULL	73	27.36	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`c3` AS `c3` from `test`.`t2` where (`test`.`t2`.`c2` between 10 and 12) order by `test`.`t2`.`c3` limit 20
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2 BETWEEN 20 AND 30 ORDER BY c3 LIMIT 4000;
@@ -1540,7 +1540,7 @@ INSERT INTO t1 VALUES (1, 10), (2, NULL);
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	2	37.50	Using index condition; Using where; Using filesort
+1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	1	75.00	Using index condition; Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `col` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))) order by `test`.`t1`.`c`
 # Must return 1 row
@@ -1551,7 +1551,7 @@ col
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-x	x	x	NULL	ref	a_c,a	x	x	x	x	37.50	x
+x	x	x	NULL	ref	a_c,a	x	x	x	x	75.00	x
 Warnings:
 x	x	x
 # Must return 1 row
@@ -2535,7 +2535,7 @@ INSERT INTO t1 SELECT a + 1280, b, c FROM t1 LIMIT 80;
 EXPLAIN
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b,b_2	b	4	NULL	226	98.23	Using index condition
+1	SIMPLE	t1	NULL	range	b,b_2	b	4	NULL	226	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` = 1) order by `test`.`t1`.`c` desc limit 9
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
@@ -2552,7 +2552,7 @@ a
 EXPLAIN
 SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	b,b_2	b	4	NULL	226	98.23	Using index condition; Using temporary
+1	SIMPLE	t1	NULL	range	b,b_2	b	4	NULL	226	100.00	Using index condition; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` = 1) order by `test`.`t1`.`c` desc limit 0,9
 SELECT DISTINCT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 0, 9;
@@ -2676,7 +2676,7 @@ LEFT JOIN t3 ON t2.i2 = t3.i3
 ORDER BY t1.i1 LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	5	240.00	Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	5	100.00	Using index
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.i1	1	100.00	Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -2731,7 +2731,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1` where ((
 EXPLAIN
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	2	27.78	Using index condition; Using where; Using filesort
+1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	1	55.56	Using index condition; Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))) order by `test`.`t1`.`c`
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
@@ -2741,7 +2741,7 @@ NULL
 EXPLAIN
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	2	27.78	Using index condition; Using where; Using filesort
+1	SIMPLE	t1	NULL	ref	a_c,a	a	5	const	1	55.56	Using index condition; Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and ((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))) order by `test`.`t1`.`c` desc
 SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;

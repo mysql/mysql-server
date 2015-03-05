@@ -41,12 +41,14 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Table_cache_element;
 class Table_trigger_dispatcher;
-class select_union;
+class Query_result_union;
 class Temp_table_param;
 class Index_hint;
 struct Name_resolution_context;
 struct LEX;
 typedef int8 plan_idx;
+class Opt_hints_qb;
+class Opt_hints_table;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -1662,6 +1664,8 @@ struct TABLE_LIST
                      mdl_type_for_dml(lock_type),
                      MDL_TRANSACTION);
     callback_func= 0;
+    opt_hints_table= NULL;
+    opt_hints_qb= NULL;
   }
 
   /// Create a TABLE_LIST object representing a nested join
@@ -2084,6 +2088,11 @@ struct TABLE_LIST
   char *schema_table_name;
   char *option;                /* Used by cache index  */
 
+  /** Table level optimizer hints for this table.  */
+  Opt_hints_table *opt_hints_table;
+  /* Hints for query block of this table. */
+  Opt_hints_qb *opt_hints_qb;
+
 private:
   /**
     The members below must be kept aligned so that (1 << m_tableno) == m_map.
@@ -2145,10 +2154,10 @@ public:
   TABLE        *table;                          /* opened table */
   Table_id table_id; /* table id (from binlog) for opened table */
   /*
-    select_result for derived table to pass it from table creation to table
+    Query_result for derived table to pass it from table creation to table
     filling procedure
   */
-  select_union  *derived_result;
+  Query_result_union  *derived_result;
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:

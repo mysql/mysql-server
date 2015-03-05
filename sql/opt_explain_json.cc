@@ -2046,7 +2046,7 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx)
 }
 
 
-bool Explain_format_JSON::send_headers(select_result *result)
+bool Explain_format_JSON::send_headers(Query_result *result)
 {
   output= result;
   if (Explain_format::send_headers(result))

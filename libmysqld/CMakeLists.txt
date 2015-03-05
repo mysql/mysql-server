@@ -37,6 +37,8 @@ INCLUDE_DIRECTORIES(
 SET(GEN_YACC_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
 )
 
 SET(GEN_SOURCES
@@ -140,10 +142,25 @@ COPY_BISON_OUTPUT(
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
 )
 
+COPY_BISON_OUTPUT(
+  ${CMAKE_SOURCE_DIR}/sql/sql_hints.yy.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_hints.yy.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+)
+
 RUN_BISON(
   ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+  MYSQL
+)
+
+RUN_BISON(
+  ${CMAKE_SOURCE_DIR}/sql/sql_hints.yy
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+  HINT_PARSER_
 )
 
 ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})

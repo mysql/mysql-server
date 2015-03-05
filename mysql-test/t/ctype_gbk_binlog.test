@@ -1,5 +1,5 @@
 
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/force_binlog_format_statement.inc
 -- source include/have_gbk.inc
 
 RESET MASTER;
@@ -40,3 +40,5 @@ DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE t2;
 --remove_file $MYSQLD_DATADIR/master-bin.saved
+
+--source include/restore_default_binlog_format.inc

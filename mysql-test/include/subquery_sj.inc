@@ -5422,6 +5422,8 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
 
+ANALYZE TABLE t1, t2;
+
 SET @old_depth=@@optimizer_search_depth;
 SET optimizer_search_depth=4;
 
@@ -5563,58 +5565,6 @@ eval $query;
 DROP TABLE t1;
 
 --echo # End of test for bug#13838810.
-
---echo #
---echo # BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
---echo # --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
---echo #
-
-CREATE TABLE t1 (
-  col_int_key INT(11) NOT NULL,
-  col_datetime_key DATETIME NOT NULL,
-  col_varchar_key VARCHAR(1) NOT NULL,
-  col_varchar_nokey VARCHAR(1) NOT NULL,
-  KEY col_int_key (col_int_key),
-  KEY col_datetime_key (col_datetime_key),
-  KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-
-INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
-INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
-
-CREATE TABLE t2 (
-  col_int_key INT(11) NOT NULL,
-  col_datetime_key DATETIME NOT NULL,
-  col_varchar_key VARCHAR(1) NOT NULL,
-  col_varchar_nokey VARCHAR(1) NOT NULL,
-  KEY col_int_key (col_int_key),
-  KEY col_datetime_key (col_datetime_key),
-  KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-
-INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
-
-SET @old_depth=@@optimizer_search_depth;
-SET optimizer_search_depth=4;
-
-let $query=SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-  SELECT alias1.col_datetime_key
-  FROM t1 AS alias1
-    LEFT JOIN t1 as alias3
-      STRAIGHT_JOIN ( t2 AS alias4
-        JOIN t1 AS alias5
-        ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-      ON alias5.col_int_key < alias4.col_int_key
-    ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-
-eval EXPLAIN $query;
-eval $query;
-
-DROP TABLE t1,t2;
-SET @@optimizer_search_depth=@old_depth;
 
 --echo #
 --echo # Bug#13845930: Segfault in st_join_table::and_with_condition
@@ -6789,5 +6739,82 @@ eval EXPLAIN $query1;
 eval $query1;
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#20554585 ASSERT JOIN()->TABLES == 0... IN JOIN_TAB::GET_SJ_STRATEGY ON SUBQUERY + VAR
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int,
+  col_varchar_key varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_int_key int,
+  col_varchar_key varchar(1),
+  col_varchar varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t3 VALUES (1,4,'c','g'),(20,1,'i','p');
+
+CREATE TABLE t4 (
+  col_int int
+);
+
+CREATE TABLE t5 (
+  col_varchar_key varchar(1),
+  pk int NOT NULL,
+  col_int int,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+SELECT table1.col_varchar_key AS field1
+FROM (t3 AS table1
+  INNER JOIN (
+    SELECT SUBQUERY1_t1.*
+    FROM (t1 AS SUBQUERY1_t1
+      RIGHT JOIN (t2 AS SUBQUERY1_t2
+        INNER JOIN t3 AS SUBQUERY1_t3
+        ON (SUBQUERY1_t3.col_varchar_key = SUBQUERY1_t2.col_varchar_key)
+      ) ON (SUBQUERY1_t3.col_int_key = SUBQUERY1_t2.pk)
+    )
+    WHERE SUBQUERY1_t2.col_varchar_key >= ANY (
+      SELECT CHILD_SUBQUERY1_t2.col_varchar AS CHILD_SUBQUERY1_field1
+      FROM (t2 AS CHILD_SUBQUERY1_t1
+        LEFT OUTER JOIN t3 AS CHILD_SUBQUERY1_t2
+        ON (CHILD_SUBQUERY1_t2.col_int_key = CHILD_SUBQUERY1_t1.col_int_key)
+      )
+      WHERE CHILD_SUBQUERY1_t1.pk >= SUBQUERY1_t2.pk
+    )
+  ) AS table2
+  ON (table2.pk = table1.pk)
+)
+WHERE (EXISTS ((
+  SELECT DISTINCT SUBQUERY2_t2.col_int AS SUBQUERY2_field1
+  FROM (t4 AS SUBQUERY2_t1
+    LEFT OUTER JOIN t5 AS SUBQUERY2_t2
+    ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+   )
+   WHERE SUBQUERY2_t2.col_varchar_key != @var4
+)))
+  AND table1.col_int_key < (35 + 192)
+ORDER BY field1
+;
+
+DROP TABLE t1, t2, t3, t4, t5;
 
 # New tests go here.

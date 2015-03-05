@@ -43,10 +43,12 @@ let $restart_parameters = restart: --innodb-read-only --big-tables=1;
 
 --source suite/innodb/include/query_workload_itt.inc
 
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
 #-----------------------------------------------------------------------------
 #
 # remove test bed.
 #
-let $restart_parameters = restart;
---source include/restart_mysqld.inc
+
 --source suite/innodb/include/drop_workload_itt.inc

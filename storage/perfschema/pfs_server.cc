@@ -309,7 +309,7 @@ void shutdown_performance_schema(void)
     my_set_thread_local(THR_PFS_SBU, NULL); // status_by_user
     my_set_thread_local(THR_PFS_SBH, NULL); // status_by_host
     my_set_thread_local(THR_PFS_SBA, NULL); // status_by_account
-    
+
     my_delete_thread_local_key(THR_PFS);
     my_delete_thread_local_key(THR_PFS_VG);
     my_delete_thread_local_key(THR_PFS_SV);

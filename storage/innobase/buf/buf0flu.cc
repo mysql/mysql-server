@@ -2430,11 +2430,15 @@ page_cleaner_flush_pages_recommendation(
 			time_elapsed = 1;
 		}
 
-		avg_page_rate = ((sum_pages / time_elapsed)
-				 + avg_page_rate) / 2;
+		avg_page_rate = static_cast<ulint>(
+			((static_cast<double>(sum_pages)
+			  / time_elapsed)
+			 + avg_page_rate) / 2);
 
 		/* How much LSN we have generated since last call. */
-		lsn_rate = (cur_lsn - prev_lsn) / time_elapsed;
+		lsn_rate = static_cast<lsn_t>(
+			static_cast<double>(cur_lsn - prev_lsn)
+			/ time_elapsed);
 
 		lsn_avg_rate = (lsn_avg_rate + lsn_rate) / 2;
 
@@ -2443,15 +2447,15 @@ page_cleaner_flush_pages_recommendation(
 		mutex_enter(&page_cleaner->mutex);
 
 		ulint	flush_tm = page_cleaner->flush_time;
-		int	flush_pass = page_cleaner->flush_pass;
+		ulint	flush_pass = page_cleaner->flush_pass;
 
 		page_cleaner->flush_time = 0;
 		page_cleaner->flush_pass = 0;
 
 		ulint	lru_tm = 0;
 		ulint	list_tm = 0;
-		int	lru_pass = 0;
-		int	list_pass = 0;
+		ulint	lru_pass = 0;
+		ulint	list_pass = 0;
 
 		for (ulint i = 0; i < page_cleaner->n_slots; i++) {
 			page_cleaner_slot_t*	slot;

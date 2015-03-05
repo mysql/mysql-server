@@ -91,7 +91,7 @@ When one supplies long data for a placeholder:
 #include "set_var.h"            // set_var_base
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
-#include "sql_analyse.h"        // select_analyse
+#include "sql_analyse.h"        // Query_result_analyse
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
 #include "sql_cursor.h"         // Server_side_cursor
 #include "sql_db.h"             // mysql_change_db
@@ -1348,10 +1348,10 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (select_precheck(thd, lex, tables, lex->select_lex->table_list.first))
     goto error;
 
-  if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
+  if (!lex->result && !(lex->result= new (stmt->mem_root) Query_result_send))
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
-             static_cast<int>(sizeof(select_send)));
+             static_cast<int>(sizeof(Query_result_send)));
     goto error;
   }
 
@@ -1369,15 +1369,15 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   if (!lex->describe && !stmt->is_sql_prepare())
   {
-    select_result *result= lex->result;
-    select_result *analyse_result= NULL;
+    Query_result *result= lex->result;
+    Query_result *analyse_result= NULL;
     if (lex->proc_analyse)
     {
       /*
         We need proper output recordset metadata for SELECT ... PROCEDURE ANALUSE()
       */
       if ((result= analyse_result=
-             new select_analyse(result, lex->proc_analyse)) == NULL)
+             new Query_result_analyse(result, lex->proc_analyse)) == NULL)
         goto error; // OOM
     }
 
@@ -2340,6 +2340,8 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   SELECT_LEX *sl= lex->all_selects_list;
   DBUG_ENTER("reinit_stmt_before_use");
 
+  // Default to READ access for every field that is resolved
+  thd->mark_used_columns= MARK_COLUMNS_READ;
   /*
     We have to update "thd" pointer in LEX, all its units and in LEX::result,
     since statements which belong to trigger body are associated with TABLE
@@ -2890,11 +2892,12 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, size_t packet_length)
  Select_fetch_protocol_binary
 ****************************************************************************/
 
-Select_fetch_protocol_binary::Select_fetch_protocol_binary(THD *thd_arg)
+Query_fetch_protocol_binary::Query_fetch_protocol_binary(THD *thd_arg)
   :protocol(thd_arg)
 {}
 
-bool Select_fetch_protocol_binary::send_result_set_metadata(List<Item> &list, uint flags)
+bool Query_fetch_protocol_binary::send_result_set_metadata(List<Item> &list,
+                                                           uint flags)
 {
   bool rc;
   Protocol *save_protocol= thd->protocol;
@@ -2906,13 +2909,13 @@ bool Select_fetch_protocol_binary::send_result_set_metadata(List<Item> &list, ui
     a cursor.
   */
   thd->protocol= &protocol;
-  rc= select_send::send_result_set_metadata(list, flags);
+  rc= Query_result_send::send_result_set_metadata(list, flags);
   thd->protocol= save_protocol;
 
   return rc;
 }
 
-bool Select_fetch_protocol_binary::send_eof()
+bool Query_fetch_protocol_binary::send_eof()
 {
   /*
     Don't send EOF if we're in error condition (which implies we've already
@@ -2926,14 +2929,13 @@ bool Select_fetch_protocol_binary::send_eof()
 }
 
 
-bool
-Select_fetch_protocol_binary::send_data(List<Item> &fields)
+bool Query_fetch_protocol_binary::send_data(List<Item> &fields)
 {
   Protocol *save_protocol= thd->protocol;
   bool rc;
 
   thd->protocol= &protocol;
-  rc= select_send::send_data(fields);
+  rc= Query_result_send::send_data(fields);
   thd->protocol= save_protocol;
   return rc;
 }
