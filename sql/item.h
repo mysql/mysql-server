@@ -46,6 +46,30 @@ void item_init(void);			/* Init item functions */
 #define COND_FILTER_INEQUALITY 0.3333f
 /// Filtering effect for between: col1 BETWEEN a AND b
 #define COND_FILTER_BETWEEN 0.1111f
+/**
+   Value is out-of-date, will need recalculation.
+   This is used by post-greedy-search logic which changes the access method and thus
+   makes obsolete the filtering value calculated by best_access_path(). For
+  example, test_if_skip_sort_order().
+*/
+#define COND_FILTER_STALE -1.0f
+/**
+   A special subcase of the above:
+   - if this is table/index/range scan, and
+   - rows_fetched is how many rows we will examine, and
+   - rows_fetched is less than the number of rows in the table (as determined
+   by test_if_cheaper_ordering() and test_if_skip_sort_order()).
+   Unlike the ordinary case where rows_fetched:
+   - is set by calculate_scan_cost(), and
+   - is how many rows pass the constant condition (so, less than we will
+   examine), and
+   - the actual rows_fetched to show in EXPLAIN is the number of rows in the
+   table (== rows which we will examine), and
+   - the constant condition's effect has to be moved to filter_effect for
+   EXPLAIN.
+*/
+#define COND_FILTER_STALE_NO_CONST -2.0f
+
 
 static inline uint32
 char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)

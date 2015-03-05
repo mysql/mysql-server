@@ -155,7 +155,7 @@ public:
   bool check_validity(bool check_no_resolve);
 
   bool matches(const char *host_arg, const char *user_arg, const char *ip_arg,
-                const char *proxied_user_arg);
+                const char *proxied_user_arg, bool any_proxy_user);
 
   inline static bool auth_element_equals(const char *a, const char *b)
   {

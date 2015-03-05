@@ -1,7 +1,7 @@
 # This is a wrapper for binlog.test so that the same test case can be used 
 # For both statement and row based bin logs 11/07/2005 [jbm]
 
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/force_binlog_format_statement.inc
 -- source extra/binlog_tests/ctype_cp932_binlog.test
 -- source include/big_test.inc
 
@@ -165,3 +165,4 @@ set collation_connection=cp932_bin;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+--source include/restore_default_binlog_format.inc

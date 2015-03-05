@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ for this structure, presented program generate next searching-structure:
             V                    V
          symbols[0] ( "ADD" )  symbols[1] ( "AND" )
 
-for optimization, link is the 16-bit index in 'symbols' or 'sql_functions'
+for optimization, link is the 16-bit index in 'symbols'
 or search-array..
 
 So, we can read full search-structure as 32-bit word
@@ -84,8 +84,13 @@ So, we can read full search-structure as 32-bit word
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <set>
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
+
+static bool check_duplicates(uint group_mask);
+
 
 struct hash_lex_struct
 {
@@ -98,22 +103,51 @@ struct hash_lex_struct
   int ithis;
 };
 
-hash_lex_struct *get_hash_struct_by_len(hash_lex_struct **root_by_len,
-					    int len, int *max_len)
+
+class hash_map_info
 {
-  if (*max_len<len){
-    *root_by_len= (hash_lex_struct *)realloc((char*)*root_by_len,
-                                             sizeof(hash_lex_struct)*len);
-    hash_lex_struct *cur, *end= *root_by_len + len;
-    for (cur= *root_by_len + *max_len; cur<end; cur++)
-      cur->first_char= 0;
-    *max_len= len;
+public:
+  hash_lex_struct *root_by_len;
+  int max_len;
+
+  char *hash_map;
+  int size_hash_map;
+
+  hash_map_info()
+  : root_by_len(NULL), max_len(0), hash_map(NULL), size_hash_map(0)
+  {}
+
+  ~hash_map_info()
+  {
+    free(root_by_len);
+    free(hash_map);
   }
-  return (*root_by_len)+(len-1);
+
+  hash_lex_struct *get_hash_struct_by_len(int len);
+  void insert_symbols(int group_mask);
+  void add_structs_to_map(hash_lex_struct *st, int len);
+  void add_struct_to_map(hash_lex_struct *st);
+  void set_links(hash_lex_struct *st, int len);
+  bool print_hash_map(const char *name, uint group_mask);
+};
+
+
+hash_lex_struct *hash_map_info::get_hash_struct_by_len(int len)
+{
+  if (max_len < len)
+  {
+    root_by_len= (hash_lex_struct *) realloc((char*) root_by_len,
+                                             sizeof(hash_lex_struct) * len);
+    hash_lex_struct *cur, *end= root_by_len + len;
+    for (cur= root_by_len + max_len; cur < end; cur++)
+      cur->first_char= 0;
+    max_len= len;
+  }
+  return root_by_len + len - 1;
 }
 
 void insert_into_hash(hash_lex_struct *root, const char *name, 
-		      int len_from_begin, int index, int function)
+		      int len_from_begin, int index)
 {
   hash_lex_struct *end, *cur, *tails;
 
@@ -127,8 +161,7 @@ void insert_into_hash(hash_lex_struct *root, const char *name,
   if (root->first_char == -1)
   {
     int index2= root->iresult;
-    const char *name2= (index2 < 0 ? sql_functions[-index2-1] :
-			symbols[index2]).name + len_from_begin;
+    const char *name2= symbols[index2].name + len_from_begin;
     root->first_char= (int) (uchar) name2[0];
     root->last_char= (char) root->first_char;
     tails= (hash_lex_struct*)malloc(sizeof(hash_lex_struct));
@@ -169,70 +202,25 @@ void insert_into_hash(hash_lex_struct *root, const char *name,
   }
 
   insert_into_hash(root->char_tails+(*name)-root->first_char,
-		   name+1,len_from_begin+1,index,function);
+		   name+1,len_from_begin+1,index);
 }
 
 
-hash_lex_struct *root_by_len= 0;
-int max_len=0;
-
-hash_lex_struct *root_by_len2= 0;
-int max_len2=0;
-
-void insert_symbols()
+void hash_map_info::insert_symbols(int group_mask)
 {
   size_t i= 0;
-  SYMBOL *cur;
-  for (cur= symbols; i<array_elements(symbols); cur++, i++){
-    hash_lex_struct *root= 
-      get_hash_struct_by_len(&root_by_len,cur->length,&max_len);
-    insert_into_hash(root,cur->name,0,(uint) i,0);
-  }
-}
-
-void insert_sql_functions()
-{
-  int i= 0;
-  SYMBOL *cur;
-  for (cur= sql_functions; i < (int) array_elements(sql_functions); cur++, i++)
+  const SYMBOL *cur;
+  for (cur= symbols; i < array_elements(symbols); cur++, i++)
   {
-    hash_lex_struct *root= 
-      get_hash_struct_by_len(&root_by_len,cur->length,&max_len);
-    insert_into_hash(root,cur->name,0,-i-1,1);
+    if (!(cur->group & group_mask))
+      continue;
+    hash_lex_struct *root= get_hash_struct_by_len(cur->length);
+    insert_into_hash(root, cur->name, 0, i);
   }
 }
 
-void calc_length()
-{
-  SYMBOL *cur, *end= symbols + array_elements(symbols);
-  for (cur= symbols; cur < end; cur++)
-    cur->length=(uchar) strlen(cur->name);
-  end= sql_functions + array_elements(sql_functions);
-  for (cur= sql_functions; cur<end; cur++)
-    cur->length=(uchar) strlen(cur->name);
-}
 
-void generate_find_structs()
-{
-  root_by_len= 0;
-  max_len=0;
-
-  insert_symbols();
-
-  root_by_len2= root_by_len;
-  max_len2= max_len;
-
-  root_by_len= 0;
-  max_len= 0;
-
-  insert_symbols();
-  insert_sql_functions();
-}
-
-char *hash_map= 0;
-int size_hash_map= 0;
-
-void add_struct_to_map(hash_lex_struct *st)
+void hash_map_info::add_struct_to_map(hash_lex_struct *st)
 {
   st->ithis= size_hash_map/4;
   size_hash_map+= 4;
@@ -254,7 +242,7 @@ void add_struct_to_map(hash_lex_struct *st)
 }
 
 
-void add_structs_to_map(hash_lex_struct *st, int len)
+void hash_map_info::add_structs_to_map(hash_lex_struct *st, int len)
 {
   hash_lex_struct *cur, *end= st+len;
   for (cur= st; cur<end; cur++)
@@ -266,7 +254,8 @@ void add_structs_to_map(hash_lex_struct *st, int len)
   }
 }
 
-void set_links(hash_lex_struct *st, int len)
+
+void hash_map_info::set_links(hash_lex_struct *st, int len)
 {
   hash_lex_struct *cur, *end= st+len;
   for (cur= st; cur<end; cur++)
@@ -282,13 +271,19 @@ void set_links(hash_lex_struct *st, int len)
 }
 
 
-void print_hash_map(const char *name)
+bool hash_map_info::print_hash_map(const char *name, uint group_mask)
 {
+  if (check_duplicates(group_mask))
+    return true;
+  insert_symbols(group_mask);
+  add_structs_to_map(root_by_len, max_len);
+  set_links(root_by_len, max_len);
+
+  printf("static const unsigned char %s_map[%d]= {\n", name, size_hash_map);
+
   char *cur;
   int i;
-
-  printf("static uchar %s[%d]= {\n",name,size_hash_map);
-  for (i=0, cur= hash_map; i<size_hash_map; i++, cur++)
+  for (i=0, cur= hash_map; i < size_hash_map; i++, cur++)
   {
     switch(i%4){
     case 0: case 1:
@@ -301,71 +296,33 @@ void print_hash_map(const char *name)
     case 3: printf("%u,\n",(uint)(uchar)*cur); break;
     }
   }
-  printf("};\n");
+  printf("};\n\n");
+  printf("const unsigned int %s_max_len=%d;\n", name, max_len);
+  return false;
 }
 
 
-void print_find_structs()
+bool check_duplicates(uint group_mask)
 {
-  add_structs_to_map(root_by_len,max_len);
-  set_links(root_by_len,max_len);
-  print_hash_map("sql_functions_map");
+  std::set<const char *> names;
 
-  hash_map= 0;
-  size_hash_map= 0;
-
-  printf("\n");
-
-  add_structs_to_map(root_by_len2,max_len2);
-  set_links(root_by_len2,max_len2);
-  print_hash_map("symbols_map");
-}
-
-int check_dup_symbols(SYMBOL *s1, SYMBOL *s2)
-{
-  if (s1->length!=s2->length || strncmp(s1->name,s2->name,s1->length))
-    return 0;
-
-  const char *err_tmpl= "\ngen_lex_hash fatal error : \
-Unfortunately gen_lex_hash can not generate a hash,\n since \
-your lex.h has duplicate definition for a symbol \"%s\"\n\n";
-  printf (err_tmpl,s1->name);
-  fprintf (stderr,err_tmpl,s1->name);
-
-  return 1;
-}
-
-
-int check_duplicates()
-{
-  SYMBOL *cur1, *cur2, *s_end, *f_end;
-
-  s_end= symbols + array_elements(symbols);
-  f_end= sql_functions + array_elements(sql_functions);
-
-  for (cur1= symbols; cur1<s_end; cur1++)
+  size_t i= 0;
+  const SYMBOL *cur;
+  for (cur= symbols; i < array_elements(symbols); cur++, i++)
   {
-    for (cur2= cur1+1; cur2<s_end; cur2++)
+    if (!(cur->group & group_mask))
+      continue;
+    if (!names.insert(cur->name).second)
     {
-      if (check_dup_symbols(cur1,cur2))
-	return 1;
-    }
-    for (cur2= sql_functions; cur2<f_end; cur2++)
-    {
-      if (check_dup_symbols(cur1,cur2))
-	return 1;
+      const char *err_tmpl= "\ngen_lex_hash fatal error : "
+        "Unfortunately gen_lex_hash can not generate a hash,\n since "
+        "your lex.h has duplicate definition for a symbol \"%s\"\n\n";
+      printf (err_tmpl, cur->name);
+      fprintf (stderr, err_tmpl, cur->name);
+      return true;
     }
   }
-
-  for (cur1= sql_functions; cur1<f_end; cur1++)
-  {
-    for (cur2= cur1+1; cur2< f_end; cur2++)
-    {
-      if (check_dup_symbols(cur1,cur2))
-	return 1;
-    }
-  }
-  return 0;
+  return false;
 }
 
 
@@ -383,96 +340,24 @@ int main(int argc,char **argv)
   /* Broken up to indicate that it's not advice to you, gentle reader. */
   printf("/* Do " "not " "edit " "this " "file!  This is generated by "
          "gen_lex_hash.cc\nthat seeks for a perfect hash function */\n\n");
-  printf("#include \"lex.h\"\n\n");
 
-  calc_length();
-
-  if (check_duplicates())
+  /* Print sql_keywords_and_funcs_map[] and sql_keyword_and_funcs_max_len: */
+  if (hash_map_info().print_hash_map("sql_keywords_and_funcs", SG_MAIN_PARSER))
     exit(1);
 
-  generate_find_structs();
-  print_find_structs();
+  printf("\n");
 
-  printf("\nstatic unsigned int sql_functions_max_len=%d;\n", max_len);
-  printf("\nstatic unsigned int symbols_max_len=%d;\n\n", max_len2);
+  /* Print sql_keywords_map[] and sql_keywords_max_len values: */
+  if (hash_map_info().print_hash_map("sql_keywords",
+                                     SG_KEYWORDS | SG_HINTABLE_KEYWORDS))
+    exit(1);
 
-  printf("\
-static SYMBOL *get_hash_symbol(const char *s,\n\
-                               unsigned int len,bool function)\n\
-{\n\
-  uchar *hash_map;\n\
-  const char *cur_str= s;\n\
-\n\
-  if (len == 0) {\n\
-    DBUG_PRINT(\"warning\", (\"get_hash_symbol() received a request for a zero-length symbol, which is probably a mistake.\"));\
-    return(NULL);\n\
-  }\n"
-);
+  printf("\n");
 
-  printf("\
-  if (function){\n\
-    if (len>sql_functions_max_len) return 0;\n\
-    hash_map= sql_functions_map;\n\
-    uint32 cur_struct= uint4korr(hash_map+((len-1)*4));\n\
-\n\
-    for (;;){\n\
-      uchar first_char= (uchar)cur_struct;\n\
-\n\
-      if (first_char == 0)\n\
-      {\n\
-        int16 ires= (int16)(cur_struct>>16);\n\
-        if (ires==array_elements(symbols)) return 0;\n\
-        SYMBOL *res;\n\
-        if (ires>=0) \n\
-          res= symbols+ires;\n\
-        else\n\
-          res= sql_functions-ires-1;\n\
-		  uint count= (uint) (cur_str - s);\n\
-        return lex_casecmp(cur_str,res->name+count,len-count) ? 0 : res;\n\
-      }\n\
-\n\
-      uchar cur_char= (uchar)to_upper_lex[(uchar)*cur_str];\n\
-      if (cur_char<first_char) return 0;\n\
-      cur_struct>>=8;\n\
-      if (cur_char>(uchar)cur_struct) return 0;\n\
-\n\
-      cur_struct>>=8;\n\
-      cur_struct= uint4korr(hash_map+\n\
-                        (((uint16)cur_struct + cur_char - first_char)*4));\n\
-      cur_str++;\n\
-    }\n"
-);
+  /* Print hint_keywords_map[] and hint_keywords_max_len values: */
+  if (hash_map_info().print_hash_map("hint_keywords", SG_HINTS))
+    exit(1);
 
-  printf("\
-  }else{\n\
-    if (len>symbols_max_len) return 0;\n\
-    hash_map= symbols_map;\n\
-    uint32 cur_struct= uint4korr(hash_map+((len-1)*4));\n\
-\n\
-    for (;;){\n\
-      uchar first_char= (uchar)cur_struct;\n\
-\n\
-      if (first_char==0){\n\
-        int16 ires= (int16)(cur_struct>>16);\n\
-        if (ires==array_elements(symbols)) return 0;\n\
-        SYMBOL *res= symbols+ires;\n\
-		uint count= (uint) (cur_str - s);\n\
-        return lex_casecmp(cur_str,res->name+count,len-count)!=0 ? 0 : res;\n\
-      }\n\
-\n\
-      uchar cur_char= (uchar)to_upper_lex[(uchar)*cur_str];\n\
-      if (cur_char<first_char) return 0;\n\
-      cur_struct>>=8;\n\
-      if (cur_char>(uchar)cur_struct) return 0;\n\
-\n\
-      cur_struct>>=8;\n\
-      cur_struct= uint4korr(hash_map+\n\
-                        (((uint16)cur_struct + cur_char - first_char)*4));\n\
-      cur_str++;\n\
-    }\n\
-  }\n\
-}\n"
-);
   exit(0);
 }
 

@@ -224,6 +224,7 @@ call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Can't generate a unique log-filename .*");
 ###################### TEST #13
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,error_unique_log_filename";
@@ -234,6 +235,7 @@ SET GLOBAL debug="-d,error_unique_log_filename";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
 ###################### TEST #14
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
@@ -244,6 +246,7 @@ SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
 ###################### TEST #15
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_registering_index";
@@ -254,6 +257,7 @@ SET GLOBAL debug="-d,fault_injection_registering_index";
 SET GLOBAL debug=@old_debug;
 include/rpl_restart_server.inc [server_number=2]
 ###################### TEST #16
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_openning_index";

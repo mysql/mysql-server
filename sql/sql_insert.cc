@@ -1237,7 +1237,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   {
     /*
       This section of code is more or less a duplicate of the code  in
-      select_insert::prepare, and the 'if' branch above.
+      Query_result_insert::prepare, and the 'if' branch above.
       @todo Consolidate these three sections into one.
     */
     /*
@@ -1299,7 +1299,8 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
       /*
         Notice that there is no need to apply the Item::update_value_transformer
-        here, as this will be done during EXECUTE in select_insert::prepare().
+        here, as this will be done during EXECUTE in
+        Query_result_insert::prepare().
       */
     }
   }
@@ -1899,10 +1900,9 @@ bool Sql_cmd_insert_select::mysql_insert_select_prepare(THD *thd)
 }
 
 
-int
-select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
-  DBUG_ENTER("select_insert::prepare");
+  DBUG_ENTER("Query_result_insert::prepare");
 
   LEX *const lex= thd->lex;
   bool res;
@@ -2062,21 +2062,21 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   Finish the preparation of the result table.
 
   SYNOPSIS
-    select_insert::prepare2()
+    Query_result_insert::prepare2()
     void
 
   DESCRIPTION
     If the result table is the same as one of the source tables (INSERT SELECT),
     the result table is not finally prepared at the join prepair phase.
     Do the final preparation now.
-		       
+
   RETURN
     0   OK
 */
 
-int select_insert::prepare2(void)
+int Query_result_insert::prepare2()
 {
-  DBUG_ENTER("select_insert::prepare2");
+  DBUG_ENTER("Query_result_insert::prepare2");
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !thd->lex->describe)
   {
@@ -2089,15 +2089,19 @@ int select_insert::prepare2(void)
 }
 
 
-void select_insert::cleanup()
+void Query_result_insert::cleanup()
 {
-  /* select_insert/select_create are never re-used in prepared statement */
+  /*
+    Query_result_insert/Query_result_create are never re-used
+    in prepared statement
+  */
   DBUG_ASSERT(0);
 }
 
-select_insert::~select_insert()
+
+Query_result_insert::~Query_result_insert()
 {
-  DBUG_ENTER("~select_insert");
+  DBUG_ENTER("~Query_result_insert");
   if (table)
   {
     table->next_number_field=0;
@@ -2109,9 +2113,9 @@ select_insert::~select_insert()
 }
 
 
-bool select_insert::send_data(List<Item> &values)
+bool Query_result_insert::send_data(List<Item> &values)
 {
-  DBUG_ENTER("select_insert::send_data");
+  DBUG_ENTER("Query_result_insert::send_data");
   bool error=0;
 
   if (unit->offset_limit_cnt)
@@ -2222,7 +2226,7 @@ bool select_insert::send_data(List<Item> &values)
 }
 
 
-void select_insert::store_values(List<Item> &values)
+void Query_result_insert::store_values(List<Item> &values)
 {
   if (fields->elements)
   {
@@ -2240,9 +2244,9 @@ void select_insert::store_values(List<Item> &values)
   check_that_all_fields_are_given_values(thd, table, table_list);
 }
 
-void select_insert::send_error(uint errcode,const char *err)
+void Query_result_insert::send_error(uint errcode,const char *err)
 {
-  DBUG_ENTER("select_insert::send_error");
+  DBUG_ENTER("Query_result_insert::send_error");
 
   my_message(errcode, err, MYF(0));
 
@@ -2250,14 +2254,14 @@ void select_insert::send_error(uint errcode,const char *err)
 }
 
 
-bool select_insert::send_eof()
+bool Query_result_insert::send_eof()
 {
   int error;
   bool const trans_table= table->file->has_transactions();
   ulonglong id, row_count;
   bool changed;
   THD::killed_state killed_status= thd->killed;
-  DBUG_ENTER("select_insert::send_eof");
+  DBUG_ENTER("Query_result_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
                        trans_table, table->file->table_type()));
 
@@ -2350,9 +2354,10 @@ bool select_insert::send_eof()
   DBUG_RETURN(0);
 }
 
-void select_insert::abort_result_set() {
 
-  DBUG_ENTER("select_insert::abort_result_set");
+void Query_result_insert::abort_result_set()
+{
+  DBUG_ENTER("Query_result_insert::abort_result_set");
   /*
     If the creation of the table failed (due to a syntax error, for
     example), no table will have been opened and therefore 'table'
@@ -2620,10 +2625,9 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     @retval !=0 Failure
 */
 
-int
-select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
-  DBUG_ENTER("select_create::prepare");
+  DBUG_ENTER("Query_result_create::prepare");
 
   unit= u;
   DBUG_ASSERT(create_table->table == NULL);
@@ -2657,10 +2661,9 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     @retval !=0 Failure
 */
 
-int
-select_create::prepare2()
+int Query_result_create::prepare2()
 {
-  DBUG_ENTER("select_create::prepare2");
+  DBUG_ENTER("Query_result_create::prepare2");
   DEBUG_SYNC(thd,"create_table_select_before_lock");
 
   MYSQL_LOCK *extra_lock= NULL;
@@ -2684,7 +2687,7 @@ select_create::prepare2()
    */
   class MY_HOOKS : public TABLEOP_HOOKS {
   public:
-    MY_HOOKS(select_create *x, TABLE_LIST *create_table_arg,
+    MY_HOOKS(Query_result_create *x, TABLE_LIST *create_table_arg,
              TABLE_LIST *select_tables_arg)
       : ptr(x),
         create_table(create_table_arg),
@@ -2717,7 +2720,7 @@ select_create::prepare2()
       }
       return 0;
     }
-    select_create *ptr;
+    Query_result_create *ptr;
     TABLE_LIST *create_table;
     TABLE_LIST *select_tables;
   };
@@ -2802,8 +2805,8 @@ select_create::prepare2()
   DBUG_RETURN(0);
 }
 
-int
-select_create::binlog_show_create_table(TABLE **tables, uint count)
+
+int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
 {
   DBUG_ENTER("select_create::binlog_show_create_table");
   /*
@@ -2856,7 +2859,8 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   DBUG_RETURN(result);
 }
 
-void select_create::store_values(List<Item> &values)
+
+void Query_result_create::store_values(List<Item> &values)
 {
   fill_record_n_invoke_before_triggers(thd, field, values,
                                        table, TRG_EVENT_INSERT,
@@ -2864,9 +2868,9 @@ void select_create::store_values(List<Item> &values)
 }
 
 
-void select_create::send_error(uint errcode,const char *err)
+void Query_result_create::send_error(uint errcode,const char *err)
 {
-  DBUG_ENTER("select_create::send_error");
+  DBUG_ENTER("Query_result_create::send_error");
 
   DBUG_PRINT("info",
              ("Current statement %s row-based",
@@ -2887,24 +2891,24 @@ void select_create::send_error(uint errcode,const char *err)
 
   */
   tmp_disable_binlog(thd);
-  select_insert::send_error(errcode, err);
+  Query_result_insert::send_error(errcode, err);
   reenable_binlog(thd);
 
   DBUG_VOID_RETURN;
 }
 
 
-bool select_create::send_eof()
+bool Query_result_create::send_eof()
 {
   /*
     The routine that writes the statement in the binary log
-    is in select_insert::send_eof(). For that reason, we
+    is in Query_result_insert::send_eof(). For that reason, we
     mark the flag at this point.
   */
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     thd->get_transaction()->mark_created_temp_table(Transaction_ctx::STMT);
 
-  bool tmp=select_insert::send_eof();
+  bool tmp= Query_result_insert::send_eof();
   if (tmp)
     abort_result_set();
   else
@@ -2933,12 +2937,12 @@ bool select_create::send_eof()
 }
 
 
-void select_create::abort_result_set()
+void Query_result_create::abort_result_set()
 {
-  DBUG_ENTER("select_create::abort_result_set");
+  DBUG_ENTER("Query_result_create::abort_result_set");
 
   /*
-    In select_insert::abort_result_set() we roll back the statement, including
+    In Query_result_insert::abort_result_set() we roll back the statement, including
     truncating the transaction cache of the binary log. To do this, we
     pretend that the statement is transactional, even though it might
     be the case that it was not.
@@ -2953,7 +2957,7 @@ void select_create::abort_result_set()
     log state.
   */
   tmp_disable_binlog(thd);
-  select_insert::abort_result_set();
+  Query_result_insert::abort_result_set();
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
   reenable_binlog(thd);
   /* possible error of writing binary log is ignored deliberately */
@@ -3046,7 +3050,7 @@ bool Sql_cmd_insert_select::execute(THD *thd)
   TABLE_LIST *const first_table= select_lex->get_table_list();
   TABLE_LIST *const all_tables= first_table;
 
-  select_insert *sel_result;
+  Query_result_insert *sel_result;
   if (insert_precheck(thd, all_tables))
     return true;
   /*
@@ -3083,13 +3087,13 @@ bool Sql_cmd_insert_select::execute(THD *thd)
       select_lex->context.first_name_resolution_table= second_table;
 
     res= mysql_insert_select_prepare(thd);
-    if (!res && (sel_result= new select_insert(first_table,
-                                               first_table->table,
-                                               &insert_field_list,
-                                               &insert_field_list,
-                                               &insert_update_list,
-                                               &insert_value_list,
-                                               lex->duplicates)))
+    if (!res && (sel_result= new Query_result_insert(first_table,
+                                                     first_table->table,
+                                                     &insert_field_list,
+                                                     &insert_field_list,
+                                                     &insert_update_list,
+                                                     &insert_value_list,
+                                                     lex->duplicates)))
     {
       Ignore_error_handler ignore_handler;
       Strict_error_handler strict_handler;

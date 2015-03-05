@@ -889,7 +889,7 @@ static Sys_var_enum Sys_binlog_format(
        "MIXED, the format switches to row-based and back implicitly per each "
        "query accessing an NDBCLUSTER table",
        SESSION_VAR(binlog_format), CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
-       binlog_format_names, DEFAULT(BINLOG_FORMAT_STMT),
+       binlog_format_names, DEFAULT(BINLOG_FORMAT_ROW),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
        ON_UPDATE(fix_binlog_format_after_update));
 
@@ -1771,7 +1771,7 @@ static Sys_var_enum Sys_binlog_error_action(
        "When statements cannot be written to the binary log due to a fatal "
        "error, the server can either ignore the error and let the master "
        "continue, or abort.", GLOBAL_VAR(binlog_error_action),
-       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(IGNORE_ERROR));
+       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(ABORT_SERVER));
 
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
@@ -1784,6 +1784,36 @@ static Sys_var_mybool Sys_trust_function_creators(
        "this to TRUE",
        GLOBAL_VAR(trust_function_creators),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_check_proxy_users(
+	"check_proxy_users",
+	"If set to FALSE (the default), then proxy user identity will not be "
+	"mapped for authentication plugins which support mapping from grant "
+	"tables.  When set to TRUE, users associated with authentication "
+	"plugins which signal proxy user mapping should be done according to "
+	"GRANT PROXY privilege definition.",
+	GLOBAL_VAR(check_proxy_users),
+	CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_mysql_native_password_proxy_users(
+	"mysql_native_password_proxy_users",
+	"If set to FALSE (the default), then the mysql_native_password "
+	"plugin will not signal for authenticated users to be checked for mapping "
+	"to proxy users.  When set to TRUE, the plugin will flag associated "
+	"authenticated accounts to be mapped to proxy users when the server option "
+	"check_proxy_users is enabled.",
+	GLOBAL_VAR(mysql_native_password_proxy_users),
+	CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_sha256_password_proxy_users(
+	"sha256_password_proxy_users",
+	"If set to FALSE (the default), then the sha256_password authentication "
+	"plugin will not signal for authenticated users to be checked for mapping "
+	"to proxy users.  When set to TRUE, the plugin will flag associated "
+	"authenticated accounts to be mapped to proxy users when the server option "
+	"check_proxy_users is enabled.",
+	GLOBAL_VAR(sha256_password_proxy_users),
+	CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_use_v1_row_events(
        "log_bin_use_v1_row_events",

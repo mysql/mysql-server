@@ -103,6 +103,7 @@ typedef struct st_key {
   KEY_PART_INFO *key_part;
   /** Name of key */
   char	*name;
+
   /**
     Array of AVG(#records with the same field value) for 1st ... Nth key part.
     0 means 'not known'.

@@ -2326,7 +2326,7 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
@@ -2345,7 +2345,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
@@ -2364,7 +2364,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
@@ -2377,7 +2377,7 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
@@ -2666,7 +2666,7 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
@@ -2688,7 +2688,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
@@ -2710,7 +2710,7 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
@@ -2723,7 +2723,7 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
@@ -3073,7 +3073,7 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
@@ -3813,7 +3813,7 @@ insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C
 explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	NULL	ref	a	a	5	<subquery2>.a	10	100.00	Using join buffer (Batched Key Access)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 Warnings:
@@ -3946,7 +3946,7 @@ insert into t0 values(1,1);
 explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	Using where
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
 1	SIMPLE	t3	NULL	ref	a	a	5	<subquery2>.a	10	100.00	Using join buffer (Batched Key Access)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
 Warnings:
@@ -4087,7 +4087,7 @@ explain select
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	32	10.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	it	NULL	ALL	NULL	NULL	NULL	NULL	22	100.00	NULL
 Warnings:
@@ -4159,7 +4159,7 @@ explain select
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	52	10.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	it	NULL	ALL	NULL	NULL	NULL	NULL	22	100.00	NULL
 Warnings:
@@ -4830,7 +4830,7 @@ explain SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
 WHERE COALESCE(ot2.a,0) IN (SELECT a FROM it3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
@@ -6320,7 +6320,7 @@ SELECT int_key FROM ot1
 WHERE int_nokey IN (SELECT it2.int_key
 FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	it1	NULL	index	NULL	int_key	4	NULL	2	100.00	Using index
 2	MATERIALIZED	it2	NULL	ALL	int_key	NULL	NULL	NULL	20	90.00	Using where; Using join buffer (Block Nested Loop)
@@ -6519,7 +6519,7 @@ INNER JOIN t2 c ON c.idContact=cona.idContact
 WHERE cona.postalStripped='T2H3B2'
 	);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	Using where
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
 1	SIMPLE	a	NULL	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.idObj	1	100.00	Using index
 2	MATERIALIZED	cona	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	MATERIALIZED	c	NULL	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	Using join buffer (Batched Key Access)
@@ -6796,7 +6796,7 @@ WHERE PNUM IN
 FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ref	t1_IDX	t1_IDX	3	<subquery2>.EMPNUM	2	100.00	Using join buffer (Batched Key Access)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
@@ -6813,7 +6813,7 @@ WHERE EMPNUM IN
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ref	t1_IDX	t1_IDX	3	<subquery2>.EMPNUM	2	100.00	Using join buffer (Batched Key Access)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
@@ -6821,7 +6821,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `<subquery2>`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	t1	NULL	ref	t1_IDX	t1_IDX	3	<subquery2>.EMPNUM	2	100.00	Using join buffer (Batched Key Access)
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
@@ -8460,7 +8460,7 @@ WHERE parent1.col_varchar_key IN
 FROM t1 AS child1 LEFT JOIN t2 AS child2
 ON (child1.col_varchar_key > child2.col_varchar_nokey)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	Using where
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
 1	SIMPLE	grandparent1	NULL	ref	col_varchar_key	col_varchar_key	4	<subquery2>.col_varchar_nokey	2	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	grandparent2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 2	MATERIALIZED	child1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using where
@@ -8892,7 +8892,7 @@ WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	alias1	NULL	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	10.00	Using sort_union(col_varchar_key,PRIMARY); Using where
-1	SIMPLE	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	26.53	Range checked for each record (index map: 0x2); FirstMatch(t2)
+1	SIMPLE	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	19.00	Range checked for each record (index map: 0x2); FirstMatch(t2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`field1` AS `field1` from `test`.`t2` semi join (`test`.`t1` `alias1` join `test`.`t1` `alias2`) where ((`test`.`alias1`.`col_varchar_nokey` = `test`.`t2`.`field1`) and ((`test`.`alias1`.`pk` = 58) or (`test`.`alias1`.`col_varchar_key` = 'o')) and ((`test`.`alias2`.`col_int_key` = `test`.`alias1`.`pk`) or (`test`.`alias2`.`col_int_key` = `test`.`alias1`.`col_int_key`)))
 SELECT *
@@ -8926,7 +8926,7 @@ ot2.a IN (SELECT a FROM it2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	it1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(ot1); Using join buffer (Block Nested Loop)
-1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
 3	MATERIALIZED	it2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
@@ -9296,7 +9296,7 @@ WHERE it.a = 'x' OR it.c > it.d
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	Using where
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
 1	SIMPLE	ot	NULL	ref	a	a	4	<subquery2>.a	2	100.00	Using index
 2	MATERIALIZED	it	NULL	ALL	a	NULL	NULL	NULL	3	40.74	Using where
 Warnings:
@@ -9853,6 +9853,10 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SET @old_depth=@@optimizer_search_depth;
 SET optimizer_search_depth=4;
 EXPLAIN SELECT col_datetime_key
@@ -9868,14 +9872,13 @@ ON alias5.col_int_key < alias4.col_int_key
 ON alias5.col_varchar_key = alias4.col_varchar_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.outr.col_datetime_key	1	100.00	NULL
-2	MATERIALIZED	alias1	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index
-2	MATERIALIZED	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-2	MATERIALIZED	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-2	MATERIALIZED	alias5	NULL	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index
+1	SIMPLE	alias1	NULL	ref	col_datetime_key	col_datetime_key	5	test.outr.col_datetime_key	1	100.00	Using index; Start temporary
+1	SIMPLE	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	alias5	NULL	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	100.00	Using where; Using index
+1	SIMPLE	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` semi join (`test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias5`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`)))) where (`<subquery2>`.`col_datetime_key` = `test`.`outr`.`col_datetime_key`)
+Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` semi join (`test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias5`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`)))) where (`test`.`alias1`.`col_datetime_key` = `test`.`outr`.`col_datetime_key`)
 SELECT col_datetime_key
 FROM t1 as outr
 WHERE col_datetime_key IN (
@@ -10023,71 +10026,6 @@ pk	pk
 2	2
 DROP TABLE t1;
 # End of test for bug#13838810.
-#
-# BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
-# --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
-#
-CREATE TABLE t1 (
-col_int_key INT(11) NOT NULL,
-col_datetime_key DATETIME NOT NULL,
-col_varchar_key VARCHAR(1) NOT NULL,
-col_varchar_nokey VARCHAR(1) NOT NULL,
-KEY col_int_key (col_int_key),
-KEY col_datetime_key (col_datetime_key),
-KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
-INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
-CREATE TABLE t2 (
-col_int_key INT(11) NOT NULL,
-col_datetime_key DATETIME NOT NULL,
-col_varchar_key VARCHAR(1) NOT NULL,
-col_varchar_nokey VARCHAR(1) NOT NULL,
-KEY col_int_key (col_int_key),
-KEY col_datetime_key (col_datetime_key),
-KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
-SET @old_depth=@@optimizer_search_depth;
-SET optimizer_search_depth=4;
-EXPLAIN SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-SELECT alias1.col_datetime_key
-FROM t1 AS alias1
-LEFT JOIN t1 as alias3
-STRAIGHT_JOIN ( t2 AS alias4
-JOIN t1 AS alias5
-ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-ON alias5.col_int_key < alias4.col_int_key
-ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.outr.col_datetime_key	1	100.00	NULL
-2	MATERIALIZED	alias1	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index
-2	MATERIALIZED	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-2	MATERIALIZED	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-2	MATERIALIZED	alias5	NULL	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` semi join (`test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias5`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`)))) where (`<subquery2>`.`col_datetime_key` = `test`.`outr`.`col_datetime_key`)
-SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-SELECT alias1.col_datetime_key
-FROM t1 AS alias1
-LEFT JOIN t1 as alias3
-STRAIGHT_JOIN ( t2 AS alias4
-JOIN t1 AS alias5
-ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-ON alias5.col_int_key < alias4.col_int_key
-ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-col_datetime_key
-2002-02-13 17:30:06
-2008-09-27 00:34:58
-DROP TABLE t1,t2;
-SET @@optimizer_search_depth=@old_depth;
 #
 # Bug#13845930: Segfault in st_join_table::and_with_condition
 #
@@ -10326,7 +10264,7 @@ FROM ( view_c AS sq2_alias1, t1 AS sq2_alias2 )
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	alias3	NULL	range	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	2	50.00	Using index condition; Using where; Using MRR; Using join buffer (Block Nested Loop)
 1	SIMPLE	alias2	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias3.col_varchar_key	2	100.00	Using index
 1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(alias2)
@@ -10634,7 +10572,7 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 (SELECT * FROM view_inline_2
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<subquery4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	PRIMARY	<subquery4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	<subquery4>.p,<subquery4>.My_exp_p	2	100.00	NULL
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	8	test.alias2.col_varchar_nokey,<subquery4>.p	3	100.00	Using index; FirstMatch(alias2)
@@ -11993,5 +11931,74 @@ col_date_key
 2008-09-12
 2009-02-23
 DROP TABLE t1,t2,t3;
+#
+# Bug#20554585 ASSERT JOIN()->TABLES == 0... IN JOIN_TAB::GET_SJ_STRATEGY ON SUBQUERY + VAR
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+PRIMARY KEY (pk)
+);
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_key int,
+col_varchar_key varchar(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+CREATE TABLE t3 (
+pk int NOT NULL,
+col_int_key int,
+col_varchar_key varchar(1),
+col_varchar varchar(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t3 VALUES (1,4,'c','g'),(20,1,'i','p');
+CREATE TABLE t4 (
+col_int int
+);
+CREATE TABLE t5 (
+col_varchar_key varchar(1),
+pk int NOT NULL,
+col_int int,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+SELECT table1.col_varchar_key AS field1
+FROM (t3 AS table1
+INNER JOIN (
+SELECT SUBQUERY1_t1.*
+FROM (t1 AS SUBQUERY1_t1
+RIGHT JOIN (t2 AS SUBQUERY1_t2
+INNER JOIN t3 AS SUBQUERY1_t3
+ON (SUBQUERY1_t3.col_varchar_key = SUBQUERY1_t2.col_varchar_key)
+) ON (SUBQUERY1_t3.col_int_key = SUBQUERY1_t2.pk)
+)
+WHERE SUBQUERY1_t2.col_varchar_key >= ANY (
+SELECT CHILD_SUBQUERY1_t2.col_varchar AS CHILD_SUBQUERY1_field1
+FROM (t2 AS CHILD_SUBQUERY1_t1
+LEFT OUTER JOIN t3 AS CHILD_SUBQUERY1_t2
+ON (CHILD_SUBQUERY1_t2.col_int_key = CHILD_SUBQUERY1_t1.col_int_key)
+)
+WHERE CHILD_SUBQUERY1_t1.pk >= SUBQUERY1_t2.pk
+)
+) AS table2
+ON (table2.pk = table1.pk)
+)
+WHERE (EXISTS ((
+SELECT DISTINCT SUBQUERY2_t2.col_int AS SUBQUERY2_field1
+FROM (t4 AS SUBQUERY2_t1
+LEFT OUTER JOIN t5 AS SUBQUERY2_t2
+ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+)
+WHERE SUBQUERY2_t2.col_varchar_key != @var4
+)))
+AND table1.col_int_key < (35 + 192)
+ORDER BY field1
+;
+field1
+DROP TABLE t1, t2, t3, t4, t5;
 set optimizer_switch=default;
 set optimizer_switch=default;

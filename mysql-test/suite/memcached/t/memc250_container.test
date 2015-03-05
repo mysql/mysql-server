@@ -1,0 +1,696 @@
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+source include/have_innodb.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+--enable_query_log
+
+--enable_connect_log
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "|");
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2 FROM t1;
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add E|Essen:\n";
+if ($memd->add("E","Essen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: E|Essen is still existing.\n";
+}
+$memd->disconnect_all;
+EOF
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add E|Essen:\n";
+if ($memd->add("E","Essen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: E|Essen is still existing.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with E:\n";
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with E,H:\n";
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+#----------------------------------------------------------------
+# Switch to a different table
+#----------------------------------------------------------------
+
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM containers;
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t2        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t2 VALUES ('D', 't2_Darmstadt', 0, 0, 0);
+INSERT INTO t2 VALUES ('B', 't2_Berlin', 0, 0, 0);
+INSERT INTO t2 VALUES ('C', 't2_Cottbus', 0, 0 ,0);
+INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2 FROM t2;
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add E|Essen:\n";
+if ($memd->add("E","Essen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: E|Essen is still existing.\n";
+}
+
+$memd->disconnect_all;
+EOF
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add E|Essen:\n";
+if ($memd->add("E","Essen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: E|Essen is still existing.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM t2;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with E:\n";
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM t2;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with E,H:\n";
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+#----------------------------------------------------------------
+# Schema name as NULL
+#----------------------------------------------------------------
+
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM containers;
+
+--error 1048
+INSERT INTO containers VALUES ("desc_t2", NULL, "t2",
+			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+
+--error 1048
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+			       NULL, "c2",  "c3", "c4", "c5", "PRIMARY");
+
+#----------------------------------------------------------------
+# Non-existing Schema
+#----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+
+DELETE FROM containers;
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t2", "junk", "t2",
+			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+
+# even though the plugin can be installed, the initialization will fail
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print " This will fail, since memcached not initialized \n";
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+#----------------------------------------------------------------
+# Test different column types
+#----------------------------------------------------------------
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+
+DELETE FROM containers;
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+CREATE TABLE t2        (c1 int,
+			c2 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t2 VALUES (3, 't2_Hamburg', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print " This will success, since memcached support int as key \n";
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+$val = $memd->get("3");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+#----------------------------------------------------------------
+# Test different column types
+#----------------------------------------------------------------
+
+use test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+CREATE TABLE t2        (c1 CHAR(10),
+			c2 VARCHAR(1024),
+			c3 INT, c4 INT,  c5 INT, primary key(c1));
+
+INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
+
+UNINSTALL PLUGIN daemon_memcached;
+
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print " This will fail, since memcached not initialized \n";
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+#----------------------------------------------------------------
+# Test CAS
+#----------------------------------------------------------------
+
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM containers;
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+CREATE TABLE t2        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2 FROM t2;
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add E|Essen:\n";
+if ($memd->add("E","Essen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: E|Essen is still existing.\n";
+}
+$memd->disconnect_all;
+EOF
+
+# Notice the cas value is updated
+--sorted_result
+SELECT c1, c2, c4 FROM t2;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add G|Gossen:\n";
+if ($memd->add("G","Gossen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: G|Gossen is still existing.\n";
+}
+if ($memd->add("H","Hamburg")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: H|Hamburg is still existing.\n";
+}
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2, c4 FROM t2;
+
+
+#----------------------------------------------------------------
+# Test expiration
+#----------------------------------------------------------------
+
+--sorted_result
+SELECT * FROM test.t2;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add B|Berlin expires in 1 seconds:\n";
+if ($memd->add("B","Berlin",1)) {
+  print "Ok.\n";
+}
+else {
+  print "Error: B|Berlin is still existing.\n";
+}
+$memd->disconnect_all;
+EOF
+
+select sleep(3);
+
+perl;
+use DBI;
+use Cache::Memcached;
+print " Should not find B|Berlin, since it is expired \n";
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add C|Cottbus, expires 100 seconds:\n";
+if ($memd->add("C","Cottbus", 100)) {
+  print "Ok.\n";
+}
+else {
+  print "Error: C|Cottbus is still existing.\n";
+}
+
+perl;
+use DBI;
+use Cache::Memcached;
+print " Should be able to find  C|Cottbus, assume it does not take 100s to get here \n";
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+# set an expiration to be 60*60*24*30 (seconds in 30 days), it
+# will be considered as absolute time
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add J|Jilin\n";
+if ($memd->add("J","Jilin", 2592001)) {
+  print "Ok.\n";
+}
+else {
+  print "Error: J|Jilin is still existing.\n";
+}
+$memd->disconnect_all;
+EOF
+
+perl;
+use DBI;
+use Cache::Memcached;
+print " Should not find  J|Jilin, it should be expired \n";
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+$val = $memd->get("J");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+#----------------------------------------------------------------
+# Alter mapped column type
+#----------------------------------------------------------------
+
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+
+use innodb_memcache;
+
+DELETE FROM containers;
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t2", "test", "t2",
+			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+CREATE TABLE t2        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t2 VALUES ('D', 't2_Darmstadt', 0, 0, 0);
+INSERT INTO t2 VALUES ('B', 't2_Berlin', 0, 0, 0);
+INSERT INTO t2 VALUES ('C', 't2_Cottbus', 0, 0 ,0);
+INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2 FROM t2;
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add E|Essen:\n";
+if ($memd->add("E","Essen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: E|Essen is still existing.\n";
+}
+
+$memd->disconnect_all;
+EOF
+
+connection default;
+--disable_query_log
+--disable_warnings
+delete from test.t2;
+alter table test.t2 modify c2 int;
+
+select c1, c2 from test.t2;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Add E|Essen:\n";
+if ($memd->add("E","Essen")) {
+  print "Ok.\n";
+}
+else {
+  print "Error: E|Essen is still existing.\n";
+}
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM t2;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with E:\n";
+$val = $memd->get("E");
+if ($val) { print "value of E is $val end. \n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2 FROM t2;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11250" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with E,H:\n";
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+--enable_warnings
+--enable_query_log
+alter table test.t2 change c2 c_new int;
+
+show create table test.t2;
+
+# This install will not initialize the table mapping, due to column
+# type mismatch
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+#----------------------------------------------------------------
+DROP TABLE t2;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+ 
+SET @@global.tx_isolation= @tx_isolation;

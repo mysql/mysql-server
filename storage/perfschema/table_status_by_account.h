@@ -131,7 +131,7 @@ private:
 
   /** Status variable cache for one account. */
   PFS_status_variable_cache m_status_cache;
-  
+
   /** Current row. */
   row_status_by_account m_row;
   /** True if the current row exists. */

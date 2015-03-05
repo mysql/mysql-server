@@ -325,8 +325,12 @@ LOCK TABLE t3 READ;
 #
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
+Warnings:
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES FOR EXPORT on table `test`.`t1` in a general tablespace.'
 UNLOCK TABLES;
 connection con2;
+Warnings:
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES FOR EXPORT on table `test`.`t2` in a general tablespace.'
 UNLOCK TABLES;
 connection con3;
 UNLOCK TABLES;
@@ -386,8 +390,12 @@ ALTER TABLESPACE ts3 ADD DATAFILE 'ts3_2.ibd';
 connection default;
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con3';
 FLUSH TABLE t1 WITH READ LOCK;
+Warnings:
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES FOR EXPORT on table `test`.`t1` in a general tablespace.'
 UNLOCK TABLES;
 FLUSH TABLE t2 FOR EXPORT;
+Warnings:
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES FOR EXPORT on table `test`.`t2` in a general tablespace.'
 UNLOCK TABLES;
 LOCK TABLE t3 READ;
 UNLOCK TABLES;

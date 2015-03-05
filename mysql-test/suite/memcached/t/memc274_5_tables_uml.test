@@ -1,0 +1,270 @@
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+source include/have_innodb.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+--enable_query_log
+
+--enable_connect_log
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO config_options VALUES("table_map_delimiter", "!");
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desct1", "test", "t1",
+			       "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desct2", "test", "t2",
+			       "c1", "c2", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desct3", "test", "t3",
+			       "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desct4", "test", "t4",
+			       "c1", "c2,c21,c22", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desct5", "test", "t5",
+			       "c1", "c2,c21,c22,c23", "c3", "c4", "c5", "PRIMARY");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+CREATE TABLE t1        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c21 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+CREATE TABLE t2        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+CREATE TABLE t3        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c21 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+CREATE TABLE t4        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c21 VARCHAR(1024),
+			c22 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+CREATE TABLE t5        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c21 VARCHAR(1024),
+			c22 VARCHAR(1024),
+			c23 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Außenalster', 0, 0, 0);
+
+INSERT INTO t2 VALUES ('D', 'Dortmund', 0, 0, 0);
+INSERT INTO t2 VALUES ('B', 'Bremen', 0, 0, 0);
+INSERT INTO t2 VALUES ('C', 'Celle', 0, 0 ,0);
+INSERT INTO t2 VALUES ('H', 'Hannover', 0, 0, 0);
+
+INSERT INTO t3 VALUES ('D', 'Detmold', 'City', 0, 0, 0);
+INSERT INTO t3 VALUES ('B', 'Bonn', 'Mitte', 0, 0, 0);
+INSERT INTO t3 VALUES ('A', 'Aachen', 'West', 0, 0 ,0);
+INSERT INTO t3 VALUES ('H', 'Hameln', 'Nord', 0, 0, 0);
+
+INSERT INTO t4 VALUES ('Z', 'Zossen', 'City', '12345', 0, 0, 0);
+INSERT INTO t4 VALUES ('B', 'Brandenburg', 'Mitte', '23456', 0, 0, 0);
+INSERT INTO t4 VALUES ('M', 'München', 'West', '34567', 0, 0 ,0);
+INSERT INTO t4 VALUES ('H', 'Husum', 'Fähre', '45678', 0, 0, 0);
+
+INSERT INTO t5 VALUES ('D', 'Düsseldorf', 'City', '98765', 'Hafen', 0, 0, 0);
+INSERT INTO t5 VALUES ('O', 'Oldenburg', 'Mitte', '87654', 'Bäder', 0, 0, 0);
+INSERT INTO t5 VALUES ('K', 'Köln', 'West', '76543', 'Rhein', 0, 0 ,0);
+INSERT INTO t5 VALUES ('S', 'Stuttgart', 'Nord', '65432', 'Fernsehturm', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# The following selects are writing all to  memcache otherwise memcache is empty.
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+--sorted_result
+SELECT c1,c2 FROM t2;
+--sorted_result
+SELECT c1,c2,c21 FROM t3;
+--sorted_result
+SELECT c1,c2,c21,c22 FROM t4;
+--sorted_result
+SELECT c1,c2,c21,c22,c23 FROM t5;
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11274" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with D,B,H,C of default:\n";
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11274" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with D,B,H,C of t1:\n";
+$val = $memd->get('@@desct1!D');
+if ($val) { print "$val\n"; }
+$val = $memd->get("\@\@desct1!B");
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct1!'.'H');
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct1!C');
+if ($val) { print "$val\n"; }
+print "Here the memcached results with D,B,H,C of t2:\n";
+$val = $memd->get("\@\@desct2");
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct2!B');
+if ($val) { print "$val\n"; }
+$val = $memd->get('H');
+if ($val) { print "$val\n"; }
+$val = $memd->get('C');
+if ($val) { print "$val\n"; }
+print "Here the memcached results with D,B,H,A of t3:\n";
+$val = $memd->get("\@\@desct3!D");
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct3!B');
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct3!H');
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct3!A');
+if ($val) { print "$val\n"; }
+print "Here the memcached results with D,O,K,S of t5:\n";
+$val = $memd->get("\@\@desct5!D");
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct5!O');
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct5!K');
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct5!S');
+if ($val) { print "$val\n"; }
+print "Here the memcached results with Z,B,H,M of t4:\n";
+$val = $memd->get("\@\@desct4!Z");
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct4!B');
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct4!H');
+if ($val) { print "$val\n"; }
+$val = $memd->get('@@desct4!M');
+if ($val) { print "$val\n"; }
+print "Here the memcached results with D,B,H,C of t2:\n";
+$memd->get("\@\@desct2");
+$val = $memd->get("\@\@desct2.D");
+if ($val) { print "$val\n"; }
+$val = $memd->get('\@\@desct2|B');
+if ($val) { print "$val\n"; }
+$val = $memd->get('\@\@desct2#H');
+if ($val) { print "$val\n"; }
+$val = $memd->get('C');
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+--sorted_result
+SELECT c1,c2 FROM t2;
+--sorted_result
+SELECT c1,c2,c21 FROM t3;
+--sorted_result
+SELECT c1,c2,c21,c22 FROM t4;
+--sorted_result
+SELECT c1,c2,c21,c22,c23 FROM t5;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11274" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after set in default:\n";
+$val = $memd->set("E","Essen|Ost");
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after set in t2:\n";
+$val = $memd->set("\@\@desct2!E","Essen");
+$val = $memd->get("\@\@desct2!E");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after set in t5:\n";
+$val = $memd->get("\@\@desct5");
+$val = $memd->set("E","Essen|Mitte|111111|Mahlzeit");
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after set in t3:\n";
+$val = $memd->set('@@desct3!E',"Essen|Ost");
+$memd->get('@@desct3');
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after set in t4:\n";
+$val = $memd->set('@@desct4!E',"Essen|Mitte|111111");
+$val = $memd->get('@@desct4!E');
+if ($val) { print "$val\n"; }
+print "Here the memcached results after set in t5:\n";
+$val = $memd->get("\@\@desct5");
+$val = $memd->set("\@\@desct5!E","Essen|Außerhalb|111111|Mahlzeit");
+$val = $memd->get("\@\@desct5!E");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+--sorted_result
+SELECT c1,c2 FROM t2;
+--sorted_result
+SELECT c1,c2,c21 FROM t3;
+--sorted_result
+SELECT c1,c2,c21,c22 FROM t4;
+--sorted_result
+SELECT c1,c2,c21,c22,c23 FROM t5;
+
+DROP TABLE t1,t2,t3,t4,t5;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+ 
+SET @@global.tx_isolation= @tx_isolation;

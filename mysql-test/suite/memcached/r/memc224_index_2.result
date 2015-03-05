@@ -1,0 +1,174 @@
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+"c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+CREATE USER mysqltest1@localhost;
+connect  mysqltest1,localhost,mysqltest1,,;
+connection mysqltest1;
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1        (c1  VARCHAR(32),
+c11 VARCHAR(32),
+c2  VARCHAR(1024),
+c21 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1)) 
+ENGINE=INNODB;
+INSERT INTO t1 VALUES ('D','D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B','B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C','C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H','H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+connection default;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+connection mysqltest1;
+USE test;
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+H	H	Hamburg	Norderstedt
+SELECT SLEEP(2);
+SLEEP(2)
+0
+Here the memcached results with D,B,H,C:
+Darmstadt|City
+Berlin|Mitte
+Hamburg|Norderstedt
+Cottbus|West
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+H	H	Hamburg	Norderstedt
+Here the memcached results after set:
+Essen|Ost
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+E	NULL	Essen	Ost
+H	H	Hamburg	Norderstedt
+Here the memcached results after add:
+Frankfurt|Sachsenhause
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+E	NULL	Essen	Ost
+F	NULL	Frankfurt	Sachsenhause
+H	H	Hamburg	Norderstedt
+Here the memcached results after replace:
+Frankfurt a. M.|Sachsenhausen
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+E	NULL	Essen	Ost
+F	NULL	Frankfurt a. M.	Sachsenhausen
+H	H	Hamburg	Norderstedt
+Here the memcached results after delete:
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+E	NULL	Essen	Ost
+H	H	Hamburg	Norderstedt
+Here the memcached results after add Frankfurt|Airport:
+Frankfurt|Airport
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+E	NULL	Essen	Ost
+F	NULL	Frankfurt	Airport
+H	H	Hamburg	Norderstedt
+Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:
+Frankfurt a. M.|Sachsenhausen
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+E	NULL	Essen	Ost
+F	NULL	Frankfurt a. M.	Sachsenhausen
+H	H	Hamburg	Norderstedt
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+ALTER TABLE test.t1 DROP PRIMARY KEY;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+connection mysqltest1;
+Here the memcached results after set:
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+E	NULL	Essen	Ost
+F	NULL	Frankfurt a. M.	Sachsenhausen
+H	H	Hamburg	Norderstedt
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+ALTER TABLE test.t1 ADD CONSTRAINT PRIMARY KEY (c1);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(32) NOT NULL,
+  `c11` varchar(32) DEFAULT NULL,
+  `c2` varchar(1024) DEFAULT NULL,
+  `c21` varchar(1024) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` bigint(20) unsigned DEFAULT NULL,
+  `c5` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+connection mysqltest1;
+Here the memcached results after set:
+Essen|Ost
+Frankfurt a. M.|Sachsenhausen
+Hamburg|Norderstedt
+SELECT c1,c11,c2,c21 FROM t1;
+c1	c11	c2	c21
+B	B	Berlin	Mitte
+C	C	Cottbus	West
+D	D	Darmstadt	City
+E	NULL	Essen	Ost
+F	NULL	Frankfurt a. M.	Sachsenhausen
+H	H	Hamburg	Norderstedt
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+ALTER TABLE test.t1 DROP COLUMN c1;
+UPDATE innodb_memcache.containers set key_columns = "c11", unique_idx_name_on_key="idx";
+create unique index idx on test.t1(c11);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+connection mysqltest1;
+Here the memcached results after add:
+Essen|Ost
+Frankfurt|Sachsenhause
+Hamburg|Norderstedt
+SELECT c11,c2,c21 FROM t1;
+c11	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+F	Frankfurt	Sachsenhause
+H	Hamburg	Norderstedt
+NULL	Essen	Ost
+NULL	Frankfurt a. M.	Sachsenhausen
+DROP TABLE t1;
+connection default;
+disconnect mysqltest1;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+DROP USER mysqltest1@localhost;
+SET @@global.tx_isolation= @tx_isolation;

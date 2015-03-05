@@ -669,7 +669,7 @@ void PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
                       m_table_name, m_table_name_length,
                       &m_enabled, &m_timed);
 
-  /* 
+  /*
     If instrumentation for this table was enabled earlier and is disabled now,
     cleanup slots reserved for lock stats and index stats.
   */

@@ -668,19 +668,11 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
                                                HA_CREATE_INFO *info,
                                                uint start_no)
 {
-  uint i, default_partitions;
+  uint i;
   char *default_name;
   bool result= TRUE;
   DBUG_ENTER("partition_info::set_up_default_partitions");
 
-  if (!part_handler)
-  {
-    default_partitions= 1;
-  }
-  else
-  {
-    default_partitions= part_handler->get_default_num_partitions(info);
-  }
 
   if (part_type != HASH_PARTITION)
   {
@@ -693,11 +685,21 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
     goto end;
   }
 
-  if ((num_parts == 0) &&
-      ((num_parts= default_partitions) == 0))
+  if (num_parts == 0)
   {
-    my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
-    goto end;
+    if (!part_handler)
+    {
+      num_parts= 1;
+    }
+    else
+    {
+      num_parts= part_handler->get_default_num_partitions(info);
+    }
+    if (num_parts == 0)
+    {
+      my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
+      goto end;
+    }
   }
 
   if (unlikely(num_parts > MAX_PARTITIONS))
@@ -758,23 +760,23 @@ bool
 partition_info::set_up_default_subpartitions(Partition_handler *part_handler,
                                              HA_CREATE_INFO *info)
 {
-  uint i, j, default_partitions;
+  uint i, j;
   bool result= TRUE;
   partition_element *part_elem;
   List_iterator<partition_element> part_it(partitions);
   DBUG_ENTER("partition_info::set_up_default_subpartitions");
 
-  if (!part_handler)
-  {
-    default_partitions= 1;
-  }
-  else
-  {
-    default_partitions= part_handler->get_default_num_partitions(info);
-  }
-
   if (num_subparts == 0)
-    num_subparts= default_partitions;
+  {
+    if (!part_handler)
+    {
+      num_subparts= 1;
+    }
+    else
+    {
+      num_subparts= part_handler->get_default_num_partitions(info);
+    }
+  }
   if (unlikely((num_parts * num_subparts) > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
