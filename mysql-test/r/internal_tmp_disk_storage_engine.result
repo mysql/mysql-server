@@ -3062,6 +3062,8 @@ DROP TABLE t1;
 # Bug#20454833 PREFIX INDEX FIELD, ON AN INAPPROPRIATE DATA TYPE
 #
 set sql_mode='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (a blob,b int) engine=innodb;
 create table t2 (b blob) engine=innodb;
 select t2.b,t1.b,t1.a
@@ -3074,6 +3076,8 @@ drop table t1,t2;
 # Bug#20506527 FAILING ASSERTION: !MBMAXLEN || !(PREFIX_LEN % MBMAXLEN)
 #
 set names utf8, sql_mode='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(a date,b text charset utf8,c linestring not null);
 insert into t1 values ('2015-01-01','a',linestring(point(1,1),point(2,2)));
 select distinct nullif(a,b) as c from t1 z order by z.c;
