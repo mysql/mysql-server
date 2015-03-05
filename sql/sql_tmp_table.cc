@@ -466,7 +466,17 @@ void Cache_temp_engine_properties::init(THD *thd)
   db_plugin= ha_lock_engine(0, innodb_hton);
   handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, innodb_hton);
   INNODB_MAX_KEY_LENGTH= handler->max_key_length();
-  INNODB_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
+  /*
+    For ha_innobase::max_supported_key_part_length(), the returned value
+    relies on innodb_large_prefix. However, in innodb itself, the limitation
+    on key_part length is up to the ROW_FORMAT. In current trunk, internal
+    temp table's ROW_FORMAT is COMPACT. In order to keep the consistence
+    between server and innodb, here we hard-coded 767 as the maximum of 
+    key_part length supported by innodb until bug#20629014 is fixed.
+
+    TODO: Remove the hard-code here after bug#20629014 is fixed.
+  */
+  INNODB_MAX_KEY_PART_LENGTH= 767;
   INNODB_MAX_KEY_PARTS= handler->max_key_parts();
   delete handler;
   plugin_unlock(0, db_plugin);
