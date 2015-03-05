@@ -28,6 +28,19 @@ foreach my $ip (@ipv4_addresses)
       "--port=$MASTER_MYPORT " .
       "--user=root " .
       "test " .
+      "-e 'CREATE USER u1@$ip;'");
+
+  print LOGFH "  CREATE status: $rc\n";
+
+  $ipv4_failed |= $rc;
+
+  my $rc =
+    system(
+      "$MYSQL " .
+      "--host=127.0.0.1 " .
+      "--port=$MASTER_MYPORT " .
+      "--user=root " .
+      "test " .
       "-e 'GRANT ALL PRIVILEGES ON test.* TO u1@$ip;'");
 
   print LOGFH "  GRANT status: $rc\n";
@@ -65,6 +78,19 @@ my $ipv6_failed = 0;
 foreach my $ip (@ipv6_addresses)
 {
   print LOGFH "- ipv6: '$ip'\n";
+
+  my $rc =
+    system(
+      "$MYSQL " .
+      "--host=127.0.0.1 " .
+      "--port=$MASTER_MYPORT " .
+      "--user=root " .
+      "test " .
+      "-e 'CREATE USER u1@$ip;'");
+
+  print LOGFH "  CREATE status: $rc\n";
+
+  $ipv4_failed |= $rc;
 
   my $rc =
     system(

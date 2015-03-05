@@ -452,6 +452,8 @@ FLUSH TABLE mysql.slow_log;
 show warnings;
 Level	Code	Message
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE IF EXISTS `db_17876.slow_log_data`;
 DROP TABLE IF EXISTS `db_17876.general_log_data`;
 DROP PROCEDURE IF EXISTS `db_17876.archiveSlowLog`;

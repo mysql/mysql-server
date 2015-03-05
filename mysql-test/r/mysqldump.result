@@ -67,11 +67,15 @@ INSERT INTO t1 VALUES (1.2345, 2.3456);
 INSERT INTO t1 VALUES ('1.2345', 2.3456);
 INSERT INTO t1 VALUES ("1.2345", 2.3456);
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ANSI_QUOTES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT INTO t1 VALUES (1.2345, 2.3456);
 INSERT INTO t1 VALUES ('1.2345', 2.3456);
 INSERT INTO t1 VALUES ("1.2345", 2.3456);
 ERROR 42S22: Unknown column '1.2345' in 'field list'
 SET SQL_MODE=@OLD_SQL_MODE;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `t1` (
@@ -361,6 +365,8 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 set global sql_mode='ANSI_QUOTES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -2321,8 +2327,6 @@ create trigger trg2 before update on t1 for each row begin
 if old.a % 2 = 0 then set new.b := 12; end if;
 end|
 set sql_mode="traditional"|
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create trigger trg3 after update on t1 for each row
 begin
 if new.a = -1 then
@@ -2343,10 +2347,10 @@ if new.a > 10 then
 set new.a := 10;
 set new.a := 11;
 end if;
-end	BEFORE	0000-00-00 00:00:00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	0000-00-00 00:00:00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg2	UPDATE	t1	begin
 if old.a % 2 = 0 then set new.b := 12; end if;
-end	BEFORE	0000-00-00 00:00:00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	0000-00-00 00:00:00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg3	UPDATE	t1	begin
 if new.a = -1 then
 set @fired:= "Yes";
@@ -2390,7 +2394,7 @@ UNLOCK TABLES;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 trigger trg1 before insert on t1 for each row
 begin
@@ -2411,7 +2415,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 trigger trg2 before update on t1 for each row begin
 if old.a % 2 = 0 then set new.b := 12; end if;
@@ -2546,10 +2550,10 @@ if new.a > 10 then
 set new.a := 10;
 set new.a := 11;
 end if;
-end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg2	UPDATE	t1	begin
 if old.a % 2 = 0 then set new.b := 12; end if;
-end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg3	UPDATE	t1	begin
 if new.a = -1 then
 set @fired:= "Yes";
@@ -2592,7 +2596,7 @@ a2
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 testref	INSERT	test1	BEGIN
-INSERT INTO test2 SET a2 = NEW.a1; END	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+INSERT INTO test2 SET a2 = NEW.a1; END	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT * FROM `test1`;
 a1
 1
@@ -2626,6 +2630,8 @@ BEGIN
 select sum(id) from t1 into a;
 END //
 set sql_mode='ansi';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create procedure `a'b` () select 1;
 set sql_mode='';
 
@@ -2664,7 +2670,7 @@ UNLOCK TABLES;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11)
 RETURN a+b ;;
@@ -2681,7 +2687,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` FUNCTION `bug9056_func2`(f1 char binary) RETURNS char(1) CHARSET latin1
 begin
@@ -2718,7 +2724,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
 BEGIN SELECT a+b INTO c; end ;;
@@ -2735,7 +2741,7 @@ DELIMITER ;
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `bug9056_proc2`(OUT a INT)
 BEGIN
@@ -3719,7 +3725,7 @@ create procedure mysqldump_test_db.sp1() select 'hello';
 /*!50003 SET character_set_results = latin1 */ ;
 /*!50003 SET collation_connection  = latin1_swedish_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
 CREATE DEFINER=`user1`@`%` PROCEDURE `sp1`()
 select 'hello' ;;

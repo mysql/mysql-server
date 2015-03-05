@@ -106,7 +106,7 @@ int init_events_statements_history_long(uint events_statements_history_long_sizi
 
     events_statements_history_long_array[index].m_sqltext= h_long_stmts_text_array + index * pfs_max_sqltext;
   }
-  
+
   return 0;
 }
 

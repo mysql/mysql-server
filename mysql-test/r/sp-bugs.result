@@ -343,6 +343,8 @@ NULL
 Warnings:
 Warning	1365	Division by 0
 SET sql_mode='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE PROCEDURE proc_c()
 BEGIN
 DECLARE div_zero INTEGER;

@@ -1149,6 +1149,8 @@ Warnings:
 Warning	3127	Query block name `select#1` is not found for BKA hint
 DROP TABLE ` quoted name тест`;
 SET SQL_MODE = 'ANSI_QUOTES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE " quoted name тест" (i INT);
 SELECT /*+ BKA(" quoted name тест") */ 1 FROM t1;
 1
@@ -1385,4 +1387,4 @@ Warnings:
 Warning	1064	Optimizer hint syntax error near '? bad syntax */ 1' at line 2
 DROP TABLE t1, t2;
 SELECT /*+ 10;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*+ 10' at line 1

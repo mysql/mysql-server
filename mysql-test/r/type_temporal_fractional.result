@@ -2719,6 +2719,8 @@ DROP TABLE t1;
 # Testing bad values
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES (106060);
 Warnings:
@@ -2744,8 +2746,6 @@ SET sql_mode = default;
 # Testing bad values with TRADITIONAL mode
 #
 SET sql_mode=traditional;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES ('00:00:00.111111 xxx');
 ERROR 22007: Incorrect time value: '00:00:00.111111 xxx' for column 'a' at row 1
@@ -2818,6 +2818,8 @@ DROP TABLE t1;
 # Testing huge values
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS SIGNED));
 Warnings:
@@ -3206,6 +3208,8 @@ DROP TABLE t1;
 # Testing INSERT with near-maximum and near-minimum supported values.
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a TIME(6));
 INSERT INTO t1 VALUES ('838:59:59.999999');
 Warnings:
@@ -5051,6 +5055,8 @@ Warning	1292	Truncated incorrect time value: '838:59:59.000000567'
 # Testing CAST to TIME and TIME(6)
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 AS SELECT
 CAST(1 AS TIME),
 CAST(100000000 AS TIME),
@@ -5375,7 +5381,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIME(6);
 SET a='11:22:33.123';
@@ -5391,7 +5397,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIME(6))
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIME(6))
 BEGIN
 SELECT a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -5417,7 +5423,7 @@ DROP TABLE t1;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIME(6);
 CREATE TABLE t1 AS SELECT a;
@@ -5436,7 +5442,7 @@ RETURN a;
 END//
 SHOW CREATE FUNCTION p1//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIME(6)) RETURNS time(6)
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIME(6)) RETURNS time(6)
 BEGIN
 RETURN a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -5862,6 +5868,8 @@ ADD d0 DATETIME(0),
 ADD d1 DATETIME(1), ADD d2 DATETIME(2), ADD d3 DATETIME(3),
 ADD d4 DATETIME(4), ADD d5 DATETIME(5), ADD d6 DATETIME(6);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 UPDATE t1 SET
 a0= LEFT(a6, LENGTH(a6) - 6),
 a1= LEFT(a6, LENGTH(a6) - 5),
@@ -7108,6 +7116,8 @@ ERROR 42000: Too-big precision 31 specified for 'now'. Maximum is 6.
 # Testing INSERT, ORDER, KEY, BETWEEN, comparison
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a DATETIME(6) NOT NULL);
 INSERT INTO t1 VALUES ('0000-00-00 00:00:00.000000');
 INSERT INTO t1 VALUES ('0000-00-00 23:59:59.999999');
@@ -7365,6 +7375,8 @@ SET sql_mode = default;
 # Testing values with zeros in dates
 #
 SET sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
 INSERT IGNORE INTO t1 VALUES ('1999-00-00 00:00:00', '1999-00-00 00:00:00');
 Warnings:
@@ -7379,8 +7391,6 @@ SET sql_mode=default;
 # Testing bad values with TRADITIONAL mode
 #
 SET sql_mode=traditional;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
 INSERT INTO t1 VALUES ('xxx', NULL);
 ERROR 22007: Incorrect datetime value: 'xxx' for column 'a' at row 1
@@ -7428,6 +7438,8 @@ SET sql_mode=default;
 # Testing rounding
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a DATETIME(6));
 INSERT INTO t1 VALUES (20010101100000.1234567);
 INSERT INTO t1 VALUES (20010228235959.9999997);
@@ -8971,6 +8983,8 @@ DROP TABLE t1;
 # Testing copy from DATETIME to DATETIME(6) and vice versa
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a DATETIME(6), b DATETIME);
 INSERT INTO t1 VALUES ('2001-01-01 01:02:03.123456','0000-00-00 00:00:00');
 UPDATE t1 SET b=a;

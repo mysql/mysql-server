@@ -32,7 +32,7 @@ public:
   Explain_format_traditional() : nil(NULL) {}
 
   virtual bool is_hierarchical() const { return false; }
-  virtual bool send_headers(select_result *result);
+  virtual bool send_headers(Query_result *result);
   virtual bool begin_context(enum_parsing_context,
                              SELECT_LEX_UNIT *subquery,
                              const Explain_format_flags *flags)

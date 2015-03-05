@@ -5315,6 +5315,8 @@ select * from t1;
 a
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(a datetime not null) engine=csv;
 insert into t1 values();
 Warnings:

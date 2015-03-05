@@ -624,6 +624,10 @@ private:
 	when changing partitions. */
 	upd_node_t**		m_upd_node_parts;
 
+	/** blob_heap per partition. Synchronized with prebuilt->blob_heap
+	when changing partitions. */
+	mem_heap_t**		m_blob_heap_parts;
+
 	/** trx_id from the partitions table->def_trx_id. Keep in sync
 	with prebuilt->trx_id when changing partitions.
 	prebuilt only reflects the current partition! */
@@ -656,6 +660,27 @@ private:
 	/** Clear used ins_nodes and upd_nodes. */
 	void
 	clear_ins_upd_nodes();
+
+	/** Clear the blob heaps for all partitions */
+	void
+	clear_blob_heaps();
+
+	/** Reset state of file to after 'open'. This function is called
+	after every statement for all tables used by that statement. */
+	int
+	reset();
+
+	/** Allocate the array to hold blob heaps for all partitions */
+	mem_heap_t**
+	alloc_blob_heap_array();
+
+	/** Free the array that holds blob heaps for all partitions */
+	void
+	free_blob_heap_array();
+
+	/** Clear the blob heap for the given partition */
+	void
+	clear_blob_heap_part(uint part_id);
 
 	/** Changes the active index of a handle.
 	@param[in]	part_id	Use this partition.

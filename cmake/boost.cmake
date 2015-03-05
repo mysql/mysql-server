@@ -263,3 +263,8 @@ MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
 
 # We have a limited set of patches/bugfixes here:
 SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_57_0")
+
+# Bug in sqrt(NaN) on 32bit platforms
+IF(SIZEOF_VOIDP EQUAL 4)
+  ADD_DEFINITIONS(-DBOOST_GEOMETRY_SQRT_CHECK_FINITENESS)
+ENDIF()

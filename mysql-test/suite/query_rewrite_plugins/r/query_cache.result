@@ -2,6 +2,8 @@
 # Test of query rewrites and query cache.
 #
 SET sql_mode = 'PIPES_AS_CONCAT';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SHOW VARIABLES LIKE '%query_cache%';
 Variable_name	Value
 have_query_cache	YES

@@ -69,8 +69,6 @@ SELECT @@session.completion_type;
 RELEASE
 '#------------------FN_DYNVARS_017_05-----------------------#'
 set sql_mode=TRADITIONAL;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @@global.completion_type = 10;
 ERROR 42000: Variable 'completion_type' can't be set to the value of '10'
 SET @@global.completion_type = -1024;
@@ -139,3 +137,5 @@ SELECT @@session.completion_type;
 @@session.completion_type
 NO_CHAIN
 set sql_mode='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.

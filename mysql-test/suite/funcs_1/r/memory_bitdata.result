@@ -1,4 +1,6 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 NOT YET IMPLEMENTED: bitdata tests
 --------------------------------------------------------------------------------

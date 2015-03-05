@@ -1047,12 +1047,12 @@ CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @b:=2;
 ---> connection: slave
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-tr0_bi	INSERT	t1	SET @a:=0	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-tr1_bi	INSERT	t1	SET @a:=1	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-tr1_1_bi	INSERT	t1	SET @a:=11	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-tr2_bi	INSERT	t1	SET @a:=2	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-tr1_bu	UPDATE	t1	SET @b:=1	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-tr2_bu	UPDATE	t1	SET @b:=2	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr0_bi	INSERT	t1	SET @a:=0	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_bi	INSERT	t1	SET @a:=1	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_1_bi	INSERT	t1	SET @a:=11	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr2_bi	INSERT	t1	SET @a:=2	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr1_bu	UPDATE	t1	SET @b:=1	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+tr2_bu	UPDATE	t1	SET @b:=2	BEFORE	2013-01-31 09:00:00.00	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT trigger_name, action_order, created FROM information_schema.triggers WHERE trigger_schema='test';
 trigger_name	action_order	created
 tr0_bi	1	2013-01-31 09:00:00.00

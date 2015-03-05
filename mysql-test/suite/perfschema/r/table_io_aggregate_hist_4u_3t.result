@@ -1,11 +1,15 @@
 Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 update performance_schema.setup_instruments
 set enabled='NO' where name='wait/lock/table/sql/handler';
 select * from performance_schema.setup_actors

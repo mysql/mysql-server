@@ -99,6 +99,8 @@ NULL	this is null
 NULL	this is null
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a varchar(16) NOT NULL default '', b smallint(6) NOT NULL default 0, c datetime NOT NULL default '0000-00-00 00:00:00', d smallint(6) NOT NULL default 0);
 INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
 Warnings:
@@ -189,6 +191,8 @@ select count(*) from t1 where i=2 or i is null;
 count(*)
 10
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 alter table t1 change i i int not null;
 Warnings:
 Warning	1265	Data truncated for column 'i' at row 513

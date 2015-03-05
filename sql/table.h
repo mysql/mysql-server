@@ -41,7 +41,7 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Table_cache_element;
 class Table_trigger_dispatcher;
-class select_union;
+class Query_result_union;
 class Temp_table_param;
 class Index_hint;
 struct Name_resolution_context;
@@ -2154,10 +2154,10 @@ public:
   TABLE        *table;                          /* opened table */
   Table_id table_id; /* table id (from binlog) for opened table */
   /*
-    select_result for derived table to pass it from table creation to table
+    Query_result for derived table to pass it from table creation to table
     filling procedure
   */
-  select_union  *derived_result;
+  Query_result_union  *derived_result;
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:

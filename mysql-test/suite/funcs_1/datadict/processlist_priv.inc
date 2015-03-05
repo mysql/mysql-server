@@ -226,7 +226,10 @@ SELECT * FROM information_schema.processlist;
 --echo   connection default (user=root)
 --echo ####################################################################################
 connection default;
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT PROCESS ON *.* TO ''@'localhost';
+set sql_mode= @orig_sql_mode;
 --real_sleep 0.3
 
 --echo ####################################################################################

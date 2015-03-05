@@ -112,7 +112,6 @@ start:
           { *ret= $1; }
         | error HINT_CLOSE
           { *ret= NULL; }
-        | error
         ;
 
 hint_list:

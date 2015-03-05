@@ -183,9 +183,16 @@ DROP DATABASE wl6797;
 # Bug 17772561 RESET CONNECTION ERROR HANDLING CAN BE MORE INFORMATIVE
 # FOR ERROR CASES
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 grant all privileges on *.* to  'user_wl6797'@'localhost';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
 mysqltest: At line 1: reset connection failed: You must SET PASSWORD before executing this statement
 DROP USER user_wl6797@localhost;

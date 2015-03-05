@@ -15,7 +15,10 @@ CREATE TABLE privtest_db.t1 (a INT);
 CREATE TABLE privtest_db.t2 (a INT);
 INSERT INTO privtest_db.t2 VALUES (1), (2), (3);
 
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode= (SELECT replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT USAGE ON *.* TO 'privtest'@'localhost';
+SET sql_mode= @orig_sql_mode;
 GRANT SELECT ON privtest_db.t2 TO 'privtest'@'localhost';
 
 connect(con1,localhost,privtest,,);

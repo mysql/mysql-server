@@ -4,8 +4,6 @@
 SET SESSION DEBUG_SYNC= 'RESET';
 CREATE TABLE t1 (pk INT, PRIMARY KEY(pk));
 SET SESSION sql_mode=TRADITIONAL;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SESSION autocommit=1;
 INSERT INTO t1 VALUES(1);
 SET SESSION debug_sync='write_row_replace SIGNAL go_ahead1 WAIT_FOR comes_never ';
