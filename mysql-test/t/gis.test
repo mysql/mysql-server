@@ -1430,6 +1430,7 @@ WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Ashton'; 
 
 --echo # Conformance Item T51 
+--error ER_WRONG_ARGUMENTS
 SELECT count(*) 
 FROM buildings, bridges 
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1; 
