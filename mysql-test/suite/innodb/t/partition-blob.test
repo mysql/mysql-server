@@ -1,0 +1,18 @@
+--source include/have_partition.inc
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug #20582149 INVALID READ OF SIZE 1 IN PROTOCOL::NET_STORE_DATA
+--echo #
+
+CREATE TABLE t1 (f1 INT NOT NULL, f2 text,
+  PRIMARY KEY(f1)) PARTITION BY KEY() PARTITIONS 4;
+
+INSERT INTO t1 VALUES(42,'Testing MySQL databases is a cool ');
+INSERT INTO t1 VALUES(2,'Testing MySQL databases is a cool ');
+INSERT INTO t1 VALUES(4,'Testing MySQL databases is a cool ');
+
+select f1, f2 from t1 order by f1;
+
+DROP TABLE IF EXISTS t1;
+

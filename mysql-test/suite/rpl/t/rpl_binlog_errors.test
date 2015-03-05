@@ -48,6 +48,7 @@ call mtr.add_suppression("The server was unable to create a new log file. "
 --enable_query_log
 
 --let $old_debug = `select @@global.debug`
+--let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
 
 ### ACTION: create a large file (> 4096 bytes) that will be later used
 ###         in LOAD DATA INFILE to check binlog errors in its vacinity
@@ -334,6 +335,7 @@ SHOW WARNINGS;
 # normalize strerror message for solaris10-sparc-64bit as long as errno is OK
 --disable_query_log
 eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,fault_injection_registering_index"), 'd,fault_injection_registering_index');
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --enable_query_log
 -- replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 -- error ER_CANT_OPEN_FILE
@@ -366,6 +368,7 @@ DROP TABLE t5;
 # +d,fault_injection_openning_index => injects fault on MYSQL_BIN_LOG::open_index_file
 --disable_query_log
 eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,fault_injection_openning_index"), 'd,fault_injection_openning_index');
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --enable_query_log
 # normalize strerror message for solaris10-sparc-64bit as long as errno is OK
 -- replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
@@ -399,6 +402,7 @@ DROP TABLE t5;
 # +d,fault_injection_new_file_rotate_event => injects fault on MYSQL_BIN_LOG::MYSQL_BIN_LOG::new_file_impl
 --disable_query_log
 eval SET GLOBAL debug=IF(LENGTH('$old_debug') > 0, CONCAT('$old_debug', ":d,fault_injection_new_file_rotate_event"), 'd,fault_injection_new_file_rotate_event');
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 --enable_query_log
 -- error ER_ERROR_ON_WRITE
 FLUSH LOGS;
@@ -423,6 +427,7 @@ DROP TABLE t5;
 ## clean up
 --disable_query_log
 eval SET GLOBAL debug= '$old_debug';
+--eval SET GLOBAL binlog_error_action= $saved_binlog_error_action
 --enable_query_log
 DROP TABLE t1, t2, t4;
 RESET MASTER;
@@ -448,6 +453,7 @@ call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Can't generate a unique log-filename .*");
 -- echo ###################### TEST #13
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against unique log filename error
 -- let $io_thd_injection_fault_flag= error_unique_log_filename
@@ -456,6 +462,7 @@ call mtr.add_suppression("Can't generate a unique log-filename .*");
 -- source include/io_thd_fault_injection.inc
 
 -- echo ###################### TEST #14
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against rotate failing
 -- let $io_thd_injection_fault_flag= fault_injection_new_file_rotate_event
@@ -464,6 +471,7 @@ call mtr.add_suppression("Can't generate a unique log-filename .*");
 -- source include/io_thd_fault_injection.inc
 
 -- echo ###################### TEST #15
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against relay log open failure
 -- let $io_thd_injection_fault_flag= fault_injection_registering_index
@@ -472,6 +480,7 @@ call mtr.add_suppression("Can't generate a unique log-filename .*");
 -- source include/io_thd_fault_injection.inc
 
 -- echo ###################### TEST #16
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against relay log index open failure
 -- let $io_thd_injection_fault_flag= fault_injection_openning_index
@@ -483,6 +492,7 @@ call mtr.add_suppression("Can't generate a unique log-filename .*");
 -- source include/stop_slave_sql.inc
 --disable_query_log
 eval SET GLOBAL debug='$old_debug';
+--eval SET GLOBAL binlog_error_action= $saved_binlog_error_action
 --enable_query_log
 RESET SLAVE;
 RESET MASTER;

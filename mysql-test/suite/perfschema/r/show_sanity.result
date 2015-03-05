@@ -313,6 +313,9 @@ where show_mode = "5.7"
     and source = "P_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	CHECK_PROXY_USERS
+5.6	I_S.SESSION_VARIABLES	MYSQL_NATIVE_PASSWORD_PROXY_USERS
+5.6	I_S.SESSION_VARIABLES	SHA256_PASSWORD_PROXY_USERS
 
 ================================================================================
 TEST 5

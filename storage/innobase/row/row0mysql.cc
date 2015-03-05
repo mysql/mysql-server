@@ -156,8 +156,14 @@ row_mysql_prebuilt_free_blob_heap(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct of a
 					ha_innobase:: table handle */
 {
+	DBUG_ENTER("row_mysql_prebuilt_free_blob_heap");
+
+	DBUG_PRINT("row_mysql_prebuilt_free_blob_heap",
+		   ("blob_heap freeing: %p", prebuilt->blob_heap));
+
 	mem_heap_free(prebuilt->blob_heap);
 	prebuilt->blob_heap = NULL;
+	DBUG_VOID_RETURN;
 }
 
 /*******************************************************************//**
@@ -791,6 +797,8 @@ row_create_prebuilt(
 	ulint		mysql_row_len)	/*!< in: length in bytes of a row in
 					the MySQL format */
 {
+	DBUG_ENTER("row_create_prebuilt");
+
 	row_prebuilt_t*	prebuilt;
 	mem_heap_t*	heap;
 	dict_index_t*	clust_index;
@@ -942,8 +950,9 @@ row_create_prebuilt(
 	prebuilt->session = NULL;
 
 	prebuilt->fts_doc_id_in_read_set = 0;
+	prebuilt->blob_heap = NULL;
 
-	return(prebuilt);
+	DBUG_RETURN(prebuilt);
 }
 
 /********************************************************************//**
@@ -954,6 +963,8 @@ row_prebuilt_free(
 	row_prebuilt_t*	prebuilt,	/*!< in, own: prebuilt struct */
 	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
 {
+	DBUG_ENTER("row_prebuilt_free");
+
 	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
 	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
@@ -978,7 +989,7 @@ row_prebuilt_free(
 	}
 
 	if (prebuilt->blob_heap) {
-		mem_heap_free(prebuilt->blob_heap);
+		row_mysql_prebuilt_free_blob_heap(prebuilt);
 	}
 
 	if (prebuilt->old_vers_heap) {
@@ -1014,6 +1025,8 @@ row_prebuilt_free(
 	}
 
 	mem_heap_free(prebuilt->heap);
+
+	DBUG_VOID_RETURN;
 }
 
 /*********************************************************************//**

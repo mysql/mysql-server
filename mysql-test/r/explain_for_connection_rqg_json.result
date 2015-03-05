@@ -23,7 +23,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -27,2 +27,3 @@
-               "filtered": "225.00",
+               "filtered": "100.00",
 +              "using_where": true,
                "using_index": true,
 @@ -36,4 +37,3 @@
@@ -392,15 +392,14 @@ Diff: EXPLAIN NORMAL vs OTHER
              "possible_keys": [
 @@ -65,11 +65,17 @@
              ],
--            "rows_examined_per_scan": 20,
--            "rows_produced_per_join": 1466,
--            "filtered": "33.33",
 +            "key": "col_varchar_key",
 +            "used_key_parts": [
 +              "col_varchar_key"
 +            ],
 +            "key_length": "4",
-+            "rows_examined_per_scan": 5,
+             "rows_examined_per_scan": 20,
+-            "rows_produced_per_join": 1466,
+-            "filtered": "33.33",
 +            "rows_produced_per_join": 4400,
 +            "filtered": "100.00",
              "range_checked_for_each_record": "index map: 0x20",
@@ -432,17 +431,17 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "access_type": "ALL",
 +            "access_type": "range",
              "possible_keys": [
-@@ -46,3 +46,8 @@
+@@ -46,6 +46,12 @@
              ],
--            "rows_examined_per_scan": 20,
 +            "key": "col_int_key",
 +            "used_key_parts": [
 +              "col_int_key"
 +            ],
 +            "key_length": "5",
-+            "rows_examined_per_scan": 8,
+             "rows_examined_per_scan": 20,
              "rows_produced_per_join": 13,
-@@ -50,2 +55,3 @@
+-            "filtered": "33.33",
++            "filtered": "100.00",
              "range_checked_for_each_record": "index map: 0x2",
 +            "using_index": true,
              "cost_info": {
@@ -455,17 +454,17 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "access_type": "ALL",
 +            "access_type": "range",
              "possible_keys": [
-@@ -41,3 +41,8 @@
+@@ -41,6 +41,12 @@
              ],
--            "rows_examined_per_scan": 20,
 +            "key": "col_int_key",
 +            "used_key_parts": [
 +              "col_int_key"
 +            ],
 +            "key_length": "5",
-+            "rows_examined_per_scan": 7,
+             "rows_examined_per_scan": 20,
              "rows_produced_per_join": 133,
-@@ -45,2 +50,3 @@
+-            "filtered": "33.33",
++            "filtered": "100.00",
              "range_checked_for_each_record": "index map: 0x2",
 +            "using_index": true,
              "cost_info": {
@@ -837,6 +836,11 @@ QUERY: SELECT     (SELECT   MAX( DISTINCT sq1_alias1.col_int_key ) AS sq1_field1
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
+@@ -113,3 +113,3 @@
+                     "rows_produced_per_join": 0,
+-                    "filtered": "5.00",
++                    "filtered": "100.00",
+                     "range_checked_for_each_record": "index map: 0x1",
 @@ -236,2 +236,3 @@
                  "filtered": "100.00",
 +                "using_where": true,
@@ -849,8 +853,10 @@ QUERY: SELECT     (SELECT 5 FROM dummy ) AS field1 FROM ( b AS table1 INNER JOIN
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
-@@ -56,2 +56,3 @@
-             "filtered": "80.00",
+@@ -55,3 +55,4 @@
+             "rows_produced_per_join": 20,
+-            "filtered": "80.00",
++            "filtered": "100.00",
 +            "using_where": true,
              "using_index": true,
 @@ -68,4 +69,3 @@
@@ -962,6 +968,11 @@ Diff: EXPLAIN NORMAL vs OTHER
            ],
 -          "attached_condition": "<if>(found_match(table2), ((<nop>(<in_optimizer>(`test`.`table2`.`col_varchar_nokey`,<exists>(/* select#2 */ select sql_small_result 1 from `test`.`c` `subquery1_t1` join `test`.`c` `subquery1_t2` where ((`test`.`subquery1_t2`.`pk` >= `test`.`table1`.`col_int_nokey`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`table2`.`col_varchar_nokey`) <> `test`.`subquery1_t1`.`col_varchar_key`) or isnull(`test`.`subquery1_t1`.`col_varchar_key`)), true) and ((`test`.`subquery1_t1`.`col_int_key` = `test`.`subquery1_t2`.`col_int_key`) or (`test`.`subquery1_t2`.`col_int_key` = (/* select#3 */ select min(`test`.`child_subquery1_t2`.`pk`) AS `child_subquery1_field1` from `test`.`c` `child_subquery1_t1` join `test`.`c` `child_subquery1_t2` where ((`test`.`child_subquery1_t1`.`pk` = `test`.`child_subquery1_t2`.`col_int_key`) and (`test`.`child_subquery1_t2`.`col_varchar_key` = `test`.`child_subquery1_t2`.`col_varchar_nokey`)))))) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`subquery1_t1`.`col_varchar_key`), true)))) and ((`test`.`table1`.`pk` not in (226,126)) or ((`test`.`table1`.`col_int_key` > 241) and (`test`.`table1`.`col_int_key` < <cache>((241 + 133)))))) or (`test`.`table2`.`col_varchar_key` <> 'a') or (`test`.`table1`.`col_int_key` < `test`.`table1`.`pk`)), true)",
            "attached_subqueries": [
+@@ -82,3 +82,3 @@
+                       "rows_produced_per_join": 6,
+-                      "filtered": "33.33",
++                      "filtered": "100.00",
+                       "range_checked_for_each_record": "index map: 0x3",
 @@ -112,2 +112,3 @@
                        "filtered": "100.00",
 +                      "using_where": true,

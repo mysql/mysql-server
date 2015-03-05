@@ -2046,6 +2046,7 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
   enum legacy_db_type db_type, first_db_type;
 
   DBUG_ASSERT(!m_file);
+  DBUG_ASSERT(!m_engine_array);
   DBUG_ENTER("ha_partition::setup_engine_array");
 
   buff= (uchar *) (m_file_buffer + PAR_ENGINES_OFFSET);
@@ -4262,7 +4263,7 @@ void ha_partition::get_dynamic_partition_info(ha_statistics *stat_info,
 
   HA_EXTRA_NO_CACHE:
     When performing a UNION SELECT HA_EXTRA_NO_CACHE is called from the
-    flush method in the select_union class.
+    flush method in the Query_result_union class.
     See HA_EXTRA_RESET_STATE for use in conjunction with delete_all_rows().
 
     It should be ok to call HA_EXTRA_NO_CACHE on all underlying handlers

@@ -274,7 +274,7 @@ Requires:       mysql-community-libs = %{version}-%{release}
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Obsoletes:      mariadb-devel
-Obsoletes:      libmysqlclient-devel < %{version}-%{release}
+Obsoletes:      libmysqlclient-devel
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       libmysqlclient-devel = %{version}-%{release}
 

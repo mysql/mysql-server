@@ -729,6 +729,8 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
   leaf_table_count= 0;
   partitioned_table_count= 0;
 
+  Opt_hints_qb *qb_hints= context.select_lex->opt_hints_qb;
+
   for (TABLE_LIST *tr= leaf_tables; tr; tr= tr->next_leaf, tableno++)
   {
     TABLE *const table= tr->table;
@@ -752,11 +754,21 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
       continue;
     table->pos_in_table_list= tr;
     tr->reset();
+
+    if (qb_hints &&                          // QB hints initialized
+        !tr->opt_hints_table)                // Table hints are not adjusted yet
+    {
+      tr->opt_hints_table= qb_hints->adjust_table_hints(table, tr->alias);
+    }
+
     if (tr->process_index_hints(table))
       DBUG_RETURN(true);
     if (table->part_info)     // Count number of partitioned tables
       partitioned_table_count++;
   }
+
+  if (qb_hints)
+    qb_hints->check_unresolved(thd);
  
   DBUG_RETURN(false);
 }
@@ -3466,7 +3478,7 @@ bool
 validate_gc_assignment(THD * thd, List<Item> *fields,
                        List<Item> *values, TABLE *table)
 {
-  Field **fld;
+  Field **fld= NULL;
   MY_BITMAP *bitmap= table->write_set;
   bool use_table_field= false;
   DBUG_ENTER("validate_gc_assignment");

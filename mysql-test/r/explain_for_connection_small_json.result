@@ -61,15 +61,14 @@ Diff: EXPLAIN NORMAL vs OTHER
            "possible_keys": [
 @@ -102,5 +102,10 @@
            ],
--          "rows_examined_per_scan": 7,
--          "rows_produced_per_join": 8,
--          "filtered": "28.57",
 +          "key": "PRIMARY",
 +          "used_key_parts": [
 +            "a"
 +          ],
 +          "key_length": "4",
-+          "rows_examined_per_scan": 2,
+           "rows_examined_per_scan": 7,
+-          "rows_produced_per_join": 8,
+-          "filtered": "28.57",
 +          "rows_produced_per_join": 28,
 +          "filtered": "100.00",
            "range_checked_for_each_record": "index map: 0x1",
@@ -155,12 +154,12 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -24,10 +24,11 @@
-         "rows_examined_per_scan": 5,
+         "rows_examined_per_scan": 4,
 -        "rows_produced_per_join": 0,
--        "filtered": "16.00",
+-        "filtered": "20.00",
 -        "index_condition": "(`test`.`t1`.`key1` <=> 1130)",
 +        "rows_produced_per_join": 4,
-+        "filtered": "80.00",
++        "filtered": "100.00",
 +        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
@@ -330,7 +329,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -26,3 +26,3 @@
-         "filtered": "50.00",
+         "filtered": "100.00",
 -        "index_condition": "((`test`.`t1`.`b` = 1) or isnull(`test`.`t1`.`b`))",
 +        "index_condition": true,
          "cost_info": {
@@ -339,12 +338,12 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -25,10 +25,11 @@
-         "rows_examined_per_scan": 2,
+         "rows_examined_per_scan": 1,
 -        "rows_produced_per_join": 0,
--        "filtered": "37.50",
+-        "filtered": "75.00",
 -        "index_condition": "(`test`.`t1`.`a` <=> 2)",
 +        "rows_produced_per_join": 1,
-+        "filtered": "50.00",
++        "filtered": "100.00",
 +        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
@@ -366,12 +365,12 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -25,10 +25,11 @@
-         "rows_examined_per_scan": 2,
+         "rows_examined_per_scan": 1,
 -        "rows_produced_per_join": 0,
--        "filtered": "37.50",
+-        "filtered": "75.00",
 -        "index_condition": "(`test`.`t1`.`a` <=> 2)",
 +        "rows_produced_per_join": 1,
-+        "filtered": "50.00",
++        "filtered": "100.00",
 +        "index_condition": true,
 +        "using_where": true,
          "cost_info": {
@@ -598,7 +597,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -52,2 +52,3 @@
-               "filtered": "16.67",
+               "filtered": "100.00",
 +              "using_where": true,
                "using_index": true,
 @@ -62,4 +63,3 @@
@@ -612,7 +611,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -51,2 +51,3 @@
-               "filtered": "10.12",
+               "filtered": "100.00",
 +              "using_where": true,
                "using_index": true,
 @@ -61,4 +62,3 @@
@@ -638,7 +637,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          ]
          }
 @@ -102,2 +102,3 @@
-               "filtered": "40.00",
+               "filtered": "100.00",
 +              "using_where": true,
                "using_index": true,
 @@ -113,4 +114,3 @@
@@ -661,6 +660,11 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "attached_condition": "(`test`.`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
 +            ]
            }
+@@ -66,3 +66,3 @@
+             "rows_produced_per_join": 6,
+-            "filtered": "26.66",
++            "filtered": "100.00",
+             "range_checked_for_each_record": "index map: 0x4",
 @@ -95,2 +95,3 @@
              "filtered": "100.00",
 +            "using_where": true,
@@ -685,6 +689,11 @@ Diff: EXPLAIN NORMAL vs OTHER
 -            "attached_condition": "(`test`.`alias2`.`col_varchar_key` = `test`.`t1`.`col_varchar_nokey`)"
 +            ]
            }
+@@ -66,3 +66,3 @@
+             "rows_produced_per_join": 6,
+-            "filtered": "26.66",
++            "filtered": "100.00",
+             "range_checked_for_each_record": "index map: 0x4",
 @@ -95,2 +95,3 @@
              "filtered": "100.00",
 +            "using_where": true,

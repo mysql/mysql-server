@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,12 +46,14 @@ ENDMACRO()
 
 
 # Use bison to generate C++ and header file
-MACRO (RUN_BISON input_yy output_cc output_h)
+MACRO (RUN_BISON input_yy output_cc output_h name_prefix)
   IF(BISON_USABLE)
     ADD_CUSTOM_COMMAND(
       OUTPUT ${output_cc}
              ${output_h}
-      COMMAND ${BISON_EXECUTABLE}  -y -p MYSQL 
+      COMMAND ${BISON_EXECUTABLE}
+       --name-prefix=${name_prefix}
+       --yacc
        --output=${output_cc}
        --defines=${output_h}
         ${input_yy}

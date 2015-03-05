@@ -5523,10 +5523,6 @@ corrupt:
 			buf_page_print(frame, bpage->size,
 				       BUF_PAGE_PRINT_NO_CRASH);
 
-			ib::error() << "Database page corruption on disk"
-				" or a failed file read of page " << bpage->id
-				<< ". You may have to recover from a backup.";
-
 			ib::info() << "It is also possible that your operating"
 				" system has corrupted its own file cache and"
 				" rebooting your computer removes the error."

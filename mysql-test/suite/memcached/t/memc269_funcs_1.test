@@ -1,0 +1,264 @@
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+source include/have_innodb.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+--enable_query_log
+
+--enable_connect_log
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "|");
+
+# describe table for memcache
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+			       "c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1        (c1 VARCHAR(32),
+			c2 VARCHAR(1024),
+			c21 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with D,B,H,C:\n";
+$val = $memd->get("D");
+if ($val) { print "$val\n"; }
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$val = $memd->get("C");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after set:\n";
+$val = $memd->set("E","Essen|Ost");
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after add:\n";
+$val = $memd->add("F","Frankfurt|Sachsenhause");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after replace:\n";
+$val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after delete:\n";
+$val = $memd->delete("F");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after add Frankfurt|:\n";
+$val = $memd->add("F","Frankfurt|");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after add |Airport:\n";
+$val = $memd->add("F","|");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after replace Frankfurt a.M.:\n";
+$val = $memd->replace("F","Frankfurt a. M.|");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after replace Sachsenhausen:\n";
+$val = $memd->replace("F","|Sachsenhausen");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+ALTER TABLE t1 MODIFY c2 int;
+SET sql_mode=default;
+
+# The following select is writing all to  memcache otherwisw memcache is empty.
+--sorted_result
+SELECT c1,c2,c21 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after add Frankfurt|:\n";
+$val = $memd->add("F","Frankfurt|");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+print "Here the memcached results after add |Airport:\n";
+$val = $memd->add("F","|");
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after flush_all:\n";
+$memd->flush_all;
+$val = $memd->get("F");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11269" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+
+print "Bug#18652854 INNODB MEMCACHED ASSERTION `!CONN_DATA->CRSR_TRX' FAILED.\n ";
+print "Call flush_all after set and get.\n";
+$val = $memd->set("E","Essen|Ost");
+$val = $memd->get("E");
+$memd->flush_all;
+$memd->disconnect_all;
+EOF
+
+DROP TABLE t1;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+ 
+SET @@global.tx_isolation= @tx_isolation;

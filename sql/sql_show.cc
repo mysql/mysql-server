@@ -38,7 +38,6 @@
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_class.h"                      // THD
 #include "sql_db.h"                         // check_db_dir_existence
-#include "sql_derived.h"                    // mysql_derived_prepare
 #include "sql_optimizer.h"                  // JOIN
 #include "sql_parse.h"                      // command_name
 #include "sql_plugin.h"                     // PLUGIN_IS_DELTED

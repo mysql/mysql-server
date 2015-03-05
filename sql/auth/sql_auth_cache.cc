@@ -269,7 +269,8 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
 
 bool
 ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
-                        const char *ip_arg, const char *proxied_user_arg)
+                        const char *ip_arg, const char *proxied_user_arg,
+						bool any_proxy_user)
 {
   DBUG_ENTER("ACL_PROXY_USER::matches");
   DBUG_PRINT("info", ("compare_hostname(%s,%s,%s) &&"
@@ -290,7 +291,7 @@ ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
               proxied_host.compare_hostname(host_arg, ip_arg) &&
               (!user ||
                (user_arg && !wild_compare(user_arg, user, TRUE))) &&
-              (!proxied_user || 
+              (any_proxy_user || !proxied_user || 
                (proxied_user && !wild_compare(proxied_user_arg, proxied_user,
                                               TRUE))));
 }
@@ -833,8 +834,8 @@ bool is_acl_user(const char *host, const char *user)
 */
 
 ACL_PROXY_USER *
-acl_find_proxy_user(const char *user, const char *host, const char *ip, 
-                    const char *authenticated_as, bool *proxy_used)
+acl_find_proxy_user(const char *user, const char *host, const char *ip,
+                    char *authenticated_as, bool *proxy_used)
 {
   /* if the proxied and proxy user are the same return OK */
   DBUG_ENTER("acl_find_proxy_user");
@@ -847,14 +848,60 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
     DBUG_RETURN (NULL);
   }
 
-  *proxy_used= TRUE; 
+  bool find_any = check_proxy_users && !*authenticated_as;
+
+  if(!find_any)
+    *proxy_used= TRUE; 
   for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
        proxy != acl_proxy_users->end(); ++proxy)
   {
-    if (proxy->matches(host, user, ip, authenticated_as))
-      DBUG_RETURN(proxy);
+	if (proxy->matches(host, user, ip, authenticated_as, find_any))
+	{
+      DBUG_PRINT("info", ("proxy matched=%s@%s",
+		proxy->get_proxied_user(),
+		proxy->get_proxied_host()));
+      if (!find_any)
+	  {
+        DBUG_PRINT("info", ("returning specific match as authenticated_as was specified"));
+        *proxy_used = TRUE;
+        DBUG_RETURN(proxy);
+      }
+      else
+      {
+        // we never use anonymous users when mapping 
+        // proxy users for internal plugins:
+        if (strcmp(proxy->get_proxied_user() ?
+          proxy->get_proxied_user() : "", ""))
+        {
+          mysql_mutex_lock(&acl_cache->lock);
+          if (find_acl_user(
+            proxy->get_proxied_host(),
+            proxy->get_proxied_user(),
+            TRUE))
+          {
+            DBUG_PRINT("info", ("setting proxy_used to true, as \
+              find_all search matched real user=%s host=%s",
+              proxy->get_proxied_user(),
+              proxy->get_proxied_host()));
+            *proxy_used = TRUE;
+            strcpy(authenticated_as, proxy->get_proxied_user());
+          }
+          else
+          {
+            DBUG_PRINT("info", ("skipping match because ACL user \
+              does not exist, looking for next match to map"));
+          }
+          mysql_mutex_unlock(&acl_cache->lock);
+          if (*proxy_used)
+          {
+            DBUG_PRINT("info", ("returning matching user"));
+            DBUG_RETURN(proxy);
+          }
+        }
+      }
+	}
   }
-
+  DBUG_PRINT("info", ("No matching users found, returning null"));
   DBUG_RETURN(NULL);
 }
 

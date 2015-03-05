@@ -1455,7 +1455,16 @@ String *Item_func_concat::val_str(String *str)
 	  str->replace(0,0,*res);
 	else
 	{
-	  str->copy(*res);
+          // If res2 is a substring of str, then clone it first.
+          char buff[STRING_BUFFER_USUAL_SIZE];
+          String res2_clone(buff, sizeof(buff), system_charset_info);
+          if (res2->uses_buffer_owned_by(str))
+          {
+            if (res2_clone.copy(*res2))
+              goto null;
+            res2= &res2_clone;
+          }
+ 	  str->copy(*res);
 	  str->append(*res2);
 	}
         res= str;
@@ -1803,6 +1812,15 @@ String *Item_func_concat_ws::val_str(String *str)
       }
       else
       {
+        // If res2 is a substring of str, then clone it first.
+        char buff[STRING_BUFFER_USUAL_SIZE];
+        String res2_clone(buff, sizeof(buff), system_charset_info);
+        if (res2->uses_buffer_owned_by(str))
+        {
+          if (res2_clone.copy(*res2))
+            goto null;
+          res2= &res2_clone;
+        }
 	str->copy(*res);
 	str->append(*sep_str);
 	str->append(*res2);
@@ -5769,6 +5787,9 @@ String *Item_func_uuid::val_str(String *str)
   tohex(s+9, time_mid, 4);
   tohex(s+14, time_hi_and_version, 4);
   my_stpcpy(s+18, clock_seq_and_node_str);
+  DBUG_EXECUTE_IF("force_fake_uuid",
+                  my_stpcpy(s, "a2d00942-b69c-11e4-a696-0020ff6fcbe6");
+                  );
   return str;
 }
 

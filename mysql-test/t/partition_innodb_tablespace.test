@@ -325,9 +325,6 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 3
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-# Occurs when previous test did not clean-up properly!
-call mtr.add_suppression("Plugin 'MyISAM' will be forced to shutdown");
-call mtr.add_suppression("Plugin 'MyISAM' has ref_count=. after shutdown");
 --echo # Test of table where the engine returns the DATA DIR.
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t1
