@@ -306,7 +306,10 @@ GRANT INSERT ON test_user_db.* TO grant_user IDENTIFIED WITH test_plugin_server 
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 CREATE USER plug_dest; 
 DROP USER plug_dest;
+set @orig_sql_mode = @@sql_mode;
+set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
+set sql_mode= @orig_sql_mode;
 --sorted_result
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 DROP USER grant_user,plug_dest;

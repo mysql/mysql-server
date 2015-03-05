@@ -33,11 +33,11 @@ Hint_scanner::Hint_scanner(THD *thd_arg,
     lineno(lineno_arg),
     char_classes(cs->state_maps->hint_map),
     input_buf(buf),
-    input_buf_end(buf + len),
-    ptr(buf),
+    input_buf_end(input_buf + len),
+    ptr(input_buf + 3), // skip "/*+"
     prev_token(0),
-    raw_yytext(buf),
-    yytext(buf),
+    raw_yytext(ptr),
+    yytext(ptr),
     yyleng(0)
 {}
 

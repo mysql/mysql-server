@@ -4,6 +4,8 @@ INSERT INTO t1 VALUES (1, 2), (2, 0), (3, 1), (4, 3), (5, 4), (6, 1), (7, 2);
 INSERT INTO t2 VALUES (1, 1), (3, 3), (4, 0), (6, 3), (9, 1), (8, 10);
 # Query rewrite plugin was installed.
 SET sql_mode = 'PIPES_AS_CONCAT';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT INTO query_rewrite.rewrite_rules( pattern, replacement  )
 VALUES ( 'SELECT * FROM test.t1 JOIN test.t2 ON ' ||
 '( test.t1.c1 = test.t2.c1 AND test.t1.c2 > ? )',

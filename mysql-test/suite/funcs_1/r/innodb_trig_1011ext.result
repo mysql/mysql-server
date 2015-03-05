@@ -167,6 +167,8 @@ create table t1_sp (var136 tinyint, var151 decimal) engine = <engine_to_be_used>
 create trigger trg before insert on t1_sp
 for each row set @counter=@counter+1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create procedure trig_sp()
 begin
 declare done int default 0;

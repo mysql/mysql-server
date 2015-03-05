@@ -1023,7 +1023,10 @@ DROP EVENT IF EXISTS e2;
 # Check that an ordinary user can not create/update/drop events in the
 # read-only mode.
 
+set @orig_sql_mode = @@sql_mode;
+set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT EVENT ON *.* TO mysqltest_u1@localhost;
+set sql_mode= @orig_sql_mode;
 
 --echo
 

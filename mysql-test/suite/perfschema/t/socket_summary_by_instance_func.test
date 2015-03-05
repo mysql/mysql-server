@@ -494,7 +494,10 @@ let $connect_user= root;
 --echo #     length of user name  = 10 character
 --echo #     length of default db = 9 character
 #========================================================================
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode= (SELECT replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL PRIVILEGES ON *.* TO 'root012345'@'localhost';
+SET sql_mode= @orig_sql_mode;
 let $connect_host= localhost;
 let $connect_db= mysqltest;
 let $connect_user= root012345;
@@ -505,7 +508,10 @@ DROP USER 'root012345'@'localhost';
 --echo #     length of user name  = 14 character
 --echo #     length of default db = 9 character
 #========================================================================
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode= (SELECT replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL PRIVILEGES ON *.* to 'root0123456789'@'localhost';
+SET sql_mode= @orig_sql_mode;
 let $connect_host= localhost;
 let $connect_db= mysqltest;
 let $connect_user= root0123456789;

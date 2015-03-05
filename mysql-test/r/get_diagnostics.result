@@ -311,6 +311,8 @@ Error	1758	Invalid condition number
 # Statement information runtime
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT CAST(-19999999999999999999 AS SIGNED),
 CAST(-19999999999999999999 AS SIGNED);
 CAST(-19999999999999999999 AS SIGNED)	CAST(-19999999999999999999 AS SIGNED)

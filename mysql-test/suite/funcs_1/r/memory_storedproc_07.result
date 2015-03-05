@@ -1,4 +1,6 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -81,8 +83,6 @@ DROP TABLE IF EXISTS result;
 CREATE TABLE temp_tbl (f1 tinyint);
 CREATE TABLE result (f1 text(200), f2 char(20));
 set @@sql_mode='traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -117,6 +117,8 @@ INSERT INTO result VALUES (@cur_val_sql_mode, 'value not restored');
 END if;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
 set @@sql_mode='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	

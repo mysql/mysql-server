@@ -5,7 +5,10 @@
 --echo # Bug#51770: UNINSTALL PLUGIN requires no privileges
 --echo #
 
+set @orig_sql_mode = @@sql_mode;
+set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT INSERT ON mysql.plugin TO bug51770@localhost;
+set sql_mode= @orig_sql_mode;
 connect(con1,localhost,bug51770,,);
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';

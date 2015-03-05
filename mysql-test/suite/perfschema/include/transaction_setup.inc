@@ -71,7 +71,9 @@ CREATE PROCEDURE transaction_verifier(IN i_table INT,
                                       IN i_thread_id INT,
                                       IN i_event_name VARCHAR(64),
                                       IN i_state VARCHAR(32),
-                                      IN i_xid VARCHAR(132),
+                                      IN i_xid_format_id INT,
+                                      IN i_xid_gtrid VARCHAR(130),
+                                      IN i_xid_bqual VARCHAR(130),
                                       IN i_xa_state VARCHAR(64),
                                       IN i_gtid VARCHAR(64),
                                       IN i_access_mode VARCHAR(32),
@@ -87,7 +89,9 @@ BEGIN
   SET @event_id        = 0;
   SET @event_name      = i_event_name;
   SET @state           = i_state;
-  SET @xid             = i_xid;
+  SET @xid_format_id   = i_xid_format_id;
+  SET @xid_gtrid       = i_xid_gtrid;
+  SET @xid_bqual       = i_xid_bqual;
   SET @xa_state        = i_xa_state;
   SET @gtid            = i_gtid;
   SET @access_mode     = i_access_mode;
@@ -123,8 +127,14 @@ BEGIN
   IF i_state != '' THEN
     SET @query = CONCAT(@query, ' AND (state = @state)');
   END IF;
-  IF i_xid != '' THEN
-    SET @query = CONCAT(@query, ' AND (xid = @xid)');
+  IF i_xid_format_id != '' THEN
+    SET @query = CONCAT(@query, ' AND (xid_format_id = @xid_format_id)');
+  END IF;
+  IF i_xid_gtrid != '' THEN
+    SET @query = CONCAT(@query, ' AND (xid_gtrid = @xid_gtrid)');
+  END IF;
+  IF i_xid_bqual != '' THEN
+    SET @query = CONCAT(@query, ' AND (xid_bqual = @xid_bqual)');
   END IF;
   IF i_xa_state != '' THEN
     SET @query = CONCAT(@query, ' AND (xa_state = @xa_state)');
@@ -172,7 +182,9 @@ BEGIN
     SET @columns = CONCAT(@columns, ' LPAD(@event_id, 10, " ")      AS "..event_id",');
     SET @columns = CONCAT(@columns, ' RPAD(@event_name, 11, " ")    AS "event_name ",');
     SET @columns = CONCAT(@columns, ' RPAD(@state, 11, " ")         AS "state      ",');
-    SET @columns = CONCAT(@columns, ' RPAD(@xid, 15, " ")           AS "xid            ",');
+    SET @columns = CONCAT(@columns, ' RPAD(@xid_format_id, 15, " ") AS "xid_format_id  ",');
+    SET @columns = CONCAT(@columns, ' RPAD(@xid_gtrid, 15, " ")     AS "xid_gtrid      ",');
+    SET @columns = CONCAT(@columns, ' RPAD(@xid_bqual, 15, " ")     AS "xid_bqual      ",');
     SET @columns = CONCAT(@columns, ' RPAD(@xa_state, 12, " ")      AS "xa_state    ",');
     SET @columns = CONCAT(@columns, ' RPAD(@gtid, 38, " ")          AS "gtid                                  ",');
     SET @columns = CONCAT(@columns, ' RPAD(@access_mode, 11, " ")   AS access_mode,');
@@ -191,7 +203,9 @@ BEGIN
     SET @columns = CONCAT(@columns, ' LPAD(event_id, 10, " ")        AS "..event_id",');
     SET @columns = CONCAT(@columns, ' RPAD(event_name, 11, " ")      AS "event_name ",');
     SET @columns = CONCAT(@columns, ' RPAD(state, 11, " ")           AS "state      ",');
-    SET @columns = CONCAT(@columns, ' RPAD(IFNULL(xid, "NULL"), 15, " ") AS "xid            ",');
+    SET @columns = CONCAT(@columns, ' RPAD(IFNULL(xid_format_id, "NULL"), 15, " ") AS "xid_format_id  ",');
+    SET @columns = CONCAT(@columns, ' RPAD(IFNULL(xid_gtrid, "NULL"), 15, " ") AS "xid_gtrid      ",');
+    SET @columns = CONCAT(@columns, ' RPAD(IFNULL(xid_bqual, "NULL"), 15, " ") AS "xid_bqual      ",');
     SET @columns = CONCAT(@columns, ' RPAD(IFNULL(xa_state, "NULL"), 12, " ") AS "xa_state    ",');
     SET @columns = CONCAT(@columns, ' RPAD(IFNULL(gtid, "NULL"), 38, " ") AS "gtid                                  ",');
     SET @columns = CONCAT(@columns, ' RPAD(access_mode, 11, " ")     AS access_mode,');

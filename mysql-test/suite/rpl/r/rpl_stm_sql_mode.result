@@ -5,8 +5,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CREATE TABLE t1 (pk integer auto_increment , primary key (pk));
 SET SESSION SQL_MODE='traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 # **** [MASTER] *****
 # action: raise DUP KEY error (error code should be set in the 
 #                              query log event)

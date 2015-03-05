@@ -4,6 +4,11 @@
 # MERGE tables require MyISAM tables
 --source include/have_myisam.inc 
 
+# Set session binlog_format to STATEMENT to avoid BUG#20574550
+--disable_query_log
+SET binlog_format=STATEMENT;
+--enable_query_log
+
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 

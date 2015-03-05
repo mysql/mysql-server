@@ -403,6 +403,8 @@ FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
 table_name	column_name
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE VIEW test.t1_my_tablex
 AS SELECT 1 AS "col1", 'A' collate latin1_german1_ci AS "col2";
 SELECT * FROM information_schema.columns

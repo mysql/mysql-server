@@ -1,4 +1,4 @@
-#Creating the spatial Geometry object
+# Creating the spatial Geometry object
 USE test;
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
@@ -20,7 +20,7 @@ SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
 SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
 SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
 SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
-#INSERT base star
+# INSERT base star
 INSERT INTO gis_geometrycollection VALUES
 (100,ST_GEOMFROMTEXT(@star)),
 (101,ST_GEOMFROMTEXT(@star_elem_vertical)),
@@ -39,17 +39,14 @@ INSERT INTO gis_geometrycollection VALUES
 (114,ST_GEOMFROMTEXT(@star_lines_near_vertical)),
 (115,ST_GEOMFROMTEXT(@star_collection_elems)),
 (116,ST_GEOMFROMTEXT(@star_collection_multilinestr));
-#Checking the integrity of the above create/insert statements 
-#17 rows. 
+# Checking the integrity of the above create/insert statements 
+# 17 rows. 
 SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
 count(ST_ASTEXT(g) != 'NULL')
 17
-#====================================================================================
-# ST_AREA(geometry)
-#====================================================================================
-#------------------------------------------------------------------------------------
-# point
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_AREA(point)
+#####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_center));
 ST_AREA(ST_GEOMFROMTEXT(@star_center))
 0
@@ -68,9 +65,9 @@ ST_AREA(ST_GEOMFROMTEXT('POINT(-0.0000 0.000001)'))
 SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=105;
 ST_AREA(g)
 0
-#------------------------------------------------------------------------------------
-# multipoint
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_AREA(multipoint)
+#####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_all_points));
 ST_AREA(ST_GEOMFROMTEXT(@star_all_points))
 0
@@ -89,9 +86,9 @@ ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)'))
 SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=108;
 ST_AREA(g)
 0
-#------------------------------------------------------------------------------------
-# linestring
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_AREA(linestring)
+#####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center));
 ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center))
 0
@@ -110,9 +107,9 @@ ST_AREA(ST_GEOMFROMTEXT('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)'))
 SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=110;
 ST_AREA(g)
 0
-#------------------------------------------------------------------------------------
-# multilinestring
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_AREA(multilinestring)
+#####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical));
 ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
@@ -134,9 +131,9 @@ ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4
 SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=114;
 ST_AREA(g)
 0
-#------------------------------------------------------------------------------------
-# polygon
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_AREA(polygon)
+#####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star));
 ST_AREA(ST_GEOMFROMTEXT(@star))
 287.5
@@ -167,9 +164,9 @@ ST_AREA(ST_GEOMFROMTEXT('POLYGON((4 4,4 6,6 6,6 4,4 4),(8 8,8 10,10 10,10 8,8 8)
 SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=100;
 ST_AREA(g)
 287.5
-#------------------------------------------------------------------------------------
-# multipolygon
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_AREA(multipolygon)
+#####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_of_elems));
 ST_AREA(ST_GEOMFROMTEXT(@star_of_elems))
 377.5
@@ -209,9 +206,9 @@ ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 10,10 10
 SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=103;
 ST_AREA(g)
 377.5
-#------------------------------------------------------------------------------------
-# geometrycollection
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_AREA(geometrycollection)
+#####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems));
 ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems))
 665
@@ -286,9 +283,9 @@ ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
 SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=115;
 ST_AREA(g)
 665
-#====================================================================================
+#####################################################################################
 # ST_AREA(geometry) with different SRID values
-#====================================================================================
+#####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_center,-1024));
 ST_AREA(ST_GEOMFROMTEXT(@star_center,-1024))
 0
@@ -313,9 +310,9 @@ ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296))
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
 ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000))
 665
-#====================================================================================
+#####################################################################################
 # Invalid function calls
-#====================================================================================
+#####################################################################################
 SELECT ST_AREA();
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_AREA'
 SELECT ST_AREA(NULL);
@@ -383,5 +380,5 @@ SELECT ST_AREA(0x010300000002000000010300000002000000050000);
 ERROR HY000: Geometry byte string must be little endian.
 SELECT ST_AREA(0x010400000002000000010100000000000000000000);
 ERROR HY000: Geometry byte string must be little endian.
-#clean up
+# Clean up
 DROP TABLE gis_geometrycollection;

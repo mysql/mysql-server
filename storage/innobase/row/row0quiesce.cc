@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -645,6 +645,14 @@ row_quiesce_set_state(
 
 		return(DB_UNSUPPORTED);
 
+	} else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+		std::ostringstream err_msg;
+		err_msg << "FLUSH TABLES FOR EXPORT on table " << table->name
+			<< " in a general tablespace.";
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_NOT_SUPPORTED_YET, err_msg.str().c_str());
+
+		return(DB_UNSUPPORTED);
 	} else if (row_quiesce_table_has_fts_index(table)) {
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,

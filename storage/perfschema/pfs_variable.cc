@@ -37,13 +37,13 @@ bool PFS_system_variable_cache::init_show_var_array(enum_var_type scope)
 {
   DBUG_ASSERT(!m_initialized);
   m_query_scope= scope;
-  
+
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   DEBUG_SYNC(m_current_thd, "acquired_LOCK_system_variables_hash");
 
   /* Record the system variable hash version to detect subsequent changes. */
   m_version= get_system_variable_hash_version();
-  
+
   /* Build the SHOW_VAR array from the system variable hash. */
   enumerate_sys_vars(m_current_thd, &m_show_var_array, true, m_query_scope, true);
 
@@ -67,7 +67,7 @@ bool PFS_system_variable_cache::do_initialize_session(void)
 
   /* Build the array. */
   bool ret= init_show_var_array(OPT_SESSION);
-  
+
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return ret;
 }
@@ -194,7 +194,7 @@ void PFS_system_variable_cache::free_mem_root(void)
 int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
 {
   int ret= 1;
-  
+
   m_pfs_thread= pfs_thread;
   m_materialized= false;
   m_cache.clear();
@@ -208,7 +208,7 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
   /* Use a temporary mem_root to avoid depleting THD mem_root. */
   if (m_use_mem_root)
     set_mem_root();
-    
+
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd= get_THD(pfs_thread)) != NULL)
   {
@@ -232,7 +232,7 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
     m_materialized= true;
     ret= 0;
   }
-  
+
   /* Mark mem_root blocks as free. */
   if (m_use_mem_root)
     clear_mem_root();
@@ -249,7 +249,7 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
 int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread, uint index)
 {
   int ret= 1;
-  
+
   m_pfs_thread= pfs_thread;
   m_materialized= false;
   m_cache.clear();
@@ -264,7 +264,7 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread, ui
   if ((m_safe_thd= get_THD(pfs_thread)) != NULL)
   {
     SHOW_VAR *show_var= &m_show_var_array.at(index);
-    
+
     if (show_var && show_var->value &&
         (show_var != m_show_var_array.end()))
     {
@@ -285,7 +285,7 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread, ui
     m_materialized= true;
     ret= 0;
   }
-  
+
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return ret;
 }
@@ -662,7 +662,7 @@ bool PFS_status_variable_cache::init_show_var_array(enum_var_type scope)
 
   /* Get the latest version of all_status_vars. */
   m_version= get_status_vars_version();
-  
+
   /* Increase cache size if necessary. */
   m_cache.reserve(m_show_var_array.size());
 
@@ -708,7 +708,7 @@ char * PFS_status_variable_cache::make_show_var_name(const char* prefix, const c
 {
   DBUG_ASSERT(name_buf != NULL);
   char *prefix_end= name_buf;
-  
+
   if (prefix && *prefix)
   {
     /* Drop the prefix into the front of the name buffer. */
@@ -748,7 +748,7 @@ bool PFS_status_variable_cache::do_initialize_session(void)
 
   bool ret= init_show_var_array(OPT_SESSION);
 
-  if (m_current_thd->fill_status_recursion_level-- == 1) 
+  if (m_current_thd->fill_status_recursion_level-- == 1)
     mysql_mutex_unlock(&LOCK_status);
 
   return ret;
@@ -766,7 +766,7 @@ int PFS_status_variable_cache::do_materialize_global(void)
   /* Acquire LOCK_status to guard against plugin load/unload. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
     mysql_mutex_lock(&LOCK_status);
-  
+
   /*
      Build array of SHOW_VARs from global status array. Do this within
      LOCK_status to ensure that the array remains unchanged during
@@ -792,7 +792,7 @@ int PFS_status_variable_cache::do_materialize_global(void)
   */
   manifest(m_current_thd, m_show_var_array.begin(), &status_totals, "", false);
 
-  if (m_current_thd->fill_status_recursion_level-- == 1) 
+  if (m_current_thd->fill_status_recursion_level-- == 1)
     mysql_mutex_unlock(&LOCK_status);
 
   m_materialized= true;
@@ -840,7 +840,7 @@ int PFS_status_variable_cache::do_materialize_session(THD* unsafe_thd)
     ret= 0;
   }
 
-  if (m_current_thd->fill_status_recursion_level-- == 1) 
+  if (m_current_thd->fill_status_recursion_level-- == 1)
     mysql_mutex_unlock(&LOCK_status);
   return ret;
 }
@@ -861,7 +861,7 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
   /* Acquire LOCK_status to guard against plugin load/unload. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
     mysql_mutex_lock(&LOCK_status);
-   
+
   /* The SHOW_VAR array must be initialized externally. */
   DBUG_ASSERT(m_initialized);
 
@@ -880,8 +880,8 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
     m_materialized= true;
     ret= 0;
   }
-  
-  if (m_current_thd->fill_status_recursion_level-- == 1) 
+
+  if (m_current_thd->fill_status_recursion_level-- == 1)
     mysql_mutex_unlock(&LOCK_status);
   return ret;
 }
@@ -913,14 +913,14 @@ int PFS_status_variable_cache::do_materialize_client(PFS_client *pfs_client)
     from disconnected threads.
   */
   m_sum_client_status(pfs_client, &status_totals);
-  
+
   /*
     Build the status variable cache using the SHOW_VAR array as a reference and
     the status totals collected from threads associated with this client.
   */
   manifest(m_current_thd, m_show_var_array.begin(), &status_totals, "", false);
 
-  if (m_current_thd->fill_status_recursion_level-- == 1) 
+  if (m_current_thd->fill_status_recursion_level-- == 1)
     mysql_mutex_unlock(&LOCK_status);
 
   m_materialized= true;

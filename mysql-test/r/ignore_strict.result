@@ -108,6 +108,8 @@ DROP TABLE t3,t2,t1;
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1),(NULL),(2);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ALTER TABLE t1 CHANGE a a INT NOT NULL;
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 2
@@ -234,6 +236,8 @@ DROP TABLE t2,t1,t3;
 #
 
 SET sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1),(NULL),(2);
 DROP TABLE t1;
@@ -378,6 +382,8 @@ Warning	1369	CHECK OPTION failed 'test.v1'
 DROP VIEW v1;
 DROP TABLE t1;
 SET sql_mode=@org_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 #
 # Part 3 : For the handler errors converted to warning
@@ -414,6 +420,8 @@ a
 DELETE FROM t2;
 INSERT INTO t2 VALUES (2),(4);
 SET sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/wl6614.txt' IGNORE INTO TABLE t2;
 Warnings:
 Warning	1062	Duplicate entry '2' for key 'PRIMARY'
@@ -425,6 +433,8 @@ a
 3
 4
 SET sql_mode=@org_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE t1,t2;
 
 #
@@ -441,6 +451,8 @@ DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
 SET sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (col1 INT NOT NULL, col2 INT NOT NULL) ENGINE = InnoDB;
 CREATE VIEW v1 (vcol1) AS SELECT col1 FROM t1;
 INSERT INTO t1 (col1) VALUES(12);
@@ -624,6 +636,8 @@ NULL	82	0	84
 NULL	92	93	0
 DROP TABLE t1;
 SET sql_mode=@org_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 
 #
 # Part 5 : Test cases for the non transactional (MyIsam) engine.
@@ -740,6 +754,8 @@ DROP TABLE t3,t2,t1;
 CREATE TABLE t1 (a INT) ENGINE = MyISAM;
 INSERT INTO t1 VALUES (1),(NULL),(2);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ALTER TABLE t1 CHANGE a a INT NOT NULL;
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 2
@@ -858,6 +874,8 @@ DROP TABLE t;
 # BUG#18526888 - STRICT MODE DOES NOT APPLY TO MULTI DELETE STATEMENT
 #
 SET sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(5);
 CREATE TABLE t2(b int);
@@ -890,20 +908,28 @@ Warning	3020	Invalid argument for logarithm
 DROP TABLE t1,t2;
 # Restore the orginal sql_mode
 SET sql_mode= @org_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 #
 # BUG 18662121 - ASSERT IN PROTOCOL::END_STATEMENT() IN LOAD DATA STATEMENT
 #
 SET sql_mode='STRICT_TRANS_TABLES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t2 (a int default 0, b int primary key) engine=innodb;
 INSERT INTO t2 VALUES (0, 17);
 LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t2 (a, @b) SET b= @b + 2;
 ERROR 23000: Duplicate entry '17' for key 'PRIMARY'
 DROP TABLE t2;
 SET sql_mode= @org_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 #
 # BUG#18662043 - ASSERT IN MY_OK() IN SQL_CMD_SIGNAL::EXECUTE
 #
 SET sql_mode='STRICT_TRANS_TABLES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE PROCEDURE p1()
 BEGIN
 # warning
@@ -918,6 +944,8 @@ Warning	1261	Unhandled user-defined warning condition
 DROP PROCEDURE p1;
 # Restore the orginal sql_mode
 SET sql_mode= @org_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 #
 # Bug #19873291 : MYSQL_EXECUTE_COMMAND(THD*): ASSERTION
 #                 `THD->IS_ERROR() || THD->KILLED' FAILED

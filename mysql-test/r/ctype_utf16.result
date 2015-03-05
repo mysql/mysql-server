@@ -896,6 +896,8 @@ DBFFDC00
 DBFFDCFF
 drop table t1;
 SET sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (s1 varchar(50) character set ucs2);
 insert into t1 values (0xdf84);
 alter table t1 modify column s1 varchar(50) character set utf16;
@@ -982,6 +984,8 @@ a
 1
 drop table t1;
 SET sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (a varchar(17000) character set utf16);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT

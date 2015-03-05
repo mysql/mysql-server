@@ -15,6 +15,13 @@ source include/master-slave.inc;
 --echo **** Test case for BUG#16487 ****
 --echo **** Master ****
 connection master;
+
+#
+# Remove NO_AUTO_CREATE_USER sql mode (default since 5.7).
+#
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+
 CREATE TABLE test.t4 (a int);
 CREATE TABLE test.t1 (a int);
 

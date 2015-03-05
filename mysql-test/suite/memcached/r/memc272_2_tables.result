@@ -173,6 +173,8 @@ D	Dortmund
 E	Essen
 H	Hannover
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 ALTER TABLE t1 MODIFY c2 int;
 Warnings:
 Warning	1366	Incorrect integer value: 'Berlin' for column 'c2' at row 1
