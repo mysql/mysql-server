@@ -549,7 +549,8 @@ create table numbers(
 
 insert into numbers values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-insert into t1 select x1.i+x2.i*10, 1, 1, 1+x1.i+x2.i*10, repeat('x', 512) 
+insert into t1 select x1.i+x2.i*10, 1, 1+x1.i+x2.i*10, 1+x1.i+x2.i*10,
+  repeat('x', 512)
   from numbers as x1, numbers as x2;
 
 drop table numbers;
@@ -601,9 +602,8 @@ delete from t1 where a%30=0;
 
 # Do a pushed query that starts multiple index scans on each t1 fragment.
 # That way the first scan (on node 2) will be queued until the next finishes.
-explain select count(*) from t1 as x1 join t1 as x2 on x1.d=x2.b;
-select count(*) from t1 as x1 join t1 as x2 on x1.d=x2.b;
-
+explain select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
+select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
 
 # Check number of queued scans. Test for debug build
 # to handle builds without error inserts (i.e. non-debug builds).
