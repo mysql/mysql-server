@@ -488,6 +488,9 @@ drop view frag_sum;
 
 # Create a view that sums counters across all fragments, so that results
 # will not depend on endianness.
+# Observe that operations_per_fragment.fq_name, parent_fq_name, type are all
+# functionally dependent on 'table_id', but since this cannot be deduced from
+# the schema, they are all included in the 'group by' clause.
 create view frag_ops as select 
   if(type in ('Ordered index', 'Unique hash index'), 
     substring(fq_name from 1+locate('/', fq_name, 9)), 
@@ -521,7 +524,7 @@ create view frag_ops as select
   sum(tot_commits) as tot_commits
   from ndbinfo.operations_per_fragment
   where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%'
-  group by(table_id)
+  group by table_id, type, operations_per_fragment.fq_name, parent_fq_name
   order by table_id;
 
 
