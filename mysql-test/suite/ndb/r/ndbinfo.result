@@ -875,7 +875,7 @@ create view frag_ops as select
   sum(tot_commits) as tot_commits
   from ndbinfo.operations_per_fragment
   where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%'
-  group by(table_id)
+  group by table_id, type, operations_per_fragment.fq_name, parent_fq_name
   order by table_id;
 
 create table t1 (
