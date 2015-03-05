@@ -598,7 +598,7 @@ SHOW CREATE TABLE geom_index;
 SET @polygon = ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))');
 
 --echo # Sptail index query
-SELECT fid, ST_ASTEXT(g) FROM geom_index WHERE MBRCONTAINS(@polygon, g);
+SELECT fid, ST_ASTEXT(g) FROM geom_index WHERE MBRCONTAINS(@polygon, g) ORDER BY fid;
 
 ############################################################################################
 # Checking the commit and rollback                                                         #

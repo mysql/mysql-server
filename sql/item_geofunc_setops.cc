@@ -2997,7 +2997,7 @@ public:
   @param str A string buffer containing a GEOMETRY byte string.
   @return whether the geometry is simplified or not.
  */
-static bool simplify_multi_geometry(String *str)
+bool simplify_multi_geometry(String *str)
 {
   if (str->length() < GEOM_HEADER_SIZE)
     return false;

@@ -290,7 +290,7 @@ struct get_turn_info_for_endpoint
                                        linear_intersections::ip_info const& ip_info,
                                        TurnInfo const& tp_model,
                                        IntersectionInfo const& inters,
-                                       int ip_index,
+                                       unsigned int ip_index,
                                        OutputIterator out)
     {
 #ifdef BOOST_GEOMETRY_DEBUG_GET_TURNS_LINEAR_LINEAR
@@ -396,7 +396,7 @@ struct get_turn_info_for_endpoint
                                        RobustPoint2 const& ri2, RobustPoint2 const& rj2, RobustPoint2 const& rk2,
                                        bool first1, bool last1, bool first2, bool last2,
                                        bool ip_i2, bool ip_j2, TurnInfo const& tp_model,
-                                       IntersectionInfo const& inters, int ip_index,
+                                       IntersectionInfo const& inters, unsigned int ip_index,
                                        operation_type & op1, operation_type & op2)
     {
         boost::ignore_unused_variable_warning(i2);
@@ -535,7 +535,7 @@ struct get_turn_info_for_endpoint
               typename OutputIterator>
     static inline void assign(Point1 const& pi, Point2 const& qi,
                               IntersectionResult const& result,
-                              int ip_index,
+                              unsigned int ip_index,
                               method_type method,
                               operation_type op0, operation_type op1,
                               turn_position pos0, turn_position pos1,

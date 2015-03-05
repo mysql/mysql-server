@@ -85,11 +85,12 @@ select ST_astext(ST_symdifference(ST_GeomFromText('polygon((0 0, 1 0, 0 1, 0 0))
 select ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 
 # Buffer() tests
+--replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
 select ST_astext(ST_buffer(ST_geometryfromtext('point(1 1)'), 1));
 create table t1(geom geometrycollection);
 insert into t1 values (ST_GeomFromText('POLYGON((0 0, 10 10, 0 8, 0 0))'));
 insert into t1 values (ST_GeomFromText('POLYGON((1 1, 10 10, 0 8, 1 1))'));
---replace_result 101.67150840374887 101.67150840374886 108.55539589266462 108.55539589266459
+--replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
 select ST_astext(geom), ST_area(geom),ST_area(ST_buffer(geom,2)) from t1;
 select ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2))) from t1;
 
@@ -649,6 +650,7 @@ SELECT ST_DISTANCE(ST_GeomFromText('POLYGON((0 0, 1 1))'), ST_GeomFromText('POLY
 
 select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), geomfromtext('point(2 2)')));
 select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), geomfromtext('point(-22 -11)')));
+--replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
 select st_distance_sphere(geomfromtext('point(-120 45)'), geomfromtext('point(30.24 68.37)'));
 
 --echo #
@@ -1193,4 +1195,34 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTIPOLYGON(((-7 -9,-3 7,0 -10,-6 5,
 --echo # Bug#20454073 ASSERTION `M_GEO_VECT && GET_GEOTYPE() != GEOMETRY::WKB_POLYGON' FAILED
 --echo #
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('MULTIPOINT(19 -4, -2 -6, -8 2)'), 1)) as result;
+
+--echo #
+--echo # Bug#20510359 ST_BUFFER() RETURNS NULL INSTEAD OF AN EMPTY GEOMETRY
+--echo #
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -10));
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -8));
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'), -6));
+
+
+--echo #
+--echo # Bug#20510010 ST_BUFFER() : MYSQLD GOT SIGNAL 11
+--echo #
+--replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
+SELECT
+ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((12 -12,-15 19),(2 -9,-4 -8,18 3,-9 -8),(13 11,-15 9,-16 6,-17 5)),
+                                                        LINESTRING(14 -16,-3 18,-13 -7,-10 1))'), 6561)) as result;
+
+--echo #
+--echo # Bug#20517621 ASSERTION `GEOMETRY::IS_VALID_GEOTYPE(GT)' FAILED
+--echo #
+--error ER_GIS_DATA_WRONG_ENDIANESS
+SELECT ST_ASTEXT(ST_BUFFER(0x000000000200000000000000000000000000000000, 1)) as result;
+
+--echo #
+--echo # Bug#20558379 ST_BUFFER() RETURNS AN ERROR WITH VALID GEOMETRYCOLLECTION INPUT
+--echo #
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)), POLYGON((10 10,10 20,20 20,20 10,10 10)))'), -1)) as result;
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 5,5 5,5 0,0 0)), POLYGON((10 10,10 20,20 20,20 10,10 10)))'), -1)) as result;
+
+
 --source include/gis_debug.inc
