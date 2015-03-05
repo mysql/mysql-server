@@ -18,4 +18,5 @@ ndb_rpl_slave_lsu_anyval : SEAGULL ndb-force-binlog-format-statement
 ndb_rpl_row_implicit_commit_binlog : SEAGULL ndb-force-binlog-format-statement
 ndb_rpl_stm_innodb : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
 ndb_rpl_mix_innodb : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
-
+ndb_rpl_circular_2ch : Bug#20592110 CLUSTER CIRCULAR REPLICATION WITH IGNORE_SERVER_IDS() BROKEN BY ANONYMOUS_GTIDS
+ndb_rpl_circular_2ch_rep_status : Bug#20592110 CLUSTER CIRCULAR REPLICATION WITH IGNORE_SERVER_IDS() BROKEN BY ANONYMOUS_GTIDS
