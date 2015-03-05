@@ -23,6 +23,7 @@
 #include "item.h"           // Item_result_field
 #include "sql_alloc.h"      // Sql_alloc
 #include "sql_udf.h"        // udf_handler
+#include "mem_root_array.h"
 
 class Item_sum;
 class Aggregator_distinct;
@@ -1416,7 +1417,7 @@ class Item_func_group_concat : public Item_sum
    */
   Unique *unique_filter;
   TABLE *table;
-  ORDER **order;
+  Mem_root_array<ORDER , true> order_array;
   Name_resolution_context *context;
   /** The number of ORDER BY items. */
   uint arg_count_order;

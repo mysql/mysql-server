@@ -26,7 +26,7 @@
 #include "opt_explain.h"              // Modification_plan
 #include "opt_trace.h"                // Opt_trace_object
 #include "records.h"                  // READ_RECORD
-#include "sql_base.h"                 // open_normal_and_derived_tables
+#include "sql_base.h"                 // open_tables_for_query
 #include "sql_optimizer.h"            // optimize_cond
 #include "sql_resolver.h"             // setup_order
 #include "sql_select.h"               // free_underlaid_joins
@@ -143,7 +143,8 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     IGNORE keyword within federated storage engine. If federated engine is
     removed in the future, use of HA_EXTRA_IGNORE_DUP_KEY and
     HA_EXTRA_NO_IGNORE_DUP_KEY flag should be removed from mysql_delete(),
-    multi_delete::initialize_tables() and multi_delete destructor.
+    Query_result_delete::initialize_tables() and
+    Query_result_delete destructor.
   */
   if (thd->lex->is_ignore())
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -159,13 +160,15 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     - The condition is constant
     - If there is a condition, then it it produces a non-zero value
     - If the current command is DELETE FROM with no where clause, then:
-      - We should not be binlogging this statement in row-based, and
+      - We will not be binlogging this statement in row-based, and
       - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond_result &&
       !(specialflag & SPECIAL_NO_NEW_FUNC) &&
-       (!thd->is_current_stmt_binlog_format_row() &&
-        !(table->triggers && table->triggers->has_delete_triggers())))
+      ((!thd->is_current_stmt_binlog_format_row() ||   /* not ROW binlog-format */
+        thd->is_current_stmt_binlog_disabled() || /* no binlog for this command */
+        !mysql_bin_log.is_open()) &&                   /* binary log is not opened */
+       !(table->triggers && table->triggers->has_delete_triggers())))
   {
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -183,8 +186,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     if (!(error=table->file->ha_delete_all_rows()))
     {
       /*
-        If delete_all_rows() is used, it is not possible to log the
-        query in row format, so we have to log it in statement format.
+        As delete_all_rows() was used, we have to log it in statement format.
       */
       query_type= THD::STMT_QUERY_TYPE;
       error= -1;
@@ -548,9 +550,9 @@ cleanup:
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
 
       /*
-        [binlog]: If 'handler::delete_all_rows()' was called and the
-        storage engine does not inject the rows itself, we replicate
-        statement-based; otherwise, 'ha_delete_row()' was used to
+        [binlog]: As we don't allow the use of 'handler:delete_all_rows()' when
+        binlog_format == ROW, if 'handler::delete_all_rows()' was called
+        we replicate statement-based; otherwise, 'ha_delete_row()' was used to
         delete specific rows which we might log row-based.
       */
       int log_result= thd->binlog_query(query_type,
@@ -800,7 +802,8 @@ int Sql_cmd_delete_multi::mysql_multi_delete_prepare(THD *thd,
 }
 
 
-multi_delete::multi_delete(TABLE_LIST *dt, uint num_of_tables_arg)
+Query_result_delete::Query_result_delete(TABLE_LIST *dt,
+                                         uint num_of_tables_arg)
   : delete_tables(dt), tempfiles(NULL), tables(NULL), deleted(0), found(0),
     num_of_tables(num_of_tables_arg), error(0),
     delete_table_map(0), delete_immediate(0),
@@ -810,10 +813,9 @@ multi_delete::multi_delete(TABLE_LIST *dt, uint num_of_tables_arg)
 }
 
 
-int
-multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+int Query_result_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
-  DBUG_ENTER("multi_delete::prepare");
+  DBUG_ENTER("Query_result_delete::prepare");
   unit= u;
   do_delete= true;
   /* Don't use KEYREAD optimization on this table */
@@ -828,10 +830,9 @@ multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 }
 
 
-bool
-multi_delete::initialize_tables(JOIN *join)
+bool Query_result_delete::initialize_tables(JOIN *join)
 {
-  DBUG_ENTER("multi_delete::initialize_tables");
+  DBUG_ENTER("Query_result_delete::initialize_tables");
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   DBUG_ASSERT(join == unit->first_select()->join);
 
@@ -929,7 +930,7 @@ multi_delete::initialize_tables(JOIN *join)
 }
 
 
-multi_delete::~multi_delete()
+Query_result_delete::~Query_result_delete()
 {
   for (TABLE_LIST *tbl_ref= delete_tables; tbl_ref;
        tbl_ref= tbl_ref->next_local)
@@ -948,9 +949,9 @@ multi_delete::~multi_delete()
 }
 
 
-bool multi_delete::send_data(List<Item> &values)
+bool Query_result_delete::send_data(List<Item> &values)
 {
-  DBUG_ENTER("multi_delete::send_data");
+  DBUG_ENTER("Query_result_delete::send_data");
 
   JOIN *const join= unit->first_select()->join;
 
@@ -1044,9 +1045,9 @@ bool multi_delete::send_data(List<Item> &values)
 }
 
 
-void multi_delete::send_error(uint errcode,const char *err)
+void Query_result_delete::send_error(uint errcode,const char *err)
 {
-  DBUG_ENTER("multi_delete::send_error");
+  DBUG_ENTER("Query_result_delete::send_error");
 
   /* First send error what ever it is ... */
   my_message(errcode, err, MYF(0));
@@ -1072,9 +1073,9 @@ static void invalidate_delete_tables(THD *thd, TABLE_LIST *delete_tables)
 }
 
 
-void multi_delete::abort_result_set()
+void Query_result_delete::abort_result_set()
 {
-  DBUG_ENTER("multi_delete::abort_result_set");
+  DBUG_ENTER("Query_result_delete::abort_result_set");
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
@@ -1135,9 +1136,9 @@ void multi_delete::abort_result_set()
   removed and there should be hooks within normal execution.
 */
 
-int multi_delete::do_deletes()
+int Query_result_delete::do_deletes()
 {
-  DBUG_ENTER("multi_delete::do_deletes");
+  DBUG_ENTER("Query_result_delete::do_deletes");
   DBUG_ASSERT(do_delete);
 
   DBUG_ASSERT(thd->lex->current_select() == unit->first_select());
@@ -1181,7 +1182,7 @@ int multi_delete::do_deletes()
    @retval  1 Triggers or handler reported error.
    @retval -1 End of file from handler.
 */
-int multi_delete::do_table_deletes(TABLE *table)
+int Query_result_delete::do_table_deletes(TABLE *table)
 {
   myf error_flags= MYF(0);                      /**< Flag for fatal errors */
   int local_error= 0;
@@ -1270,7 +1271,7 @@ int multi_delete::do_table_deletes(TABLE *table)
   @return false if success, true if error
 */
 
-bool multi_delete::send_eof()
+bool Query_result_delete::send_eof()
 {
   THD::killed_state killed_status= THD::NOT_KILLED;
   THD_STAGE_INFO(thd, stage_deleting_from_reference_tables);
@@ -1369,7 +1370,7 @@ bool Sql_cmd_delete_multi::execute(THD *thd)
 
   TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
   uint del_table_count;
-  multi_delete *del_result;
+  Query_result_delete *del_result;
 
   if (multi_delete_precheck(thd, all_tables))
     return true;
@@ -1395,7 +1396,7 @@ bool Sql_cmd_delete_multi::execute(THD *thd)
   }
 
   if (!thd->is_fatal_error &&
-      (del_result= new multi_delete(aux_tables, del_table_count)))
+      (del_result= new Query_result_delete(aux_tables, del_table_count)))
   {
     DBUG_ASSERT(select_lex->having_cond() == NULL &&
                 !select_lex->order_list.elements &&

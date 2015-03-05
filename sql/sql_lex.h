@@ -31,6 +31,7 @@
 #include "parse_tree_node_base.h"     // enum_parsing_context
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
 #include "sql_alloc.h"                // Sql_alloc
+#include "sql_chars.h"
 #include "sql_alter.h"                // Alter_info
 #include "sql_connect.h"              // USER_RESOURCES
 #include "sql_data_change.h"          // enum_duplicates
@@ -41,6 +42,7 @@
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
+#include "parse_tree_hints.h"
 
 #ifdef MYSQL_SERVER
 #include "item_func.h"                // Cast_target
@@ -63,13 +65,15 @@ class sys_var;
 class Item_func_match;
 class File_parser;
 class Key_part_spec;
-class select_result_interceptor;
+class Query_result_interceptor;
 class Item_func;
 class Sql_cmd;
 struct sql_digest_state;
 typedef class st_select_lex SELECT_LEX;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
+class Opt_hints_global;
+class Opt_hints_qb;
 
 #ifdef MYSQL_SERVER
 /*
@@ -153,6 +157,7 @@ struct sys_var_with_base
 };
 
 
+#define YYSTYPE_IS_DECLARED 1
 union YYSTYPE;
 typedef YYSTYPE *LEX_YYSTYPE;
 
@@ -493,9 +498,9 @@ public:
 
 struct LEX;
 class THD;
-class select_result;
+class Query_result;
 class JOIN;
-class select_union;
+class Query_result_union;
 
 /**
   This class represents a query expression (one query block or
@@ -532,10 +537,10 @@ private:
   bool executed; ///< Query expression has been executed
 
   TABLE_LIST result_table_list;
-  select_union *union_result;
+  Query_result_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
 
-  select_result *m_query_result;
+  Query_result *m_query_result;
 
 public:
   /**
@@ -622,10 +627,10 @@ public:
 
   st_select_lex_unit* next_unit() const { return next; }
 
-  select_result *query_result() const { return m_query_result; }
-  void set_query_result(select_result *res) { m_query_result= res; }
+  Query_result *query_result() const { return m_query_result; }
+  void set_query_result(Query_result *res) { m_query_result= res; }
   /* UNION methods */
-  bool prepare(THD *thd, select_result *result, ulonglong added_options,
+  bool prepare(THD *thd, Query_result *result, ulonglong added_options,
                ulonglong removed_options);
   bool optimize(THD *thd);
   bool execute(THD *thd);
@@ -646,8 +651,8 @@ public:
   bool is_prepared() const { return prepared; }
   bool is_optimized() const { return optimized; }
   bool is_executed() const { return executed; }
-  bool change_query_result(select_result_interceptor *result,
-                           select_result_interceptor *old_result);
+  bool change_query_result(Query_result_interceptor *result,
+                           Query_result_interceptor *old_result);
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
@@ -723,10 +728,10 @@ public:
   Item  *having_cond() const { return m_having_cond; }
   void   set_having_cond(Item *cond) { m_having_cond= cond; }
 
-  void set_query_result(select_result *result) { m_query_result= result; }
-  select_result *query_result() const { return m_query_result; }
-  bool change_query_result(select_result_interceptor *new_result,
-                           select_result_interceptor *old_result);
+  void set_query_result(Query_result *result) { m_query_result= result; }
+  Query_result *query_result() const { return m_query_result; }
+  bool change_query_result(Query_result_interceptor *new_result,
+                           Query_result_interceptor *old_result);
 
   /// Set base options for a query block (and active options too)
   void set_base_options(ulonglong options_arg)
@@ -787,7 +792,7 @@ private:
   st_select_lex **link_prev;
 
   /// Result of this query block
-  select_result *m_query_result;
+  Query_result *m_query_result;
 
   /**
     Options assigned from parsing and throughout resolving,
@@ -1075,6 +1080,9 @@ public:
   */
   table_map select_list_tables;
   table_map outer_join;       ///< Bitmap of all inner tables from outer joins
+
+  Opt_hints_qb *opt_hints_qb;
+
 
   /**
     @note the group_by and order_by lists below will probably be added to the
@@ -1493,8 +1501,21 @@ enum delete_option_enum {
 };
 
 
-#define YYSTYPE_IS_DECLARED
 union YYSTYPE {
+  /*
+    Hint parser section (sql_hints.yy)
+  */
+  opt_hints_enum hint_type;
+  LEX_CSTRING hint_string;
+  class PT_hint *hint;
+  class PT_hint_list *hint_list;
+  Hint_param_index_list hint_param_index_list;
+  Hint_param_table hint_param_table;
+  Hint_param_table_list hint_param_table_list;
+
+  /*
+    Main parser section (sql_yacc.yy)
+  */
   int  num;
   ulong ulong_num;
   ulonglong ulonglong_number;
@@ -1642,6 +1663,7 @@ union YYSTYPE {
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
+  class PT_hint_list *optimizer_hints;
 };
 
 #endif
@@ -2388,13 +2410,17 @@ enum enum_comment_state
     Not parsing comments.
   */
   NO_COMMENT,
+
   /**
     Parsing comments that need to be preserved.
+    (Copy '/' '*' and '*' '/' sequences to the preprocessed buffer.)
     Typically, these are user comments '/' '*' ... '*' '/'.
   */
   PRESERVE_COMMENT,
+
   /**
     Parsing comments that need to be discarded.
+    (Don't copy '/' '*' '!' and '*' '/' sequences to the preprocessed buffer.)
     Typically, these are special comments '/' '*' '!' ... '*' '/',
     or '/' '*' '!' 'M' 'M' 'm' 'm' 'm' ... '*' '/', where the comment
     markers should not be expanded.
@@ -2891,13 +2917,16 @@ public:
   char* x509_subject,*x509_issuer,*ssl_cipher;
   String *wild;
   sql_exchange *exchange;
-  select_result *result;
+  Query_result *result;
   Item *default_value, *on_update_value;
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
   LEX_ALTER alter_password;
   THD *thd;
   Generated_column *gcol_info;
+
+  /* Optimizer hints */
+  Opt_hints_global *opt_hints_global;
 
   /* maintain a list of used plugins for this LEX */
   typedef Prealloced_array<plugin_ref,
@@ -3537,7 +3566,7 @@ struct st_lex_local: public LEX
 };
 
 
-extern void lex_init(void);
+extern bool lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);

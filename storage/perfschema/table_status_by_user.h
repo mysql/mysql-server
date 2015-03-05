@@ -93,7 +93,7 @@ public:
 class table_status_by_user : public PFS_engine_table
 {
   typedef pos_status_by_user pos_t;
-  
+
 public:
   /** Table share */
   static PFS_engine_table_share m_share;

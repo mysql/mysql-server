@@ -780,7 +780,7 @@ void PFS_variable_name_row::make_row(const char* str, size_t length)
 {
   DBUG_ASSERT(length <= sizeof(m_str));
   DBUG_ASSERT(length <= NAME_CHAR_LEN);
-  
+
   m_length= MY_MIN(length, NAME_CHAR_LEN); /* enforce max name length */
   if (m_length > 0)
     memcpy(m_str, str, length);

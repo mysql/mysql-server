@@ -3642,7 +3642,7 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
       if (proxy->matches(thd->security_context()->host().str,
                          thd->security_context()->user().str,
                          thd->security_context()->ip().str,
-                         user) &&
+                         user, FALSE) &&
           proxy->get_with_grant())
       {
         DBUG_PRINT("info", ("found"));

@@ -29,7 +29,6 @@
 #include "partition_info.h"              // partition_info
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
-#include "sql_derived.h"                 // mysql_handle_single_derived
 #include "sql_parse.h"                   // check_stack_overrun
 #include "sql_partition.h"               // mysql_unpack_partition
 #include "sql_plugin.h"                  // plugin_unlock
@@ -6456,7 +6455,7 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   */
   table= 0;
 
- /*
+  /*
    Reset table_name and table_name_length,if it is a anonymous derived table
    or schema table. They are not valid as TABLEs were closed in the end of
    previous prepare or execute call. For derived table of view, restore view's

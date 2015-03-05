@@ -2504,7 +2504,8 @@ row_log_estimate_work(
 	}
 
 	const row_log_t*	l = index->online_log;
-	const ulint		bytes_left = l->tail.total - l->head.total;
+	const ulint		bytes_left =
+		static_cast<ulint>(l->tail.total - l->head.total);
 	const ulint		blocks_left = bytes_left / srv_sort_buf_size;
 
 	return(blocks_left * row_log_progress_inc_per_block());

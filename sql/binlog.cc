@@ -2860,8 +2860,7 @@ static int find_uniq_filename(char *name)
   file_info= dir_info->dir_entry;
   for (i= dir_info->number_off_files ; i-- ; file_info++)
   {
-    if (strlen(file_info->name) > length &&
-        memcmp(file_info->name, start, length) == 0 &&
+    if (strncmp(file_info->name, start, length) == 0 &&
 	is_number(file_info->name+length, &number,0))
     {
       set_if_bigger(max_found,(ulong) number);
@@ -6406,25 +6405,6 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
   DBUG_RETURN(error);
 }
 
-int
-MYSQL_BIN_LOG::write_event_into_log_file(Log_event* event){
-
-  DBUG_ENTER("MYSQL_BIN_LOG::write_event_into_log_file(Log_event *)");
-
-  mysql_mutex_lock(&LOCK_log);
-
-  int error= event->write(&log_file);
-
-  if (!error && !(error= flush_and_sync()))
-  {
-    update_binlog_end_pos();
-  }
-
-  mysql_mutex_unlock(&LOCK_log);
-
-  DBUG_RETURN(error);
-}
-
 /**
   Write an event to the binary log.
 */
@@ -8668,7 +8648,7 @@ void register_binlog_handler(THD *thd, bool trx)
       We only update the saved position if the old one was undefined,
       the reason is that there are some cases (e.g., for CREATE-SELECT)
       where the position is saved twice (e.g., both in
-      select_create::prepare() and THD::binlog_write_table_map()) , but
+      Query_result_create::prepare() and THD::binlog_write_table_map()), but
       we should use the first. This means that calls to this function
       can be used to start the statement before the first table map
       event, to include some extra events.

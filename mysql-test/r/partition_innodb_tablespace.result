@@ -356,8 +356,6 @@ SUBPARTITION BY HASH (a)
   SUBPARTITION sp7 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_subpart/' ENGINE = InnoDB,
   SUBPARTITION sp8 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_table/' ENGINE = InnoDB)) */
 DROP TABLE t1;
-call mtr.add_suppression("Plugin 'MyISAM' will be forced to shutdown");
-call mtr.add_suppression("Plugin 'MyISAM' has ref_count=. after shutdown");
 # Test of table where the engine returns the DATA DIR.
 CREATE TABLE t1
 (a int not null,

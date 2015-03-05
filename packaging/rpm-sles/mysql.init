@@ -91,7 +91,7 @@ install_db () {
     [ -d "$datadir/mysql" ] && return 0
 
     # Create initial db
-    /usr/bin/mysql_install_db --datadir="$datadir" --user=mysql
+    /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
     return $?
 }
 

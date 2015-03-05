@@ -135,6 +135,7 @@ master-bin.000011
 
 # fault_injection_registering_index
 SET SESSION debug="+d,fault_injection_registering_index";
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 flush logs;
 ERROR HY000: Can't open file: 'master-bin.000012' (errno: 1 - Operation not permitted)
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -161,6 +162,7 @@ master-bin.000012
 
 # fault_injection_updating_index
 SET SESSION debug="+d,fault_injection_updating_index";
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 flush logs;
 ERROR HY000: Can't open file: 'master-bin.000013' (errno: 1 - Operation not permitted)
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
@@ -330,4 +332,5 @@ master-bin.000018	#
 master-bin.000019	#
 master-bin.000020	#
 SET SESSION debug="";
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 End of tests

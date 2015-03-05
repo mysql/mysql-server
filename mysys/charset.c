@@ -54,68 +54,6 @@ get_collation_number_internal(const char *name)
 }
 
 
-static my_bool init_state_maps(CHARSET_INFO *cs)
-{
-  uint i;
-  uchar *state_map;
-  uchar *ident_map;
-
-  if (!(cs->state_map= state_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
-    return 1;
-
-  if (!(cs->ident_map= ident_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
-    return 1;
-
-  /* Fill state_map with states to get a faster parser */
-  for (i=0; i < 256 ; i++)
-  {
-    if (my_isalpha(cs,i))
-      state_map[i]=(uchar) MY_LEX_IDENT;
-    else if (my_isdigit(cs,i))
-      state_map[i]=(uchar) MY_LEX_NUMBER_IDENT;
-    else if (my_ismb1st(cs, i))
-      /* To get whether it's a possible leading byte for a charset. */
-      state_map[i]=(uchar) MY_LEX_IDENT;
-    else if (my_isspace(cs,i))
-      state_map[i]=(uchar) MY_LEX_SKIP;
-    else
-      state_map[i]=(uchar) MY_LEX_CHAR;
-  }
-  state_map[(uchar)'_']=state_map[(uchar)'$']=(uchar) MY_LEX_IDENT;
-  state_map[(uchar)'\'']=(uchar) MY_LEX_STRING;
-  state_map[(uchar)'.']=(uchar) MY_LEX_REAL_OR_POINT;
-  state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= (uchar) MY_LEX_CMP_OP;
-  state_map[(uchar)'<']= (uchar) MY_LEX_LONG_CMP_OP;
-  state_map[(uchar)'&']=state_map[(uchar)'|']=(uchar) MY_LEX_BOOL;
-  state_map[(uchar)'#']=(uchar) MY_LEX_COMMENT;
-  state_map[(uchar)';']=(uchar) MY_LEX_SEMICOLON;
-  state_map[(uchar)':']=(uchar) MY_LEX_SET_VAR;
-  state_map[0]=(uchar) MY_LEX_EOL;
-  state_map[(uchar)'\\']= (uchar) MY_LEX_ESCAPE;
-  state_map[(uchar)'/']= (uchar) MY_LEX_LONG_COMMENT;
-  state_map[(uchar)'*']= (uchar) MY_LEX_END_LONG_COMMENT;
-  state_map[(uchar)'@']= (uchar) MY_LEX_USER_END;
-  state_map[(uchar) '`']= (uchar) MY_LEX_USER_VARIABLE_DELIMITER;
-  state_map[(uchar)'"']= (uchar) MY_LEX_STRING_OR_DELIMITER;
-
-  /*
-    Create a second map to make it faster to find identifiers
-  */
-  for (i=0; i < 256 ; i++)
-  {
-    ident_map[i]= (uchar) (state_map[i] == MY_LEX_IDENT ||
-			   state_map[i] == MY_LEX_NUMBER_IDENT);
-  }
-
-  /* Special handling of hex and binary strings */
-  state_map[(uchar)'x']= state_map[(uchar)'X']= (uchar) MY_LEX_IDENT_OR_HEX;
-  state_map[(uchar)'b']= state_map[(uchar)'B']= (uchar) MY_LEX_IDENT_OR_BIN;
-  state_map[(uchar)'n']= state_map[(uchar)'N']= (uchar) MY_LEX_IDENT_OR_NCHAR;
-
-  return 0;
-}
-
-
 static void simple_cs_init_functions(CHARSET_INFO *cs)
 {
   if (cs->state & MY_CS_BINSORT)
@@ -149,8 +87,6 @@ static int cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
     if (!(to->ctype= (uchar*) my_once_memdup((char*) from->ctype,
 					     MY_CS_CTYPE_TABLE_SIZE,
 					     MYF(MY_WME))))
-      goto err;
-    if (init_state_maps(to))
       goto err;
   }
   if (from->to_lower)
@@ -261,8 +197,6 @@ static int add_collation(CHARSET_INFO *cs)
 #if defined (HAVE_CHARSET_utf8) && defined(HAVE_UCA_COLLATIONS)
         copy_uca_collation(newcs, &my_charset_utf8_unicode_ci);
         newcs->ctype= my_charset_utf8_unicode_ci.ctype;
-        if (init_state_maps(newcs))
-          return MY_XML_ERROR;
 #endif
       }
       else if (!strcmp(cs->csname, "utf8mb4"))
@@ -489,24 +423,12 @@ static my_thread_once_t charsets_template= MY_THREAD_ONCE_INIT;
 static void init_available_charsets(void)
 {
   char fname[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
-  CHARSET_INFO **cs;
   MY_CHARSET_LOADER loader;
 
   memset(&all_charsets, 0, sizeof(all_charsets));
   init_compiled_charsets(MYF(0));
 
   /* Copy compiled charsets */
-  for (cs=all_charsets;
-       cs < all_charsets+array_elements(all_charsets)-1 ;
-       cs++)
-  {
-    if (*cs)
-    {
-      if (cs[0]->ctype)
-        if (init_state_maps(*cs))
-          *cs= NULL;
-    }
-  }
 
   my_charset_loader_init_mysys(&loader);
   my_stpcpy(get_charsets_dir(fname), MY_CHARSET_INDEX);

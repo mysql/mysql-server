@@ -693,16 +693,6 @@ public:
   void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
-  /**
-    Method to write events directly to the binlog with no cache use.
-
-    @param event the event to be written
-
-    @return the operation status
-      @retval 0      write successful
-      @retval !=0    error on write
-  */
-  int write_event_into_log_file(Log_event *event);
 
 #endif /* !defined(MYSQL_CLIENT) */
   void add_bytes_written(ulonglong inc)

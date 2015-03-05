@@ -233,17 +233,22 @@ void reset_events_transactions_global()
 }
 
 /**
-  Check if the XID consists of all printable characters, ASCII 32 - 127.
+  Check if the XID consists of printable characters, ASCII 32 - 127.
+  @param xid     XID structure
+  @param offset  offset into XID.data[]
+  @param length  number of bytes to process
+  @return true if all bytes are in printable range
 */
-bool xid_printable(PSI_xid *xid)
+bool xid_printable(PSI_xid *xid, size_t offset, size_t length)
 {
   if (xid->is_null())
     return false;
 
-  unsigned char *c= (unsigned char*)&xid->data;
-  int xid_len= xid->gtrid_length + xid->bqual_length;
+  DBUG_ASSERT(offset + length <= MYSQL_XIDDATASIZE);
 
-  for (int i= 0; i < xid_len; i++, c++)
+  unsigned char *c= (unsigned char*)&xid->data + offset;
+
+  for (size_t i= 0; i < length; i++, c++)
   {
     if(*c < 32 || *c > 127)
       return false;
