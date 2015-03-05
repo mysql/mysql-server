@@ -594,6 +594,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
 geometry NOT NULL default '') ENGINE=InnoDB ;
 Warnings:
@@ -798,7 +800,7 @@ drop procedure if exists fn3;
 create function fn3 () returns point deterministic return ST_GeomFromText("point(1 1)");
 show create function fn3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-fn3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
+fn3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
     DETERMINISTIC
 return ST_GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	latin1_swedish_ci
 select ST_astext(fn3());

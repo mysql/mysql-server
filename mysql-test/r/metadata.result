@@ -306,6 +306,8 @@ drop table t1;
 #  WL#946 TIME/DATETIME/TIMESTAMP with fractional precision
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 t6 TIME(6), t5 TIME(5), t4 TIME(4),
 t3 TIME(3), t2 TIME(2), t1 TIME(1),

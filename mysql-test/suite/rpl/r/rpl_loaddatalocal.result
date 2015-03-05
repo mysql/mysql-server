@@ -35,6 +35,8 @@ drop table t1;
 ==== Bug22504 Initialize ====
 [on master]
 SET sql_mode='ignore_space';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(a int);
 insert into t1 values (1), (2), (3), (4);
 select * into outfile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' from t1;
@@ -105,6 +107,8 @@ Slave	44
 [master]
 DROP TABLE t1;
 SET SESSION sql_mode=@old_mode;
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 [slave]
 include/sync_slave_sql_with_master.inc
 

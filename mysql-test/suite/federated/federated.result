@@ -983,6 +983,8 @@ count(*)
 2
 DROP TABLE IF EXISTS federated.t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE federated.t1 (
 `blurb_id` int NOT NULL DEFAULT 0,
 `blurb` text default '',
@@ -993,6 +995,8 @@ Warning	1101	BLOB/TEXT column 'blurb' can't have a default value
 SET sql_mode = default;
 DROP TABLE IF EXISTS federated.t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE federated.t1 (
 `blurb_id` int NOT NULL DEFAULT 0,
 `blurb` text default '',

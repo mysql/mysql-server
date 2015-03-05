@@ -70,6 +70,8 @@ a	b
 0	
 drop table t1;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1(id integer not null auto_increment primary key);
 insert into t1 values(0);
 select * from t1;
@@ -79,6 +81,8 @@ select * from t1;
 id
 0
 SET @@SQL_MODE=@OLD_SQL_MODE;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 drop table t1;
 create table t1 (a varchar(20), b varchar(20));
 load data infile '../../std_data/loaddata_dq.dat' into table t1 fields terminated by ',' enclosed by '"' escaped by '"' (a,b);
@@ -218,11 +222,15 @@ drop table t1, t2;
 create table t1(f1 int);
 insert into t1 values(1),(null);
 create table t2(f2 int auto_increment primary key);
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select * from t2;
 f2
 1
 2
 SET @@SQL_MODE=@OLD_SQL_MODE;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 drop table t1,t2;
 create table t1(f1 int, f2 timestamp not null default current_timestamp);
 create table t2(f1 int);
@@ -344,6 +352,8 @@ SET SESSION character_set_connection=latin1;
 SET @OLD_SQL_MODE=@@SESSION.SQL_MODE;
 test LOAD DATA INFILE
 SET sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT '1 \\aa\n' INTO DUMPFILE 'MYSQLTEST_VARDIR/tmp/bug37114.txt';
 CREATE TABLE t1 (id INT, val1 CHAR(3));
 SET sql_mode = 'NO_BACKSLASH_ESCAPES';
@@ -455,6 +465,8 @@ LOAD_FILE("MYSQLTEST_VARDIR/tmp/bug37114.txt")
 5 	tab
 
 set session sql_mode=@OLD_SQL_MODE;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE t1,t2;
 #
 # Bug #51893: crash with certain characters given to load_file 
@@ -542,9 +554,13 @@ DROP TABLE t1;
 SET @old_mode= @@sql_mode;
 CREATE TABLE t1 (fld1 INT);
 SET sql_mode='strict_all_tables';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 # Without fix, load data hangs forever.
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
 FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
 Got one of the listed errors
 SET @@sql_mode= @old_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE t1;

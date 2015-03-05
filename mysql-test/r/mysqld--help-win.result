@@ -1477,7 +1477,7 @@ slow-query-log FALSE
 slow-start-timeout 15000
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
-sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 1

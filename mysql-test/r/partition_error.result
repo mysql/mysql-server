@@ -735,6 +735,8 @@ DROP TABLE t1;
 #            subpartitions
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_DIR_IN_CREATE';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -800,6 +802,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = <curr_engine>) */
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a INTEGER NOT NULL, PRIMARY KEY (a));
 INSERT INTO t1 VALUES (1),(1);
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
@@ -1456,6 +1460,8 @@ ERROR HY000: This partition function is not allowed
 #             timestamp primary key
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE old (a TIMESTAMP NOT NULL PRIMARY KEY)
 PARTITION BY RANGE (UNIX_TIMESTAMP(a)) (
 PARTITION p VALUES LESS THAN (1219089600),
