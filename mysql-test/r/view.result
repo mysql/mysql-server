@@ -594,6 +594,8 @@ a	b
 drop view v1;
 drop table t1;
 set sql_mode='ansi';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 ("a*b" int);
 create view v1 as select "a*b" from t1;
 show create view v1;
@@ -618,6 +620,8 @@ col1	char(2)	YES		NULL
 drop view v1;
 drop table `t1a``b`;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (col1 char(5),col2 char(5));
 create view v1 as select * from t1;
 drop table t1;
@@ -1317,6 +1321,8 @@ s1
 drop view v1;
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (s1 tinyint);
 create trigger t1_bi before insert on t1 for each row set new.s1 = 500;
 create view v1 as select * from t1 where s1 <> 127 with check option;
@@ -2045,6 +2051,8 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 drop view v1;
 drop table t1;
 set sql_mode='strict_all_tables';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (col1 INT NOT NULL, col2 INT NOT NULL);
 CREATE VIEW v1 (vcol1) AS SELECT col1 FROM t1;
 CREATE VIEW v2 (vcol1) AS SELECT col1 FROM t1 WHERE col2 > 2;
@@ -2817,6 +2825,8 @@ INSERT IGNORE INTO v1 (b) VALUES (2);
 Warnings:
 Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 SET SQL_MODE = STRICT_ALL_TABLES;
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT INTO v1 (b) VALUES (4);
 ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
 SET SQL_MODE = '';
@@ -3690,6 +3700,8 @@ Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be ma
 insert into v1 values(1);
 ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
 set @@sql_mode=@old_mode;
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 drop view v1;
 drop table t1;
 create table t1 (a int, key(a));

@@ -398,6 +398,8 @@ WARNING: --server-arg option not supported in this configuration.
 | 1 |
 +---+
 SET @@global.sql_mode='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 Warning (Code 1286): Unknown storage engine 'nonexistent'
 Warning (Code 1266): Using storage engine MyISAM for table 't2'
 Warning (Code 1286): Unknown storage engine 'nonexistent2'

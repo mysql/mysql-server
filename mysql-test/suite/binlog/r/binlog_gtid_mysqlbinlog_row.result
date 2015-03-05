@@ -352,6 +352,8 @@ DROP TABLE t1;
 SET timestamp=1000000000;
 SET time_zone=default;
 SET sql_mode = default;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
 CREATE TABLE t2 (a int NOT NULL DEFAULT 0, b int NOT NULL DEFAULT 0);
 INSERT INTO t1 SET a=1;

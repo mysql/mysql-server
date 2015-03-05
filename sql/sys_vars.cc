@@ -3749,29 +3749,29 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_AUTO_CREATE_USER | MODE_NO_ENGINE_SUBSTITUTION);
 
-  if (sql_mode & MODE_NO_AUTO_CREATE_USER)
-  {
-    THD *thd= current_thd;
-    if (thd)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_DEPRECATED_SQLMODE,
-                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
-                          "NO_AUTO_CREATE_USER");
-    }
-    else
-    {
-      sql_print_warning("'NO_AUTO_CREATE_USER' mode is deprecated. "
-                        "It will be made read-only in a future release.");
-    }
-  }
-
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
 {
   var->save_result.ulonglong_value=
     expand_sql_mode(var->save_result.ulonglong_value);
+
+  /* Warning displayed only if the non default sql_mode is specified. */
+  if (var->value)
+  {
+    /* Check if the NO_AUTO_CREATE_USER flag has been swapped. */
+    if ((thd->variables.sql_mode ^ var->save_result.ulonglong_value) &
+        MODE_NO_AUTO_CREATE_USER)
+    {
+      uint code = thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER ?
+                  ER_WARN_DEPRECATED_SQLMODE_UNSET :
+                  ER_WARN_DEPRECATED_SQLMODE;
+
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          code, ER_THD(thd, code), "NO_AUTO_CREATE_USER");
+    }
+  }
+
   return false;
 }
 static bool fix_sql_mode(sys_var *self, THD *thd, enum_var_type type)
@@ -3825,7 +3825,8 @@ static Sys_var_set Sys_sql_mode(
        sql_mode_names,
        DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
                MODE_ONLY_FULL_GROUP_BY |
-               MODE_STRICT_TRANS_TABLES),
+               MODE_STRICT_TRANS_TABLES |
+               MODE_NO_AUTO_CREATE_USER),
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 

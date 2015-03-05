@@ -7,6 +7,8 @@ Level	Code	Message
 insert into worklog5743 values(repeat("a", 20000));
 update worklog5743 set a = (repeat("b", 16000));
 SET sql_mode= '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create index idx on worklog5743(a(2000));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 1536 bytes
@@ -129,6 +131,8 @@ set global innodb_large_prefix=0;
 Warnings:
 Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET sql_mode= '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create index idx1 on worklog5743_2(a2(4000));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
@@ -407,6 +411,8 @@ drop table worklog5743;
 ### Test 7 ###
 create table worklog5743(a TEXT not null) ROW_FORMAT=DYNAMIC;
 SET sql_mode= '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create index idx1 on worklog5743(a(3073));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 1536 bytes

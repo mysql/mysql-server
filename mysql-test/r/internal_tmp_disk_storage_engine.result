@@ -2039,6 +2039,8 @@ drop table t2;
 SET @old_big_tables=@@big_tables;
 SET big_tables=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE N (
 col_int_key int(11) DEFAULT NULL,
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -2360,6 +2362,8 @@ DROP TABLE t1,E,H;
 #               WITH ORDER BY GIVING INCORRECT RESULTS 
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t(a BLOB, b INT);
 INSERT INTO t VALUES('1',3);
 INSERT INTO t VALUES('1',2);

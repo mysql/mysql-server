@@ -1076,8 +1076,6 @@ INSERT INTO t1 VALUES ('444444', 4);
 INSERT INTO t1 VALUES ('555555', 5);
 SET group_concat_max_len = 5;
 SET @old_sql_mode = @@sql_mode, @@sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT GROUP_CONCAT(a), b FROM t1 GROUP BY b LIMIT 3;
 GROUP_CONCAT(a)	b
 11111	1

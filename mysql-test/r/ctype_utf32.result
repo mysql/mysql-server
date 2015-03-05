@@ -867,6 +867,8 @@ hex(a)
 0010FFFF
 drop table t1;
 SET sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (utf32 varchar(2) character set utf32);
 Wrong character with pad
 insert into t1 values (0x110000);
@@ -980,6 +982,8 @@ a
 1
 drop table t1;
 SET sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (a varchar(17000) character set utf32);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT
@@ -1014,6 +1018,8 @@ Warning	131	Using innodb_large_prefix is deprecated and the parameter may be rem
 create table t1 (a varchar(334) character set utf32 primary key);
 ERROR 42000: Specified key was too long; max key length is 767 bytes
 SET sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (a varchar(333) character set utf32, key(a));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes

@@ -7463,6 +7463,9 @@ ER_WARN_UNKNOWN_QB_NAME
 ER_UNRESOLVED_HINT_NAME
   eng "Unresolved name %s for %s hint"
 
+ER_WARN_DEPRECATED_SQLMODE_UNSET
+  eng "Unsetting sql mode '%s' is deprecated. It will be made read-only in a future release."
+
 #
 #  End of 5.7 error messages.
 #

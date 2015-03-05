@@ -809,8 +809,6 @@ select '1' || '3' from t1;
 1
 1
 set SQL_MODE=oracle;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select '1' || '3' from t1;
 '1' || '3'
 13
@@ -919,6 +917,8 @@ drop table t1, t2;
 set GLOBAL query_cache_size=1355776;
 flush status;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 `date` datetime NOT NULL default '0000-00-00 00:00:00',
 KEY `date` (`date`)

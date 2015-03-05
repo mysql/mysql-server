@@ -215,6 +215,8 @@ DROP TABLE t1, t2, t3;
 #             null-safe operator <=> NULL
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(
 c1 DATE NOT NULL, 
 c2 DATE NULL, 
@@ -248,6 +250,8 @@ SET sql_mode = default;
 # (Note: Fixed by patch for BUG#42580)
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(
 c1 TIMESTAMP NOT NULL, 
 c2 TIMESTAMP NULL, 

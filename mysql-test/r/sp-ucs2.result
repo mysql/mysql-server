@@ -40,7 +40,7 @@ BEGIN
 RETURN '';
 END|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
 BEGIN
 RETURN '';
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -55,7 +55,7 @@ BEGIN
 RETURN '';
 END|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
 BEGIN
 RETURN '';
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -67,7 +67,7 @@ BEGIN
 RETURN '';
 END|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
 BEGIN
 RETURN '';
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -83,7 +83,7 @@ SET f2= f1;
 SET f2= concat(collation(f1), ' ', collation(f2));
 END|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
 BEGIN
 RETURN '';
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -127,7 +127,7 @@ RETURNS ENUM( 'w' ) CHARACTER SET ucs2
 RETURN 0;
 SHOW CREATE FUNCTION bug48766;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('w') CHARSET ucs2
+bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('w') CHARSET ucs2
 RETURN 0	utf8	utf8_general_ci	latin1_swedish_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_NAME='bug48766';
@@ -139,7 +139,7 @@ RETURNS ENUM('а','б','в','г') CHARACTER SET ucs2
 RETURN 0;
 SHOW CREATE FUNCTION bug48766;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('а','б','в','г') CHARSET ucs2
+bug48766	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `bug48766`() RETURNS enum('а','б','в','г') CHARSET ucs2
 RETURN 0	utf8	utf8_general_ci	latin1_swedish_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_NAME='bug48766';

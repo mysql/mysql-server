@@ -168,7 +168,10 @@ source include/assert.inc;
 
 # create a user for replication that requires ssl encryption
 --connection master
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 grant replication slave on *.* to replssl@localhost require ssl;
+set sql_mode= @orig_sql_mode;
 --source include/sync_slave_sql_with_master.inc
 
 # Setup slave to use SSL for connection to master

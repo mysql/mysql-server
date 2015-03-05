@@ -35,6 +35,8 @@ f_charbig VARCHAR(1000) )
 ENGINE = MEMORY;
 SET AUTOCOMMIT= 1;
 SET @@session.sql_mode= '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 # End of basic preparations needed for all tests
 #-----------------------------------------------
 
@@ -218,6 +220,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -678,6 +682,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -1142,6 +1148,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -1669,6 +1677,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -2172,6 +2182,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -2636,6 +2648,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -3097,6 +3111,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -3561,6 +3577,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -4028,6 +4046,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -4484,6 +4504,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;
@@ -4941,6 +4963,8 @@ COMMIT;
 # INFO: Storage engine used for t1 seems to be able to revert
 #       changes made by the failing statement.
 SET @@session.sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET AUTOCOMMIT= 1;
 DELETE FROM t1 WHERE f_charbig = 'was inserted';
 COMMIT WORK;

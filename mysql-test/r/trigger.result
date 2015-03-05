@@ -586,6 +586,8 @@ ERROR 42000: FUNCTION test.bug5893 does not exist
 drop trigger t1_bu;
 drop table t1;
 set sql_mode='ansi';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 ("t1 column" int);
 create trigger t1_bi before insert on t1 for each row set new."t1 column" = 5;
 set sql_mode="";
@@ -611,6 +613,8 @@ create table t1 (a date);
 insert into t1 values ('2004-01-00');
 ERROR 22007: Incorrect date value: '2004-01-00' for column 'a' at row 1
 set sql_mode="";
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create trigger t1_bi before insert on t1 for each row set new.a = '2004-01-00';
 set sql_mode="traditional";
 Warnings:
@@ -1051,6 +1055,8 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (i1 INT);
 SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW
 SET @x = 5/0;
 SET SQL_MODE='traditional';
@@ -1069,6 +1075,8 @@ SELECT @x;
 @x
 NULL
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @x=3;
 INSERT INTO t1 VALUES (@x);
 SELECT @x;
@@ -1080,6 +1088,8 @@ SELECT @x;
 @x
 NULL
 SET @@sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TRIGGER t1_ai;
 DROP TRIGGER t1_au;
 DROP TABLE t1;
@@ -1169,8 +1179,6 @@ drop table if exists t3;
 drop table if exists t4;
 SET @save_sql_mode=@@sql_mode;
 SET sql_mode='TRADITIONAL'|
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (id int(10) not null primary key, v int(10) )|
 create table t2 (id int(10) not null primary key, v int(10) )|
 create table t3 (id int(10) not null primary key, v int(10) )|
@@ -1289,6 +1297,8 @@ a	b
 3	c
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (
 id int NOT NULL DEFAULT '0',
 a  varchar(10) NOT NULL,
@@ -2151,6 +2161,8 @@ DELETE FROM t1;
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TRIGGER IF EXISTS trg1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
@@ -2333,8 +2345,6 @@ DROP TABLE t1;
 # of column with different datatypes
 SET @save_sql_mode= @@sql_mode;
 SET sql_mode= 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 # t1 column type name: INT
 # t2 column type name: INT
 # t2 column value: 3

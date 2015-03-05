@@ -2,10 +2,17 @@ drop database if exists events_test;
 drop database if exists mysqltest_db2;
 create database events_test;
 use events_test;
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 grant create, insert, select, delete on mysqltest_db2.*
 to mysqltest_user1@localhost;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create database mysqltest_db2;
 set autocommit=off;
 select @@autocommit;
