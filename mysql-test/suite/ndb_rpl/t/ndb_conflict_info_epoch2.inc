@@ -1,3 +1,6 @@
+# Ignore information_schema.global_status deprecation warning
+--disable_warnings
+
 --echo Conflict algorithm counter diff :
 --disable_query_log
 SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch2 AS ndb_conflict_fn_epoch2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH2";
@@ -36,3 +39,5 @@ SELECT (@ndb_max_replicated_epoch+0) < (@ndb_last_conflict_epoch+0) AS conflict_
 SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS stable_epoch_is_older_than_max_replicated;
 
 --enable_query_log
+
+--enable_warnings
