@@ -646,9 +646,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (!(select_options & OPTION_SETUP_TABLES_DONE) &&
       setup_tables_and_check_access(thd, &select_lex->context, join_list,
                                     tables_list, select_lex->leaf_tables,
-                                    FALSE, SELECT_ACL, SELECT_ACL,
-                                    (thd->lex->sql_command ==
-                                     SQLCOM_UPDATE_MULTI)))
+                                    FALSE, SELECT_ACL, SELECT_ACL, FALSE))
       DBUG_RETURN(-1);
 
   /*

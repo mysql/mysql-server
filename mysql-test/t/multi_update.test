@@ -849,5 +849,205 @@ update t1 join v3 using (id) set t1.a=0;
 drop view v1, v2, v3;
 drop table t2, t3, t1;
 
+--echo #
+--echo # MDEV-7613: MariaDB 5.5.40 server crash on update table left join
+--echo # with a view  
+--echo #
+
+CREATE TABLE `t1` (
+  `f1` varchar(6) COLLATE latin1_general_ci DEFAULT NULL,
+  `f2` varchar(6) COLLATE latin1_general_ci DEFAULT NULL,
+  `f3` varchar(7) COLLATE latin1_general_ci DEFAULT NULL,
+  `f4` varchar(15) COLLATE latin1_general_ci DEFAULT NULL,
+  `f5` datetime DEFAULT NULL,
+  `f6` varchar(2) COLLATE latin1_general_ci DEFAULT NULL,
+  `f7` varchar(2) COLLATE latin1_general_ci DEFAULT NULL,
+  `ff1` int(1) DEFAULT NULL,
+  `ff2` int(1) DEFAULT NULL,
+  `ff3` int(1) DEFAULT NULL,
+  `ff4` int(1) DEFAULT NULL,
+  `ff5` int(1) DEFAULT NULL,
+  `ff6` int(1) DEFAULT NULL,
+  `ff7` int(1) DEFAULT NULL,
+  `ff8` int(2) DEFAULT NULL,
+  `ff9` int(1) DEFAULT NULL,
+  `ff10` int(1) DEFAULT NULL,
+  `ff11` int(1) DEFAULT NULL,
+  `ff12` int(1) DEFAULT NULL,
+  `ff13` int(1) DEFAULT NULL,
+  `ff14` int(1) DEFAULT NULL,
+  `ff15` int(1) DEFAULT NULL,
+  `f8` varchar(70) COLLATE latin1_general_ci DEFAULT NULL,
+  `f9` varchar(20) COLLATE latin1_general_ci DEFAULT NULL,
+  `f10` varchar(50) COLLATE latin1_general_ci NOT NULL,
+  `f11` varchar(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `f12` varchar(255) COLLATE latin1_general_ci DEFAULT NULL,
+  `f13` text COLLATE latin1_general_ci,
+  `f14` time DEFAULT NULL,
+  `f15` varchar(30) COLLATE latin1_general_ci DEFAULT NULL,
+  `fg1` int(11) DEFAULT NULL,
+  `fg2` int(11) DEFAULT NULL,
+  `fg3` int(11) DEFAULT NULL,
+  `fg4` int(11) DEFAULT NULL,
+  `fg5` int(11) DEFAULT NULL,
+  `fg6` int(11) DEFAULT NULL,
+  `fg7` int(11) DEFAULT NULL,
+  `fg9` int(11) DEFAULT NULL,
+  `fg10` int(11) DEFAULT NULL,
+  `fg11` int(11) DEFAULT NULL,
+  `fg12` int(11) DEFAULT NULL,
+  `fg13` int(11) DEFAULT NULL,
+  `fg14` int(11) DEFAULT NULL,
+  `fg15` int(11) DEFAULT NULL,
+  `f16` double DEFAULT NULL,
+  `f17` double DEFAULT NULL,
+  `f18` int(11) DEFAULT NULL,
+  `f19` int(11) DEFAULT NULL,
+  `f20` varchar(255) COLLATE latin1_general_ci DEFAULT NULL,
+  `f21` int(11) DEFAULT NULL,
+  `f22` int(11) DEFAULT NULL,
+  `f23` int(11) DEFAULT NULL,
+  `f24` double DEFAULT NULL,
+  `f25` int(11) DEFAULT NULL,
+  `f26` double DEFAULT NULL,
+  `f27` int(11) DEFAULT NULL,
+  `f28` int(11) DEFAULT NULL,
+  `f29` double DEFAULT NULL,
+  `f30` int(11) DEFAULT NULL,
+  `f31` double DEFAULT NULL,
+  `PZ` double DEFAULT NULL,
+  `f32` varchar(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `f33` varchar(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `f34` varchar(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `f35` varchar(30) COLLATE latin1_general_ci DEFAULT NULL,
+  `f36` varchar(20) COLLATE latin1_general_ci DEFAULT NULL,
+  `f37` varchar(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `f20_2` varchar(20) COLLATE latin1_general_ci DEFAULT NULL,
+  `f38` varchar(30) COLLATE latin1_general_ci DEFAULT NULL COMMENT 'Email = E-Mail / Whitemail = Brief',
+  `insert_ts` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`f10`),
+  KEY `f5_f12` (`f5`,`f12`),
+  KEY `f5_f20` (`f5`,`f20`),
+  KEY `f5_f33` (`f5`,`f33`)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci ROW_FORMAT=COMPACT;
+
+INSERT INTO `t1` VALUES ('2011/2','201105','2011/19','gstfbnfr','2011-05-06
+00:00:00','gg','Ag',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,'','','','','','','21:56:28','',0,0,0,0,0,0,0,0,0,0,0,0,0,0,NULL,NULL,0,0,'Dffgult',1,0,0,NULL,0,NULL,0,0,NULL,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'ggggil',NULL),('2008/4','200812','2008/50','hgckbgfx','2008-12-08
+00:00:00','gg','Ag',2,NULL,2,1,1,1,1,24,1,NULL,1,1,1,2,0,'gusschlifßlich
+zugg
+gflffonifrfn','88.77.79.214','10001614','fg-gtgggggdgtfn','fg-gtgggggdgtfn','birgit.tfrpfllf@gggx.df','11:55:21',NULL,1,0,1,1,1,1,1,1,0,1,1,1,0,0,NULL,NULL,0,4,'ffrtrgg',1,6,10,1.66666666666667,4,1,10,14,1.4,1,NULL,NULL,'out',NULL,NULL,'49','ggobilcogg','k.A.',NULL,'ggggil',NULL),('2008/4','200812','2008/51','hgckbgfx','2008-12-15
+00:00:00','gg','Ag',4,5,5,4,5,5,5,NULL,4,5,1,1,1,4,0,'gusschlifßlich zugg
+gflffonifrfn','79.197.185.64','10001686','fg-gtgggggdgtfn','fg-gtgggggdgtfn','kgtjg@swfftys.df','09:28:42',NULL,1,1,1,1,1,1,1,1,1,1,1,1,0,0,NULL,NULL,0,5,'ffrtrgg',1,7,11,4.71428571428571,16,1.2,12,49,4.08111111111111,1,NULL,NULL,'out',NULL,NULL,'49','ggobilcogg','k.A.',NULL,'ggggil',NULL),('2008/4','200812','2008/50','nufchti','2008-12-08
+00:00:00','gg','Ag',4,1,1,5,5,5,5,12,4,5,1,1,2,1,0,'gusschlifßlich zugg
+gflffonifrfn','89.54.151.216','10001700','fg-gtgggggdgtfn','fg-gtgggggdgtfn','H_K2006@frffnft.df','16:41:45',NULL,1,1,1,1,1,1,1,1,1,1,1,1,0,0,NULL,NULL,0,5,'ffrtrgg',1,7,10,4.28571428571429,11,2.6,12,41,1.58111111111111,1,NULL,NULL,'ffrtrgg
+Bgckofficf 5','vb5','Nufchtfr,
+Iris','49','ggobilcogg','grfurt','Intfrn','ggggil',NULL),('2008/4','200812','2008/50','junghdro','2008-12-11
+00:00:00','Do','Ag',2,2,5,5,4,4,2,72,2,5,2,2,1,1,0,'gusschlifßlich zugg
+gflffonifrfn','84.61.20.216','10001849','fg-ggriff','fg-ggriff','schofnf-glftfr@grcor.df','20:18:05',NULL,1,1,1,1,1,1,1,1,1,1,1,1,0,0,NULL,NULL,0,5,'ffrtrgg',1,7,24,1.42857142857141,12,2.4,12,16,1,1,NULL,NULL,'ffrtrgg
+Bgckofficf 5','vb5','Junghfinrich,
+Dorothfg','49','ggobilcogg','grfurt','Intfrn','ggggil',NULL),('2008/4','200812','2008/50','fbflktj','2008-12-08
+00:00:00','gg','Ag',4,2,2,5,1,1,1,24,NULL,NULL,NULL,NULL,NULL,0,0,'Kgggfrg
+bzw. DigiCggg
+Funktion','217.84.62.6','10001888','fg-Kündigungfn','fg-Kündigungfn','f.frofschkf@gggx.df','21:05:59',NULL,1,1,1,1,1,1,1,0,0,0,0,0,0,0,NULL,NULL,0,0,'ffrtrgg',1,7,16,2.28571428571429,0,NULL,7,16,2.28571428571429,0,NULL,NULL,'out',NULL,'gbfl,
+Kgtjg','49','ggobilcogg','k.A.','gxtfrn','ggggil',NULL),('2008/4','200812','2008/50','gltggggri','2008-12-09
+00:00:00','Di','Ag',4,1,1,4,2,1,2,16,1,2,2,2,2,2,0,'gusschlifßlich zugg
+gflffonifrfn','81.171.157.211','10001988','fg-gtgggggdgtfn','fg-gtgggggdgtfn','bistfr@nftcolognf.df','11:07:54',NULL,1,1,1,1,1,1,1,1,1,1,1,1,0,0,NULL,NULL,0,5,'ffrtrgg',1,7,21,1,11,2.2,12,12,2.66666666666667,1,NULL,NULL,'out',NULL,NULL,'49','ggobilcogg','k.A.','gxtfrn','ggggil',NULL),('2008/4','200812','2008/50','ggufllfsg','2008-12-09
+00:00:00','Di','Ag',2,2,2,2,1,1,2,12,2,2,2,1,1,2,0,'ggobilfs
+Intfrnft','62.154.142.186','10002097','fg-gtgggggdgtfn','fg-gtgggggdgtfn','norbfrtwfdlich@fgggil.df','09:42:11',NULL,1,1,1,1,1,1,1,1,1,1,1,1,0,0,NULL,NULL,0,5,'ffrtrgg',1,7,12,1.71428571428571,8,1.6,12,20,1.66666666666667,1,NULL,NULL,'ffrtrgg
+Bgckofficf 1','vb1','Mufllfr,
+ggbinf','49','ggobilcogg','grfurt','Intfrn','ggggil',NULL),('2008/4','200812','2008/50','wggnfg','2008-12-09
+00:00:00','Di','Ag',5,5,5,5,5,5,5,12,5,5,5,5,5,5,0,'gls grsgtz für
+Ffstnftz','85.180.141.246','10002127','fg-Kündigungfn','fg-Kündigungfn','rfinhgrt.gdolph@yghoo.df','17:44:11',NULL,1,1,1,1,1,1,1,1,1,1,1,1,0,0,NULL,NULL,0,5,'ffrtrgg',1,7,15,5,25,5,12,60,5,1,NULL,NULL,'ffrtrgg
+Bgckofficf 1','vb1','Wggnfr,
+Annftt','49','ggobilcogg','grfurt','Intfrn','ggggil',NULL),('2008/4','200812','2008/50','schubrbf','2008-12-10
+00:00:00','Mi','Ag',1,2,NULL,2,1,2,1,24,NULL,NULL,NULL,NULL,NULL,0,0,'Kgggfrg
+bzw. DigiCggg
+Funktion','91.40.98.242','10002160','fg-gtgggggdgtfn','fg-gtgggggdgtfn','olgf.lifb@gggx.nft','18:18:25',NULL,1,1,0,1,1,1,1,0,0,0,0,0,0,0,NULL,NULL,0,0,'ffrtrgg',1,6,11,1.81111111111111,0,NULL,6,11,1.81111111111111,0,NULL,NULL,'out',NULL,NULL,'49','ggobilcogg','k.A.','gxtfrn','ggggil',NULL);
+
+CREATE TABLE `t2` (
+  `ft1` datetime DEFAULT NULL,
+  `ft2` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `ft3` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `ft4` varchar(255) COLLATE latin1_general_ci NOT NULL DEFAULT '',
+  `ft5` varchar(255) COLLATE latin1_general_ci NOT NULL DEFAULT '',
+  `ft6` varchar(255) COLLATE latin1_general_ci DEFAULT NULL,
+  `ft6_2` varchar(255) COLLATE latin1_general_ci DEFAULT NULL,
+  `ft7` varchar(255) COLLATE latin1_general_ci DEFAULT NULL,
+  `ft8` varchar(255) COLLATE latin1_general_ci DEFAULT NULL,
+  `ft9` varchar(255) COLLATE latin1_general_ci DEFAULT NULL,
+  `ft10` varchar(255) COLLATE latin1_general_ci DEFAULT NULL,
+  PRIMARY KEY (`ft4`,`ft5`)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+
+INSERT INTO `t2` VALUES ('2013-03-13 00:00:00','2013-03-13 00:00:00','9999-12-31 00:00:00','#','extern FP f32 2','Default','Intern','DEFAULT',NULL,NULL,NULL),('2013-03-13 00:00:00','2013-03-13 00:00:00','9999-12-31 00:00:00','#','extern FP f32 3','Default','Intern','DEFAULT',NULL,NULL,NULL);
+
+CREATE TABLE `t3` (
+  `fe1` int(10) NOT NULL DEFAULT '0',
+  `fe2` char(50) COLLATE latin1_general_ci DEFAULT 'nn',
+  `f34` char(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `fe3` double DEFAULT NULL,
+  `fe4` double DEFAULT NULL,
+  `fe5` char(4) COLLATE latin1_general_ci DEFAULT NULL,
+  `f32` char(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `fe6` int(3) DEFAULT '0',
+  `fe7` char(1) COLLATE latin1_general_ci DEFAULT NULL,
+  `ft6` char(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `f33` char(4) COLLATE latin1_general_ci DEFAULT NULL COMMENT 'virtuelle f33s',
+  `fe8` char(4) COLLATE latin1_general_ci DEFAULT NULL COMMENT 'aus dem ADS',
+  `f37` char(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `fe9` char(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `fe10` int(5) DEFAULT '0',
+  `fe11` int(10) DEFAULT '0',
+  `fe12` char(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `fe13` double DEFAULT NULL,
+  `fe14` char(50) COLLATE latin1_general_ci DEFAULT NULL,
+  `fe15` date DEFAULT NULL,
+  `fe16` date DEFAULT NULL,
+  `fe17` int(10) DEFAULT '0',
+  `fe18` date NOT NULL DEFAULT '0000-00-00',
+  `ft3` date NOT NULL DEFAULT '0000-00-00',
+  PRIMARY KEY (`fe1`),
+  KEY `fe2` (`fe2`,`fe18`,`ft3`),
+  KEY `f33` (`f33`),
+  KEY `fe8` (`fe8`)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci ROW_FORMAT=COMPACT COMMENT='CustomerService und Outsourcer Userinformationen';
+
+INSERT INTO `t3` VALUES (1,'aabggn','gab, glgna',0,NULL,NULL,'gxtgrn D gnd g
+gggsbgrg',0,NULL,'gxtgrn','dsa','dsa','gggsbgrg','0',91611,0,'0',0,'agsggschigdgn','2014-08-11','2014-09-05',0,'2011-01-01','2014-08-11'),(4,'aabigr','gab,
+Iggr',0,NULL,NULL,'gxtgrn D gnd g
+gggsbgrg',0,NULL,'gxtgrn','dsa','dsa','gggsbgrg','0',0,0,'0',0,'agsggschigdgn','2014-08-11','2014-09-05',0,'2012-10-01','2014-08-11'),(7,'abgcrist','gbg,
+ghristggna',15182,1,'ja','ggshilfg gxtgrn 1',1,NULL,'gg
+galgs','ag1','ag1','grfgrt','0',11941,0,'0',0,'agsggschigdgn','2014-01-11',NULL,11802051,'1900-01-01','2010-06-10'),(8,'abgcrist','gbg,
+ghristggna',15182,1,'ja','Zgntralg gftgr galgs Bgtrgggng 1',1,NULL,'gg
+galgs','sb1','sb1','grfgrt','0',11941,0,'0',0,'agsggschigdgn','2014-01-11',NULL,11802051,'2010-07-01','2012-08-11'),(9,'abgcrist','gbg,
+ghristggna',15182,1,'ja','galgs Inbggnd 2',1,NULL,'gg
+galgs','si2','si2','grfgrt','0',11941,0,'0',0,'agsggschigdgn','2014-01-11',NULL,11802051,'2012-09-01','2014-01-11'),(10,'abgcgr','gbg,
+ggrnglgg',14962,1,NULL,'galgs Ogtbggnd 1',1,NULL,'gg
+galgs','sg1','sg1','grfgrt','0',12401,0,'abgcrn',1,NULL,NULL,NULL,11800647,'1900-01-01','2010-11-10'),(11,'abgcgr','gbg,
+ggrnglgg',14962,1,NULL,'galgs Ogtbggnd 1',1,NULL,'gg
+galgs','sg1','sg1','grfgrt','0',12401,0,'abgcrn',1,NULL,NULL,NULL,11800647,'2010-12-01','2011-08-11'),(12,'abgcgr','gbg,
+ggrnglgg',14962,1,NULL,'galgs Ogtbggnd 2',1,NULL,'gg
+galgs','sg2','sg2','grfgrt','0',12401,0,'abgcrn',1,NULL,NULL,NULL,11800647,'2011-09-01','2012-01-11'),(13,'abgcgr','gbg,
+ggrnglgg',14962,0.75,NULL,'galgs Ogtbggnd 2',1,NULL,'gg
+galgs','sg2','sg2','grfgrt','0',12401,0,'abgcrn',1,NULL,NULL,'2011-09-11',11800647,'2012-02-01','2011-08-11'),(14,'rgghrsgr','gbg,
+gigrid',14781,1,'ja','Fgrdgrgngsmanaggmgnt 1',1,NULL,'gg
+Zahlgng','fm1','fm1','grfgrt','0',12141,0,'0',1,NULL,NULL,NULL,11010781,'1900-01-01','2012-08-11');
+
+CREATE ALGORITHM=MERGE
+DEFINER=`root`@`localhost` SQL SECURITY DEFINER
+VIEW `v1` AS select `t1a`.`ft1` AS `ft1`,`t1a`.`ft2` AS `ft2`,`t1a`.`ft3` AS `ft3`,`t1a`.`ft4` AS `ft4`,`t1a`.`ft5` AS `ft5`,`t1a`.`ft6` AS `ft6`,`t1a`.`ft6_2` AS `ft6_2`,`t1a`.`ft7` AS `ft7`,`t1a`.`ft8` AS `ft8`,`t1a`.`ft9` AS `ft9`,`t1a`.`ft10` AS `ft10` from `t2` `t1a` where (if((`t1a`.`ft10` = 'virtuell'),0,1) = 1);
+
+CREATE ALGORITHM=UNDEFINED
+DEFINER=`root`@`localhost` SQL SECURITY DEFINER
+VIEW `v2` AS select distinct `t1b`.`fe2` AS `fe2`,min(`t1b`.`fe18`) AS `fe18`,max(`t1b`.`ft3`) AS `ft3` from `t3` `t1b` where ((`t1b`.`fe2` <> '') and (curdate() >= `t1b`.`fe18`)) group by `t1b`.`fe2`;
+
+CREATE ALGORITHM=UNDEFINED
+DEFINER=`root`@`localhost` SQL SECURITY DEFINER
+VIEW `v3` AS select `t1c`.`fe2` AS `fe2`,`t1c`.`f34` AS `f34`,`t1c`.`f33` AS `f33`,`t1c`.`f32` AS `f32`,`t1c`.`f37` AS `f37`,`t1c`.`fe10` AS `fe10`,if((`tov`.`ft6` in ('klarmobil','callmobile')),`tov`.`ft9`,`tov`.`ft6`) AS `ft6_1`,`tov`.`ft6_2` AS `ft6_2`,`ua`.`fe18` AS `fe18`,`ua`.`ft3` AS `ft3` from ((`t3` `t1c` left join `v2` `ua` on((`t1c`.`fe2` = `ua`.`fe2`))) left join `v1` `tov` on((`t1c`.`fe8` = `tov`.`ft4`))) where (`t1c`.`ft3` = `ua`.`ft3`) group by `t1c`.`fe2`,`t1c`.`f34`,`t1c`.`f33`,`t1c`.`f32` order by `t1c`.`f34`;
+
+UPDATE t1 t1  left join v3 t2 on t1.f4 = t2.fe2    SET t1.f20 = t2.ft6_1,    t1.f32 = t2.f32,    t1.f33 = t2.f33,    t1.f37 = t2.f37    WHERE f5 >= '2015-02-01';
+
+drop view v3,v2,v1;
+drop table t1,t2,t3;
 --echo end of 5.5 tests
 
