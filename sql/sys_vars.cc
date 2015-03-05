@@ -5258,7 +5258,7 @@ static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
        "events, for example if gtid_mode is disabled when the server has "
        "already generated binary log(s) with GTID events and not purged them.",
        READ_ONLY GLOBAL_VAR(binlog_gtid_simple_recovery),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
 static Sys_var_ulong Sys_sp_cache_size(
        "stored_program_cache",
