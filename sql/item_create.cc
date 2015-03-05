@@ -562,6 +562,20 @@ protected:
 };
 
 
+class Create_func_buffer_strategy : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_buffer_strategy s_singleton;
+
+protected:
+  Create_func_buffer_strategy() {}
+  virtual ~Create_func_buffer_strategy() {}
+};
+
+
 class Create_func_ceiling : public Create_func_arg1
 {
 public:
@@ -1949,21 +1963,6 @@ protected:
 };
 
 
-#if !defined(DBUG_OFF)
-class Create_func_gis_debug : public Create_func_arg1
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1);
-
-  static Create_func_gis_debug s_singleton;
-
-protected:
-  Create_func_gis_debug() {}
-  virtual ~Create_func_gis_debug() {}
-};
-#endif
-
-
 class Create_func_glength : public Create_func_arg1
 {
 public:
@@ -2293,10 +2292,11 @@ protected:
 };
 
 
-class Create_func_buffer : public Create_func_arg2
+class Create_func_buffer : public Create_native_func
 {
 public:
-  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
 
   static Create_func_buffer s_singleton;
 
@@ -2309,10 +2309,11 @@ protected:
 class Create_func_buffer_deprecated : public Create_func_buffer
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list)
   {
     push_deprecated_warn(current_thd, "BUFFER", "ST_BUFFER");
-    return Create_func_buffer::create(thd, arg1, arg2);
+    return Create_func_buffer::create_native(thd, name, item_list);
   }
 
   static Create_func_buffer_deprecated s_singleton;
@@ -4201,6 +4202,27 @@ Create_func_bit_length::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_buffer_strategy Create_func_buffer_strategy::s_singleton;
+
+Item*
+Create_func_buffer_strategy::create_native(THD *thd, LEX_STRING name,
+                                           PT_item_list *item_list)
+{
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count < 1 || arg_count > 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+
+  return new (thd->mem_root) Item_func_buffer_strategy(POS(), item_list);
+}
+
+
 Create_func_ceiling Create_func_ceiling::s_singleton;
 
 Item*
@@ -5120,17 +5142,6 @@ Create_func_get_lock::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
-#if !defined(DBUG_OFF)
-Create_func_gis_debug Create_func_gis_debug::s_singleton;
-
-Item*
-Create_func_gis_debug::create(THD *thd, Item *arg1)
-{
-  return new (thd->mem_root) Item_func_gis_debug(POS(), arg1);
-}
-#endif
-
-
 Create_func_glength Create_func_glength::s_singleton;
 
 Item*
@@ -5351,9 +5362,21 @@ Create_func_symdifference::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_buffer Create_func_buffer::s_singleton;
 
 Item*
-Create_func_buffer::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_buffer::create_native(THD *thd, LEX_STRING name,
+                                  PT_item_list *item_list)
 {
-  return new (thd->mem_root) Item_func_buffer(POS(), arg1, arg2);
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count < 2 || arg_count > 5)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+  return new (thd->mem_root) Item_func_buffer(POS(), item_list);
+
 }
 
 
@@ -6849,6 +6872,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_ASWKB") }, GEOM_BUILDER(Create_func_as_wkb)},
   { { C_STRING_WITH_LEN("ST_ASWKT") }, GEOM_BUILDER(Create_func_as_wkt)},
   { { C_STRING_WITH_LEN("ST_BUFFER") }, GEOM_BUILDER(Create_func_buffer)},
+  { { C_STRING_WITH_LEN("ST_BUFFER_STRATEGY") }, GEOM_BUILDER(Create_func_buffer_strategy)},
   { { C_STRING_WITH_LEN("ST_CENTROID") }, GEOM_BUILDER(Create_func_centroid)},
   { { C_STRING_WITH_LEN("ST_CONTAINS") }, GEOM_BUILDER(Create_func_contains)},
   { { C_STRING_WITH_LEN("ST_CONVEXHULL") }, GEOM_BUILDER(Create_func_convex_hull)},
@@ -6875,9 +6899,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_GEOMFROMGEOJSON") }, GEOM_BUILDER(Create_func_geomfromgeojson)},
   { { C_STRING_WITH_LEN("ST_GEOMFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_GEOMFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
-#ifndef DBUG_OFF
-  { { C_STRING_WITH_LEN("ST_GIS_DEBUG") }, GEOM_BUILDER(Create_func_gis_debug)},
-#endif
   { { C_STRING_WITH_LEN("ST_INTERIORRINGN") }, GEOM_BUILDER(Create_func_interiorringn)},
   { { C_STRING_WITH_LEN("ST_INTERSECTS") }, GEOM_BUILDER(Create_func_intersects)},
   { { C_STRING_WITH_LEN("ST_INTERSECTION") }, GEOM_BUILDER(Create_func_intersection)},

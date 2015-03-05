@@ -103,6 +103,7 @@ SET(SQL_EMBEDDED_SOURCES
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   ../sql/item_geofunc.cc
+  ../sql/item_geofunc_buffer.cc
   ../sql/item_geofunc_relchecks.cc
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
@@ -119,6 +120,7 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     ../sql/item_geofunc.cc
+    ../sql/item_geofunc_buffer.cc
     ../sql/item_geofunc_relchecks.cc
     ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc

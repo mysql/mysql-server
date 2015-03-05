@@ -2,6 +2,11 @@
 
 // Copyright (c) 2007-2012 Barend Gehrels, Amsterdam, the Netherlands.
 
+// This file was modified by Oracle on 2015.
+// Modifications copyright (c) 2015 Oracle and/or its affiliates.
+
+// Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
+
 // Use, modification and distribution is subject to the Boost Software License,
 // Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
@@ -11,6 +16,8 @@
 
 
 #include <boost/assert.hpp>
+#include <boost/core/ignore_unused.hpp>
+
 #include <boost/geometry/core/access.hpp>
 #include <boost/geometry/strategies/intersection.hpp>
 
@@ -104,17 +111,19 @@ struct base_turn_handler
     template <typename TurnInfo, typename IntersectionInfo>
     static inline void assign_point(TurnInfo& ti,
                 method_type method,
-                IntersectionInfo const& info, int index)
+                IntersectionInfo const& info, unsigned int index)
     {
         ti.method = method;
-        BOOST_ASSERT(index >= 0 && unsigned(index) < info.count); // TODO  remove this
+
+        BOOST_ASSERT(index < info.count);
+
         geometry::convert(info.intersections[index], ti.point);
         ti.operations[0].fraction = info.fractions[index].robust_ra;
         ti.operations[1].fraction = info.fractions[index].robust_rb;
     }
 
     template <typename IntersectionInfo>
-    static inline int non_opposite_to_index(IntersectionInfo const& info)
+    static inline unsigned int non_opposite_to_index(IntersectionInfo const& info)
     {
         return info.fractions[0].robust_rb < info.fractions[1].robust_rb
             ? 1 : 0;
@@ -132,7 +141,7 @@ struct touch_interior : public base_turn_handler
     // Index: 0, P is the interior, Q is touching and vice versa
     template
     <
-        int Index,
+        unsigned int Index,
         typename Point1,
         typename Point2,
         typename IntersectionInfo,
@@ -155,8 +164,9 @@ struct touch_interior : public base_turn_handler
         // 2) Important is: if q_k goes to LEFT, RIGHT, COLLINEAR
         //    and, if LEFT/COLL, if it is lying LEFT or RIGHT w.r.t. q_i
 
-        static int const index_p = Index;
-        static int const index_q = 1 - Index;
+        BOOST_STATIC_ASSERT(Index <= 1);
+        static unsigned int const index_p = Index;
+        static unsigned int const index_q = 1 - Index;
 
         int const side_qi_p = dir_info.sides.template get<index_q, 0>();
         int const side_qk_p = side.qk_wrt_p1();
@@ -166,7 +176,7 @@ struct touch_interior : public base_turn_handler
             // Q crosses P from left->right or from right->left (test "ML1")
             // Union: folow P (left->right) or Q (right->left)
             // Intersection: other turn
-            int index = side_qk_p == -1 ? index_p : index_q;
+            unsigned int index = side_qk_p == -1 ? index_p : index_q;
             ti.operations[index].operation = operation_union;
             ti.operations[1 - index].operation = operation_intersection;
             return;
@@ -193,7 +203,7 @@ struct touch_interior : public base_turn_handler
             // or Q turns right on the right side of P (test "MR2")
             // Union: take left turn (Q if Q turns left, P if Q turns right)
             // Intersection: other turn
-            int index = side_qk_q == 1 ? index_q : index_p;
+            unsigned int index = side_qk_q == 1 ? index_q : index_p;
             ti.operations[index].operation = operation_union;
             ti.operations[1 - index].operation = operation_intersection;
         }
@@ -215,10 +225,10 @@ struct touch_interior : public base_turn_handler
                 // Opposite direction, which is never travelled.
                 // If Q turns left, P continues for intersection
                 // If Q turns right, P continues for union
-                ti.operations[Index].operation = side_qk_q == 1
+                ti.operations[index_p].operation = side_qk_q == 1
                     ? operation_intersection
                     : operation_union;
-                ti.operations[1 - Index].operation = operation_blocked;
+                ti.operations[index_q].operation = operation_blocked;
             }
         }
         else
@@ -514,7 +524,7 @@ struct equal_opposite : public base_turn_handler
         if (AssignPolicy::include_opposite)
         {
             tp.method = method_equal;
-            for (int i = 0; i < 2; i++)
+            for (unsigned int i = 0; i < 2; i++)
             {
                 tp.operations[i].operation = operation_opposite;
             }
@@ -651,7 +661,7 @@ private :
 
     template
     <
-        int Index,
+        unsigned int Index,
         typename Point1,
         typename Point2,
         typename IntersectionInfo
@@ -661,8 +671,9 @@ private :
                 Point2 const& , Point2 const& , int side_rk_s,
                 TurnInfo& tp, IntersectionInfo const& intersection_info)
     {
-        boost::ignore_unused_variable_warning(handle_robustness);
-        boost::ignore_unused_variable_warning(side_rk_s);
+        BOOST_STATIC_ASSERT(Index <= 1);
+
+        boost::ignore_unused(handle_robustness, side_rk_s);
 
         operation_type blocked = operation_blocked;
         switch(side_rk_r)
@@ -785,7 +796,7 @@ public:
             if ((q_arrival == -1 && p_arrival == 0)
                 || (p_arrival == -1 && q_arrival == 0))
             {
-                for (int i = 0; i < 2; i++)
+                for (unsigned int i = 0; i < 2; i++)
                 {
                     tp.operations[i].operation = operation_opposite;
                 }
@@ -830,7 +841,7 @@ struct crosses : public base_turn_handler
         // Intersection: take Q
         // Otherwise: vice versa
         int const side_qi_p1 = dir_info.sides.template get<1, 0>();
-        int const index = side_qi_p1 == 1 ? 0 : 1;
+        unsigned int const index = side_qi_p1 == 1 ? 0 : 1;
         ti.operations[index].operation = operation_union;
         ti.operations[1 - index].operation = operation_intersection;
     }
