@@ -335,7 +335,10 @@ SET GLOBAL general_log= @old_general_log;
 --echo #  Bug #56798 : Wrong credentials assigned when using a proxy user.
 --echo #
 
+set @orig_sql_mode = @@sql_mode;
+set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL PRIVILEGES ON *.* TO power_user;
+set sql_mode= @orig_sql_mode;
 GRANT USAGE ON anonymous_db.* TO ''@''
   IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
 GRANT PROXY ON power_user TO ''@'';

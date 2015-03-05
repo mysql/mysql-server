@@ -8,6 +8,8 @@
 set default_storage_engine=myisam;
 SET TIME_ZONE = "+00:00";
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 #
 # Test of errors for column data types that dont support function
 # defaults.
@@ -1565,6 +1567,8 @@ SET sql_mode = default;
 set default_storage_engine=innodb;
 SET TIME_ZONE = "+00:00";
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 #
 # Test of errors for column data types that dont support function
 # defaults.

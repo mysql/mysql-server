@@ -32,13 +32,13 @@ class Explain_format_JSON : public Explain_format
 {
 private:
   opt_explain_json_namespace::context *current_context; ///< current tree node
-  select_result *output;
+  Query_result *output;
 
 public:
   Explain_format_JSON() : current_context(NULL), output(NULL) {}
 
   virtual bool is_hierarchical() const { return true; }
-  virtual bool send_headers(select_result *result);
+  virtual bool send_headers(Query_result *result);
   virtual bool begin_context(enum_parsing_context context,
                              SELECT_LEX_UNIT *subquery,
                              const Explain_format_flags *flags);

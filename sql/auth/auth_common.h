@@ -20,6 +20,7 @@
 #include "auth_acls.h"                          /* ACL information */
 #include "sql_string.h"                         /* String */
 #include "table.h"                              /* TABLE_LIST */
+#include "field.h"
 
 /* Forward Declarations */
 class LEX_COLUMN;
@@ -235,6 +236,280 @@ enum mysql_user_table_field
   MYSQL_USER_FIELD_PASSWORD_LIFETIME,
   MYSQL_USER_FIELD_ACCOUNT_LOCKED,
   MYSQL_USER_FIELD_COUNT
+};
+
+/* When we run mysql_upgrade we must make sure that the server can be run
+   using previous mysql.user table schema during acl_load.
+
+   Acl_load_user_table_schema is a common interface for the current and the
+                              previous mysql.user table schema.
+ */
+class Acl_load_user_table_schema
+{
+public:
+  virtual uint host_idx()= 0;
+  virtual uint user_idx()= 0;
+  virtual uint password_idx()= 0;
+  virtual uint select_priv_idx()= 0;
+  virtual uint insert_priv_idx()= 0;
+  virtual uint update_priv_idx()= 0;
+  virtual uint delete_priv_idx()= 0;
+  virtual uint create_priv_idx()= 0;
+  virtual uint drop_priv_idx()= 0;
+  virtual uint reload_priv_idx()= 0;
+  virtual uint shutdown_priv_idx()= 0;
+  virtual uint process_priv_idx()= 0;
+  virtual uint file_priv_idx()= 0;
+  virtual uint grant_priv_idx()= 0;
+  virtual uint references_priv_idx()= 0;
+  virtual uint index_priv_idx()= 0;
+  virtual uint alter_priv_idx()= 0;
+  virtual uint show_db_priv_idx()= 0;
+  virtual uint super_priv_idx()= 0;
+  virtual uint create_tmp_table_priv_idx()= 0;
+  virtual uint lock_tables_priv_idx()= 0;
+  virtual uint execute_priv_idx()= 0;
+  virtual uint repl_slave_priv_idx()= 0;
+  virtual uint repl_client_priv_idx()= 0;
+  virtual uint create_view_priv_idx()= 0;
+  virtual uint show_view_priv_idx()= 0;
+  virtual uint create_routine_priv_idx()= 0;
+  virtual uint alter_routine_priv_idx()= 0;
+  virtual uint create_user_priv_idx()= 0;
+  virtual uint event_priv_idx()= 0;
+  virtual uint trigger_priv_idx()= 0;
+  virtual uint create_tablespace_priv_idx()= 0;
+  virtual uint ssl_type_idx()= 0;
+  virtual uint ssl_cipher_idx()= 0;
+  virtual uint x509_issuer_idx()= 0;
+  virtual uint x509_subject_idx()= 0;
+  virtual uint max_questions_idx()= 0;
+  virtual uint max_updates_idx()= 0;
+  virtual uint max_connections_idx()= 0;
+  virtual uint max_user_connections_idx()= 0;
+  virtual uint plugin_idx()= 0;
+  virtual uint authentication_string_idx()= 0;
+  virtual uint password_expired_idx()= 0;
+  virtual uint password_last_changed_idx()= 0;
+  virtual uint password_lifetime_idx()= 0;
+  virtual uint account_locked_idx()= 0;
+
+  virtual ~Acl_load_user_table_schema() {}
+};
+
+/*
+  This class describes indices for the current mysql.user table schema.
+ */
+class Acl_load_user_table_current_schema : public Acl_load_user_table_schema
+{
+public:
+  uint host_idx() { return MYSQL_USER_FIELD_HOST; }
+  uint user_idx() { return MYSQL_USER_FIELD_USER; }
+  //not available
+  uint password_idx() { DBUG_ASSERT(0); return MYSQL_USER_FIELD_COUNT; }
+  uint select_priv_idx() { return MYSQL_USER_FIELD_SELECT_PRIV; }
+  uint insert_priv_idx() { return MYSQL_USER_FIELD_INSERT_PRIV; }
+  uint update_priv_idx() { return MYSQL_USER_FIELD_UPDATE_PRIV; }
+  uint delete_priv_idx() { return MYSQL_USER_FIELD_DELETE_PRIV; }
+  uint create_priv_idx() { return MYSQL_USER_FIELD_CREATE_PRIV; }
+  uint drop_priv_idx() { return MYSQL_USER_FIELD_DROP_PRIV; }
+  uint reload_priv_idx() { return MYSQL_USER_FIELD_RELOAD_PRIV; }
+  uint shutdown_priv_idx() { return MYSQL_USER_FIELD_SHUTDOWN_PRIV; }
+  uint process_priv_idx() { return MYSQL_USER_FIELD_PROCESS_PRIV; }
+  uint file_priv_idx() { return MYSQL_USER_FIELD_FILE_PRIV; }
+  uint grant_priv_idx() { return MYSQL_USER_FIELD_GRANT_PRIV; }
+  uint references_priv_idx() { return MYSQL_USER_FIELD_REFERENCES_PRIV; }
+  uint index_priv_idx() { return MYSQL_USER_FIELD_INDEX_PRIV; }
+  uint alter_priv_idx() { return MYSQL_USER_FIELD_ALTER_PRIV; }
+  uint show_db_priv_idx() { return MYSQL_USER_FIELD_SHOW_DB_PRIV; }
+  uint super_priv_idx() { return MYSQL_USER_FIELD_SUPER_PRIV; }
+  uint create_tmp_table_priv_idx()
+  {
+    return MYSQL_USER_FIELD_CREATE_TMP_TABLE_PRIV;
+  }
+  uint lock_tables_priv_idx() { return MYSQL_USER_FIELD_LOCK_TABLES_PRIV; }
+  uint execute_priv_idx() { return MYSQL_USER_FIELD_EXECUTE_PRIV; }
+  uint repl_slave_priv_idx() { return MYSQL_USER_FIELD_REPL_SLAVE_PRIV; }
+  uint repl_client_priv_idx() { return MYSQL_USER_FIELD_REPL_CLIENT_PRIV; }
+  uint create_view_priv_idx() { return MYSQL_USER_FIELD_CREATE_VIEW_PRIV; }
+  uint show_view_priv_idx() { return MYSQL_USER_FIELD_SHOW_VIEW_PRIV; }
+  uint create_routine_priv_idx()
+  {
+    return MYSQL_USER_FIELD_CREATE_ROUTINE_PRIV;
+  }
+  uint alter_routine_priv_idx() { return MYSQL_USER_FIELD_ALTER_ROUTINE_PRIV; }
+  uint create_user_priv_idx() { return MYSQL_USER_FIELD_CREATE_USER_PRIV; }
+  uint event_priv_idx() { return MYSQL_USER_FIELD_EVENT_PRIV; }
+  uint trigger_priv_idx() { return MYSQL_USER_FIELD_TRIGGER_PRIV; }
+  uint create_tablespace_priv_idx()
+  {
+    return MYSQL_USER_FIELD_CREATE_TABLESPACE_PRIV;
+  }
+  uint ssl_type_idx() { return MYSQL_USER_FIELD_SSL_TYPE; }
+  uint ssl_cipher_idx() { return MYSQL_USER_FIELD_SSL_CIPHER; }
+  uint x509_issuer_idx() { return MYSQL_USER_FIELD_X509_ISSUER; }
+  uint x509_subject_idx() { return MYSQL_USER_FIELD_X509_SUBJECT; }
+  uint max_questions_idx() { return MYSQL_USER_FIELD_MAX_QUESTIONS; }
+  uint max_updates_idx() { return MYSQL_USER_FIELD_MAX_UPDATES; }
+  uint max_connections_idx() { return MYSQL_USER_FIELD_MAX_CONNECTIONS; }
+  uint max_user_connections_idx()
+  {
+    return MYSQL_USER_FIELD_MAX_USER_CONNECTIONS;
+  }
+  uint plugin_idx() { return MYSQL_USER_FIELD_PLUGIN; }
+  uint authentication_string_idx()
+  {
+    return MYSQL_USER_FIELD_AUTHENTICATION_STRING;
+  }
+  uint password_expired_idx() { return MYSQL_USER_FIELD_PASSWORD_EXPIRED; }
+  uint password_last_changed_idx()
+  {
+    return MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED;
+  }
+  uint password_lifetime_idx() { return MYSQL_USER_FIELD_PASSWORD_LIFETIME; }
+  uint account_locked_idx() { return MYSQL_USER_FIELD_ACCOUNT_LOCKED; }
+};
+
+/*
+  This class describes indices for the old mysql.user table schema.
+ */
+class Acl_load_user_table_old_schema : public Acl_load_user_table_schema
+{
+public:
+  enum mysql_user_table_field_56
+  {
+    MYSQL_USER_FIELD_HOST_56= 0,
+    MYSQL_USER_FIELD_USER_56,
+    MYSQL_USER_FIELD_PASSWORD_56,
+    MYSQL_USER_FIELD_SELECT_PRIV_56,
+    MYSQL_USER_FIELD_INSERT_PRIV_56,
+    MYSQL_USER_FIELD_UPDATE_PRIV_56,
+    MYSQL_USER_FIELD_DELETE_PRIV_56,
+    MYSQL_USER_FIELD_CREATE_PRIV_56,
+    MYSQL_USER_FIELD_DROP_PRIV_56,
+    MYSQL_USER_FIELD_RELOAD_PRIV_56,
+    MYSQL_USER_FIELD_SHUTDOWN_PRIV_56,
+    MYSQL_USER_FIELD_PROCESS_PRIV_56,
+    MYSQL_USER_FIELD_FILE_PRIV_56,
+    MYSQL_USER_FIELD_GRANT_PRIV_56,
+    MYSQL_USER_FIELD_REFERENCES_PRIV_56,
+    MYSQL_USER_FIELD_INDEX_PRIV_56,
+    MYSQL_USER_FIELD_ALTER_PRIV_56,
+    MYSQL_USER_FIELD_SHOW_DB_PRIV_56,
+    MYSQL_USER_FIELD_SUPER_PRIV_56,
+    MYSQL_USER_FIELD_CREATE_TMP_TABLE_PRIV_56,
+    MYSQL_USER_FIELD_LOCK_TABLES_PRIV_56,
+    MYSQL_USER_FIELD_EXECUTE_PRIV_56,
+    MYSQL_USER_FIELD_REPL_SLAVE_PRIV_56,
+    MYSQL_USER_FIELD_REPL_CLIENT_PRIV_56,
+    MYSQL_USER_FIELD_CREATE_VIEW_PRIV_56,
+    MYSQL_USER_FIELD_SHOW_VIEW_PRIV_56,
+    MYSQL_USER_FIELD_CREATE_ROUTINE_PRIV_56,
+    MYSQL_USER_FIELD_ALTER_ROUTINE_PRIV_56,
+    MYSQL_USER_FIELD_CREATE_USER_PRIV_56,
+    MYSQL_USER_FIELD_EVENT_PRIV_56,
+    MYSQL_USER_FIELD_TRIGGER_PRIV_56,
+    MYSQL_USER_FIELD_CREATE_TABLESPACE_PRIV_56,
+    MYSQL_USER_FIELD_SSL_TYPE_56,
+    MYSQL_USER_FIELD_SSL_CIPHER_56,
+    MYSQL_USER_FIELD_X509_ISSUER_56,
+    MYSQL_USER_FIELD_X509_SUBJECT_56,
+    MYSQL_USER_FIELD_MAX_QUESTIONS_56,
+    MYSQL_USER_FIELD_MAX_UPDATES_56,
+    MYSQL_USER_FIELD_MAX_CONNECTIONS_56,
+    MYSQL_USER_FIELD_MAX_USER_CONNECTIONS_56,
+    MYSQL_USER_FIELD_PLUGIN_56,
+    MYSQL_USER_FIELD_AUTHENTICATION_STRING_56,
+    MYSQL_USER_FIELD_PASSWORD_EXPIRED_56,
+    MYSQL_USER_FIELD_COUNT_56
+  };
+
+  uint host_idx() { return MYSQL_USER_FIELD_HOST_56; }
+  uint user_idx() { return MYSQL_USER_FIELD_USER_56; }
+  uint password_idx() { return MYSQL_USER_FIELD_PASSWORD_56; }
+  uint select_priv_idx() { return MYSQL_USER_FIELD_SELECT_PRIV_56; }
+  uint insert_priv_idx() { return MYSQL_USER_FIELD_INSERT_PRIV_56; }
+  uint update_priv_idx() { return MYSQL_USER_FIELD_UPDATE_PRIV_56; }
+  uint delete_priv_idx() { return MYSQL_USER_FIELD_DELETE_PRIV_56; }
+  uint create_priv_idx() { return MYSQL_USER_FIELD_CREATE_PRIV_56; }
+  uint drop_priv_idx() { return MYSQL_USER_FIELD_DROP_PRIV_56; }
+  uint reload_priv_idx() { return MYSQL_USER_FIELD_RELOAD_PRIV_56; }
+  uint shutdown_priv_idx() { return MYSQL_USER_FIELD_SHUTDOWN_PRIV_56; }
+  uint process_priv_idx() { return MYSQL_USER_FIELD_PROCESS_PRIV_56; }
+  uint file_priv_idx() { return MYSQL_USER_FIELD_FILE_PRIV_56; }
+  uint grant_priv_idx() { return MYSQL_USER_FIELD_GRANT_PRIV_56; }
+  uint references_priv_idx() { return MYSQL_USER_FIELD_REFERENCES_PRIV_56; }
+  uint index_priv_idx() { return MYSQL_USER_FIELD_INDEX_PRIV_56; }
+  uint alter_priv_idx() { return MYSQL_USER_FIELD_ALTER_PRIV_56; }
+  uint show_db_priv_idx() { return MYSQL_USER_FIELD_SHOW_DB_PRIV_56; }
+  uint super_priv_idx() { return MYSQL_USER_FIELD_SUPER_PRIV_56; }
+  uint create_tmp_table_priv_idx()
+  {
+    return MYSQL_USER_FIELD_CREATE_TMP_TABLE_PRIV_56;
+  }
+  uint lock_tables_priv_idx() { return MYSQL_USER_FIELD_LOCK_TABLES_PRIV_56; }
+  uint execute_priv_idx() { return MYSQL_USER_FIELD_EXECUTE_PRIV_56; }
+  uint repl_slave_priv_idx() { return MYSQL_USER_FIELD_REPL_SLAVE_PRIV_56; }
+  uint repl_client_priv_idx() { return MYSQL_USER_FIELD_REPL_CLIENT_PRIV_56; }
+  uint create_view_priv_idx() { return MYSQL_USER_FIELD_CREATE_VIEW_PRIV_56; }
+  uint show_view_priv_idx() { return MYSQL_USER_FIELD_SHOW_VIEW_PRIV_56; }
+  uint create_routine_priv_idx()
+  {
+    return MYSQL_USER_FIELD_CREATE_ROUTINE_PRIV_56;
+  }
+  uint alter_routine_priv_idx()
+  {
+    return MYSQL_USER_FIELD_ALTER_ROUTINE_PRIV_56;
+  }
+  uint create_user_priv_idx() { return MYSQL_USER_FIELD_CREATE_USER_PRIV_56; }
+  uint event_priv_idx() { return MYSQL_USER_FIELD_EVENT_PRIV_56; }
+  uint trigger_priv_idx() { return MYSQL_USER_FIELD_TRIGGER_PRIV_56; }
+  uint create_tablespace_priv_idx()
+  {
+    return MYSQL_USER_FIELD_CREATE_TABLESPACE_PRIV_56;
+  }
+  uint ssl_type_idx() { return MYSQL_USER_FIELD_SSL_TYPE_56; }
+  uint ssl_cipher_idx() { return MYSQL_USER_FIELD_SSL_CIPHER_56; }
+  uint x509_issuer_idx() { return MYSQL_USER_FIELD_X509_ISSUER_56; }
+  uint x509_subject_idx() { return MYSQL_USER_FIELD_X509_SUBJECT_56; }
+  uint max_questions_idx() { return MYSQL_USER_FIELD_MAX_QUESTIONS_56; }
+  uint max_updates_idx() { return MYSQL_USER_FIELD_MAX_UPDATES_56; }
+  uint max_connections_idx() { return MYSQL_USER_FIELD_MAX_CONNECTIONS_56; }
+  uint max_user_connections_idx()
+  {
+    return MYSQL_USER_FIELD_MAX_USER_CONNECTIONS_56;
+  }
+  uint plugin_idx() { return MYSQL_USER_FIELD_PLUGIN_56; }
+  uint authentication_string_idx()
+  {
+    return MYSQL_USER_FIELD_AUTHENTICATION_STRING_56;
+  }
+  uint password_expired_idx() { return MYSQL_USER_FIELD_PASSWORD_EXPIRED_56; }
+
+  //those fields are not available in 5.6 db schema
+  uint password_last_changed_idx() { return MYSQL_USER_FIELD_COUNT_56; }
+  uint password_lifetime_idx() { return MYSQL_USER_FIELD_COUNT_56; }
+  uint account_locked_idx() { return MYSQL_USER_FIELD_COUNT_56; }
+};
+
+
+class Acl_load_user_table_schema_factory
+{
+public:
+  virtual Acl_load_user_table_schema* get_user_table_schema(TABLE *table)
+  {
+    return is_old_user_table_schema(table) ?
+      (Acl_load_user_table_schema*) new Acl_load_user_table_old_schema():
+      (Acl_load_user_table_schema*) new Acl_load_user_table_current_schema();
+  }
+
+  virtual bool is_old_user_table_schema(TABLE* table)
+  {
+    Field *password_field=
+      table->field[Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
+    return strncmp(password_field->field_name, "Password", 8) == 0;
+  }
+  virtual ~Acl_load_user_table_schema_factory() {}
 };
 
 extern const TABLE_FIELD_DEF mysql_db_table_def;

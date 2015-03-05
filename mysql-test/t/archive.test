@@ -3,7 +3,7 @@
 # Taken FROM the select test
 #
 -- source include/have_archive.inc
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/force_binlog_format_statement.inc
 -- source include/have_innodb_16k.inc
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -1796,3 +1796,5 @@ CREATE TABLE t1 (a INT) ENGINE=ARCHIVE;
 CREATE TABLE t2 SELECT * FROM t1;
 SELECT * FROM t2;
 DROP TABLE t1, t2;
+
+--source include/restore_default_binlog_format.inc

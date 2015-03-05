@@ -1,7 +1,5 @@
 DROP TABLE IF EXISTS t1;
 SET SQL_MODE='TRADITIONAL';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL KEY );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -19,6 +17,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -39,6 +39,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -59,6 +61,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -79,6 +83,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -99,6 +105,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -119,6 +127,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -139,6 +149,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -159,6 +171,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -179,6 +193,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -199,6 +215,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -219,6 +237,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -239,6 +259,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -259,6 +281,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -279,6 +303,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -299,6 +325,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -319,6 +347,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -339,6 +369,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -359,6 +391,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -379,6 +413,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -399,6 +435,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -419,6 +457,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -439,6 +479,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -459,6 +501,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -479,6 +523,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -499,6 +545,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -519,6 +567,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -539,6 +589,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -559,6 +611,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -579,6 +633,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -599,6 +655,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -619,6 +677,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -639,6 +699,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -659,6 +721,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -679,6 +743,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -699,6 +765,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -719,6 +787,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -739,6 +809,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -759,6 +831,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -779,6 +853,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -799,6 +875,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -819,6 +897,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -839,6 +919,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -859,6 +941,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -879,6 +963,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -899,6 +985,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -919,6 +1007,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -939,6 +1029,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -959,6 +1051,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -979,6 +1073,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -999,6 +1095,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1019,6 +1117,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1039,6 +1139,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1059,6 +1161,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1079,6 +1183,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1099,6 +1205,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1119,6 +1227,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1139,6 +1249,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1159,6 +1271,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1179,6 +1293,8 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET SQL_MODE='TRADITIONAL';
 Warnings:
 Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
@@ -1199,3 +1315,5 @@ DROP TABLE t1;
 SHOW TABLES;
 Tables_in_test
 SET SQL_MODE='';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.

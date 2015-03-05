@@ -153,6 +153,20 @@ int yylex(void *yylval, void *yythd);
       MYSQL_YYABORT;                                   \
   } while(0)
 
+/**
+  PT_statement::make_cmd() wrapper to raise postponed error message on OOM
+
+  @note x may be NULL because of OOM error.
+*/
+#define MAKE_CMD(x)                                     \
+  do                                                    \
+  {                                                     \
+    if (YYTHD->is_error())                              \
+      MYSQL_YYABORT;                                    \
+    Lex->m_sql_cmd= (x)->make_cmd(YYTHD);               \
+  } while(0)
+
+
 #ifndef DBUG_OFF
 #define YYDEBUG 1
 #else
@@ -1626,7 +1640,7 @@ statement:
         | commit
         | create
         | deallocate
-        | delete_stmt           {  Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | delete_stmt           {  MAKE_CMD($1); }
         | describe
         | do
         | drop
@@ -1637,7 +1651,7 @@ statement:
         | grant
         | handler
         | help
-        | insert_stmt           { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | insert_stmt           { MAKE_CMD($1); }
         | install
         | kill
         | load
@@ -1652,7 +1666,7 @@ statement:
         | release
         | rename
         | repair
-        | replace_stmt          { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | replace_stmt          { MAKE_CMD($1); }
         | reset
         | resignal_stmt
         | revoke
@@ -1667,7 +1681,7 @@ statement:
         | truncate
         | uninstall
         | unlock
-        | update_stmt           { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | update_stmt           { MAKE_CMD($1); }
         | use
         | xa
         ;
@@ -12091,10 +12105,10 @@ describe:
 
 explainable_command:
           select  { CONTEXTUALIZE($1); }
-        | insert_stmt      { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
-        | replace_stmt     { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
-        | update_stmt      { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
-        | delete_stmt      { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | insert_stmt                           { MAKE_CMD($1); }
+        | replace_stmt                          { MAKE_CMD($1); }
+        | update_stmt                           { MAKE_CMD($1); }
+        | delete_stmt                           { MAKE_CMD($1); }
         | FOR_SYM CONNECTION_SYM real_ulong_num
           {
             Lex->sql_command= SQLCOM_EXPLAIN_OTHER;

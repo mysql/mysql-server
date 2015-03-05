@@ -12879,6 +12879,8 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (c1 decimal(19,14) NOT NULL) ENGINE=ARCHIVE;
 CALL mtr.add_suppression("Found wrong key definition in #sql.* Please do \"ALTER TABLE `#sql.*` FORCE \" to fix it!");
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE INDEX i1 ON t1(c1);
 ERROR HY000: Got error -1 from storage engine
 SHOW WARNINGS;

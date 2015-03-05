@@ -10,6 +10,11 @@
 # privilgeges.
 --source include/not_embedded.inc
 
+set @orig_sql_mode_session= @@SESSION.sql_mode;
+set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
+set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
+
 USE test;
 --source suite/funcs_1/include/tb3.inc
 
@@ -653,3 +658,6 @@ let $message=Testcase: 3.5.3.x:;
 
 use test;
 drop table tb3;
+
+set GLOBAL sql_mode= @orig_sql_mode_global;
+set SESSION sql_mode= @orig_sql_mode_session;

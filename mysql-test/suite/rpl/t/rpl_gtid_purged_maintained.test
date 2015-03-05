@@ -59,8 +59,8 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 --let $corruption_mode_count= 2
 --let $restart_count= 2
 --let $flush_count= 2
---let $corruption_mode_flag_0=
 --let $corruption_mode_flag_1= --debug=d,skip_writing_previous_gtids_log_event
+--let $corruption_mode_flag_2=
 # Does not work: --let $corruption_mode_flag_2= --debug=d,write_partial_previous_gtids_log_event
 
 --let $corruption_mode= 1

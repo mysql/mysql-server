@@ -253,12 +253,8 @@ mecab_parser_parse(
 	MYSQL_FTPARSER_PARAM*	param)
 {
 	MeCab::Lattice*			mecab_lattice = NULL;
-	MYSQL_FTPARSER_BOOLEAN_INFO 	bool_info =
+	MYSQL_FTPARSER_BOOLEAN_INFO	bool_info =
 		{ FT_TOKEN_WORD, 0, 0, 0, 0, 0, ' ', 0};
-	const CHARSET_INFO*		cs = param->cs;
-	uchar**		start = reinterpret_cast<uchar**>(&(param->doc));
-	uchar*		end = *start + param->length;
-	FT_WORD		word = {NULL, 0, 0};
 	int		ret = 0;
 	const char*	csname = NULL;
 
@@ -294,18 +290,37 @@ mecab_parser_parse(
 		return(1);
 	}
 
+	/* Allocate a new string with '\0' in the end to avoid
+	valgrind error "Invalid read of size 1" in mecab. */
+	DBUG_ASSERT(param->length >= 0);
+	int	doc_length = param->length;
+	char*	doc = reinterpret_cast<char*>(malloc(doc_length + 1));
+
+	if (doc == NULL) {
+		my_error(ER_OUTOFMEMORY, MYF(0), doc_length);
+		return(1);
+	}
+
+	memcpy(doc, param->doc, doc_length);
+	doc[doc_length]= '\0';
+
 	switch(param->mode) {
 	case MYSQL_FTPARSER_SIMPLE_MODE:
 	case MYSQL_FTPARSER_WITH_STOPWORDS:
-		ret = mecab_parse(mecab_lattice, param, param->doc,
-				  param->length, &bool_info);
+		ret = mecab_parse(mecab_lattice, param, doc,
+				  doc_length, &bool_info);
 
 		break;
 
 	case MYSQL_FTPARSER_FULL_BOOLEAN_INFO:
-		while (fts_get_word(cs, start, end, &word, &bool_info)) {
+		uchar*		start = reinterpret_cast<uchar*>(doc);
+		uchar*		end = start + doc_length;
+		FT_WORD		word = {NULL, 0, 0};
+
+		while (fts_get_word(param->cs, &start, end, &word, &bool_info)) {
 			/* Don't convert term with wildcard. */
-			if (bool_info.type == FT_TOKEN_WORD && !bool_info.trunc) {
+			if (bool_info.type == FT_TOKEN_WORD
+			    && !bool_info.trunc) {
 				ret = mecab_parse(
 					mecab_lattice,
 					param,
@@ -326,6 +341,7 @@ mecab_parser_parse(
 		}
 	}
 
+	free(doc);
 	delete mecab_lattice;
 
 	return(ret);

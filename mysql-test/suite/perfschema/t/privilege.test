@@ -3,6 +3,9 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+
 show grants;
 
 grant ALL on *.* to 'pfs_user_1'@localhost with GRANT OPTION;
@@ -329,3 +332,4 @@ UPDATE performance_schema.setup_timers SET timer_name = 'CYCLE'       where name
 UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name="stage";
 UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name="statement";
 
+set sql_mode= @orig_sql_mode;

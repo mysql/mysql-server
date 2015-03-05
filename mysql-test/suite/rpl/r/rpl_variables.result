@@ -34,7 +34,11 @@ SET @@local.default_week_format = 2;
 SET @@global.lc_time_names = 'zh_HK';
 SET @@local.lc_time_names = 'zh_TW';
 SET @@global.sql_mode = 'ALLOW_INVALID_DATES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @@local.sql_mode = 'ANSI_QUOTES,HIGH_NOT_PRECEDENCE';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @user_num = 10;
 SET @user_text = 'Alunda';
 include/stop_slave.inc
@@ -131,13 +135,17 @@ SET @@local.lc_time_names = 'ar_IQ';
 INSERT INTO tstmt(text) VALUES (@@global.lc_time_names);
 INSERT INTO tstmt(text) VALUES (@@local.lc_time_names);
 SET @@global.sql_mode = '';
-SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
 INSERT INTO tstmt(text) VALUES (@@global.sql_mode);
 INSERT INTO tstmt(text) VALUES (@@local.sql_mode);
 SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @@local.sql_mode = 'NO_FIELD_OPTIONS,NO_KEY_OPTIONS,NO_TABLE_OPTIONS';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT INTO tstmt(text) VALUES (@@global.sql_mode);
 INSERT INTO tstmt(text) VALUES (@@local.sql_mode);
 ---- user variables ----
@@ -530,7 +538,11 @@ Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be ma
 EXECUTE p51;
 EXECUTE p52;
 EXECUTE p53;
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 EXECUTE p54;
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 EXECUTE p55;
 EXECUTE p56;
 EXECUTE p57;
@@ -592,6 +604,8 @@ SET @@global.low_priority_updates= @m_low_priority_updates;
 SET @@global.relay_log_purge=      @m_relay_log_purge;
 SET @@global.slave_exec_mode=      @m_slave_exec_mode;
 SET @@global.sql_mode=             @m_sql_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @@global.sync_binlog=          @m_sync_binlog;
 [on slave]
 SET @@global.default_week_format=  @s_default_week_format;
@@ -601,6 +615,8 @@ SET @@global.low_priority_updates= @s_low_priority_updates;
 SET @@global.relay_log_purge=      @s_relay_log_purge;
 SET @@global.slave_exec_mode=      @s_slave_exec_mode;
 SET @@global.sql_mode=             @s_sql_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @@global.sync_binlog=          @s_sync_binlog;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

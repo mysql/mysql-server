@@ -1,3 +1,7 @@
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 drop tables if exists t1, t2;
 drop view if exists v1;
 delete from mysql.user where user like 'mysqltest\_%';
@@ -80,3 +84,6 @@ create view v1 as select a, convert_tz(b, 'UTC', 'Europe/Moscow') as lb from t1,
 ERROR 42000: ANY command denied to user 'mysqltest_1'@'localhost' for table 'time_zone'
 drop table t1;
 drop user mysqltest_1@localhost;
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.

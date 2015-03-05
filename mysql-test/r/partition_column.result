@@ -185,6 +185,8 @@ t1	CREATE TABLE `t1` (
  PARTITION p2 VALUES IN ('\0') ENGINE = InnoDB) */
 drop table t1;
 set @@sql_mode=allow_invalid_dates;
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (a char, b char, c date)
 partition by range columns (a,b,c)
 ( partition p0 values less than (0,0,to_days('3000-11-31')));
