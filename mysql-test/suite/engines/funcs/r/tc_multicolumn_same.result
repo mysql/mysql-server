@@ -1,5 +1,7 @@
 DROP TABLE IF EXISTS m1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE m1(c1 BIT NULL, c2 BIT NOT NULL, c3 BIT NULL, c4 BIT NOT NULL PRIMARY KEY, c5 BIT NOT NULL UNIQUE KEY);
 SHOW TABLES;
 Tables_in_test

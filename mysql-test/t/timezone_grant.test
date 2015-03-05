@@ -5,6 +5,9 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+
 --disable_warnings
 drop tables if exists t1, t2;
 drop view if exists v1;
@@ -118,6 +121,8 @@ connection default;
 disconnect tzuser3;
 drop table t1;
 drop user mysqltest_1@localhost;
+
+set sql_mode= @orig_sql_mode;
 
 # End of 5.0 tests
 

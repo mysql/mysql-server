@@ -1389,7 +1389,10 @@ let $cleanup_stmt= ;
 --echo # 29) REVOKE variants.
 --echo # 
 --echo # 29.1) REVOKE privileges is incompatible with FTWRL. 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 grant all privileges on t1_base to mysqltest_u1;
+set sql_mode= @orig_sql_mode;
 let $statement= revoke all privileges on t1_base from mysqltest_u1;
 let $cleanup_stmt1= grant all privileges on t1_base to mysqltest_u1;
 --echo # Skip last part of testing as this statement does

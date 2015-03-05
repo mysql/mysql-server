@@ -4,6 +4,8 @@ DROP TABLE IF EXISTS t1, t2, t3, t, tp, tsp, tmp;
 #               ROW_FORMAT WAS SET EXPLICITLY
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 # Same definition (both have ROW_FORMAT set)
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,

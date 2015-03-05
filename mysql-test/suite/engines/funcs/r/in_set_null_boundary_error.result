@@ -1,6 +1,4 @@
 SET SQL_MODE="TRADITIONAL,ANSI";
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE IF EXISTS t7;
 CREATE TABLE t7(c1 SET('a','abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij') NULL);
 INSERT INTO t7(c1) VALUES(NULL);

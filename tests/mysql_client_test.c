@@ -16408,6 +16408,8 @@ static void test_change_user()
                          opt_unix_socket, 0);
   DIE_UNLESS(l_mysql != 0);
 
+  rc = mysql_query(l_mysql, "set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''))");
+  myquery2(l_mysql, rc);
 
   /* Prepare environment */
   sprintf(buff, "drop database if exists %s", db);

@@ -1,17 +1,3 @@
--- Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
---
--- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License as published by
--- the Free Software Foundation; version 2 of the License.
---
--- This program is distributed in the hope that it will be useful,
--- but WITHOUT ANY WARRANTY; without even the implied warranty of
--- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License for more details.
---
--- You should have received a copy of the GNU General Public License
--- along with this program; if not, write to the Free Software Foundation,
--- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 create database mtr;
 create database test;
 delimiter ||;
@@ -178,6 +164,8 @@ INSERT INTO global_suppressions VALUES
  ("No existing UUID has been found, so we assume that this is the first time that this server has been started.*"),
  /*It will print a warning if server is run without --explicit_defaults_for_timestamp.*/
  ("TIMESTAMP with implicit DEFAULT value is deprecated. Please use --explicit_defaults_for_timestamp server option (see documentation for more details)*"),
+ /*It will print a warning if a server is run without NO_AUTO_CREATE_USER sql mode.*/
+ ("'NO_AUTO_CREATE_USER' sql mode is not set. It will be made read-only in a future release."),
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 

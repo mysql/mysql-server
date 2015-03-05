@@ -65,6 +65,8 @@ t
 0000-00-00 00:00:00
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());
 Warnings:
@@ -96,6 +98,8 @@ id	dt
 4	2003-09-15 01:20:30
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE `t1` (
 `date` datetime NOT NULL default '0000-00-00 00:00:00',
 `numfacture` int(6) unsigned NOT NULL default '0',
@@ -224,8 +228,6 @@ insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
 Note	1292	Incorrect date value: '2007-03-23 13:49:38' for column 'da' at row 1
 set @@sql_mode='ansi,traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
 Note	1292	Incorrect date value: '2007-03-23 13:49:38' for column 'da' at row 1
@@ -620,8 +622,6 @@ insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
 Note	1292	Incorrect date value: '2007-03-23 13:49:38' for column 'da' at row 1
 set @@sql_mode='ansi,traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
 Note	1292	Incorrect date value: '2007-03-23 13:49:38' for column 'da' at row 1
@@ -804,6 +804,8 @@ DROP TABLE if EXISTS t1, t2, t3;
 SET @org_mode=@@sql_mode;
 #Table creation in strict mode
 SET @@sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (c1 DATETIME DEFAULT 0);
 ERROR 42000: Invalid default value for 'c1'
 CREATE TABLE t1 (c1 DATETIME DEFAULT '0000-00-00 00:00:00');
@@ -832,6 +834,8 @@ ALTER TABLE t1 ADD c3 DATETIME DEFAULT '0000-00-00';
 ALTER TABLE t1 ADD c4 DATETIME DEFAULT '2012-02-00';
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
+Warnings:
+Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 # END of Test for bug#11747847 - 34280
 #
 # End of 5.6 tests

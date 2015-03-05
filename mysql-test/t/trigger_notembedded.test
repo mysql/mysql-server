@@ -953,7 +953,10 @@ DROP DATABASE IF EXISTS mysqltest_db1;
 CREATE DATABASE mysqltest_db1;
 USE mysqltest_db1;
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL ON mysqltest_db1.* TO mysqltest_u1@localhost;
+set sql_mode= @orig_sql_mode;
 
 --connect(con1,localhost,mysqltest_u1,,mysqltest_db1)
 

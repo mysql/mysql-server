@@ -2,6 +2,8 @@
 # Test of the case when two rewrite rule pattern have the same digest.
 #
 SET sql_mode = 'PIPES_AS_CONCAT';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 ( a VARCHAR(10) );
 # Query rewrite plugin was installed.
 # This will supposedly fill up the token buffer.

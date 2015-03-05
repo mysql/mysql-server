@@ -14,6 +14,11 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+#
+# Remove NO_AUTO_CREATE_USER sql mode (default since 5.7).
+#
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 
 # Test for information_schema.schemata &
 # show databases
@@ -1920,3 +1925,5 @@ having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
 
 eval EXPLAIN $query;
 eval $query;
+
+set sql_mode= @orig_sql_mode;

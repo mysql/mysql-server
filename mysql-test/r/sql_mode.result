@@ -5,9 +5,11 @@ a int not null auto_increment,
 `pseudo` varchar(35) character set latin2 NOT NULL default '',
 `email` varchar(60) character set latin2 NOT NULL default '',
 PRIMARY KEY  (a),
-UNIQUE KEY `email` USING BTREE (`email`) 
+UNIQUE KEY `email` USING BTREE (`email`)
 ) ENGINE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
 set @@sql_mode="";
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 show variables like 'sql_mode';
 Variable_name	Value
 sql_mode	
@@ -94,6 +96,8 @@ b char(10) collate latin1_bin,
 c binary(10)
 ) character set latin1;
 set @@sql_mode="";
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -168,7 +172,7 @@ show local variables like 'SQL_MODE';
 Variable_name	Value
 sql_mode	
 CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p));
-INSERT t1 (a) VALUES 
+INSERT t1 (a) VALUES
 ('\\'),
 ('\n'),
 ('\b'),
@@ -291,7 +295,7 @@ show local variables like 'SQL_MODE';
 Variable_name	Value
 sql_mode	NO_BACKSLASH_ESCAPES
 CREATE TABLE t1 (p int not null auto_increment, a varchar(20), primary key(p));
-INSERT t1 (a) VALUES 
+INSERT t1 (a) VALUES
 ('\\'),
 ('\n'),
 ('\b'),
@@ -336,7 +340,7 @@ p	hex(a)
 19	5C5C5C25
 20	5C5C5C5C25
 delete from t1 where a in ('\n','\r','\t', '\b');
-select 
+select
 masks.p,
 masks.a as mask,
 examples.a as example
@@ -516,6 +520,8 @@ SELECT @@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%';
 @@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%'
 1
 SET sql_mode=@org_mode;
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE IF EXISTS t1,t2;
 CREATE USER 'user_PCTFL'@'localhost' identified by 'PWD';
 CREATE USER 'user_no_PCTFL'@'localhost' identified by 'PWD';
@@ -740,7 +746,7 @@ DROP TABLE test_table;
 DROP FUNCTION test_function;
 SET @@sql_mode= @org_mode;
 
-#End of Test for Bug#12601974 
+#End of Test for Bug#12601974
 #
 # BUG#18311187 - SQL_MODE IS CHANGED TO WRONG VALUE AFTER DUMP/DATA
 #                UPGRADE FOR TRIGGERS

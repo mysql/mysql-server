@@ -42,7 +42,10 @@
 --echo
 
 --connection master
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT REPLICATION SLAVE ON *.* TO replssl@localhost REQUIRE SSL;
+set sql_mode= @orig_sql_mode;
 --source include/sync_slave_sql_with_master.inc
 
 --echo

@@ -444,7 +444,10 @@ source include/implicit_commit_helper.inc;
 
 let $statement=
   grant all on test.t1 to mysqltest_2@localhost with grant option;
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 source include/implicit_commit_helper.inc;
+set sql_mode= @orig_sql_mode;
 
 --echo #
 --echo # SQLCOM_REVOKE

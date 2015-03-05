@@ -11,8 +11,11 @@
 # Bug#41049 does syntax "grant" case insensitive?
 #
 create database db1;
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT CREATE ON db1.* to user_1@localhost;
 GRANT SELECT ON db1.* to USER_1@localhost;
+set sql_mode= @orig_sql_mode;
 
 connect (con1,localhost,user_1,,db1);
 CREATE TABLE t1(f1 int);

@@ -1,4 +1,6 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
 drop view if exists v1;
@@ -1246,6 +1248,8 @@ ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at 
 
 # -- Cleanup.
 SET sql_mode = '';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
