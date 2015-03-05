@@ -1321,6 +1321,7 @@ create table t1(a date,b text charset utf8,c linestring not null);
 insert into t1 values ('2015-01-01','a',linestring(point(1,1),point(2,2)));
 select distinct nullif(a,b) as c from t1 z order by z.c;
 set names default, sql_mode=default;
+drop table t1;
 
 #============================end && cleanup======================= 
 SET GLOBAL innodb_large_prefix=default;

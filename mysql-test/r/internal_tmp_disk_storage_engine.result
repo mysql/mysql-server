@@ -3082,6 +3082,7 @@ c
 Warnings:
 Warning	1292	Incorrect date value: 'a' for column 'a' at row 1
 set names default, sql_mode=default;
+drop table t1;
 SET GLOBAL innodb_large_prefix=default;
 Warnings:
 Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
