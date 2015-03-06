@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -313,17 +313,16 @@ write_char:
 
 int
 HugoCalculator::verifyRowValues(NDBT_ResultRow* const  pRow) const{
-  int id, updates;
-
-  id = pRow->attributeStore(m_idCol)->u_32_value();
-  updates = pRow->attributeStore(m_updatesCol)->u_32_value();
-  int result = 0;	  
+  const int id = getIdValue(pRow);
+  const int updates = pRow->attributeStore(m_updatesCol)->u_32_value();
+  int result = 0;
   
   // Check the values of each column
   for (int i = 0; i<m_tab.getNoOfColumns(); i++){
-    if (i != m_updatesCol && id != m_idCol) {
+    if (i != m_updatesCol && i != m_idCol) {
       const NdbDictionary::Column* attr = m_tab.getColumn(i);      
-      Uint32 len = attr->getSizeInBytes(), real_len;
+      const Uint32 len = attr->getSizeInBytes();
+      Uint32 real_len;
       char buf[NDB_MAX_TUPLE_SIZE];
       const char* res = calcValue(id, i, updates, buf, len, &real_len);
       if (res == NULL){
