@@ -2,7 +2,7 @@ Template: mysql-community-server/root-pass
 Type: password
 Description: Enter root password:
  Please provide a strong password that will be set for the root account of your MySQL database.
- Leave it blank if you do not wish to set or change the root password at this time.
+ Leave it blank to enable password less login using UNIX socket based authentication.
 
 Template: mysql-community-server/re-root-pass
 Type: password
