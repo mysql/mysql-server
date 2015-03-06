@@ -213,8 +213,8 @@ a	b	c
 # Show that the system tables have this table in them correctly.
 #
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t5980	test/t5980	65	6	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t5980	test/t5980	65	6	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -224,7 +224,7 @@ test/t5980	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd	DEFAULT	0	Compact or Redundant	S
 #
 DROP TABLE t5980;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -437,8 +437,8 @@ t5980	CREATE TABLE `t5980` (
 # Show that the system tables have this table in them correctly.
 #
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t5980	test/t5980	65	5	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t5980	test/t5980	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -495,11 +495,11 @@ t5980d	CREATE TABLE `t5980d` (
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t5980a	test/t5980a	1	5	Antelope	Compact	0	Single
-test/t5980b	test/t5980b	65	5	Antelope	Compact	0	Single
-test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
-test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t5980a	test/t5980a	1	5	Compact	0	Single
+test/t5980b	test/t5980b	65	5	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -558,11 +558,11 @@ ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 SHOW CREATE TABLE t5980d;
 ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t5980a	test/t5980a	1	5	Antelope	Compact	0	Single
-test/t5980b	test/t5980b	65	5	Antelope	Compact	0	Single
-test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
-test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t5980a	test/t5980a	1	5	Compact	0	Single
+test/t5980b	test/t5980b	65	5	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -628,11 +628,11 @@ ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 SHOW CREATE TABLE t5980d;
 ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t5980aa	test/t5980a	1	5	Antelope	Compact	0	Single
-test/t5980bb	test/t5980b	65	5	Antelope	Compact	0	Single
-test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
-test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t5980aa	test/t5980a	1	5	Compact	0	Single
+test/t5980bb	test/t5980b	65	5	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -695,11 +695,11 @@ t5980bb	CREATE TABLE `t5980bb` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t5980aa	test/t5980aa	1	5	Antelope	Compact	0	Single
-test/t5980bb	test/t5980bb	65	5	Antelope	Compact	0	Single
-test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
-test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t5980aa	test/t5980aa	1	5	Compact	0	Single
+test/t5980bb	test/t5980bb	65	5	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -749,11 +749,11 @@ t5980b	CREATE TABLE `t5980b` (
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t5980a	test/t5980aa	1	5	Antelope	Compact	0	Single
-test/t5980b	test/t5980bb	65	5	Antelope	Compact	0	Single
-test/t5980c	test/t5980c	1	5	Antelope	Compact	0	Single
-test/t5980d	test/t5980d	65	5	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t5980a	test/t5980aa	1	5	Compact	0	Single
+test/t5980b	test/t5980bb	65	5	Compact	0	Single
+test/t5980c	test/t5980c	1	5	Compact	0	Single
+test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -868,7 +868,7 @@ DROP TABLE t5980b;
 DROP TABLE t5980c;
 DROP TABLE t5980d;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
