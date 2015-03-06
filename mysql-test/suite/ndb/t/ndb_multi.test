@@ -338,6 +338,9 @@ ALTER DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123
 character set=utf8;
 
+# Read current mysqld datadir to use for masking
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 --echo #test alter table with this database
 CREATE DATABASE db1;
 CREATE TABLE db1.t1
@@ -349,7 +352,6 @@ RENAME abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123.t3;
 #replace win slashes since not using default database
 --replace_regex /[\\]/\// 
 #remove any absolute path in warning string
-let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLD_DATADIR ./ master-data/ '' 
 SHOW WARNINGS;
 --error ER_TOO_LONG_IDENT
