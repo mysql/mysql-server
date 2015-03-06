@@ -20,6 +20,7 @@
 #include "sql_lex.h"
 
 #include "current_thd.h"
+#include "mysqld.h"                    // table_alias_charset
 #include "sp_head.h"                   // sp_head
 #include "sql_class.h"                 // THD
 #include "sql_parse.h"                 // add_to_list

@@ -26,6 +26,7 @@
 #include "pfs_visitor.h"
 #include "current_thd.h"
 #include "sql_class.h"
+#include "mysqld.h"
 
 bool Find_THD_variable::operator()(THD *thd)
 {

@@ -32,6 +32,7 @@
 #include "sql_executor.h"         // SJ_TMP_TABLE
 #include "sql_plugin.h"           // plugin_unlock
 #include "current_thd.h"
+#include "mysqld.h"               // heap_hton use_temp_pool
 
 #include <algorithm>
 

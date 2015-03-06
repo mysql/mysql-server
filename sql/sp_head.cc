@@ -17,6 +17,7 @@
 #include "sp_head.h"
 
 #include "sql_cache.h"         // query_cache_*
+#include "mysqld.h"            // global_query_id
 #include "probes_mysql.h"
 #include "psi_memory_key.h"
 #include "sql_show.h"          // append_identifier

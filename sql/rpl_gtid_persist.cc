@@ -23,6 +23,7 @@
 #include "replication.h"      // THD_ENTER_COND
 #include "sql_base.h"         // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
 #include "sql_parse.h"        // mysql_reset_thd_for_next_command
+#include "mysqld.h"           // gtid_executed_compression_period
 
 using std::list;
 using std::string;

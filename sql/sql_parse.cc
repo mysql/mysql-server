@@ -23,6 +23,7 @@
 #include "item_timefunc.h"    // Item_func_unix_timestamp
 #include "log.h"              // query_logger
 #include "log_event.h"        // slave_execute_deferred_events
+#include "mysqld.h"           // stage_execution_of_init_command
 #include "mysqld_thd_manager.h" // Find_thd_with_id
 #include "opt_explain.h"      // mysql_explain_other
 #include "opt_trace.h"        // Opt_trace_start

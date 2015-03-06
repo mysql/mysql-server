@@ -26,6 +26,7 @@
 #include "current_thd.h"         // current_thd
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum_max
+#include "mysqld.h"              // in_left_expr_name
 #include "opt_trace.h"           // OPT_TRACE_TRANSFORM
 #include "parse_tree_nodes.h"    // PT_subselect
 #include "sql_class.h"           // THD

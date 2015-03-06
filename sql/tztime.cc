@@ -28,6 +28,7 @@
 #include "sql_base.h"                           // open_trans_system_tables_for_read,
                                                 // close_trans_system_tables
 #include "log.h"
+#include "mysqld.h"                             // global_system_variables
 #include "sql_class.h"
 #else
 #include <my_time.h>

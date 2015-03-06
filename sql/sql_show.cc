@@ -31,6 +31,7 @@
 #include "item.h"                           // Item_empty_string
 #include "item_cmpfunc.h"                   // Item_cond
 #include "log.h"                            // sql_print_warning
+#include "mysqld.h"                         // lower_case_table_names
 #include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "opt_trace.h"                      // fill_optimizer_trace_info
 #include "protocol.h"                       // Protocol

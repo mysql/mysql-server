@@ -2852,13 +2852,7 @@ class Item_func_version : public Item_static_string_func
 {
   typedef Item_static_string_func super;
 public:
-  explicit Item_func_version(const POS &pos)
-    : Item_static_string_func(pos, NAME_STRING("version()"),
-                              server_version,
-                              strlen(server_version),
-                              system_charset_info,
-                              DERIVATION_SYSCONST)
-  {}
+  explicit Item_func_version(const POS &pos);
 
   virtual bool itemize(Parse_context *pc, Item **res);
 };

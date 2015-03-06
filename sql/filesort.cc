@@ -33,6 +33,7 @@
 #include "filesort_utils.h"
 #include "sql_select.h"
 #include "debug_sync.h"
+#include "mysqld.h"                             // mysql_tmpdir
 #include "opt_trace.h"
 #include "sql_optimizer.h"              // JOIN
 #include "sql_base.h"

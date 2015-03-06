@@ -19,6 +19,7 @@
 #include "my_thread_local.h"   // my_errno
 #include "dynamic_ids.h"       // Server_ids
 #include "log.h"               // sql_print_error
+#include "mysqld.h"            // mysql_data_home
 #include "psi_memory_key.h"
 
 

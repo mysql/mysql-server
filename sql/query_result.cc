@@ -17,6 +17,7 @@
 
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD
+#include "mysqld.h"            // key_select_to_file
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

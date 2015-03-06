@@ -28,7 +28,7 @@ typedef class st_select_lex SELECT_LEX;
 
 bool mysql_update_prepare_table(THD *thd, SELECT_LEX *select);
 bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
-                          key_map *covering_keys_for_cond,
+                          Key_map *covering_keys_for_cond,
                           List<Item> &update_value_list);
 bool mysql_update(THD *thd, List<Item> &fields,
                   List<Item> &values, ha_rows limit,

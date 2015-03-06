@@ -200,7 +200,7 @@ public:
     return (double) rows /  20.0+1;
   }
 
-  const key_map *keys_to_use_for_scanning() { return &key_map_full; }
+  const Key_map *keys_to_use_for_scanning() { return &key_map_full; }
   /*
     Everything below are methods that we implment in ha_federated.cc.
 

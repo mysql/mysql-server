@@ -28,6 +28,7 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_buffer_container.h"
+#include "mysqld.h"                             // global_status_var
 
 /**
   @addtogroup Performance_schema_buffers

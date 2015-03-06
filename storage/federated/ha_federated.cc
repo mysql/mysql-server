@@ -382,6 +382,7 @@
 #include "key.h"                                // key_copy
 #include "myisam.h"                             // TT_USEFRM
 #include "current_thd.h"
+#include "mysqld.h"                             // my_localhost
 #include "sql_class.h"
 
 #include <algorithm>

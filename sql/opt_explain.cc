@@ -30,6 +30,7 @@
 #include "opt_trace.h"     // Opt_trace_*
 #include "sql_parse.h"     // is_explainable_query
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "mysqld.h"        // stage_explaining
 
 typedef qep_row::extra extra;
 
@@ -320,7 +321,7 @@ protected:
      condition_optim() instead.
   */
   QEP_TAB *tab;
-  key_map usable_keys;
+  Key_map usable_keys;
 
   Explain_table_base(enum_parsing_context context_type_arg,
                      THD *const thd_arg, SELECT_LEX *select_lex= NULL,

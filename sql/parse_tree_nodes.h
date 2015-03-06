@@ -1368,27 +1368,7 @@ public:
   : opt_charset(opt_charset_arg)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    int flags= opt_charset ? 0 : set_var_collation_client::SET_CS_DEFAULT;
-    const CHARSET_INFO *cs2;
-    cs2= opt_charset ? opt_charset
-                     : global_system_variables.character_set_client;
-    set_var_collation_client *var;
-    var= new set_var_collation_client(flags,
-                                      cs2,
-                                      thd->variables.collation_database,
-                                      cs2);
-    if (var == NULL)
-      return true;
-    lex->var_list.push_back(var);
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1437,34 +1417,7 @@ public:
   : opt_charset(opt_charset_arg), opt_collation(opt_collation_arg)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    const CHARSET_INFO *cs2;
-    const CHARSET_INFO *cs3;
-    int flags= set_var_collation_client::SET_CS_NAMES
-               | (opt_charset ? 0 : set_var_collation_client::SET_CS_DEFAULT)
-               | (opt_collation ? set_var_collation_client::SET_CS_COLLATE : 0);
-    cs2= opt_charset ? opt_charset 
-                     : global_system_variables.character_set_client;
-    cs3= opt_collation ? opt_collation : cs2;
-    if (!my_charset_same(cs2, cs3))
-    {
-      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
-               cs3->name, cs2->csname);
-      return true;
-    }
-    set_var_collation_client *var;
-    var= new set_var_collation_client(flags, cs3, cs3, cs3);
-    if (var == NULL)
-      return true;
-    lex->var_list.push_back(var);
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 

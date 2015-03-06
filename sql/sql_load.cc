@@ -20,6 +20,7 @@
 
 #include "sql_load.h"
 
+#include "mysqld.h"                             // mysql_real_data_home
 #include "psi_memory_key.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"          // fill_record_n_invoke_before_triggers

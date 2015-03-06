@@ -28,6 +28,7 @@
 #include "mysql_com.h"
 #include "rpl_info.h"
 #include "rpl_gtid.h"
+#include "sql_const.h"                          // UUID_LENGTH
 #include <mysql/plugin_group_replication.h>
 
 /**

@@ -31,6 +31,7 @@
 #include "log.h"
 #include "current_thd.h"
 #include "system_variables.h"
+#include "mysqld.h"
 
 #include <algorithm>
 

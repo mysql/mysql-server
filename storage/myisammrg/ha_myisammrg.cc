@@ -99,6 +99,7 @@
 #include "sql_class.h"                          // THD
 #include "debug_sync.h"
 #include "current_thd.h"
+#include "mysqld.h"
 
 #include <algorithm>
 

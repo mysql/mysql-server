@@ -16,6 +16,7 @@
 
 #include "my_global.h"
 #include "trigger_loader.h"
+#include "mysqld.h"       // key_file_trn global_system_variables
 #include "sql_class.h"
 #include "sp_head.h"      // sp_name
 #include "sql_base.h"     // is_equal(LEX_STRING, LEX_STRING)

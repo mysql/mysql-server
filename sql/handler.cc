@@ -29,6 +29,7 @@
 #include "discover.h"                 // writefrm
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
+#include "mysqld.h"                   // global_system_variables heap_hton ..
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "psi_memory_key.h"

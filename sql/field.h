@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 
+#include "decimal.h"                            // E_DEC_OOM
 #include "my_base.h"                            // ha_storage_media
 #include "my_compare.h"                         // portable_sizeof_char_ptr
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
@@ -593,10 +594,10 @@ public:
   const char	**table_name, *field_name;
   LEX_STRING	comment;
   /* Field is part of the following keys */
-  key_map key_start;                /* Keys that starts with this field */
-  key_map part_of_key;              /* All keys that includes this field */
-  key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
-  key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
+  Key_map key_start;                /* Keys that starts with this field */
+  Key_map part_of_key;              /* All keys that includes this field */
+  Key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
+  Key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
   /* 
     We use three additional unireg types for TIMESTAMP to overcome limitation 
     of current binary format of .frm file. We'd like to be able to support 

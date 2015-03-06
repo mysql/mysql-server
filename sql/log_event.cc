@@ -23,6 +23,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"        // debug_sync_set_action
 #include "my_dir.h"            // my_dir
+#include "mysqld.h"            // lower_case_table_names server_uuid ...
 #include "log.h"               // Log_throttle
 #include "rpl_mts_submode.h"   // Mts_submode
 #include "rpl_rli.h"           // Relay_log_info

@@ -19,6 +19,7 @@
 #include "sql_trigger.h"
 
 #include "auth_common.h"              // check_table_access
+#include "mysqld.h"                   // trust_function_creators
 #include "sp.h"                       // sp_add_to_query_tables()
 #include "sql_base.h"                 // find_temporary_table()
 #include "sql_table.h"                // build_table_filename()

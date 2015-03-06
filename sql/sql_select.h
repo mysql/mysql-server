@@ -617,9 +617,9 @@ public:
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression*/
   double	worst_seeks;
   /** Keys with constant part. Subset of keys. */
-  key_map	const_keys;
-  key_map	checked_keys;			/**< Keys checked */
-  key_map	needed_reg;
+  Key_map	const_keys;
+  Key_map	checked_keys;			/**< Keys checked */
+  Key_map	needed_reg;
 
   /**
     Used to avoid repeated range analysis for the same key in
@@ -629,7 +629,7 @@ public:
     this JOIN_TAB changes since a new condition may give another plan
     and cost from range analysis.
    */
-  key_map       quick_order_tested;
+  Key_map       quick_order_tested;
 
   /*
     Number of records that will be scanned (yes scanned, not returned) by the
@@ -855,7 +855,7 @@ typedef struct st_select_check {
 void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param, 
                        List<Item> &fields, bool reset_with_sum_func,
                        bool save_sum_fields);
-uint find_shortest_key(TABLE *table, const key_map *usable_keys);
+uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
@@ -1119,7 +1119,7 @@ int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
                          uint *used_key_parts= NULL);
 bool test_if_cheaper_ordering(const JOIN_TAB *tab,
                               ORDER *order, TABLE *table,
-                              key_map usable_keys, int key,
+                              Key_map usable_keys, int key,
                               ha_rows select_limit,
                               int *new_key, int *new_key_direction,
                               ha_rows *new_select_limit,

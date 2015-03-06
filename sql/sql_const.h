@@ -339,4 +339,6 @@ enum enum_mark_columns
 */
 #define MYSQLD_FAILURE_EXIT 2
 
+#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
+
 #endif /* SQL_CONST_INCLUDED */

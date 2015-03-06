@@ -26,6 +26,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 /* Include necessary SQL headers */
 #include <debug_sync.h>
 #include <log.h>
+#include <mysqld.h>
 #include <strfunc.h>
 #include <sql_acl.h>
 #include <sql_class.h>

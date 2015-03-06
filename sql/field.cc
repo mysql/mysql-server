@@ -26,9 +26,11 @@
 #include "field.h"
 
 #include "current_thd.h"
+#include "decimal.h"
 #include "filesort.h"                    // change_double_for_sort
 #include "item_timefunc.h"               // Item_func_now_local
 #include "log_event.h"                   // class Table_map_log_event
+#include "mysqld.h"                      // log_10
 #include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // rpl_master_has_bug
 #include "sql_class.h"                   // THD

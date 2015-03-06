@@ -17,6 +17,7 @@
 
 #include "hash.h"                           // HASH
 #include "log_event.h"                      // Query_log_event
+#include "mysqld.h"                         // stage_worker_....
 #include "rpl_rli.h"                        // Relay_log_info
 #include "rpl_rli_pdb.h"                    // db_worker_hash_entry
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager

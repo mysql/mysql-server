@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <debug_sync.h>
 #include <gstream.h>
 #include <log.h>
+#include <mysqld.h>
 #include <mysys_err.h>
 #include <strfunc.h>
 #include <sql_acl.h>
@@ -4265,7 +4266,7 @@ ha_innobase::max_supported_key_length() const
 Returns the key map of keys that are usable for scanning.
 @return key_map_full */
 
-const key_map*
+const Key_map*
 ha_innobase::keys_to_use_for_scanning()
 /*===================================*/
 {

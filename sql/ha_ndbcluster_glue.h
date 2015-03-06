@@ -35,6 +35,7 @@
 #include "auth_common.h"    // wild_case_compare
 #include "transaction.h"
 #include "item_cmpfunc.h"   // Item_func_like
+#include "mysqld.h"         // global_system_variables table_alias_charset ...
 #include "sql_test.h"       // print_where
 #include "key.h"            // key_restore
 #include "rpl_constants.h"  // Transid in Binlog

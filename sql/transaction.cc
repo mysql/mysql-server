@@ -24,6 +24,7 @@
 #include "sql_class.h"
 #include "log.h"
 #include "binlog.h"
+#include "mysqld.h"                             // opt_readonly
 
 /**
   Check if we have a condition where the transaction state must

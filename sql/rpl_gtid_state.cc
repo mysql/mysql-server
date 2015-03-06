@@ -20,6 +20,7 @@
 #include "rpl_gtid_persist.h"      // gtid_table_persistor
 #include "sql_class.h"             // THD
 #include "debug_sync.h"            // DEBUG_SYNC
+#include "mysqld.h"                // opt_bin_log
 
 
 int Gtid_state::clear(THD *thd)

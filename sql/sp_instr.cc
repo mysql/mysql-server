@@ -29,6 +29,7 @@
 #include "prealloced_array.h"
 #include "binlog.h"
 #include "item_cmpfunc.h" // Item_func_eq
+#include "mysqld.h"       // next_query_id
 
 #include <algorithm>
 #include <functional>

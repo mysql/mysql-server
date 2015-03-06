@@ -80,6 +80,7 @@
 #include "psi_memory_key.h"
 #include "auth_common.h"                   // SUPER_ACL
 #include "sql_class.h"
+#include "mysqld.h"                        // opt_readonly
 #include <hash.h>
 #include <assert.h>
 

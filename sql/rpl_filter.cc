@@ -17,6 +17,7 @@
 
 #include "auth_common.h"                // SUPER_ACL
 #include "item.h"                       // Item
+#include "mysqld.h"                     // table_alias_charset LOCK_msr_map
 #include "psi_memory_key.h"
 #include "rpl_mi.h"                     // Master_info
 #include "rpl_msr.h"                    // msr_map

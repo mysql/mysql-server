@@ -21,9 +21,10 @@
 #include "mysql_com.h"
 #include "sql_const.h"
 #include "auth/auth_acls.h"
-#include "mysqld.h"                             // system_charset_info
 
 #include <algorithm>
+
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 /**
   @class Security_context

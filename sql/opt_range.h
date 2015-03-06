@@ -992,12 +992,12 @@ private:
 
 class QEP_shared_owner;
 
-int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
+int test_quick_select(THD *thd, Key_map keys, table_map prev_tables,
                       ha_rows limit, bool force_quick_range,
                       const ORDER::enum_order interesting_order,
                       const QEP_shared_owner *tab,
                       Item *cond,
-                      key_map *needed_reg,
+                      Key_map *needed_reg,
                       QUICK_SELECT_I **quick);
 
 class FT_SELECT: public QUICK_RANGE_SELECT 

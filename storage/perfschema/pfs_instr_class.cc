@@ -21,6 +21,7 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "table.h"
+#include "mysqld.h"                             // lower_case_table_names
 #include "pfs_instr_class.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_instr.h"

@@ -18,7 +18,7 @@
 
 #include "my_global.h"
 #include "hash.h"                               // HASH
-#include "mysqld.h"                             // options_mysqld
+#include "options_mysqld.h"                     // options_mysqld
 #include "prealloced_array.h"                   // Prealloced_arrray
 #include "sql_cmd.h"                            // Sql_cmd
 #include "sql_list.h"                           // I_List

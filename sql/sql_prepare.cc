@@ -86,6 +86,7 @@ When one supplies long data for a placeholder:
 #include "sql_prepare.h"
 #include "auth_common.h"        // insert_precheck
 #include "log.h"                // query_logger
+#include "mysqld.h"             // opt_general_log
 #include "opt_trace.h"          // Opt_trace_array
 #include "probes_mysql.h"       // MYSQL_QUERY_EXEC_START
 #include "psi_memory_key.h"
@@ -1276,7 +1277,7 @@ int Sql_cmd_update::mysql_test_update(THD *thd)
 
   TABLE_LIST *const update_table_ref= table_list->updatable_base_table();
 
-  key_map covering_keys_for_cond;
+  Key_map covering_keys_for_cond;
   if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond,
                            update_value_list))
     DBUG_RETURN(1);

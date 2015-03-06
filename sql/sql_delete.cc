@@ -36,7 +36,7 @@
 #include "uniques.h"                  // Unique
 #include "probes_mysql.h"
 #include "auth_common.h"
-
+#include "mysqld.h"                   // stage_init
 
 /**
   Implement DELETE SQL word.
@@ -271,7 +271,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
       zero_rows= true;
     else if (conds != NULL)
     {
-      key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+      Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
       zero_rows= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
                                    ORDER::ORDER_NOT_RELEVANT, &qep_tab,

@@ -20,6 +20,7 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "my_md5.h"
+#include "mysqld.h"                             // max_digest_length
 #include "sql_lex.h"
 #include "sql_signal.h"
 #include "sql_get_diagnostics.h"

@@ -23,6 +23,7 @@
 #include "current_thd.h"
 #include "unireg.h"
 #include "debug_sync.h"
+#include "mysqld.h"           // mysql_data_home mysql_tmpdir ...
 #include "sql_rename.h" // do_rename
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "sql_cache.h"                          // query_cache_*

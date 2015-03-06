@@ -23,6 +23,7 @@
 
 #include "sql_select.h"
 #include "mem_root_array.h"
+#include "mysqld.h"                             // THR_MALLOC
 #include "current_thd.h"
 
 /**
