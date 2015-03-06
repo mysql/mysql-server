@@ -548,7 +548,7 @@ Item::Item():
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
-  runtime_item(false), with_subselect(false),
+  runtime_item(false), derived_used(false), with_subselect(false),
   with_stored_program(false), tables_locked_cache(false),
   is_parser_item(false)
 {
@@ -571,7 +571,7 @@ Item::Item(const POS &):
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
-  runtime_item(false), with_subselect(false),
+  runtime_item(false), derived_used(false), with_subselect(false),
   with_stored_program(false), tables_locked_cache(false),
   is_parser_item(true)
 {

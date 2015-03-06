@@ -13,15 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-# The MySQL Community Server configuration file.
-#
-# For explanations see
-# http://dev.mysql.com/doc/mysql/en/server-system-variables.html
-
-# obscured filename for mysqld-debug, libmysqld-debug.a and debug plugins
+# obscured filename for mysqld-debug, libmysqld-debug.a
 debian/extra/server-binary
 debian/extra/embedded-server
+# obscured filenames for debug plugins
 debian/extra/adt_null-plugin
 debian/extra/auth-plugin
 debian/extra/auth_socket-plugin

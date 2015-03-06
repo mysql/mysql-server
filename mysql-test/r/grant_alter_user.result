@@ -984,3 +984,28 @@ SET GLOBAL log_output=        @old_log_output;
 
 End of 5.7 tests!
 
+
+Bug #20600865: IDENTIFIED BY PASSWORD IS NOT DEPRECATED FOR
+ALTER USER BUT DOESN\'T WORK
+
+CREATE USER u1;
+ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'' at line 1
+ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      PASSWORD EXPIRE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      PASSWORD EXPIRE' at line 1
+ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      WITH MAX_QUERIES_PER_HOUR 2 MA' at line 1
+ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      REQUIRE CIPHER "DHE-RSA-AES256' at line 1
+ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      PASSWORD EXPIRE DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+      PASSWORD EXPIRE DEFAULT' at line 1
+DROP USER u1;

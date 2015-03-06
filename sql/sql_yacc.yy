@@ -14231,7 +14231,10 @@ grant_user:
             $1->auth.length= $5.length;
             $1->uses_identified_by_password_clause= true;
             if (Lex->sql_command == SQLCOM_ALTER_USER)
+            {
+              my_syntax_error(ER_THD(YYTHD, ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             else
               push_deprecated_warn(YYTHD, "IDENTIFIED BY PASSWORD",
                                    "IDENTIFIED WITH <plugin> AS <hash>");
@@ -14711,7 +14714,6 @@ view_select:
             lex->parsing_options.allows_variable= FALSE;
             lex->parsing_options.allows_select_into= FALSE;
             lex->parsing_options.allows_select_procedure= FALSE;
-            lex->parsing_options.allows_derived= FALSE;
           }
           view_select_aux view_check_option
           {
@@ -14727,7 +14729,6 @@ view_select:
             lex->parsing_options.allows_variable= TRUE;
             lex->parsing_options.allows_select_into= TRUE;
             lex->parsing_options.allows_select_procedure= TRUE;
-            lex->parsing_options.allows_derived= TRUE;
           }
         ;
 

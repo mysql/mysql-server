@@ -34,45 +34,70 @@
 cd /
 umask 077
 
-MYSQLDATA=/var/lib/mysql
+# In case server is taking more to start or stop increase the timeout here
+STARTTIMEOUT=180
+STOPTIMEOUT=60
+
 VERSION=$(mysqld --version | grep mysqld | cut -d' ' -f4)
 
-get_pcount () {
-	PSCOUNT=$(ps -ef | grep "/usr/sbin/mysqld" | wc -l)
-	echo "${PSCOUNT}"
+get_path () {
+	my_print_defaults mysqld | grep ${1} | cut -d= -f2
 }
 
-server_stop () {
-	PSCOUNT=$(get_pcount)
+get_pcount () {
+	PIDFILE=$(get_path pid-file)
+	if [ -e "${PIDFILE}" ];
+	then
+		echo 1
+	else
+		echo 0
+	fi
+}
+
+verify_server () {
+	TIMEOUT=0
+	if [ "${1}" = "start" ];
+	then
+		TIMEOUT=${STARTTIMEOUT}
+	elif [ "${1}" = "stop" ];
+	then
+		TIMEOUT=${STOPTIMEOUT}
+	fi
+
 	COUNT=0
-	while :; do
+	while [ ${COUNT} -lt ${TIMEOUT} ];
+	do
 		COUNT=$(( COUNT+1 ))
 		echo -n .
-		if [ "${PSCOUNT}" -eq 1 ];
+		if [ "${1}" = "start" ] && [ "$(get_pcount)" = 1 ];
 		then
-			echo
-			break
+			if [ -z ${2} ];
+			then
+				echo
+			fi
+			return 0
 		fi
-		if [ "${COUNT}" -gt 15 ];
+		if [ "${1}" = "stop" ] && [ "$(get_pcount)" = 0 ];
 		then
-			echo
-			return 1
+			if [ -z ${2} ];
+			then
+				echo
+			fi
+			return 0
 		fi
-		PSCOUNT=$(get_pcount)
 		sleep 1
 	done
-	return 0
+	return 1
 }
 
 case "$1" in
   'start')
-	PSCOUNT=$(get_pcount)
-	if [ "${PSCOUNT}" -gt 1 ];
+	if [ "$(get_pcount)" -eq 1 ];
 	then
 		log_action_msg "A MySQL Server is already started"
 	else
 		MYSQLRUN=/var/run/mysqld
-		MYSQLDATA=/var/lib/mysql
+		MYSQLDATA=$(get_path datadir)
 		MYSQLFILES=/var/lib/mysql-files
 		MYSQLLOG=/var/log/mysql
 
@@ -92,7 +117,12 @@ case "$1" in
 
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
 		then
-			mysql_install_db --user=mysql --mysqld-file=/usr/sbin/mysqld --datadir=${MYSQLDATA} --insecure > /dev/null
+			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
+			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"
+			verify_server start no-newline
+			mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
+			mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"
+			mysqladmin shutdown
 		fi
 
 		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
@@ -115,14 +145,8 @@ case "$1" in
 		/lib/init/apparmor-profile-load usr.sbin.mysqld
 
 		su - mysql -s /bin/bash -c "mysqld_safe > /dev/null &"
-		for i in 1 2 3 4 5 6;
-		do
-			sleep 1
-			echo -n .
-		done
-		echo
-		PSCOUNT=$(get_pcount)
-		if [ "${PSCOUNT}" -gt 1 ];
+		verify_server start
+		if [ "$?" -eq 0 ];
 		then
 			log_action_msg "MySQL Community Server ${VERSION} is started"
 		else
@@ -132,11 +156,10 @@ case "$1" in
 	;;
 
   'stop')
-	PSCOUNT=$(get_pcount)
-	if [ "${PSCOUNT}" -gt 1 ];
+	if [ "$(get_pcount)" -eq 1 ];
 	then
-		killall -15 mysqld
-		server_stop
+		killall -u mysql
+		verify_server stop
 		if [ "$?" -eq 0 ];
 		then
 			log_action_msg "MySQL Community Server ${VERSION} is stopped"
@@ -156,8 +179,7 @@ case "$1" in
 	;;
 
   'status')
-	PSCOUNT=$(get_pcount)
-	if [ ${PSCOUNT} -gt 1 ];
+	if [ "$(get_pcount)" -eq 1 ];
 	then
 		log_action_msg "MySQL Community Server ${VERSION} is running"
 	else

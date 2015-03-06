@@ -3504,7 +3504,7 @@ Select @x;
 0
 CREATE or REPLACE VIEW v1 AS Select 1
 FROM (SELECT 1 FROM t1) my_table;
-ERROR HY000: View's SELECT contains a subquery in the FROM clause
+DROP VIEW v1;
 CREATE VIEW v1 AS SELECT f1 FROM t1;
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @a:=1 ;
 SET @a:=0 ;
@@ -7536,10 +7536,29 @@ Testcase 3.3.1.39
 Drop view if exists test.v1 ;
 CREATE VIEW test.v1
 AS Select f59 from (Select * FROM tb2 limit 20) tx ;
-ERROR HY000: View's SELECT contains a subquery in the FROM clause
 SELECT * FROM test.v1 order by f59 ;
-ERROR 42S02: Table 'test.v1' doesn't exist
-Drop view if exists test.v1 ;
+f59
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+250
+340
+441
+660
+2550
+2760
+3330
+3410
+76710
+569300
+DROP VIEW test.v1 ;
 
 Testcase 3.3.1.40 
 --------------------------------------------------------------------------------
@@ -22357,10 +22376,9 @@ SET @variant2= 'CREATE VIEW v1 AS SELECT DISTINCTROW(f61) FROM t1';
 SET @variant3= 'CREATE VIEW v1 AS SELECT SUM(f59) AS f61 FROM t1';
 SET @variant4= 'CREATE VIEW v1 AS SELECT f61 FROM t1 GROUP BY f61';
 SET @variant5= 'CREATE VIEW v1 AS SELECT f61 FROM t1 HAVING f61 > 0';
-SET @variant6= 'CREATE VIEW v1 AS SELECT (SELECT f60 FROM t2 WHERE f59=19) AS f61 FROM t1';
-SET @variant7= 'CREATE VIEW v1 AS SELECT f61 FROM v2';
-SET @variant8= 'CREATE VIEW v1 AS SELECT f59 AS f61 FROM t1 WHERE f60 IN (SELECT f59 FROM t1)';
-SET @variant9= 'CREATE ALGORITHM = TEMPTABLE VIEW v1 (f61) AS select f60 from t1';
+SET @variant6= 'CREATE VIEW v1 AS SELECT f61 FROM v2';
+SET @variant7= 'CREATE VIEW v1 AS SELECT f59 AS f61 FROM t1 WHERE f60 IN (SELECT f59 FROM t1)';
+SET @variant8= 'CREATE ALGORITHM = TEMPTABLE VIEW v1 (f61) AS select f60 from t1';
 CREATE ALGORITHM = TEMPTABLE VIEW v1 (f61) AS select f60 from t1;
 INSERT INTO v1 VALUES (1002);
 ERROR HY000: The target table v1 of the INSERT is not insertable-into
@@ -22378,14 +22396,6 @@ DELETE FROM v1;
 ERROR HY000: The target table v1 of the DELETE is not updatable
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT f61 FROM v2;
-INSERT INTO v1 VALUES (1002);
-ERROR HY000: The target table v1 of the INSERT is not insertable-into
-UPDATE v1 SET f61=1007;
-ERROR HY000: The target table v1 of the UPDATE is not updatable
-DELETE FROM v1;
-ERROR HY000: The target table v1 of the DELETE is not updatable
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT (SELECT f60 FROM t2 WHERE f59=19) AS f61 FROM t1;
 INSERT INTO v1 VALUES (1002);
 ERROR HY000: The target table v1 of the INSERT is not insertable-into
 UPDATE v1 SET f61=1007;
