@@ -152,11 +152,11 @@ CREATE TABLE t_compact (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
 CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t_compact	test/t_compact	1	5	Antelope	Compact	0	Single
-test/t_compressed	test/t_compressed	41	5	Barracuda	Compressed	8192	Single
-test/t_dynamic	test/t_dynamic	33	5	Barracuda	Dynamic	0	Single
-test/t_redundant	test/t_redundant	0	5	Antelope	Redundant	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_compact	test/t_compact	1	5	Compact	0	Single
+test/t_compressed	test/t_compressed	41	5	Compressed	8192	Single
+test/t_dynamic	test/t_dynamic	33	5	Dynamic	0	Single
+test/t_redundant	test/t_redundant	0	5	Redundant	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System

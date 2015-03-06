@@ -46,11 +46,11 @@ SUBPARTITION BY HASH (store_id)
  (SUBPARTITION sw2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest/' ENGINE = InnoDB,
   SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest/' ENGINE = InnoDB)) */
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/emp#p#northeast#sp#ne0	test/emp#p#northeast#sp#ne0	65	7	Antelope	Compact	0	Single
-test/emp#p#northeast#sp#ne1	test/emp#p#northeast#sp#ne1	65	7	Antelope	Compact	0	Single
-test/emp#p#southwest#sp#sw2	test/emp#p#southwest#sp#sw2	65	7	Antelope	Compact	0	Single
-test/emp#p#southwest#sp#sw3	test/emp#p#southwest#sp#sw3	65	7	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/emp#p#northeast#sp#ne0	test/emp#p#northeast#sp#ne0	65	7	Compact	0	Single
+test/emp#p#northeast#sp#ne1	test/emp#p#northeast#sp#ne1	65	7	Compact	0	Single
+test/emp#p#southwest#sp#sw2	test/emp#p#southwest#sp#sw2	65	7	Compact	0	Single
+test/emp#p#southwest#sp#sw3	test/emp#p#southwest#sp#sw3	65	7	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -120,15 +120,15 @@ SUBPARTITION BY HASH (store_id)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = InnoDB,
   SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = InnoDB)) */
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/emp#p#east#sp#e0	test/emp#p#east#sp#e0	65	7	Antelope	Compact	0	Single
-test/emp#p#east#sp#e1	test/emp#p#east#sp#e1	65	7	Antelope	Compact	0	Single
-test/emp#p#north#sp#n0	test/emp#p#north#sp#n0	65	7	Antelope	Compact	0	Single
-test/emp#p#north#sp#n1	test/emp#p#north#sp#n1	65	7	Antelope	Compact	0	Single
-test/emp#p#south#sp#s0	test/emp#p#south#sp#s0	65	7	Antelope	Compact	0	Single
-test/emp#p#south#sp#s1	test/emp#p#south#sp#s1	65	7	Antelope	Compact	0	Single
-test/emp#p#west#sp#w0	test/emp#p#west#sp#w0	65	7	Antelope	Compact	0	Single
-test/emp#p#west#sp#w1	test/emp#p#west#sp#w1	65	7	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/emp#p#east#sp#e0	test/emp#p#east#sp#e0	65	7	Compact	0	Single
+test/emp#p#east#sp#e1	test/emp#p#east#sp#e1	65	7	Compact	0	Single
+test/emp#p#north#sp#n0	test/emp#p#north#sp#n0	65	7	Compact	0	Single
+test/emp#p#north#sp#n1	test/emp#p#north#sp#n1	65	7	Compact	0	Single
+test/emp#p#south#sp#s0	test/emp#p#south#sp#s0	65	7	Compact	0	Single
+test/emp#p#south#sp#s1	test/emp#p#south#sp#s1	65	7	Compact	0	Single
+test/emp#p#west#sp#w0	test/emp#p#west#sp#w0	65	7	Compact	0	Single
+test/emp#p#west#sp#w1	test/emp#p#west#sp#w1	65	7	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System

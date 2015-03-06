@@ -154,17 +154,17 @@ test/purchase#p#p1#sp#s3	MYSQL_TMP_DIR/mysqld.5980/part3/test/purchase#p#p1#sp#s
 test/emp4#p#p1	MYSQL_TMP_DIR/mysqld.5980/tab4/test/emp4#p#p1.ibd	DEFAULT	0	Dynamic	Single
 test/emp4#p#p2	MYSQL_TMP_DIR/mysqld.5980/tab5/test/emp4#p#p2.ibd	DEFAULT	0	Dynamic	Single
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/emp1	test/emp1	1	6	Antelope	Compact	0	Single
-test/emp2#p#p1	test/emp2#p#p1	65	6	Antelope	Compact	0	Single
-test/emp2#p#p2	test/emp2#p#p2	65	6	Antelope	Compact	0	Single
-test/emp3	test/emp3	65	6	Antelope	Compact	0	Single
-test/emp4#p#p1	test/emp4#p#p1	97	6	Barracuda	Dynamic	0	Single
-test/emp4#p#p2	test/emp4#p#p2	97	6	Barracuda	Dynamic	0	Single
-test/purchase#p#p0#sp#s0	test/purchase#p#p0#sp#s0	65	5	Antelope	Compact	0	Single
-test/purchase#p#p0#sp#s1	test/purchase#p#p0#sp#s1	65	5	Antelope	Compact	0	Single
-test/purchase#p#p1#sp#s2	test/purchase#p#p1#sp#s2	65	5	Antelope	Compact	0	Single
-test/purchase#p#p1#sp#s3	test/purchase#p#p1#sp#s3	65	5	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/emp1	test/emp1	1	6	Compact	0	Single
+test/emp2#p#p1	test/emp2#p#p1	65	6	Compact	0	Single
+test/emp2#p#p2	test/emp2#p#p2	65	6	Compact	0	Single
+test/emp3	test/emp3	65	6	Compact	0	Single
+test/emp4#p#p1	test/emp4#p#p1	97	6	Dynamic	0	Single
+test/emp4#p#p2	test/emp4#p#p2	97	6	Dynamic	0	Single
+test/purchase#p#p0#sp#s0	test/purchase#p#p0#sp#s0	65	5	Compact	0	Single
+test/purchase#p#p0#sp#s1	test/purchase#p#p0#sp#s1	65	5	Compact	0	Single
+test/purchase#p#p1#sp#s2	test/purchase#p#p1#sp#s2	65	5	Compact	0	Single
+test/purchase#p#p1#sp#s3	test/purchase#p#p1#sp#s3	65	5	Compact	0	Single
 #
 # Cleanup
 #

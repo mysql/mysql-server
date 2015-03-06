@@ -240,21 +240,21 @@ count(*)
 # Show these tables in information_schema.
 #
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t1_restart	test/t1_restart	0	8	Antelope	Redundant	0	Single
-test/t2_restart	test/t2_restart	1	8	Antelope	Compact	0	Single
-test/t3_restart	test/t3_restart	39	8	Barracuda	Compressed	4096	Single
-test/t4_restart	test/t4_restart	33	8	Barracuda	Dynamic	0	Single
-test/t5_restart	test/t5_restart	97	8	Barracuda	Dynamic	0	Single
-test/t6_restart#p#p0	test/t6_restart#p#p0	105	8	Barracuda	Compressed	8192	Single
-test/t6_restart#p#p1	test/t6_restart#p#p1	105	8	Barracuda	Compressed	8192	Single
-test/t6_restart#p#p2	test/t6_restart#p#p2	105	8	Barracuda	Compressed	8192	Single
-test/t7_restart#p#p0#sp#s0	test/t7_restart#p#p0#sp#s0	97	8	Barracuda	Dynamic	0	Single
-test/t7_restart#p#p0#sp#s1	test/t7_restart#p#p0#sp#s1	97	8	Barracuda	Dynamic	0	Single
-test/t7_restart#p#p1#sp#s2	test/t7_restart#p#p1#sp#s2	97	8	Barracuda	Dynamic	0	Single
-test/t7_restart#p#p1#sp#s3	test/t7_restart#p#p1#sp#s3	97	8	Barracuda	Dynamic	0	Single
-test/t8_restart	s1_restart	129	8	Antelope	Compact	0	General
-test/t9_restart	s1_restart	161	8	Barracuda	Dynamic	0	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1_restart	test/t1_restart	0	8	Redundant	0	Single
+test/t2_restart	test/t2_restart	1	8	Compact	0	Single
+test/t3_restart	test/t3_restart	39	8	Compressed	4096	Single
+test/t4_restart	test/t4_restart	33	8	Dynamic	0	Single
+test/t5_restart	test/t5_restart	97	8	Dynamic	0	Single
+test/t6_restart#p#p0	test/t6_restart#p#p0	105	8	Compressed	8192	Single
+test/t6_restart#p#p1	test/t6_restart#p#p1	105	8	Compressed	8192	Single
+test/t6_restart#p#p2	test/t6_restart#p#p2	105	8	Compressed	8192	Single
+test/t7_restart#p#p0#sp#s0	test/t7_restart#p#p0#sp#s0	97	8	Dynamic	0	Single
+test/t7_restart#p#p0#sp#s1	test/t7_restart#p#p0#sp#s1	97	8	Dynamic	0	Single
+test/t7_restart#p#p1#sp#s2	test/t7_restart#p#p1#sp#s2	97	8	Dynamic	0	Single
+test/t7_restart#p#p1#sp#s3	test/t7_restart#p#p1#sp#s3	97	8	Dynamic	0	Single
+test/t8_restart	s1_restart	129	8	Compact	0	General
+test/t9_restart	s1_restart	161	8	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -456,21 +456,21 @@ count(*)
 # Show these tables in information_schema.
 #
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t1_restart	test/t1_restart	0	8	Antelope	Redundant	0	Single
-test/t2_restart	test/t2_restart	1	8	Antelope	Compact	0	Single
-test/t3_restart	test/t3_restart	39	8	Barracuda	Compressed	4096	Single
-test/t4_restart	test/t4_restart	33	8	Barracuda	Dynamic	0	Single
-test/t5_restart	test/t5_restart	97	8	Barracuda	Dynamic	0	Single
-test/t6_restart#p#p0	test/t6_restart#p#p0	105	8	Barracuda	Compressed	8192	Single
-test/t6_restart#p#p1	test/t6_restart#p#p1	105	8	Barracuda	Compressed	8192	Single
-test/t6_restart#p#p2	test/t6_restart#p#p2	105	8	Barracuda	Compressed	8192	Single
-test/t7_restart#p#p0#sp#s0	test/t7_restart#p#p0#sp#s0	97	8	Barracuda	Dynamic	0	Single
-test/t7_restart#p#p0#sp#s1	test/t7_restart#p#p0#sp#s1	97	8	Barracuda	Dynamic	0	Single
-test/t7_restart#p#p1#sp#s2	test/t7_restart#p#p1#sp#s2	97	8	Barracuda	Dynamic	0	Single
-test/t7_restart#p#p1#sp#s3	test/t7_restart#p#p1#sp#s3	97	8	Barracuda	Dynamic	0	Single
-test/t8_restart	s1_restart	129	8	Antelope	Compact	0	General
-test/t9_restart	s1_restart	161	8	Barracuda	Dynamic	0	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1_restart	test/t1_restart	0	8	Redundant	0	Single
+test/t2_restart	test/t2_restart	1	8	Compact	0	Single
+test/t3_restart	test/t3_restart	39	8	Compressed	4096	Single
+test/t4_restart	test/t4_restart	33	8	Dynamic	0	Single
+test/t5_restart	test/t5_restart	97	8	Dynamic	0	Single
+test/t6_restart#p#p0	test/t6_restart#p#p0	105	8	Compressed	8192	Single
+test/t6_restart#p#p1	test/t6_restart#p#p1	105	8	Compressed	8192	Single
+test/t6_restart#p#p2	test/t6_restart#p#p2	105	8	Compressed	8192	Single
+test/t7_restart#p#p0#sp#s0	test/t7_restart#p#p0#sp#s0	97	8	Dynamic	0	Single
+test/t7_restart#p#p0#sp#s1	test/t7_restart#p#p0#sp#s1	97	8	Dynamic	0	Single
+test/t7_restart#p#p1#sp#s2	test/t7_restart#p#p1#sp#s2	97	8	Dynamic	0	Single
+test/t7_restart#p#p1#sp#s3	test/t7_restart#p#p1#sp#s3	97	8	Dynamic	0	Single
+test/t8_restart	s1_restart	129	8	Compact	0	General
+test/t9_restart	s1_restart	161	8	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System

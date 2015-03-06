@@ -139,10 +139,10 @@ Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_64k	MYSQLD_DATADIR/s_64k.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t_com_in_64k	s_64k	129	5	Antelope	Compact	0	General
-test/t_dyn_in_64k	s_64k	161	5	Barracuda	Dynamic	0	General
-test/t_red_in_64k	s_64k	128	5	Antelope	Redundant	0	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_com_in_64k	s_64k	129	5	Compact	0	General
+test/t_dyn_in_64k	s_64k	161	5	Dynamic	0	General
+test/t_red_in_64k	s_64k	128	5	Redundant	0	General
 # Directory of MYSQLD_DATADIR/
 s_64k.ibd
 # Directory of MYSQLD_DATADIR/test/
