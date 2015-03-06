@@ -239,57 +239,38 @@ count(*)
 #
 # Show these tables in information_schema.
 #
-SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables
-WHERE name like '%restart%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/t1_restart	8	Antelope	Redundant
-test/t2_restart	8	Antelope	Compact
-test/t3_restart	8	Barracuda	Compressed
-test/t4_restart	8	Barracuda	Dynamic
-test/t5_restart	8	Barracuda	Dynamic
-test/t6_restart#p#p0	8	Barracuda	Compressed
-test/t6_restart#p#p1	8	Barracuda	Compressed
-test/t6_restart#p#p2	8	Barracuda	Compressed
-test/t7_restart#p#p0#sp#s0	8	Barracuda	Dynamic
-test/t7_restart#p#p0#sp#s1	8	Barracuda	Dynamic
-test/t7_restart#p#p1#sp#s2	8	Barracuda	Dynamic
-test/t7_restart#p#p1#sp#s3	8	Barracuda	Dynamic
-test/t8_restart	8	Antelope	Compact
-test/t9_restart	8	Barracuda	Dynamic
-SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE '%restart%' ORDER BY name;
-name	file_format	row_format
-s1_restart	Any	Any
-test/t1_restart	Antelope	Compact or Redundant
-test/t2_restart	Antelope	Compact or Redundant
-test/t3_restart	Barracuda	Compressed
-test/t4_restart	Barracuda	Dynamic
-test/t5_restart	Barracuda	Dynamic
-test/t6_restart#p#p0	Barracuda	Compressed
-test/t6_restart#p#p1	Barracuda	Compressed
-test/t6_restart#p#p2	Barracuda	Compressed
-test/t7_restart#p#p0#sp#s0	Barracuda	Dynamic
-test/t7_restart#p#p0#sp#s1	Barracuda	Dynamic
-test/t7_restart#p#p1#sp#s2	Barracuda	Dynamic
-test/t7_restart#p#p1#sp#s3	Barracuda	Dynamic
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%restart%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t1_restart.ibd
-MYSQL_DATA_DIR/test/t2_restart.ibd
-MYSQL_DATA_DIR/test/t3_restart.ibd
-MYSQL_DATA_DIR/test/t4_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
-MYSQL_DATA_DIR/s1_restart.ibd
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1_restart	test/t1_restart	0	8	Redundant	0	Single
+test/t2_restart	test/t2_restart	1	8	Compact	0	Single
+test/t3_restart	test/t3_restart	39	8	Compressed	4096	Single
+test/t4_restart	test/t4_restart	33	8	Dynamic	0	Single
+test/t5_restart	test/t5_restart	97	8	Dynamic	0	Single
+test/t6_restart#p#p0	test/t6_restart#p#p0	105	8	Compressed	8192	Single
+test/t6_restart#p#p1	test/t6_restart#p#p1	105	8	Compressed	8192	Single
+test/t6_restart#p#p2	test/t6_restart#p#p2	105	8	Compressed	8192	Single
+test/t7_restart#p#p0#sp#s0	test/t7_restart#p#p0#sp#s0	97	8	Dynamic	0	Single
+test/t7_restart#p#p0#sp#s1	test/t7_restart#p#p0#sp#s1	97	8	Dynamic	0	Single
+test/t7_restart#p#p1#sp#s2	test/t7_restart#p#p1#sp#s2	97	8	Dynamic	0	Single
+test/t7_restart#p#p1#sp#s3	test/t7_restart#p#p1#sp#s3	97	8	Dynamic	0	Single
+test/t8_restart	s1_restart	129	8	Compact	0	General
+test/t9_restart	s1_restart	161	8	Dynamic	0	General
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t1_restart	MYSQLD_DATADIR/test/t1_restart.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2_restart	MYSQLD_DATADIR/test/t2_restart.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3_restart	MYSQLD_DATADIR/test/t3_restart.ibd	DEFAULT	4096	Compressed	Single
+test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t5_restart	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t6_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd	DEFAULT	8192	Compressed	Single
+test/t6_restart#p#p1	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd	DEFAULT	8192	Compressed	Single
+test/t6_restart#p#p2	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd	DEFAULT	8192	Compressed	Single
+test/t7_restart#p#p0#sp#s0	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p0#sp#s1	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p1#sp#s2	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p1#sp#s3	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd	DEFAULT	0	Dynamic	Single
+s1_restart	MYSQLD_DATADIR/s1_restart.ibd	DEFAULT	0	Any	General
 #
 # Shutdown the server and list the tablespace OS files
 #
@@ -474,57 +455,38 @@ count(*)
 #
 # Show these tables in information_schema.
 #
-SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables
-WHERE name like '%restart%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/t1_restart	8	Antelope	Redundant
-test/t2_restart	8	Antelope	Compact
-test/t3_restart	8	Barracuda	Compressed
-test/t4_restart	8	Barracuda	Dynamic
-test/t5_restart	8	Barracuda	Dynamic
-test/t6_restart#p#p0	8	Barracuda	Compressed
-test/t6_restart#p#p1	8	Barracuda	Compressed
-test/t6_restart#p#p2	8	Barracuda	Compressed
-test/t7_restart#p#p0#sp#s0	8	Barracuda	Dynamic
-test/t7_restart#p#p0#sp#s1	8	Barracuda	Dynamic
-test/t7_restart#p#p1#sp#s2	8	Barracuda	Dynamic
-test/t7_restart#p#p1#sp#s3	8	Barracuda	Dynamic
-test/t8_restart	8	Antelope	Compact
-test/t9_restart	8	Barracuda	Dynamic
-SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE '%restart%' ORDER BY name;
-name	file_format	row_format
-s1_restart	Any	Any
-test/t1_restart	Antelope	Compact or Redundant
-test/t2_restart	Antelope	Compact or Redundant
-test/t3_restart	Barracuda	Compressed
-test/t4_restart	Barracuda	Dynamic
-test/t5_restart	Barracuda	Dynamic
-test/t6_restart#p#p0	Barracuda	Compressed
-test/t6_restart#p#p1	Barracuda	Compressed
-test/t6_restart#p#p2	Barracuda	Compressed
-test/t7_restart#p#p0#sp#s0	Barracuda	Dynamic
-test/t7_restart#p#p0#sp#s1	Barracuda	Dynamic
-test/t7_restart#p#p1#sp#s2	Barracuda	Dynamic
-test/t7_restart#p#p1#sp#s3	Barracuda	Dynamic
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%restart%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t1_restart.ibd
-MYSQL_DATA_DIR/test/t2_restart.ibd
-MYSQL_DATA_DIR/test/t3_restart.ibd
-MYSQL_DATA_DIR/test/t4_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
-MYSQL_DATA_DIR/s1_restart.ibd
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1_restart	test/t1_restart	0	8	Redundant	0	Single
+test/t2_restart	test/t2_restart	1	8	Compact	0	Single
+test/t3_restart	test/t3_restart	39	8	Compressed	4096	Single
+test/t4_restart	test/t4_restart	33	8	Dynamic	0	Single
+test/t5_restart	test/t5_restart	97	8	Dynamic	0	Single
+test/t6_restart#p#p0	test/t6_restart#p#p0	105	8	Compressed	8192	Single
+test/t6_restart#p#p1	test/t6_restart#p#p1	105	8	Compressed	8192	Single
+test/t6_restart#p#p2	test/t6_restart#p#p2	105	8	Compressed	8192	Single
+test/t7_restart#p#p0#sp#s0	test/t7_restart#p#p0#sp#s0	97	8	Dynamic	0	Single
+test/t7_restart#p#p0#sp#s1	test/t7_restart#p#p0#sp#s1	97	8	Dynamic	0	Single
+test/t7_restart#p#p1#sp#s2	test/t7_restart#p#p1#sp#s2	97	8	Dynamic	0	Single
+test/t7_restart#p#p1#sp#s3	test/t7_restart#p#p1#sp#s3	97	8	Dynamic	0	Single
+test/t8_restart	s1_restart	129	8	Compact	0	General
+test/t9_restart	s1_restart	161	8	Dynamic	0	General
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t1_restart	MYSQLD_DATADIR/test/t1_restart.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2_restart	MYSQLD_DATADIR/test/t2_restart.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3_restart	MYSQLD_DATADIR/test/t3_restart.ibd	DEFAULT	4096	Compressed	Single
+test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t5_restart	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t6_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd	DEFAULT	8192	Compressed	Single
+test/t6_restart#p#p1	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd	DEFAULT	8192	Compressed	Single
+test/t6_restart#p#p2	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd	DEFAULT	8192	Compressed	Single
+test/t7_restart#p#p0#sp#s0	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p0#sp#s1	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p1#sp#s2	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p1#sp#s3	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd	DEFAULT	0	Dynamic	Single
+s1_restart	MYSQLD_DATADIR/s1_restart.ibd	DEFAULT	0	Any	General
 DROP TABLE t1_restart;
 DROP TABLE t2_restart;
 DROP TABLE t3_restart;
@@ -537,18 +499,18 @@ DROP TABLESPACE s1_restart;
 TRUNCATE TABLE t5_restart;
 ALTER TABLE t6_restart TRUNCATE PARTITION p2;
 ALTER TABLE t7_restart TRUNCATE PARTITION p1;
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%restart%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t4_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t5_restart	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t6_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd	DEFAULT	8192	Compressed	Single
+test/t6_restart#p#p1	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd	DEFAULT	8192	Compressed	Single
+test/t6_restart#p#p2	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd	DEFAULT	8192	Compressed	Single
+test/t7_restart#p#p0#sp#s0	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p0#sp#s1	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p1#sp#s2	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p1#sp#s3	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd	DEFAULT	0	Dynamic	Single
 INSERT INTO t5_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
@@ -640,18 +602,18 @@ t7_restart#p#p1#sp#s3.ibd
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%restart%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t4_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t5_restart	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t6_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd	DEFAULT	8192	Compressed	Single
+test/t6_restart#p#p1	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p1.ibd	DEFAULT	8192	Compressed	Single
+test/t6_restart#p#p2	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p2.ibd	DEFAULT	8192	Compressed	Single
+test/t7_restart#p#p0#sp#s0	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s0.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p0#sp#s1	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p1#sp#s2	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd	DEFAULT	0	Dynamic	Single
+test/t7_restart#p#p1#sp#s3	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd	DEFAULT	0	Dynamic	Single
 SELECT count(*) FROM t5_restart;
 count(*)
 8
@@ -739,18 +701,18 @@ t7_restart#p#p1#sp#s3.ibd
 RENAME TABLE t5_restart TO t55_restart;
 RENAME TABLE t6_restart TO t66_restart;
 RENAME TABLE t7_restart TO t77_restart;
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%restart%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t4_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t55_restart	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t66_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd	DEFAULT	8192	Compressed	Single
+test/t66_restart#p#p1	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd	DEFAULT	8192	Compressed	Single
+test/t66_restart#p#p2	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd	DEFAULT	8192	Compressed	Single
+test/t77_restart#p#p0#sp#s0	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p0#sp#s1	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p1#sp#s2	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p1#sp#s3	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd	DEFAULT	0	Dynamic	Single
 INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
 SELECT count(*) FROM t55_restart;
 count(*)
@@ -835,18 +797,18 @@ t77_restart#p#p1#sp#s3.ibd
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%restart%' ORDER BY space;
-path
-MYSQL_DATA_DIR/test/t4_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd
-MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t55_restart	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t66_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd	DEFAULT	8192	Compressed	Single
+test/t66_restart#p#p1	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p1.ibd	DEFAULT	8192	Compressed	Single
+test/t66_restart#p#p2	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p2.ibd	DEFAULT	8192	Compressed	Single
+test/t77_restart#p#p0#sp#s0	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s0.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p0#sp#s1	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p0#sp#s1.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p1#sp#s2	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s2.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p1#sp#s3	MYSQL_TMP_DIR/alt_dir/test/t77_restart#p#p1#sp#s3.ibd	DEFAULT	0	Dynamic	Single
 INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
 SELECT count(*) FROM t55_restart;
 count(*)
@@ -964,18 +926,18 @@ t77_restart#p#p1#sp#s3.ibd
 # Start the server and check tablespaces.
 #
 # restart
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%restart%' ORDER BY space;
-path
-MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd
-MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd
-MYSQL_TMP_DIR/new_dir/test/t66_restart#p#p0.ibd
-MYSQL_TMP_DIR/new_dir/test/t66_restart#p#p1.ibd
-MYSQL_TMP_DIR/new_dir/test/t66_restart#p#p2.ibd
-MYSQL_TMP_DIR/new_dir/test/t77_restart#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/new_dir/test/t77_restart#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/new_dir/test/t77_restart#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/new_dir/test/t77_restart#p#p1#sp#s3.ibd
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t4_restart	MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t55_restart	MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t66_restart#p#p0	MYSQL_TMP_DIR/new_dir/test/t66_restart#p#p0.ibd	DEFAULT	8192	Compressed	Single
+test/t66_restart#p#p1	MYSQL_TMP_DIR/new_dir/test/t66_restart#p#p1.ibd	DEFAULT	8192	Compressed	Single
+test/t66_restart#p#p2	MYSQL_TMP_DIR/new_dir/test/t66_restart#p#p2.ibd	DEFAULT	8192	Compressed	Single
+test/t77_restart#p#p0#sp#s0	MYSQL_TMP_DIR/new_dir/test/t77_restart#p#p0#sp#s0.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p0#sp#s1	MYSQL_TMP_DIR/new_dir/test/t77_restart#p#p0#sp#s1.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p1#sp#s2	MYSQL_TMP_DIR/new_dir/test/t77_restart#p#p1#sp#s2.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p1#sp#s3	MYSQL_TMP_DIR/new_dir/test/t77_restart#p#p1#sp#s3.ibd	DEFAULT	0	Dynamic	Single
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 SELECT count(*) FROM t4_restart;
 count(*)
@@ -1097,18 +1059,18 @@ t77_restart.frm
 # Start the server and check tablespaces.
 #
 # restart
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%restart%' ORDER BY space;
-path
-MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd
-MYSQL_DATA_DIR/test/t55_restart.ibd
-MYSQL_DATA_DIR/test/t66_restart#p#p0.ibd
-MYSQL_DATA_DIR/test/t66_restart#p#p1.ibd
-MYSQL_DATA_DIR/test/t66_restart#p#p2.ibd
-MYSQL_DATA_DIR/test/t77_restart#p#p0#sp#s0.ibd
-MYSQL_DATA_DIR/test/t77_restart#p#p0#sp#s1.ibd
-MYSQL_DATA_DIR/test/t77_restart#p#p1#sp#s2.ibd
-MYSQL_DATA_DIR/test/t77_restart#p#p1#sp#s3.ibd
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t4_restart	MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t55_restart	MYSQLD_DATADIR/test/t55_restart.ibd	DEFAULT	0	Dynamic	Single
+test/t66_restart#p#p0	MYSQLD_DATADIR/test/t66_restart#p#p0.ibd	DEFAULT	8192	Compressed	Single
+test/t66_restart#p#p1	MYSQLD_DATADIR/test/t66_restart#p#p1.ibd	DEFAULT	8192	Compressed	Single
+test/t66_restart#p#p2	MYSQLD_DATADIR/test/t66_restart#p#p2.ibd	DEFAULT	8192	Compressed	Single
+test/t77_restart#p#p0#sp#s0	MYSQLD_DATADIR/test/t77_restart#p#p0#sp#s0.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p0#sp#s1	MYSQLD_DATADIR/test/t77_restart#p#p0#sp#s1.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p1#sp#s2	MYSQLD_DATADIR/test/t77_restart#p#p1#sp#s2.ibd	DEFAULT	0	Dynamic	Single
+test/t77_restart#p#p1#sp#s3	MYSQLD_DATADIR/test/t77_restart#p#p1#sp#s3.ibd	DEFAULT	0	Dynamic	Single
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 SELECT count(*) FROM t4_restart;
 count(*)

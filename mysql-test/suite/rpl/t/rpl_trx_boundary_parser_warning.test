@@ -59,6 +59,11 @@ INSERT INTO t2 VALUES (1);
 --let $event_to_remove_debug_point= $expected_amount_of_events
 --dec $event_to_remove_debug_point
 
+# We always start counting by the second event, skipping slave's FD
+--let $event_counter= 2
+--let $master_2nd_event_pos= query_get_value(SHOW BINLOG EVENTS IN 'master-bin.000001', Pos, 2)
+--let $master_pos= $master_2nd_event_pos
+
 ###
 ### Prepare to count the events queued the the IO thread
 ###
@@ -69,9 +74,6 @@ INSERT INTO t2 VALUES (1);
 --source include/add_debug_point.inc
 # Start the IO thread to start receiving events from master
 START SLAVE IO_THREAD;
-# We always start counting by the second event, skipping slave's FD
---let $event_counter= 2
---let $master_pos= 122
 # Disabling query log during queue event counting
 --disable_query_log
 ###

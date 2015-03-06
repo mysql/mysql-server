@@ -20,6 +20,10 @@
 #     The event that should be the first queued by the slave IO thread after
 #     restarting the slave server.
 #
+#   $master_2nd_event_pos
+#     We always start counting by the second event, skipping slave's FD, its exact position
+#     is compated by this macro caller to be passed here as a parameter
+
 
 if (!$stop_after)
 {
@@ -65,9 +69,8 @@ RESET SLAVE;
 --let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
 # Start the IO thread to start receiving events from master
 START SLAVE IO_THREAD;
-# We always start counting by the second event, skipping slave's FD
 --let $event_counter= 2
---let $master_pos= 122
+--let $master_pos= $master_2nd_event_pos
 # Disabling query log during queue event counting
 --disable_query_log
 ###

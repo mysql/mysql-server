@@ -47,8 +47,14 @@ formatID	gtrid_length	bqual_length	data
 11	5	5	testb 0@P`
 1	5	5	testatestb
 xa commit 'testb',0x2030405060,11;
-ERROR XAE04: XAER_NOTA: Unknown XID
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+xa rollback 'testb',0x2030405060,11;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 xa rollback 'testa','testb';
+xa commit 'testb',0x2030405060,11;
+ERROR XAE04: XAER_NOTA: Unknown XID
+xa rollback 'testb',0x2030405060,11;
+ERROR XAE04: XAER_NOTA: Unknown XID
 xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 select * from t1;
@@ -248,6 +254,7 @@ xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
 xa recover convert xid;
 formatID	gtrid_length	bqual_length	data
 2	8	1	0xABCDEF123456789001
+11	5	5	0x74657374622030405060
 xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
 # Check that XID which has only printable characters are displayed
 # correctly without using of CONVERT XID clause
@@ -257,6 +264,7 @@ xa prepare 0x4142434445, 0x46, 0x02 ;
 xa recover;
 formatID	gtrid_length	bqual_length	data
 2	5	1	ABCDEF
+11	5	5	testb 0@P`
 xa rollback 0x4142434445, 0x46, 0x02 ;
 #
 # WL#7155: Test 1: check that if a thread of control terminates then 
@@ -341,7 +349,7 @@ XA START 'xid1';
 XA END 'xid1';
 XA PREPARE 'xid1';
 XA ROLLBACK 'xid2';
-ERROR XAE04: XAER_NOTA: Unknown XID
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 XA ROLLBACK 'xid1';
 #
 # Bug#18107853 - XA LIST GETS CORRUPT, CRASH AND/OR HANG AND/OR ASSERTION
@@ -350,3 +358,11 @@ XA ROLLBACK 'xid1';
 # format ID overflows the type of unsigned long
 XA START '1', 0x01, 18446744073709551615;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '18446744073709551615' at line 1
+There should be practically no error, but in theory
+XAER_NOTA: Unknown XID can be returned if con1 disconnection
+took for too long.
+todo: consider to make this test dependent on P_S if
+todo: such case will be ever registered.
+xa rollback 'testb',0x2030405060,11;
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data

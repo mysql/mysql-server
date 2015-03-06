@@ -1331,6 +1331,9 @@ public:
   bool validate_base_options(LEX *lex, ulonglong options) const;
 
 private:
+  // Delete unused columns from merged derived tables
+  void delete_unused_merged_columns(List<TABLE_LIST> *tables);
+
   bool m_agg_func_used;
 
   /// Helper for fix_prepare_information()
@@ -2394,7 +2397,6 @@ struct st_parsing_options
   bool allows_variable;
   bool allows_select_into;
   bool allows_select_procedure;
-  bool allows_derived;
 
   st_parsing_options() { reset(); }
   void reset();
