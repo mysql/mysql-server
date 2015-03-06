@@ -1704,6 +1704,16 @@ struct TABLE_LIST
   }
   Item **join_cond_optim_ref() { return &m_join_cond_optim; }
 
+  /// Get the semi-join condition for a semi-join nest, NULL otherwise
+  Item *sj_cond() const { return m_sj_cond; }
+
+  /// Set the semi-join condition for a semi-join nest
+  void set_sj_cond(Item *cond)
+  {
+    DBUG_ASSERT(m_sj_cond == NULL);
+    m_sj_cond= cond;
+  }
+
   /// Merge tables from a query block into a nested join structure
   bool merge_underlying_tables(class st_select_lex *select);
 
@@ -2017,7 +2027,7 @@ struct TABLE_LIST
   {
     if (!embedding)
       return NULL;
-    if (embedding->sj_on_expr)
+    if (embedding->sj_cond())
       return embedding->embedding;
     return embedding;
   }
@@ -2115,8 +2125,8 @@ private:
      once for all executions of a prepared statement).
   */
   Item		*m_join_cond;
+  Item          *m_sj_cond;               ///< Synthesized semijoin condition
 public:
-  Item          *sj_on_expr;            /* Synthesized semijoin condition */
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
     semi-join (this is different from bitmap of all nest's children because

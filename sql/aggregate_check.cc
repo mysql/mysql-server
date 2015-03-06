@@ -1028,13 +1028,13 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list)
   TABLE_LIST *table;
   while ((table= li++))
   {
-    if (table->sj_on_expr)
+    if (table->sj_cond())
     {
       /*
         We can ignore this nest as:
-        - the subquery's WHERE was copied to sj_on_expr
+        - the subquery's WHERE was copied to the semi-join condition
         - so where the IN equalities
-        - sj_on_expr is also present in the parent nest's join condition or in
+        - sj_cond() is also present in the parent nest's join condition or in
         the query block's WHERE condition, which we check somewhere else.
         Note that columns from sj-inner tables can help only as "intermediate
         link" in the graph of functional dependencies, as they are neither in
