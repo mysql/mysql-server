@@ -1493,10 +1493,17 @@ enum enum_view_algorithm {
 /** The threshold size a blob field buffer before it is freed */
 #define MAX_TDC_BLOB_SIZE 65536
 
-
+/**
+  Struct that describes an expression selected from a derived table or view.
+*/
 struct Field_translator
 {
+  /**
+    Points to an item that represents the expression.
+    If the item is determined to be unused, the pointer is set to NULL.
+  */
   Item *item;
+  /// Name of selected expression
   const char *name;
 };
 
@@ -2212,8 +2219,10 @@ private:
   LEX *view;                    /* link on VIEW lex for merging */
 
 public:
-  Field_translator *field_translation;	/* array of VIEW fields */
-  /* pointer to element after last one in translation table above */
+  /// Array of selected expressions from a derived table or view.
+  Field_translator *field_translation;
+
+  /// pointer to element after last one in translation table above
   Field_translator *field_translation_end;
   /*
     List (based on next_local) of underlying tables of this view. I.e. it

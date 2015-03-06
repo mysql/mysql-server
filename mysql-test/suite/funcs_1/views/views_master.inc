@@ -273,10 +273,10 @@ SET @x=0;
 CREATE or REPLACE VIEW v1 AS Select 1 INTO @x;
 Select @x;
 
-# Subquery in the FROM clause is illegal
---error ER_VIEW_SELECT_DERIVED
+# Subquery in the FROM clause is legal
 CREATE or REPLACE VIEW v1 AS Select 1
 FROM (SELECT 1 FROM t1) my_table;
+DROP VIEW v1;
 
 # Triggers cannot be associated with VIEWs
 CREATE VIEW v1 AS SELECT f1 FROM t1;
@@ -1556,18 +1556,15 @@ let $message= Testcase 3.3.1.39 ;
 # Testcase 3.3.1.39: Ensure that a view definition that includes a subquery in
 #                    a FROM clause is rejected with an appropriate error
 #                    message at create time.
+#                    Restriction lifted with bug#11865600
 ###############################################################################
 --disable_warnings
 Drop view if exists test.v1 ;
 --enable_warnings
---error ER_VIEW_SELECT_DERIVED
 CREATE VIEW test.v1
 AS Select f59 from (Select * FROM tb2 limit 20) tx ;
---error ER_NO_SUCH_TABLE
 SELECT * FROM test.v1 order by f59 ;
---disable_warnings
-Drop view if exists test.v1 ;
---enable_warnings
+DROP VIEW test.v1 ;
 
 
 let $message= Testcase 3.3.1.40 ;
@@ -3816,15 +3813,16 @@ SET @variant4= 'CREATE VIEW v1 AS SELECT f61 FROM t1 GROUP BY f61';
 # For HAVING                         3.3.2.16
 SET @variant5= 'CREATE VIEW v1 AS SELECT f61 FROM t1 HAVING f61 > 0';
 # For a sub query in the select list 3.3.2.17
-SET @variant6= 'CREATE VIEW v1 AS SELECT (SELECT f60 FROM t2 WHERE f59=19) AS f61 FROM t1';
+# This restriction has been lifted
+# SET @variant6= 'CREATE VIEW v1 AS SELECT (SELECT f60 FROM t2 WHERE f59=19) AS f61 FROM t1';
 # For a WHERE clause sub query that refers to a table also referenced in a
 # FROM clause 3.3.2.18
-SET @variant7= 'CREATE VIEW v1 AS SELECT f61 FROM v2';
-SET @variant8= 'CREATE VIEW v1 AS SELECT f59 AS f61 FROM t1 WHERE f60 IN (SELECT f59 FROM t1)';
+SET @variant6= 'CREATE VIEW v1 AS SELECT f61 FROM v2';
+SET @variant7= 'CREATE VIEW v1 AS SELECT f59 AS f61 FROM t1 WHERE f60 IN (SELECT f59 FROM t1)';
 # For ALGORITHM = TEMPTABLE          3.3.2.20
-SET @variant9= 'CREATE ALGORITHM = TEMPTABLE VIEW v1 (f61) AS select f60 from t1';
+SET @variant8= 'CREATE ALGORITHM = TEMPTABLE VIEW v1 (f61) AS select f60 from t1';
 
-let $num= 9;
+let $num= 8;
 while ($num)
 {
    --disable_abort_on_error
