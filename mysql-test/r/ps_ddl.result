@@ -2252,10 +2252,14 @@ create table t1 (a int);
 prepare stmt from "show variables where (1) in (select * from t1)";
 execute stmt;
 Variable_name	Value
+Warnings:
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 drop table t1;
 create table t1 (x int);
 execute stmt;
 Variable_name	Value
+Warnings:
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 drop table t1;
 deallocate prepare stmt;
 #

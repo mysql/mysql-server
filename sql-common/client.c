@@ -4636,10 +4636,17 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   MYSQL_TRACE(INIT_PACKET_RECEIVED, mysql, (pkt_length, net->read_pos));
   MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
 
-  /* try and bring up SSL if possible */
-  cli_calculate_client_flag(mysql, db, client_flag);
-  if (cli_establish_ssl(mysql))
-    goto error;
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+  if(mysql->options.protocol != MYSQL_PROTOCOL_MEMORY)
+  {
+#endif
+    /* try and bring up SSL if possible */
+    cli_calculate_client_flag(mysql, db, client_flag);
+    if (cli_establish_ssl(mysql))
+      goto error;
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+  }
+#endif
 
   /*
     Part 2: invoke the plugin to send the authentication data to the server

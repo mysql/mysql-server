@@ -217,7 +217,6 @@ st_parsing_options::reset()
   allows_variable= TRUE;
   allows_select_into= TRUE;
   allows_select_procedure= TRUE;
-  allows_derived= TRUE;
 }
 
 /**
@@ -3799,25 +3798,12 @@ void st_select_lex_unit::include_chain(LEX *lex, st_select_lex *outer)
    - A query that modifies variables (When variables are modified, try to
      preserve the original structure of the query. This is less likely to cause
      changes in variable assignment order).
-   - A query with subqueries in the SELECT list
-     (this is a pure implementation limitation).
 */
+
 bool st_select_lex_unit::is_mergeable() const
 {
-  SELECT_LEX *const select= first_select();
-
   if (is_union())
     return false;
-
-  for (SELECT_LEX_UNIT *unit= select->first_inner_unit();
-       unit;
-       unit= unit->next_unit())
-  {
-    if (unit->outer_select() == select &&
-        unit->item &&
-        unit->item->place() == CTX_SELECT_LIST)
-      return false;
-  }
 
   return !first_select()->is_grouped() &&
          !first_select()->having_cond() &&

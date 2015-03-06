@@ -899,6 +899,8 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
 
   for (Field_translator *trans= trans_start; trans != trans_end; trans++)
   {
+    if (trans->item == NULL)
+      continue;
     /*
       @todo
       This fix_fields() call is necessary for execution of prepared statements.
@@ -926,6 +928,8 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
   /* unique test */
   for (Field_translator *trans= trans_start; trans != trans_end; trans++)
   {
+    if (trans->item == NULL)
+      continue;
     /* Thanks to test above, we know that all columns are of type Item_field */
     Item_field *field= (Item_field *)trans->item;
     /* check fields belong to table in which we are inserting */

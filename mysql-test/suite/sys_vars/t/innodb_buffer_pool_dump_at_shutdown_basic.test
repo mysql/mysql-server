@@ -40,3 +40,5 @@ SET GLOBAL innodb_buffer_pool_dump_at_shutdown = 5;
 -- source include/restart_mysqld.inc
 
 -- file_exists $file
+
+SET GLOBAL innodb_buffer_pool_dump_at_shutdown = default;

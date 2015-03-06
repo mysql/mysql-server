@@ -847,8 +847,8 @@ create view v1 as select 5 into outfile 'ttt';
 create table t1 (a int);
 -- error ER_VIEW_SELECT_CLAUSE
 create view v1 as select a from t1 procedure analyse();
--- error ER_VIEW_SELECT_DERIVED
 create view v1 as select 1 from (select 1) as d1;
+drop view v1;
 drop table t1;
 
 #
@@ -3185,8 +3185,8 @@ DROP VIEW IF EXISTS v1;
 let $query = SELECT * FROM (SELECT 1) AS t;
 
 eval $query;
---error ER_VIEW_SELECT_DERIVED
 eval CREATE VIEW v1 AS $query;
+DROP VIEW v1;
 --echo # Previously the following would fail.
 eval $query;
 
@@ -4620,6 +4620,542 @@ SET @@optimizer_switch= @optimizer_switch_saved;
 DROP VIEW v2, v2_sj, v12_1, v12_2, v12_3;
 DROP VIEW vu_1, vu_2, vd_1, va_1, vg_1, vh_1, vl_1;
 DROP VIEW vlo_1, vrow, vo_1, vo_2, vx;
+
+DROP TABLE t1, t2;
+
+# Views with derived tables
+# =========================
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(a INTEGER);
+
+INSERT INTO t1 VALUES
+ (1, 10),
+ (2, 20), (2, 21),
+ (3, NULL),
+ (4, 40), (4, 41), (4, 42), (4, 43), (4, 44);
+
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (NULL);
+
+# Simple derived table:
+
+let $derived=
+(SELECT * FROM t2) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Derived table with WHERE clause:
+
+let $derived=
+(SELECT * FROM t1 WHERE b=a*10) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Derived table with GROUP BY clause:
+
+let $derived=
+(SELECT a, SUM(b) AS s, COUNT(*) AS c FROM t1 GROUP BY a ORDER BY a) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Derived table with DISTINCT clause:
+
+let $derived=
+(SELECT DISTINCT a FROM t1) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Derived table with LIMIT and OFFSET:
+
+let $derived=
+(SELECT * FROM t1 LIMIT 3 OFFSET 3) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Derived table with UNION clause:
+
+let $derived=
+(SELECT DISTINCT a FROM t1 UNION ALL SELECT a FROM t2) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Derived table with scalar subquery in WHERE clause:
+
+let $derived=
+(SELECT * FROM t1 WHERE (SELECT a FROM t1 LIMIT 1) = b/10) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Derived table with IN subquery in WHERE clause:
+
+let $derived=
+(SELECT * FROM t1 WHERE a IN (SELECT a FROM t2 WHERE a % 2 = 0)) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Derived table with scalar subquery in SELECT list:
+
+let $derived=
+(SELECT a, (SELECT a FROM t2 WHERE a=t1.a)
+ FROM t1 WHERE b IN (SELECT a*10 FROM t2)) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Derived table with scalar subquery, cardinality violation:
+
+let $derived=
+(SELECT a, (SELECT a FROM t2) FROM t1 WHERE b=a*10) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1;
+
+let $q=
+SELECT * FROM $derived;
+
+--error ER_SUBQUERY_NO_1_ROW
+eval $qv;
+--error ER_SUBQUERY_NO_1_ROW
+eval $q;
+
+DROP VIEW v1;
+
+# Derived table that is joined:
+
+let $derived=
+(SELECT a, b FROM t1 WHERE b IN (SELECT a*10 FROM t2)) AS dt;
+
+eval CREATE VIEW v1 AS
+SELECT * FROM $derived;
+
+let $qv=
+SELECT * FROM v1 JOIN t2 ON v1.a=t2.a;
+
+let $q=
+SELECT * FROM $derived JOIN t2 ON dt.a=t2.a;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+DROP TABLE t1, t2;
+
+# Views with subqueries in select list
+# ====================================
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(a INTEGER);
+
+INSERT INTO t1 VALUES
+ (1, 10),
+ (2, 20), (2, 21),
+ (3, NULL),
+ (4, 40), (4, 41), (4, 42), (4, 43), (4, 44);
+
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (NULL);
+
+let $qv=
+SELECT * FROM v1;
+
+let $qva=
+SELECT a FROM v1;
+
+# Non-correlated scalar subquery:
+
+let $q=
+SELECT a, b, (SELECT 1 FROM t2 WHERE a=3) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Non-correlated scalar subquery, empty result:
+
+let $q=
+SELECT a, b, (SELECT 1 FROM t2 WHERE a=6) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Non-correlated scalar subquery, multiple rows:
+
+let $q=
+SELECT a, b, (SELECT 1 FROM t2 WHERE a>=3) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+--error ER_SUBQUERY_NO_1_ROW
+eval $qv;
+eval $qva;
+--error ER_SUBQUERY_NO_1_ROW
+eval $q;
+eval explain $qva;
+
+DROP VIEW v1;
+
+# Non-correlated table subquery:
+
+let $q=
+SELECT a, b, a IN (SELECT 1 FROM t2 WHERE a=6) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Aggregated scalar subquery:
+
+let $q=
+SELECT a, b, (SELECT COUNT(*) FROM t2) AS c
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Aggregated table subquery:
+
+let $q=
+SELECT a, b, a IN (SELECT COUNT(*) FROM t2) AS c
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Scalar subquery with outer reference:
+
+let $q=
+SELECT a, b, (SELECT a*2 FROM t2 WHERE a=t1.a) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Table subquery with outer reference:
+
+let $q=
+SELECT a, b, EXISTS (SELECT a*2 FROM t2 WHERE a=t1.a) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Aggregated scalar subquery with outer reference:
+
+let $q=
+SELECT a, b, (SELECT COUNT(*) FROM t1 AS t2 WHERE a=t1.a) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Aggregated table subquery with outer reference:
+
+let $q=
+SELECT a, b, EXISTS (SELECT COUNT(*) FROM t1 AS t2 WHERE a=t1.a) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Outer aggregated query with scalar subquery:
+
+let $q=
+SELECT (SELECT a FROM t2 WHERE a=FLOOR(COUNT(t1.a)/2)) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+let $q=
+SELECT COUNT(*) AS a, (SELECT a FROM t2 WHERE a=FLOOR(COUNT(t1.a)/2)) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Outer aggregated query with table subquery:
+
+let $q=
+SELECT a IN (SELECT a FROM t2 WHERE a=FLOOR(COUNT(t1.a)/2)) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $q;
+eval explain $qv;
+eval explain $q;
+
+DROP VIEW v1;
+
+let $q=
+SELECT COUNT(*) AS a, a IN (SELECT a FROM t2 WHERE a=FLOOR(COUNT(t1.a)/2)) AS s
+FROM t1;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Outer grouped query with scalar subquery:
+
+let $q=
+SELECT a, COUNT(*) AS c, (SELECT a FROM t2 WHERE a=COUNT(t1.a)) AS s
+FROM t1
+GROUP BY a;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
+
+# Outer grouped query with table subquery:
+
+let $q=
+SELECT a, COUNT(*) AS c, a IN (SELECT a FROM t2 WHERE a=COUNT(t1.a)) AS s
+FROM t1
+GROUP BY a;
+
+eval CREATE VIEW v1 AS $q;
+
+eval $qv;
+eval $qva;
+eval $q;
+eval explain $qv;
+eval explain $qva;
+eval explain $q;
+
+DROP VIEW v1;
 
 DROP TABLE t1, t2;
 

@@ -394,6 +394,15 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
 {
   DBUG_ENTER("SELECT_LEX::apply_local_transforms");
 
+  /*
+    If query block contains one or more merged derived tables/views,
+    walk through lists of columns in select lists and remove unused columns.
+  */
+  if (derived_table_count &&
+      first_execution &&
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))
+    delete_unused_merged_columns(&top_join_list);
+
   for (SELECT_LEX_UNIT *unit= first_inner_unit();
        unit;
        unit= unit->next_unit())
@@ -3516,6 +3525,49 @@ validate_gc_assignment(THD * thd, List<Item> *fields,
     }
   }
   DBUG_RETURN(false);
+}
+
+
+/**
+  Delete unused columns from merged tables.
+
+  This function is called recursively for each join nest and/or table
+  in the query block. For each merged table that it finds, each column
+  that contains a subquery and is not marked as used is removed and
+  the translation item is set to NULL.
+
+  @param tables List of tables and join nests
+*/
+
+void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables)
+{
+  DBUG_ENTER("delete_unused_merged_columns");
+
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> li(*tables);
+  while ((tl= li++))
+  {
+    if (tl->nested_join == NULL)
+      continue;
+    if (tl->is_merged())
+    {
+      for (Field_translator *transl= tl->field_translation;
+           transl < tl->field_translation_end;
+           transl++)
+      {
+        DBUG_ASSERT(transl->item->fixed);
+        if (transl->item->has_subquery() && !transl->item->is_derived_used())
+        {
+          transl->item->walk(&Item::clean_up_after_removal,
+                             walk_subquery, (uchar *)this);
+          transl->item= NULL;
+        }
+      }
+    }
+    delete_unused_merged_columns(&tl->nested_join->join_list);
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 

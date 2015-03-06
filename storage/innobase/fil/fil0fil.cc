@@ -4981,9 +4981,12 @@ fil_io(
 		&& space->stop_new_ops && !space->is_being_truncated)) {
 		mutex_exit(&fil_system->mutex);
 
-		ib::error() << "Trying to do i/o to a tablespace which does"
-			" not exist. i/o type " << type << ", page " << page_id
-			<< ", i/o length " << len << " bytes";
+		if (!ignore_nonexistent_pages) {
+			ib::error() << "Trying to do i/o to a tablespace which"
+				" does not exist. i/o type " << type
+				<< ", page " << page_id	<< ", i/o length "
+				<< len << " bytes";
+		}
 
 		return(DB_TABLESPACE_DELETED);
 	}
@@ -5041,11 +5044,14 @@ fil_io(
 		    && fil_is_user_tablespace_id(space->id)) {
 			mutex_exit(&fil_system->mutex);
 
-			ib::error() << "Trying to do i/o to a tablespace which"
-				" exists without .ibd data file. i/o type "
-				<< type << ", space id " << page_id.space()
-				<< ", page no " << cur_page_no << ","
-				" i/o length " << len << " bytes";
+			if (!ignore_nonexistent_pages) {
+				ib::error() << "Trying to do i/o to a"
+					" tablespace which exists without .ibd"
+					" data file. i/o type "	<< type
+					<< ", space id " << page_id.space()
+					<< ", page no " << cur_page_no << ","
+					" i/o length " << len << " bytes";
+			}
 
 			return(DB_TABLESPACE_DELETED);
 		}
