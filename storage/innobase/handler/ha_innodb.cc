@@ -17426,12 +17426,12 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_dump_now, innodb_buffer_pool_dump_now,
 static MYSQL_SYSVAR_BOOL(buffer_pool_dump_at_shutdown, srv_buffer_pool_dump_at_shutdown,
   PLUGIN_VAR_RQCMDARG,
   "Dump the buffer pool into a file named @@innodb_buffer_pool_filename",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_dump_pct, srv_buf_pool_dump_pct,
   PLUGIN_VAR_RQCMDARG,
-  "Dump only the hottest N% of each buffer pool, defaults to 100",
-  NULL, NULL, 100, 1, 100, 0);
+  "Dump only the hottest N% of each buffer pool, defaults to 25",
+  NULL, NULL, 25, 1, 100, 0);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_STR(buffer_pool_evict, srv_buffer_pool_evict,
@@ -17454,7 +17454,7 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_load_abort, innodb_buffer_pool_load_abort,
 static MYSQL_SYSVAR_BOOL(buffer_pool_load_at_startup, srv_buffer_pool_load_at_startup,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Load the buffer pool from a file named @@innodb_buffer_pool_filename",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(lru_scan_depth, srv_LRU_scan_depth,
   PLUGIN_VAR_RQCMDARG,
