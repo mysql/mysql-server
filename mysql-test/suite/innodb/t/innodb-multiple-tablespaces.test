@@ -13,8 +13,9 @@
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
-let $MYSQLD_DATADIR= `select @@datadir`;
-let $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+LET $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 --enable_query_log
 
 --mkdir $MYSQL_TMP_DIR/alt_dir
@@ -201,9 +202,7 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --echo #
 --source include/start_mysqld.inc
 
---replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --error ER_TABLESPACE_MISSING
 SELECT * FROM yyy;
@@ -448,9 +447,7 @@ SHOW CREATE TABLE yw;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE yy;
 
---replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo #
 --echo # List of files before removing unused files

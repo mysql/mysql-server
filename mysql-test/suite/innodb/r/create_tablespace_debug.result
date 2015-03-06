@@ -23,13 +23,13 @@ INSERT INTO t1 VALUES ( 11);
 INSERT INTO t2 VALUES ( 21);
 INSERT INTO t3 VALUES ( 31);
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t1	s1	129	4	Antelope	Compact	0	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	s1	129	4	Compact	0	General
 ALTER TABLE t2 TABLESPACE=s1;
 ALTER TABLE t3 TABLESPACE=s1;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t1	s1	129	4	Antelope	Compact	0	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	s1	129	4	Compact	0	General
 # MYSQLD_DATADIR/
 s1.ibd
 show tables;
@@ -69,18 +69,18 @@ INSERT INTO t2 VALUES (22);
 INSERT INTO t3 VALUES (32);
 INSERT INTO t4 VALUES (42);
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t1	s1	129	4	Antelope	Compact	0	General
-test/t2	s1	129	4	Antelope	Compact	0	General
-test/t3	innodb_system	129	4	Antelope	Compact	0	System
-test/t4	test/t4	1	4	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	s1	129	4	Compact	0	General
+test/t2	s1	129	4	Compact	0	General
+test/t3	innodb_system	129	4	Compact	0	System
+test/t4	test/t4	1	4	Compact	0	Single
 # Kill and restart
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t1	s1	129	4	Antelope	Compact	0	General
-test/t2	s1	129	4	Antelope	Compact	0	General
-test/t3	innodb_system	129	4	Antelope	Compact	0	System
-test/t4	test/t4	1	4	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	s1	129	4	Compact	0	General
+test/t2	s1	129	4	Compact	0	General
+test/t3	innodb_system	129	4	Compact	0	System
+test/t4	test/t4	1	4	Compact	0	Single
 select * from t1;
 a
 11
@@ -123,18 +123,18 @@ RENAME TABLE t2 TO tr2;
 RENAME TABLE t3 TO tr3;
 RENAME TABLE t4 TO tr4;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/tr1	s1	129	4	Antelope	Compact	0	General
-test/tr2	s1	129	4	Antelope	Compact	0	General
-test/tr3	innodb_system	129	4	Antelope	Compact	0	System
-test/tr4	test/tr4	1	4	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tr1	s1	129	4	Compact	0	General
+test/tr2	s1	129	4	Compact	0	General
+test/tr3	innodb_system	129	4	Compact	0	System
+test/tr4	test/tr4	1	4	Compact	0	Single
 # Kill and restart
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/tr1	s1	129	4	Antelope	Compact	0	General
-test/tr2	s1	129	4	Antelope	Compact	0	General
-test/tr3	innodb_system	129	4	Antelope	Compact	0	System
-test/tr4	test/tr4	1	4	Antelope	Compact	0	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/tr1	s1	129	4	Compact	0	General
+test/tr2	s1	129	4	Compact	0	General
+test/tr3	innodb_system	129	4	Compact	0	System
+test/tr4	test/tr4	1	4	Compact	0	Single
 select * from tr1;
 a
 11

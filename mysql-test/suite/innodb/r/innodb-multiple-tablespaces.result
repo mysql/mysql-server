@@ -161,22 +161,22 @@ yyy.ibd
 # Start the server and show the tablespaces.
 #
 # restart
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
-MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
-MYSQL_TMP_DIR/alt_dir/test/yny.ibd
-MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
-MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
-MYSQL_TMP_DIR/new_dir/test/nwy.ibd
-MYSQL_TMP_DIR/new_dir/test/wny.ibd
-MYSQLD_DATADIR/test/ynw.ibd
-MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
-MYSQLD_DATADIR/test/ywn.ibd
-MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
-MYSQL_TMP_DIR/alt_dir/test/www.ibd
-MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/yyy	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd	DEFAULT	0	Compact or Redundant	Single
+test/nyy	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd	DEFAULT	0	Compact or Redundant	Single
+test/yny	MYSQL_TMP_DIR/alt_dir/test/yny.ibd	DEFAULT	0	Compact or Redundant	Single
+test/yyn	MYSQL_TMP_DIR/alt_dir/test/yyn.ibd	DEFAULT	0	Compact or Redundant	Single
+test/nyw	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd	DEFAULT	0	Compact or Redundant	Single
+test/nwy	MYSQL_TMP_DIR/new_dir/test/nwy.ibd	DEFAULT	0	Compact or Redundant	Single
+test/wny	MYSQL_TMP_DIR/new_dir/test/wny.ibd	DEFAULT	0	Compact or Redundant	Single
+test/ynw	MYSQLD_DATADIR/test/ynw.ibd	DEFAULT	0	Compact or Redundant	Single
+test/wyn	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd	DEFAULT	0	Compact or Redundant	Single
+test/ywn	MYSQLD_DATADIR/test/ywn.ibd	DEFAULT	0	Compact or Redundant	Single
+test/nnn	MYSQL_TMP_DIR/alt_dir/test/nnn.ibd	DEFAULT	0	Compact or Redundant	Single
+test/www	MYSQL_TMP_DIR/alt_dir/test/www.ibd	DEFAULT	0	Compact or Redundant	Single
+test/nolink	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd	DEFAULT	0	Compact or Redundant	Single
 SELECT * FROM yyy;
 ERROR HY000: Tablespace is missing for table `test`.`yyy`.
 SELECT * FROM nyy;
@@ -522,14 +522,14 @@ yy	CREATE TABLE `yy` (
   `c2` text,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_TMP_DIR/alt_dir/test/ny.ibd
-MYSQL_TMP_DIR/alt_dir/test/wy.ibd
-MYSQL_TMP_DIR/alt_dir/test/yn.ibd
-MYSQL_TMP_DIR/alt_dir/test/yw.ibd
-MYSQL_TMP_DIR/alt_dir/test/yy.ibd
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/ny	MYSQL_TMP_DIR/alt_dir/test/ny.ibd	DEFAULT	0	Compact or Redundant	Single
+test/wy	MYSQL_TMP_DIR/alt_dir/test/wy.ibd	DEFAULT	0	Compact or Redundant	Single
+test/yn	MYSQL_TMP_DIR/alt_dir/test/yn.ibd	DEFAULT	0	Compact or Redundant	Single
+test/yw	MYSQL_TMP_DIR/alt_dir/test/yw.ibd	DEFAULT	0	Compact or Redundant	Single
+test/yy	MYSQL_TMP_DIR/alt_dir/test/yy.ibd	DEFAULT	0	Compact or Redundant	Single
 #
 # List of files before removing unused files
 #

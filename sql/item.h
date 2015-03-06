@@ -841,7 +841,15 @@ public:
     substitution in subquery transformation process
    */
   bool runtime_item;
- protected:
+
+private:
+  /**
+    True if this is an expression from the select list of a derived table
+    which is actually used by outer query.
+  */
+  bool derived_used;
+
+protected:
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
                                            subselect. Computed by fix_fields
@@ -2113,6 +2121,13 @@ public:
   virtual bool has_stored_program() const { return with_stored_program; }
   /// Whether this Item was created by the IN->EXISTS subquery transformation
   virtual bool created_by_in2exists() const { return false; }
+
+  // @return true if an expression in select list of derived table is used
+  bool is_derived_used() const { return derived_used; }
+
+  // Set an expression from select list of derived table as used
+  void set_derived_used() { derived_used= true; }
+
   void mark_subqueries_optimized_away()
   {
     if (has_subquery())
@@ -4103,6 +4118,17 @@ public:
   virtual Ref_Type ref_type() const { return VIEW_REF; }
 
   virtual bool check_column_privileges(uchar *arg);
+  virtual bool mark_field_in_map(uchar *arg)
+  {
+    /*
+      If this referenced column is marked as used, flag underlying
+      selected item from a derived table/view as used.
+    */
+    Mark_field *mark_field= (Mark_field *)arg;
+    if (mark_field->mark != MARK_COLUMNS_NONE)
+      (*ref)->set_derived_used();
+    return false;
+  }
 };
 
 

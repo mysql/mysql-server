@@ -9,6 +9,7 @@
 --source include/have_partition.inc
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 # These values can change during the test
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
@@ -47,18 +48,8 @@ SELECT * FROM emp;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
@@ -97,18 +88,8 @@ eval ALTER TABLE emp REORGANIZE PARTITION southwest INTO
 SELECT * FROM emp;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test

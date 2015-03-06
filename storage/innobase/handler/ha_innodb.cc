@@ -2289,6 +2289,46 @@ check_trx_exists(
 	return(trx);
 }
 
+/** InnoDB transaction object that is currently associated with THD is
+replaced with that of the 2nd argument. The previous value is
+returned through the 3rd argument's buffer, unless it's NULL.  When
+the buffer is not provided (value NULL) that should mean the caller
+restores previously saved association so the current trx has to be
+additionally freed from all association with MYSQL.
+
+@param[in,out]	thd		MySQL thread handle
+@param[in]	new_trx_arg	replacement trx_t
+@param[in,out]	ptr_trx_arg	pointer to a buffer to store old trx_t */
+static
+void
+innodb_replace_trx_in_thd(
+	THD*	thd,
+	void*	new_trx_arg,
+	void**	ptr_trx_arg)
+{
+	trx_t*& trx = thd_to_trx(thd);
+
+	ut_ad(new_trx_arg == NULL
+	      || (((trx_t*) new_trx_arg)->mysql_thd == thd
+		  && !((trx_t*) new_trx_arg)->is_recovered));
+
+	if (ptr_trx_arg) {
+		*ptr_trx_arg = trx;
+
+		ut_ad(trx == NULL
+		      || (trx->mysql_thd == thd && !trx->is_recovered));
+
+	} else if (trx->state == TRX_STATE_NOT_STARTED) {
+		ut_ad(thd == trx->mysql_thd);
+		trx_free_for_mysql(trx);
+	} else {
+		ut_ad(thd == trx->mysql_thd);
+		ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
+		trx_disconnect_prepared(trx);
+	}
+	trx = static_cast<trx_t*>(new_trx_arg);
+}
+
 /*********************************************************************//**
 Note that a transaction has been registered with MySQL.
 @return true if transaction is registered with MySQL 2PC coordinator */
@@ -3069,7 +3109,8 @@ innobase_init(
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
-
+        innobase_hton->replace_native_transaction_in_thd =
+                innodb_replace_trx_in_thd;
 	innobase_hton->data = &innodb_api_cb;
 
 	innobase_hton->is_supported_system_table=
@@ -4165,23 +4206,39 @@ innobase_close_connection(
 					" 2PC, but transaction is active");
 		}
 
+		/* Disconnect causes rollback in the following cases:
+		- trx is not started, or
+		- trx is in *not* in PREPARED state, or
+		- trx has not updated any persistent data.
+		TODO/FIXME: it does not make sense to initiate rollback
+		in the 1st and 3rd case. */
 		if (trx_is_started(trx)) {
-
-			sql_print_warning(
-				"MySQL is closing a connection that has an"
-				" active InnoDB transaction.  " TRX_ID_FMT
-				" row modifications will roll back.",
-				trx->undo_no);
-
-			ut_d(ib::warn()
-			     << "trx: " << trx << " started on: "
-			     << innobase_basename(trx->start_file)
-				<< ":" << trx->start_line);
+			if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
+				if (trx_is_redo_rseg_updated(trx)) {
+					trx_disconnect_prepared(trx);
+				} else {
+					trx_rollback_for_mysql(trx);
+					trx_deregister_from_2pc(trx);
+					trx_free_for_mysql(trx);
+				}
+			} else {
+				sql_print_warning(
+					"MySQL is closing a connection that "
+					"has an active InnoDB transaction.  "
+					TRX_ID_FMT
+					" row modifications will roll back.",
+					trx->undo_no);
+				ut_d(ib::warn()
+				     << "trx: " << trx << " started on: "
+				     << innobase_basename(trx->start_file)
+				     << ":" << trx->start_line);
+				innobase_rollback_trx(trx);
+				trx_free_for_mysql(trx);
+			}
+		} else {
+			innobase_rollback_trx(trx);
+			trx_free_for_mysql(trx);
 		}
-
-		innobase_rollback_trx(trx);
-
-		trx_free_for_mysql(trx);
 	}
 
 	UT_DELETE(thd_to_innodb_session(thd));
@@ -15228,7 +15285,12 @@ innobase_commit_by_xid(
 		TrxInInnoDB	trx_in_innodb(trx);
 
 		innobase_commit_low(trx);
+                ut_ad(trx->mysql_thd == NULL);
+		/* use cases are: disconnected xa, slave xa, recovery */
+		trx_deregister_from_2pc(trx);
+		ut_ad(!trx->will_lock);    /* trx cache requirement */
 		trx_free_for_background(trx);
+
 		return(XA_OK);
 	} else {
 		return(XAER_NOTA);
@@ -15256,6 +15318,8 @@ innobase_rollback_by_xid(
 
 		int	ret = innobase_rollback_trx(trx);
 
+		trx_deregister_from_2pc(trx);
+		ut_ad(!trx->will_lock);
 		trx_free_for_background(trx);
 
 		return(ret);

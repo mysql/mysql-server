@@ -70,9 +70,21 @@ xa prepare 'testa','testb';
 
 xa recover;
 
+# When this connection has already started an own XA transaction
+# it cannot execute XA COMMIT for another XA.
+--error ER_XAER_RMFAIL
+xa commit 'testb',0x2030405060,11;
+# nor XA ROLLBACK on "foreign" XA.
+--error ER_XAER_RMFAIL
+xa rollback 'testb',0x2030405060,11;
+xa rollback 'testa','testb';
+
+# "Foreign" XA is not in an allowed state to be committed
 --error ER_XAER_NOTA
 xa commit 'testb',0x2030405060,11;
-xa rollback 'testa','testb';
+# nor be rolled back
+--error ER_XAER_NOTA
+xa rollback 'testb',0x2030405060,11;
 
 --error ER_PARSE_ERROR
 xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
@@ -81,6 +93,7 @@ select * from t1;
 
 disconnect con1;
 connection default;
+
 drop table t1;
 
 #
@@ -577,7 +590,7 @@ connection default;
 XA START 'xid1';
 XA END 'xid1';
 XA PREPARE 'xid1';
---error ER_XAER_NOTA
+--error ER_XAER_RMFAIL
 XA ROLLBACK 'xid2';
 XA ROLLBACK 'xid1';
 
@@ -590,3 +603,14 @@ XA ROLLBACK 'xid1';
 
 --error ER_PARSE_ERROR
 XA START '1', 0x01, 18446744073709551615;
+
+# Finish off  disconnected survived transaction
+--echo There should be practically no error, but in theory
+--echo XAER_NOTA: Unknown XID can be returned if con1 disconnection
+--echo took for too long.
+--echo todo: consider to make this test dependent on P_S if
+--echo todo: such case will be ever registered.
+xa rollback 'testb',0x2030405060,11;
+
+# There should be no prepared transactions left.
+XA RECOVER;

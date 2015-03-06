@@ -157,12 +157,6 @@ bool PT_table_factor_select_sym::contextualize(Parse_context *pc)
   LEX * const lex= pc->thd->lex;
   SELECT_LEX *const outer_select= pc->select;
 
-  if (! lex->parsing_options.allows_derived)
-  {
-    my_error(ER_VIEW_SELECT_DERIVED, MYF(0));
-    return true;
-  }
-
   if (!outer_select->embedding || outer_select->end_nested_join(pc->thd))
   {
     /* we are not in parentheses */

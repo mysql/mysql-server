@@ -650,6 +650,106 @@ public:
 };
 
 /**
+  @class XA_prepare_event
+
+  An XA_prepare event is generated for a XA prepared transaction.
+  Like Xid_event it contans XID of the *prepared* transaction.
+
+  @section XA_prepare_event_binary_format Binary Format
+
+The Body has the following component:
+
+  <table>
+  <caption>Body for XA_prepare_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>my_xid</td>
+    <td>a struct similar to mysql/plugin.h containing three members.</td>
+    <td>serialized XID representation of XA transaction.</td>
+  </tr>
+
+  <tr>
+    <td>xid</td>
+    <td>a pointer to XID object.</td>
+    <td>a reference to an object for mysql logger.</td>
+  </tr>
+
+  <tr>
+    <td>one_phase</td>
+    <td>a bool</td>
+    <td>the value specifies the current XA transaction commit method.</td>
+  </tr>
+  </table>
+  The Post-Header and Body for this event type are empty; it only has
+  the common header.
+*/
+
+class XA_prepare_event: public Binary_log_event
+{
+  /*
+    Struct def is copied from $MYSQL/include/mysql/plugin.h,
+    consult there about fine details.
+  */
+  static const int MY_XIDDATASIZE= 128;
+
+  struct st_mysql_xid {
+    long formatID;
+    long gtrid_length;
+    long bqual_length;
+    char data[MY_XIDDATASIZE];  /* Not \0-terminated */
+  };
+  typedef struct st_mysql_xid MY_XID;
+
+protected:
+  /* size of serialization buffer is explained in $MYSQL/sql/xa.h. */
+  static const uint16_t ser_buf_size=
+    8 + 2 * MY_XIDDATASIZE + 4 * sizeof(long) + 1;
+  MY_XID my_xid;
+  void *xid; /* Master side only */
+  bool one_phase;
+
+public:
+  /**
+    The minimal constructor of XA_prepare_event, it initializes the
+    instance variable xid and set the type_code as XID_EVENT in the
+    header object in Binary_log_event
+  */
+  XA_prepare_event(void *xid_arg, bool oph_arg)
+    : Binary_log_event(XA_PREPARE_LOG_EVENT), xid(xid_arg), one_phase(oph_arg)
+  {
+  }
+
+  /**
+    An XID event is generated for a commit of a transaction that modifies one or
+    more tables of an XA-capable storage engine
+    @param buf    Contains the serialized event.
+    @param fde    An FDE event, used to get the following information
+                     -binlog_version
+                     -server_version
+                     -post_header_len
+                     -common_header_len
+                     The content of this object
+                     depends on the binlog-version currently in use.
+  */
+  XA_prepare_event(const char *buf, const Format_description_event *fde);
+#ifndef HAVE_MYSYS
+  /*
+    todo: we need to find way how to exploit server's code of
+    serialize_xid()
+  */
+  void print_event_info(std::ostream& info) {};
+  void print_long_info(std::ostream& info)  {};
+#endif
+};
+
+
+/**
   @class Ignorable_event
 
   Base class for ignorable log events. Events deriving from

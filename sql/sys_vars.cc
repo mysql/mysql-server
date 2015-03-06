@@ -796,6 +796,42 @@ static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var 
   return false;
 }
 
+#ifdef HAVE_REPLICATION
+/**
+  Check-function to @@GTID_NEXT system variable. Essentially it's a
+  wrapper to @c check_super_outside_trx_outside_sf whose task is
+  temporarily mask server_status of prepared XA transaction before to
+  call the function.
+
+  @param self   a pointer to the sys_var, i.e. gtid_next
+  @param thd    a reference to THD object
+  @param var    a pointer to the set_var created by the parser.
+
+  @return @c false if the change is allowed, otherwise @c true.
+*/
+
+static bool check_super_outside_prepared_trx_outside_sf(sys_var *self, THD *thd,
+                                                        set_var *var)
+{
+  bool is_prepared_trx=
+    thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_PREPARED);
+  bool rc=false;
+
+  if (is_prepared_trx)
+  {
+    DBUG_ASSERT(thd->in_active_multi_stmt_transaction());
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  }
+  rc= check_super_outside_trx_outside_sf(self, thd, var);
+  if (is_prepared_trx)
+  {
+    thd->server_status|= SERVER_STATUS_IN_TRANS;
+  }
+
+  return rc;
+}
+#endif
+
 static bool check_super_outside_trx_outside_sf_outside_sp(sys_var *self, THD *thd, set_var *var)
 {
   if (check_super_outside_trx_outside_sf(self, thd, var))
@@ -4975,7 +5011,7 @@ static Sys_var_gtid_next Sys_gtid_next(
        "transaction.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_super_outside_trx_outside_sf));
+       NOT_IN_BINLOG, ON_CHECK(check_super_outside_prepared_trx_outside_sf));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
 static Sys_var_gtid_executed Sys_gtid_executed(
