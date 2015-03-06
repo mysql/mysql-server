@@ -11,43 +11,61 @@ variable_value
 {checked_valid}
 # Test 3) Query some information_shema tables that are dependent upon
 #         the page size.
-INDEX_ID	NAME	TABLE_ID	TYPE	N_FIELDS	SPACE!=0
-11	ID_IND	11	3	1	0
-12	FOR_IND	11	0	1	0
-13	REF_IND	11	0	1	0
-14	ID_IND	12	3	2	0
-15	SYS_TABLESPACES_SPACE	13	3	1	0
-16	SYS_DATAFILES_SPACE	14	3	1	0
-17	PRIMARY	15	3	1	1
-18	PRIMARY	16	3	1	1
-36	PRIMARY	31	3	2	1
-37	PRIMARY	32	3	1	1
-38	PRIMARY	33	3	3	1
+SELECT	t.space, t.name table_name, t.n_cols, t.flag table_flags,
+i.name index_name, i.page_no root_page, i.type,
+i.n_fields, i.merge_threshold
+FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
+INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+WHERE	t.table_id = i.table_id
+AND	t.name LIKE 'mysql%'
+	ORDER BY t.space, i.page_no;
+space	table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
+2	mysql/plugin	5	1	PRIMARY	3	3	1	50
+3	mysql/servers	12	1	PRIMARY	3	3	1	50
+4	mysql/help_topic	9	1	PRIMARY	3	3	1	50
+4	mysql/help_topic	9	1	name	4	2	1	50
+5	mysql/help_category	7	1	PRIMARY	3	3	1	50
+5	mysql/help_category	7	1	name	4	2	1	50
+6	mysql/help_relation	5	1	PRIMARY	3	3	2	50
+7	mysql/help_keyword	5	1	PRIMARY	3	3	1	50
+7	mysql/help_keyword	5	1	name	4	2	1	50
+8	mysql/time_zone_name	5	1	PRIMARY	3	3	1	50
+9	mysql/time_zone	5	1	PRIMARY	3	3	1	50
+10	mysql/time_zone_transition	6	1	PRIMARY	3	3	2	50
+11	mysql/time_zone_transition_type	8	1	PRIMARY	3	3	2	50
+12	mysql/time_zone_leap_second	5	1	PRIMARY	3	3	1	50
+13	mysql/innodb_table_stats	9	1	PRIMARY	3	3	2	50
+14	mysql/innodb_index_stats	11	1	PRIMARY	3	3	4	50
+15	mysql/slave_relay_log_info	12	1	PRIMARY	3	3	1	50
+16	mysql/slave_master_info	27	1	PRIMARY	3	3	1	50
+17	mysql/slave_worker_info	16	1	PRIMARY	3	3	2	50
+18	mysql/gtid_executed	6	1	PRIMARY	3	3	2	50
+19	mysql/server_cost	7	1	PRIMARY	3	3	1	50
+20	mysql/engine_cost	9	1	PRIMARY	3	3	3	50
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
 CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
-WHERE name LIKE 'test%' ORDER BY table_id;
-TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
-{id}	test/t1	0	5	{id}	Antelope	Redundant	0	Single
-{id}	test/t2	1	5	{id}	Antelope	Compact	0	Single
-{id}	test/t3	41	5	{id}	Barracuda	Compressed	8192	Single
-{id}	test/t4	33	5	{id}	Barracuda	Dynamic	0	Single
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
-WHERE name LIKE 'test%' ORDER BY space;
-SPACE	NAME	FLAG	FILE_FORMAT	ROW_FORMAT	PAGE_SIZE	ZIP_PAGE_SIZE	SPACE_TYPE
-{id}	test/t1	0	Antelope	Compact or Redundant	16384	0	Single
-{id}	test/t2	0	Antelope	Compact or Redundant	16384	0	Single
-{id}	test/t3	41	Barracuda	Compressed	16384	8192	Single
-{id}	test/t4	33	Barracuda	Dynamic	16384	0	Single
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
-WHERE path LIKE '%test%' ORDER BY space;
-SPACE	PATH
-{id}	MYSQLD_DATADIR/test/t1.ibd
-{id}	MYSQLD_DATADIR/test/t2.ibd
-{id}	MYSQLD_DATADIR/test/t3.ibd
-{id}	MYSQLD_DATADIR/test/t4.ibd
+SELECT	t.name table_name, t.n_cols, t.flag table_flags,
+i.name index_name, i.page_no root_page, i.type,
+i.n_fields, i.merge_threshold
+FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
+INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+WHERE	t.table_id = i.table_id
+AND	t.name LIKE 'test%'
+	ORDER BY t.name, i.name;
+table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
+test/t1	5	0	PRIMARY	3	3	1	50
+test/t2	5	1	PRIMARY	3	3	1	50
+test/t3	5	41	PRIMARY	3	3	1	50
+test/t4	5	33	PRIMARY	3	3	1	50
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t1	MYSQLD_DATADIR/test/t1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2	MYSQLD_DATADIR/test/t2.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3	MYSQLD_DATADIR/test/t3.ibd	DEFAULT	8192	Compressed	Single
+test/t4	MYSQLD_DATADIR/test/t4.ibd	DEFAULT	0	Dynamic	Single
 DROP TABLE t1, t2, t3, t4;
 # Test 4) The maximum row size is dependent upon the page size.
 #         Redundant: 8123, Compact: 8126.
