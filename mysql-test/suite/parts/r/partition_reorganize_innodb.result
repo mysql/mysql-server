@@ -45,29 +45,19 @@ SUBPARTITION BY HASH (store_id)
  PARTITION southwest VALUES LESS THAN (100)
  (SUBPARTITION sw2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest/' ENGINE = InnoDB,
   SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest/' ENGINE = InnoDB)) */
-SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/emp#p#northeast#sp#ne0	7	Antelope	Compact
-test/emp#p#northeast#sp#ne1	7	Antelope	Compact
-test/emp#p#southwest#sp#sw2	7	Antelope	Compact
-test/emp#p#southwest#sp#sw3	7	Antelope	Compact
-SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY name;
-name	file_format	row_format
-test/emp#p#northeast#sp#ne0	Antelope	Compact or Redundant
-test/emp#p#northeast#sp#ne1	Antelope	Compact or Redundant
-test/emp#p#southwest#sp#sw2	Antelope	Compact or Redundant
-test/emp#p#southwest#sp#sw3	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
-MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
-MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
-MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/emp#p#northeast#sp#ne0	test/emp#p#northeast#sp#ne0	65	7	Compact	0	Single
+test/emp#p#northeast#sp#ne1	test/emp#p#northeast#sp#ne1	65	7	Compact	0	Single
+test/emp#p#southwest#sp#sw2	test/emp#p#southwest#sp#sw2	65	7	Compact	0	Single
+test/emp#p#southwest#sp#sw3	test/emp#p#southwest#sp#sw3	65	7	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/emp#p#northeast#sp#ne0	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#northeast#sp#ne1	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#southwest#sp#sw2	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#southwest#sp#sw3	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd	DEFAULT	0	Compact or Redundant	Single
 ---- MYSQLD_DATADIR/test
 emp#p#northeast#sp#ne0.isl
 emp#p#northeast#sp#ne1.isl
@@ -129,41 +119,27 @@ SUBPARTITION BY HASH (store_id)
  PARTITION south VALUES LESS THAN (100)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = InnoDB,
   SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = InnoDB)) */
-SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables
-WHERE name LIKE 'test%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/emp#p#east#sp#e0	7	Antelope	Compact
-test/emp#p#east#sp#e1	7	Antelope	Compact
-test/emp#p#north#sp#n0	7	Antelope	Compact
-test/emp#p#north#sp#n1	7	Antelope	Compact
-test/emp#p#south#sp#s0	7	Antelope	Compact
-test/emp#p#south#sp#s1	7	Antelope	Compact
-test/emp#p#west#sp#w0	7	Antelope	Compact
-test/emp#p#west#sp#w1	7	Antelope	Compact
-SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces
-WHERE name LIKE 'test%' ORDER BY name;
-name	file_format	row_format
-test/emp#p#east#sp#e0	Antelope	Compact or Redundant
-test/emp#p#east#sp#e1	Antelope	Compact or Redundant
-test/emp#p#north#sp#n0	Antelope	Compact or Redundant
-test/emp#p#north#sp#n1	Antelope	Compact or Redundant
-test/emp#p#south#sp#s0	Antelope	Compact or Redundant
-test/emp#p#south#sp#s1	Antelope	Compact or Redundant
-test/emp#p#west#sp#w0	Antelope	Compact or Redundant
-test/emp#p#west#sp#w1	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
-MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd
-MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd
-MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n1.ibd
-MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w0.ibd
-MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd
-MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
-MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/emp#p#east#sp#e0	test/emp#p#east#sp#e0	65	7	Compact	0	Single
+test/emp#p#east#sp#e1	test/emp#p#east#sp#e1	65	7	Compact	0	Single
+test/emp#p#north#sp#n0	test/emp#p#north#sp#n0	65	7	Compact	0	Single
+test/emp#p#north#sp#n1	test/emp#p#north#sp#n1	65	7	Compact	0	Single
+test/emp#p#south#sp#s0	test/emp#p#south#sp#s0	65	7	Compact	0	Single
+test/emp#p#south#sp#s1	test/emp#p#south#sp#s1	65	7	Compact	0	Single
+test/emp#p#west#sp#w0	test/emp#p#west#sp#w0	65	7	Compact	0	Single
+test/emp#p#west#sp#w1	test/emp#p#west#sp#w1	65	7	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/emp#p#east#sp#e0	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#east#sp#e1	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#north#sp#n0	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#north#sp#n1	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#west#sp#w0	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w0.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#west#sp#w1	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#south#sp#s0	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp#p#south#sp#s1	MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd	DEFAULT	0	Compact or Redundant	Single
 ---- MYSQLD_DATADIR/test
 emp#p#east#sp#e0.isl
 emp#p#east#sp#e1.isl

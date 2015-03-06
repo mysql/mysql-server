@@ -262,26 +262,26 @@ s_1k	MYSQLD_DATADIR/s_1k.ibd	DEFAULT	1024	Compressed	General
 s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t_com_in_4k	s_4k	129	5	Antelope	Compact	0	General
-test/t_com_in_4k_as	s_4k	129	5	Antelope	Compact	0	General
-test/t_com_in_4k_from_1k	s_4k	129	5	Antelope	Compact	0	General
-test/t_com_in_4k_like	s_4k	129	5	Antelope	Compact	0	General
-test/t_dyn_in_4k	s_4k	161	5	Barracuda	Dynamic	0	General
-test/t_dyn_in_4k_as	s_4k	161	5	Barracuda	Dynamic	0	General
-test/t_dyn_in_4k_from_1k	s_4k	161	5	Barracuda	Dynamic	0	General
-test/t_dyn_in_4k_like	s_4k	161	5	Barracuda	Dynamic	0	General
-test/t_red_in_4k	s_4k	128	5	Antelope	Redundant	0	General
-test/t_red_in_4k_as	s_4k	128	5	Antelope	Redundant	0	General
-test/t_red_in_4k_from_1k	s_4k	128	5	Antelope	Redundant	0	General
-test/t_red_in_4k_like	s_4k	128	5	Antelope	Redundant	0	General
-test/t_zip1k_in_1k	s_1k	163	5	Barracuda	Compressed	1024	General
-test/t_zip1k_in_1k_as	s_1k	163	5	Barracuda	Compressed	1024	General
-test/t_zip1k_in_1k_like	s_1k	163	5	Barracuda	Compressed	1024	General
-test/t_zip2k_in_2k	s_2k	165	5	Barracuda	Compressed	2048	General
-test/t_zip2k_in_2k_as	s_2k	165	5	Barracuda	Compressed	2048	General
-test/t_zip2k_in_2k_from_1k	s_2k	165	5	Barracuda	Compressed	2048	General
-test/t_zip2k_in_2k_like	s_2k	165	5	Barracuda	Compressed	2048	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_com_in_4k	s_4k	129	5	Compact	0	General
+test/t_com_in_4k_as	s_4k	129	5	Compact	0	General
+test/t_com_in_4k_from_1k	s_4k	129	5	Compact	0	General
+test/t_com_in_4k_like	s_4k	129	5	Compact	0	General
+test/t_dyn_in_4k	s_4k	161	5	Dynamic	0	General
+test/t_dyn_in_4k_as	s_4k	161	5	Dynamic	0	General
+test/t_dyn_in_4k_from_1k	s_4k	161	5	Dynamic	0	General
+test/t_dyn_in_4k_like	s_4k	161	5	Dynamic	0	General
+test/t_red_in_4k	s_4k	128	5	Redundant	0	General
+test/t_red_in_4k_as	s_4k	128	5	Redundant	0	General
+test/t_red_in_4k_from_1k	s_4k	128	5	Redundant	0	General
+test/t_red_in_4k_like	s_4k	128	5	Redundant	0	General
+test/t_zip1k_in_1k	s_1k	163	5	Compressed	1024	General
+test/t_zip1k_in_1k_as	s_1k	163	5	Compressed	1024	General
+test/t_zip1k_in_1k_like	s_1k	163	5	Compressed	1024	General
+test/t_zip2k_in_2k	s_2k	165	5	Compressed	2048	General
+test/t_zip2k_in_2k_as	s_2k	165	5	Compressed	2048	General
+test/t_zip2k_in_2k_from_1k	s_2k	165	5	Compressed	2048	General
+test/t_zip2k_in_2k_like	s_2k	165	5	Compressed	2048	General
 # Directory of MYSQLD_DATADIR/
 s_1k.ibd
 s_2k.ibd
@@ -298,26 +298,26 @@ s_1k	MYSQLD_DATADIR/s_1k.ibd	DEFAULT	1024	Compressed	General
 s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t_com_in_4k	s_4k	129	5	Antelope	Compact	0	General
-test/t_com_in_4k_as	s_4k	129	5	Antelope	Compact	0	General
-test/t_com_in_4k_from_1k	s_4k	129	5	Antelope	Compact	0	General
-test/t_com_in_4k_like	s_4k	129	5	Antelope	Compact	0	General
-test/t_dyn_in_4k	s_4k	161	5	Barracuda	Dynamic	0	General
-test/t_dyn_in_4k_as	s_4k	161	5	Barracuda	Dynamic	0	General
-test/t_dyn_in_4k_from_1k	s_4k	161	5	Barracuda	Dynamic	0	General
-test/t_dyn_in_4k_like	s_4k	161	5	Barracuda	Dynamic	0	General
-test/t_red_in_4k	s_4k	128	5	Antelope	Redundant	0	General
-test/t_red_in_4k_as	s_4k	128	5	Antelope	Redundant	0	General
-test/t_red_in_4k_from_1k	s_4k	128	5	Antelope	Redundant	0	General
-test/t_red_in_4k_like	s_4k	128	5	Antelope	Redundant	0	General
-test/t_zip1k_in_1k	s_1k	163	5	Barracuda	Compressed	1024	General
-test/t_zip1k_in_1k_as	s_1k	163	5	Barracuda	Compressed	1024	General
-test/t_zip1k_in_1k_like	s_1k	163	5	Barracuda	Compressed	1024	General
-test/t_zip2k_in_2k	s_2k	165	5	Barracuda	Compressed	2048	General
-test/t_zip2k_in_2k_as	s_2k	165	5	Barracuda	Compressed	2048	General
-test/t_zip2k_in_2k_from_1k	s_2k	165	5	Barracuda	Compressed	2048	General
-test/t_zip2k_in_2k_like	s_2k	165	5	Barracuda	Compressed	2048	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_com_in_4k	s_4k	129	5	Compact	0	General
+test/t_com_in_4k_as	s_4k	129	5	Compact	0	General
+test/t_com_in_4k_from_1k	s_4k	129	5	Compact	0	General
+test/t_com_in_4k_like	s_4k	129	5	Compact	0	General
+test/t_dyn_in_4k	s_4k	161	5	Dynamic	0	General
+test/t_dyn_in_4k_as	s_4k	161	5	Dynamic	0	General
+test/t_dyn_in_4k_from_1k	s_4k	161	5	Dynamic	0	General
+test/t_dyn_in_4k_like	s_4k	161	5	Dynamic	0	General
+test/t_red_in_4k	s_4k	128	5	Redundant	0	General
+test/t_red_in_4k_as	s_4k	128	5	Redundant	0	General
+test/t_red_in_4k_from_1k	s_4k	128	5	Redundant	0	General
+test/t_red_in_4k_like	s_4k	128	5	Redundant	0	General
+test/t_zip1k_in_1k	s_1k	163	5	Compressed	1024	General
+test/t_zip1k_in_1k_as	s_1k	163	5	Compressed	1024	General
+test/t_zip1k_in_1k_like	s_1k	163	5	Compressed	1024	General
+test/t_zip2k_in_2k	s_2k	165	5	Compressed	2048	General
+test/t_zip2k_in_2k_as	s_2k	165	5	Compressed	2048	General
+test/t_zip2k_in_2k_from_1k	s_2k	165	5	Compressed	2048	General
+test/t_zip2k_in_2k_like	s_2k	165	5	Compressed	2048	General
 # Directory of MYSQLD_DATADIR/
 s_1k.ibd
 s_2k.ibd
@@ -385,13 +385,13 @@ test/t_zip1k_as_remote	MYSQL_TMP_DIR/test/t_zip1k_as_remote.ibd	DEFAULT	1024	Com
 test/t_zip2k_as_remote	MYSQL_TMP_DIR/test/t_zip2k_as_remote.ibd	DEFAULT	2048	Compressed	Single
 test/t_zip4k_as_remote	MYSQL_TMP_DIR/test/t_zip4k_as_remote.ibd	DEFAULT	DEFAULT	Compressed	Single
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t_zip1k_as_file_per_table	test/t_zip1k_as_file_per_table	35	5	Barracuda	Compressed	1024	Single
-test/t_zip1k_as_remote	test/t_zip1k_as_remote	99	5	Barracuda	Compressed	1024	Single
-test/t_zip2k_as_file_per_table	test/t_zip2k_as_file_per_table	37	5	Barracuda	Compressed	2048	Single
-test/t_zip2k_as_remote	test/t_zip2k_as_remote	101	5	Barracuda	Compressed	2048	Single
-test/t_zip4k_as_file_per_table	test/t_zip4k_as_file_per_table	39	5	Barracuda	Compressed	4096	Single
-test/t_zip4k_as_remote	test/t_zip4k_as_remote	103	5	Barracuda	Compressed	4096	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_zip1k_as_file_per_table	test/t_zip1k_as_file_per_table	35	5	Compressed	1024	Single
+test/t_zip1k_as_remote	test/t_zip1k_as_remote	99	5	Compressed	1024	Single
+test/t_zip2k_as_file_per_table	test/t_zip2k_as_file_per_table	37	5	Compressed	2048	Single
+test/t_zip2k_as_remote	test/t_zip2k_as_remote	101	5	Compressed	2048	Single
+test/t_zip4k_as_file_per_table	test/t_zip4k_as_file_per_table	39	5	Compressed	4096	Single
+test/t_zip4k_as_remote	test/t_zip4k_as_remote	103	5	Compressed	4096	Single
 # MYSQLD_DATADIR/
 s_1k.ibd
 s_2k.ibd
@@ -494,12 +494,12 @@ s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	0	Any	General
 test/t_zip4k_as_file_per_table	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd	DEFAULT	DEFAULT	Compressed	Single
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t_zip1k_in_s_1k	s_1k	163	5	Barracuda	Compressed	1024	General
-test/t_zip1k_remote_in_s_1k	s_1k	163	5	Barracuda	Compressed	1024	General
-test/t_zip2k_in_s_2k	s_2k	165	5	Barracuda	Compressed	2048	General
-test/t_zip2k_remote_in_s_2k	s_2k	165	5	Barracuda	Compressed	2048	General
-test/t_zip4k_as_file_per_table	test/t_zip4k_as_file_per_table	39	5	Barracuda	Compressed	4096	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_zip1k_in_s_1k	s_1k	163	5	Compressed	1024	General
+test/t_zip1k_remote_in_s_1k	s_1k	163	5	Compressed	1024	General
+test/t_zip2k_in_s_2k	s_2k	165	5	Compressed	2048	General
+test/t_zip2k_remote_in_s_2k	s_2k	165	5	Compressed	2048	General
+test/t_zip4k_as_file_per_table	test/t_zip4k_as_file_per_table	39	5	Compressed	4096	Single
 # MYSQLD_DATADIR/
 s_1k.ibd
 s_2k.ibd
@@ -562,12 +562,12 @@ test/t_zip4k_as_file_per_table	MYSQLD_DATADIR/test/t_zip4k_as_file_per_table.ibd
 test/t_zip1k_to_file_per_table	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd	DEFAULT	1024	Compressed	Single
 test/t_zip2k_to_file_per_table	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd	DEFAULT	2048	Compressed	Single
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t_zip1k_remote_in_s_1k	s_1k	163	5	Barracuda	Compressed	1024	General
-test/t_zip1k_to_file_per_table	test/t_zip1k_to_file_per_table	35	5	Barracuda	Compressed	1024	Single
-test/t_zip2k_remote_in_s_2k	s_2k	165	5	Barracuda	Compressed	2048	General
-test/t_zip2k_to_file_per_table	test/t_zip2k_to_file_per_table	37	5	Barracuda	Compressed	2048	Single
-test/t_zip4k_as_file_per_table	test/t_zip4k_as_file_per_table	39	5	Barracuda	Compressed	4096	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_zip1k_remote_in_s_1k	s_1k	163	5	Compressed	1024	General
+test/t_zip1k_to_file_per_table	test/t_zip1k_to_file_per_table	35	5	Compressed	1024	Single
+test/t_zip2k_remote_in_s_2k	s_2k	165	5	Compressed	2048	General
+test/t_zip2k_to_file_per_table	test/t_zip2k_to_file_per_table	37	5	Compressed	2048	Single
+test/t_zip4k_as_file_per_table	test/t_zip4k_as_file_per_table	39	5	Compressed	4096	Single
 CHECK TABLE `t_zip1k_to_file_per_table`;
 Table	Op	Msg_type	Msg_text
 test.t_zip1k_to_file_per_table	check	status	OK
@@ -599,9 +599,9 @@ s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	0	Any	General
 test/t_zip1k_to_file_per_table	MYSQLD_DATADIR/test/t_zip1k_to_file_per_table.ibd	DEFAULT	1024	Compressed	Single
 test/t_zip2k_to_file_per_table	MYSQLD_DATADIR/test/t_zip2k_to_file_per_table.ibd	DEFAULT	2048	Compressed	Single
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t_zip1k_to_file_per_table	test/t_zip1k_to_file_per_table	35	5	Barracuda	Compressed	1024	Single
-test/t_zip2k_to_file_per_table	test/t_zip2k_to_file_per_table	37	5	Barracuda	Compressed	2048	Single
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_zip1k_to_file_per_table	test/t_zip1k_to_file_per_table	35	5	Compressed	1024	Single
+test/t_zip2k_to_file_per_table	test/t_zip2k_to_file_per_table	37	5	Compressed	2048	Single
 DROP TABLE `t_zip1k_to_file_per_table`;
 DROP TABLE `t_zip2k_to_file_per_table`;
 #
