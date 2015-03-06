@@ -177,6 +177,12 @@ inline double log2(double x)
 */
 st_plugin_int *hton2plugin[MAX_HA];
 
+/**
+  Array allowing to check if handlerton is builtin without
+  acquiring LOCK_plugin.
+*/
+static bool builtin_htons[MAX_HA];
+
 const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
   return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
@@ -498,10 +504,29 @@ plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
   if (hton)
   {
     st_plugin_int **plugin= hton2plugin + hton->slot;
-    
+
 #ifdef DBUG_OFF
+    /*
+      Take a shortcut for builtin engines -- return pointer to plugin
+      without acquiring LOCK_plugin mutex. This is safe safe since such
+      plugins are not deleted until shutdown and we don't do reference
+      counting in non-debug builds for them.
+
+      Since we have reference to handlerton on our hands, this method
+      can't be called concurrently to non-builtin handlerton initialization/
+      deinitialization. So it is safe to access builtin_htons[] without
+      additional locking.
+     */
+    if (builtin_htons[hton->slot])
+      return *plugin;
+
     return my_plugin_lock(thd, plugin);
 #else
+    /*
+      We can't take shortcut in debug builds.
+      At least assert that builtin_htons[slot] is set correctly.
+    */
+    DBUG_ASSERT(builtin_htons[hton->slot] == (plugin[0]->plugin_dl == NULL));
     return my_plugin_lock(thd, &plugin);
 #endif
   }
@@ -722,6 +747,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     DBUG_ASSERT(hton2plugin[hton->slot] == plugin);
     DBUG_ASSERT(hton->slot < MAX_HA);
     hton2plugin[hton->slot]= NULL;
+    builtin_htons[hton->slot]= false; /* Extra correctness. */
   }
 
   my_free(hton);
@@ -819,6 +845,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
       hton->savepoint_offset= savepoint_alloc_size;
       savepoint_alloc_size+= tmp;
       hton2plugin[hton->slot]=plugin;
+      builtin_htons[hton->slot]= (plugin->plugin_dl == NULL);
       if (hton->prepare)
         total_ha_2pc++;
       break;

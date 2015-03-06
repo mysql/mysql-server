@@ -494,6 +494,18 @@ err:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 /**
+  Wrapper class which simplifies read guard usage for LOCK_grant.
+*/
+class LOCK_grant_read_guard : public Partitioned_rwlock_read_guard
+{
+public:
+  explicit LOCK_grant_read_guard(THD *thd)
+    : Partitioned_rwlock_read_guard(&LOCK_grant, thd->thread_id())
+  { }
+};
+
+
+/**
   Check grants for commands which work only with one table and all other
   tables belonging to subselects or implicitly opened tables.
 
@@ -1235,7 +1247,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     create_new_users= test_if_create_new_users(thd);
   bool result= FALSE;
   bool is_partial_execution= false;
-  mysql_rwlock_wrlock(&LOCK_grant);
+
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &memex;
@@ -1402,7 +1415,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
                             transactional_tables);
   }
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
@@ -1522,7 +1535,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &memex;
@@ -1647,7 +1660,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
   }
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
@@ -1759,7 +1772,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     create_new_users= test_if_create_new_users(thd);
 
   /* go through users in user_list */
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   grant_version++;
 
@@ -1863,7 +1876,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                             transactional_tables);
   }
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
   
@@ -1933,7 +1946,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
   DBUG_ENTER("check_grant");
   DBUG_ASSERT(number > 0);
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
   for (tl= tables;
        tl && number-- && tl != first_not_own_table;
        tl= tl->next_global)
@@ -2044,11 +2057,10 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       goto err;                                 // impossible
     }
   }
-  mysql_rwlock_unlock(&LOCK_grant);
   DBUG_RETURN(FALSE);
 
 err:
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
   if (!no_errors)                               // Not a silent skip of table
   {
     char command[128];
@@ -2103,7 +2115,7 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   if (!want_privilege)
     DBUG_RETURN(0);                             // Already checked
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
 
   /* reload table if someone has modified any grants */
 
@@ -2121,12 +2133,11 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   grant_column=column_hash_search(grant_table, name, length);
   if (grant_column && !(~grant_column->rights & want_privilege))
   {
-    mysql_rwlock_unlock(&LOCK_grant);
     DBUG_RETURN(0);
   }
 
 err:
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
   char command[128];
   get_privilege_desc(command, sizeof(command), want_privilege);
   my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
@@ -2256,7 +2267,7 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   */
   bool using_column_privileges= FALSE;
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
 
   for (; !fields->end_of_fields(); fields->next())
   {
@@ -2296,11 +2307,10 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
         goto err;
     }
   }
-  mysql_rwlock_unlock(&LOCK_grant);
   return 0;
 
 err:
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   char command[128];
   get_privilege_desc(command, sizeof(command), want_access);
@@ -2372,7 +2382,7 @@ bool check_grant_db(THD *thd,const char *db)
   len= (uint) (my_stpcpy(my_stpcpy(helping, priv_user.str) + 1, db) -
                helping) + 1;
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
 
   for (uint idx=0 ; idx < column_priv_hash.records ; idx++)
   {
@@ -2392,8 +2402,6 @@ bool check_grant_db(THD *thd,const char *db)
   if (error)
     error= check_grant_db_routine(thd, db, &proc_priv_hash) &&
            check_grant_db_routine(thd, db, &func_priv_hash);
-
-  mysql_rwlock_unlock(&LOCK_grant);
 
   return error;
 }
@@ -2429,7 +2437,8 @@ bool check_grant_routine(THD *thd, ulong want_access,
   if (!want_access)
     DBUG_RETURN(0);                             // ok
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
+
   for (table= procs; table; table= table->next_global)
   {
     GRANT_NAME *grant_proc;
@@ -2443,10 +2452,10 @@ bool check_grant_routine(THD *thd, ulong want_access,
       goto err;
     }
   }
-  mysql_rwlock_unlock(&LOCK_grant);
   DBUG_RETURN(0);
+
 err:
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
   if (!no_errors)
   {
     char buff[1024];
@@ -2487,13 +2496,14 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
   bool no_routine_acl= 1;
   GRANT_NAME *grant_proc;
   Security_context *sctx= thd->security_context();
-  mysql_rwlock_rdlock(&LOCK_grant);
+
+  LOCK_grant_read_guard lock(thd);
+
   if ((grant_proc= routine_hash_search(sctx->priv_host().str,
                                        sctx->ip().str, db,
                                        sctx->priv_user().str,
                                        name, is_proc, 0)))
     no_routine_acl= !(grant_proc->privs & SHOW_PROC_ACLS);
-  mysql_rwlock_unlock(&LOCK_grant);
   return no_routine_acl;
 }
 
@@ -2509,7 +2519,8 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
   const char *db = table->db ? table->db : thd->db().str;
   GRANT_TABLE *grant_table;
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
+
 #ifdef EMBEDDED_LIBRARY
   grant_table= NULL;
 #else
@@ -2522,7 +2533,6 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
   if (grant_table)
     table->grant.privilege|= grant_table->privs;
   privilege= table->grant.privilege;
-  mysql_rwlock_unlock(&LOCK_grant);
   return privilege;
 }
 
@@ -2553,7 +2563,8 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
   GRANT_COLUMN *grant_column;
   ulong priv;
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
+
   /* reload table if someone has modified any grants */
   if (grant->version != grant_version)
   {
@@ -2576,7 +2587,6 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
     else
       priv= (grant->privilege | grant_table->privs | grant_column->rights);
   }
-  mysql_rwlock_unlock(&LOCK_grant);
   return priv;
 }
 
@@ -2748,14 +2758,14 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     DBUG_RETURN(TRUE);
   }
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
   mysql_mutex_lock(&acl_cache->lock);
 
   acl_user= find_acl_user(lex_user->host.str, lex_user->user.str, TRUE);
   if (!acl_user)
   {
     mysql_mutex_unlock(&acl_cache->lock);
-    mysql_rwlock_unlock(&LOCK_grant);
+    lock.unlock();
 
     my_error(ER_NONEXISTING_GRANT, MYF(0),
              lex_user->user.str, lex_user->host.str);
@@ -2773,7 +2783,6 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     mysql_mutex_unlock(&acl_cache->lock);
-    mysql_rwlock_unlock(&LOCK_grant);
 
     DBUG_RETURN(TRUE);
   }
@@ -3027,7 +3036,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
 end:
   mysql_mutex_unlock(&acl_cache->lock);
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   my_eof(thd);
   DBUG_RETURN(error);
@@ -3075,7 +3084,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     DBUG_RETURN(result != 1);
   }
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   LEX_USER *lex_user, *tmp_lex_user;
@@ -3262,7 +3271,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
                     transactional_tables);
   }
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
@@ -3356,7 +3365,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   /* Be sure to pop this before exiting this scope! */
   thd->push_internal_handler(&error_handler);
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   /*
@@ -3397,7 +3406,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   } while (revoked);
 
   mysql_mutex_unlock(&acl_cache->lock);
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result= acl_trans_commit_and_close_tables(thd);
 
@@ -3569,7 +3578,8 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                              priv_user.str, db, 0);
 
   /* table privileges */
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
+
   if (grant->version != grant_version)
   {
     grant->grant_table=
@@ -3581,7 +3591,6 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   {
     grant->privilege|= grant->grant_table->privs;
   }
-  mysql_rwlock_unlock(&LOCK_grant);
 
   DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
   DBUG_VOID_RETURN;
@@ -3832,7 +3841,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   const char *curr_host= thd->security_context()->priv_host_name();
   DBUG_ENTER("fill_schema_table_privileges");
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
 
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
@@ -3895,7 +3904,6 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
     }   
   }
 err:
-  mysql_rwlock_unlock(&LOCK_grant);
 
   DBUG_RETURN(error);
 #else
@@ -3916,7 +3924,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   const char *curr_host= thd->security_context()->priv_host_name();
   DBUG_ENTER("fill_schema_table_privileges");
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  LOCK_grant_read_guard lock(thd);
 
   for (index=0 ; index < column_priv_hash.records ; index++)
   {
@@ -3977,7 +3985,6 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
     }
   }
 err:
-  mysql_rwlock_unlock(&LOCK_grant);
 
   DBUG_RETURN(error);
 #else

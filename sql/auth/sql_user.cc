@@ -1309,7 +1309,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     DBUG_RETURN(result != 1);
   }
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_name= user_list++))
@@ -1387,7 +1387,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
                              transactional_tables);
   }
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
@@ -1448,7 +1448,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_name= user_list++))
@@ -1479,7 +1479,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
@@ -1539,7 +1539,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     DBUG_RETURN(result != 1);
   }
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_from= user_list++))
@@ -1583,7 +1583,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
@@ -1667,7 +1667,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_from= user_list++))
@@ -1764,7 +1764,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
                            table->file->has_transactions()) != 0);
   }
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
