@@ -2886,7 +2886,7 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
     }
     else if (curr->straight)
       str->append(STRING_WITH_LEN(" straight_join "));
-    else if (curr->sj_on_expr)
+    else if (curr->sj_cond())
       str->append(STRING_WITH_LEN(" semi join "));
     else
       str->append(STRING_WITH_LEN(" join "));
@@ -2952,12 +2952,12 @@ static void print_join(THD *thd,
     not a semi-join nest. This is necessary because "A SEMIJOIN B" is not the
     same as "B SEMIJOIN A".
   */
-  if ((*table)->sj_on_expr)
+  if ((*table)->sj_cond())
   {
     TABLE_LIST **end= table + non_const_tables;
     for (TABLE_LIST **t2= table; t2!=end; t2++)
     {
-      if (!(*t2)->sj_on_expr)
+      if (!(*t2)->sj_cond())
       {
         TABLE_LIST *tmp= *t2;
         *t2= *table;

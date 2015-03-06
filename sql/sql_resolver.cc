@@ -1404,7 +1404,7 @@ SELECT_LEX::simplify_joins(THD *thd,
            the corresponding join condition is added to JC. 
 	*/ 
         if (simplify_joins(thd, &nested_join->join_list,
-                           false, in_sj || table->sj_on_expr,
+                           false, in_sj || table->sj_cond(),
                            &join_cond, changelog))
           DBUG_RETURN(true);
 
@@ -1417,7 +1417,7 @@ SELECT_LEX::simplify_joins(THD *thd,
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
       if (simplify_joins(thd, &nested_join->join_list, top,
-                         in_sj || table->sj_on_expr, cond, changelog))
+                         in_sj || table->sj_cond(), cond, changelog))
         DBUG_RETURN(true);
       used_tables= nested_join->used_tables;
       not_null_tables= nested_join->not_null_tables;  
@@ -1549,7 +1549,7 @@ SELECT_LEX::simplify_joins(THD *thd,
   while ((table= li++))
   {
     nested_join= table->nested_join;
-    if (table->sj_on_expr && !in_sj)
+    if (table->sj_cond() && !in_sj)
     {
        /*
          If this is a semi-join that is not contained within another semi-join, 
@@ -1635,9 +1635,10 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables)
       This assignment is required in case pull_out_semijoin_tables()
       is not called.
     */
-    if (table->sj_on_expr)
+    if (table->sj_cond())
       table->sj_inner_tables= table->nested_join->used_tables;
-    if (table->sj_on_expr && sj_nests.push_back(table))
+
+    if (table->sj_cond() && sj_nests.push_back(table))
       DBUG_RETURN(true);
 
     if (table->join_cond())
@@ -1998,6 +1999,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
       correlated tables to sj_corr_tables.
     */
     nested_join->sj_corr_tables= subq_pred->used_tables();
+
     /*
       sj_depends_on contains the set of outer tables referred in the
       subquery's WHERE clause as well as tables referred in the IN predicate's
@@ -2005,8 +2007,9 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
     */
     nested_join->sj_depends_on=  subq_pred->used_tables() |
                                  in_subq_pred->left_expr->used_tables();
-    /* Put the subquery's WHERE into semi-join's condition. */
-    sj_nest->sj_on_expr= subq_select->where_cond();
+
+    // Put the subquery's WHERE into semi-join's condition.
+    Item *sj_cond= subq_select->where_cond();
 
     /*
     Create the IN-equalities and inject them into semi-join's ON condition.
@@ -2058,8 +2061,8 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
       if (item_eq == NULL)
         DBUG_RETURN(true);      /* purecov: inspected */
 
-      sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
-      if (sj_nest->sj_on_expr == NULL)
+      sj_cond= and_items(sj_cond, item_eq);
+      if (sj_cond == NULL)
         DBUG_RETURN(true);      /* purecov: inspected */
     }
     else
@@ -2076,18 +2079,21 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
         if (item_eq == NULL)
           DBUG_RETURN(true);      /* purecov: inspected */
 
-        sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
-        if (sj_nest->sj_on_expr == NULL)
+        sj_cond= and_items(sj_cond, item_eq);
+        if (sj_cond == NULL)
           DBUG_RETURN(true);      /* purecov: inspected */
       }
     }
-    /* Fix the created equality and AND */
+    // Fix the created equality and AND
 
     Opt_trace_array sj_on_trace(&thd->opt_trace,
                                 "evaluating_constant_semijoin_conditions");
-    sj_nest->sj_on_expr->top_level_item();
-    if (sj_nest->sj_on_expr->fix_fields(thd, &sj_nest->sj_on_expr))
+    sj_cond->top_level_item();
+    if (sj_cond->fix_fields(thd, &sj_cond))
       DBUG_RETURN(true);          /* purecov: inspected */
+
+    // Attach semi-join condition to semi-join nest
+    sj_nest->set_sj_cond(sj_cond);
   }
 
   // Unlink the subquery's query expression:
@@ -2114,7 +2120,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   repoint_contexts_of_join_nests(subq_select->top_join_list);
 
   // Update table map for the semi-join condition
-  sj_nest->sj_on_expr->fix_after_pullout(this, subq_select);
+  sj_nest->sj_cond()->fix_after_pullout(this, subq_select);
 
   // Update table map for semi-join nest's WHERE condition and join conditions
   fix_tables_after_pullout(this, subq_select,
@@ -2122,13 +2128,13 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
 
   //TODO fix QT_
   DBUG_EXECUTE("where",
-               print_where(sj_nest->sj_on_expr,"SJ-EXPR", QT_ORDINARY););
+               print_where(sj_nest->sj_cond(),"SJ-COND", QT_ORDINARY););
 
   if (emb_tbl_nest)
   {
     // Inject semi-join condition into parent's join condition
     emb_tbl_nest->set_join_cond(and_items(emb_tbl_nest->join_cond(),
-                                          sj_nest->sj_on_expr));
+                                          sj_nest->sj_cond()));
     if (emb_tbl_nest->join_cond() == NULL)
       DBUG_RETURN(true);
     emb_tbl_nest->join_cond()->top_level_item();
@@ -2140,7 +2146,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   else
   {
     // Inject semi-join condition into parent's WHERE condition
-    m_where_cond= and_items(m_where_cond, sj_nest->sj_on_expr);
+    m_where_cond= and_items(m_where_cond, sj_nest->sj_cond());
     if (m_where_cond == NULL)
       DBUG_RETURN(true);
     m_where_cond->top_level_item();
