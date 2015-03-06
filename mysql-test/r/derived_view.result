@@ -770,7 +770,7 @@ SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	ref	a	a	4	const	1	Using index
-1	PRIMARY	<derived2>	ref	key0	key0	10	const,const	1	
+1	PRIMARY	<derived2>	ref	key0	key0	8	const,const	1	
 2	DERIVED	t3	ALL	NULL	NULL	NULL	NULL	12	Using temporary; Using filesort
 SELECT * FROM t1, t2, v1 WHERE t2.a=t1.a AND t2.a=v1.a AND t2.a=v1.b;
 a	a	a	b
@@ -1518,7 +1518,7 @@ WHERE t3.b IN (SELECT v1.b FROM  v1, t2
 WHERE t2.c = v1.c AND t2.c = v1.b AND v1.b = t3.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	<derived3>	ref	key1	key1	10	const,const	0	Start temporary
+1	PRIMARY	<derived3>	ref	key1	key1	8	const,const	0	Start temporary
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (flat, BNL join)
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	
 SELECT * FROM t3 
@@ -1596,7 +1596,7 @@ EXPLAIN
 SELECT v1.a FROM v1,v2 WHERE v2.b = v1.b ORDER BY 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
-1	PRIMARY	<derived3>	ref	key0	key0	5	v1.b	2	
+1	PRIMARY	<derived3>	ref	key0	key0	4	v1.b	2	
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
 DROP VIEW v1,v2;
