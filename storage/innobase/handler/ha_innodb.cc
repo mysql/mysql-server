@@ -17078,7 +17078,7 @@ static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
     " magic number when reading;"
   " Files updated when this option is set to crc32 or strict_crc32 will"
   " not be readable by MySQL versions older than 5.6.3",
-  NULL, NULL, SRV_CHECKSUM_ALGORITHM_INNODB,
+  NULL, NULL, SRV_CHECKSUM_ALGORITHM_CRC32,
   &innodb_checksum_algorithm_typelib);
 
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
