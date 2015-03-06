@@ -31,6 +31,14 @@ IF(NOT CMAKE_CROSSCOMPILING)
  SET_TARGET_PROPERTIES(comp_err PROPERTIES LINKER_LANGUAGE CXX)
 ENDIF()
 
+IF (BUILD_BUNDLED_LZ4)
+  ADD_CONVENIENCE_LIBRARY(lz4_lib
+    lz4/lz4.c
+    lz4/lz4frame.c
+    lz4/lz4hc.c
+    lz4/xxhash.c
+  )
+ENDIF()
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
                    ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys
@@ -86,8 +94,6 @@ MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
-
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/lz4.cmake)
 
   # Add path to the InnoDB headers
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include ${CMAKE_SOURCE_DIR}/sql)
