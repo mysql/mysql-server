@@ -2433,6 +2433,7 @@ private:
    * When a node comes up without filesystem
    *   we have to clear all LCP for that node
    */
+  void handle_send_continueb_invalidate_node_lcp(Signal *signal);
   void invalidateNodeLCP(Signal *, Uint32 nodeId, Uint32 tableId);
   void invalidateNodeLCP(Signal *, Uint32 nodeId, TabRecordPtr);
 

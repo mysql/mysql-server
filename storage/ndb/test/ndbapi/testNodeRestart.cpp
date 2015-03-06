@@ -3019,24 +3019,43 @@ runBug34702(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_OK;
   }
 
-  while (loops--)
+  /* Account for 3 tests per loop */
+  loops = (loops + 2) / 3;
+
+  while (loops > 0)
   {
-    int victim = res.getDbNodeId(rand()%res.getNumDbNodes());
-    res.restartOneDbNode(victim,
-                         /** initial */ true, 
-                         /** nostart */ true,
-                         /** abort   */ true);
+    loops--;
+    for (Uint32 i = 0; i <= 2; i++)
+    {
+      int victim = res.getDbNodeId(rand()%res.getNumDbNodes());
+      res.restartOneDbNode(victim,
+                           /** initial */ true, 
+                           /** nostart */ true,
+                           /** abort   */ true);
 
-    if (res.waitNodesNoStart(&victim, 1))
-      return NDBT_FAILED;
+      if (res.waitNodesNoStart(&victim, 1))
+        return NDBT_FAILED;
 
-    res.insertErrorInAllNodes(7204);
-    res.insertErrorInNode(victim, 7203);
+      if (i == 0)
+      {
+        res.insertErrorInAllNodes(7204);
+      }
+      else if (i == 1)
+      {
+        res.insertErrorInAllNodes(7245);
+      }
+      else if (i == 2)
+      {
+        res.insertErrorInAllNodes(7246);
+      }
 
-    res.startNodes(&victim, 1);
+      res.insertErrorInNode(victim, 7203);
+
+      res.startNodes(&victim, 1);
     
-    if (res.waitClusterStarted())
-      return NDBT_FAILED;
+      if (res.waitClusterStarted())
+        return NDBT_FAILED;
+    }
   }
   return NDBT_OK;
 }
