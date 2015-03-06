@@ -15522,6 +15522,12 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
       c_lcpState.m_participatingLQH = req->participatingLQH;
       c_lcpState.m_masterLcpDihRef = cmasterdihref;
       c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
+      /**
+       * We need to update the SYSFILE since it can take some time before we
+       * have this number updated after a COPY_GCIREQ in connection to a
+       * GCP.
+       */
+      SYSFILE->latestLCP_ID = req->lcpId;
 
       {
         char buf[100];
