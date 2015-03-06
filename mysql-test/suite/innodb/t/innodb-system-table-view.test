@@ -8,7 +8,8 @@
 
 --disable_query_log
 SET default_storage_engine=InnoDB;
-let $MYSQLD_DATADIR= `select @@datadir`;
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --enable_query_log
 
 # The IDs of mysql.innodb_table_stats and mysql.innodb_index_stats are
@@ -53,18 +54,8 @@ CREATE TABLE t_compact (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
 CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 
---sorted_result
-SELECT name, n_cols, file_format, row_format
-       FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
-       WHERE space > 0;
---sorted_result
-SELECT name, file_format, row_format
-       FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
-       WHERE name LIKE 'test%';
---replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
---sorted_result
-SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
-       WHERE path LIKE '%test%';
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 
