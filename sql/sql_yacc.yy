@@ -14231,7 +14231,10 @@ grant_user:
             $1->auth.length= $5.length;
             $1->uses_identified_by_password_clause= true;
             if (Lex->sql_command == SQLCOM_ALTER_USER)
+            {
+              my_syntax_error(ER_THD(YYTHD, ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             else
               push_deprecated_warn(YYTHD, "IDENTIFIED BY PASSWORD",
                                    "IDENTIFIED WITH <plugin> AS <hash>");
