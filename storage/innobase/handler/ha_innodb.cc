@@ -12262,7 +12262,7 @@ innobase_convert_to_filename_charset(
 
 /**********************************************************************
 Issue a warning that the row is too big. */
-extern "C"
+extern "C" UNIV_INTERN
 void
 ib_warn_row_too_big(const dict_table_t*	table)
 {
