@@ -33,3 +33,35 @@ select * from fk_29;
 f1
 29
 drop table t1;
+CREATE TABLE t1 (
+id int(11) NOT NULL AUTO_INCREMENT,
+f1 int(11) DEFAULT NULL,
+PRIMARY KEY (id),
+CONSTRAINT fk1 FOREIGN KEY (f1) REFERENCES t1 (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+id int(11) NOT NULL AUTO_INCREMENT,
+f2 int(11) NOT NULL,
+f3 int(11) NOT NULL,
+PRIMARY KEY (`id`),
+CONSTRAINT fk2 FOREIGN KEY (f2) REFERENCES t1 (`id`) ON DELETE CASCADE,
+CONSTRAINT fk3 FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+ERROR HY000: Can't create table 'test.t2' (errno: 150)
+show warnings;
+Level	Code	Message
+Error	1005	Can't create table 'test.t2' (errno: 150)
+CREATE TABLE t2 (
+id int(11) NOT NULL AUTO_INCREMENT,
+f2 int(11) NOT NULL,
+f3 int(11) NOT NULL,
+PRIMARY KEY (`id`),
+CONSTRAINT fk2 FOREIGN KEY (f2) REFERENCES t1 (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+ALTER TABLE t2 ADD CONSTRAINT fk3 FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE;
+ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+show warnings;
+Level	Code	Message
+Error	1005	Can't create table '#sql-temporary' (errno: 150)
+drop table t2;
+drop table t1;

@@ -84,3 +84,43 @@ while ($i)
 
 drop table t1;
 
+#
+# MDEV-7672: Crash creating an InnoDB table with foreign keys
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  f1 int(11) DEFAULT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT fk1 FOREIGN KEY (f1) REFERENCES t1 (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+--error 1005
+CREATE TABLE t2 (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  f2 int(11) NOT NULL,
+  f3 int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT fk2 FOREIGN KEY (f2) REFERENCES t1 (`id`) ON DELETE CASCADE,
+  CONSTRAINT fk3 FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+show warnings;
+
+CREATE TABLE t2 (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  f2 int(11) NOT NULL,
+  f3 int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT fk2 FOREIGN KEY (f2) REFERENCES t1 (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
+--error 1005
+ALTER TABLE t2 ADD CONSTRAINT fk3 FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE;
+
+--replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
+show warnings;
+
+drop table t2;
+drop table t1;
