@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@ IF(MAN1_FILES)
   IF(MAN1_NDB AND NOT VERSION MATCHES "-ndb-")
     LIST(REMOVE_ITEM MAN1_FILES ${MAN1_NDB})
   ENDIF()
+  INSTALL(FILES mysqltest.1 DESTINATION ${INSTALL_MANDIR}/man1
+  COMPONENT Test)
   INSTALL(FILES ${MAN1_FILES} DESTINATION ${INSTALL_MANDIR}/man1
   COMPONENT ManPages)
 ENDIF()

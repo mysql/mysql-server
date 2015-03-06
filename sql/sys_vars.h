@@ -2418,7 +2418,11 @@ public:
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_executed::session_value_ptr");
-    
+
+    push_warning_printf(running_thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                        ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        "@@SESSION.GTID_EXECUTED");
     if (opt_bin_log &&
        (target_thd == running_thd)) /* Supported for current thread only. */
     {

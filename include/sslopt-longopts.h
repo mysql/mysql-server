@@ -19,7 +19,7 @@
    "If set to ON, this option enforces that SSL is established before client "
    "attempts to authenticate to the server. To disable client SSL capabilities "
    "use --ssl=OFF.",
-   &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"ssl-ca", OPT_SSL_CA,
    "CA file in PEM format.",
    &opt_ssl_ca, &opt_ssl_ca, 0, GET_STR, REQUIRED_ARG,
