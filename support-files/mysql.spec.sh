@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -857,7 +857,7 @@ if ! grep '^MySQL RPM upgrade' $STATUS_FILE >/dev/null 2>&1 ; then
 	# Fix bug#45415: no "mysql_install_db" on an upgrade
 	# Do this as a negative to err towards more "install" runs
 	# rather than to miss one.
-	%{_bindir}/mysql_install_db --user=%{mysqld_user}
+	%{_sbindir}/mysqld --initialize --user=%{mysqld_user}
 
 	# Attention: Now 'root' is the only database user,
 	# its password is a random value found in ~/.mysql_secret,
@@ -1207,6 +1207,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Mar 02 2015 Bjorn Munch <bjorn.munch@oracle.com>
+- Replace call to mysql_install_db with mysqld --initialize
+
 * Wed Oct 29 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Updated default shell for mysql user
 
