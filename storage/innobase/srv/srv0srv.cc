@@ -566,8 +566,8 @@ char*	srv_buf_dump_filename;
 
 /** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
 and/or load it during startup. */
-char	srv_buffer_pool_dump_at_shutdown = FALSE;
-char	srv_buffer_pool_load_at_startup = FALSE;
+char	srv_buffer_pool_dump_at_shutdown = TRUE;
+char	srv_buffer_pool_load_at_startup = TRUE;
 
 /** Slot index in the srv_sys->sys_threads array for the purge thread. */
 static const ulint	SRV_PURGE_SLOT	= 1;

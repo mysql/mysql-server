@@ -2555,6 +2555,10 @@ files_checked:
 	}
 
 	if (!srv_read_only_mode) {
+		if (create_new_db) {
+			srv_buffer_pool_load_at_startup = FALSE;
+		}
+
 		/* Create the buffer pool dump/load thread */
 		os_thread_create(buf_dump_thread, NULL, NULL);
 
