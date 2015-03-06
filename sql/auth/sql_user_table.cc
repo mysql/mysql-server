@@ -342,7 +342,7 @@ void get_grantor(THD *thd, char *grantor)
 
 */
 
-void updateSSLProperties(THD *thd, TABLE *table)
+void update_ssl_properties(THD *thd, TABLE *table)
 {
   LEX *lex= thd->lex;
   switch (lex->ssl_type)
@@ -398,7 +398,7 @@ void updateSSLProperties(THD *thd, TABLE *table)
 
 */
 
-void updateUserResource(TABLE *table, USER_RESOURCES *mqh)
+void update_user_resource(TABLE *table, USER_RESOURCES *mqh)
 {
   if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
     table->field[MYSQL_USER_FIELD_MAX_QUESTIONS]->
@@ -624,11 +624,11 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
   /* We write down SSL related ACL stuff */
   if ((what_to_replace & SSL_ATTR) && (table->s->fields >= 31))
-    updateSSLProperties(thd, table);
+    update_ssl_properties(thd, table);
   next_field+=4;
 
   if (what_to_replace & RESOURCE_ATTR)
-    updateUserResource(table, &lex->mqh);
+    update_user_resource(table, &lex->mqh);
   mqh_used= mqh_used || lex->mqh.questions || lex->mqh.updates ||
             lex->mqh.conn_per_hour;
   next_field+= 4;

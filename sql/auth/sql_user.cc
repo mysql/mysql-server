@@ -387,7 +387,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
           user_name->host.str,NullS);
   field->item_name.set(buff);
   field_list.push_back(field);
-  if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS))
+  if (protocol->send_result_set_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     error= 1;
     goto err;
