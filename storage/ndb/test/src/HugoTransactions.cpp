@@ -1049,6 +1049,29 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	return NDBT_FAILED;
       }
     } else {
+
+      /**
+       * Extra debug aid:
+       * We do not (yet) expect any transaction or operation
+       * errors if ::execute() does not return with error.
+       */
+      const NdbError err1 = pTrans->getNdbError();
+      if (err1.code)
+      {
+        ndbout << "BEWARE: HugoTransactions::pkReadRecords"
+               << ", execute succeeded with Trans error: " << err1.code
+               << endl;
+
+      }
+      const NdbOperation* pOp = pTrans->getNdbErrorOperation();
+      if (pOp != NULL)
+      {
+        const NdbError err2 = pOp->getNdbError();
+        ndbout << "BEWARE HugoTransactions::pkReadRecords"
+             << ", NdbOperation error: " << err2.code
+             << endl;
+      }
+
       retryAttempt = 0;
       if(indexScans.size() > 0)
       {
@@ -1088,7 +1111,11 @@ HugoTransactions::pkReadRecords(Ndb* pNdb,
 	for (int b=0; (b<batch) && (r+b<records); b++){ 
 	  if (calc.verifyRowValues(rows[b]) != 0){
 	    closeTransaction(pNdb);
-            g_err << "Line: " << __LINE__ << " verify row failed" << endl;
+            g_err << "Line: " << __LINE__ 
+                  << " verify row failed"
+                  << ", record: " << r << " of: " << records 
+                  << ", row: " << b << " in a batch of: " << batch 
+                  << endl;
 	    return NDBT_FAILED;
 	  }
 	  reads++;
@@ -2094,6 +2121,11 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
       for (int b=0; (b<batch) && (r+b<records); b++){ 
 	if (calc.verifyRowValues(rows[b]) != 0){
 	  closeTransaction(pNdb);
+          g_err << "Line: " << __LINE__ 
+                << " verify row failed"
+                << ", record: " << r << " of: " << records 
+                << ", row: " << b << " in a batch of: " << batch 
+                << endl;
 	  return NDBT_FAILED;
 	}
 	reads++;
