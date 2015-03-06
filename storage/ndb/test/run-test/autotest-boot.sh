@@ -231,6 +231,8 @@ then
 			cp -r $clone_dir/$clone1 $dst_place1
 		fi
 	else
+# Comment out the next line if using git of version < 2.0
+# and ensure that the local repo is up to date.
                 git -C ${git_local_repo} fetch ${git_remote_repo}
 
                 git clone -b${clone0} ${git_local_repo} ${dst_place0}
@@ -239,6 +241,9 @@ then
 			( cd $dst_place0 && patch -p0 ) < $patch
 		done
                 {
+# Comment out the next line if using git of version < 2.0 and replace with:
+#                 cd ${dst_place0}
+#                 git log -1
                   git -C ${dst_place0} log -1
 	          if [ $patch0 ] ; then echo patches: $patch0 ; cat $patch0 ; fi
                 } > $dst_place0/code0.txt
