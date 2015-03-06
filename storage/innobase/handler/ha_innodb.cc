@@ -2376,6 +2376,7 @@ ha_innobase::ha_innobase(
 	handlerton*	hton,
 	TABLE_SHARE*	table_arg)
 	:handler(hton, table_arg),
+	m_ds_mrr(this),
 	m_prebuilt(),
 	m_user_thd(),
 	m_int_table_flags(HA_REC_NOT_IN_SEQ
@@ -18216,7 +18217,9 @@ ha_innobase::multi_range_read_init(
 	uint		mode,
 	HANDLER_BUFFER*	buf)
 {
-	return(m_ds_mrr.dsmrr_init(this, seq, seq_init_param,
+	m_ds_mrr.init(table);
+
+	return(m_ds_mrr.dsmrr_init(seq, seq_init_param,
 				 n_ranges, mode, buf));
 }
 
@@ -18238,7 +18241,7 @@ ha_innobase::multi_range_read_info_const(
 	Cost_estimate*	cost)
 {
 	/* See comments in ha_myisam::multi_range_read_info_const */
-	m_ds_mrr.init(this, table);
+	m_ds_mrr.init(table);
 
 	return(m_ds_mrr.dsmrr_info_const(
 			keyno, seq, seq_init_param,
@@ -18254,7 +18257,7 @@ ha_innobase::multi_range_read_info(
 	uint*		flags,
 	Cost_estimate*	cost)
 {
-	m_ds_mrr.init(this, table);
+	m_ds_mrr.init(table);
 
 	return(m_ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost));
 }

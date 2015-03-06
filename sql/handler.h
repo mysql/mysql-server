@@ -2127,7 +2127,6 @@ public:
   void end_psi_batch_mode();
 
 private:
-  friend class DsMrr_impl;
   /**
     The lock type set by when calling::ha_external_lock(). This is 
     propagated down to the storage engine. The reason for also storing 
@@ -3599,7 +3598,7 @@ class DsMrr_impl
 public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
-  DsMrr_impl() : h2(NULL) {}
+  DsMrr_impl(handler *owner) : h(owner), table(NULL), h2(NULL) {}
 
   ~DsMrr_impl()
   {
@@ -3612,14 +3611,15 @@ public:
       reset();
     DBUG_ASSERT(h2 == NULL);
   }
-  
+
+private:
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
     It is used to retrieve full table rows by calling rnd_pos().
   */
-  handler *h;
+  handler *const h;
   TABLE *table; /* Always equal to h->table */
-private:
+
   /* Secondary handler object.  It is used for scanning the index */
   handler *h2;
 
@@ -3643,19 +3643,16 @@ public:
     This function just initializes the object. To do a DS-MRR scan,
     this must also be initialized by calling dsmrr_init().
 
-    @param h_arg     pointer to the handler that owns this object
     @param table_arg pointer to the TABLE that owns the handler
   */
 
-  void init(handler *h_arg, TABLE *table_arg)
+  void init(TABLE *table_arg)
   {
-    DBUG_ASSERT(h_arg != NULL);
     DBUG_ASSERT(table_arg != NULL);
-    h= h_arg; 
     table= table_arg;
   }
 
-  int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
+  int dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
 

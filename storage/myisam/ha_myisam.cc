@@ -651,7 +651,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR |
                   HA_GENERATED_COLUMNS | 
                   HA_ATTACHABLE_TRX_COMPATIBLE),
-   can_enable_indexes(1)
+   can_enable_indexes(1), ds_mrr(this)
 {}
 
 handler *ha_myisam::clone(const char *name, MEM_ROOT *mem_root)
@@ -2182,7 +2182,8 @@ int ha_myisam::multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                                      uint n_ranges, uint mode, 
                                      HANDLER_BUFFER *buf)
 {
-  return ds_mrr.dsmrr_init(this, seq, seq_init_param, n_ranges, mode, buf);
+  ds_mrr.init(table);
+  return ds_mrr.dsmrr_init(seq, seq_init_param, n_ranges, mode, buf);
 }
 
 int ha_myisam::multi_range_read_next(char **range_info)
@@ -2200,7 +2201,7 @@ ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     already be known.
     TODO: consider moving it into some per-query initialization call.
   */
-  ds_mrr.init(this, table);
+  ds_mrr.init(table);
   return ds_mrr.dsmrr_info_const(keyno, seq, seq_init_param, n_ranges, bufsz,
                                  flags, cost);
 }
@@ -2209,7 +2210,7 @@ ha_rows ha_myisam::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                          uint *bufsz, uint *flags,
                                          Cost_estimate *cost)
 {
-  ds_mrr.init(this, table);
+  ds_mrr.init(table);
   return ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);
 }
 

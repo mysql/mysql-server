@@ -6082,33 +6082,27 @@ scan_it_again:
        to read records from the table (handler->inited is RND) either
        using the primary index or using no index at all.
 
-  @param h_arg           Table handler to be used
-  @param seq_funcs       Interval sequence enumeration functions
-  @param seq_init_param  Interval sequence enumeration parameter
-  @param n_ranges        Number of ranges in the sequence.
-  @param mode            HA_MRR_* modes to use
-  @param buf             INOUT Buffer to use
+  @param         seq_funcs       Interval sequence enumeration functions
+  @param         seq_init_param  Interval sequence enumeration parameter
+  @param         n_ranges        Number of ranges in the sequence.
+  @param         mode            HA_MRR_* modes to use
+  @param[in,out] buf             Buffer to use
 
   @retval 0     Ok, Scan started.
   @retval other Error
 */
 
-int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
-                           void *seq_init_param, uint n_ranges, uint mode,
-                           HANDLER_BUFFER *buf)
+int DsMrr_impl::dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
+                           uint n_ranges, uint mode, HANDLER_BUFFER *buf)
 {
+  DBUG_ASSERT(table != NULL);                   // Verify init() called
+
   uint elem_size;
   int retval= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
-  THD *thd= h_arg->table->in_use;     // current THD
+  THD *const thd= table->in_use;                // current THD
 
-  /*
-    index_merge may invoke a scan on an object for which dsmrr_info[_const]
-    has not been called, so set the owner handler here as well.
-  */
-  h= h_arg;
-  
-  if (!hint_key_state(thd, h->table, h->active_index,
+  if (!hint_key_state(thd, table, h->active_index,
                       MRR_HINT_ENUM, OPTIMIZER_SWITCH_MRR) ||
       mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
   {
@@ -6167,7 +6161,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     if (check_stack_overrun(thd, 5*STACK_MIN_SIZE, (uchar*) &new_h2))
       DBUG_RETURN(1);
 
-    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)))
+    if (!(new_h2= h->clone(table->s->normalized_path.str, thd->mem_root)))
       DBUG_RETURN(1);
     h2= new_h2; /* Ok, now can put it into h2 */
     table->prepare_for_position();
@@ -6181,7 +6175,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     DBUG_ASSERT(h->active_index != MAX_KEY);
     const uint mrr_keyno= h->active_index;
 
-    if ((retval= h2->ha_external_lock(thd, h->m_lock_type)))
+    if ((retval= h2->ha_external_lock(thd, h->get_lock_type())))
       goto error;
 
     if ((retval= h2->extra(HA_EXTRA_KEYREAD)))
@@ -6246,7 +6240,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
               h->active_index == table->s->primary_key);
   DBUG_ASSERT(h2->inited == handler::INDEX);
   DBUG_ASSERT(h2->active_index != MAX_KEY);
-  DBUG_ASSERT(h->m_lock_type == h2->m_lock_type);
+  DBUG_ASSERT(h->get_lock_type() == h2->get_lock_type());
 
   if ((retval= h2->handler::multi_range_read_init(seq_funcs, seq_init_param, 
                                                   n_ranges, mode, buf)))
@@ -6338,8 +6332,6 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
   
   The function assumes that rowids buffer is empty when it is invoked. 
   
-  @param h  Table handler
-
   @retval 0      OK, the next portion of rowids is in the buffer,
                  properly ordered
   @retval other  Error
