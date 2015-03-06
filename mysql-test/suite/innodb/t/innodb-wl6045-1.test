@@ -162,7 +162,7 @@ while(<IN_FILE>)
 }
 close(IN_FILE);
 close(OUT_FILE);
-# move the new content from tmp file to the orginal file.
+# move the new content from tmp file to the original file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 closedir(DIR);
 EOF
@@ -173,7 +173,7 @@ cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
 
 --echo [3]: test for --verbose option with --strict-check=innodb for innochecksum
 --echo : With verbose long option.
---exec $INNOCHECKSUM --verbose  --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
+--exec $INNOCHECKSUM --verbose  --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
 
 perl;
 use strict;
@@ -203,7 +203,7 @@ cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
 --remove_file $MYSQLTEST_VARDIR/tmp/ver_output
 
 --echo [4]: Test for --allow-mismatches =99
---exec $INNOCHECKSUM --allow-mismatches=99 --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
+--exec $INNOCHECKSUM --allow-mismatches=99 --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
 
 --echo # Expect the fails for checksum mismatches. Print the error message.
 cat_file $SEARCH_FILE;
