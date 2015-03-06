@@ -3,7 +3,7 @@
 # Test errors/restrictions/conditions for the following variables:
 #
 #  - GTID_EXECUTED
-#     - readable, read-only, both session and global
+#     - readable, read-only, global only
 #  - GTID_PURGED
 #     - readable, read-only, global only
 #  - GTID_OWNED
@@ -49,6 +49,7 @@
 --echo # Readable.
 --replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9-]*//
 SELECT @@GLOBAL.GTID_EXECUTED;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@SESSION.GTID_EXECUTED;
 --echo # Read-only.
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR

@@ -6,8 +6,7 @@ select @@global.gtid_executed;
 @@global.gtid_executed
 
 select @@session.gtid_executed;
-@@session.gtid_executed
-
+ERROR HY000: Variable 'gtid_executed' is a GLOBAL variable
 show global variables like 'gtid_executed';
 Variable_name	Value
 gtid_executed	
