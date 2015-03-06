@@ -210,6 +210,7 @@ ENDIF()
 INCLUDE(character_sets)
 INCLUDE(cpu_info)
 INCLUDE(zlib)
+INCLUDE(lz4)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(readline)
@@ -480,6 +481,8 @@ MYSQL_CHECK_SSL()
 MYSQL_CHECK_EDITLINE()
 # Add libevent
 MYSQL_CHECK_LIBEVENT()
+# Add lz4 library
+MYSQL_CHECK_LZ4()
 
 #
 # Setup maintainer mode options by the end. Platform checks are

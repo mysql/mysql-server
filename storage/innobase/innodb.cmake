@@ -18,7 +18,11 @@
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCSourceRuns)
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/lz4.cmake)
+
+IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+  ADD_DEFINITIONS(-DHAVE_LZ4=1)
+  INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
+ENDIF()
 
 # OS tests
 IF(UNIX)
