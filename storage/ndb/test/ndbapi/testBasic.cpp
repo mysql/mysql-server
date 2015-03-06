@@ -2230,6 +2230,7 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTransCopy(*copyTab);
   hugoTransCopy.loadTable(pNdb, rows);
 
+  ndbout << "Waiting for 3 LCPs" << endl;
   {
     restarter.getNumDbNodes(); // connect
     int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
@@ -2246,12 +2247,15 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
             event.type != NDB_LE_LocalCheckpointStarted);
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointCompleted);
+
+      ndbout << "LCP" << i << endl;
     }
     ndb_mgm_destroy_logevent_handle(&handle);
   }
 
   for (int i = 0; i<5; i++)
   {
+    ndbout  << "loop: " << i << endl;
     int val1 = DumpStateOrd::DihMaxTimeBetweenLCP;
     int val2 = 7099; // Force start
 
