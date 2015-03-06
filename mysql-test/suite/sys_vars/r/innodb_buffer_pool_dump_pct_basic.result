@@ -1,6 +1,6 @@
 SELECT @@global.innodb_buffer_pool_dump_pct;
 @@global.innodb_buffer_pool_dump_pct
-100
+25
 SET GLOBAL innodb_buffer_pool_dump_pct=20;
 SELECT @@global.innodb_buffer_pool_dump_pct;
 @@global.innodb_buffer_pool_dump_pct
@@ -28,7 +28,7 @@ SELECT @@global.innodb_buffer_pool_dump_pct;
 SET GLOBAL innodb_buffer_pool_dump_pct=Default;
 SELECT @@global.innodb_buffer_pool_dump_pct;
 @@global.innodb_buffer_pool_dump_pct
-100
+25
 SET GLOBAL innodb_buffer_pool_dump_pct='foo';
 ERROR 42000: Incorrect argument type to variable 'innodb_buffer_pool_dump_pct'
 SET innodb_buffer_pool_dump_pct=50;

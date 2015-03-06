@@ -5149,12 +5149,14 @@ fil_io(
 
 		mutex_exit(&fil_system->mutex);
 
-		ib::error()
-			<< "Trying to do i/o to a tablespace which does"
-			" not exist. i/o type "
-			<< (req_type.is_read() ? "read" : "write")
-			<< ", page " << page_id
-			<< ", i/o length " << len << " bytes";
+		if (!req_type.ignore_missing()) {
+			ib::error()
+				<< "Trying to do I/O to a tablespace which"
+				" does not exist. I/O type: "
+				<< (req_type.is_read() ? "read" : "write")
+				<< ", page: " << page_id
+				<< ", I/O length: " << len << " bytes";
+		}
 
 		return(DB_TABLESPACE_DELETED);
 	}
@@ -5217,14 +5219,18 @@ fil_io(
 		    && fil_is_user_tablespace_id(space->id)) {
 			mutex_exit(&fil_system->mutex);
 
-			ib::error()
-				<< "Trying to do i/o to a tablespace which "
-				"exists without .ibd data file. "
-				"i/o type "
-				<< (req_type.is_read() ? "read" : "write")
-				<< ", space id " << page_id.space()
-				<< ", page no " << cur_page_no << ", "
-				<< "i/o length " << len << " bytes";
+			if (!req_type.ignore_missing()) {
+				ib::error()
+					<< "Trying to do I/O to a tablespace"
+					" which exists without .ibd data file."
+					" I/O type: "
+					<< (req_type.is_read()
+					    ? "read" : "write")
+					<< ", page: "
+					<< page_id_t(page_id.space(),
+						     cur_page_no)
+					<< ", I/O length: " << len << " bytes";
+			}
 
 			return(DB_TABLESPACE_DELETED);
 		}
