@@ -1211,21 +1211,23 @@ void THD::cleanup_connection(void)
 */
 void THD::cleanup(void)
 {
+  Transaction_ctx *trn_ctx= get_transaction();
+  XID_STATE *xs= trn_ctx->xid_state();
+
   DBUG_ENTER("THD::cleanup");
   DBUG_ASSERT(cleanup_done == 0);
 
   killed= KILL_CONNECTION;
   session_tracker.deinit();
-#ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
-  if (transaction.xid_state.has_state(XA_STATE::XA_PREPARED))
+  if (trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED))
   {
-#error xid_state in the cache should be replaced by the allocated value
+    transaction_cache_detach(trn_ctx);
   }
-#endif
+  else
   {
-    get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
+    xs->set_state(XID_STATE::XA_NOTR);
     trans_rollback(this);
-    transaction_cache_delete(get_transaction());
+    transaction_cache_delete(trn_ctx);
   }
 
   locked_tables_list.unlock_locked_tables(this);
@@ -1263,7 +1265,7 @@ void THD::cleanup(void)
     commit the current transaction coordinator after executing cleanup
     actions.
    */
-  if (tc_log)
+  if (tc_log && !trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED))
     tc_log->commit(this, true);
 
   /*
@@ -3173,4 +3175,3 @@ void THD::parse_error_at(const YYLTYPE &location, const char *s)
   my_printf_error(ER_PARSE_ERROR,  ER_THD(this, ER_PARSE_ERROR), MYF(0),
                   s ? s : ER_THD(this, ER_SYNTAX_ERROR), err.ptr(), lineno);
 }
-

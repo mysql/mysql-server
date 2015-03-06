@@ -26,6 +26,7 @@
 #include "sql_plugin.h"         // plugin_foreach
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
+#include "binlog.h"
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
@@ -96,8 +97,6 @@ static void ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
 {
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, xid);
-
-  gtid_state->update_on_rollback(thd);
 }
 
 
@@ -292,8 +291,17 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_commit");
 
+  DBUG_ASSERT(!thd->slave_thread || xid_state->get_xid()->is_null() ||
+              m_xa_opt == XA_ONE_PHASE);
+
   if (!xid_state->has_same_xid(m_xid))
   {
+    if (!xid_state->has_state(XID_STATE::XA_NOTR))
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
+
+      DBUG_RETURN(true);
+    }
     /*
       Note, that there is no race condition here between
       transaction_cache_search and transaction_cache_delete,
@@ -307,12 +315,31 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     Transaction_ctx *transaction= transaction_cache_search(m_xid);
     XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
     res= !xs || !xs->is_in_recovery();
-    if (res)
+    if (res)  // todo: fix transaction cleanup, BUG#20451386
       my_error(ER_XAER_NOTA, MYF(0));
     else
     {
+      DBUG_ASSERT(xs->is_in_recovery());
+      /*
+        Resumed transaction XA-commit.
+        The case deals with the "external" XA-commit by either a slave applier
+        or a different than XA-prepared transaction session.
+      */
       res= xs->xa_trans_rolled_back();
+
+      /*
+        xs' is_binlogged() is passed through xid_state's member to low-level
+        logging routines for deciding how to log.  The same applies to
+        Rollback case.
+      */
+      if (xs->is_binlogged())
+        xid_state->set_binlogged();
+      else
+        xid_state->unset_binlogged();
+      // todo xa framework: return an error
       ha_commit_or_rollback_by_xid(thd, m_xid, !res);
+      xid_state->unset_binlogged();
+
       transaction_cache_delete(transaction);
     }
     DBUG_RETURN(res);
@@ -390,8 +417,9 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   transaction_cache_delete(thd->get_transaction());
   xid_state->set_state(XID_STATE::XA_NOTR);
+  xid_state->unset_binlogged();
   /* The transaction should be marked as complete in P_S. */
-  DBUG_ASSERT(thd->m_transaction_psi == NULL);
+  DBUG_ASSERT(thd->m_transaction_psi == NULL || res);
   DBUG_RETURN(res);
 }
 
@@ -432,14 +460,28 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
 
   if (!xid_state->has_same_xid(m_xid))
   {
+    if (!xid_state->has_state(XID_STATE::XA_NOTR))
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
+
+      DBUG_RETURN(true);
+    }
+
     Transaction_ctx *transaction= transaction_cache_search(m_xid);
     XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
     if (!xs || !xs->is_in_recovery())
       my_error(ER_XAER_NOTA, MYF(0));
     else
     {
+      DBUG_ASSERT(xs->is_in_recovery());
+
       xs->xa_trans_rolled_back();
+      if (xs->is_binlogged())
+        xid_state->set_binlogged();
+      else
+        xid_state->unset_binlogged();
       ha_commit_or_rollback_by_xid(thd, m_xid, false);
+      xid_state->unset_binlogged();
       transaction_cache_delete(transaction);
     }
     DBUG_RETURN(thd->is_error());
@@ -462,6 +504,7 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   transaction_cache_delete(thd->get_transaction());
   xid_state->set_state(XID_STATE::XA_NOTR);
+  xid_state->unset_binlogged();
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
   DBUG_RETURN(res);
@@ -483,6 +526,9 @@ bool Sql_cmd_xa_rollback::execute(THD *thd)
     thd->tx_read_only= thd->variables.tx_read_only;
     my_ok(thd);
   }
+
+  DBUG_EXECUTE_IF("crash_after_xa_rollback", DBUG_SUICIDE(););
+
   return st;
 }
 
@@ -546,7 +592,18 @@ bool Sql_cmd_xa_start::execute(THD *thd)
   bool st= trans_xa_start(thd);
 
   if (!st)
+  {
+    if (thd->variables.pseudo_slave_mode)
+    {
+      /*
+        In case of slave thread applier or processing binlog by client,
+        detach the "native" thd's trx in favor of dynamically created.
+      */
+      plugin_foreach(thd, detach_native_trx,
+                     MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
+    }
     my_ok(thd);
+  }
 
   return st;
 }
@@ -621,6 +678,10 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
     my_error(ER_XAER_NOTA, MYF(0));
   else if (ha_prepare(thd))
   {
+    /*
+      todo: simulate a failure that sustains
+      Bug 20538956.
+    */
     transaction_cache_delete(thd->get_transaction());
     xid_state->set_state(XID_STATE::XA_NOTR);
     MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
@@ -632,6 +693,8 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
     xid_state->set_state(XID_STATE::XA_PREPARED);
     MYSQL_SET_TRANSACTION_XA_STATE(thd->m_transaction_psi,
                                    (int)xid_state->get_state());
+    if (thd->rpl_thd_ctx.session_gtids_ctx().notify_after_xa_prepare(thd))
+      sql_print_warning("Failed to collect GTID to send in the response packet!");
   }
 
   DBUG_RETURN(thd->is_error() ||
@@ -644,7 +707,11 @@ bool Sql_cmd_xa_prepare::execute(THD *thd)
   bool st= trans_xa_prepare(thd);
 
   if (!st)
-    my_ok(thd);
+  {
+    if (!thd->variables.pseudo_slave_mode ||
+        !(st= applier_reset_xa_trans(thd)))
+      my_ok(thd);
+  }
 
   return st;
 }
@@ -982,6 +1049,47 @@ bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction)
 }
 
 
+inline bool create_and_insert_new_transaction(XID *xid, bool is_binlogged_arg)
+{
+  Transaction_ctx *transaction= new (std::nothrow) Transaction_ctx();
+  XID_STATE *xs;
+
+  if (!transaction)
+  {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(Transaction_ctx));
+    return true;
+  }
+  xs= transaction->xid_state();
+  xs->start_recovery_xa(xid, is_binlogged_arg);
+
+  return my_hash_insert(&transaction_cache, (uchar*)transaction);
+}
+
+
+bool transaction_cache_detach(Transaction_ctx *transaction)
+{
+  bool res= false;
+  XID_STATE *xs= transaction->xid_state();
+  XID xid= *(xs->get_xid());
+  bool was_logged= xs->is_binlogged();
+
+
+  DBUG_ASSERT(xs->has_state(XID_STATE::XA_PREPARED));
+
+  mysql_mutex_lock(&LOCK_transaction_cache);
+
+  DBUG_ASSERT(my_hash_search(&transaction_cache, xid.key(),
+                             xid.key_length()));
+
+  my_hash_delete(&transaction_cache, (uchar *)transaction);
+  res= create_and_insert_new_transaction(&xid, was_logged);
+
+  mysql_mutex_unlock(&LOCK_transaction_cache);
+
+  return res;
+}
+
+
 bool transaction_cache_insert_recovery(XID *xid)
 {
   mysql_mutex_lock(&LOCK_transaction_cache);
@@ -993,17 +1101,13 @@ bool transaction_cache_insert_recovery(XID *xid)
     return false;
   }
 
-  Transaction_ctx *transaction= new (std::nothrow) Transaction_ctx();
-  if (!transaction)
-  {
-    mysql_mutex_unlock(&LOCK_transaction_cache);
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(Transaction_ctx));
-    return true;
-  }
-
-  transaction->xid_state()->start_recovery_xa(xid);
-
-  bool res= my_hash_insert(&transaction_cache, (uchar*)transaction);
+  /*
+    It's assumed that XA transaction was binlogged before the server
+    shutdown. If --log-bin has changed since that from OFF to ON, XA
+    COMMIT or XA ROLLBACK of this transaction may be logged alone into
+    the binary log.
+  */
+  bool res= create_and_insert_new_transaction(xid, true);
 
   mysql_mutex_unlock(&LOCK_transaction_cache);
 
@@ -1016,4 +1120,105 @@ void transaction_cache_delete(Transaction_ctx *transaction)
   mysql_mutex_lock(&LOCK_transaction_cache);
   my_hash_delete(&transaction_cache, (uchar *)transaction);
   mysql_mutex_unlock(&LOCK_transaction_cache);
+}
+
+
+/**
+  This is a specific to "slave" applier collection of standard cleanup
+  actions to reset XA transaction states at the end of XA prepare rather than
+  to do it at the transaction commit, see @c ha_commit_one_phase.
+  THD of the slave applier is dissociated from a transaction object in engine
+  that continues to exist there.
+
+  @param  THD current thread
+  @return the value of is_error()
+*/
+
+bool applier_reset_xa_trans(THD *thd)
+{
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  XID_STATE *xid_state= trn_ctx->xid_state();
+  /*
+    In the following the server transaction state gets reset for
+    a slave applier thread similarly to xa_commit logics
+    except commit does not run.
+  */
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  trn_ctx->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
+  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  /* Server transaction ctx is detached from THD */
+  transaction_cache_detach(trn_ctx);
+  xid_state->reset();
+  /*
+     The current engine transactions is detached from THD, and
+     previously saved is restored.
+  */
+  attach_native_trx(thd);
+  trn_ctx->set_ha_trx_info(Transaction_ctx::SESSION, NULL);
+  trn_ctx->set_no_2pc(Transaction_ctx::SESSION, false);
+  trn_ctx->cleanup();
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+  thd->m_transaction_psi= NULL;
+#endif
+  thd->mdl_context.release_transactional_locks();
+
+  return thd->is_error();
+}
+
+
+/**
+  The function detaches existing storage engines transaction
+  context from thd. Backup area to save it is provided to low level
+  storage engine function.
+
+  is invoked by plugin_foreach() after
+  trans_xa_start() for each storage engine.
+
+  @param[in,out]     thd     Thread context
+  @param             plugin  Reference to handlerton
+
+  @return    FALSE   on success, TRUE otherwise.
+*/
+
+my_bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
+{
+  handlerton *hton= plugin_data<handlerton *>(plugin);
+
+  if (hton->replace_native_transaction_in_thd)
+    hton->replace_native_transaction_in_thd(thd, NULL,
+                                            thd_ha_data_backup(thd, hton));
+
+  return FALSE;
+}
+
+/**
+  The function restores previously saved storage engine transaction context.
+
+  @param     thd     Thread context
+*/
+void attach_native_trx(THD *thd)
+{
+  Ha_trx_info *ha_info=
+    thd->get_transaction()->ha_trx_info(Transaction_ctx::SESSION);
+  Ha_trx_info *ha_info_next;
+
+  if (ha_info)
+  {
+    for (; ha_info; ha_info= ha_info_next)
+    {
+      handlerton *hton= ha_info->ht();
+      if (hton->replace_native_transaction_in_thd)
+      {
+        /* restore the saved original engine transaction's link with thd */
+        void **trx_backup= thd_ha_data_backup(thd, hton);
+
+        hton->
+          replace_native_transaction_in_thd(thd, *trx_backup, NULL);
+        *trx_backup= NULL;
+      }
+      ha_info_next= ha_info->next();
+      ha_info->reset();
+    }
+  }
 }

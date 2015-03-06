@@ -1668,11 +1668,25 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
   Transaction_ctx::enum_trx_scope trx_scope=
     all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
+  bool restore_backup_trx= false;
 
   DBUG_ENTER("ha_commit_low");
 
   if (ha_info)
   {
+    /*
+      binlog applier thread can execute XA COMMIT and it would
+      have to restore its local thread native transaction
+      context, previously saved at XA START.
+    */
+    if (thd->variables.pseudo_slave_mode &&
+        thd->lex->sql_command == SQLCOM_XA_COMMIT)
+    {
+      DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
+                  get_xa_opt() == XA_ONE_PHASE);
+      restore_backup_trx= true;
+    }
+
     for (; ha_info; ha_info= ha_info_next)
     {
       int err;
@@ -1684,6 +1698,14 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       }
       thd->status_var.ha_commit_count++;
       ha_info_next= ha_info->next();
+
+      if (restore_backup_trx && ht->replace_native_transaction_in_thd)
+      {
+        void **trx_backup= thd_ha_data_backup(thd, ht);
+
+        ht->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
+        *trx_backup= NULL;
+      }
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
@@ -1762,6 +1784,8 @@ int ha_rollback_trans(THD *thd, bool all)
 {
   int error=0;
   Transaction_ctx *trn_ctx= thd->get_transaction();
+  bool is_xa_rollback= trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED);
+
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
@@ -1828,8 +1852,10 @@ int ha_rollback_trans(THD *thd, bool all)
   /*
     Only call gtid_rollback(THD*), which will purge thd->owned_gtid, if
     complete transaction is being rollback or autocommit=1.
+    Notice, XA rollback has just invoked update_on_commit() through
+    tc_log->*rollback* stack.
   */
-  if (is_real_trans)
+  if (is_real_trans && !is_xa_rollback)
     gtid_state->update_on_rollback(thd);
 
   /*

@@ -1462,12 +1462,20 @@ public:        /* !!! Public in this patch to allow old usage */
       !native_strncasecmp(query, "SAVEPOINT", 9) ||
       !native_strncasecmp(query, "ROLLBACK", 8);
   }
+
   /**
      Notice, DDL queries are logged without BEGIN/COMMIT parentheses
      and identification of such single-query group
      occures within logics of @c get_slave_worker().
   */
-  bool starts_group() { return !strncmp(query, "BEGIN", q_len); }
+
+  bool starts_group()
+  {
+    return
+      !strncmp(query, "BEGIN", q_len) ||
+      !strncmp(query, STRING_WITH_LEN("XA START"));
+  }
+
   virtual bool ends_group()
   {
     return
@@ -1478,6 +1486,11 @@ public:        /* !!! Public in this patch to allow old usage */
   static size_t get_query(const char *buf, size_t length,
                           const Format_description_log_event *fd_event,
                           char** query);
+
+  bool is_query_prefix_match(const char* pattern, uint p_len)
+  {
+    return !strncmp(query, pattern, p_len);
+  }
 };
 
 
@@ -1894,16 +1907,42 @@ private:
 typedef ulonglong my_xid; // this line is the same as in handler.h
 #endif
 
-class Xid_log_event: public binary_log::Xid_event, public Log_event
+
+class Xid_apply_log_event: public Log_event
+{
+protected:
+#ifdef MYSQL_SERVER
+  Xid_apply_log_event(THD *thd_arg,
+                      Log_event_header *header_arg,
+                      Log_event_footer *footer_arg)
+  : Log_event(thd_arg, 0,
+              Log_event::EVENT_TRANSACTIONAL_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING, header_arg, footer_arg) {};
+#endif
+  Xid_apply_log_event(const char* buf,
+                      const Format_description_event *description_event,
+                      Log_event_header *header_arg,
+                      Log_event_footer *footer_arg)
+  : Log_event(header_arg, footer_arg) {}
+  ~Xid_apply_log_event() {}
+  virtual bool ends_group() { return true; }
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli);
+  virtual int do_apply_event(Relay_log_info const *rli);
+  virtual int do_apply_event_worker(Slave_worker *rli);
+  virtual bool do_commit(THD *thd_arg)= 0;
+#endif
+};
+
+
+class Xid_log_event: public binary_log::Xid_event, public Xid_apply_log_event
 {
  public:
 
 #ifdef MYSQL_SERVER
   Xid_log_event(THD* thd_arg, my_xid x)
   : binary_log::Xid_event(x),
-    Log_event(thd_arg, 0,
-              Log_event::EVENT_TRANSACTIONAL_CACHE,
-              Log_event::EVENT_NORMAL_LOGGING, header(), footer())
+    Xid_apply_log_event(thd_arg, header(), footer())
   {
     is_valid_param= true;
   }
@@ -1921,13 +1960,61 @@ class Xid_log_event: public binary_log::Xid_event, public Log_event
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  virtual bool ends_group() { return true; }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual int do_apply_event(Relay_log_info const *rli);
-  virtual int do_apply_event_worker(Slave_worker *rli);
-  enum_skip_reason do_shall_skip(Relay_log_info *rli);
   bool do_commit(THD *thd_arg);
+#endif
+};
+
+
+/**
+  @class XA_prepare_log_event
+
+  Similar to Xid_log_event except that
+  - it is specific to XA transaction
+  - it carries out the prepare logics rather than the final committing
+    when @c one_phase member is off.
+  From the groupping perspective the event finalizes the current "prepare" group
+  started with XA START Query-log-event.
+  When @c one_phase is false Commit of Rollback for XA transaction are
+  logged separately to the prepare-group events so being a groups of
+  their own.
+*/
+
+class XA_prepare_log_event
+: public binary_log::XA_prepare_event, public Xid_apply_log_event
+{
+private:
+  /* Total size of buffers to hold serialized members of XID struct */
+  static const int xid_bufs_size= 12;
+public:
+#ifdef MYSQL_SERVER
+  XA_prepare_log_event(THD* thd_arg, XID *xid_arg, bool one_phase_arg= false)
+    : binary_log::XA_prepare_event((void*) xid_arg, one_phase_arg),
+      Xid_apply_log_event(thd_arg, header(), footer())
+  {}
+#endif
+  XA_prepare_log_event(const char* buf,
+                         const Format_description_log_event *description_event)
+    : binary_log::XA_prepare_event(buf, description_event),
+      Xid_apply_log_event(buf, description_event, header(), footer())
+  {
+    is_valid_param= true;
+    xid= NULL;
+  }
+  Log_event_type get_type_code() { return binary_log::XA_PREPARE_LOG_EVENT; }
+  size_t get_data_size()
+  {
+    return xid_bufs_size + my_xid.gtrid_length + my_xid.bqual_length;
+  }
+#ifdef MYSQL_SERVER
+  bool write(IO_CACHE* file);
+#else
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
+#endif
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int pack_info(Protocol* protocol);
+  bool do_commit(THD *thd);
 #endif
 };
 

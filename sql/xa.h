@@ -19,8 +19,12 @@
 
 #include "my_global.h"        // ulonglong
 #include "sql_cmd.h"          // enum_sql_command, Sql_cmd
-
+#include "mysql/plugin.h"     // MYSQL_XIDDATASIZE
+#include "mysqld.h"           // server_id
+#include "sql_cmd.h"
+#include "sql_plugin_ref.h"   // plugin_ref
 #include <string.h>
+#include "xa_aux.h"
 
 class Protocol;
 class THD;
@@ -154,6 +158,10 @@ public:
 
   virtual bool execute(THD *thd);
 
+  enum xa_option_words get_xa_opt() const
+  {
+    return m_xa_opt;
+  }
 private:
   bool trans_xa_commit(THD *thd);
 
@@ -313,6 +321,30 @@ public:
       gtrid_length + bqual_length;
   }
 
+  /*
+    The size of the string containing serialized Xid representation
+    is computed as a sum of
+      eight as the number of formatting symbols (X'',X'',)
+      plus 2 x XIDDATASIZE (2 due to hex format),
+      plus space for decimal digits of XID::formatID,
+      plus one for 0x0.
+   */
+  static const uint ser_buf_size=
+    8 + 2 * XIDDATASIZE + 4 * sizeof(long) + 1;
+
+  /**
+     The method fills XID in a buffer in format of GTRID,BQUAL,FORMATID
+     where GTRID, BQUAL are represented as hex strings.
+
+     @param  buf  a pointer to buffer
+     @return the value of the first argument
+  */
+
+  char *serialize(char *buf) const
+  {
+    return serialize_xid(buf, formatID, gtrid_length, bqual_length, data);
+  }
+
 #ifndef DBUG_OFF
   /**
      Get printable XID value.
@@ -332,6 +364,11 @@ public:
       !memcmp(xid->data, data, gtrid_length + bqual_length);
   }
 
+  bool is_null() const
+  {
+    return formatID == -1;
+  }
+
 private:
   void set(const xid_t *xid)
   {
@@ -339,11 +376,6 @@ private:
   }
 
   void set(my_xid xid);
-
-  bool is_null() const
-  {
-    return formatID == -1;
-  }
 
   void null()
   {
@@ -372,12 +404,22 @@ private:
   bool in_recovery;
   /// Error reported by the Resource Manager (RM) to the Transaction Manager.
   uint rm_error;
+  /*
+    XA-prepare binary logging status. The flag serves as a facility
+    to conduct XA transaction two round binary logging.
+    It is set to @c false at XA-start.
+    It is set to @c true by binlogging routine of XA-prepare handler as well
+    as recovered to @c true at the server recovery upon restart.
+    Checked and reset at XA-commit/rollback.
+  */
+  bool m_is_binlogged;
 
 public:
   XID_STATE()
   : xa_state(XA_NOTR),
     in_recovery(false),
-    rm_error(0)
+    rm_error(0),
+    m_is_binlogged(false)
   { m_xid.null(); }
 
   void set_state(xa_states state)
@@ -429,6 +471,7 @@ public:
     xa_state= XA_NOTR;
     m_xid.null();
     in_recovery= false;
+    m_is_binlogged= false;
   }
 
   void start_normal_xa(const XID *xid)
@@ -440,16 +483,26 @@ public:
     rm_error= 0;
   }
 
-  void start_recovery_xa(const XID *xid)
+  void start_recovery_xa(const XID *xid, bool binlogged_arg= false)
   {
     xa_state= XA_PREPARED;
     m_xid.set(xid);
     in_recovery= true;
     rm_error= 0;
+    m_is_binlogged= binlogged_arg;
   }
 
   bool is_in_recovery() const
   { return in_recovery; }
+
+  bool is_binlogged() const
+  { return m_is_binlogged; }
+
+  void set_binlogged()
+  { m_is_binlogged= true; }
+
+  void unset_binlogged()
+  { m_is_binlogged= false; }
 
   void store_xid_info(Protocol *protocol, bool print_xid_as_hex) const;
 
@@ -543,6 +596,8 @@ Transaction_ctx *transaction_cache_search(XID *xid);
   Insert information about XA transaction into a cache indexed by XID.
 
   @param xid     Pointer to a XID structure that identifies a XA transaction.
+  @param transaction
+                 Pointer to Transaction object that is inserted.
 
   @return  operation result
     @retval  false   success or a cache already contains XID_STATE
@@ -551,6 +606,21 @@ Transaction_ctx *transaction_cache_search(XID *xid);
 */
 
 bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
+
+/**
+  Transaction is marked in the cache as if it's recovered.
+  The method allows to sustain prepared transaction disconnection.
+
+  @param transaction
+                 Pointer to Transaction object that is replaced.
+
+  @return  operation result
+    @retval  false   success or a cache already contains XID_STATE
+                     for this XID value
+    @retval  true    failure
+*/
+
+bool transaction_cache_detach(Transaction_ctx *transaction);
 
 
 /**
@@ -584,4 +654,47 @@ void transaction_cache_delete(Transaction_ctx *transaction);
 
 void transaction_cache_free();
 
+
+/**
+  This is a specific to "slave" applier collection of standard cleanup
+  actions to reset XA transaction state at the end of XA prepare rather than
+  to do it at the transaction commit, see @c ha_commit_one_phase.
+  THD of the slave applier is dissociated from a transaction object in engine
+  that continues to exist there.
+
+  @param  THD current thread
+  @return the value of is_error()
+*/
+
+bool applier_reset_xa_trans(THD *thd);
+
+
+/* interface to randomly access plugin data */
+struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
+
+/**
+  The function detaches existing storage engines transaction
+  context from thd. Backup area to save it is provided to low level
+  storage engine function.
+
+  is invoked by plugin_foreach() after
+  trans_xa_start() for each storage engine.
+
+  @param[in,out]     thd     Thread context
+  @param             plugin  Reference to handlerton
+
+  @return    FALSE   on success, TRUE otherwise.
+*/
+
+my_bool detach_native_trx(THD *thd, plugin_ref plugin,
+                                      void *unused);
+
+
+/**
+  The function restores previously saved storage engine transaction context.
+
+  @param     thd     Thread context
+*/
+
+void attach_native_trx(THD *thd);
 #endif

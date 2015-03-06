@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -419,9 +419,16 @@ lock_loop:
 		/* these stats may not be accurate */
 		lock->count_os_wait++;
 		rw_lock_stats.rw_s_os_wait_count.inc();
-
-		DEBUG_SYNC_C("rw_s_lock_waiting");
-
+		/* see comments in trx_commit_low() to
+		before_trx_state_committed_in_memory explaining
+		this care to invoke the following sync check.*/
+#ifndef DBUG_OFF
+#ifdef UNIV_SYNC_DEBUG
+		if (lock->m_level != SYNC_DICT_OPERATION) {
+			DEBUG_SYNC_C("rw_s_lock_waiting");
+		}
+#endif
+#endif
 		sync_array_wait_event(sync_arr, cell);
 
 		i = 0;
