@@ -2164,6 +2164,65 @@ DEALLOCATE PREPARE s2;
 DROP VIEW v;
 DROP TABLE t;
 
+--echo # Bug#20487336 Assert length > 0 && keyparts != 0 in calc_length_and_key
+
+CREATE TABLE t1
+ (pk INTEGER PRIMARY KEY,
+  col_int_nokey INTEGER,
+  col_varchar_nokey VARCHAR(1),
+  col_varchar_key VARCHAR(1),
+  KEY col_varchar_key(col_varchar_key)
+) engine=innodb;
+
+INSERT INTO t1 (pk) VALUES
+ (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
+ (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+
+CREATE TABLE t2
+ (pk INTEGER PRIMARY KEY,
+  col_varchar_key VARCHAR(1),
+  KEY col_varchar_key(col_varchar_key)
+) engine=innodb;
+
+INSERT INTO t2 (pk) VALUES
+ (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
+ (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+
+CREATE TABLE t3
+ (pk INTEGER PRIMARY KEY,
+  col_varchar_key VARCHAR(1),
+  KEY col_varchar_key(col_varchar_key)
+) engine=innodb;
+
+INSERT INTO t3 (pk) VALUES
+ (1), (2);
+
+ANALYZE TABLE t1, t2, t3;
+
+let $query=
+SELECT MIN(alias1.col_varchar_nokey) AS field1
+FROM (SELECT sq1_alias1.*
+      FROM t1 AS sq1_alias1, t1 AS sq1_alias2
+      WHERE sq1_alias1.col_varchar_nokey IN
+                (SELECT c_sq1_alias2.col_varchar_key AS c_sq1_field1
+                 FROM t1 AS c_sq1_alias1 INNER JOIN
+                      t1 AS c_sq1_alias2
+                      ON c_sq1_alias2.col_varchar_nokey = c_sq1_alias1.col_varchar_key
+                 WHERE c_sq1_alias1.col_int_nokey <> c_sq1_alias1.col_int_nokey
+                ) AND
+            sq1_alias2.pk = sq1_alias1.pk
+     ) AS alias1,
+     (SELECT sq2_alias1.*
+      FROM t2 AS sq2_alias1 RIGHT JOIN
+           t3 AS sq2_alias2
+           ON sq2_alias2.col_varchar_key = sq2_alias1.col_varchar_key
+     ) AS alias2;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
 --echo #
 --echo # Bug #18607971 : 5.5 TO 5.6 REGRESSION WITH A SUBQUERY IN THE FROM
 --echo #                 CLAUSE.
