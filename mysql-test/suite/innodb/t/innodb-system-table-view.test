@@ -51,7 +51,7 @@ DROP TABLE IF EXISTS t_redundant, t_compact, t_compressed, t_dynamic;
 
 CREATE TABLE t_redundant (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t_compact (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
-CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
+CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb KEY_BLOCK_SIZE=2;
 CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 
 --source suite/innodb/include/show_i_s_tables.inc

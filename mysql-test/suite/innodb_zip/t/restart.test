@@ -75,7 +75,7 @@ SELECT count(*) FROM t2_restart;
 --echo # Create and insert records into a COMPRESSED row formatted table.
 --echo #
 CREATE TABLE t3_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
-	ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=4  ENGINE=InnoDB;
+	ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=2  ENGINE=InnoDB;
 INSERT INTO t3_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
@@ -119,7 +119,7 @@ SELECT count(*) FROM t5_restart;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t6_restart(
   c1 INT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
-  ROW_FORMAT=COMPRESSED  ENGINE=InnoDB
+  ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=2  ENGINE=InnoDB
   PARTITION BY HASH(c1) (
     PARTITION p0  DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir',
     PARTITION p1  DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir',

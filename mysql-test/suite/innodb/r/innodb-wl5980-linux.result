@@ -143,7 +143,7 @@ COUNT(*)
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/emp1	MYSQLD_DATADIR/test/emp1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp1	.\test\emp1.ibd	DEFAULT	0	Compact or Redundant	Single
 test/emp2#p#p1	MYSQL_TMP_DIR/mysqld.5980/tab1/test/emp2#p#p1.ibd	DEFAULT	0	Compact or Redundant	Single
 test/emp2#p#p2	MYSQL_TMP_DIR/mysqld.5980/tab2/test/emp2#p#p2.ibd	DEFAULT	0	Compact or Redundant	Single
 test/emp3	MYSQL_TMP_DIR/mysqld.5980/tab3/test/emp3.ibd	DEFAULT	0	Compact or Redundant	Single
