@@ -108,7 +108,7 @@ index_id	table_id	type	n_fields	space	name
 37	32	3	1	19	PRIMARY
 38	33	3	3	20	PRIMARY
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
-WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port')
+WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
 ORDER BY index_id, pos;
 index_id	pos	name
 12	0	FOR_NAME
@@ -165,7 +165,8 @@ test/t_compact	MYSQLD_DATADIR/test/t_compact.ibd	DEFAULT	0	Compact or Redundant	
 test/t_compressed	MYSQLD_DATADIR/test/t_compressed.ibd	DEFAULT	8192	Compressed	Single
 test/t_dynamic	MYSQLD_DATADIR/test/t_dynamic.ibd	DEFAULT	0	Dynamic	Single
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
-SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
+WHERE name NOT LIKE 'sys/%';
 count(*)
 23
 CREATE TABLE parent (id INT NOT NULL,
@@ -187,7 +188,8 @@ FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
 WHERE name LIKE "%parent";
 name	num_rows	ref_count
 test/parent	1	1
-SELECT NAME, FLAG, N_COLS FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+SELECT NAME, FLAG, N_COLS FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name NOT LIKE 'sys/%';
 NAME	FLAG	N_COLS
 SYS_DATAFILES	0	5
 SYS_FOREIGN	0	7

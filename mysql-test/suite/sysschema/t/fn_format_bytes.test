@@ -1,0 +1,30 @@
+-- source include/not_embedded.inc
+# Tests for sys schema
+# Verify the sys.format_bytes() function perfoms as expected
+
+# Passing NULL/nothing should return NULL
+SELECT sys.format_bytes(NULL);
+
+# Format bytes
+SELECT sys.format_bytes(1);
+SELECT sys.format_bytes(1023);
+
+# Format kilobytes
+SELECT sys.format_bytes(1024);
+SELECT sys.format_bytes(1048575);
+
+# Format megabytes
+SELECT sys.format_bytes(1048576);
+SELECT sys.format_bytes(1073741823);
+
+# Format gigabytes
+SELECT sys.format_bytes(1073741824);
+SELECT sys.format_bytes(1099511627775);
+
+# Format terabytes
+SELECT sys.format_bytes(1099511627776);
+SELECT sys.format_bytes(1125899906842623);
+
+# Formate petabytes
+SELECT sys.format_bytes(1125899906842624);
+SELECT sys.format_bytes(1125899906842624238947293);
