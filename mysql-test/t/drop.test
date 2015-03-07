@@ -61,13 +61,15 @@ flush tables with read lock;
 create database mysqltest;
 unlock tables;
 create database mysqltest;
-show databases;
+# Ignore sys as this are not included in embedded
+select schema_name from information_schema.schemata where schema_name != 'sys';
 flush tables with read lock;
 --error 1208,1223
 drop database mysqltest;
 unlock tables;
 drop database mysqltest;
-show databases;
+# Ignore sys as this are not included in embedded
+select schema_name from information_schema.schemata where schema_name != 'sys';
 --error 1008
 drop database mysqltest;
 

@@ -10,6 +10,7 @@ d2
 mtr
 mysql
 performance_schema
+sys
 test
 USE d2;
 DROP DATABASE d2;
@@ -27,6 +28,7 @@ d2
 mtr
 mysql
 performance_schema
+sys
 test
 USE d2;
 DROP SCHEMA d2;

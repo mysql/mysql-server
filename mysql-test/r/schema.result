@@ -3,14 +3,9 @@ create schema foo;
 show create schema foo;
 Database	Create Database
 foo	CREATE DATABASE `foo` /*!40100 DEFAULT CHARACTER SET latin1 */
-show schemas;
-Database
-information_schema
+show schemas like 'foo';
+Database (foo)
 foo
-mtr
-mysql
-performance_schema
-test
 drop schema foo;
 #
 # Bug #48940 MDL deadlocks against mysql_rm_db

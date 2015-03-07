@@ -202,7 +202,7 @@ update t1 set f2='update 3.5.1.7';
 select * from t1;
 f1	f2	f3
 NULL	update 3.5.1.7	42
-select trigger_name from information_schema.triggers order by trigger_name;
+select trigger_name from information_schema.triggers where trigger_schema != 'sys' order by trigger_name;
 trigger_name
 gs_insert
 trg5_1

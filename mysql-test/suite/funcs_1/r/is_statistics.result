@@ -154,6 +154,7 @@ def	mysql	time_zone_transition_type	mysql	PRIMARY
 def	mysql	time_zone_transition_type	mysql	PRIMARY
 def	mysql	user	mysql	PRIMARY
 def	mysql	user	mysql	PRIMARY
+def	sys	sys_config	sys	PRIMARY
 ####################################################################################
 # Testcase 3.2.14.2 + 3.2.14.3: INFORMATION_SCHEMA.STATISTICS accessible information
 ####################################################################################

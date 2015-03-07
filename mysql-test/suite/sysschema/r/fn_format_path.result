@@ -1,0 +1,18 @@
+SELECT sys.format_path(NULL);
+sys.format_path(NULL)
+NULL
+SET @mypath := CONCAT(@@global.datadir, 'foo/bar.foo');
+SELECT sys.format_path(@mypath);
+sys.format_path(@mypath)
+@@datadir/foo/bar.foo
+SET @mypath := CONCAT(@@global.tmpdir, 'foo/bar.foo');
+SELECT sys.format_path(@mypath);
+sys.format_path(@mypath)
+@@tmpdir/foo/bar.foo
+SET @mypath := CONCAT(@@global.innodb_log_group_home_dir, 'foo/bar.foo');
+SELECT sys.format_path(@mypath);
+sys.format_path(@mypath)
+@@innodb_log_group_home_dir/foo/bar.foo
+SELECT sys.format_path('/foo/bar/baz.foo');
+sys.format_path('/foo/bar/baz.foo')
+/foo/bar/baz.foo

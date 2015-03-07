@@ -28,6 +28,7 @@ CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_P
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
@@ -35,6 +36,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 show databases like 't%';
 Database (t%)
@@ -45,6 +47,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 show databases where `database` = 't%';
 Database
@@ -393,6 +396,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 explain select * from v0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -430,6 +434,7 @@ show keys from v4;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 select * from information_schema.views where TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+def	sys	version	select '1.4.0' AS `sys_version`,version() AS `mysql_version`	NONE	NO	root@localhost	INVOKER	utf8	utf8_general_ci
 def	test	v0	select `information_schema`.`schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 def	test	v1	select `information_schema`.`tables`.`TABLE_NAME` AS `c` from `information_schema`.`tables` where (`information_schema`.`tables`.`TABLE_NAME` = 'v1')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
 def	test	v2	select `information_schema`.`columns`.`COLUMN_NAME` AS `c` from `information_schema`.`columns` where (`information_schema`.`columns`.`TABLE_NAME` = 'v2')	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
@@ -517,7 +522,7 @@ t1
 select table_name,column_name from information_schema.COLUMNS where table_schema like "test%";
 table_name	column_name
 t1	a
-select ROUTINE_NAME from information_schema.ROUTINES;
+select ROUTINE_NAME from information_schema.ROUTINES where ROUTINE_SCHEMA != 'sys';
 ROUTINE_NAME
 sel2
 sub1
@@ -529,7 +534,7 @@ create table t1(a int);
 create view v1 (c) as select a from t1 with check option;
 create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
-select * from information_schema.views;
+select * from information_schema.views where table_schema != 'sys';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 def	test	v1	select `test`.`t1`.`a` AS `c` from `test`.`t1`	CASCADED	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
 def	test	v2	select `test`.`t1`.`a` AS `c` from `test`.`t1`	LOCAL	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
@@ -562,6 +567,7 @@ information_schema.tables) union select version from
 information_schema.tables;
 s1
 10
+NULL
 drop table t1;
 SHOW CREATE TABLE INFORMATION_SCHEMA.character_sets;
 Table	Create Table
@@ -829,6 +835,24 @@ information_schema	ROUTINES	ROUTINE_COMMENT
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
+sys	innodb_lock_waits	waiting_query
+sys	innodb_lock_waits	blocking_query
+sys	processlist	current_statement
+sys	processlist	last_statement
+sys	statement_analysis	query
+sys	statements_with_errors_or_warnings	query
+sys	statements_with_full_table_scans	query
+sys	statements_with_runtimes_in_95th_percentile	query
+sys	statements_with_sorting	query
+sys	statements_with_temp_tables	query
+sys	x$processlist	current_statement
+sys	x$processlist	last_statement
+sys	x$statement_analysis	query
+sys	x$statements_with_errors_or_warnings	query
+sys	x$statements_with_full_table_scans	query
+sys	x$statements_with_runtimes_in_95th_percentile	query
+sys	x$statements_with_sorting	query
+sys	x$statements_with_temp_tables	query
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not like 'performance_schema'
   and data_type = 'datetime'
@@ -859,6 +883,9 @@ event	execute_at	datetime
 event	last_executed	datetime
 event	starts	datetime
 event	ends	datetime
+x$innodb_lock_waits	wait_started	datetime
+x$innodb_lock_waits	waiting_trx_started	datetime
+x$innodb_lock_waits	blocking_trx_started	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -1063,7 +1090,7 @@ drop procedure if exists p2;
 create procedure p1 () modifies sql data set @a = 5;
 create procedure p2 () set @a = 5;
 select sql_data_access from information_schema.routines
-where specific_name like 'p%';
+where specific_name like 'p%' and ROUTINE_SCHEMA != 'sys';
 sql_data_access
 MODIFIES SQL DATA
 CONTAINS SQL
@@ -1207,7 +1234,7 @@ CREATE VIEW v1 AS SELECT 1 FROM t1
 WHERE f3 = (SELECT func2 ());
 SELECT func1();
 func1()
-1
+92
 DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
@@ -1406,7 +1433,7 @@ create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);
 create view v2 as select f1+1 as a, f2 as b from t2;
-select table_name, is_updatable from information_schema.views;
+select table_name, is_updatable from information_schema.views where table_schema != 'sys';
 table_name	is_updatable
 v1	NO
 v2	YES
@@ -1954,7 +1981,7 @@ lock table t1 read;
 # --> connection con1
 flush tables;
 # --> connection default
-select * from information_schema.views;
+select * from information_schema.views where table_schema != 'sys';
 TABLE_CATALOG	def
 TABLE_SCHEMA	test
 TABLE_NAME	v1
