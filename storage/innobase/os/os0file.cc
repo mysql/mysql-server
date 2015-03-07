@@ -1558,7 +1558,9 @@ os_file_io_complete(
 			return(DB_SUCCESS);
 		}
 
-		ulint	block_size = type.block_size();
+#ifdef UNIV_DEBUG
+		const ulint	block_size = type.block_size();
+#endif /* UNIV_DEBUG */
 
 		/* Must be a multiple of the compression unit size. */
 		ut_ad((len % block_size) == 0);
