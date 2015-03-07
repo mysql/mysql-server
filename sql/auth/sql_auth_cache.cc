@@ -65,6 +65,15 @@ bool initialized=0;
 bool allow_all_hosts=1;
 uint grant_version=0; /* Version of priv tables */
 my_bool validate_user_plugins= TRUE;
+/**
+  Flag to track if rwlocks in ACL subsystem were initialized.
+  Necessary because acl_free() can be called in some error scenarios
+  without prior call to acl_init().
+*/
+bool rwlocks_initialized= false;
+
+const uint LOCK_GRANT_PARTITIONS= 32;
+Partitioned_rwlock LOCK_grant;
 
 #define FIRST_NON_YN_FIELD 26
 
@@ -1333,6 +1342,9 @@ my_bool acl_init(bool dont_read_acl_tables)
                            &my_charset_utf8_bin);
 
   mysql_rwlock_init(key_rwlock_proxy_users, &proxy_users_rwlock);
+  LOCK_grant.init(LOCK_GRANT_PARTITIONS, key_rwlock_LOCK_grant);
+  rwlocks_initialized= true;
+
   /*
     cache built-in native authentication plugins,
     to avoid hash searches and a global mutex lock on every connect
@@ -1922,6 +1934,13 @@ void acl_free(bool end)
     plugin_unlock(0, native_password_plugin);
     delete acl_cache;
     acl_cache=0;
+
+    if (rwlocks_initialized)
+    {
+      LOCK_grant.destroy();
+      mysql_rwlock_destroy(&proxy_users_rwlock);
+      rwlocks_initialized= false;
+    }
   }
 }
 
@@ -2357,7 +2376,8 @@ static my_bool grant_reload_procs_priv(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
+
   /* Save a copy of the current hash if we need to undo the grant load */
   old_proc_priv_hash= proc_priv_hash;
   old_func_priv_hash= func_priv_hash;
@@ -2375,7 +2395,6 @@ static my_bool grant_reload_procs_priv(THD *thd)
     my_hash_free(&old_proc_priv_hash);
     my_hash_free(&old_func_priv_hash);
   }
-  mysql_rwlock_unlock(&LOCK_grant);
 
   DBUG_RETURN(return_val);
 }
@@ -2427,7 +2446,8 @@ my_bool grant_reload(THD *thd)
     goto end;
   }
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  LOCK_grant.wrlock();
+
   old_column_priv_hash= column_priv_hash;
 
   /*
@@ -2450,7 +2470,9 @@ my_bool grant_reload(THD *thd)
     my_hash_free(&old_column_priv_hash);
     free_root(&old_mem,MYF(0));
   }
-  mysql_rwlock_unlock(&LOCK_grant);
+
+  LOCK_grant.wrunlock();
+
   close_acl_tables(thd);
 
   /*
@@ -2460,9 +2482,9 @@ my_bool grant_reload(THD *thd)
   if (grant_reload_procs_priv(thd))
     return_val= 1;
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  LOCK_grant.wrlock();
   grant_version++;
-  mysql_rwlock_unlock(&LOCK_grant);
+  LOCK_grant.wrunlock();
 
 end:
   close_acl_tables(thd);
