@@ -13,6 +13,7 @@ SELECT t.name 'Table Name',
 	WHERE t.space = s.space
 	AND t.name not like 'SYS_%'
 	AND t.name not like 'mysql\/%'
+	AND t.name not like 'sys\/%'
 	ORDER BY t.name;
 --enable_query_log
 

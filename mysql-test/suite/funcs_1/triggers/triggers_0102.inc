@@ -235,7 +235,7 @@ let $message= Testcase 3.5.1.7: - need to fix;
 	select * from t1;
 	update t1 set f2='update 3.5.1.7';
 	select * from t1;
-	select trigger_name from information_schema.triggers order by trigger_name;
+	select trigger_name from information_schema.triggers where trigger_schema != 'sys' order by trigger_name;
 
 #Cleanup
 	--disable_warnings

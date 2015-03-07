@@ -44,8 +44,8 @@ create database mysqltest;
 Got one of the listed errors
 unlock tables;
 create database mysqltest;
-show databases;
-Database
+select schema_name from information_schema.schemata where schema_name != 'sys';
+schema_name
 information_schema
 mtr
 mysql
@@ -57,8 +57,8 @@ drop database mysqltest;
 Got one of the listed errors
 unlock tables;
 drop database mysqltest;
-show databases;
-Database
+select schema_name from information_schema.schemata where schema_name != 'sys';
+schema_name
 information_schema
 mtr
 mysql

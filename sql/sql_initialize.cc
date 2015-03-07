@@ -27,6 +27,7 @@
 #include "../scripts/sql_commands_system_tables.h"
 #include "../scripts/sql_commands_system_data.h"
 #include "../scripts/sql_commands_help_data.h"
+#include "../scripts/sql_commands_sys_schema.h"
 
 static const char *initialization_cmds[] =
 {
@@ -63,6 +64,7 @@ static const char** cmds[]=
   initialization_data,
   mysql_system_data,
   fill_help_tables,
+  mysql_sys_schema,
   NULL
 };
 
@@ -74,6 +76,7 @@ static const char *cmd_descs[]=
   "Filling in the system tables, part 1",
   "Filling in the system tables, part 2",
   "Filling in the mysql.help table",
+  "Creating the sys schema",
   NULL
 };
 

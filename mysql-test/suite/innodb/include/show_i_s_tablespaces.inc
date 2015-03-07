@@ -15,5 +15,6 @@ SELECT s.name 'Space Name',
 	WHERE s.space = d.space
 	AND s.name NOT LIKE 'SYS_%'
 	AND s.name NOT LIKE 'mysql\/%'
+	AND s.name NOT LIKE 'sys\/%'
 	ORDER BY s.space;
 --enable_query_log

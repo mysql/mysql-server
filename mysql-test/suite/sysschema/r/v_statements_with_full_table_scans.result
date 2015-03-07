@@ -1,0 +1,130 @@
+DESC sys.statements_with_full_table_scans;
+Field	Type	Null	Key	Default	Extra
+query	longtext	YES		NULL	
+db	varchar(64)	YES		NULL	
+exec_count	bigint(20) unsigned	NO		NULL	
+total_latency	text	YES		NULL	
+no_index_used_count	bigint(20) unsigned	NO		NULL	
+no_good_index_used_count	bigint(20) unsigned	NO		NULL	
+no_index_used_pct	decimal(24,0)	NO		0	
+rows_sent	bigint(20) unsigned	NO		NULL	
+rows_examined	bigint(20) unsigned	NO		NULL	
+rows_sent_avg	decimal(21,0) unsigned	YES		NULL	
+rows_examined_avg	decimal(21,0) unsigned	YES		NULL	
+first_seen	timestamp	NO		0000-00-00 00:00:00	
+last_seen	timestamp	NO		0000-00-00 00:00:00	
+digest	varchar(32)	YES		NULL	
+SELECT * FROM sys.statements_with_full_table_scans;
+DESC sys.x$statements_with_full_table_scans;
+Field	Type	Null	Key	Default	Extra
+query	longtext	YES		NULL	
+db	varchar(64)	YES		NULL	
+exec_count	bigint(20) unsigned	NO		NULL	
+total_latency	bigint(20) unsigned	NO		NULL	
+no_index_used_count	bigint(20) unsigned	NO		NULL	
+no_good_index_used_count	bigint(20) unsigned	NO		NULL	
+no_index_used_pct	decimal(24,0)	NO		0	
+rows_sent	bigint(20) unsigned	NO		NULL	
+rows_examined	bigint(20) unsigned	NO		NULL	
+rows_sent_avg	decimal(21,0) unsigned	YES		NULL	
+rows_examined_avg	decimal(21,0) unsigned	YES		NULL	
+first_seen	timestamp	NO		0000-00-00 00:00:00	
+last_seen	timestamp	NO		0000-00-00 00:00:00	
+digest	varchar(32)	YES		NULL	
+SELECT * FROM sys.x$statements_with_full_table_scans;
+CREATE DATABASE v_schema_tables_with_full_table_scans;
+CREATE TABLE v_schema_tables_with_full_table_scans.t (i BIGINT AUTO_INCREMENT PRIMARY KEY, j BIGINT) ENGINE = innodb;
+INSERT INTO v_schema_tables_with_full_table_scans.t (j) VALUES (1), (2), (3);
+INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schema_tables_with_full_table_scans.t);
+CALL sys.ps_truncate_all_tables(false);
+summary
+Truncated 44 tables
+SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+i	j
+12	12
+19	12
+22	12
+34	12
+37	12
+43	12
+65	12
+68	12
+74	12
+86	12
+128	12
+131	12
+137	12
+149	12
+173	12
+255	12
+258	12
+264	12
+276	12
+300	12
+348	12
+510	12
+513	12
+519	12
+531	12
+555	12
+603	12
+699	12
+SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
+object_schema	object_name	rows_full_scanned
+v_schema_tables_with_full_table_scans	t	768
+SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
+object_schema	object_name	rows_full_scanned
+v_schema_tables_with_full_table_scans	t	768
+SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+i	j
+12	12
+19	12
+22	12
+34	12
+37	12
+43	12
+65	12
+68	12
+74	12
+86	12
+128	12
+131	12
+137	12
+149	12
+173	12
+255	12
+258	12
+264	12
+276	12
+300	12
+348	12
+510	12
+513	12
+519	12
+531	12
+555	12
+603	12
+699	12
+SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
+object_schema	object_name	rows_full_scanned
+v_schema_tables_with_full_table_scans	t	1536
+SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
+object_schema	object_name	rows_full_scanned
+v_schema_tables_with_full_table_scans	t	1536
+SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE i = 10;
+i	j
+10	4
+SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
+object_schema	object_name	rows_full_scanned
+v_schema_tables_with_full_table_scans	t	1536
+SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
+object_schema	object_name	rows_full_scanned
+v_schema_tables_with_full_table_scans	t	1536
+DROP DATABASE v_schema_tables_with_full_table_scans;
