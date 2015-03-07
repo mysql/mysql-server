@@ -1,0 +1,13 @@
+-- source include/not_embedded.inc
+# Tests for sys schema
+# Verify the sys.format_statement() function perfoms as expected
+
+# Passing NULL should return NULL
+SELECT sys.format_statement(NULL);
+
+# Ensure long statements are truncated correctly
+SELECT sys.format_statement('SELECT foo, bar, baz, foobar, foobaz FROM foo JOIN bar USING (foobar) JOIN baz USING (foobar) WHERE foo = \'foo\' AND bar = \'bar\'') AS statement;
+
+# Increase truncation limit and test that it takes effect
+SET @sys.statement_truncate_len = 80;
+SELECT sys.format_statement('SELECT foo, bar, baz, foobar, foobaz FROM foo JOIN bar USING (foobar) JOIN baz USING (foobar) WHERE foo = \'foo\' AND bar = \'bar\'') AS statement;

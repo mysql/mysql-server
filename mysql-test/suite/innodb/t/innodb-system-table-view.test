@@ -24,19 +24,21 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --let $rep_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_master_info'`
 --let $rep_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_relay_log_info'`
 --let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
+# The sys_config table may not exist on embedded tests
+--let $sys_config = `SELECT IFNULL((SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'sys/sys_config'), 0)`
 
 --disable_query_log
---eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3) ORDER BY table_id;
+--eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id;
 
---eval SELECT table_id,pos,mtype,prtype,len,name FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3) ORDER BY table_id, pos;
+--eval SELECT table_id,pos,mtype,prtype,len,name FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id, pos;
 
 # The SELECT * version of the query below has been moved to innodb_4k,
 # innodb_8k & innodb_16k since the root page number changes with page size.
---eval SELECT index_id,table_id,type,n_fields,space,name FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3) ORDER BY index_id;
+--eval SELECT index_id,table_id,type,n_fields,space,name FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY index_id;
 --enable_query_log
 
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
-       WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port')
+       WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
        ORDER BY index_id, pos;
 
 --sorted_result
@@ -59,7 +61,8 @@ CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 
-SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
+ WHERE name NOT LIKE 'sys/%';
 
 # Create a foreign key constraint, and verify the information
 # in INFORMATION_SCHEMA.INNODB_SYS_FOREIGN and
@@ -89,7 +92,8 @@ FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
 WHERE name LIKE "%parent";
 
 --sorted_result
-SELECT NAME, FLAG, N_COLS FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+SELECT NAME, FLAG, N_COLS FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+ WHERE name NOT LIKE 'sys/%';
 
 --sorted_result
 SELECT name, n_fields

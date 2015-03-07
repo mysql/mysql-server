@@ -1,0 +1,42 @@
+-- source include/not_embedded.inc
+# Tests for sys schema
+# Verify the sys.format_time() function perfoms as expected
+
+# Passing NULL should return NULL
+SELECT sys.format_time(NULL);
+
+# Format picoseconds
+SELECT sys.format_time(1);
+SELECT sys.format_time(999);
+
+# Format nanoseconds
+SELECT sys.format_time(1000);
+SELECT sys.format_time(999999);
+
+# Format microseconds
+SELECT sys.format_time(1000000);
+SELECT sys.format_time(999999999);
+
+# Format milliseconds
+SELECT sys.format_time(1000000000);
+SELECT sys.format_time(999999999999);
+
+# Format seconds
+SELECT sys.format_time(1000000000000);
+SELECT sys.format_time(59999999999999);
+
+# Format minutes
+SELECT sys.format_time(60000000000000);
+SELECT sys.format_time(3599999999999999);
+
+# Format hours
+SELECT sys.format_time(3600000000000000);
+SELECT sys.format_time(86399999999999988);
+
+# Format days
+SELECT sys.format_time(86400000000000000);
+SELECT sys.format_time(604799999999999888);
+
+# Format weeks
+SELECT sys.format_time(604800000000000000);
+SELECT sys.format_time(2389472398472389748237429837423984728374);

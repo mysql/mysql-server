@@ -16,6 +16,7 @@ information_schema
 ŽÆŽÎŽÝŽºŽÞ
 mysql
 performance_schema
+sys
 test
 USE `ŽÆŽÎŽÝŽºŽÞ`;
 USE `ÆüËÜ¸ì`;

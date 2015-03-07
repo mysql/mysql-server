@@ -261,6 +261,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+sys.sys_config                                     OK
 test.t1
 warning  : Table is marked as crashed
 Warning  : Found incompatible YEAR(x) field 'y2' in t1; Please do "ALTER TABLE `t1` FORCE" to fix it!

@@ -31,6 +31,7 @@ db1
 mtr
 mysql
 performance_schema
+sys
 test
 #
 # 1.b  create database and table db3.t1 on server_3
@@ -55,6 +56,7 @@ db3
 mtr
 mysql
 performance_schema
+sys
 test
 #
 # 1.c  sync the slave (server_2) with both masters (server_1 and server_3)
@@ -74,6 +76,7 @@ db3
 mtr
 mysql
 performance_schema
+sys
 test
 include/assert.inc [Slave should have 10 rows in db1.t1]
 include/assert.inc [Slave should have 10 rows in db3.t1]
@@ -140,6 +143,7 @@ dbcommon
 mtr
 mysql
 performance_schema
+sys
 test
 USE dbcommon;
 SHOW TABLES;

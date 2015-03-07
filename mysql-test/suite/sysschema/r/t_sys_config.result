@@ -1,0 +1,20 @@
+DESC sys.sys_config;
+Field	Type	Null	Key	Default	Extra
+variable	varchar(128)	NO	PRI	NULL	
+value	varchar(128)	YES		NULL	
+set_time	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+set_by	varchar(128)	YES		NULL	
+SELECT variable, value, set_by FROM sys.sys_config;
+variable	value	set_by
+statement_truncate_len	64	NULL
+UPDATE sys.sys_config SET value = 128 WHERE variable = 'statement_truncate_len';
+SELECT variable, value, set_by FROM sys.sys_config;
+variable	value	set_by
+statement_truncate_len	128	root@localhost
+INSERT INTO sys.sys_config (variable, value) VALUES ('foo', 'bar');
+SELECT variable, value, set_by FROM sys.sys_config;
+variable	value	set_by
+foo	bar	root@localhost
+statement_truncate_len	128	root@localhost
+UPDATE sys.sys_config SET value = 64 WHERE variable = 'statement_truncate_len';
+DELETE FROM sys.sys_config WHERE variable NOT IN ('statement_truncate_len');

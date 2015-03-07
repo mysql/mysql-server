@@ -1,0 +1,48 @@
+SELECT sys.ps_is_instrument_default_timed('wait/io/file/sql/binlog');
+sys.ps_is_instrument_default_timed('wait/io/file/sql/binlog')
+YES
+SELECT sys.ps_is_instrument_default_timed('statement/sql/select');
+sys.ps_is_instrument_default_timed('statement/sql/select')
+YES
+SELECT sys.ps_is_instrument_default_timed('statement/sp/error');
+sys.ps_is_instrument_default_timed('statement/sp/error')
+YES
+SELECT sys.ps_is_instrument_default_timed('statement/com/Prepare');
+sys.ps_is_instrument_default_timed('statement/com/Prepare')
+YES
+SELECT sys.ps_is_instrument_default_timed('wait/io/table/sql/handler');
+sys.ps_is_instrument_default_timed('wait/io/table/sql/handler')
+YES
+SELECT sys.ps_is_instrument_default_timed('wait/lock/table/sql/handler');
+sys.ps_is_instrument_default_timed('wait/lock/table/sql/handler')
+YES
+SELECT sys.ps_is_instrument_default_timed('idle');
+sys.ps_is_instrument_default_timed('idle')
+YES
+SELECT sys.ps_is_instrument_default_timed('wait/synch/mutex/sql/LOCK_plugin');
+sys.ps_is_instrument_default_timed('wait/synch/mutex/sql/LOCK_plugin')
+NO
+SELECT sys.ps_is_instrument_default_timed('wait/synch/rwlock/sql/LOCK_grant');
+sys.ps_is_instrument_default_timed('wait/synch/rwlock/sql/LOCK_grant')
+NO
+SELECT sys.ps_is_instrument_default_timed('wait/synch/sxlock/innodb/btr_search_latch');
+sys.ps_is_instrument_default_timed('wait/synch/sxlock/innodb/btr_search_latch')
+NO
+SELECT sys.ps_is_instrument_default_timed('wait/synch/cond/sql/MYSQL_BIN_LOG::update_cond');
+sys.ps_is_instrument_default_timed('wait/synch/cond/sql/MYSQL_BIN_LOG::update_cond')
+NO
+SELECT sys.ps_is_instrument_default_timed('stage/sql/end');
+sys.ps_is_instrument_default_timed('stage/sql/end')
+NO
+SELECT sys.ps_is_instrument_default_timed('transaction');
+sys.ps_is_instrument_default_timed('transaction')
+NO
+SELECT sys.ps_is_instrument_default_timed('wait/io/socket/sql/server_tcpip_socket');
+sys.ps_is_instrument_default_timed('wait/io/socket/sql/server_tcpip_socket')
+NO
+SELECT sys.ps_is_instrument_default_timed('memory/performance_schema/internal_buffers');
+sys.ps_is_instrument_default_timed('memory/performance_schema/internal_buffers')
+NO
+SELECT sys.ps_is_instrument_default_timed('wait/lock/metadata/sql/mdl');
+sys.ps_is_instrument_default_timed('wait/lock/metadata/sql/mdl')
+NO

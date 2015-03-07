@@ -1221,12 +1221,12 @@ n	f
 19	121645100408832000
 20	2432902008176640000
 drop table t3|
-show function status like '%f%'|
+show function status like '%fac'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	fac	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure ifac|
 drop function fac|
-show function status like '%f%'|
+show function status like '%fac'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 drop table if exists t3|
 create table t3 (
