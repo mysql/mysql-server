@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
   The maximum size of a bootstrap query, expressed in a single line.
   Do not increase this size, use the multiline syntax instead.
 */
-#define MAX_BOOTSTRAP_LINE_SIZE 20000
+#define MAX_BOOTSTRAP_LINE_SIZE 25000
 #define MAX_BOOTSTRAP_ERROR_LEN 256
 
 #define READ_BOOTSTRAP_SUCCESS     0
