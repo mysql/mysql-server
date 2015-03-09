@@ -260,9 +260,10 @@ fsp_flags_is_valid(
 	Atomic BLOBs. */
 	if (post_antelope != atomic_blobs) {
 		return(false);
+	}
 
 	/* Make sure there are no bits that we do not know about. */
-	if (unused != 0)
+	if (unused != 0) {
 		return(false);
 	}
 
