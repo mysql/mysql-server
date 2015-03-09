@@ -1405,7 +1405,7 @@ SELECT_LEX::simplify_joins(THD *thd,
            the corresponding join condition is added to JC. 
 	*/ 
         if (simplify_joins(thd, &nested_join->join_list,
-                           false, in_sj || table->sj_on_expr,
+                           false, in_sj || table->sj_cond(),
                            &join_cond, changelog))
           DBUG_RETURN(true);
 
@@ -1418,7 +1418,7 @@ SELECT_LEX::simplify_joins(THD *thd,
       nested_join->used_tables= (table_map) 0;
       nested_join->not_null_tables=(table_map) 0;
       if (simplify_joins(thd, &nested_join->join_list, top,
-                         in_sj || table->sj_on_expr, cond, changelog))
+                         in_sj || table->sj_cond(), cond, changelog))
         DBUG_RETURN(true);
       used_tables= nested_join->used_tables;
       not_null_tables= nested_join->not_null_tables;  
@@ -1550,7 +1550,7 @@ SELECT_LEX::simplify_joins(THD *thd,
   while ((table= li++))
   {
     nested_join= table->nested_join;
-    if (table->sj_on_expr && !in_sj)
+    if (table->sj_cond() && !in_sj)
     {
        /*
          If this is a semi-join that is not contained within another semi-join, 
@@ -1636,9 +1636,10 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables)
       This assignment is required in case pull_out_semijoin_tables()
       is not called.
     */
-    if (table->sj_on_expr)
+    if (table->sj_cond())
       table->sj_inner_tables= table->nested_join->used_tables;
-    if (table->sj_on_expr && sj_nests.push_back(table))
+
+    if (table->sj_cond() && sj_nests.push_back(table))
       DBUG_RETURN(true);
 
     if (table->join_cond())
@@ -1663,72 +1664,107 @@ static int subq_sj_candidate_cmp(Item_exists_subselect* const *el1,
 
 /**
   Update table reference information for conditions and expressions due to
-  query blocks having been merged in from derived tables and due to
+  query blocks having been merged in from derived tables/views and due to
   semi-join transformation.
 
   This is needed for two reasons:
 
   1. Since table numbers are changed, we need to update used_tables
      information for all conditions and expressions that are possibly touched.
-     Notice that requirements are different for the two transforms:
-     semi-join only changes table numbers for tables from the subquery,
-     while derived tables may also change table numbers from the query block
-     being merged into.
 
   2. For semi-join, some column references are changed from outer references
      to local references.
 
-  Notice that function needs to recursively walk down into join nests,
+  The function needs to recursively walk down into join nests,
   in order to cover all conditions and expressions.
+
+  For a semi-join, tables from the subquery are added last in the query block.
+  This means that conditions and expressions from the outer query block
+  are unaffected. But all conditions inside the semi-join nest, including
+  join conditions, must have their table numbers changed.
+
+  For a derived table/view, tables from the subquery are merged into the
+  outer query, and this function is called for every derived table that is
+  merged in. This algorithm only works when derived tables are merged in
+  the order of their original table numbers.
+
+  A hypothetical example with a triple self-join over a mergeable view:
+
+    CREATE VIEW v AS SELECT t1.a, t2.b FROM t1 JOIN t2 USING (a);
+    SELECT v1.a, v1.b, v2.b, v3.b
+    FROM v AS v1 JOIN v AS v2 ON ... JOIN v AS v3 ON ...;
+
+  The analysis starts with three tables v1, v2 and v3 having numbers 0, 1, 2.
+  First we merge in v1, so we get (t1, t2, v2, v3). v2 and v3 are shifted up.
+  Tables from v1 need to have their table numbers altered (actually they do not
+  since both old and new numbers are 0 and 1, but this is a special case).
+  v2 and v3 are not merged in yet, so we delay pullout on them until they
+  are merged. Conditions and expressions from the outer query are not resolved
+  yet, so regular resolving will take of them later. 
+  Then we merge in v2, so we get (t1, t2, t1, t2, v3). The tables from this
+  view gets numbers 2 and 3, and v3 gets number 4.
+  Because v2 had a higher number than the tables from v1, the join nest
+  representing v1 is unaffected. And v3 is still not merged, so the only
+  join nest we need to consider is v2.
+  Finally we merge in v3, and then we have tables (t1, t2, t1, t2, t1, t2),
+  with numbers 0 through 5.
+  Again, since v3 has higher number than any of the already merged in views,
+  only this join nest needs the pullout.
 
   @param parent_select  Query block being merged into
   @param removed_select Query block that is removed (subquery)
-  @param tlist   List of tables to be checked, given as
-                 semi_join:      List of tables from subquery
-                 derived table:  List of tables from outer query
-                 recursive call: List of tables from join nest
-  @param table_adjust Number of positions that a derived table nest is
-                      adjusted, used to fix up semi-join related fields.
-                      Tables are adjusted from position N to N+table_adjust
+  @param tr             Table object this pullout is applied to
+  @param table_adjust   Number of positions that a derived table nest is
+                        adjusted, used to fix up semi-join related fields.
+                        Tables are adjusted from position N to N+table_adjust
 */
 
 static void fix_tables_after_pullout(st_select_lex *parent_select,
                                      st_select_lex *removed_select,
-                                     List<TABLE_LIST> *tlist,
+                                     TABLE_LIST *tr,
                                      uint table_adjust)
 {
-  List_iterator<TABLE_LIST> it(*tlist);
-  TABLE_LIST *table;
-  while ((table= it++))
+  if (tr->is_merged())
   {
-    if (table->is_merged())
+    // Update select list of merged derived tables:
+    for (Field_translator *transl= tr->field_translation;
+         transl < tr->field_translation_end;
+         transl++)
     {
-      // Update select list of merged derived tables:
-      for (Field_translator *transl= table->field_translation;
-           transl < table->field_translation_end;
-           transl++)
-      {
-        DBUG_ASSERT(transl->item->fixed);
-        transl->item->fix_after_pullout(parent_select, removed_select);
-      }
-      // Update used table info for the WHERE clause of the derived table
-      DBUG_ASSERT(!table->derived_where_cond ||
-                  table->derived_where_cond->fixed);
-      if (table->derived_where_cond)
-        table->derived_where_cond->fix_after_pullout(parent_select,
-                                                     removed_select);
+      DBUG_ASSERT(transl->item->fixed);
+      transl->item->fix_after_pullout(parent_select, removed_select);
     }
-    if (table->join_cond() && table->join_cond()->fixed)
-      table->join_cond()->fix_after_pullout(parent_select, removed_select);
-    if (table->nested_join)
-    {
-      // In case a derived table is merged-in, these fields need adjustment:
-      table->nested_join->sj_corr_tables<<= table_adjust;
-      table->nested_join->sj_depends_on<<= table_adjust;
+    // Update used table info for the WHERE clause of the derived table
+    DBUG_ASSERT(!tr->derived_where_cond ||
+                tr->derived_where_cond->fixed);
+    if (tr->derived_where_cond)
+      tr->derived_where_cond->fix_after_pullout(parent_select,
+                                                removed_select);
+  }
 
-      fix_tables_after_pullout(parent_select, removed_select,
-                               &table->nested_join->join_list, table_adjust);
-    }
+  /*
+    If join_cond() is fixed, it contains a join condition from a subquery
+    that has already been resolved. Call fix_after_pullout() to update
+    used table information since table numbers may have changed.
+    If join_cond() is not fixed, it contains a condition that was generated
+    in the derived table merge operation, which will be fixed later.
+    This condition may also contain a fixed part, but this is saved as
+    derived_where_cond and is pulled out explicitly.
+  */
+  if (tr->join_cond() && tr->join_cond()->fixed)
+      tr->join_cond()->fix_after_pullout(parent_select, removed_select);
+
+  if (tr->nested_join)
+  {
+    // In case a derived table is merged-in, these fields need adjustment:
+    tr->nested_join->sj_corr_tables<<= table_adjust;
+    tr->nested_join->sj_depends_on<<= table_adjust;
+
+    List_iterator<TABLE_LIST> it(tr->nested_join->join_list);
+    TABLE_LIST *child;
+    while ((child= it++))
+      fix_tables_after_pullout(parent_select, removed_select, child,
+                               table_adjust);
   }
 }
 
@@ -1999,6 +2035,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
       correlated tables to sj_corr_tables.
     */
     nested_join->sj_corr_tables= subq_pred->used_tables();
+
     /*
       sj_depends_on contains the set of outer tables referred in the
       subquery's WHERE clause as well as tables referred in the IN predicate's
@@ -2006,8 +2043,9 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
     */
     nested_join->sj_depends_on=  subq_pred->used_tables() |
                                  in_subq_pred->left_expr->used_tables();
-    /* Put the subquery's WHERE into semi-join's condition. */
-    sj_nest->sj_on_expr= subq_select->where_cond();
+
+    // Put the subquery's WHERE into semi-join's condition.
+    Item *sj_cond= subq_select->where_cond();
 
     /*
     Create the IN-equalities and inject them into semi-join's ON condition.
@@ -2059,8 +2097,8 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
       if (item_eq == NULL)
         DBUG_RETURN(true);      /* purecov: inspected */
 
-      sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
-      if (sj_nest->sj_on_expr == NULL)
+      sj_cond= and_items(sj_cond, item_eq);
+      if (sj_cond == NULL)
         DBUG_RETURN(true);      /* purecov: inspected */
     }
     else
@@ -2077,18 +2115,21 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
         if (item_eq == NULL)
           DBUG_RETURN(true);      /* purecov: inspected */
 
-        sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
-        if (sj_nest->sj_on_expr == NULL)
+        sj_cond= and_items(sj_cond, item_eq);
+        if (sj_cond == NULL)
           DBUG_RETURN(true);      /* purecov: inspected */
       }
     }
-    /* Fix the created equality and AND */
+    // Fix the created equality and AND
 
     Opt_trace_array sj_on_trace(&thd->opt_trace,
                                 "evaluating_constant_semijoin_conditions");
-    sj_nest->sj_on_expr->top_level_item();
-    if (sj_nest->sj_on_expr->fix_fields(thd, &sj_nest->sj_on_expr))
+    sj_cond->top_level_item();
+    if (sj_cond->fix_fields(thd, &sj_cond))
       DBUG_RETURN(true);          /* purecov: inspected */
+
+    // Attach semi-join condition to semi-join nest
+    sj_nest->set_sj_cond(sj_cond);
   }
 
   // Unlink the subquery's query expression:
@@ -2115,21 +2156,20 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   repoint_contexts_of_join_nests(subq_select->top_join_list);
 
   // Update table map for the semi-join condition
-  sj_nest->sj_on_expr->fix_after_pullout(this, subq_select);
+  sj_nest->sj_cond()->fix_after_pullout(this, subq_select);
 
   // Update table map for semi-join nest's WHERE condition and join conditions
-  fix_tables_after_pullout(this, subq_select,
-                           &sj_nest->nested_join->join_list, 0);
+  fix_tables_after_pullout(this, subq_select, sj_nest, 0);
 
   //TODO fix QT_
   DBUG_EXECUTE("where",
-               print_where(sj_nest->sj_on_expr,"SJ-EXPR", QT_ORDINARY););
+               print_where(sj_nest->sj_cond(),"SJ-COND", QT_ORDINARY););
 
   if (emb_tbl_nest)
   {
     // Inject semi-join condition into parent's join condition
     emb_tbl_nest->set_join_cond(and_items(emb_tbl_nest->join_cond(),
-                                          sj_nest->sj_on_expr));
+                                          sj_nest->sj_cond()));
     if (emb_tbl_nest->join_cond() == NULL)
       DBUG_RETURN(true);
     emb_tbl_nest->join_cond()->top_level_item();
@@ -2141,7 +2181,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   else
   {
     // Inject semi-join condition into parent's WHERE condition
-    m_where_cond= and_items(m_where_cond, sj_nest->sj_on_expr);
+    m_where_cond= and_items(m_where_cond, sj_nest->sj_cond());
     if (m_where_cond == NULL)
       DBUG_RETURN(true);
     m_where_cond->top_level_item();
@@ -2326,7 +2366,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   remap_tables(thd);
 
   // Update table info of referenced expressions after query block is merged
-  fix_tables_after_pullout(this, derived_select, &top_join_list, table_adjust);
+  fix_tables_after_pullout(this, derived_select, derived_table, table_adjust);
 
   if (derived_select->is_ordered())
   {

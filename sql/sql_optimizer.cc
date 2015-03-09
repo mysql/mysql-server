@@ -4318,7 +4318,7 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
     if ((nested_join= table->nested_join))
     {
       // We should have either a join condition or a semi-join condition
-      DBUG_ASSERT((table->join_cond() == NULL) == (table->sj_on_expr != NULL));
+      DBUG_ASSERT((table->join_cond() == NULL) == (table->sj_cond() != NULL));
 
       nested_join->nj_map= 0;
       nested_join->nj_total= 0;
@@ -4333,7 +4333,7 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
         nested_join->nj_map= (nested_join_map) 1 << first_unused++;
         nested_join->nj_total= nested_join->join_list.elements;
       }
-      else if (table->sj_on_expr)
+      else if (table->sj_cond())
       {
         NESTED_JOIN *const outer_nest=
           table->embedding ? table->embedding->nested_join : NULL;
@@ -4982,7 +4982,7 @@ bool JOIN::extract_const_tables()
       */
       extract_method= extract_no_table;
     }
-    else if (tl->embedding && tl->embedding->sj_on_expr)
+    else if (tl->embedding && tl->embedding->sj_cond())
     {
       /*
         Table belongs to a semi-join.
@@ -5183,7 +5183,7 @@ bool JOIN::extract_func_dependent_tables()
           if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !table->fulltext_searched &&                           // 1
               !tl->outer_join_nest() &&                              // 2
-              !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
+              !(tl->embedding && tl->embedding->sj_cond()) &&        // 3
               !(tab->join_cond() && tab->join_cond()->is_expensive()) &&// 4
               !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))  // 5
           {
@@ -5304,7 +5304,7 @@ bool JOIN::estimate_rowcount()
     TABLE_LIST *const tl= tab->table_ref;
     if (!tab->const_keys.is_clear_all() &&                        // (1)
         (!tl->embedding ||                                        // (2)
-         (tl->embedding && tl->embedding->sj_on_expr)))           // (3)
+         (tl->embedding && tl->embedding->sj_cond())))            // (3)
     {
       /*
         This call fills tab->quick() with the best QUICK access method
@@ -5324,7 +5324,7 @@ bool JOIN::estimate_rowcount()
       */
       if (records == 0 &&
           tab->table()->reginfo.impossible_range &&
-          (!(tl->embedding && tl->embedding->sj_on_expr)))
+          (!(tl->embedding && tl->embedding->sj_cond())))
       {
         /*
           Impossible WHERE condition or join condition
@@ -5389,7 +5389,7 @@ void JOIN::set_semijoin_embedding()
   {
     for (TABLE_LIST *tl= tab->table_ref; tl->embedding; tl= tl->embedding)
     {
-      if (tl->embedding->sj_on_expr)
+      if (tl->embedding->sj_cond())
       {
         tab->emb_sj_nest= tl->embedding;
         break;
@@ -6138,7 +6138,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
               add("functionally_dependent", true);
             /*
               Pulling a table out of uncorrelated subquery in general makes
-              makes it correlated. See the NOTE to this function. 
+              it correlated. See the NOTE to this function. 
             */
             sj_nest->nested_join->sj_corr_tables|= tbl->map();
             sj_nest->nested_join->sj_depends_on|= tbl->map();
@@ -6433,7 +6433,7 @@ merge_key_fields(Key_field *start, Key_field *new_fields, Key_field *end,
 static uint get_semi_join_select_list_index(Item_field *item_field)
 {
   TABLE_LIST *emb_sj_nest= item_field->table_ref->embedding;
-  if (emb_sj_nest && emb_sj_nest->sj_on_expr)
+  if (emb_sj_nest && emb_sj_nest->sj_cond())
   {
     List<Item> &items= emb_sj_nest->nested_join->sj_inner_exprs;
     List_iterator<Item> it(items);
