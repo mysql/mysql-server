@@ -48,7 +48,10 @@ INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schem
 CALL sys.ps_truncate_all_tables(false);
 
 # Following returns 28 rows, but should full scan as j has no index
-SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+# Using RAND() to force no query caching, so ignore results, they are not important
+--disable_result_log
+SELECT i, j, RAND() FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+--enable_result_log
 
 # Now verify the table shows up in the views with the right row count (should be 768)
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
@@ -56,7 +59,9 @@ SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with
 SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
 
 # Scan again
-SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+--disable_result_log
+SELECT i, j, RAND() FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
+--enable_result_log
 
 # Now verify that double the amount of rows in the table should be shown as scanned (should be 1536)
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;

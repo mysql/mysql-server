@@ -46,72 +46,14 @@ INSERT INTO v_schema_tables_with_full_table_scans.t (j) (SELECT j*2 FROM v_schem
 CALL sys.ps_truncate_all_tables(false);
 summary
 Truncated 44 tables
-SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
-i	j
-12	12
-19	12
-22	12
-34	12
-37	12
-43	12
-65	12
-68	12
-74	12
-86	12
-128	12
-131	12
-137	12
-149	12
-173	12
-255	12
-258	12
-264	12
-276	12
-300	12
-348	12
-510	12
-513	12
-519	12
-531	12
-555	12
-603	12
-699	12
+SELECT i, j, RAND() FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
 object_schema	object_name	rows_full_scanned
 v_schema_tables_with_full_table_scans	t	768
 SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
 object_schema	object_name	rows_full_scanned
 v_schema_tables_with_full_table_scans	t	768
-SELECT * FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
-i	j
-12	12
-19	12
-22	12
-34	12
-37	12
-43	12
-65	12
-68	12
-74	12
-86	12
-128	12
-131	12
-137	12
-149	12
-173	12
-255	12
-258	12
-264	12
-276	12
-300	12
-348	12
-510	12
-513	12
-519	12
-531	12
-555	12
-603	12
-699	12
+SELECT i, j, RAND() FROM v_schema_tables_with_full_table_scans.t WHERE j = 12;
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
 object_schema	object_name	rows_full_scanned
 v_schema_tables_with_full_table_scans	t	1536
