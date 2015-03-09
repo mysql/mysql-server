@@ -120,8 +120,39 @@ int PFS_system_variable_cache::do_materialize_global(void)
   for (Show_var_array::iterator show_var= m_show_var_array.begin();
        show_var->value && (show_var != m_show_var_array.end()); show_var++)
   {
+    const char* name= show_var->name;
     sys_var *value= (sys_var *)show_var->value;
     DBUG_ASSERT(value);
+
+    if ((m_query_scope == OPT_GLOBAL) &&
+        (!my_strcasecmp(system_charset_info, name, "sql_log_bin")))
+    {
+      /*
+        PLEASE READ:
+        http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-6.html
+
+        SQL_LOG_BIN is:
+        - declared in sys_vars.cc as both GLOBAL and SESSION in 5.7
+        - impossible to SET with SET GLOBAL (raises an error)
+        - and yet can be read with @@global.sql_log_bin
+
+        When show_compatibility_56 = ON,
+        - SHOW GLOBAL VARIABLES does expose a row for SQL_LOG_BIN
+        - INFORMATION_SCHEMA.GLOBAL_VARIABLES also does expose a row,
+        both are for backward compatibility of existing applications,
+        so that no application logic change is required.
+
+        Now, with show_compatibility_56 = OFF (aka, in this code)
+        - SHOW GLOBAL VARIABLES does -- not -- expose a row for SQL_LOG_BIN
+        - PERFORMANCE_SCHEMA.GLOBAL_VARIABLES also does -- not -- expose a row
+        so that a clean interface is exposed to (upgraded and modified) applications.
+
+        The assert below will fail once SQL_LOG_BIN really is defined
+        as SESSION_ONLY (in 5.8), so that this special case can be removed.
+      */
+      DBUG_ASSERT(value->scope() == sys_var::SESSION);
+      continue;
+    }
 
     /* Match the system variable scope to the target scope. */
     if (match_scope(value->scope()))
