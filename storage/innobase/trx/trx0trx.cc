@@ -3310,7 +3310,6 @@ trx_kill_blocking(trx_t* trx)
 		/* Shouldn't commit suicide either. */
 
 		ut_ad(victim_trx->mysql_thd != trx->mysql_thd);
-		ut_ad(trx_state_eq(victim_trx, TRX_STATE_ACTIVE));
 
 		/* Check that the transaction isn't active inside
 		InnoDB code. We have to wait while it is executing
