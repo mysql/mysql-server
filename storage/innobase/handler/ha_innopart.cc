@@ -2838,14 +2838,6 @@ ha_innopart::discard_or_import_tablespace(
 	uint	i;
 	DBUG_ENTER("ha_innopart::discard_or_import_tablespace");
 
-	/* IMPORT/DISCARD also means resetting auto_increment. */
-	if (table->found_next_number_field != NULL) {
-		lock_auto_increment();
-		m_part_share->next_auto_inc_val = 0;
-		m_part_share->auto_inc_initialized = false;
-		unlock_auto_increment();
-	}
-
 	for (i= m_part_info->get_first_used_partition();
 	     i < m_tot_parts;
 	     i= m_part_info->get_next_used_partition(i)) {
@@ -2857,6 +2849,16 @@ ha_innopart::discard_or_import_tablespace(
 		}
 	}
 	m_prebuilt->table = m_part_share->get_table_part(0);
+
+	/* IMPORT/DISCARD also means resetting auto_increment. Make sure
+	that auto_increment initialization is done after all partitions
+	are imported. */
+	if (table->found_next_number_field != NULL) {
+		lock_auto_increment();
+		m_part_share->next_auto_inc_val = 0;
+		m_part_share->auto_inc_initialized = false;
+		unlock_auto_increment();
+	}
 
 	DBUG_RETURN(error);
 }

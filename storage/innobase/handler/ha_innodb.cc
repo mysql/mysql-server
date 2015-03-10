@@ -10931,12 +10931,6 @@ ha_innobase::discard_or_import_tablespace(
 
 		if (err == DB_SUCCESS) {
 
-			if (table->found_next_number_field) {
-				dict_table_autoinc_lock(dict_table);
-				innobase_initialize_autoinc();
-				dict_table_autoinc_unlock(dict_table);
-			}
-
 			info(HA_STATUS_TIME
 			     | HA_STATUS_CONST
 			     | HA_STATUS_VARIABLE
