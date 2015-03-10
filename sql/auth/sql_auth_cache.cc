@@ -2505,7 +2505,8 @@ void acl_update_user(const char *user, const char *host,
                      const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
 		     MYSQL_TIME password_change_time,
-                     LEX_ALTER password_life)
+                     LEX_ALTER password_life,
+                     ulong what_is_set)
 {
   DBUG_ENTER("acl_update_user");
   mysql_mutex_assert_owner(&acl_cache->lock);
@@ -2560,7 +2561,9 @@ void acl_update_user(const char *user, const char *host,
                                    strdup_root(&global_acl_memory, x509_subject) : 0);
         }
         /* update details related to password lifetime, password expiry */
-        acl_user->password_expired= password_life.update_password_expired_column;
+        if (password_life.update_password_expired_column ||
+            what_is_set & PLUGIN_ATTR)
+          acl_user->password_expired= password_life.update_password_expired_column;
         if (!password_life.update_password_expired_column)
         {
           if (!password_life.use_default_password_lifetime)

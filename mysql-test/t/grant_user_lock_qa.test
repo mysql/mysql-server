@@ -361,6 +361,7 @@ SHOW CREATE USER u5@localhost;
 connection default;
 ALTER USER u5@localhost REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
 --connect(con1, localhost, u5,,,,,SSL)
+--error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
 connection default;
 disconnect con1;

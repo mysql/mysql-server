@@ -750,7 +750,8 @@ end:
 		      combo->plugin,
 		      combo->auth,
                       password_change_time,
-                      combo->alter_status);
+                      combo->alter_status,
+                      what_to_replace);
     else
       acl_insert_user(combo->user.str, combo->host.str,
 		      lex->ssl_type,
