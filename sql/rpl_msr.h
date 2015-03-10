@@ -197,7 +197,7 @@ public:
 
     @return The number of channels or 0 if empty.
   */
-  inline uint get_num_instances(bool all=false)
+  inline size_t get_num_instances(bool all=false)
   {
     DBUG_ENTER("Multisource_info::get_num_instances");
 
@@ -205,7 +205,7 @@ public:
 
     if (all)
     {
-      int count = 0;
+      size_t count = 0;
 
       for (map_it= rep_channel_map.begin();
            map_it != rep_channel_map.end(); map_it++)

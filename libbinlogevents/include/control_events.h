@@ -1106,7 +1106,7 @@ protected:
 
   <tr>
     <td>thread_id</td>
-    <td>long long type variable</td>
+    <td>unsigned int type variable</td>
     <td>The identifier for the thread executing the transaction.</td>
   </tr>
 
@@ -1190,7 +1190,7 @@ public:
 
 protected:
   const char *server_uuid;
-  long long int thread_id;
+  unsigned int thread_id;
   bool gtid_specified;
   const unsigned char *encoded_snapshot_version;
   uint32_t encoded_snapshot_version_length;
