@@ -49,7 +49,7 @@ MYSQL_ADD_EXECUTABLE(mysql_upgrade
   ../sql-common/sql_string.cc
   )
 TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
-ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
+ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema)
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
@@ -101,7 +101,7 @@ IF(UNIX)
     auth_utils.cc mysql_install_db.cc
     COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"
     )
-  ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv)
+  ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv GenSysSchema)
 ENDIF(UNIX)
 
 MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)

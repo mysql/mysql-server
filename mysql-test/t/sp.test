@@ -1397,11 +1397,11 @@ call ifac(20)|
 select * from t3|
 drop table t3|
 --replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
-show function status like '%f%'|
+show function status like '%fac'|
 drop procedure ifac|
 drop function fac|
 --replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
-show function status like '%f%'|
+show function status like '%fac'|
 
 
 # primes

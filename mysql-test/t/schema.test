@@ -14,7 +14,7 @@ drop database if exists mysqltest1;
 
 create schema foo;
 show create schema foo;
-show schemas;
+show schemas like 'foo';
 drop schema foo;
 
 

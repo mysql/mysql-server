@@ -1,0 +1,52 @@
+DESC sys.statement_analysis;
+Field	Type	Null	Key	Default	Extra
+query	longtext	YES		NULL	
+db	varchar(64)	YES		NULL	
+full_scan	varchar(1)	NO			
+exec_count	bigint(20) unsigned	NO		NULL	
+err_count	bigint(20) unsigned	NO		NULL	
+warn_count	bigint(20) unsigned	NO		NULL	
+total_latency	text	YES		NULL	
+max_latency	text	YES		NULL	
+avg_latency	text	YES		NULL	
+lock_latency	text	YES		NULL	
+rows_sent	bigint(20) unsigned	NO		NULL	
+rows_sent_avg	decimal(21,0)	NO		0	
+rows_examined	bigint(20) unsigned	NO		NULL	
+rows_examined_avg	decimal(21,0)	NO		0	
+rows_affected	bigint(20) unsigned	NO		NULL	
+rows_affected_avg	decimal(21,0)	NO		0	
+tmp_tables	bigint(20) unsigned	NO		NULL	
+tmp_disk_tables	bigint(20) unsigned	NO		NULL	
+rows_sorted	bigint(20) unsigned	NO		NULL	
+sort_merge_passes	bigint(20) unsigned	NO		NULL	
+digest	varchar(32)	YES		NULL	
+first_seen	timestamp	NO		0000-00-00 00:00:00	
+last_seen	timestamp	NO		0000-00-00 00:00:00	
+SELECT * FROM sys.statement_analysis;
+DESC sys.x$statement_analysis;
+Field	Type	Null	Key	Default	Extra
+query	longtext	YES		NULL	
+db	varchar(64)	YES		NULL	
+full_scan	varchar(1)	NO			
+exec_count	bigint(20) unsigned	NO		NULL	
+err_count	bigint(20) unsigned	NO		NULL	
+warn_count	bigint(20) unsigned	NO		NULL	
+total_latency	bigint(20) unsigned	NO		NULL	
+max_latency	bigint(20) unsigned	NO		NULL	
+avg_latency	bigint(20) unsigned	NO		NULL	
+lock_latency	bigint(20) unsigned	NO		NULL	
+rows_sent	bigint(20) unsigned	NO		NULL	
+rows_sent_avg	decimal(21,0)	NO		0	
+rows_examined	bigint(20) unsigned	NO		NULL	
+rows_examined_avg	decimal(21,0)	NO		0	
+rows_affected	bigint(20) unsigned	NO		NULL	
+rows_affected_avg	decimal(21,0)	NO		0	
+tmp_tables	bigint(20) unsigned	NO		NULL	
+tmp_disk_tables	bigint(20) unsigned	NO		NULL	
+rows_sorted	bigint(20) unsigned	NO		NULL	
+sort_merge_passes	bigint(20) unsigned	NO		NULL	
+digest	varchar(32)	YES		NULL	
+first_seen	timestamp	NO		0000-00-00 00:00:00	
+last_seen	timestamp	NO		0000-00-00 00:00:00	
+SELECT * FROM sys.x$statement_analysis;

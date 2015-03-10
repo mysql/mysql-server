@@ -523,7 +523,7 @@ insert into t1 values(5,'Hello, world of views');
 create view v1 as select * from t1;
 create view v2 as select * from v1;
 update v2 set col2='Hello, view world';
-select is_updatable from information_schema.views;
+select is_updatable from information_schema.views where table_schema != 'sys';
 select * from t1;
 drop view v2, v1;
 drop table t1;

@@ -1,0 +1,28 @@
+-- source include/not_embedded.inc
+# Tests for sys schema
+# Verify the sys.format_path() function perfoms as expected
+#
+# Note, innodb_data_home_dir replacement is not tested,
+# as this is not set by default
+#
+
+# Passing NULL should return NULL
+SELECT sys.format_path(NULL);
+
+# Ensure datadir is recognized and stripped
+SET @mypath := CONCAT(@@global.datadir, 'foo/bar.foo');
+
+SELECT sys.format_path(@mypath);
+
+# Ensure tmpdir is recognized and stripped
+SET @mypath := CONCAT(@@global.tmpdir, 'foo/bar.foo');
+
+SELECT sys.format_path(@mypath);
+
+# Ensure innodb_log_group_home_dir is recognized and stripped
+SET @mypath := CONCAT(@@global.innodb_log_group_home_dir, 'foo/bar.foo');
+
+SELECT sys.format_path(@mypath);
+
+# Unrecognized paths should return the full path
+SELECT sys.format_path('/foo/bar/baz.foo');

@@ -284,6 +284,47 @@ TRUNCATE TABLE mysql.user;
 INSERT INTO mysql.user SELECT * FROM backup_user;
 DROP TABLE backup_user;
 
+--echo #
+--echo # Upgrading of sys schema tests
+--echo #
+
+--echo # Remove the sys schema, and check the --skip-sys-schema option
+DROP DATABASE sys;
+--exec $MYSQL_UPGRADE --skip-verbose --skip-sys-schema --force
+SHOW DATABASES;
+
+--echo # Now run it normally, to ensure the sys schema is created
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SHOW DATABASES;
+
+--echo # Now drop procedures and make sure re-install is done
+DROP PROCEDURE sys.ps_setup_save;
+DROP PROCEDURE sys.ps_setup_reload_saved;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE';
+
+--echo # Now drop functions and make sure re-install is done
+DROP FUNCTION sys.format_bytes;
+DROP FUNCTION sys.format_time;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION';
+
+--echo # Now drop views and make sure re-install is done
+DROP VIEW sys.host_summary;
+DROP VIEW sys.processlist;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'VIEW';
+
+--echo # Now drop triggers and make sure re-install is done
+DROP TRIGGER sys.sys_config_insert_set_user;
+DROP TRIGGER sys.sys_config_update_set_user;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
+
+--echo # Now drop the sys_config table and make sure re-install is done
+DROP TABLE sys.sys_config;
+--exec $MYSQL_UPGRADE --skip-verbose --force
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
 
 --echo #
 --echo # BUG#18985579: "CHECK TABLE .. FOR UPGRADE" FAILS TO REPORT
