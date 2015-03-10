@@ -9128,7 +9128,9 @@ optional_braces:
 expr:
           expr or expr %prec OR_SYM
           {
-            $$= NEW_PTN PTI_expr_or(@$, $1, $3);
+            $$= flatten_associative_operator<Item_cond_or,
+                                             Item_func::COND_OR_FUNC>(
+                                                 YYTHD->mem_root, @$, $1, $3);
           }
         | expr XOR expr %prec XOR
           {
@@ -9137,7 +9139,9 @@ expr:
           }
         | expr and expr %prec AND_SYM
           {
-            $$= NEW_PTN PTI_expr_and(@$, $1, $3);
+            $$= flatten_associative_operator<Item_cond_and,
+                                             Item_func::COND_AND_FUNC>(
+                                                 YYTHD->mem_root, @$, $1, $3);
           }
         | NOT_SYM expr %prec NOT_SYM
           {
