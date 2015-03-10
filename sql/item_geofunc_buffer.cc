@@ -81,16 +81,17 @@ void Item_func_buffer::set_strategies()
     String *pstr= strategies[i];
     const uchar *pstrat= pointer_cast<const uchar *>(pstr->ptr());
 
-    uint32 snum= uint4korr(pstrat);
-    if (!(snum > invalid_strategy && snum <= max_strategy) ||
-        pstr->length() != 12)
+    uint32 snum= 0;
+
+    if (pstr->length() != 12 ||
+        !((snum= uint4korr(pstrat)) > invalid_strategy && snum <= max_strategy))
     {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "st_buffer");
       null_value= true;
       return;
     }
 
-    enum_buffer_strategies strat= (enum_buffer_strategies)snum;
+    const enum_buffer_strategies strat= (enum_buffer_strategies)snum;
     double value;
     float8get(&value, pstrat + 4);
     enum_buffer_strategy_types strategy_type= invalid_strategy_type;
