@@ -1,6 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +29,9 @@ extern PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave;
 
 struct TranxNode {
   char             log_name_[FN_REFLEN];
-  my_off_t          log_pos_;
+  my_off_t         log_pos_;
+  mysql_cond_t     cond;
+  int              n_waiters;
   struct TranxNode *next_;            /* the next node in the sorted list */
   struct TranxNode *hash_next_;    /* the next node during hash collision */
 };
@@ -128,6 +129,7 @@ public:
     trx_node->log_pos_= 0;
     trx_node->next_= 0;
     trx_node->hash_next_= 0;
+    trx_node->n_waiters= 0;
     return trx_node;
   }
 
@@ -246,6 +248,12 @@ private:
       /* New Block is always the current_block */
       current_block= block;
       ++block_num;
+
+      for (int i=0; i< BLOCK_TRANX_NODES; i++)
+        mysql_cond_init(key_ss_cond_COND_binlog_send_,
+                        &current_block->nodes[i].cond,
+                        NULL);
+
       return 0;
     }
     return 1;
@@ -257,6 +265,8 @@ private:
    */
   void free_block(Block *block)
   {
+    for (int i=0; i< BLOCK_TRANX_NODES; i++)
+      mysql_cond_destroy(&block->nodes[i].cond);
     my_free(block);
     --block_num;
   }
@@ -330,6 +340,11 @@ private:
   }
 
 public:
+  int signal_waiting_sessions_all();
+  int signal_waiting_sessions_up_to(const char *log_file_name,
+                                    my_off_t log_file_pos);
+  TranxNode* find_active_tranx_node(const char *log_file_name,
+                                    my_off_t log_file_pos);
   ActiveTranx(mysql_mutex_t *lock, unsigned long trace_level);
   ~ActiveTranx();
 
@@ -375,11 +390,6 @@ class ReplSemiSyncMaster
 
   /* True when initObject has been called */
   bool init_done_;
-
-  /* This cond variable is signaled when enough binlog has been sent to slave,
-   * so that a waiting trx can return the 'ok' to the client for a commit.
-   */
-  mysql_cond_t  COND_binlog_send_;
 
   /* Mutex that protects the following state variables and the active
    * transaction list.
@@ -434,8 +444,6 @@ class ReplSemiSyncMaster
 
   void lock();
   void unlock();
-  void cond_broadcast();
-  int  cond_timewait(struct timespec *wait_time);
 
   /* Is semi-sync replication on? */
   bool is_on() {
