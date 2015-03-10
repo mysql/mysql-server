@@ -16,6 +16,7 @@ information_schema
 ÆÎÝºÞ
 mysql
 performance_schema
+sys
 test
 USE `ÆÎÝºÞ`;
 USE `“ú–{Œê`;

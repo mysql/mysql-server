@@ -402,13 +402,13 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
 
 # Correct the character set and collation
 ALTER TABLE proc CONVERT TO CHARACTER SET utf8;
-# Reset some fields after the conversion
+# Reset some fields after the conversion and change comment from char(64) to text
 ALTER TABLE proc  MODIFY db
                          char(64) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY definer
                          char(77) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY comment
-                         char(64) collate utf8_bin DEFAULT '' NOT NULL;
+                         text collate utf8_bin DEFAULT '' NOT NULL;
 
 ALTER TABLE proc ADD character_set_client
                      char(32) collate utf8_bin DEFAULT NULL
@@ -461,10 +461,6 @@ UPDATE proc AS p SET db_collation  =
 ALTER TABLE proc ADD body_utf8 longblob DEFAULT NULL
                      AFTER db_collation;
 ALTER TABLE proc MODIFY body_utf8 longblob DEFAULT NULL;
-
-# Change comment from char(64) to text
-ALTER TABLE proc MODIFY comment
-                        text collate utf8_bin NOT NULL;
 
 #
 # EVENT privilege

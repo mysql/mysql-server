@@ -257,14 +257,10 @@ create table t2
 (
 a int primary key, b char(10)
 );
-prepare stmt4 from ' show databases ';
+prepare stmt4 from ' show databases like ''mysql'' ';
 execute stmt4;
-Database
-information_schema
-mtr
+Database (mysql)
 mysql
-performance_schema
-test
 prepare stmt4 from ' show tables from test like ''t2%'' ';
 execute stmt4;
 Tables_in_test (t2%)

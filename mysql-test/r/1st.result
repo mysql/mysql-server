@@ -1,9 +1,8 @@
-show databases;
-Database
+select schema_name from information_schema.schemata where schema_name not in ('sys', 'performance_schema');
+schema_name
 information_schema
 mtr
 mysql
-performance_schema
 test
 show tables in mysql;
 Tables_in_mysql
