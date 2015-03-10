@@ -122,8 +122,6 @@ Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be re
 insert into test.sanity
 select "5.7", "P_S.GLOBAL_VARIABLES", variable_name
 from performance_schema.global_variables;
-Warnings:
-Warning	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 
 # STEP 2-4
 insert into test.sanity
@@ -278,6 +276,7 @@ where show_mode = "5.7"
     and source = "P_S.GLOBAL_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.GLOBAL_VARIABLES	SQL_LOG_BIN
 
 ================================================================================
 TEST 3
