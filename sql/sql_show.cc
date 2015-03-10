@@ -6921,12 +6921,12 @@ void push_show_where_warning(THD *thd, enum enum_var_type option_type, bool stat
   if (option_type == OPT_GLOBAL)
   {
     old_name= (status ? "SHOW GLOBAL STATUS WHERE" : "SHOW GLOBAL VARIABLES WHERE");
-    new_name= (status ? "performance_schema.global_status" : "performance_schema.global_variables");
+    new_name= (status ? "SHOW GLOBAL STATUS [LIKE]" : "SHOW GLOBAL VARIABLES [LIKE]");
   }
   else
   {
     old_name= (status ? "SHOW SESSION STATUS WHERE" : "SHOW SESSION VARIABLES WHERE");
-    new_name= (status ? "performance_schema.session_status" : "performance_schema.session_variables");
+    new_name= (status ? "SHOW SESSION STATUS [LIKE]" : "SHOW SESSION VARIABLES [LIKE]");
   }
 
   push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -6963,7 +6963,6 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     option_type= OPT_SESSION;
   }
 
-#ifndef EMBEDDED_LIBRARY
   /* Issue deprecation warning. */
   if (lex->sql_command == SQLCOM_SHOW_VARIABLES)
   {
@@ -6972,6 +6971,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
       push_show_where_warning(thd, option_type, false);
     }
   }
+#ifndef EMBEDDED_LIBRARY
   else
   {
     push_select_warning(thd, option_type, false);
@@ -7031,7 +7031,6 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     tmp1= &thd->status_var;
   }
 
-#ifndef EMBEDDED_LIBRARY
   /* Issue deprecation warning. */
   if (lex->sql_command == SQLCOM_SHOW_STATUS)
   {
@@ -7040,6 +7039,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
       push_show_where_warning(thd, option_type, true);
     }
   }
+#ifndef EMBEDDED_LIBRARY
   else
   {
     push_select_warning(thd, option_type, true);
