@@ -1,0 +1,11 @@
+drop table if exists s,t;
+create table s (id int) engine=tokudb;
+lock tables s write;
+create temporary table t (id int, key(id)) engine=innodb;
+insert into t values (1);
+alter table t engine=tokudb;
+select * from t;
+id
+1
+unlock tables;
+drop table s, t;
