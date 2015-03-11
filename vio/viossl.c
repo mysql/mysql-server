@@ -309,7 +309,9 @@ void vio_ssl_delete(Vio *vio)
     vio->ssl_arg= 0;
   }
 
+#ifndef HAVE_YASSL
   ERR_remove_thread_state(0);
+#endif
 
   vio_delete(vio);
 }
