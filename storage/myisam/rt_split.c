@@ -65,10 +65,6 @@ static double mbr_join_square(const double *a, const double *b, int n_dim)
     b += 2;
   }while (a != end);
 
-  /* Check for infinity or NaN */
-  if (my_isinf(square) || my_isnan(square))
-    square = DBL_MAX;
-
   return square;
 }
 
@@ -102,9 +98,6 @@ static void pick_seeds(SplitStruct *node, int n_entries,
 
   double max_d = -DBL_MAX;
   double d;
-
-  *seed_a = node;
-  *seed_b = node + 1;
 
   for (cur1 = node; cur1 < lim1; ++cur1)
   {
