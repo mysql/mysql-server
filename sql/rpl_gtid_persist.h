@@ -196,7 +196,7 @@ public:
       */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
-                          ER(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE),
+                          ER_THD(thd, ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE),
                           table->table_name);
       DBUG_RETURN(true);
     }
