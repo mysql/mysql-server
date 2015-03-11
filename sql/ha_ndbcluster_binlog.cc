@@ -6973,14 +6973,14 @@ restart_cluster_failure:
               {
                 DBUG_PRINT("error", ("Failed to write to ndb_binlog_index at shutdown, retrying"));
                 mysql_mutex_lock(&thd->LOCK_thd_data);
-                volatile THD::killed_state killed= thd->killed;
+                const THD::killed_state save_killed= thd->killed;
                 /* We are cleaning up, allow for flushing last epoch */
                 thd->killed= THD::NOT_KILLED;
                 /* also clear error from last failing write */
                 thd->clear_error();
                 ndb_binlog_index_table__write_rows(thd, rows);
                 /* Restore kill flag */
-                thd->killed= killed;
+                thd->killed= save_killed;
                 mysql_mutex_unlock(&thd->LOCK_thd_data);
               }
             }
