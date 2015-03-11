@@ -126,15 +126,10 @@ bool TABLE_LIST::setup_materialized_derived(THD *thd)
     DBUG_RETURN(true);        /* purecov: inspected */
 
   table= derived_result->table;
-
-  table_name= table->s->table_name.str;
-  table_name_length= table->s->table_name.length;
-
   table->pos_in_table_list= this;
 
-  // Erasing the database name is needed for alignment with temp. table
-  db= (char *)"";
-  db_length= 0;
+  // Make table's name same as the underlying materialized table
+  set_name_temporary();
 
   table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
