@@ -9354,6 +9354,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       are written to by user queries.
     */
     uint non_replicated_tables_count= 0;
+    /**
+      Indicate whether we alreadly reported a warning
+      on modifying gtid_executed table.
+    */
+    bool warned_gtid_executed_table= false;
 #ifndef DBUG_OFF
     {
       static const char *prelocked_mode_name[] = {
@@ -9382,6 +9387,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       if (table->table->no_replicate)
       {
+        if (!warned_gtid_executed_table)
+          warned_gtid_executed_table=
+            gtid_state->warn_on_modify_gtid_table(this, table);
         /*
           The statement uses a table that is not replicated.
           The following properties about the table:
@@ -9741,8 +9749,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       }
     }
   }
-#ifndef DBUG_OFF
   else
+  {
     DBUG_PRINT("info", ("decision: no logging since "
                         "mysql_bin_log.is_open() = %d "
                         "and (options & OPTION_BIN_LOG) = 0x%llx "
@@ -9752,7 +9760,14 @@ int THD::decide_logging_format(TABLE_LIST *tables)
                         (variables.option_bits & OPTION_BIN_LOG),
                         variables.binlog_format,
                         binlog_filter->db_ok(m_db.str)));
-#endif
+
+    for (TABLE_LIST *table= tables; table; table= table->next_global)
+    {
+      if (!table->is_placeholder() && table->table->no_replicate &&
+          gtid_state->warn_on_modify_gtid_table(this, table))
+        break;
+    }
+  }
 
   DEBUG_SYNC(current_thd, "end_decide_logging_format");
 

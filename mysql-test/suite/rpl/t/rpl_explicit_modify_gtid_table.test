@@ -1,0 +1,80 @@
+# ==== Purpose ====
+#
+# Bug #19451053  CRASH AFTER DIRECT INSERT INTO MYSQL.GTID_EXECUTED TABLE
+#
+# Verify that push a warning to client if user is modifying
+# the gtid_executed table explicitly, ignore the duplicate
+# key error and log a warning for it when writing transaction
+# owned GTID into gtid_executed table within the transaction
+# implicitly.
+#
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun them for every format.
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+--source include/have_gtid.inc
+--let $uuida=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--echo #
+--echo # Verify that explicit insert into mysql.gtid_executed
+--echo # is causing a warning.
+--echo #
+--eval INSERT INTO mysql.gtid_executed VALUES ('$uuida', 1, 1)
+--echo #
+--echo # Verify that explicit update to mysql.gtid_executed
+--echo # is causing a warning.
+--echo #
+--eval UPDATE mysql.gtid_executed SET interval_end = 2 WHERE source_uuid = '$uuida'
+--echo #
+--echo # Verify that explicit select from mysql.gtid_executed
+--echo # with 'FOR UPDATE' is causing a warning.
+--echo #
+--eval SELECT * FROM mysql.gtid_executed WHERE source_uuid = '$uuida' FOR UPDATE
+--echo #
+--echo # Verify that explicit delete from mysql.gtid_executed
+--echo # is causing a warning.
+--echo #
+--eval DELETE FROM mysql.gtid_executed WHERE source_uuid = '$uuida'
+--echo #
+--echo # Verify that no warning on explicit select from mysql.gtid_executed
+--echo #
+--eval SELECT * FROM mysql.gtid_executed WHERE source_uuid = '$uuida'
+
+
+--source include/sync_slave_sql_with_master.inc
+call mtr.add_suppression("You need to use --log-bin to make "
+                         "--binlog-format work");
+call mtr.add_suppression("The transaction owned GTID is already in the "
+                         "gtid_executed table, which is caused by an "
+                         "explicit modifying from user client.");
+--eval INSERT INTO mysql.gtid_executed VALUES ('$uuida', 1, 1)
+--echo #
+--echo # Verify that the GTID is inserted into table, but
+--echo # is not inserted into GLOBAL.GTID_EXECUTED.
+--echo #
+SELECT * FROM mysql.gtid_executed;
+SELECT @@GLOBAL.GTID_EXECUTED;
+--echo #
+--echo # Verify that the duplicate error is ignored, the transaction
+--echo # is committed successfully, the GTID is inserted into
+--echo # GLOBAL.GTID_EXECUTED, and log a warning in error log.
+--echo #
+--eval SET GTID_NEXT = '$uuida:1'
+
+CREATE TABLE t1 (a INT);
+SELECT @@GLOBAL.GTID_EXECUTED;
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: rpl.rpl_explicit_modify_gtid_table
+--let $assert_count = 1
+--let $assert_select = The transaction owned GTID is already in the gtid_executed table, which is caused by an explicit modifying from user client.
+--let $assert_text = Found the expected warning "The transaction owned GTID is already in the gtid_executed table, which is caused by an explicit modifying from user client" in slave's error log.
+--source include/assert_grep.inc
+
+--eval SET GTID_NEXT = '$uuida:2'
+DROP TABLE t1;
+SELECT @@GLOBAL.GTID_EXECUTED;
+
+# Cleanup
+--source include/rpl_connection_master.inc
+--source include/rpl_end.inc
