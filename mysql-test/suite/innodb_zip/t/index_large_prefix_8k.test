@@ -138,11 +138,6 @@ create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
 # See page_zip_empty_size() and Bug #47495 for more detail.
 
 # Test edge cases for indexes using key_block_size=1
-set global innodb_large_prefix=0;
--- error ER_TOO_LONG_KEY
-create index idx1 on worklog5743_1(a2(4000));
-show warnings;
-set global innodb_large_prefix=1;
 -- error ER_TOO_LONG_KEY
 create index idx2 on worklog5743_1(a2(4000));
 show warnings;
@@ -160,11 +155,7 @@ create index idx6 on worklog5743_1(a1, a2(428));
 show warnings;
 
 # Test edge cases for indexes using key_block_size=2
-set global innodb_large_prefix=0;
 SET sql_mode= '';
-create index idx1 on worklog5743_2(a2(4000));
-show warnings;
-set global innodb_large_prefix=1;
 -- error ER_TOO_BIG_ROWSIZE
 create index idx2 on worklog5743_2(a2(4000));
 show warnings;
@@ -182,10 +173,8 @@ create index idx6 on worklog5743_2(a1, a2(940));
 show warnings;
 
 # Test edge cases for indexes using key_block_size=4
-set global innodb_large_prefix=0;
 create index idx1 on worklog5743_4(a2(4000));
 show warnings;
-set global innodb_large_prefix=1;
 create index idx3 on worklog5743_4(a2(1537));
 show warnings;
 create index idx4 on worklog5743_4(a2(1536));
@@ -197,10 +186,6 @@ create index idx6 on worklog5743_4(a1, a2(1532));
 show warnings;
 
 # Test edge cases for indexes using key_block_size=8
-set global innodb_large_prefix=0;
-create index idx1 on worklog5743_8(a2(1000));
-show warnings;
-set global innodb_large_prefix=1;
 create index idx2 on worklog5743_8(a2(3073));
 show warnings;
 create index idx3 on worklog5743_8(a2(3072));
@@ -218,14 +203,10 @@ insert into worklog5743_2 values(9, repeat("a", 10000));
 insert into worklog5743_4 values(9, repeat("a", 10000));
 insert into worklog5743_8 values(9, repeat("a", 10000), repeat("a", 10000));
 
-# Now if we change the global innodb_large_prefix back to 767,
-# updates to these indexes should still be allowed.
-set global innodb_large_prefix=0;
 insert into worklog5743_1 values(2, repeat("b", 10000));
 insert into worklog5743_2 values(2, repeat("b", 10000));
 insert into worklog5743_4 values(2, repeat("b", 10000));
 insert into worklog5743_8 values(2, repeat("b", 10000), repeat("b", 10000));
-set global innodb_large_prefix=1;
 
 select a1, left(a2, 20) from worklog5743_1;
 select a1, left(a2, 20) from worklog5743_2;

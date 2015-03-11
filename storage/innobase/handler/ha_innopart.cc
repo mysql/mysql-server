@@ -63,7 +63,6 @@ const char* sub_sep = "#sp#";
 const char* part_sep = "#P#";
 const char* sub_sep = "#SP#";
 #endif /* _WIN32 */
-extern char*	innobase_file_format_max;
 
 Ha_innopart_share::Ha_innopart_share(
 	TABLE_SHARE*	table_share)
@@ -1166,15 +1165,6 @@ share_error:
 
 	/* Index block size in InnoDB: used by MySQL in query optimization. */
 	stats.block_size = UNIV_PAGE_SIZE;
-
-	if (m_prebuilt->table != NULL) {
-		/* We update the highest file format in the system table
-		space, if this table has higher file format setting. */
-
-		trx_sys_file_format_max_upgrade(
-			(const char**) &innobase_file_format_max,
-			dict_table_get_format(m_prebuilt->table));
-	}
 
 	/* Only if the table has an AUTOINC column. */
 	if (m_prebuilt->table != NULL

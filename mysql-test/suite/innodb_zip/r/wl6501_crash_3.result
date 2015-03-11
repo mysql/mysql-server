@@ -5,9 +5,6 @@ set global innodb_file_per_table = on;
 "1. Hit crash point while writing redo log."
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -42,9 +39,6 @@ drop table t;
 "2. Hit crash point on completion of redo log write."
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -82,9 +76,6 @@ drop table t;
 "3. Hit crash point while dropping indexes."
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -121,9 +112,6 @@ i	f	c
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -160,9 +148,6 @@ i	f	c
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -201,9 +186,6 @@ drop table t;
 "   of index is commenced."
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -241,9 +223,6 @@ drop table t;
 "5. Hit crash point while creating indexes."
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -280,9 +259,6 @@ i	f	c
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -319,9 +295,6 @@ i	f	c
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -360,9 +333,6 @@ drop table t;
 "   in-memory dict."
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -400,9 +370,6 @@ drop table t;
 "7. Hit crash point before/after log checkpoint is done."
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -434,9 +401,6 @@ i	f	c
 drop table t;
 use test;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=OFF;
 create  table t (
 i int, f float, c char,
@@ -471,7 +435,4 @@ i	f	c
 1	1.1	a
 2	2.2	b
 drop table t;
-set global innodb_file_format = Barracuda;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;

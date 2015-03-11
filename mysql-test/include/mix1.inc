@@ -819,8 +819,8 @@ drop table t1,t2;
 
 # Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(f1 varchar(800) binary not null, key(f1))
-  character set utf8 collate utf8_general_ci;
+create table t1(f1 varchar(3800) binary not null, key(f1))
+  character set utf8 collate utf8_general_ci row_format=dynamic;
 insert into t1 values('aaa');
 drop table t1;
 SET sql_mode=default;
@@ -1002,9 +1002,9 @@ DROP TABLE t1;
 
 # Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(a text) engine=innodb default charset=utf8; 
+create table t1(a text) engine=innodb row_format=dynamic default charset=utf8;
 insert into t1 values('aaa');
-alter table t1 add index(a(1024));
+alter table t1 add index(a(1025));
 show create table t1;
 drop table t1;
 SET sql_mode=default;

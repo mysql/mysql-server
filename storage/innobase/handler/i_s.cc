@@ -6316,16 +6316,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_FILE_FORMAT		5
-	{STRUCT_FLD(field_name,		"FILE_FORMAT"),
-	 STRUCT_FLD(field_length,	10),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define SYS_TABLES_ROW_FORMAT		6
+#define SYS_TABLES_ROW_FORMAT		5
 	{STRUCT_FLD(field_name,		"ROW_FORMAT"),
 	 STRUCT_FLD(field_length,	12),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -6334,7 +6325,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_ZIP_PAGE_SIZE	7
+#define SYS_TABLES_ZIP_PAGE_SIZE	6
 	{STRUCT_FLD(field_name,		"ZIP_PAGE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -6343,7 +6334,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_SPACE_TYPE	8
+#define SYS_TABLES_SPACE_TYPE		7
 	{STRUCT_FLD(field_name,		"SPACE_TYPE"),
 	 STRUCT_FLD(field_length,	10),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -6372,11 +6363,9 @@ i_s_dict_fill_sys_tables(
 	ulint			atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(
 								table->flags);
 	const page_size_t&	page_size = dict_tf_get_page_size(table->flags);
-	const char*		file_format;
 	const char*		row_format;
 	const char*		space_type;
 
-	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
 	if (!compact) {
 		row_format = "Redundant";
 	} else if (!atomic_blobs) {
@@ -6408,8 +6397,6 @@ i_s_dict_fill_sys_tables(
 	OK(fields[SYS_TABLES_NUM_COLUMN]->store(table->n_cols));
 
 	OK(fields[SYS_TABLES_SPACE]->store(table->space));
-
-	OK(field_store_string(fields[SYS_TABLES_FILE_FORMAT], file_format));
 
 	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
 
@@ -8070,16 +8057,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_FILE_FORMAT	3
-	{STRUCT_FLD(field_name,		"FILE_FORMAT"),
-	 STRUCT_FLD(field_length,	10),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define SYS_TABLESPACES_ROW_FORMAT	4
+#define SYS_TABLESPACES_ROW_FORMAT	3
 	{STRUCT_FLD(field_name,		"ROW_FORMAT"),
 	 STRUCT_FLD(field_length,	22),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -8088,7 +8066,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_PAGE_SIZE	5
+#define SYS_TABLESPACES_PAGE_SIZE	4
 	{STRUCT_FLD(field_name,		"PAGE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -8097,7 +8075,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_ZIP_PAGE_SIZE	6
+#define SYS_TABLESPACES_ZIP_PAGE_SIZE	5
 	{STRUCT_FLD(field_name,		"ZIP_PAGE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -8106,7 +8084,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_SPACE_TYPE	7
+#define SYS_TABLESPACES_SPACE_TYPE	6
 	{STRUCT_FLD(field_name,		"SPACE_TYPE"),
 	 STRUCT_FLD(field_length,	10),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -8136,18 +8114,15 @@ i_s_dict_fill_sys_tablespaces(
 	Field**		fields;
 	ulint		atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
 	bool		is_compressed = FSP_FLAGS_GET_ZIP_SSIZE(flags);
-	const char*	file_format;
 	const char*	row_format;
 	const page_size_t	page_size(flags);
 	const char*	space_type;
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablespaces");
 
-	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
 	if (is_system_tablespace(space)) {
 		row_format = "Compact or Redundant";
 	} else if (fsp_is_shared_tablespace(flags) && !is_compressed) {
-		file_format = "Any";
 		row_format = "Any";
 	} else if (is_compressed) {
 		row_format = "Compressed";
@@ -8174,9 +8149,6 @@ i_s_dict_fill_sys_tablespaces(
 
 	OK(fields[SYS_TABLESPACES_FLAGS]->store(
 		static_cast<double>(flags)));
-
-	OK(field_store_string(fields[SYS_TABLESPACES_FILE_FORMAT],
-			      file_format));
 
 	OK(field_store_string(fields[SYS_TABLESPACES_ROW_FORMAT],
 			      row_format));

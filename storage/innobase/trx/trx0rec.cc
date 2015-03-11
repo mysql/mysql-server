@@ -346,7 +346,7 @@ trx_undo_rec_get_col_val(
 		ut_ad(*len >= BTR_EXTERN_FIELD_REF_SIZE);
 
 		/* we do not have access to index->table here
-		ut_ad(dict_table_get_format(index->table) >= UNIV_FORMAT_B
+		ut_ad(dict_table_has_atomic_blobs(index->table)
 		      || *len >= col->max_prefix
 		      + BTR_EXTERN_FIELD_REF_SIZE);
 		*/
@@ -1157,8 +1157,7 @@ trx_undo_rec_get_partial_row(
 			if (!ignore_prefix && col->ord_part) {
 				ut_a(dfield_get_len(dfield)
 				     >= BTR_EXTERN_FIELD_REF_SIZE);
-				ut_a(dict_table_get_format(index->table)
-				     >= UNIV_FORMAT_B
+				ut_a(dict_table_has_atomic_blobs(index->table)
 				     || dfield_get_len(dfield)
 				     >= REC_ANTELOPE_MAX_INDEX_COL_LEN
 				     + BTR_EXTERN_FIELD_REF_SIZE);

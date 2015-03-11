@@ -204,12 +204,6 @@ extern	ulong	srv_thread_sleep_delay;
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
 extern	ulong	srv_adaptive_max_sleep_delay;
 
-/** The file format to use on new *.ibd files. */
-extern ulint	srv_file_format;
-/** Whether to check file format during startup.  A value of
-UNIV_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
-set it to the highest format we support. */
-extern ulint	srv_max_file_format_at_startup;
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;

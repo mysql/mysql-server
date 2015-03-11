@@ -17,11 +17,9 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --echo # It rejects all invalid input, as if strict mode is always ON.
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 
---echo # Neither file_format=antelope nor file_per_table=OFF will prevent
+--echo # innodb_file_per_table=OFF will not prevent
 --echo # CREATE TABLESPACE from working because the tablespace is an empty
 --echo # shell that can contain multiple row formats.
-SET GLOBAL innodb_file_format = 'antelope';
-SHOW VARIABLES LIKE 'innodb_file_format';
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 
 --echo #
@@ -333,7 +331,7 @@ CREATE TABLESPACE s_red ADD DATAFILE 's_red.ibd' ROW_FORMAT=redundant;
 CREATE TABLE t_def_in_def (a int, b text) TABLESPACE s_def;
 CREATE TABLE t_red_in_def (a int, b text) ROW_FORMAT=Redundant TABLESPACE s_def;
 # Since these are creating tables within existing general tablespaces the value
-# of INNODB_FILE_FORMAT and INNODB_FILE_PER_TABLE do not matter.
+# of INNODB_FILE_PER_TABLE does not matter.
 SET GLOBAL innodb_file_per_table = OFF;
 CREATE TABLE t_dyn_in_def (a int, b text) ROW_FORMAT=Dynamic TABLESPACE s_def;
 
@@ -405,7 +403,6 @@ SHOW WARNINGS;
 --echo #
 --echo # Try to add a second table to a single-table tablespace
 --echo #
-SET GLOBAL innodb_file_format = 'barracuda';
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE s_single (a int, b text) ROW_FORMAT=dynamic;
 --error ER_TABLESPACE_MISSING
@@ -420,8 +417,8 @@ DROP TABLE s_single;
 --echo #
 --echo # Try to use both TABLESPACE and DATA DIRECTORY in the same CREATE TABLE.
 --echo #
-# Strict mode, file_format and file_per_table should make no difference
-# when using general tabespaces.
+# Strict mode, innodb_file_per_table should make no difference
+# when using general tablespaces.
 SET innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION

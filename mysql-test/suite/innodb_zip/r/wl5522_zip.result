@@ -71,17 +71,8 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 # List after t1 DISCARD
 t1.frm
 ALTER TABLE t1 IMPORT TABLESPACE;
-SET GLOBAL innodb_file_format=Antelope;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=off;
 ALTER TABLE t1 ENGINE InnoDB;
-Warnings:
-Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET innodb_strict_mode=default;
 SELECT COUNT(*) FROM t1;
 COUNT(*)

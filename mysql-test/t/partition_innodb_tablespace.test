@@ -49,10 +49,10 @@ SHOW CREATE TABLE t1;
 # This is independent of the value of lower_case_table_names.  This cannot
 # be changes without breaking backward compatibility.
 --replace_result t1#P t1#p
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t1#P t1#p
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -98,10 +98,10 @@ SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 --replace_result t1#P t1#p
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t1#P t1#p
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -118,10 +118,10 @@ RENAME TABLE t1 TO t11;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t11;
 --replace_result t11#P t11#p
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t11#P t11#p
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t11#P t11#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -148,10 +148,10 @@ DEALLOCATE PREPARE stmt1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 --replace_result t1#P t1#p
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t1#P t1#p
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -190,10 +190,10 @@ SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 --replace_result #P# #p#  #SP# #sp#
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -247,10 +247,10 @@ SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 --replace_result #P# #p#  #SP# #sp#
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles

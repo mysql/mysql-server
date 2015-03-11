@@ -109,10 +109,10 @@ row_sel_sec_rec_is_for_blob(
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
 
-	/* This function should never be invoked on an Antelope format
-	table, because they should always contain enough prefix in the
-	clustered index record. */
-	ut_ad(dict_table_get_format(table) >= UNIV_FORMAT_B);
+	/* This function should never be invoked on tables in
+	ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT, because they
+	should always contain enough prefix in the clustered index record. */
+	ut_ad(dict_table_has_atomic_blobs(table));
 	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
 	ut_ad(prefix_len >= sec_len);
 	ut_ad(prefix_len > 0);

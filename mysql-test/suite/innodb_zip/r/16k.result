@@ -305,24 +305,13 @@ Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Antelope`;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
-ERROR HY000: Table storage engine for 't4' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Error	1031	Table storage engine for 't4' doesn't have this option
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
-ERROR HY000: Table storage engine for 't5' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Error	1031	Table storage engine for 't5' doesn't have this option
-SET GLOBAL innodb_file_format = `Barracuda`;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
+DROP TABLE t4,t5;
 # Test 7) This series of tests were moved from innodb-index to here
 # because the second alter table t1 assumes a 16k page size.
 # Moving the test allows the rest of innodb-index to be run on all

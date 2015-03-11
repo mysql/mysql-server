@@ -2237,8 +2237,7 @@ is_ord_part:
 
 			/* We only store the needed prefix length in undo log */
 			if (max_prefix) {
-			     ut_ad(dict_table_get_format(table)
-				   >= UNIV_FORMAT_B);
+			     ut_ad(dict_table_has_atomic_blobs(table));
 
 				max_size = ut_min(max_prefix, max_size);
 			}
@@ -2595,28 +2594,20 @@ too_big:
 	testcase that shows an index that can be created but
 	cannot be updated. */
 
-	switch (dict_table_get_format(table)) {
-	case UNIV_FORMAT_A:
+	if (!dict_table_has_atomic_blobs(table)) {
 		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
 		prefixes of externally stored columns locally within
 		the record.  There are no special considerations for
 		the undo log record size. */
 		goto undo_size_ok;
-
-	case UNIV_FORMAT_B:
-		/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED,
-		column prefix indexes require that prefixes of
-		externally stored columns are written to the undo log.
-		This may make the undo log record bigger than the
-		record on the B-tree page.  The maximum size of an
-		undo log record is the page size.  That must be
-		checked for below. */
-		break;
-
-#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
-# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
-#endif
 	}
+
+	/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED, column
+	prefix indexes require that prefixes of externally stored
+	columns are written to the undo log.  This may make the undo
+	log record bigger than the record on the B-tree page.  The
+	maximum size of an undo log record is the page size.  That
+	must be checked for below. */
 
 	for (i = 0; i < n_ord; i++) {
 		const dict_field_t*	field
@@ -6837,7 +6828,7 @@ dict_tf_to_fsp_flags(
 	ut_ad(!page_size.is_compressed() || has_atomic_blobs);
 
 	/* General tablespaces that are not compressed do not get the
-	flags for dynamic row format (POST_ANTELOPE & ATOMIC_BLOBS) */
+	flags for dynamic row format (ATOMIC_BLOBS) */
 	if (is_shared && !page_size.is_compressed()) {
 		has_atomic_blobs = false;
 	}

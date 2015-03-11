@@ -141,16 +141,6 @@ my_bool	srv_read_only_mode;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 my_bool	srv_file_per_table;
-/** The file format to use on new *.ibd files. */
-ulint	srv_file_format = 0;
-/** Whether to check file format during startup.  A value of
-UNIV_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
-set it to the highest format we support. */
-ulint	srv_max_file_format_at_startup = UNIV_FORMAT_MAX;
-
-#if UNIV_FORMAT_A
-# error "UNIV_FORMAT_A must be 0!"
-#endif
 
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */

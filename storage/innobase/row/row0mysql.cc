@@ -3156,8 +3156,8 @@ row_create_index_for_mysql(
 		/* add index to dictionary cache and also free index object */
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
-			(trx_is_strict(trx)
-			 || dict_table_get_format(table) >= UNIV_FORMAT_B));
+			trx_is_strict(trx)
+			|| dict_table_has_atomic_blobs(table));
 
 		if (err != DB_SUCCESS) {
 			goto error_handling;

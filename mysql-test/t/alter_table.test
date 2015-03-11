@@ -2092,19 +2092,22 @@ SET @orig_sql_mode = @@sql_mode;
 SET sql_mode= '';
 
 --echo # Test with '767' as index size limit.
-SET GLOBAL innodb_large_prefix=OFF;
 CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB;
-INSERT INTO t1 VALUES('a');
+--error ER_INDEX_COLUMN_TOO_LONG
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
+DROP TABLE t1;
+CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) ENGINE= INNODB,
+ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES('a');
+ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(3073), ALGORITHM= INPLACE;
 
 --echo # Without patch, the below statement will assert in a debug build.
 SELECT COUNT(*) FROM t1 WHERE fld1= 'a';
 
 --echo # Cleanup.
 DROP TABLE t1;
-SET GLOBAL innodb_large_prefix=default;
 
---echo # Test with innodb large prefix indexes(Upto 3072).
+--echo # Test with innodb prefix indexes up to 3072 bytes.
 
 CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) ENGINE= INNODB
 ROW_FORMAT= DYNAMIC;

@@ -563,7 +563,7 @@ dict_tf_is_valid(
 	}
 
 	if (atomic_blobs) {
-		/* Barracuda row formats COMPRESSED and DYNAMIC both use
+		/* ROW_FORMAT=COMPRESSED and ROW_FORMAT=DYNAMIC both use
 		atomic_blobs, which build on the page structure introduced
 		for the COMPACT row format by allowing keys in secondary
 		indexes to be made from data stored off-page in the
@@ -646,7 +646,7 @@ dict_sys_tables_type_validate(
 	ulint	unused = DICT_TF_GET_UNUSED(type);
 
 	/* The low order bit of SYS_TABLES.TYPE is always set to 1.
-	If the format is UNIV_FORMAT_B or higher, this field is the same
+	If !atomic_blobs, this field is the same
 	as dict_table_t::flags. Zero is not allowed here. */
 	if (!low_order_bit) {
 		return(ULINT_UNDEFINED);
@@ -664,7 +664,7 @@ dict_sys_tables_type_validate(
 	}
 
 	if (atomic_blobs) {
-		/* Barracuda row formats COMPRESSED and DYNAMIC build on
+		/* ROW_FORMAT=COMPRESSED and ROW_FORMAT=DYNAMIC build on
 		the page structure introduced for the COMPACT row format
 		by allowing keys in secondary indexes to be made from
 		data stored off-page in the clustered index.
@@ -702,9 +702,9 @@ dict_sys_tables_type_validate(
 }
 
 /********************************************************************//**
-Determine the file format from dict_table_t::flags
+Determine the page format from dict_table_t::flags
 The low order bit will be zero for REDUNDANT and 1 for COMPACT. For any
-other row_format, file_format is > 0 and DICT_TF_COMPACT will also be set.
+other row_format, flags is nonzero and DICT_TF_COMPACT will also be set.
 @return file format version */
 UNIV_INLINE
 rec_format_t
@@ -729,34 +729,15 @@ dict_tf_get_rec_format(
 	return(REC_FORMAT_DYNAMIC);
 }
 
-/********************************************************************//**
-Determine the file format from a dict_table_t::flags.
-@return file format version */
+/** Determine if a table uses atomic BLOBs (no locally stored prefix).
+@param[in]	table	InnoDB table
+@return whether BLOBs are atomic */
 UNIV_INLINE
-ulint
-dict_tf_get_format(
-/*===============*/
-	ulint		flags)	/*!< in: dict_table_t::flags */
+bool
+dict_table_has_atomic_blobs(
+	const dict_table_t*	table)
 {
-	if (DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
-		return(UNIV_FORMAT_B);
-	}
-
-	return(UNIV_FORMAT_A);
-}
-
-/********************************************************************//**
-Determine the file format of a table.
-@return file format version */
-UNIV_INLINE
-ulint
-dict_table_get_format(
-/*==================*/
-	const dict_table_t*	table)	/*!< in: table */
-{
-	ut_ad(table);
-
-	return(dict_tf_get_format(table->flags));
+	return(DICT_TF_HAS_ATOMIC_BLOBS(table->flags));
 }
 
 /** Set the various values in a dict_table_t::flags pointer.
@@ -1415,7 +1396,7 @@ dict_table_is_fts_column(
 
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
-note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
+note that if !dict_table_has_atomic_blobs(table), no prefix
 needs to be stored in the undo log.
 @return bytes of column prefix to be stored in the undo log */
 UNIV_INLINE
@@ -1426,16 +1407,15 @@ dict_max_field_len_store_undo(
 	const dict_col_t*	col)	/*!< in: column which index prefix
 					is based on */
 {
-	ulint	prefix_len = 0;
-
-	if (dict_table_get_format(table) >= UNIV_FORMAT_B)
-	{
-		prefix_len = col->max_prefix
-			? col->max_prefix
-			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+	if (!dict_table_has_atomic_blobs(table)) {
+		return(0);
 	}
 
-	return(prefix_len);
+	if (col->max_prefix != 0) {
+		return(col->max_prefix);
+	}
+
+	return(REC_VERSION_56_MAX_INDEX_COL_LEN);
 }
 
 /**********************************************************************//**

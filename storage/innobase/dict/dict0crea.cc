@@ -370,9 +370,8 @@ dict_build_tablespace_for_table(
 	if (needs_file_per_table) {
 		/* This table will need a new tablespace. */
 
-		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
 		ut_ad(DICT_TF_GET_ZIP_SSIZE(table->flags) == 0
-		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
+		      || dict_table_has_atomic_blobs(table));
 
 		/* Get a new tablespace ID */
 		dict_hdr_get_new_id(NULL, NULL, &space, table, false);
@@ -459,7 +458,7 @@ dict_build_tablespace_for_table(
 			table->space = srv_tmp_space.space_id();
 		} else {
 			/* Create in the system tablespace.
-			Disallow Barracuda (Dynamic & Compressed)
+			Disallow ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED
 			page creation as they need file-per-table.
 			Update table flags accordingly */
 			rec_format_t rec_format = table->flags == 0
@@ -1442,8 +1441,7 @@ dict_create_index_step(
 		err = dict_index_add_to_cache(
 			node->table, node->index, FIL_NULL,
 			trx_is_strict(trx)
-			|| dict_table_get_format(node->table)
-			>= UNIV_FORMAT_B);
+			|| dict_table_has_atomic_blobs(node->table));
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
 		ut_a(!node->index == (err != DB_SUCCESS));
