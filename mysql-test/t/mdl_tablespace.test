@@ -68,7 +68,7 @@
 --echo #     table related DDL be rejected. Verify that implicit
 --echo #     invalid tablespace names (e.g., present in an .FRM
 --echo #     file from a previous MySQL version) are ignored.
---echo #
+--echo # 16. Verify correct P_S information.
 --echo ###########################################################
 --echo #
 --echo # Test setup: Create reusable connections:
@@ -1039,6 +1039,100 @@ SHOW CREATE TABLE table_with_invalid_tablespace_name;
 DROP TABLE t1;
 DROP TABLE table_with_invalid_tablespace_name;
 DROP TABLE table_like;
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+
+
+--echo ###########################################################
+--echo # TC16. Verify correct P_S information.
+--echo #
+
+--echo #
+--echo # Start executing CREATE TABLESPACE, but wait after
+--echo # getting the MDL X lock on the tablespace name.
+
+--connection con1
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+--send CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd'
+
+--echo #
+--echo # Start executing ALTER TABLESPACE.
+
+--connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+--send ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd'
+
+--echo #
+--echo # Verify that the ALTER TABLESPACE is waiting for an MDL
+--echo # X lock on the tablespace name (not logged). Then, verify
+--echo # that we are also seeing the correct entries in the P_S MDL
+--echo # and events_waits_current tables. Further, signal con1 to
+--echo # make the CREATE TABLESPACE proceed.
+
+--connection default
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'ALTER TABLESPACE%';
+--source include/wait_condition.inc
+
+LET $wait_condition=
+  SELECT COUNT(*) = 2 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE';
+--source include/wait_condition.inc
+
+SELECT object_type, object_name, lock_type, lock_duration, lock_status
+  FROM performance_schema.metadata_locks
+  WHERE object_type LIKE 'TABLESPACE';
+
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_current
+    WHERE object_type LIKE 'TABLESPACE';
+--source include/wait_condition.inc
+
+SELECT event_name, object_name, object_type, operation
+  FROM performance_schema.events_waits_current
+  WHERE object_type LIKE 'TABLESPACE';
+
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+
+--echo #
+--echo # Now, the tablespace MDL information will eventually be
+--echo # gone from both I_S and P_S, except it will remain in the
+--echo # P_S event wait history.
+
+LET $wait_condition=
+  SELECT COUNT(*) = 0 FROM information_schema.processlist
+    WHERE state LIKE 'Waiting for tablespace metadata lock' AND
+          info LIKE 'ALTER TABLESPACE%';
+--source include/wait_condition.inc
+
+LET $wait_condition=
+  SELECT COUNT(*) = 0 FROM performance_schema.metadata_locks
+    WHERE object_type LIKE 'TABLESPACE';
+--source include/wait_condition.inc
+
+LET $wait_condition=
+  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history
+    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+--source include/wait_condition.inc
+
+SELECT event_name, object_name, object_type, operation
+  FROM performance_schema.events_waits_history
+  WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+
+--echo #
+--echo # Reap the connections, reset DEBUG_SYNC and drop objects.
+
+--connection con1
+--reap
+--connection con2
+# InnoDB does not support ALTER TABLESPACE
+--error ER_CHECK_NOT_IMPLEMENTED
+--reap
+--connection default
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
 
