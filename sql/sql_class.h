@@ -1807,10 +1807,12 @@ public:
   */
   ulonglong  limit_found_rows;
   /*
-    Indicate if the gtid_executed table is being operated
-    in current transaction.
+    Indicate if the gtid_executed table is being operated implicitly
+    within current transaction. This happens because we are inserting
+    a GTID specified through SET GTID_NEXT by user client or
+    slave SQL thread/workers.
   */
-  bool  is_operating_gtid_table;
+  bool is_operating_gtid_table_implicitly;
 
 private:
   /**

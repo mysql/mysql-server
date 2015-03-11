@@ -27,6 +27,7 @@
 
 #ifdef MYSQL_SERVER
 #include "mysqld.h"             // key_rwlock_global_sid_lock
+#include "table.h"
 #endif
 
 #include <list>
@@ -2913,6 +2914,21 @@ public:
       -1   Error
   */
   int compress(THD *thd);
+#ifdef MYSQL_SERVER
+  /**
+    Push a waring to client if user is modifying
+    the gtid_executed table explicitly.
+
+    @param  thd Thread requesting to access the table
+    @param  table the table is being accessed.
+
+    @retval
+      true    Push a warning to client.
+    @retval
+      false   Do not push a warning.
+  */
+  bool warn_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
+#endif
 private:
 #ifdef HAVE_GTID_NEXT_LIST
   /// Lock all SIDNOs owned by the given THD.
