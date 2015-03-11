@@ -1912,6 +1912,30 @@ struct TABLE_LIST
     return derived;
   }
 
+  /// Set temporary name from underlying temporary table:
+  void set_name_temporary()
+  {
+    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    table_name= table->s->table_name.str;
+    table_name_length= table->s->table_name.length;
+    db= (char *)"";
+    db_length= 0;
+  }
+
+  /// Reset original name for temporary table.
+  void reset_name_temporary()
+  {
+    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT(db != view_db.str && table_name != view_name.str);
+    if (is_view())
+    {
+      db= view_db.str;
+      db_length= view_db.length;
+    }
+    table_name= view_name.str;
+    table_name_length= view_name.length;
+  }
+
   /// Resolve a derived table or view reference
   bool resolve_derived(THD *thd, bool apply_semijoin);
 
