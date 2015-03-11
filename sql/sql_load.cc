@@ -267,8 +267,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (table_list->is_merged())
   {
-    if (table_list->effective_with_check &&
-        table_list->prepare_check_option(thd))
+    if (table_list->prepare_check_option(thd))
       DBUG_RETURN(TRUE);
 
     if (handle_duplicates == DUP_REPLACE &&

@@ -3652,31 +3652,6 @@ bool LEX::need_correct_ident()
   }
 }
 
-/*
-  Get effective type of CHECK OPTION for given view
-
-  SYNOPSIS
-    get_effective_with_check()
-    view    given view
-
-  NOTE
-    It have not sense to set CHECK OPTION for SELECT satement or subqueries,
-    so we do not.
-
-  RETURN
-    VIEW_CHECK_NONE      no need CHECK OPTION
-    VIEW_CHECK_LOCAL     CHECK OPTION LOCAL
-    VIEW_CHECK_CASCADED  CHECK OPTION CASCADED
-*/
-
-uint8 LEX::get_effective_with_check(TABLE_LIST *view)
-{
-  if (view->select_lex->master_unit() == unit &&
-      which_check_option_applicable())
-    return (uint8)view->with_check;
-  return VIEW_CHECK_NONE;
-}
-
 
 /**
   This method should be called only during parsing.

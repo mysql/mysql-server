@@ -1333,8 +1333,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   {
     Column_privilege_tracker column_privilege(thd, SELECT_ACL);
 
-    if (table_list->effective_with_check &&
-        table_list->prepare_check_option(thd))
+    if (table_list->prepare_check_option(thd))
       DBUG_RETURN(true);
 
     if (duplicates == DUP_REPLACE &&

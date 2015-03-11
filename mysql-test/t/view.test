@@ -1102,6 +1102,7 @@ insert into v3 values (1);
 insert into v2 values (0);
 -- error ER_VIEW_CHECK_FAILED
 insert into v3 values (0);
+-- error ER_VIEW_CHECK_FAILED
 insert into v2 values (2);
 -- error ER_VIEW_CHECK_FAILED
 insert into v3 values (2);
@@ -5279,3 +5280,160 @@ DROP TABLE t1, t2, t3;
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#20407961 VIEW'S CHECK OPTION SOMETIMES NOT HONOURED IF INCLUDED IN A TOP VIEW
+--echo #
+
+create table t1 (a varchar(100));
+
+--echo # n/c/l letter suffix means: no/cascaded/local check option
+
+create view v1n as select * from t1 where a like '%v1n%';
+create view v2c as select * from t1 where a like '%v2c%'
+ with check option;
+show create view v2c;
+create view v3l as select * from t1 where a like '%v3l%'
+ with local check option;
+show create view v3l;
+
+--echo # The basic, single-view feature works:
+insert into t1 values('');
+insert into v1n values('');
+--error ER_VIEW_CHECK_FAILED
+insert into v2c values('');
+insert into v2c values('v2c');
+--error ER_VIEW_CHECK_FAILED
+insert into v3l values('');
+insert into v3l values('v3l');
+--echo # We also test UPDATE of the successfully inserted row
+update v1n set a='_';
+--echo # if this update to v2c was allowed, it would be produce a row in t1
+--echo # not matching v2c's filter, which is against the goal of CHECK
+--echo # OPTION.
+--error ER_VIEW_CHECK_FAILED
+update v2c set a='';
+--error ER_VIEW_CHECK_FAILED
+update v3l set a='';
+
+--echo # Top view without no CHECK OPTION, still CHECK OPTION conditions
+--echo # of underlying views are checked.
+create view v4n as select * from v2c where a like '%v4n%';
+create view v5n as select * from v3l where a like '%v5n%';
+
+--echo # The view's nesting structure is:
+--echo # v4n -> v2c -> t1
+--echo # We present the query with needed tags, verify that it passes,
+--echo # then we take each tag away and verify that it fails.
+insert into v4n values('v2c');
+--error ER_VIEW_CHECK_FAILED
+insert into v4n values('');
+
+--echo # To check UPDATE on v4n, we need to update a row originally
+--echo # visible in v4n, so we create it:
+insert into v4n values('v4n v2c');
+--echo # This row can legally disappear from v4n:
+update v4n set a='v2c';
+insert into v4n values('v4n v2c');
+--echo # But this row cannot disappear from v2c:
+--error ER_VIEW_CHECK_FAILED
+update v4n set a='v4n';
+--echo # Lest we delete it:
+delete from v4n;
+
+--echo # v5n -> v3l -> t1
+insert into v5n values('v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v5n values('');
+--echo # Top view with LOCAL CHECK OPTION, still CHECK OPTION conditions
+--echo # of underlying views are checked.
+create view v4l as select * from v2c where a like '%v4l%'
+ with local check option;
+create view v5l as select * from v3l where a like '%v5l%'
+ with local check option;
+--echo # v4l -> v2c -> t1
+insert into v4l values('v4l v2c');
+--error ER_VIEW_CHECK_FAILED
+insert into v4l values('v2c');
+--error ER_VIEW_CHECK_FAILED
+update v4l set a='v2c';
+--error ER_VIEW_CHECK_FAILED
+insert into v4l values('v4l');
+--error ER_VIEW_CHECK_FAILED
+update v4l set a='v4l';
+--echo # v5l -> v3l -> t1
+insert into v5l values('v5l v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v5l values('v3l');
+--error ER_VIEW_CHECK_FAILED
+update v5l set a='v3l';
+--error ER_VIEW_CHECK_FAILED
+insert into v5l values('v5l');
+--error ER_VIEW_CHECK_FAILED
+update v5l set a='v5l';
+
+--echo # CASCADED makes all filtering conditions a requirement
+
+create view v6c as select * from v5n where a like '%v6c%'
+ with cascaded check option;
+--echo # v6c -> v5n -> v3l -> t1
+insert into v6c values('v6c v5n v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v6c values('v5n v3l');
+--error ER_VIEW_CHECK_FAILED
+update v6c set a='v5n v3l';
+--error ER_VIEW_CHECK_FAILED
+insert into v6c values('v6c v3l');
+--error ER_VIEW_CHECK_FAILED
+update v6c set a='v6c v3l';
+--error ER_VIEW_CHECK_FAILED
+insert into v6c values('v6c v5n');
+--error ER_VIEW_CHECK_FAILED
+update v6c set a='v6c v5n';
+
+--echo # Also true if top view has no check option:
+create view v7n as select * from v6c where a like '%v7n%';
+--echo # v7n -> v6c -> v5n -> v3l -> t1
+insert into v7n values('v6c v5n v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v7n values('v5n v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v7n values('v6c v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v7n values('v6c v5n');
+--echo # Make a visible row to update:
+insert into v7n values('v7n v6c v5n v3l');
+--error ER_VIEW_CHECK_FAILED
+update v7n set a='v7n v5n v3l';
+--error ER_VIEW_CHECK_FAILED
+update v7n set a='v7n v6c v3l';
+--error ER_VIEW_CHECK_FAILED
+update v7n set a='v7n v6c v5nà';
+
+--echo # Also true if top view has LOCAL:
+create view v8l as select * from v7n where a like '%v8l%'
+ with local check option;
+--echo # v8l -> v7n -> v6c -> v5n -> v3l -> t1
+insert into v8l values('v8l v6c v5n v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v8l values('v6c v5n v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v8l values('v8l v5n v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v8l values('v8l v6c v3l');
+--error ER_VIEW_CHECK_FAILED
+insert into v8l values('v8l v6c v5n');
+--echo # Make a visible row (=> satisfy v7n's WHERE clause):
+insert into v8l values('v8l v7n v6c v5n v3l');
+--error ER_VIEW_CHECK_FAILED
+update v8l set a='v7n v6c v5n v3l';
+--error ER_VIEW_CHECK_FAILED
+update v8l set a='v8l v7n v5n v3l';
+--error ER_VIEW_CHECK_FAILED
+update v8l set a='v8l v7n v6c v3l';
+--error ER_VIEW_CHECK_FAILED
+update v8l set a='v8l v7n v6c v5n';
+
+drop view v1n,v2c,v3l,v4n,v5n,v4l,v5l,v6c,v7n,v8l;
+
+drop table t1;

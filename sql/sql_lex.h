@@ -3313,7 +3313,6 @@ public:
   bool can_not_use_merged();
   bool only_view_structure();
   bool need_correct_ident();
-  uint8 get_effective_with_check(TABLE_LIST *view);
   /*
     Is this update command where 'WHITH CHECK OPTION' clause is important
 
