@@ -2217,6 +2217,26 @@ buf_LRU_block_remove_hashed(
 
 			break;
 		}
+
+		{
+			/* Account the eviction of index leaf pages from
+			the buffer pool(s). */
+
+			const byte*	frame
+				= bpage->zip.data != NULL
+				? bpage->zip.data
+				: reinterpret_cast<buf_block_t*>(bpage)->frame;
+
+			const ulint	type = fil_page_get_type(frame);
+
+			if ((type == FIL_PAGE_INDEX || type == FIL_PAGE_RTREE)
+			    && btr_page_get_level_low(frame) == 0) {
+
+				buf_stat_per_index->dec(
+					btr_page_get_index_id(frame));
+			}
+		}
+
 		/* fall through */
 	case BUF_BLOCK_ZIP_PAGE:
 		ut_a(bpage->oldest_modification == 0);
