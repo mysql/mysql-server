@@ -213,7 +213,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
 static int get_master_uuid(MYSQL *mysql, Master_info *mi);
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
 static Log_event* next_event(Relay_log_info* rli);
-int queue_event(Master_info* mi,const char* buf,ulong event_len);
+bool queue_event(Master_info* mi,const char* buf,ulong event_len);
 static int terminate_slave_thread(THD *thd,
                                   mysql_mutex_t *term_lock,
                                   mysql_cond_t *term_cond,
@@ -1770,7 +1770,9 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
   if (mi->is_auto_position() && (thread_mask & SLAVE_IO) &&
       get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF)
   {
-    DBUG_RETURN(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF);
+    my_error(ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF, MYF(0),
+             mi->get_for_channel_str());
+    DBUG_RETURN(true);
   }
 
   if (need_lock_slave)
@@ -7601,26 +7603,34 @@ static int queue_old_event(Master_info *mi, const char *buf,
   }
 }
 
-/*
-  queue_event()
+/**
+  Store an event received from the master connection into the relay
+  log.
 
+  @param mi The Master_info object representing this connection.
+  @param buf Pointer to the event data.
+  @param event_len Length of event data.
+
+  @retval true Error.
+  @retval false Success.
+
+  @note
   If the event is 3.23/4.0, passes it to queue_old_event() which will convert
   it. Otherwise, writes a 5.0 (or newer) event to the relay log. Then there is
   no format conversion, it's pure read/write of bytes.
   So a 5.0.0 slave's relay log can contain events in the slave's format or in
   any >=5.0.0 format.
-*/
 
-int queue_event(Master_info* mi,const char* buf, ulong event_len)
+  @todo Make this a member of Master_info.
+*/
+bool queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
-  bool reported_error= false;
-  int error= 0;
-  String error_msg;
+  bool error= false;
   ulong inc_pos= 0;
   Relay_log_info *rli= mi->rli;
   mysql_mutex_t *log_lock= rli->relay_log.get_log_lock();
   ulong s_id;
-  bool unlock_data_lock= TRUE;
+  int lock_count= 0;
   /*
     FD_q must have been prepared for the first R_a event
     inside get_master_version_and_clock()
@@ -7698,12 +7708,14 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
   if (Log_event_footer::event_checksum_test((uchar *) buf,
                                             event_len, checksum_alg))
   {
-    error= ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE;
-    unlock_data_lock= FALSE;
+    mi->report(ERROR_LEVEL, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE,
+               "%s", ER(ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE));
     goto err;
   }
 
   mysql_mutex_lock(&mi->data_lock);
+  DBUG_ASSERT(lock_count == 0);
+  lock_count= 1;
 
   /*
     Simulate an unknown ignorable log event by rewriting a Xid
@@ -7732,7 +7744,7 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
         "queuing" this event.
       */
       mi->set_master_log_pos(mi->get_master_log_pos() + event_len);
-      goto skip_relay_logging;
+      goto end;
     }
   );
 
@@ -7771,9 +7783,10 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
   if (mi->get_mi_description_event()->binlog_version < 4 &&
       event_type != binary_log::FORMAT_DESCRIPTION_EVENT /* a way to escape */)
   {
-    int ret= queue_old_event(mi,buf,event_len);
-    mysql_mutex_unlock(&mi->data_lock);
-    DBUG_RETURN(ret);
+    if (queue_old_event(mi,buf,event_len))
+      goto err;
+    else
+      goto end;
   }
   switch (event_type) {
   case binary_log::STOP_EVENT:
@@ -7789,7 +7802,7 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
       event from the next binlog (unless the master is presently running
       without --log-bin).
     */
-    goto err;
+    goto end;
   case binary_log::ROTATE_EVENT:
   {
     Rotate_log_event rev(buf, checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
@@ -7798,7 +7811,9 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
     if (unlikely(process_io_rotate(mi, &rev)))
     {
-      error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
+      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+                 ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                 "could not queue event from master");
       goto err;
     }
     /* 
@@ -7879,16 +7894,19 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
       The relay_log struct does not move (though some members of it can
       change), so we needn't any lock (no rli->data_lock, no log lock).
     */
-    const char* errmsg;
+    const char* errmsg_unused;
     // mark it as undefined that is irrelevant anymore
     mi->checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
     Format_description_log_event *new_fdle=
       (Format_description_log_event*)
-      Log_event::read_log_event(buf, event_len, &errmsg,
+      Log_event::read_log_event(buf, event_len, &errmsg_unused,
                                 mi->get_mi_description_event(), 1);
+    /// @todo: don't ignore 'errmsg_unused'; instead report correct error here
     if (new_fdle == NULL)
     {
-      error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
+      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+                 ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                 "could not queue event from master");
       goto err;
     }
     if (new_fdle->common_footer->checksum_alg ==
@@ -7920,7 +7938,6 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
     /*
       HB (heartbeat) cannot come before RL (Relay)
     */
-    char  llbuf[22];
     Heartbeat_log_event hb(buf,
                            mi->rli->relay_log.relay_log_checksum_alg
                            != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
@@ -7928,13 +7945,13 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
                            mi->get_mi_description_event());
     if (!hb.is_valid())
     {
-      error= ER_SLAVE_HEARTBEAT_FAILURE;
-      error_msg.append(STRING_WITH_LEN("inconsistent heartbeat event content;"));
-      error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
-      error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
-      error_msg.append(STRING_WITH_LEN(" log_pos "));
-      llstr(hb.common_header->log_pos, llbuf);
-      error_msg.append(llbuf, strlen(llbuf));
+      char errbuf[1024];
+      char llbuf[22];
+      sprintf(errbuf, "inconsistent heartbeat event content; the event's data: "
+              "log_file_name %-.512s log_pos %s",
+              hb.get_log_ident(), llstr(hb.common_header->log_pos, llbuf));
+      mi->report(ERROR_LEVEL, ER_SLAVE_HEARTBEAT_FAILURE,
+                 ER(ER_SLAVE_HEARTBEAT_FAILURE), errbuf);
       goto err;
     }
     mi->received_heartbeats++;
@@ -7973,7 +7990,7 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end = mi->get_master_log_pos();
 
       if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
-        goto err;
+        goto end;
     }
 
     /* 
@@ -7993,16 +8010,16 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
         || (mi->get_master_log_pos() > hb.common_header->log_pos))
     {
       /* missed events of heartbeat from the past */
-      error= ER_SLAVE_HEARTBEAT_FAILURE;
-      error_msg.append(STRING_WITH_LEN("heartbeat is not compatible with local info; "));
-      error_msg.append(STRING_WITH_LEN("the event's data: log_file_name "));
-      error_msg.append(hb.get_log_ident(), strlen(hb.get_log_ident()));
-      error_msg.append(STRING_WITH_LEN(" log_pos "));
-      llstr(hb.common_header->log_pos, llbuf);
-      error_msg.append(llbuf, strlen(llbuf));
+      char errbuf[1024];
+      char llbuf[22];
+      sprintf(errbuf, "heartbeat is not compatible with local info; "
+              "the event's data: log_file_name %-.512s log_pos %s",
+              hb.get_log_ident(), llstr(hb.common_header->log_pos, llbuf));
+      mi->report(ERROR_LEVEL, ER_SLAVE_HEARTBEAT_FAILURE,
+                 ER(ER_SLAVE_HEARTBEAT_FAILURE), errbuf);
       goto err;
     }
-    goto skip_relay_logging;
+    goto end;
   }
   break;
 
@@ -8024,7 +8041,7 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
     if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
       goto err;
 
-    goto skip_relay_logging;
+    goto end;
   }
   break;
 
@@ -8044,8 +8061,6 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
     if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
     {
       global_sid_lock->unlock();
-      error= ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF;
-      reported_error= true;
       mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF,
                  ER(ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
                  mi->get_master_log_name(), mi->get_master_log_pos());
@@ -8075,8 +8090,6 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     if (mi->is_auto_position())
     {
-      error= ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION;
-      reported_error= true;
       mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION,
                  ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
                  mi->get_master_log_name(), mi->get_master_log_pos());
@@ -8094,8 +8107,6 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     else if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
     {
-      error= ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON;
-      reported_error= true;
       mi->report(ERROR_LEVEL, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON,
                  ER(ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
                  mi->get_master_log_name(), mi->get_master_log_pos());
@@ -8139,6 +8150,9 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
   */
 
   mysql_mutex_lock(log_lock);
+  DBUG_ASSERT(lock_count == 1);
+  lock_count= 2;
+
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
 
   /*
@@ -8195,6 +8209,7 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   else
   {
+    bool is_error= false;
     /* write the event to the relay log */
     if (likely(rli->relay_log.append_buffer(buf, event_len, mi) == 0))
     {
@@ -8233,25 +8248,29 @@ int queue_event(Master_info* mi,const char* buf, ulong event_len)
       }
     }
     else
-    {
-      error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
-    }
+      is_error= true;
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
     if (save_buf != NULL)
       buf= save_buf;
+    if (is_error)
+    {
+      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+                 ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                 "could not queue event from master");
+      goto err;
+    }
   }
-  mysql_mutex_unlock(log_lock);
-skip_relay_logging:
+  goto end;
 
 err:
-  if (unlock_data_lock)
+  error= true;
+
+end:
+  if (lock_count >= 1)
     mysql_mutex_unlock(&mi->data_lock);
+  if (lock_count >= 2)
+    mysql_mutex_unlock(log_lock);
   DBUG_PRINT("info", ("error: %d", error));
-  if (error && !reported_error)
-    mi->report(ERROR_LEVEL, error, ER(error), 
-               (error == ER_SLAVE_RELAY_LOG_WRITE_FAILURE)?
-               "could not queue event from master" :
-               error_msg.ptr());
   DBUG_RETURN(error);
 }
 
