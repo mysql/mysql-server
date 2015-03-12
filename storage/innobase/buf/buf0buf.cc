@@ -313,6 +313,10 @@ static rw_lock_t	buf_chunk_map_latch;
 my_bool			buf_disable_resize_buffer_pool_debug = TRUE;
 #endif /* UNIV_DEBUG */
 
+/** Container for how much pages from each index are contained in the buffer
+pool(s). */
+buf_stat_per_index_t*	buf_stat_per_index;
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** This is used to insert validation operations in execution
 in the debug version */
@@ -1719,6 +1723,9 @@ buf_pool_init(
 
 	btr_search_sys_create(buf_pool_get_curr_size() / sizeof(void*) / 64);
 
+	buf_stat_per_index = UT_NEW(buf_stat_per_index_t(),
+				    mem_key_buf_stat_per_index_t);
+
 	return(DB_SUCCESS);
 }
 
@@ -1730,6 +1737,8 @@ buf_pool_free(
 /*==========*/
 	ulint	n_instances)	/*!< in: numbere of instances to free */
 {
+	UT_DELETE(buf_stat_per_index);
+
 	for (ulint i = 0; i < n_instances; i++) {
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}

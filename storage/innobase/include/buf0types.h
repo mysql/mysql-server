@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,9 @@ Created 11/17/1995 Heikki Tuuri
 #ifndef buf0types_h
 #define buf0types_h
 
+#include <map> /* std::map */
+
+#include "dict0types.h" /* index_id_t */
 #include "os0event.h"
 #include "ut0mutex.h"
 #include "ut0ut.h"
@@ -122,5 +125,99 @@ typedef ib_mutex_t BPageMutex;
 typedef ib_mutex_t BufPoolMutex;
 typedef ib_mutex_t FlushListMutex;
 #endif /* !UNIV_INNOCHECKSUM */
+
+/** Per index buffer pool statistics - contains how much pages for each index
+are cached in the buffer pool(s). This is a key,value store where the key is
+the index id and the value is the number of pages in the buffer pool that
+belong to this index. */
+/* XXX this is not protected by any latch, but it should */
+class buf_stat_per_index_t {
+public:
+	/** The type of the key. */
+	typedef index_id_t	key_t;
+
+	/** The type of the value. */
+	typedef uint64_t	val_t;
+
+	/** Constructor. */
+	buf_stat_per_index_t()
+	{
+		m_map = UT_NEW(
+			map_t(cmp_t(), alloc_t(mem_key_buf_stat_per_index_t)),
+			mem_key_buf_stat_per_index_t);
+	}
+
+	/** Destructor. */
+	~buf_stat_per_index_t()
+	{
+		UT_DELETE(m_map);
+	}
+
+	/** Increment the number of pages for a given index with 1.
+	@param[in]	index_id	id of the index whose count to increment
+	*/
+	void
+	inc(
+		key_t	index_id)
+	{
+		map_t::iterator	it = m_map->find(index_id);
+
+		if (it != m_map->end()) {
+			++it->second;
+		} else {
+			m_map->insert(map_t::value_type(index_id, 1));
+		}
+	}
+
+	/** Decrement the number of pages for a given index with 1.
+	@param[in]	index_id	id of the index whose count to decrement
+	*/
+	void
+	dec(
+		key_t	index_id)
+	{
+		map_t::iterator	it = m_map->find(index_id);
+
+		if (it != m_map->end()) {
+			ut_ad(it->second > 0);
+			it->second--;
+		}
+	}
+
+	/** Get the number of pages in the buffer pool for a given index.
+	@param[in]	index_id	id of the index whose pages to peek
+	@return number of pages */
+	val_t
+	get(
+		key_t	index_id)
+	{
+		map_t::iterator	it = m_map->find(index_id);
+
+		if (it != m_map->end()) {
+			return(it->second);
+		}
+
+		/* If the index is not found in this structure, then 0 of its
+		pages are in the buffer pool. */
+		return(0);
+	}
+
+private:
+	/** Comparator. */
+	typedef std::less<key_t>				cmp_t;
+
+	/** Allocator. */
+	typedef	ut_allocator<std::pair<const key_t, val_t> >	alloc_t;
+
+	/** key,value storage type. */
+	typedef std::map<key_t, val_t, cmp_t, alloc_t>		map_t;
+
+	/** key,value storage. */
+	map_t*	m_map;
+};
+
+/** Container for how much pages from each index are contained in the buffer
+pool(s). */
+extern buf_stat_per_index_t*	buf_stat_per_index;
 
 #endif /* buf0types.h */

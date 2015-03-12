@@ -33,6 +33,7 @@ const size_t	alloc_max_retries = 60;
 /** Keys for registering allocations with performance schema.
 Keep this list alphabetically sorted. */
 PSI_memory_key	mem_key_buf_buf_pool;
+PSI_memory_key	mem_key_buf_stat_per_index_t;
 PSI_memory_key	mem_key_dict_stats_bg_recalc_pool_t;
 PSI_memory_key	mem_key_dict_stats_index_map_t;
 PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
@@ -61,6 +62,7 @@ the list below:
 Keep this list alphabetically sorted. */
 static PSI_memory_info	pfs_info[] = {
 	{&mem_key_buf_buf_pool, "buf_buf_pool", 0},
+	{&mem_key_buf_stat_per_index_t, "buf_stat_per_index_t", 0},
 	{&mem_key_dict_stats_bg_recalc_pool_t, "dict_stats_bg_recalc_pool_t", 0},
 	{&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0},
 	{&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0},
