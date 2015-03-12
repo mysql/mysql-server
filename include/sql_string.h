@@ -513,8 +513,7 @@ public:
   }
 
   void qs_append(const char *str, size_t len);
-  void qs_append(double d);
-  void qs_append(double *d);
+  void qs_append(double d, size_t len);
   void qs_append(const char c)
   {
      m_ptr[m_length]= c;
