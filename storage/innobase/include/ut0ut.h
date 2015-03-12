@@ -30,6 +30,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #include <ostream>
 #include <sstream>
+#include <string.h>
 
 #ifndef UNIV_INNOCHECKSUM
 
