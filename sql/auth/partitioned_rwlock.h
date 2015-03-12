@@ -45,7 +45,11 @@ public:
     @param psi_key  P_S instrumentation key to use for rwlock instances
                     for partitions.
   */
-  bool init(uint parts, PSI_rwlock_key psi_key)
+  bool init(uint parts
+#ifdef HAVE_PSI_INTERFACE
+            , PSI_rwlock_key psi_key
+#endif
+            )
   {
     m_parts= parts;
     if (!(m_locks_array= new (std::nothrow) mysql_rwlock_t[m_parts]))
