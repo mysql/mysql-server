@@ -399,8 +399,7 @@ connect(localhost,u5,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR HY000: Access denied for user 'u5'@'localhost'. Account is locked.
 ALTER USER u5@localhost REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
 SELECT USER();
-USER()
-u5@localhost
+ERROR HY000: You must SET PASSWORD before executing this statement
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509
 ACCOUNT LOCK PASSWORD EXPIRE PASSWORD EXPIRE NEVER;
 SELECT user,plugin,authentication_string,ssl_type,password_expired,

@@ -5321,6 +5321,33 @@ Item_cond::Item_cond(THD *thd, Item_cond *item)
   */
 }
 
+/**
+  Contextualization for Item_cond functional items
+
+  Item_cond successors use Item_cond::list instead of Item_func::args
+  and Item_func::arg_count, so we can't itemize parse-time Item_cond
+  objects by forwarding a contextualization process to the parent Item_func
+  class: we need to overload this function to run a contextualization
+  the Item_cond::list items.
+*/
+bool Item_cond::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item= li++))
+  {
+    if (item->itemize(pc, &item))
+      return true;
+    li.replace(item);
+  }
+  return false;
+}
+
 
 void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item)
 {

@@ -1093,8 +1093,8 @@ sync_array_print_info_low(
 	ulint		count = 0;
 
 	fprintf(file,
-		"OS WAIT ARRAY INFO: reservation count %ld\n",
-		(long) arr->res_count);
+		"OS WAIT ARRAY INFO: reservation count " ULINTPF "\n",
+		arr->res_count);
 
 	for (i = 0; count < arr->n_reserved; ++i) {
 		sync_cell_t*	cell;
@@ -1174,6 +1174,6 @@ sync_array_print(
 	}
 
 	fprintf(file,
-		"OS WAIT ARRAY INFO: signal count %ld\n", (long) sg_count);
+		"OS WAIT ARRAY INFO: signal count " ULINTPF "\n", sg_count);
 
 }

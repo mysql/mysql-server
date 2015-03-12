@@ -1764,14 +1764,7 @@ struct TABLE_LIST
   }
 
   /// Prepare check option for a view
-  inline bool prepare_check_option(THD *thd)
-  {
-    DBUG_ASSERT(is_view());
-    bool res= false;
-    if (effective_with_check)
-      res= prep_check_option(thd, effective_with_check);
-    return res;
-  }
+  bool prepare_check_option(THD *thd, bool is_cascaded= false);
 
   /// Merge WHERE condition of view or derived table into outer query
   bool merge_where(THD *thd);
@@ -1911,6 +1904,30 @@ struct TABLE_LIST
   {
     DBUG_ASSERT(derived);
     return derived;
+  }
+
+  /// Set temporary name from underlying temporary table:
+  void set_name_temporary()
+  {
+    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    table_name= table->s->table_name.str;
+    table_name_length= table->s->table_name.length;
+    db= (char *)"";
+    db_length= 0;
+  }
+
+  /// Reset original name for temporary table.
+  void reset_name_temporary()
+  {
+    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT(db != view_db.str && table_name != view_name.str);
+    if (is_view())
+    {
+      db= view_db.str;
+      db_length= view_db.length;
+    }
+    table_name= view_name.str;
+    table_name_length= view_name.length;
   }
 
   /// Resolve a derived table or view reference
@@ -2278,11 +2295,6 @@ public:
   ulonglong     algorithm;
   ulonglong     view_suid;              ///< view is suid (TRUE by default)
   ulonglong     with_check;             ///< WITH CHECK OPTION
-  /*
-    effective value of WITH CHECK OPTION (differ for temporary table
-    algorithm)
-  */
-  uint8         effective_with_check;
 
 private:
   /// The view algorithm that is actually used, if this is a view.
@@ -2447,7 +2459,6 @@ public:
   // End of group for optimization
 
 private:
-  bool prep_check_option(THD *thd, uint8 check_opt_type);
   /** See comments for set_metadata_id() */
   enum enum_table_ref_type m_table_ref_type;
   /** See comments for TABLE_SHARE::get_table_ref_version() */

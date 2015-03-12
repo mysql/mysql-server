@@ -7467,6 +7467,9 @@ ER_UNRESOLVED_HINT_NAME
 ER_WARN_DEPRECATED_SQLMODE_UNSET
   eng "Unsetting sql mode '%s' is deprecated. It will be made read-only in a future release."
 
+ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE
+  eng "Please do not modify the %s table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state."
+
 #
 #  End of 5.7 error messages.
 #

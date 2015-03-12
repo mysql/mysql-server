@@ -11168,12 +11168,6 @@ ha_innobase::discard_or_import_tablespace(
 
 		if (err == DB_SUCCESS) {
 
-			if (table->found_next_number_field) {
-				dict_table_autoinc_lock(dict_table);
-				innobase_initialize_autoinc();
-				dict_table_autoinc_unlock(dict_table);
-			}
-
 			info(HA_STATUS_TIME
 			     | HA_STATUS_CONST
 			     | HA_STATUS_VARIABLE
@@ -17445,9 +17439,9 @@ static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
 
 static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Purge threads can be from 1 to 32. Default is 1.",
+  "Purge threads can be from 1 to 32. Default is 4.",
   NULL, NULL,
-  1,			/* Default setting */
+  4,			/* Default setting */
   1,			/* Minimum value */
   32, 0);		/* Maximum value */
 
@@ -17543,8 +17537,8 @@ static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
 
 static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Page cleaner threads can be from 1 to 64. Default is 1.",
-  NULL, NULL, 1, 1, 64, 0);
+  "Page cleaner threads can be from 1 to 64. Default is 4.",
+  NULL, NULL, 4, 1, 64, 0);
 
 static MYSQL_SYSVAR_DOUBLE(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,

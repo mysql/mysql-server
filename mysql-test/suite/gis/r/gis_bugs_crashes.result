@@ -2605,12 +2605,6 @@ GEOMETRYCOLLECTION()
 ######################################################################################################
 # BUG#20594425 : WL#7929 : HANG/INFINITE LOOP WITH ST_BUFFER() FUNCTION
 ######################################################################################################
-SELECT ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(-9 19,9 -6,-4 4,16 -14,-3 16,14 9)'), 6051788, ST_BUFFER_STRATEGY('point_circle', 8358))) > 115058662050000;
-ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(-9 19,9 -6,-4 4,16 -14,-3 16,14 9)'), 6051788, ST_BUFFER_STRATEGY('point_circle', 8358))) > 115058662050000
-1
-SELECT ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(-2 11,-15 3,6 4,-14 0,20 -7,-17 -1)'), 5666962, ST_BUFFER_STRATEGY('point_circle', 4664))) > 100891001120000;
-ST_AREA(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(-2 11,-15 3,6 4,-14 0,20 -7,-17 -1)'), 5666962, ST_BUFFER_STRATEGY('point_circle', 4664))) > 100891001120000
-1
 ######################################################################################################
 # BUG#20558379 : ST_BUFFER() RETURNS AN ERROR WITH VALID GEOMETRYCOLLECTION INPUT
 ######################################################################################################

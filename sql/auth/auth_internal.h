@@ -71,7 +71,8 @@ void acl_update_user(const char *user, const char *host,
                      const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
                      MYSQL_TIME password_change_time,
-                     LEX_ALTER password_life);
+                     LEX_ALTER password_life,
+                     ulong what_is_set);
 void acl_insert_user(const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,

@@ -11,22 +11,22 @@ set global show_compatibility_56 = ON;
 SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
 Variable_name	Value
 Warnings:
-Warning	1287	'SHOW GLOBAL STATUS WHERE' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+Warning	1287	'SHOW GLOBAL STATUS WHERE' is deprecated and will be removed in a future release. Please use SHOW GLOBAL STATUS [LIKE] instead
 
 SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
 Variable_name	Value
 Warnings:
-Warning	1287	'SHOW SESSION STATUS WHERE' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
+Warning	1287	'SHOW SESSION STATUS WHERE' is deprecated and will be removed in a future release. Please use SHOW SESSION STATUS [LIKE] instead
 
 SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 Variable_name	Value
 Warnings:
-Warning	1287	'SHOW GLOBAL VARIABLES WHERE' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
+Warning	1287	'SHOW GLOBAL VARIABLES WHERE' is deprecated and will be removed in a future release. Please use SHOW GLOBAL VARIABLES [LIKE] instead
 
 SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 Variable_name	Value
 Warnings:
-Warning	1287	'SHOW SESSION VARIABLES WHERE' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
+Warning	1287	'SHOW SESSION VARIABLES WHERE' is deprecated and will be removed in a future release. Please use SHOW SESSION VARIABLES [LIKE] instead
 
 # TEST 2
 # CREATE..SELECT -- Expect correct ERR_WARN_DEPRECATED_SYNTAX
