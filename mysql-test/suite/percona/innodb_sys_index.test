@@ -5,7 +5,6 @@ drop table if exists t1;
 #
 # test for bug LP#875797 "Using 'innodb_sys_indexes' causes core dump"
 #
-select @@version_comment limit 1 ;
 --disable_result_log
 SELECT COUNT(*) FROM `information_schema`.`INNODB_SYS_INDEXES` ;
 CREATE TABLE test.t1 (  `a` SERIAL NOT NULL ,  `b` VARCHAR( 255 ) NOT NULL ,  INDEX ( `b` )  ) ENGINE = InnoDB ;
