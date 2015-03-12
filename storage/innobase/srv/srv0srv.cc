@@ -255,7 +255,7 @@ ulong	srv_io_capacity         = 200;
 ulong	srv_max_io_capacity     = 400;
 
 /* The number of page cleaner threads to use.*/
-ulong	srv_n_page_cleaners = 1;
+ulong	srv_n_page_cleaners = 4;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -273,7 +273,7 @@ ulong	srv_adaptive_flushing_lwm	= 10;
 ulong	srv_flushing_avg_loops		= 30;
 
 /* The number of purge threads to use.*/
-ulong	srv_n_purge_threads = 1;
+ulong	srv_n_purge_threads = 4;
 
 /* the number of pages to purge in one batch */
 ulong	srv_purge_batch_size = 20;
