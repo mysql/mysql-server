@@ -1401,3 +1401,23 @@ SET GLOBAL log_output=        @old_log_output;
 --echo End of 5.7 tests!
 --echo
 
+--echo
+--echo Bug #20602525 ALTER USER DOES NOT VERIFY AUTH PLUGIN
+--echo
+
+CREATE USER u1;
+--error ER_PLUGIN_IS_NOT_LOADED
+ALTER USER u1 IDENTIFIED WITH 'invalid_plugin';
+--error ER_PLUGIN_IS_NOT_LOADED
+GRANT ALL ON *.* TO u1 IDENTIFIED WITH 'invalid_plugin';
+--error ER_PLUGIN_IS_NOT_LOADED
+ALTER USER u1 IDENTIFIED WITH 'invalid_plugin' BY 'secret';
+--error ER_PLUGIN_IS_NOT_LOADED
+GRANT ALL ON *.* TO u1 IDENTIFIED WITH 'invalid_plugin' BY 'secret';
+--error ER_PLUGIN_IS_NOT_LOADED
+ALTER USER u1 IDENTIFIED WITH 'invalid_plugin' AS 'secret';
+--error ER_PLUGIN_IS_NOT_LOADED
+GRANT ALL ON *.* TO u1 IDENTIFIED WITH 'invalid_plugin' AS 'secret';
+
+#cleanup
+DROP USER u1;
