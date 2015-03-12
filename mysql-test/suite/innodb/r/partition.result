@@ -172,3 +172,50 @@ SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 DELETE FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
 DROP TABLE t1;
+#
+# Bug#20584754: CAN'T FIND RECORD IN 'TABLE100_KEY_PK_PARTS_2_DATETIME_3'
+#
+CREATE TABLE `t1` (
+`c1` tinyint unsigned DEFAULT NULL,
+`c2` char(1) DEFAULT NULL,
+`pk` tinyint NOT NULL,
+PRIMARY KEY (`pk`),
+KEY `c1` (`c1`),
+KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (pk)
+PARTITIONS 2 */;
+# Create the dataset in a separate table, so it can be loaded
+# directly without update/delete which may give unstable EXPLAIN
+# due to background pruning.
+CREATE TABLE t0
+(a tinyint not null auto_increment primary key,
+b char(1) DEFAULT 'a',
+c tinyint DEFAULT 1);
+INSERT INTO t0 (a) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t0 (a) SELECT NULL FROM t0, t0 t0_2 LIMIT 50;
+UPDATE t0 SET c = NULL WHERE a IN (2,3,6,13,18);
+INSERT INTO t1 SELECT c,b,a FROM t0;
+DROP TABLE t0;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT
+pk
+FROM `t1`
+WHERE `c1` IS  NULL OR `c2` = '0';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	index_merge	c1,c2	c1,c2	2,2	NULL	#	100.00	Using union(c1,c2); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (isnull(`test`.`t1`.`c1`) or (`test`.`t1`.`c2` = '0'))
+SELECT
+pk
+FROM `t1`
+WHERE `c1` IS  NULL OR `c2` = '0';
+pk
+2
+3
+6
+13
+18
+DROP TABLE t1;

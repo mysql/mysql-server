@@ -2055,6 +2055,8 @@ void Partition_helper::ph_position(const uchar *record)
 {
   DBUG_ASSERT(m_part_info->is_partition_used(m_last_part));
   DBUG_ENTER("Partition_helper::ph_position");
+  DBUG_PRINT("info", ("record: %p", record));
+  DBUG_DUMP("record", record, m_rec_length);
 
   /*
     If m_ref_usage is set, then the ref is already stored in the
@@ -2065,14 +2067,17 @@ void Partition_helper::ph_position(const uchar *record)
     DBUG_ASSERT(!m_queue->empty());
     DBUG_ASSERT(m_ordered_rec_buffer);
     DBUG_ASSERT(!m_curr_key_info[1]);
+    DBUG_ASSERT(uint2korr(m_queue->top()) == m_last_part);
     /* We already have the ref and part id. */
     memcpy(m_handler->ref, m_queue->top(), m_handler->ref_length);
   }
   else
   {
+    DBUG_PRINT("info", ("m_last_part: %u", m_last_part));
     int2store(m_handler->ref, m_last_part);
     position_in_last_part(m_handler->ref + PARTITION_BYTES_IN_POS, record);
   }
+  DBUG_DUMP("ref_out", m_handler->ref, m_handler->ref_length);
 
   DBUG_VOID_RETURN;
 }
@@ -3228,8 +3233,8 @@ int Partition_helper::handle_ordered_index_scan(uchar *buf)
        i <= m_part_spec.end_part;
        i= m_part_info->get_next_used_partition(i))
   {
-    DBUG_PRINT("info", ("reading from part %u (scan_type: %u)",
-                        i, m_index_scan_type));
+    DBUG_PRINT("info", ("reading from part %u (scan_type: %u inx: %u)",
+                        i, m_index_scan_type, m_handler->active_index));
     DBUG_ASSERT(i == uint2korr(part_rec_buf_ptr));
     uchar *rec_buf_ptr= part_rec_buf_ptr + m_rec_offset;
     uchar *read_buf;
@@ -3282,6 +3287,7 @@ int Partition_helper::handle_ordered_index_scan(uchar *buf)
       DBUG_ASSERT(false);
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
+    DBUG_PRINT("info", ("error %d from partition %u", error, i));
     /* When using ICP, copy record[0] to the priority queue for sorting. */
     if (m_handler->pushed_idx_cond)
       memcpy(rec_buf_ptr, read_buf, m_rec_length);
@@ -3299,6 +3305,7 @@ int Partition_helper::handle_ordered_index_scan(uchar *buf)
         Save for later insertion in queue;
       */
       parts.push_back(part_rec_buf_ptr);
+      DBUG_DUMP("row", read_buf, m_rec_length);
     }
     else if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     {
@@ -3351,6 +3358,8 @@ void Partition_helper::return_top_record(uchar *buf)
 
   part_id= uint2korr(key_buffer);
   copy_cached_row(buf, rec_buffer);
+  DBUG_PRINT("info", ("from part_id %u", part_id));
+  DBUG_DUMP("returned_row", buf, m_table->s->reclength);
   m_last_part= part_id;
   m_top_entry= part_id;
 }
@@ -3504,6 +3513,8 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
   if (part_id >= m_tot_parts)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
+  DBUG_PRINT("info", ("next row from part %u (inx %u)",
+                      part_id, m_handler->active_index));
   /* ICP relies on Item evaluation, which expects the row in record[0]. */
   if (m_handler->pushed_idx_cond)
     read_buf= m_table->record[0];
@@ -3533,9 +3544,9 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
         m_queue->pop();
       if (!m_queue->empty())
       {
+         return_top_record(buf);
          DBUG_PRINT("info", ("Record returned from partition %u (2)",
                      m_top_entry));
-         return_top_record(buf);
          m_table->status= 0;
          error= 0;
       }
@@ -3552,6 +3563,7 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
     position_in_last_part(rec_buf - m_rec_offset + PARTITION_BYTES_IN_POS,
                           rec_buf);
   }
+  DBUG_DUMP("rec_buf", rec_buf, m_rec_length);
   m_queue->update_top();
   return_top_record(buf);
   DBUG_PRINT("info", ("Record returned from partition %u", m_top_entry));
