@@ -8116,6 +8116,8 @@ CREATE VIEW v1 AS SELECT f1, f2
   FROM t1 WHERE f1 BETWEEN 0 AND 10 WITH LOCAL    CHECK OPTION ;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH LOCAL    CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -8191,19 +8193,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -8214,20 +8214,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -8336,6 +8336,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -8444,6 +8446,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -8520,19 +8524,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -8543,17 +8545,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -8561,6 +8561,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH CASCADED CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -8636,19 +8638,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -8659,20 +8659,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -8781,6 +8781,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -8889,6 +8891,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -8965,19 +8969,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -8988,17 +8990,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -9006,6 +9006,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH          CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -9081,19 +9083,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -9104,20 +9104,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -9226,6 +9226,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -9334,6 +9336,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -9410,19 +9414,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -9433,17 +9435,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -9451,6 +9451,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16  ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -9534,11 +9536,10 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -9549,7 +9550,7 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
 affected rows: 1
 INSERT INTO v3 VALUES(7, 'seven');
@@ -9558,11 +9559,12 @@ INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
 0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -9671,6 +9673,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -9779,6 +9783,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -9863,11 +9869,10 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -9878,7 +9883,7 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
 affected rows: 1
 INSERT INTO v3 VALUES(7, 'seven');
@@ -9887,7 +9892,6 @@ INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
@@ -9899,6 +9903,8 @@ CREATE VIEW v1 AS SELECT f1, f2
   FROM t1 WHERE f1 BETWEEN 0 AND 10 WITH CASCADED CHECK OPTION ;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH LOCAL    CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -9974,19 +9980,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -9997,20 +10001,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -10119,6 +10123,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -10227,6 +10233,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -10303,19 +10311,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -10326,17 +10332,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -10344,6 +10348,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH CASCADED CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -10419,19 +10425,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -10442,20 +10446,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -10564,6 +10568,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -10672,6 +10678,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -10748,19 +10756,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -10771,17 +10777,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -10789,6 +10793,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH          CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -10864,19 +10870,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -10887,20 +10891,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -11009,6 +11013,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -11117,6 +11123,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -11193,19 +11201,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -11216,17 +11222,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -11234,6 +11238,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16  ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -11317,11 +11323,10 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -11332,7 +11337,7 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
 affected rows: 1
 INSERT INTO v3 VALUES(7, 'seven');
@@ -11341,11 +11346,12 @@ INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
 0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -11454,6 +11460,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -11562,6 +11570,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -11646,11 +11656,10 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -11661,7 +11670,7 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
 affected rows: 1
 INSERT INTO v3 VALUES(7, 'seven');
@@ -11670,7 +11679,6 @@ INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
@@ -11682,6 +11690,8 @@ CREATE VIEW v1 AS SELECT f1, f2
   FROM t1 WHERE f1 BETWEEN 0 AND 10 WITH          CHECK OPTION ;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH LOCAL    CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -11757,19 +11767,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -11780,20 +11788,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -11902,6 +11910,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12010,6 +12020,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12086,19 +12098,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -12109,17 +12119,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -12127,6 +12135,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH CASCADED CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12202,19 +12212,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -12225,20 +12233,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12347,6 +12355,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12455,6 +12465,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12531,19 +12543,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -12554,17 +12564,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -12572,6 +12580,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH          CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12647,19 +12657,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -12670,20 +12678,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12792,6 +12800,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12900,6 +12910,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -12976,19 +12988,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -12999,17 +13009,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -13017,6 +13025,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16  ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -13100,11 +13110,10 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -13115,7 +13124,7 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
 affected rows: 1
 INSERT INTO v3 VALUES(7, 'seven');
@@ -13124,11 +13133,12 @@ INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
 0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION -         <nothing>          - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -13237,6 +13247,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION -         <nothing>          - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -13345,6 +13357,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          -         <nothing>          - WITH          CHECK OPTION
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -13429,11 +13443,10 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -13444,7 +13457,7 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
 affected rows: 1
 INSERT INTO v3 VALUES(7, 'seven');
@@ -13453,7 +13466,6 @@ INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
 0	zero
 7	seven
 8	eight
@@ -13465,6 +13477,8 @@ CREATE VIEW v1 AS SELECT f1, f2
   FROM t1 WHERE f1 BETWEEN 0 AND 10  ;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH LOCAL    CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -13540,11 +13554,10 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
@@ -13565,7 +13578,7 @@ DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
 affected rows: 1
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
@@ -13573,10 +13586,11 @@ affected rows: 1
 SELECT * FROM t1;
 f1	f2
 16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -13685,6 +13699,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -13793,6 +13809,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -13869,11 +13887,10 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
@@ -13894,7 +13911,7 @@ DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
 affected rows: 1
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
@@ -13902,7 +13919,6 @@ affected rows: 1
 SELECT * FROM t1;
 f1	f2
 16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -13910,6 +13926,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH CASCADED CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -13985,19 +14003,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -14008,20 +14024,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -14130,6 +14146,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -14238,6 +14256,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -14314,19 +14334,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -14337,17 +14355,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -14355,6 +14371,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16 WITH          CHECK OPTION ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -14430,19 +14448,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -14453,20 +14469,20 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION - WITH          CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -14575,6 +14591,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION - WITH          CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -14683,6 +14701,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          - WITH          CHECK OPTION -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -14759,19 +14779,17 @@ f1	f2
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 0 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-0	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 16 WHERE my_col1 = 8;
-affected rows: 1
-info: Rows matched: 1  Changed: 1  Warnings: 0
+ERROR HY000: CHECK OPTION failed 'test.v3'
 SELECT * FROM t1;
 f1	f2
-16	eight
+8	eight
 DELETE FROM t1;
 INSERT INTO t1 VALUES(8, 'eight');
 UPDATE v3 SET my_col1 = 10 WHERE my_col1 = 8;
@@ -14782,17 +14800,15 @@ f1	f2
 10	eight
 DELETE FROM t1;
 INSERT INTO v3 VALUES(16, 'sixteen');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(0, 'zero');
-affected rows: 1
+ERROR HY000: CHECK OPTION failed 'test.v3'
 INSERT INTO v3 VALUES(7, 'seven');
 affected rows: 1
 INSERT INTO v3 VALUES(8, 'eight');
 affected rows: 1
 SELECT * FROM t1;
 f1	f2
-16	sixteen
-0	zero
 7	seven
 8	eight
 DELETE FROM t1;
@@ -14800,6 +14816,8 @@ DROP VIEW v3;
 DROP VIEW v2;
 CREATE VIEW v2 AS SELECT f1 AS col1, f2 AS col2
     FROM v1 WHERE f1 BETWEEN 6 AND 16  ;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH LOCAL    CHECK OPTION ;
 option_variant	WITH LOCAL    CHECK OPTION -         <nothing>          -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -14912,6 +14930,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH CASCADED CHECK OPTION ;
 option_variant	WITH CASCADED CHECK OPTION -         <nothing>          -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -15020,6 +15040,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0 WITH          CHECK OPTION ;
 option_variant	WITH          CHECK OPTION -         <nothing>          -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -15128,6 +15150,8 @@ f1	f2
 8	eight
 DELETE FROM t1;
 DROP VIEW v3;
+CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
+      FROM v2 WHERE col1 MOD 2 = 0  ;
 option_variant	        <nothing>          -         <nothing>          -         <nothing>         
 option_variant	--------------------------------------------------------------------------------
 INSERT INTO t1 VALUES(16, 'sixteen');
@@ -15254,109 +15278,109 @@ v3_to_v1_options	statement	v3_to_v1_violation	errno
         <nothing>          -         <nothing>          -         <nothing>         	UPDATE	  _v2_  	0
         <nothing>          -         <nothing>          -         <nothing>         	UPDATE	v3_  _  	0
         <nothing>          -         <nothing>          - WITH          CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          -         <nothing>          - WITH          CHECK OPTION	INSERT	  _  _v1	0
+        <nothing>          -         <nothing>          - WITH          CHECK OPTION	INSERT	  _  _v1	1369
         <nothing>          -         <nothing>          - WITH          CHECK OPTION	INSERT	  _v2_  	0
         <nothing>          -         <nothing>          - WITH          CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          -         <nothing>          - WITH          CHECK OPTION	UPDATE	  _  _v1	0
+        <nothing>          -         <nothing>          - WITH          CHECK OPTION	UPDATE	  _  _v1	1369
         <nothing>          -         <nothing>          - WITH          CHECK OPTION	UPDATE	  _v2_  	0
         <nothing>          -         <nothing>          - WITH          CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	0
+        <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	1369
         <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	0
         <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	0
+        <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	1369
         <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	0
         <nothing>          -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	0
+        <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	1369
         <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	0
         <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	0
+        <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	1369
         <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	0
         <nothing>          -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          - WITH          CHECK OPTION -         <nothing>         	INSERT	  _  _  	0
-        <nothing>          - WITH          CHECK OPTION -         <nothing>         	INSERT	  _  _v1	0
-        <nothing>          - WITH          CHECK OPTION -         <nothing>         	INSERT	  _v2_  	0
+        <nothing>          - WITH          CHECK OPTION -         <nothing>         	INSERT	  _  _v1	1369
+        <nothing>          - WITH          CHECK OPTION -         <nothing>         	INSERT	  _v2_  	1369
         <nothing>          - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _  _  	0
-        <nothing>          - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	0
-        <nothing>          - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	0
+        <nothing>          - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	1369
+        <nothing>          - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	1369
         <nothing>          - WITH          CHECK OPTION -         <nothing>         	UPDATE	v3_  _  	0
         <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	0
-        <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	0
+        <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	1369
+        <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	1369
         <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	0
-        <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	0
+        <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	1369
+        <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	1369
         <nothing>          - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	0
-        <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	0
+        <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	1369
+        <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	1369
         <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	0
-        <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	0
+        <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	1369
+        <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	1369
         <nothing>          - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	0
-        <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	0
+        <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	1369
+        <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	1369
         <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	0
-        <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	0
+        <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	1369
+        <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	1369
         <nothing>          - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _  _  	0
-        <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _  _v1	0
-        <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _v2_  	0
+        <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _  _v1	1369
+        <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _v2_  	1369
         <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _  _  	0
-        <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	0
-        <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	0
+        <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	1369
+        <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	1369
         <nothing>          - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	v3_  _  	0
         <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	0
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	1369
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	1369
         <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	0
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	1369
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	1369
         <nothing>          - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	0
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	1369
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	1369
         <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	0
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	1369
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	1369
         <nothing>          - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	0
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	1369
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	1369
         <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	0
-        <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	0
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	1369
+        <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	1369
         <nothing>          - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         	INSERT	  _  _  	0
         <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         	INSERT	  _  _v1	0
-        <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         	INSERT	  _v2_  	0
+        <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         	INSERT	  _v2_  	1369
         <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	  _  _  	0
         <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	0
-        <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	0
+        <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	1369
         <nothing>          - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	v3_  _  	0
         <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	0
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	1369
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	1369
         <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	0
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	1369
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	1369
         <nothing>          - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	0
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	1369
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	1369
         <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	0
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	1369
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	1369
         <nothing>          - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	v3_  _  	0
         <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _  	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	0
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	1369
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	1369
         <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _  	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	0
-        <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	0
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	1369
+        <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	1369
         <nothing>          - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	v3_  _  	0
 WITH          CHECK OPTION -         <nothing>          -         <nothing>         	INSERT	  _  _  	0
 WITH          CHECK OPTION -         <nothing>          -         <nothing>         	INSERT	  _  _v1	1369
@@ -15590,136 +15614,140 @@ WITH LOCAL    CHECK OPTION -         <nothing>          -         <nothing>     
 WITH LOCAL    CHECK OPTION -         <nothing>          -         <nothing>         	UPDATE	  _v2_  	0
 WITH LOCAL    CHECK OPTION -         <nothing>          -         <nothing>         	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION	INSERT	  _  _v1	0
+WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION	INSERT	  _  _v1	1369
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION	INSERT	  _v2_  	0
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION	UPDATE	  _  _v1	0
+WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION	UPDATE	  _  _v1	1369
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION	UPDATE	  _v2_  	0
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH          CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	0
+WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	1369
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	0
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	0
+WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	1369
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	0
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH CASCADED CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	0
+WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	1369
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	0
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	0
+WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	1369
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	0
 WITH LOCAL    CHECK OPTION -         <nothing>          - WITH LOCAL    CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION -         <nothing>         	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH          CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION -         <nothing>         	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH          CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         	INSERT	  _  _  	0
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	  _  _  	0
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION -         <nothing>         	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH          CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH CASCADED CHECK OPTION	UPDATE	v3_  _  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	INSERT	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _  	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	0
-WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	0
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _  _v1	1369
+WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	  _v2_  	1369
 WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION - WITH LOCAL    CHECK OPTION	UPDATE	v3_  _  	1369
 
-Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above).
-All following SELECTs must give ROW NOT FOUND 
+Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above). 
 --------------------------------------------------------------------------------
-SELECT * FROM t1_results
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_violation = '  _  _  ' AND errno <> 0
 ORDER BY v3_to_v1_options;
-v3_to_v1_options	statement	v3_to_v1_violation	errno
-SELECT * FROM t1_results
+COUNT(*)
+0
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_options LIKE '  %' AND errno <> 0
 ORDER BY v3_to_v1_options;
-v3_to_v1_options	statement	v3_to_v1_violation	errno
-SELECT * FROM t1_results
+COUNT(*)
+52
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_options LIKE 'WITH %'
   AND v3_to_v1_violation LIKE 'v3_%' AND errno = 0
 ORDER BY v3_to_v1_options;
-v3_to_v1_options	statement	v3_to_v1_violation	errno
-SELECT * FROM t1_results
+COUNT(*)
+0
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_options LIKE 'WITH %' AND v3_to_v1_options NOT LIKE 'WITH LOCAL %'
   AND v3_to_v1_violation NOT LIKE '  _  _  ' AND errno = 0
 ORDER BY v3_to_v1_options;
-v3_to_v1_options	statement	v3_to_v1_violation	errno
-SELECT * FROM t1_results
+COUNT(*)
+0
+SELECT COUNT(*) FROM t1_results
 WHERE errno <> 0 AND errno <> 1369
 ORDER BY v3_to_v1_options;
-v3_to_v1_options	statement	v3_to_v1_violation	errno
+COUNT(*)
+0
 
 End of plausibility checks
 --------------------------------------------------------------------------------

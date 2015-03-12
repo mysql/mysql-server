@@ -1690,9 +1690,6 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
   // Updatability is not decided yet
   DBUG_ASSERT(!view_ref->is_updatable());
 
-  // Should be in constructor
-  view_ref->effective_with_check= VIEW_CHECK_NONE;
-
   // Link query expression of view into the outer query
   view_lex->unit->include_down(old_lex, view_ref->select_lex);
 

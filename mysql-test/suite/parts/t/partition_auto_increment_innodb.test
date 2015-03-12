@@ -33,3 +33,7 @@ let $engine= 'InnoDB';
 # Execute the tests to be applied to all storage engines
 --source suite/parts/inc/partition_auto_increment.inc
 
+#------------------------------------------------------------------------------#
+# Test export/import of tablespace with partitioned table for InnoDB
+--source suite/parts/inc/partition_auto_increment_import.inc
+

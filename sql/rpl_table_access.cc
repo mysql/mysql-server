@@ -59,7 +59,7 @@ bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
     close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
     thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    if (thd->is_operating_gtid_table)
+    if (thd->is_operating_gtid_table_implicitly)
       sql_print_warning("Gtid table is not ready to be used. Table '%s.%s' "
                         "cannot be opened.", dbstr.str, tbstr.str);
     else

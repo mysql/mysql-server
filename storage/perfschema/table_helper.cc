@@ -265,6 +265,11 @@ int PFS_object_row::make_row(const MDL_key *mdl)
     m_schema_name_length= 0;
     m_object_name_length= mdl->name_length();
     break;
+  case MDL_key::TABLESPACE:
+    m_object_type= OBJECT_TYPE_TABLESPACE;
+    m_schema_name_length= 0;
+    m_object_name_length= mdl->name_length();
+    break;
   case MDL_key::NAMESPACE_END:
   default:
     m_object_type= NO_OBJECT_TYPE;
@@ -541,6 +546,9 @@ void set_field_object_type(Field *f, enum_object_type object_type)
     break;
   case OBJECT_TYPE_USER_LEVEL_LOCK:
     PFS_engine_table::set_field_varchar_utf8(f, "USER LEVEL LOCK", 15);
+    break;
+  case OBJECT_TYPE_TABLESPACE:
+    PFS_engine_table::set_field_varchar_utf8(f, "TABLESPACE", 10);
     break;
   case NO_OBJECT_TYPE:
   default:

@@ -1196,13 +1196,13 @@ ERROR HY000: CHECK OPTION failed 'test.v2'
 insert into v3 values (0);
 ERROR HY000: CHECK OPTION failed 'test.v3'
 insert into v2 values (2);
+ERROR HY000: CHECK OPTION failed 'test.v2'
 insert into v3 values (2);
 ERROR HY000: CHECK OPTION failed 'test.v3'
 select * from t1;
 a
 1
 1
-2
 drop view v3,v2,v1;
 drop table t1;
 create table t1 (a int, primary key (a));
@@ -5941,3 +5941,149 @@ ON alias2.col_varchar_key = alias1.col_varchar_key;
 pk
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+#
+# Bug#20407961 VIEW'S CHECK OPTION SOMETIMES NOT HONOURED IF INCLUDED IN A TOP VIEW
+#
+create table t1 (a varchar(100));
+# n/c/l letter suffix means: no/cascaded/local check option
+create view v1n as select * from t1 where a like '%v1n%';
+create view v2c as select * from t1 where a like '%v2c%'
+ with check option;
+show create view v2c;
+View	Create View	character_set_client	collation_connection
+v2c	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2c` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` like '%v2c%') WITH CASCADED CHECK OPTION	latin1	latin1_swedish_ci
+create view v3l as select * from t1 where a like '%v3l%'
+ with local check option;
+show create view v3l;
+View	Create View	character_set_client	collation_connection
+v3l	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3l` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` like '%v3l%') WITH LOCAL CHECK OPTION	latin1	latin1_swedish_ci
+# The basic, single-view feature works:
+insert into t1 values('');
+insert into v1n values('');
+insert into v2c values('');
+ERROR HY000: CHECK OPTION failed 'test.v2c'
+insert into v2c values('v2c');
+insert into v3l values('');
+ERROR HY000: CHECK OPTION failed 'test.v3l'
+insert into v3l values('v3l');
+# We also test UPDATE of the successfully inserted row
+update v1n set a='_';
+# if this update to v2c was allowed, it would be produce a row in t1
+# not matching v2c's filter, which is against the goal of CHECK
+# OPTION.
+update v2c set a='';
+ERROR HY000: CHECK OPTION failed 'test.v2c'
+update v3l set a='';
+ERROR HY000: CHECK OPTION failed 'test.v3l'
+# Top view without no CHECK OPTION, still CHECK OPTION conditions
+# of underlying views are checked.
+create view v4n as select * from v2c where a like '%v4n%';
+create view v5n as select * from v3l where a like '%v5n%';
+# The view's nesting structure is:
+# v4n -> v2c -> t1
+# We present the query with needed tags, verify that it passes,
+# then we take each tag away and verify that it fails.
+insert into v4n values('v2c');
+insert into v4n values('');
+ERROR HY000: CHECK OPTION failed 'test.v4n'
+# To check UPDATE on v4n, we need to update a row originally
+# visible in v4n, so we create it:
+insert into v4n values('v4n v2c');
+# This row can legally disappear from v4n:
+update v4n set a='v2c';
+insert into v4n values('v4n v2c');
+# But this row cannot disappear from v2c:
+update v4n set a='v4n';
+ERROR HY000: CHECK OPTION failed 'test.v4n'
+# Lest we delete it:
+delete from v4n;
+# v5n -> v3l -> t1
+insert into v5n values('v3l');
+insert into v5n values('');
+ERROR HY000: CHECK OPTION failed 'test.v5n'
+# Top view with LOCAL CHECK OPTION, still CHECK OPTION conditions
+# of underlying views are checked.
+create view v4l as select * from v2c where a like '%v4l%'
+ with local check option;
+create view v5l as select * from v3l where a like '%v5l%'
+ with local check option;
+# v4l -> v2c -> t1
+insert into v4l values('v4l v2c');
+insert into v4l values('v2c');
+ERROR HY000: CHECK OPTION failed 'test.v4l'
+update v4l set a='v2c';
+ERROR HY000: CHECK OPTION failed 'test.v4l'
+insert into v4l values('v4l');
+ERROR HY000: CHECK OPTION failed 'test.v4l'
+update v4l set a='v4l';
+ERROR HY000: CHECK OPTION failed 'test.v4l'
+# v5l -> v3l -> t1
+insert into v5l values('v5l v3l');
+insert into v5l values('v3l');
+ERROR HY000: CHECK OPTION failed 'test.v5l'
+update v5l set a='v3l';
+ERROR HY000: CHECK OPTION failed 'test.v5l'
+insert into v5l values('v5l');
+ERROR HY000: CHECK OPTION failed 'test.v5l'
+update v5l set a='v5l';
+ERROR HY000: CHECK OPTION failed 'test.v5l'
+# CASCADED makes all filtering conditions a requirement
+create view v6c as select * from v5n where a like '%v6c%'
+ with cascaded check option;
+# v6c -> v5n -> v3l -> t1
+insert into v6c values('v6c v5n v3l');
+insert into v6c values('v5n v3l');
+ERROR HY000: CHECK OPTION failed 'test.v6c'
+update v6c set a='v5n v3l';
+ERROR HY000: CHECK OPTION failed 'test.v6c'
+insert into v6c values('v6c v3l');
+ERROR HY000: CHECK OPTION failed 'test.v6c'
+update v6c set a='v6c v3l';
+ERROR HY000: CHECK OPTION failed 'test.v6c'
+insert into v6c values('v6c v5n');
+ERROR HY000: CHECK OPTION failed 'test.v6c'
+update v6c set a='v6c v5n';
+ERROR HY000: CHECK OPTION failed 'test.v6c'
+# Also true if top view has no check option:
+create view v7n as select * from v6c where a like '%v7n%';
+# v7n -> v6c -> v5n -> v3l -> t1
+insert into v7n values('v6c v5n v3l');
+insert into v7n values('v5n v3l');
+ERROR HY000: CHECK OPTION failed 'test.v7n'
+insert into v7n values('v6c v3l');
+ERROR HY000: CHECK OPTION failed 'test.v7n'
+insert into v7n values('v6c v5n');
+ERROR HY000: CHECK OPTION failed 'test.v7n'
+# Make a visible row to update:
+insert into v7n values('v7n v6c v5n v3l');
+update v7n set a='v7n v5n v3l';
+ERROR HY000: CHECK OPTION failed 'test.v7n'
+update v7n set a='v7n v6c v3l';
+ERROR HY000: CHECK OPTION failed 'test.v7n'
+update v7n set a='v7n v6c v5nà';
+ERROR HY000: CHECK OPTION failed 'test.v7n'
+# Also true if top view has LOCAL:
+create view v8l as select * from v7n where a like '%v8l%'
+ with local check option;
+# v8l -> v7n -> v6c -> v5n -> v3l -> t1
+insert into v8l values('v8l v6c v5n v3l');
+insert into v8l values('v6c v5n v3l');
+ERROR HY000: CHECK OPTION failed 'test.v8l'
+insert into v8l values('v8l v5n v3l');
+ERROR HY000: CHECK OPTION failed 'test.v8l'
+insert into v8l values('v8l v6c v3l');
+ERROR HY000: CHECK OPTION failed 'test.v8l'
+insert into v8l values('v8l v6c v5n');
+ERROR HY000: CHECK OPTION failed 'test.v8l'
+# Make a visible row (=> satisfy v7n's WHERE clause):
+insert into v8l values('v8l v7n v6c v5n v3l');
+update v8l set a='v7n v6c v5n v3l';
+ERROR HY000: CHECK OPTION failed 'test.v8l'
+update v8l set a='v8l v7n v5n v3l';
+ERROR HY000: CHECK OPTION failed 'test.v8l'
+update v8l set a='v8l v7n v6c v3l';
+ERROR HY000: CHECK OPTION failed 'test.v8l'
+update v8l set a='v8l v7n v6c v5n';
+ERROR HY000: CHECK OPTION failed 'test.v8l'
+drop view v1n,v2c,v3l,v4n,v5n,v4l,v5l,v6c,v7n,v8l;
+drop table t1;

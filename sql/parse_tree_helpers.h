@@ -16,7 +16,7 @@
 #ifndef PARSE_TREE_HELPERS_INCLUDED
 #define PARSE_TREE_HELPERS_INCLUDED
 
-#include "item.h"           // Item
+#include "item_func.h"      // Item etc.
 #include "set_var.h"        // enum_var_type
 
 typedef class st_select_lex SELECT_LEX;
@@ -38,7 +38,7 @@ class Parse_tree_item : public Item
 public:
   explicit Parse_tree_item(const POS &pos) : Item(pos) {}
 
-  virtual enum Type type() const { DBUG_ASSERT(0); return INVALID_ITEM; }
+  virtual enum Type type() const { return INVALID_ITEM; }
   virtual double val_real() { DBUG_ASSERT(0); return 0; }
   virtual longlong val_int() { DBUG_ASSERT(0); return 0; }
   virtual String *val_str(String *) { DBUG_ASSERT(0); return NULL; }
@@ -102,6 +102,77 @@ public:
     return value.pop();
   }
 };
+
+
+/**
+  Helper function to imitate dynamic_cast for Item_cond hierarchy
+
+  @param To     destination type (Item_cond_and etc.)
+  @param Tag    Functype tag to compare from->functype() with
+  @param from   source item
+
+  @return typecasted item of the type To or NULL
+*/
+template<class To, Item_func::Functype Tag>
+To *item_cond_cast(Item * const from)
+{
+  return ((from->type() == Item::COND_ITEM &&
+           static_cast<Item_func *>(from)->functype() == Tag) ?
+          static_cast<To *>(from) : NULL);
+}
+
+
+/**
+  Flatten associative operators at parse time
+
+  This function flattens AND and OR operators at parse time if applicable,
+  otherwise it creates new Item_cond_and or Item_cond_or respectively.
+
+  @param Class  Item_cond_and or Item_cond_or
+  @param Tag    COND_AND_FUNC (for Item_cond_and) or COND_OR_FUNC otherwise
+
+  @param mem_root       MEM_ROOT
+  @param pos            parse location
+  @param left           left argument of the operator
+  @param right          right argument of the operator
+
+  @return resulting parse tree Item
+*/
+template<class Class, Item_func::Functype Tag>
+Item *flatten_associative_operator(MEM_ROOT *mem_root, const POS &pos,
+                                   Item *left, Item *right)
+{
+  if (left == NULL || right == NULL)
+    return NULL;
+  Class *left_func= item_cond_cast<Class, Tag>(left);
+  Class *right_func= item_cond_cast<Class, Tag>(right);
+  if (left_func)
+  {
+    if (right_func)
+    {
+      // (X1 op X2) op (Y1 op Y2) ==> op (X1, X2, Y1, Y2)
+      right_func->add_at_head(left_func->argument_list());
+      return right;
+    }
+    else
+    {
+      // (X1 op X2) op Y ==> op (X1, X2, Y)
+      left_func->add(right);
+      return left;
+    }
+  }
+  else if (right_func)
+  {
+    //  X op (Y1 op Y2) ==> op (X, Y1, Y2)
+    right_func->add_at_head(left);
+    return right;
+  }
+  else
+  {
+    /* X op Y */
+    return new (mem_root) Class(pos, left, right);
+  }
+}
 
 
 Item_splocal* create_item_for_sp_var(THD *thd,

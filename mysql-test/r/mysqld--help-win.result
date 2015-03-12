@@ -978,7 +978,6 @@ The following options may be given as the first argument:
  --show-compatibility-56 
  SHOW commands / INFORMATION_SCHEMA tables compatible with
  MySQL 5.6
- (Defaults to on; use --skip-show-compatibility-56 to disable.)
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1449,7 +1448,7 @@ session-track-system-variables time_zone,autocommit,character_set_client,charact
 sha256-password-proxy-users FALSE
 shared-memory FALSE
 shared-memory-base-name MYSQL
-show-compatibility-56 TRUE
+show-compatibility-56 FALSE
 show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE

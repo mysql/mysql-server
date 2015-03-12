@@ -63,7 +63,7 @@
 #     table related DDL be rejected. Verify that implicit
 #     invalid tablespace names (e.g., present in an .FRM
 #     file from a previous MySQL version) are ignored.
-#
+# 16. Verify correct P_S information.
 ###########################################################
 #
 # Test setup: Create reusable connections:
@@ -784,6 +784,58 @@ connection default;
 DROP TABLE t1;
 DROP TABLE table_with_invalid_tablespace_name;
 DROP TABLE table_like;
+DROP TABLESPACE ts1;
+SET DEBUG_SYNC= 'RESET';
+###########################################################
+# TC16. Verify correct P_S information.
+#
+#
+# Start executing CREATE TABLESPACE, but wait after
+# getting the MDL X lock on the tablespace name.
+connection con1;
+SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
+  SIGNAL got_lock_con1
+  WAIT_FOR cont_con1';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1_1.ibd';
+#
+# Start executing ALTER TABLESPACE.
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR got_lock_con1';
+ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd';
+#
+# Verify that the ALTER TABLESPACE is waiting for an MDL
+# X lock on the tablespace name (not logged). Then, verify
+# that we are also seeing the correct entries in the P_S MDL
+# and events_waits_current tables. Further, signal con1 to
+# make the CREATE TABLESPACE proceed.
+connection default;
+SELECT object_type, object_name, lock_type, lock_duration, lock_status
+FROM performance_schema.metadata_locks
+WHERE object_type LIKE 'TABLESPACE';
+object_type	object_name	lock_type	lock_duration	lock_status
+TABLESPACE	ts1	EXCLUSIVE	TRANSACTION	GRANTED
+TABLESPACE	ts1	EXCLUSIVE	TRANSACTION	PENDING
+SELECT event_name, object_name, object_type, operation
+FROM performance_schema.events_waits_current
+WHERE object_type LIKE 'TABLESPACE';
+event_name	object_name	object_type	operation
+wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock
+SET DEBUG_SYNC= 'now SIGNAL cont_con1';
+#
+# Now, the tablespace MDL information will eventually be
+# gone from both I_S and P_S, except it will remain in the
+# P_S event wait history.
+SELECT event_name, object_name, object_type, operation
+FROM performance_schema.events_waits_history
+WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
+event_name	object_name	object_type	operation
+wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock
+#
+# Reap the connections, reset DEBUG_SYNC and drop objects.
+connection con1;
+connection con2;
+ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
+connection default;
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
 ###########################################################

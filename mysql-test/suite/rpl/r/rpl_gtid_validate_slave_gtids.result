@@ -24,6 +24,8 @@ DROP TABLE t1;
 include/stop_slave.inc
 FLUSH LOGS;
 DELETE FROM mysql.gtid_executed;
+Warnings:
+Warning	3130	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 include/rpl_restart_server.inc [server_number=1]
 START SLAVE IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=1236]

@@ -1596,6 +1596,11 @@ void close_thread_tables(THD *thd)
     for (table= thd->derived_tables ; table ; table= next)
     {
       next= table->next;
+
+      // Restore original name of materialized table
+      if (!table->pos_in_table_list->schema_table)
+        table->pos_in_table_list->reset_name_temporary();
+
       free_tmp_table(thd, table);
     }
     thd->derived_tables= 0;
@@ -4804,25 +4809,6 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
   if (tables->is_derived())
     goto end;
 
-  if (tables->is_view())
-  {
-    /*
-      We restore view's name and database possibly wiped out by derived tables
-      processing and fall back to standard open process in order to
-      obtain proper metadata locks and do other necessary steps like
-      stored routine processing.
-    */
-    if (tables->db != tables->view_db.str)
-    {
-      tables->db= tables->view_db.str;
-      tables->db_length= tables->view_db.length;
-    }
-    if (tables->table_name != tables->view_name.str)
-    {
-      tables->table_name= tables->view_name.str;
-      tables->table_name_length= tables->view_name.length;
-    }
-  }
   /*
     If this TABLE_LIST object is a placeholder for an information_schema
     table, create a temporary table to represent the information_schema

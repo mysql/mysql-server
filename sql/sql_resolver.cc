@@ -1181,7 +1181,7 @@ bool SELECT_LEX::setup_conds(THD *thd)
     if (it_is_update)
     {
       TABLE_LIST *view= table->top_table();
-      if (view->effective_with_check)
+      if (view->is_view() && view->is_merged())
       {
         if (view->prepare_check_option(thd))
           DBUG_RETURN(true);        /* purecov: inspected */
@@ -2275,9 +2275,6 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
       (derived_table->merge_underlying_list == NULL ||
        derived_table->merge_underlying_list->is_updatable()))
     derived_table->set_updatable();
-
-  derived_table->effective_with_check=
-    lex->get_effective_with_check(derived_table);
 
   // Add a nested join object to the derived table object
   if (!(derived_table->nested_join=

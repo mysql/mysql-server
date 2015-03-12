@@ -4612,14 +4612,9 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
   Prepare check option expression of table
 
   @param thd            thread handler
-  @param check_opt_type WITH CHECK OPTION type (VIEW_CHECK_NONE,
-                        VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED).
-                        Use this parameter instead of direct check of
-                        effective_with_check to change type of underlying
-                        views to VIEW_CHECK_CASCADED if outer view have
-                        such option and prevent processing of underlying
-                        view check options if outer view have just
-                        VIEW_CHECK_LOCAL option.
+  @param is_cascaded     True if parent view requests that this view's
+  filtering condition be treated as WITH CASCADED CHECK OPTION; this is for
+  recursive calls; user code should omit this argument.
 
   @details
 
@@ -4642,39 +4637,37 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
   @returns false if success, true if error
 */
 
-bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
+bool TABLE_LIST::prepare_check_option(THD *thd, bool is_cascaded)
 {
-  DBUG_ENTER("TABLE_LIST::prep_check_option");
+  DBUG_ENTER("TABLE_LIST::prepare_check_option");
+  DBUG_ASSERT(is_view());
 
-  bool is_cascaded= check_opt_type == VIEW_CHECK_CASCADED;
+  /*
+    True if conditions of underlying views should be treated as WITH CASCADED
+    CHECK OPTION
+  */
+  is_cascaded|= (with_check == VIEW_CHECK_CASCADED);
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
-    /* see comment of check_opt_type parameter */
-    if (tbl->is_view() && tbl->prep_check_option(thd, is_cascaded ?
-                                                      VIEW_CHECK_CASCADED :
-                                                      VIEW_CHECK_NONE))
+    if (tbl->is_view() && tbl->prepare_check_option(thd, is_cascaded))
       DBUG_RETURN(true);                  /* purecov: inspected */
   }
 
-  if (check_opt_type && !check_option_processed)
+  if (!check_option_processed)
   {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
-
-    if (merge_join_conditions(thd, this, &check_option))
+    if ((with_check || is_cascaded) &&
+        merge_join_conditions(thd, this, &check_option))
       DBUG_RETURN(true);                  /* purecov: inspected */
 
-    if (is_cascaded)
+    for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
     {
-      for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-      {
-        if (tbl->check_option)
-        {
-          if (!(check_option= and_conds(check_option, tbl->check_option)))
-            DBUG_RETURN(true);            /* purecov: inspected */
-        }
-      }
+      if (tbl->check_option &&
+          !(check_option= and_conds(check_option, tbl->check_option)))
+          DBUG_RETURN(true);            /* purecov: inspected */
     }
+
     check_option_processed= true;
   }
 
@@ -6467,28 +6460,11 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   table= 0;
 
   /*
-   Reset table_name and table_name_length,if it is a anonymous derived table
-   or schema table. They are not valid as TABLEs were closed in the end of
-   previous prepare or execute call. For derived table of view, restore view's
-   name and database wiped out by derived table processing.
-
- */
-  if (is_view_or_derived())
-  {
-    if (is_view())
-    {
-      db= view_db.str;
-      db_length= view_db.length;
-      table_name= view_name.str;
-      table_name_length= view_name.length;
-    }
-    else
-    {
-      table_name= NULL;
-      table_name_length= 0;
-    }
-  }
-  else if (schema_table_name)
+    Reset table_name and table_name_length for schema table.
+    They are not valid as TABLEs were closed in the end of previous prepare
+    or execute call.
+  */
+  if (schema_table_name)
   {
     table_name= schema_table_name;
     table_name_length= strlen(schema_table_name);

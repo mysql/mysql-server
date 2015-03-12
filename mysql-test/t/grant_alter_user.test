@@ -596,3 +596,50 @@ ALTER USER u1 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 
 #Cleanup
 DROP USER u1;
+
+--echo
+--echo Bug #20634154 GRANT/ALTER USER CLEARS PASSWORD EXPIRE.
+--echo
+
+CREATE USER bug20634154@localhost IDENTIFIED BY 'abc';
+--connect(con1, localhost, bug20634154, abc)
+SELECT CURRENT_USER();
+disconnect con1;
+connection default;
+ALTER USER bug20634154@localhost PASSWORD EXPIRE;
+--connect(con1, localhost, bug20634154, abc)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT CURRENT_USER();
+disconnect con1;
+connection default;
+GRANT USAGE ON *.* TO bug20634154@localhost;
+--connect(con1, localhost, bug20634154, abc)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT CURRENT_USER();
+disconnect con1;
+connection default;
+ALTER USER bug20634154@localhost;
+--connect(con1, localhost, bug20634154, abc)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT CURRENT_USER();
+disconnect con1;
+connection default;
+ALTER USER bug20634154@localhost IDENTIFIED BY 'def';
+--connect(con1, localhost, bug20634154, def)
+SELECT CURRENT_USER();
+disconnect con1;
+connection default;
+ALTER USER bug20634154@localhost IDENTIFIED BY 'abc' PASSWORD EXPIRE;
+--connect(con1, localhost, bug20634154, abc)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT CURRENT_USER();
+disconnect con1;
+connection default;
+ALTER USER bug20634154@localhost IDENTIFIED BY 'def' PASSWORD EXPIRE INTERVAL 10 DAY;
+--connect(con1, localhost, bug20634154, def)
+# this will login as we set the password
+SELECT CURRENT_USER();
+disconnect con1;
+connection default;
+#cleanup
+DROP USER bug20634154@localhost;

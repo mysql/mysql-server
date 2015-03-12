@@ -653,3 +653,25 @@ child	1	idx2	1	parent_id	A	0	32	NULL		SPATIAL
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
 ERROR HY000: Cannot add foreign key constraint
 DROP table child,parent;
+create table t1 (c1 int) engine=innodb;
+insert into t1 values(NULL);
+alter table t1 add b geometry, add spatial index(b), algorithm=inplace;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+alter table t1 add b geometry not null, add spatial index(b), algorithm=inplace;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+alter table t1 add b geometry not null, algorithm=inplace;
+alter table t1 add spatial index(b), algorithm=inplace;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+update t1 set b = st_geomfromtext('point(0 0)');
+alter table t1 add spatial index(b), algorithm=inplace;
+DROP table t1;
+create table t1 (c1 int) engine=innodb;
+insert into t1 values(NULL);
+alter table t1 add b geometry, add spatial index(b), algorithm=copy;
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+alter table t1 add b geometry not null, add spatial index(b), algorithm=copy;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+alter table t1 add b geometry not null, algorithm=copy;
+alter table t1 add spatial index(b), algorithm=copy;
+delete from t1;
+DROP table t1;
