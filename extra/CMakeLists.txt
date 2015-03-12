@@ -95,8 +95,16 @@ TARGET_LINK_LIBRARIES(replace mysys)
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
 
+  IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+    ADD_DEFINITIONS(-DHAVE_LZ4=1)
+    INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
+  ENDIF()
+
   # Add path to the InnoDB headers
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include ${CMAKE_SOURCE_DIR}/sql)
+  INCLUDE_DIRECTORIES(
+    ${CMAKE_SOURCE_DIR}/storage/innobase/include
+    ${CMAKE_SOURCE_DIR}/sql
+  )
   # We use the InnoDB code directly in case the code changes.
   ADD_DEFINITIONS("-DUNIV_INNOCHECKSUM")
   SET(INNOBASE_SOURCES
@@ -109,7 +117,7 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
      )
 
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
-  TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl)
+  TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl ${LZ4_LIBRARY})
   ADD_DEPENDENCIES(innochecksum GenError)
 ENDIF()
 
