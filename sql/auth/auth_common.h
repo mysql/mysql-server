@@ -563,7 +563,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list);
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 
-bool update_auth_str(THD *thd, LEX_USER *Str);
 bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_set);
 
 /* sql_auth_cache */
