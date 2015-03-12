@@ -35,7 +35,7 @@ SELECT variable_value FROM information_schema.global_status
 # to use a freshly created database for this test we do not return the
 # table or index IDs. We can return the space IS of mysql schema tables
 # since they are created consistently during bootstrap.
-SELECT	t.space, t.name table_name, t.n_cols, t.flag table_flags,
+SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 	i.name index_name, i.page_no root_page, i.type,
 	i.n_fields, i.merge_threshold
 	FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
