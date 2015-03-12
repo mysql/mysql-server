@@ -5282,30 +5282,45 @@ buf_page_monitor(
 	const buf_page_t*	bpage,	/*!< in: pointer to the block */
 	enum buf_io_fix		io_type)/*!< in: io_fix types */
 {
-	const byte*	frame;
 	monitor_id_t	counter;
 
-	/* If the counter module is not turned on, just return */
+	ut_a(io_type == BUF_IO_READ || io_type == BUF_IO_WRITE);
+
+	const index_id_t	ibuf_index_id = static_cast<index_id_t>(
+		DICT_IBUF_ID_MIN + IBUF_SPACE_ID);
+
+	const byte*		frame = bpage->zip.data != NULL
+		? bpage->zip.data
+		: ((buf_block_t*) bpage)->frame;
+
+	const ulint		page_type = fil_page_get_type(frame);
+
+	ulint			level;
+	index_id_t		index_id;
+
+	if (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE) {
+
+		level = btr_page_get_level_low(frame);
+
+		index_id = btr_page_get_index_id(frame);
+
+		/* Account reading of leaf pages into the buffer pool(s). */
+		if (level == 0 && io_type == BUF_IO_READ
+		    && index_id != ibuf_index_id) {
+			buf_stat_per_index->inc(index_id);
+		}
+	}
+
 	if (!MONITOR_IS_ON(MONITOR_MODULE_BUF_PAGE)) {
 		return;
 	}
 
-	ut_a(io_type == BUF_IO_READ || io_type == BUF_IO_WRITE);
-
-	frame = bpage->zip.data
-		? bpage->zip.data
-		: ((buf_block_t*) bpage)->frame;
-
-	switch (fil_page_get_type(frame)) {
-		ulint	level;
-
+	switch (page_type) {
 	case FIL_PAGE_INDEX:
 	case FIL_PAGE_RTREE:
-		level = btr_page_get_level_low(frame);
-
 		/* Check if it is an index page for insert buffer */
-		if (btr_page_get_index_id(frame)
-		    == (index_id_t)(DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
+		if (index_id == ibuf_index_id) {
+
 			if (level == 0) {
 				counter = MONITOR_RW_COUNTER(
 					io_type, MONITOR_INDEX_IBUF_LEAF_PAGE);
