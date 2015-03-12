@@ -3379,7 +3379,8 @@ row_ins_index_entry_set_vals(
 		/* Handle spatial index. For the first field, replace
 		the data with its MBR (Minimum Bounding Box). */
 		if ((i == 0) && dict_index_is_spatial(index)) {
-			if (!row_field->data) {
+			if (!row_field->data
+			    || row_field->len < GEO_DATA_HEADER_SIZE) {
 				return(DB_CANT_CREATE_GEOMETRY_OBJECT);
 			}
 			row_ins_spatial_index_entry_set_mbr_field(
