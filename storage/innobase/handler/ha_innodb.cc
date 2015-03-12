@@ -12383,6 +12383,32 @@ innodb_rec_per_key(
 	return(rec_per_key);
 }
 
+/** Estimate what percentage of an index's pages are cached in the buffer pool
+@param[in]	index	index whose pages to look up
+@return a real number in [0.0, 1.0] designating the percentage of cached pages
+*/
+inline
+double
+index_pct_cached(
+	const dict_index_t*	index)
+{
+	const ulint	n_leaf = index->stat_n_leaf_pages;
+
+	if (n_leaf == 0) {
+		return(0.0);
+	}
+
+	const uint64_t	n_in_mem = buf_stat_per_index->get(index->id);
+
+	const double	ratio = static_cast<double>(n_in_mem) / n_leaf;
+
+	ib::info() /* XXX */
+		<< __func__ << "(" << index->table_name << " " << index->name
+		<< "): " << n_in_mem << " / " << n_leaf << " = " << ratio;
+
+	return(std::min(ratio, 1.0));
+}
+
 /*********************************************************************//**
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object.
@@ -12598,85 +12624,92 @@ ha_innobase::info_low(
 		}
 	}
 
-	if (flag & HA_STATUS_CONST) {
-		ulong	i;
-		/* Verify the number of index in InnoDB and MySQL
-		matches up. If m_prebuilt->clust_index_was_generated
-		holds, InnoDB defines GEN_CLUST_INDEX internally */
-		ulint	num_innodb_index = UT_LIST_GET_LEN(ib_table->indexes)
-			- m_prebuilt->clust_index_was_generated;
-		if (table->s->keys < num_innodb_index) {
-			/* If there are too many indexes defined
-			inside InnoDB, ignore those that are being
-			created, because MySQL will only consider
-			the fully built indexes here. */
+	/* Verify the number of indexes in InnoDB and MySQL
+	matches up. If m_prebuilt->clust_index_was_generated
+	holds, InnoDB defines GEN_CLUST_INDEX internally. */
+	ulint	num_innodb_index = UT_LIST_GET_LEN(ib_table->indexes)
+		- m_prebuilt->clust_index_was_generated;
+	if (table->s->keys < num_innodb_index) {
+		/* If there are too many indexes defined
+		inside InnoDB, ignore those that are being
+		created, because MySQL will only consider
+		the fully built indexes here. */
 
-			for (const dict_index_t* index
-				     = UT_LIST_GET_FIRST(ib_table->indexes);
-			     index != NULL;
-			     index = UT_LIST_GET_NEXT(indexes, index)) {
+		for (const dict_index_t* index
+			     = UT_LIST_GET_FIRST(ib_table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-				/* First, online index creation is
-				completed inside InnoDB, and then
-				MySQL attempts to upgrade the
-				meta-data lock so that it can rebuild
-				the .frm file. If we get here in that
-				time frame, dict_index_is_online_ddl()
-				would not hold and the index would
-				still not be included in TABLE_SHARE. */
-				if (!index->is_committed()) {
-					num_innodb_index--;
-				}
-			}
-
-			if (table->s->keys < num_innodb_index
-			    && innobase_fts_check_doc_id_index(
-				    ib_table, NULL, NULL)
-			    == FTS_EXIST_DOC_ID_INDEX) {
+			/* First, online index creation is
+			completed inside InnoDB, and then
+			MySQL attempts to upgrade the
+			meta-data lock so that it can rebuild
+			the .frm file. If we get here in that
+			time frame, dict_index_is_online_ddl()
+			would not hold and the index would
+			still not be included in TABLE_SHARE. */
+			if (!index->is_committed()) {
 				num_innodb_index--;
 			}
 		}
 
-		if (table->s->keys != num_innodb_index) {
-			sql_print_error("InnoDB: Table %s contains %lu"
-					" indexes inside InnoDB, which"
-					" is different from the number of"
-					" indexes %u defined in MySQL",
+		if (table->s->keys < num_innodb_index
+		    && innobase_fts_check_doc_id_index(
+			    ib_table, NULL, NULL)
+		    == FTS_EXIST_DOC_ID_INDEX) {
+			num_innodb_index--;
+		}
+	}
+
+	if (table->s->keys != num_innodb_index) {
+		sql_print_error("InnoDB: Table %s contains %lu"
+				" indexes inside InnoDB, which"
+				" is different from the number of"
+				" indexes %u defined in MySQL",
+				ib_table->name.m_name,
+				num_innodb_index, table->s->keys);
+	}
+
+	if (!(flag & HA_STATUS_NO_LOCK)) {
+		dict_table_stats_lock(ib_table, RW_S_LATCH);
+	}
+
+	ut_a(ib_table->stat_initialized);
+
+	const dict_index_t*	pk = UT_LIST_GET_FIRST(ib_table->indexes);
+
+	for (uint i = 0; i < table->s->keys; i++) {
+		ulong	j;
+		/* We could get index quickly through internal
+		index mapping with the index translation table.
+		The identity of index (match up index name with
+		that of table->key_info[i]) is already verified in
+		innobase_get_index().  */
+		dict_index_t*	index = innobase_get_index(i);
+
+		if (index == NULL) {
+			sql_print_error("Table %s contains fewer"
+					" indexes inside InnoDB than"
+					" are defined in the MySQL"
+					" .frm file. Have you mixed up"
+					" .frm files from different"
+					" installations? %s\n",
 					ib_table->name.m_name,
-					num_innodb_index, table->s->keys);
+					TROUBLESHOOTING_MSG);
+			break;
 		}
 
-		if (!(flag & HA_STATUS_NO_LOCK)) {
-			dict_table_stats_lock(ib_table, RW_S_LATCH);
+		KEY*		key = &table->key_info[i];
+
+		const double	pct_cached = index_pct_cached(index);
+
+		key->set_in_memory_estimate(pct_cached);
+
+		if (index == pk) {
+			stats.table_in_mem_estimate = pct_cached;
 		}
 
-		ut_a(ib_table->stat_initialized);
-
-		for (i = 0; i < table->s->keys; i++) {
-			ulong	j;
-			/* We could get index quickly through internal
-			index mapping with the index translation table.
-			The identity of index (match up index name with
-			that of table->key_info[i]) is already verified in
-			innobase_get_index().  */
-			dict_index_t* index = innobase_get_index(i);
-
-			if (index == NULL) {
-				sql_print_error("Table %s contains fewer"
-						" indexes inside InnoDB than"
-						" are defined in the MySQL"
-						" .frm file. Have you mixed up"
-						" .frm files from different"
-						" installations? %s\n",
-						ib_table->name.m_name,
-						TROUBLESHOOTING_MSG);
-
-				break;
-			}
-
-			KEY*	key = &table->key_info[i];
-
-			/* Check if this index supports index statistics. */
+		if (flag & HA_STATUS_CONST) {
 			if (!key->supports_records_per_key()) {
 				continue;
 			}
@@ -12752,10 +12785,10 @@ ha_innobase::info_low(
 				key->rec_per_key[j] = rec_per_key_int;
 			}
 		}
+	}
 
-		if (!(flag & HA_STATUS_NO_LOCK)) {
-			dict_table_stats_unlock(ib_table, RW_S_LATCH);
-		}
+	if (!(flag & HA_STATUS_NO_LOCK)) {
+		dict_table_stats_unlock(ib_table, RW_S_LATCH);
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
