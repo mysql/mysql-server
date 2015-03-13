@@ -5620,8 +5620,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
           int result __attribute__((unused))=
             store_create_info(thd, table, &query,
-                              create_info,
-                              table->db ? TRUE : FALSE/* show_database */);
+                              create_info, TRUE /* show_database */);
 
           DBUG_ASSERT(result == 0); // store_create_info() always return 0
           if (write_bin_log(thd, TRUE, query.ptr(), query.length()))
