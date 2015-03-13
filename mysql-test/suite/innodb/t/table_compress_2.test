@@ -5,23 +5,16 @@
 # - if hole punching is available (if not then skip test) 
 # - create table and insert data
 # - Check if compression is done
-# Works with and without host support for lz4 compression
 #------------------------------------------------------------------------------
 --source include/not_embedded.inc
 --source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
 
 # # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
 let $fpt= `select @@innodb_file_per_table`;
 SET GLOBAL innodb_file_per_table=1;
-
---error 0,1193
-let $cdebug= `select @@innodb_compress_debug`;
-### skip innodb_compress_debug=lz4 to avoid unnecessary overcomplication
-if ($cdebug == lz4) {
-  skip innodb_compress_debug is set to 'lz4';
-}
 
 let MYSQLD_DATADIR= `select @@datadir`;
 
@@ -31,9 +24,9 @@ let MYSQLD_DATADIR= `select @@datadir`;
 ### retrieve database page size, filesystem compression unit size
 ### (fs_block_size), and OSD version of the same, they must agree
 --let DB_PAGE_SIZE=`SELECT @@innodb_page_size`
-eval CREATE TABLE $db.wl7696_no_comp (c INTEGER);
---let FS_BLOCK_SIZE=`SELECT fs_block_size FROM $i_s_table WHERE name = '$db/wl7696_no_comp'`
-eval DROP TABLE $db.wl7696_no_comp;
+eval CREATE TABLE $db.tc_no_comp (c INTEGER);
+--let FS_BLOCK_SIZE=`SELECT fs_block_size FROM $i_s_table WHERE name = '$db/tc_no_comp'`
+eval DROP TABLE $db.tc_no_comp;
 perl;
   use strict;
   use warnings;
@@ -79,25 +72,25 @@ EOF
 
 
 ### create zlib compressed table and check if hole punching is supported
---let $table_zlib= wl7696_zlib
+--let $table_zlib= tc_zlib
 --disable_warnings
 eval DROP TABLE IF EXISTS $db.$table_zlib;
 eval CREATE TABLE $db.$table_zlib (t LONGTEXT) COMPRESSION='zlib';
---let WL7696_ZIP_WARN= `SHOW WARNINGS`
+--let COMPR_ZIP_WARN= `SHOW WARNINGS`
 --enable_warnings
 
 perl;
   use strict;
-  my $no_holes = ($ENV{WL7696_ZIP_WARN} =~ /Punch hole not supported/)? 1 : 0;
+  my $no_holes = ($ENV{COMPR_ZIP_WARN} =~ /Punch hole not supported/)? 1 : 0;
 ### we do not expect any other warning
-  printf("Unexpected warning: %s\n",$ENV{WL7696_ZIP_WARN})
-    if (not $no_holes and $ENV{WL7696_ZIP_WARN} ne '');
-  open(DHF,">$ENV{'MYSQLD_DATADIR'}/wl7696.inc");
+  printf("Unexpected warning: %s\n",$ENV{COMPR_ZIP_WARN})
+    if (not $no_holes and $ENV{COMPR_ZIP_WARN} ne '');
+  open(DHF,">$ENV{'MYSQLD_DATADIR'}/tc.inc");
   printf DHF "let \$no_holes= %s;\n",$no_holes;
   close(DHF);
 EOF
---source $MYSQLD_DATADIR/wl7696.inc
---remove_file $MYSQLD_DATADIR/wl7696.inc
+--source $MYSQLD_DATADIR/tc.inc
+--remove_file $MYSQLD_DATADIR/tc.inc
 if ($no_holes)
 {
   eval DROP TABLE IF EXISTS $db.$table_zlib;
@@ -117,20 +110,16 @@ perl;
         and 2*$ENV{FS_BLOCK_SIZE} > $ENV{DB_PAGE_SIZE});
 EOF
 
-### attempt to create lz4 compressed tables,
-### they will only be created if lz4* compression is supported
---let $table_lz4= wl7696_lz4
+### create lz4 compressed tables
+--let $table_lz4= tc_lz4
 --disable_warnings
 eval DROP TABLE IF EXISTS $db.$table_lz4;
 --enable_warnings
 
-### further code should not assume lz4 table has been actually created
---error 0,1031
 eval CREATE TABLE $db.$table_lz4 (t LONGTEXT) COMPRESSION='lz4';
 
 eval INSERT INTO $db.$table_zlib VALUES (REPEAT('z',142857));
 
---error 0,1146
 eval INSERT INTO $db.$table_lz4 VALUES (REPEAT('4',142857));
 
 COMMIT;
@@ -138,9 +127,7 @@ COMMIT;
 eval FLUSH TABLES $db.$table_zlib WITH READ LOCK;
 UNLOCK TABLES;
 
---error 0,1146
 eval FLUSH TABLES $db.$table_lz4 WITH READ LOCK;
-
 UNLOCK TABLES;
 
 ### check if the tables are compressed by comparing file size
@@ -148,8 +135,8 @@ UNLOCK TABLES;
 ### We also check the correctness of allocated size as reported by I_S.
 --let $s1=`SELECT name,file_size,allocated_size FROM $i_s_table WHERE name LIKE '$db/$table_zlib'`
 --let $s2=`SELECT name,file_size,allocated_size FROM $i_s_table WHERE name LIKE '$db/$table_lz4'`
---let WL7696_SIZES= $s1,$s2,$s3
---let WL7696_TABLES= $db/$table_zlib,$db/$table_lz4
+--let COMPR_SIZES= $s1,$s2,$s3
+--let COMPR_TABLES= $db/$table_zlib,$db/$table_lz4
 
 perl;
   use strict;
@@ -157,9 +144,9 @@ perl;
   use warnings;
   no warnings ('uninitialized');
 
-  my @ltables = sort(split(/\s*,\s*/,$ENV{'WL7696_TABLES'}));
+  my @ltables = sort(split(/\s*,\s*/,$ENV{'COMPR_TABLES'}));
 
-  my @lsizes = split(/\s*,\s*/,$ENV{'WL7696_SIZES'});
+  my @lsizes = split(/\s*,\s*/,$ENV{'COMPR_SIZES'});
   my %hsizes;
   foreach (@lsizes) {
       next if (/^\s*$/);
