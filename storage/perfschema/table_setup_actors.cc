@@ -52,12 +52,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("ENABLED") },
     { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("HISTORY") },
+    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_setup_actors::m_field_def=
-{ 4, field_types };
+{ 5, field_types };
 
 PFS_engine_table_share
 table_setup_actors::m_share=
@@ -90,7 +95,9 @@ int table_setup_actors::write_row(TABLE *table, unsigned char *buf,
   String *host= &host_data;
   String *role= &role_data;
   enum_yes_no enabled_value= ENUM_YES;
+  enum_yes_no history_value= ENUM_YES;
   bool enabled;
+  bool history;
 
   for (; (f= *fields) ; fields++)
   {
@@ -110,6 +117,9 @@ int table_setup_actors::write_row(TABLE *table, unsigned char *buf,
       case 3: /* ENABLED */
         enabled_value= (enum_yes_no) get_field_enum(f);
         break;
+      case 4: /* HISTORY */
+        history_value= (enum_yes_no) get_field_enum(f);
+        break;
       default:
         DBUG_ASSERT(false);
       }
@@ -120,13 +130,18 @@ int table_setup_actors::write_row(TABLE *table, unsigned char *buf,
   if ((enabled_value != ENUM_YES) && (enabled_value != ENUM_NO))
     return HA_ERR_NO_REFERENCED_ROW;
 
+  /* Reject illegal enum values in HISTORY */
+  if ((history_value != ENUM_YES) && (history_value != ENUM_NO))
+    return HA_ERR_NO_REFERENCED_ROW;
+
   /* Reject if any of user/host/role is not provided */
   if (user->length() == 0 || host->length() == 0 || role->length() == 0)
     return HA_ERR_WRONG_COMMAND;
 
   enabled= (enabled_value == ENUM_YES) ? true : false;
+  history= (history_value == ENUM_YES) ? true : false;
 
-  return insert_setup_actor(user, host, role, enabled);
+  return insert_setup_actor(user, host, role, enabled, history);
 }
 
 int table_setup_actors::delete_all_rows(void)
@@ -210,6 +225,7 @@ void table_setup_actors::make_row(PFS_setup_actor *pfs)
   memcpy(m_row.m_rolename, pfs->m_rolename, m_row.m_rolename_length);
 
   m_row.m_enabled_ptr= &pfs->m_enabled;
+  m_row.m_history_ptr= &pfs->m_history;
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;
@@ -246,6 +262,9 @@ int table_setup_actors::read_row_values(TABLE *table,
       case 3: /* ENABLED */
         set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);
         break;
+      case 4: /* HISTORY */
+        set_field_enum(f, (*m_row.m_history_ptr) ? ENUM_YES : ENUM_NO);
+        break;
       default:
         DBUG_ASSERT(false);
       }
@@ -280,6 +299,13 @@ int table_setup_actors::update_row_values(TABLE *table,
         if ((value != ENUM_YES) && (value != ENUM_NO))
           return HA_ERR_NO_REFERENCED_ROW;
         *m_row.m_enabled_ptr= (value == ENUM_YES) ? true : false;
+        break;
+      case 4: /* HISTORY */
+        value= (enum_yes_no) get_field_enum(f);
+        /* Reject illegal enum values in HISTORY */
+        if ((value != ENUM_YES) && (value != ENUM_NO))
+          return HA_ERR_NO_REFERENCED_ROW;
+        *m_row.m_history_ptr= (value == ENUM_YES) ? true : false;
         break;
       default:
         DBUG_ASSERT(false);

@@ -199,10 +199,13 @@ search:
     if (username_length > 0 && hostname_length > 0)
     {
       lookup_setup_actor(thread, username, username_length, hostname, hostname_length,
-                         & pfs->m_enabled);
+                         & pfs->m_enabled, & pfs->m_history);
     }
     else
+    {
       pfs->m_enabled= true;
+      pfs->m_history= true;
+    }
 
     int res;
     pfs->m_lock.dirty_to_allocated(& dirty_state);
@@ -715,10 +718,13 @@ public:
       lookup_setup_actor(m_thread,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
-                         & pfs->m_enabled);
+                         & pfs->m_enabled, & pfs->m_history);
     }
     else
+    {
       pfs->m_enabled= true;
+      pfs->m_history= true;
+    }
   }
 
 private:

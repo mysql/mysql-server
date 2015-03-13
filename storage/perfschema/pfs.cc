@@ -2283,9 +2283,11 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
   set_thread_account(pfs);
 
   bool enabled;
+  bool history;
   if (pfs->m_account != NULL)
   {
     enabled= pfs->m_account->m_enabled;
+    history= pfs->m_account->m_history;
   }
   else
   {
@@ -2294,16 +2296,17 @@ void pfs_set_thread_user_v1(const char *user, int user_len)
       lookup_setup_actor(pfs,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
-                         &enabled);
+                         &enabled, &history);
     }
     else
     {
       /* There is no setting for background threads */
       enabled= true;
+      history= true;
     }
   }
-
   pfs->set_enabled(enabled);
+  pfs->set_history(history);
 
   pfs->m_session_lock.dirty_to_allocated(& dirty_state);
 }
@@ -2343,9 +2346,11 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
   set_thread_account(pfs);
 
   bool enabled;
+  bool history;
   if (pfs->m_account != NULL)
   {
     enabled= pfs->m_account->m_enabled;
+    history= pfs->m_account->m_history;
   }
   else
   {
@@ -2354,15 +2359,17 @@ void pfs_set_thread_account_v1(const char *user, int user_len,
       lookup_setup_actor(pfs,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
-                         &enabled);
+                         &enabled, &history);
     }
     else
     {
       /* There is no setting for background threads */
       enabled= true;
+      history= true;
     }
   }
   pfs->set_enabled(enabled);
+  pfs->set_history(history);
 
   pfs->m_session_lock.dirty_to_allocated(& dirty_state);
 }
@@ -3799,9 +3806,9 @@ void pfs_end_idle_wait_v1(PSI_idle_locker* locker)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
-      if (flag_events_waits_history)
+      if (thread->m_flag_events_waits_history)
         insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
+      if (thread->m_flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_current--;
     }
@@ -3883,9 +3890,9 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
-      if (flag_events_waits_history)
+      if (thread->m_flag_events_waits_history)
         insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
+      if (thread->m_flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_current--;
     }
@@ -3962,9 +3969,9 @@ void pfs_end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
-      if (flag_events_waits_history)
+      if (thread->m_flag_events_waits_history)
         insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
+      if (thread->m_flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_current--;
     }
@@ -4039,9 +4046,9 @@ void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
-      if (flag_events_waits_history)
+      if (thread->m_flag_events_waits_history)
         insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
+      if (thread->m_flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_current--;
     }
@@ -4103,9 +4110,9 @@ void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int rc)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
-      if (flag_events_waits_history)
+      if (thread->m_flag_events_waits_history)
         insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
+      if (thread->m_flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_current--;
     }
@@ -4198,9 +4205,9 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker, ulonglong numrows)
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
       wait->m_number_of_bytes= static_cast<size_t>(numrows);
-      if (flag_events_waits_history)
+      if (thread->m_flag_events_waits_history)
         insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
+      if (thread->m_flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_current--;
     }
@@ -4267,9 +4274,9 @@ void pfs_end_table_lock_wait_v1(PSI_table_locker* locker)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
-      if (flag_events_waits_history)
+      if (thread->m_flag_events_waits_history)
         insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
+      if (thread->m_flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_current--;
     }
@@ -4516,9 +4523,9 @@ void pfs_end_file_wait_v1(PSI_file_locker *locker,
       wait->m_weak_file= file;
       wait->m_weak_version= (file ? file->get_version() : 0);
 
-      if (flag_events_waits_history)
+      if (thread->m_flag_events_waits_history)
         insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
+      if (thread->m_flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_current--;
     }
@@ -4648,9 +4655,9 @@ pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
     if (flag_events_stages_current)
     {
       pfs->m_end_event_id= pfs_thread->m_event_id;
-      if (flag_events_stages_history)
+      if (pfs_thread->m_flag_events_stages_history)
         insert_events_stages_history(pfs_thread, pfs);
-      if (flag_events_stages_history_long)
+      if (pfs_thread->m_flag_events_stages_history_long)
         insert_events_stages_history_long(pfs);
     }
 
@@ -4765,9 +4772,9 @@ void pfs_end_stage_v1()
     if (flag_events_stages_current)
     {
       pfs->m_end_event_id= pfs_thread->m_event_id;
-      if (flag_events_stages_history)
+      if (pfs_thread->m_flag_events_stages_history)
         insert_events_stages_history(pfs_thread, pfs);
-      if (flag_events_stages_history_long)
+      if (pfs_thread->m_flag_events_stages_history_long)
         insert_events_stages_history_long(pfs);
     }
 
@@ -5312,9 +5319,9 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       pfs_program= reinterpret_cast<PFS_program*>(state->m_parent_sp_share);
       pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(state->m_parent_prepared_stmt);
 
-      if (flag_events_statements_history)
+      if (thread->m_flag_events_statements_history)
         insert_events_statements_history(thread, pfs);
-      if (flag_events_statements_history_long)
+      if (thread->m_flag_events_statements_history_long)
         insert_events_statements_history_long(pfs);
 
       DBUG_ASSERT(thread->m_events_statements_count > 0);
@@ -5977,9 +5984,9 @@ void pfs_end_transaction_v1(PSI_transaction_locker *locker, my_bool commit)
       if (pfs->m_xa)
           pfs->m_xa_state= (commit ? TRANS_STATE_XA_COMMITTED : TRANS_STATE_XA_ROLLBACK_ONLY);
 
-      if (flag_events_transactions_history)
+      if (pfs_thread->m_flag_events_transactions_history)
         insert_events_transactions_history(pfs_thread, pfs);
-      if (flag_events_transactions_history_long)
+      if (pfs_thread->m_flag_events_transactions_history_long)
         insert_events_transactions_history_long(pfs);
     }
   }
@@ -6089,9 +6096,9 @@ void pfs_end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     wait->m_end_event_id= thread->m_event_id;
     wait->m_number_of_bytes= bytes;
 
-    if (flag_events_waits_history)
+    if (thread->m_flag_events_waits_history)
       insert_events_waits_history(thread, wait);
-    if (flag_events_waits_history_long)
+    if (thread->m_flag_events_waits_history_long)
       insert_events_waits_history_long(wait);
     thread->m_events_waits_current--;
   }
@@ -6629,9 +6636,9 @@ pfs_end_metadata_wait_v1(PSI_metadata_locker *locker,
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
-      if (flag_events_waits_history)
+      if (thread->m_flag_events_waits_history)
         insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
+      if (thread->m_flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_current--;
     }
