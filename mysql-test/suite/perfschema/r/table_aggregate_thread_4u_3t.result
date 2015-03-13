@@ -14,11 +14,11 @@ update performance_schema.setup_consumers
 set enabled='NO' where name like 'event%';
 select * from performance_schema.setup_actors
 order by USER, HOST, ROLE;
-HOST	USER	ROLE	ENABLED
-localhost	user1	%	YES
-localhost	user2	%	YES
-localhost	user3	%	YES
-localhost	user4	%	YES
+HOST	USER	ROLE	ENABLED	HISTORY
+localhost	user1	%	YES	YES
+localhost	user2	%	YES	YES
+localhost	user3	%	YES	YES
+localhost	user4	%	YES	YES
 select * from performance_schema.setup_objects
 order by object_type, object_schema, object_name;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
