@@ -96,6 +96,8 @@ void Item_func::set_arguments(List<Item> &list, bool context_free)
         with_sum_func|= item->with_sum_func;
     }
   }
+  else
+    arg_count= 0; // OOM
   list.empty();					// Fields are used
 }
 

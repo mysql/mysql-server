@@ -112,68 +112,72 @@ public:
   }
 
   Item_func(Item *a,Item *b,Item *c):
-    allowed_arg_cols(1)
+    allowed_arg_cols(1), arg_count(3)
   {
-    arg_count= 0;
     if ((args= (Item**) sql_alloc(sizeof(Item*)*3)))
     {
-      arg_count= 3;
       args[0]= a; args[1]= b; args[2]= c;
       with_sum_func= a->with_sum_func || b->with_sum_func || c->with_sum_func;
     }
+    else
+      arg_count= 0; // OOM
   }
 
   Item_func(const POS &pos, Item *a,Item *b,Item *c): super(pos),
-    allowed_arg_cols(1)
+    allowed_arg_cols(1), arg_count(3)
   {
-    arg_count= 0;
     if ((args= (Item**) sql_alloc(sizeof(Item*)*3)))
     {
-      arg_count= 3;
       args[0]= a; args[1]= b; args[2]= c;
     }
+    else
+      arg_count= 0; // OOM
   }
 
   Item_func(Item *a,Item *b,Item *c,Item *d):
-    allowed_arg_cols(1)
+    allowed_arg_cols(1), arg_count(4)
   {
-    arg_count= 0;
     if ((args= (Item**) sql_alloc(sizeof(Item*)*4)))
     {
-      arg_count= 4;
       args[0]= a; args[1]= b; args[2]= c; args[3]= d;
       with_sum_func= a->with_sum_func || b->with_sum_func ||
 	c->with_sum_func || d->with_sum_func;
     }
+    else
+      arg_count= 0; // OOM
   }
   Item_func(const POS &pos, Item *a,Item *b,Item *c,Item *d): super(pos),
-    allowed_arg_cols(1)
+    allowed_arg_cols(1), arg_count(4)
   {
-    arg_count= 0;
     if ((args= (Item**) sql_alloc(sizeof(Item*)*4)))
     {
-      arg_count= 4;
       args[0]= a; args[1]= b; args[2]= c; args[3]= d;
     }
+    else
+      arg_count= 0; // OOM
   }
 
   Item_func(Item *a,Item *b,Item *c,Item *d,Item* e):
-    allowed_arg_cols(1)
+    allowed_arg_cols(1), arg_count(5)
   {
-    arg_count= 5;
     if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
     {
       args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
       with_sum_func= a->with_sum_func || b->with_sum_func ||
 	c->with_sum_func || d->with_sum_func || e->with_sum_func ;
     }
+    else
+      arg_count= 0; // OOM
   }
   Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e)
-    : super(pos), allowed_arg_cols(1)
+    : super(pos), allowed_arg_cols(1), arg_count(5)
   {
-    arg_count= 5;
     if ((args= (Item**) sql_alloc(sizeof(Item*)*5)))
+    {
       args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
+    }
+    else
+      arg_count= 0; // OOM
   }
 
   Item_func(List<Item> &list);
