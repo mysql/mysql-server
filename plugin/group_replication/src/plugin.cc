@@ -101,6 +101,8 @@ static bool init_group_sidno();
 
 static bool server_engine_initialized();
 
+static int fix_configured_recovery_password();
+
 /*
   Auxiliary public functions.
 */
@@ -415,6 +417,12 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
                 "Failure in group communication protocol initialization");
     return 1;
   };
+
+  if (dummy_recovery_password != NULL &&
+      strcmp(dummy_recovery_password,""))
+  {
+    fix_configured_recovery_password();
+  }
 
   if (start_group_replication_at_boot && group_replication_start())
     return 1;
@@ -854,6 +862,19 @@ static int check_recovery_con_password(MYSQL_THD thd, SYS_VAR *var, void* ptr,
   {
     recovery_module->set_recovery_donor_connection_password(str);
   }
+
+  DBUG_RETURN(0);
+}
+
+static int fix_configured_recovery_password()
+{
+  DBUG_ENTER("fix_configured_recovery_password");
+
+  strncpy(recovery_password,
+          dummy_recovery_password,
+          strlen(dummy_recovery_password)+1);
+
+  memset(dummy_recovery_password, 0, strlen(dummy_recovery_password));
 
   DBUG_RETURN(0);
 }

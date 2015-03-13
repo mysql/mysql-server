@@ -1,0 +1,4 @@
+--loose-group_replication_start_on_boot=1
+--loose-group_replication_group_name=9f54ea80-c7e8-11e4-8830-0800200c9a66
+--loose-group_replication_recovery_user=recovery_user
+--loose-group_replication_recovery_password=recovery_password
