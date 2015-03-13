@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1139,6 +1139,11 @@ static bool get_field_default_value(THD *thd, Field *timestamp_field,
                       to tailor the format of the statement.  Can be
                       NULL, in which case only SQL_MODE is considered
                       when building the statement.
+    show_database     If true, then print the database before the table
+                      name. The database name is only printed in the event
+                      that it is different from the current database.
+                      If false, then do not print the database before
+                      the table name.
   
   NOTE
     Currently always return 0, but might return error code in the
