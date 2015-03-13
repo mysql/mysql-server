@@ -2530,7 +2530,7 @@ static Sys_var_mybool Sys_old_mode(
 static Sys_var_mybool Sys_show_compatibility_56(
        "show_compatibility_56",
        "SHOW commands / INFORMATION_SCHEMA tables compatible with MySQL 5.6",
-       GLOBAL_VAR(show_compatibility_56), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       GLOBAL_VAR(show_compatibility_56), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 #endif /* EMBEDDED_LIBRARY */
 
 static Sys_var_mybool Sys_old_alter_table(
