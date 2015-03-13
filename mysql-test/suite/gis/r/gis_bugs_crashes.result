@@ -118,16 +118,16 @@ ERROR HY000: Incorrect type for argument geohash max length in function st_geoha
 ######################################################################################################
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(-0 0)')));
 ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(-0 0)')))
-POLYGON((0 0,0 0,0 0,0 0,0 0))
+POLYGON((-0 0,-0 0,-0 0,-0 0,-0 0))
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(0 -0)')));
 ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(0 -0)')))
-POLYGON((0 0,0 0,0 0,0 0,0 0))
+POLYGON((0 -0,0 -0,0 -0,0 -0,0 -0))
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 -0)')));
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(0 -0)')))
-POINT(0 0)
+POINT(0 -0)
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(-0 0)')));
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POINT(-0 0)')))
-POINT(0 0)
+POINT(-0 0)
 ######################################################################################################
 # BUG#19142227 : ENVELOPE() SPATIAL ANALYSIS FUNCTION ACCEPTS INVALID POLYGONS AS THE ARGUMENT
 ######################################################################################################

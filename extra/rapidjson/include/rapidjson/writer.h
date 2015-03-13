@@ -82,7 +82,7 @@ public:
 		\param d The value to be written.
 		\return The Writer itself for fluent API.
 	*/
-	Writer& Double(double d)		{ Prefix(kNumberType); WriteDouble(d);		return *this; }
+	Writer& Double(double d, bool is_int = false)		{ Prefix(kNumberType); WriteDouble(d);		return *this; }
 
 	//! Writes the given \c double value to the stream (explicit precision)
 	/*!
