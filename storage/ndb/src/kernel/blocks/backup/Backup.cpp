@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,6 +107,7 @@ Backup::execSTTOR(Signal* signal)
     last_disk_write_speed_report = 0;
     next_disk_write_speed_report = 0;
     m_monitor_words_written = 0;
+    m_periods_passed_in_monitor_period = 0;
     m_monitor_snapshot_start = NdbTick_getCurrentTicks();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed_max_own_restart;
     m_overflow_disk_write = 0;
@@ -133,6 +134,7 @@ Backup::execSTTOR(Signal* signal)
   if (startphase == 7)
   {
     m_monitor_words_written = 0;
+    m_periods_passed_in_monitor_period = 0;
     m_monitor_snapshot_start = NdbTick_getCurrentTicks();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed_min;
     m_our_node_started = true;
@@ -295,6 +297,7 @@ Backup::calculate_next_delay(const NDB_TICKS curr_time)
     delay_time = Backup::DISK_SPEED_CHECK_DELAY -
                  (sig_delay - delay_time);
   }
+  m_periods_passed_in_monitor_period++;
   m_reset_delay_used= delay_time;
   m_reset_disk_speed_time = curr_time;
 #if 0
@@ -373,12 +376,15 @@ Backup::monitor_disk_write_speed(const NDB_TICKS curr_time,
            << " bytes/s"
            << endl;
     ndbout << "Backup : Monitoring period : " << millisPassed
-           << " millis. Bytes written : " << m_monitor_words_written
-           << ".  Max allowed : " << maxExpectedWords << endl;
-    ndbassert(false);
+           << " millis. Bytes written : " << (m_monitor_words_written * 4)
+           << ".  Max allowed : " << (maxExpectedWords * 4) << endl;
+    ndbout << "Actual number of periods in this monitoring interval: ";
+    ndbout << m_periods_passed_in_monitor_period;
+    ndbout << " calculated number was: " << periodsPassed << endl;
   }
   report_disk_write_speed_report(4 * m_monitor_words_written, millisPassed);
   m_monitor_words_written = 0;
+  m_periods_passed_in_monitor_period = 0;
   m_monitor_snapshot_start = curr_time;
 }
 
