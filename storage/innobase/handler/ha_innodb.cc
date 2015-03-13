@@ -12587,7 +12587,18 @@ ha_innobase::info_low(
 	}
 
 	if ((flag & HA_STATUS_AUTO) && table->found_next_number_field) {
-		stats.auto_increment_value = innobase_peek_autoinc();
+
+		ulonglong auto_inc_val = innobase_peek_autoinc();
+		/* Initialize autoinc value if not set. */
+		if (auto_inc_val == 0) {
+
+			dict_table_autoinc_lock(m_prebuilt->table);
+			innobase_initialize_autoinc();
+			dict_table_autoinc_unlock(m_prebuilt->table);
+
+			auto_inc_val = innobase_peek_autoinc();
+		}
+		stats.auto_increment_value = auto_inc_val;
 	}
 
 func_exit:
