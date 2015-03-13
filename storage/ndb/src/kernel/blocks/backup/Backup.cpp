@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,6 +96,7 @@ Backup::execSTTOR(Signal* signal)
   if (startphase == 1)
   {
     m_monitor_words_written = 0;
+    m_periods_passed_in_monitor_period = 0;
     m_monitor_snapshot_start = NdbTick_getCurrentTicks();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed_sr;
     m_overflow_disk_write = 0;
@@ -116,6 +117,7 @@ Backup::execSTTOR(Signal* signal)
   if (startphase == 7)
   {
     m_monitor_words_written = 0;
+    m_periods_passed_in_monitor_period = 0;
     m_monitor_snapshot_start = NdbTick_getCurrentTicks();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed;
   }
@@ -249,6 +251,7 @@ Backup::execCONTINUEB(Signal* signal)
     }
 
     m_words_written_this_period = overflowThisPeriod;
+    m_periods_passed_in_monitor_period++;
     m_overflow_disk_write = remainingOverFlow;
     m_reset_disk_speed_time = curr_time;
 
@@ -291,12 +294,15 @@ Backup::execCONTINUEB(Signal* signal)
                  << m_curr_disk_write_speed * 4 * 10
                  << " bytes/s" << endl;
           ndbout << "Backup : Monitoring period : " << millisPassed
-                 << " millis. Bytes written : " << m_monitor_words_written
-                 << ".  Max allowed : " << maxExpectedWords << endl;
-          ndbassert(false);
+                 << " millis. Bytes written : " << (m_monitor_words_written * 4)
+                 << ".  Max allowed : " << (maxExpectedWords * 4) << endl;
+          ndbout << "Actual number of periods in this monitoring interval: ";
+          ndbout << m_periods_passed_in_monitor_period;
+          ndbout << " calculated number was: " << periodsPassed << endl;
         }
         /* Reset the monitor */
         m_monitor_words_written = 0;
+        m_periods_passed_in_monitor_period = 0;
         m_monitor_snapshot_start = curr_time;
       }
     }

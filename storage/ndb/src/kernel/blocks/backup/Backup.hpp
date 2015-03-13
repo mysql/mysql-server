@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -567,6 +567,7 @@ public:
   static const int  DISK_SPEED_CHECK_DELAY = 100;
   
   Uint64 m_monitor_words_written;
+  Uint32 m_periods_passed_in_monitor_period;
   NDB_TICKS m_monitor_snapshot_start;
 
   STATIC_CONST(NO_OF_PAGES_META_FILE = 
