@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_MEMBER_INFO_H
-#define GCS_MEMBER_INFO_H
+#ifndef MEMBER_INFO_INCLUDE
+#define MEMBER_INFO_INCLUDE
 
 /*
   The file contains declarations relevant to Member state and
@@ -30,7 +30,7 @@
 
 /*
   Since this file is used on unit tests includes must set here and
-  not through gcs_plugin_server_include.h.
+  not through plugin_server_include.h.
 */
 #include <my_global.h>
 #include <my_sys.h>
@@ -38,11 +38,11 @@
 #define PORT_ENCODED_LENGTH 2
 
 /*
-  @class Cluster_member_info
+  @class Group_member_info
 
-  Describes all the properties of a cluster member
+  Describes all the properties of a group member
 */
-class Cluster_member_info
+class Group_member_info
 {
 
 public:
@@ -50,8 +50,8 @@ public:
   /*
    @enum Member_recovery_status
 
-   This enumeration describes all the states that a node can assume while in a
-   cluster.
+   This enumeration describes all the states that a member can assume while in a
+   group.
    */
   typedef enum
   {
@@ -59,43 +59,43 @@ public:
     MEMBER_OFFLINE,
     MEMBER_IN_RECOVERY,
     MEMBER_END  // the end of the enum
-  } Cluster_member_status;
+  } Group_member_status;
 
 public:
   /**
-    Cluster_member_info constructor
+    Group_member_info constructor
 
-    @param[in] hostname_arg node hostname
-    @param[in] port_arg node port
-    @param[in] uuid_arg node uuid
-    @param[in] gcs_member_id_arg node GCS member identifier
-    @param[in] status_arg node Recovery status
+    @param[in] hostname_arg       member hostname
+    @param[in] port_arg           member port
+    @param[in] uuid_arg           member uuid
+    @param[in] gcs_member_id_arg  member GCS member identifier
+    @param[in] status_arg         member Recovery status
    */
-  Cluster_member_info(char* hostname_arg,
-                      uint port_arg,
-                      char* uuid_arg,
-                      Gcs_member_identifier* gcs_member_id_arg,
-                      Cluster_member_status status_arg);
+  Group_member_info(char* hostname_arg,
+                    uint port_arg,
+                    char* uuid_arg,
+                    Gcs_member_identifier* gcs_member_id_arg,
+                    Group_member_status status_arg);
 
   /**
     Copy constructor
 
     @param other source of the copy
    */
-  Cluster_member_info( Cluster_member_info& other );
+  Group_member_info(Group_member_info& other );
 
   /**
-   * Cluster_member_info raw data constructor
+   * Group_member_info raw data constructor
    *
    * @param[in] data raw data
    * @param[in] len raw data length
    */
-  Cluster_member_info(const uchar* data, size_t len);
+  Group_member_info(const uchar* data, size_t len);
 
   /**
     Destructor
    */
-  ~Cluster_member_info();
+  ~Group_member_info();
 
   /**
     Encodes this object to send over the network
@@ -106,36 +106,36 @@ public:
   uint encode(std::vector<uchar>* mbuf_ptr);
 
   /**
-    @return the node hostname
+    @return the member hostname
    */
   std::string* get_hostname();
 
   /**
-    @return the node port
+    @return the member port
    */
   uint get_port();
 
   /**
-    @return the node uuid
+    @return the member uuid
    */
   std::string* get_uuid();
 
   /**
-    @return the node identifier in the GCS layer
+    @return the member identifier in the GCS layer
    */
   Gcs_member_identifier* get_gcs_member_id();
 
   /**
-    @return the node recovery status
+    @return the member recovery status
    */
-  Cluster_member_status get_recovery_status();
+  Group_member_status get_recovery_status();
 
   /**
     Updates this object recovery status
 
     @param[in] new_status the status to set
    */
-  void update_recovery_status(Cluster_member_status new_status);
+  void update_recovery_status(Group_member_status new_status);
 
   /**
     Returns a textual representation of this object
@@ -147,91 +147,91 @@ public:
   /**
    Redefinition of operate == and <. They operate upon the uuid
    */
-  bool operator ==(Cluster_member_info& other);
+  bool operator ==(Group_member_info& other);
 
-  bool operator <(Cluster_member_info& other);
+  bool operator <(Group_member_info& other);
 
 private:
   std::string hostname;
   uint port;
   std::string uuid;
-  Cluster_member_status status;
+  Group_member_status status;
   Gcs_member_identifier* gcs_member_id;
 };
 
 /*
-  @interface Cluster_member_info_manager_interface
+  @interface Group_member_info_manager_interface
 
-  Defines the set of operations that a Cluster_member_info_manager should
-  provide. This is a component that lies on top of the GCS, on the application
-  level, providing richer and relevant information to the plugin.
+  Defines the set of operations that a Group_member_info_manager should provide.
+  This is a component that lies on top of the GCS, on the application level,
+  providing richer and relevant information to the plugin.
  */
-class Cluster_member_info_manager_interface
+class Group_member_info_manager_interface
 {
 public:
-  virtual ~Cluster_member_info_manager_interface(){};
+  virtual ~Group_member_info_manager_interface(){};
 
   virtual int get_number_of_members()= 0;
 
   /**
-    Retrieves a registered Cluster member by its uuid
+    Retrieves a registered Group member by its uuid
 
     @param[in] uuid uuid to retrieve
-    @return reference to a copy of Cluster_member_info. NULL if not managed.
+    @return reference to a copy of Group_member_info. NULL if not managed.
             The return value must deallocated by the caller.
    */
-  virtual Cluster_member_info* get_cluster_member_info(std::string uuid)= 0;
+  virtual Group_member_info* get_group_member_info(std::string uuid)= 0;
 
   /**
-    Retrieves a registered Cluster member by an index function.
+    Retrieves a registered Group member by an index function.
     One is free to determine the index function. Nevertheless, it should have
-    the same result regardless of the node of the cluster where it is called
+    the same result regardless of the member of the group where it is called
 
     @param[in] idx the index
-    @return reference to a Cluster_member_info. NULL if not managed
+    @return reference to a Group_member_info. NULL if not managed
    */
-  virtual Cluster_member_info* get_cluster_member_info_by_index(int idx)= 0;
+  virtual Group_member_info* get_group_member_info_by_index(int idx)= 0;
 
   /**
-    Retrieves a registered Cluster member by its backbone GCS identifier
+    Retrieves a registered Group member by its backbone GCS identifier
 
     @param[in] idx the GCS identifier
-    @return reference to a copy of Cluster_member_info. NULL if not managed.
+    @return reference to a copy of Group_member_info. NULL if not managed.
             The return value must deallocated by the caller.
    */
-  virtual Cluster_member_info*
-             get_cluster_member_info_by_member_id(Gcs_member_identifier idx)= 0;
+  virtual Group_member_info*
+  get_group_member_info_by_member_id(Gcs_member_identifier idx)= 0;
 
   /**
-    Retrieves all Cluster members managed by this site
+    Retrieves all Group members managed by this site
 
-    @return a vector with all managed Cluster_member_info
+    @return a vector with all managed Group_member_info
    */
-  virtual std::vector<Cluster_member_info*>* get_all_members()= 0;
+  virtual std::vector<Group_member_info*>* get_all_members()= 0;
 
   /**
-    Adds a new member to be managed by this Cluster manager
+    Adds a new member to be managed by this Group manager
 
-    @param[in] new_member new cluster member
+    @param[in] new_member new group member
    */
-  virtual void add(Cluster_member_info* new_member)= 0;
+  virtual void add(Group_member_info* new_member)= 0;
 
   /**
-    Updates all members of the cluster. Typically used after a view change.
+    Updates all members of the group. Typically used after a view change.
 
-    @param[in] new_members new Cluster members
+    @param[in] new_members new Group members
    */
-  virtual void update(std::vector<Cluster_member_info*>* new_members)= 0;
+  virtual void update(std::vector<Group_member_info*>* new_members)= 0;
 
   /**
     Updates the status of a single member
 
-    @param[in] uuid member uuid
-    @param[in] new_status status to change to
+    @param[in] uuid        member uuid
+    @param[in] new_status  status to change to
    */
-  virtual void update_member_status(std::string uuid,
-                                    Cluster_member_info::Cluster_member_status
-                                                                 new_status)= 0;
+  virtual void
+  update_member_status(std::string uuid,
+                       Group_member_info::Group_member_status new_status)= 0;
 
   /**
     Encodes this object to send via the network
@@ -244,9 +244,9 @@ public:
     Decodes the raw format of this object
 
     @param[out] to_decode raw encoded data
-    @return a vector of Cluster_member_info references
+    @return a vector of Group_member_info references
    */
-  virtual std::vector<Cluster_member_info*>* decode(uchar* to_decode)= 0;
+  virtual std::vector<Group_member_info*>* decode(uchar* to_decode)= 0;
 
   /**
     Reference to this object in a serialized format
@@ -257,59 +257,59 @@ public:
 };
 
 /**
-  @class Cluster_member_info_manager
+  @class Group_member_info_manager
 
-  Implementation of the interface Cluster_member_info_manager_interface
+  Implementation of the interface Group_member_info_manager_interface
  */
-class Cluster_member_info_manager: public Cluster_member_info_manager_interface
+class Group_member_info_manager: public Group_member_info_manager_interface
 {
 public:
-  Cluster_member_info_manager(Cluster_member_info* local_node);
+  Group_member_info_manager(Group_member_info* local_member_info);
 
-  virtual ~Cluster_member_info_manager();
+  virtual ~Group_member_info_manager();
 
   int get_number_of_members();
 
-  Cluster_member_info* get_cluster_member_info(std::string uuid);
+  Group_member_info* get_group_member_info(std::string uuid);
 
-  Cluster_member_info* get_cluster_member_info_by_index(int idx);
+  Group_member_info* get_group_member_info_by_index(int idx);
 
-  Cluster_member_info*
-              get_cluster_member_info_by_member_id(Gcs_member_identifier idx);
+  Group_member_info*
+  get_group_member_info_by_member_id(Gcs_member_identifier idx);
 
-  std::vector<Cluster_member_info*>* get_all_members();
+  std::vector<Group_member_info*>* get_all_members();
 
-  void add(Cluster_member_info* new_member);
+  void add(Group_member_info* new_member);
 
-  void update(std::vector<Cluster_member_info*>* new_members);
+  void update(std::vector<Group_member_info*>* new_members);
 
-  void update_member_status(std::string uuid,
-                            Cluster_member_info::Cluster_member_status
-                                                                   new_status);
+  void
+  update_member_status(std::string uuid,
+                       Group_member_info::Group_member_status new_status);
 
   void encode(std::vector<uchar>* to_encode);
 
-  std::vector<Cluster_member_info*>* decode(uchar* to_decode);
+  std::vector<Group_member_info*>* decode(uchar* to_decode);
 
   std::vector<uchar>* get_exchangeable_format();
 
 private:
   void clear_members();
 
-  std::map<std::string, Cluster_member_info*> *members;
+  std::map<std::string, Group_member_info*> *members;
 
   /*
    This field exists in order to provide a permanent reference to Exchangeable
-   Data, since this is the data that is exchanged when a node joins and when
+   Data, since this is the data that is exchanged when a member joins and when
    a view changes. As such it should always be up-to-date.
    */
   std::vector<uchar> *serialized_format;
-  Cluster_member_info* local_node;
+  Group_member_info* local_member_info;
 
   mysql_mutex_t update_lock;
 #ifdef HAVE_PSI_INTERFACE
-  PSI_mutex_key cluster_info_manager_key_mutex;
+  PSI_mutex_key group_info_manager_key_mutex;
 #endif
 };
 
-#endif
+#endif /* MEMBER_INFO_INCLUDE */

@@ -2,7 +2,7 @@
 # This test focus on the failover mechanism where a joiner changes it's donor
 # whenever the one in use leaves the group while recovery is happening.
 #
-# To test this, a new node is started but recovery blocked. While at this state
+# To test this, a new member is started but recovery blocked. While at this state
 # the donor is killed, forcing the joiner to change to a new one. As there is
 # no donor identification as of now, we just unblock and check that recovery
 # was successful
@@ -15,7 +15,7 @@
 --source include/master-slave.inc
 
 --echo #
---echo # Setup a new 2 node cluster
+--echo # Setup a new 2 member group
 --echo #
 
 --connection server1
@@ -46,7 +46,7 @@ SET SESSION sql_log_bin= 1;
 --source ../inc/group_replication_wait_for_number_of_members.inc
 
 --echo #
---echo # Start recovery on a new node and kill the donor
+--echo # Start recovery on a new member and kill the donor
 --echo #
 
 SET @debug_save= @@GLOBAL.DEBUG;
@@ -63,12 +63,12 @@ START GROUP_REPLICATION;
 --let $group_replication_member_state= RECOVERING
 --source ../inc/group_replication_wait_for_member_state.inc
 
-#The first node is always the donor under the current algorithm
---echo # Stop gcs replication on node 1 making it leave the cluster
+#The first member is always the donor under the current algorithm
+--echo # Stop group replication on member 1 making it leave the group
 --connection server1
 --source include/stop_group_replication.inc
 
---echo # Unblock recovery and watch the node go online despite the donor exit
+--echo # Unblock recovery and watch the member go online despite the donor exit
 --connection server3
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
@@ -76,11 +76,11 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 --let $group_replication_member_state= ONLINE
 --source ../inc/group_replication_wait_for_member_state.inc
 
---let $assert_text= On the recovered node, the table should exist and have 1 elements;
+--let $assert_text= On the recovered member, the table should exist and have 1 elements;
 --let $assert_cond= [select count(*) from t1] = 1;
 --source include/assert.inc
 
---let $assert_text= On the recovered node, the executed GTID should be the same as on server 1
+--let $assert_text= On the recovered member, the executed GTID should be the same as on server 1
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$first_donor_gtid";
 --source include/assert.inc
 

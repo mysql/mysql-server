@@ -36,7 +36,7 @@ INSERT INTO t1 VALUES(1);
 --echo #    Commit a transaction that will be block before broadcast.
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
-SET DEBUG_SYNC='gcs_before_message_broadcast WAIT_FOR waiting';
+SET DEBUG_SYNC='group_replication_before_message_broadcast WAIT_FOR waiting';
 BEGIN;
 INSERT INTO t2 VALUES (1);
 --send COMMIT
@@ -44,10 +44,10 @@ INSERT INTO t2 VALUES (1);
 --echo
 --echo ############################################################
 --echo # 3. Wait until server_1 connection reaches the
---echo # gcs_before_message_broadcast debug sync point.
+--echo # group_replication_before_message_broadcast debug sync point.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: gcs_before_message_broadcast'
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: group_replication_before_message_broadcast'
 --source include/wait_condition.inc
 
 --echo
@@ -85,12 +85,12 @@ SET DEBUG_SYNC='now SIGNAL waiting';
 --source include/rpl_connection.inc
 
 --let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
---let $assert_text= The value of Count_Transactions_Checked should be 5 after starting gcs
+--let $assert_text= The value of Count_Transactions_Checked should be 5 after starting group replication
 --let $assert_cond= "$certified_transactions" = 5
 --source include/assert.inc
 
 --let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
---let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting gcs
+--let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
 
@@ -107,7 +107,7 @@ INSERT INTO t1 VALUES (5);
 --echo #    Commit a transaction that will be block before broadcast.
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
-SET DEBUG_SYNC='gcs_before_message_broadcast WAIT_FOR waiting';
+SET DEBUG_SYNC='group_replication_before_message_broadcast WAIT_FOR waiting';
 BEGIN;
 INSERT INTO t2 VALUES (5);
 --send COMMIT
@@ -115,10 +115,10 @@ INSERT INTO t2 VALUES (5);
 --echo
 --echo ############################################################
 --echo # 2. Wait until server_1 connection reaches the
---echo # gcs_before_message_broadcast debug sync point.
+--echo # group_replication_before_message_broadcast debug sync point.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: gcs_before_message_broadcast'
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: group_replication_before_message_broadcast'
 --source include/wait_condition.inc
 
 --echo
@@ -175,12 +175,12 @@ SET DEBUG_SYNC='now SIGNAL waiting';
 --source include/assert.inc
 
 --let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
---let $assert_text= The value of Count_Transactions_Checked should be 8 after starting gcs
+--let $assert_text= The value of Count_Transactions_Checked should be 8 after starting group replication
 --let $assert_cond= "$certified_transactions" = 8
 --source include/assert.inc
 
 --let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
---let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting gcs
+--let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
 

@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_PS_INFORMATION_INCLUDED
-#define GCS_PS_INFORMATION_INCLUDED
+#ifndef PS_INFORMATION_INCLUDED
+#define PS_INFORMATION_INCLUDED
 
 
 #include "plugin_server_include.h"
@@ -25,27 +25,27 @@
 #include <mysql/plugin_group_replication.h>
 
 
-bool get_gcs_group_members_info(uint index,
-                                GROUP_REPLICATION_GROUP_MEMBERS_INFO *info,
-                                Cluster_member_info_manager_interface
-                                                        *cluster_member_manager,
-                                Gcs_interface *gcs_module,
-                                char* gcs_group_pointer,
-                                char *channel_name);
+bool get_group_members_info(uint index,
+                            GROUP_REPLICATION_GROUP_MEMBERS_INFO *info,
+                            Group_member_info_manager_interface
+                                *group_member_manager,
+                            Gcs_interface *gcs_module,
+                            char *group_name_pointer,
+                            char *channel_name);
 
-bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
-                                Cluster_member_info_manager_interface
-                                                        *cluster_member_manager,
-                                Applier_module *applier_module,
-                                Gcs_interface *gcs_module,
-                                char* gcs_group_pointer,
-                                char *channel_name);
+bool get_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
+                            Group_member_info_manager_interface
+                                *group_member_manager,
+                            Applier_module *applier_module,
+                            Gcs_interface *gcs_module,
+                            char *group_name_pointer,
+                            char *channel_name);
 
-bool get_gcs_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info,
-                               Gcs_interface *gcs_module,
-                               char* gcs_group_pointer,
-                               char *channel_name,
-                               bool is_gcs_running);
+bool get_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info,
+                           Gcs_interface *gcs_module,
+                           char *group_name_pointer,
+                           char *channel_name,
+                           bool is_group_replication_running);
 
-#endif	/* GCS_PS_INFORMATION_INCLUDED */
+#endif	/* PS_INFORMATION_INCLUDED */
 

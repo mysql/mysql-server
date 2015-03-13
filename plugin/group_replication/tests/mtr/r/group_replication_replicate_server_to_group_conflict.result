@@ -58,7 +58,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 
 ############################################################
 #  6. Wait until server 1 SQL thread from server 3 reaches
-#     the gcs_before_message_broadcast debug sync point.
+#     the group_replication_before_message_broadcast debug sync point.
 [connection server1]
 
 ############################################################

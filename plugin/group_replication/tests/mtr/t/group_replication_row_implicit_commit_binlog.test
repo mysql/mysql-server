@@ -37,7 +37,7 @@ INSERT INTO tt_2(ddl_case) VALUES(0);
 --echo #########################################################################
 
 # Creating a set of statements which goes through the implicit commit stage
-# and checking the status of the cluster at the very end.
+# and checking the status of the group at the very end.
 SET AUTOCOMMIT= 0;
 --let $ddl_cases= 31
 while ($ddl_cases >= 1)
@@ -204,7 +204,7 @@ SET AUTOCOMMIT= 1;
 --echo ###################################################################################
 --source include/rpl_sync.inc
 
-# Checking the consistency on the two nodes.
+# Checking the consistency on the two members.
 
 --let $diff_tables= server1:tt_1,server2:tt_1
 --source include/diff_tables.inc

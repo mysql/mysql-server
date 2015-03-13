@@ -1,12 +1,12 @@
-# This test intends to prove that nodes can survive reset master commands.
-# These commands end up causing the nodes to purge their relay logs even when
-# the node has some provisioned data.
+# This test intends to prove that members can survive reset master commands.
+# These commands end up causing the members to purge their relay logs even when
+# the member has some provisioned data.
 # This test has 3 phases:
-#  1) Insert some data and sync both nodes
-#  2) Reset both nodes, insert some data on node one
-#     Provision node two and start replication
-#     Check that all data from phase 1 disappeared and the nodes are in sync.
-#  3) Restart group replication on node 2, testing that no data remains
+#  1) Insert some data and sync both members
+#  2) Reset both members, insert some data on member one
+#     Provision member two and start replication
+#     Check that all data from phase 1 disappeared and the members are in sync.
+#  3) Restart group replication on member 2, testing that no data remains
 #     from phase 1
 
 --source include/have_group_replication_plugin.inc
@@ -15,7 +15,7 @@
 --source include/master-slave.inc
 
 #
-# Phase 1: Start the cluster and insert data
+# Phase 1: Start the group and insert data
 #
 
 --connection server1
@@ -37,12 +37,12 @@ INSERT INTO t1 VALUES (4);
 --let $sync_slave_connection= server2
 --source include/sync_slave_sql_with_master.inc
 
-#Both nodes must have the same GTID set
+#Both members must have the same GTID set
 --let $server_count=2
 while ($server_count)
 {
   --connection server$server_count
-  --let $assert_text= On node $server_count, all executed GTID should belong to the cluster
+  --let $assert_text= On member $server_count, all executed GTID should belong to the group
   --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "c7ce5980-0851-11e4-9191-0800200c9a66:1-5";
   --source include/assert.inc
   --dec $server_count
@@ -54,10 +54,10 @@ DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
 #
-# Phase 2: Reset the cluster and provision a server
+# Phase 2: Reset the group and provision a server
 #
 
-#Stop and reset both nodes
+#Stop and reset both members
 
 --connection server1
 --source include/stop_group_replication.inc
@@ -78,7 +78,7 @@ INSERT INTO t1 VALUES (1);
 
 --connection server2
 
-#Fake the node being provisioned.
+#Fake the member being provisioned.
 
 --disable_result_log
 --disable_query_log
@@ -91,10 +91,10 @@ INSERT INTO t1 VALUES (1);
 
 SET GTID_NEXT = 'AUTOMATIC';
 
-#Start the node
+#Start the member
 --source include/start_group_replication.inc
 
-#Test that the cluster works
+#Test that the group works
 
 --connection server1
 
@@ -109,13 +109,13 @@ INSERT INTO t1 VALUES (3);
 --let $sync_slave_connection= server2
 --source include/sync_slave_sql_with_master.inc
 
-#Both nodes should possess the same data
+#Both members should possess the same data
 
 --let $server_count=2
 while ($server_count)
 {
   --connection server$server_count
-  --let $assert_text= On node $server_count, the table should exist and have 3 elements
+  --let $assert_text= On member $server_count, the table should exist and have 3 elements
   --let $assert_cond= [select count(*) from t1] = 3;
   --source include/assert.inc
   --dec $server_count
@@ -133,11 +133,11 @@ if(`SELECT "$server_uuid" > "$group_replication_group_name"`)
 --let $wait_condition= SELECT transactions_committed_all_members like "$group_replication_group_name:1-2,%$server_uuid:1-2" from performance_schema.replication_group_member_stats;
 }
 --source include/wait_condition.inc
---echo [ The value of stable_set should contain both provisioned and cluster GIIDs ]
+--echo [ The value of stable_set should contain both provisioned and group GIIDs ]
 
 
 #
-# Phase 3: Restart group replication on node 2
+# Phase 3: Restart group replication on member 2
 #
 
 --connection server2
@@ -147,13 +147,13 @@ if(`SELECT "$server_uuid" > "$group_replication_group_name"`)
 
 INSERT INTO t1 VALUES (4);
 
-#Both nodes should possess the same data
+#Both members should possess the same data
 
 --let $server_count=2
 while ($server_count)
 {
   --connection server$server_count
-  --let $assert_text= On node $server_count, the table should exist and have 4 elements
+  --let $assert_text= On member $server_count, the table should exist and have 4 elements
   --let $assert_cond= [select count(*) from t1] = 4;
   --source include/assert.inc
   --dec $server_count

@@ -18,19 +18,19 @@
 
 Recovery_message::Recovery_message(Recovery_message_type type,
                                    string* uuid)
-    : Gcs_plugin_message(PAYLOAD_RECOVERY_EVENT),
+    : Plugin_gcs_message(PAYLOAD_RECOVERY_EVENT),
       recovery_message_type(type)
 {
-  node_uuid= new string(uuid->c_str());
+  member_uuid= new string(uuid->c_str());
 }
 
 Recovery_message::~Recovery_message()
 {
-  delete node_uuid;
+  delete member_uuid;
 }
 
 Recovery_message::Recovery_message(uchar* buf, size_t len)
-    : Gcs_plugin_message(PAYLOAD_RECOVERY_EVENT)
+    : Plugin_gcs_message(PAYLOAD_RECOVERY_EVENT)
 {
   decode(buf, len);
 }
@@ -40,7 +40,7 @@ void Recovery_message::decode_message(uchar* data, size_t len)
   const uchar* slider= data;
   recovery_message_type= (Recovery_message_type)uint2korr(slider);
   slider += 2;
-  node_uuid = new string((const char*) slider);
+  member_uuid = new string((const char*) slider);
 }
 
 void Recovery_message::encode_message(vector<uchar>* mbuf_ptr)
@@ -49,8 +49,8 @@ void Recovery_message::encode_message(vector<uchar>* mbuf_ptr)
   int2store(s, (uint16) recovery_message_type);
   mbuf_ptr->insert(mbuf_ptr->end(), s, s + RECOVERY_MESSAGE_TYPE_LENGTH);
 
-  mbuf_ptr->insert(mbuf_ptr->end(), node_uuid->c_str(),
-                   node_uuid->c_str() + (node_uuid->length() + 1));
+  mbuf_ptr->insert(mbuf_ptr->end(), member_uuid->c_str(),
+                   member_uuid->c_str() + (member_uuid->length() + 1));
 }
 
 

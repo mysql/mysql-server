@@ -13,46 +13,49 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-//
+
 #include "observer_server_actions.h"
 #include "observer_trans.h"
 
-int gcs_reset_master_logs(Binlog_transmit_param *param)
+int group_replication_reset_master_logs(Binlog_transmit_param *param)
 {
   register_server_reset_master();
   return 0;
 }
 
-int gcs_transmit_start(Binlog_transmit_param *param,
-                       const char *log_file, my_off_t log_pos)
+int group_replication_transmit_start(Binlog_transmit_param *param,
+                                     const char *log_file, my_off_t log_pos)
 {
   return 0;
 }
 
-int gcs_transmit_stop(Binlog_transmit_param *param)
+int group_replication_transmit_stop(Binlog_transmit_param *param)
 {
   return 0;
 }
 
-int gcs_reserve_header(Binlog_transmit_param *param,
-                       unsigned char *header,
-                       unsigned long size,
-                       unsigned long *len)
+int group_replication_reserve_header(Binlog_transmit_param *param,
+                                     unsigned char *header,
+                                     unsigned long size,
+                                     unsigned long *len)
 {
   return 0;
 }
 
-int gcs_before_send_event(Binlog_transmit_param *param,
-                          unsigned char *packet, unsigned long len,
-                          const char *log_file, my_off_t log_pos)
+int group_replication_before_send_event(Binlog_transmit_param *param,
+                                        unsigned char *packet,
+                                        unsigned long len,
+                                        const char *log_file,
+                                        my_off_t log_pos)
 {
   return 0;
 }
 
-int gcs_after_send_event(Binlog_transmit_param *param,
-                         const char *event_buf, unsigned long len,
-                         const char *skipped_log_file,
-                         my_off_t skipped_log_pos)
+int group_replication_after_send_event(Binlog_transmit_param *param,
+                                       const char *event_buf,
+                                       unsigned long len,
+                                       const char *skipped_log_file,
+                                       my_off_t skipped_log_pos)
 {
   return 0;
 }
@@ -60,10 +63,10 @@ int gcs_after_send_event(Binlog_transmit_param *param,
 Binlog_transmit_observer binlog_transmit_observer = {
   sizeof(Binlog_transmit_observer),
 
-  gcs_transmit_start,     // transmit_start,
-  gcs_transmit_stop,      // transmit_stop,
-  gcs_reserve_header,     // reserve_header,
-  gcs_before_send_event,  // before_send_event,
-  gcs_after_send_event,   // after_send_event,
-  gcs_reset_master_logs   // reset_master
+  group_replication_transmit_start,     // transmit_start,
+  group_replication_transmit_stop,      // transmit_stop,
+  group_replication_reserve_header,     // reserve_header,
+  group_replication_before_send_event,  // before_send_event,
+  group_replication_after_send_event,   // after_send_event,
+  group_replication_reset_master_logs   // reset_master
 };

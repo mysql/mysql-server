@@ -1,6 +1,6 @@
 # WL#7660 - GCS PLUGIN IMPLEMENTATION
 
-# This test checks the basic functionality of the GCS replication
+# This test checks the basic functionality of the Group Replication replication
 # plugin: the installation, uninstallation of the plugin and the
 # update of the plugin status variables.
 
@@ -11,7 +11,6 @@ call mtr.add_suppression("The group name *.*");
 SET SESSION sql_log_bin= 1;
 
 --let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429563
---echo [ON THE NODE]
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-invalid";
@@ -25,7 +24,7 @@ SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-invalid";
 --let $assert_cond= "[SELECT @@group_replication_group_name]" = "$group_replication_group_name"
 --source include/assert.inc
 
---let $assert_text= The value of gcs_boot should be 1
+--let $assert_text= The value of group_replication_start_on_boot should be 1
 --let $assert_cond= [SELECT @@group_replication_start_on_boot] = 1
 --source include/assert.inc
 
@@ -40,14 +39,15 @@ START GROUP_REPLICATION;
 
 --source include/start_group_replication.inc
 
-# This start command will error out since the cluster is already running.
+# This start command will error out since the group is already running.
 --error ER_GROUP_REPLICATION_RUNNING
 START GROUP_REPLICATION;
 
 
-# We cannot set group name when cluster is running.
+# We cannot set group name when group is running.
 # Proper message will be logged on error log.
 --error ER_WRONG_VALUE_FOR_VAR
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
 --source include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";

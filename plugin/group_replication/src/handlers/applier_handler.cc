@@ -57,7 +57,7 @@ Applier_handler::initialize_repositories(bool reset_logs,
 
   error= channel_interface.initialize_channel(const_cast<char*>("<NULL>"),
                                               0, NULL, NULL,
-                                              GCS_APPLIER_THREAD_PRIORITY,
+                                              GROUP_REPLICATION_APPLIER_THREAD_PRIORITY,
                                               false, 0, true);
 
   if (error)

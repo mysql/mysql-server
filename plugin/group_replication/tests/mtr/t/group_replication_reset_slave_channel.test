@@ -5,7 +5,7 @@
 # The test follows the following script
 # 1) Create a replication group with 2 servers
 # 2) Check that the applier files are present but not the recovery ones as they
-#    are purged when the node is declared online
+#    are purged when the member is declared online
 # 3) RESET SLAVE ALL should not affect the group replication channels
 # 4) RESET SLAVE ALL FOR CHANNEL "group_replication_applier" should clean the
 #    group replication applier's files
@@ -183,7 +183,7 @@ INSERT INTO t1 VALUES (5);
 --let $sync_slave_connection= server2
 --source include/rpl_sync.inc
 
---let $assert_text= On the node, the table should contain 5 elements
+--let $assert_text= The table should contain 5 elements
 --let $assert_cond= [select count(*) from t1] = 5;
 --source include/assert.inc
 

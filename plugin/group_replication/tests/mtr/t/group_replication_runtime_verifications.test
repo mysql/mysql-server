@@ -1,6 +1,6 @@
 #
 # The intent of this test is to verify if the validations that were
-# created within the GCS plugin in the runtime process
+# created within the Group Replication plugin in the runtime process
 # are fully functional.
 #
 # It will test the invalid scenarios:

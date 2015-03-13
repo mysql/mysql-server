@@ -1,6 +1,6 @@
 #
 # The intent of this test is to verify if the validations that were
-# created within the GCS plugin in the startup process
+# created within the Group Replication plugin in the startup process
 # are fully functional.
 #
 # It will test the dynamic variables:

@@ -1,5 +1,5 @@
 ############################################################
-# Verify that when GCS replication plugin is used, on server
+# Verify that when Group Replication is used, on server
 # start the certifier's sequence number is loaded from the
 # relay log (already certified transactions, if any) and from
 # GTID_EXECUTED (applied transactions).
@@ -9,7 +9,6 @@
 
 --let $use_gtids=1
 --let $wait_for_executed_gtid_set=1
---let $rpl_gcs=1
 --let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429576
 
 --echo ############################################################
@@ -21,7 +20,7 @@
 
 --connection server2
 # Do not apply certified remote transactions.
-SET @@GLOBAL.DEBUG= '+d,gcs_applier_do_not_start_sql_thread';
+SET @@GLOBAL.DEBUG= '+d,group_replication_do_not_start_applier_thread';
 --source include/start_group_replication.inc
 
 --connection server1
@@ -45,7 +44,7 @@ if (!$success)
 }
 
 --source include/restart_mysqld.inc
-SET @@GLOBAL.DEBUG= '+d,gcs_assert_next_seqno_equal_3';
+SET @@GLOBAL.DEBUG= '+d,certifier_assert_next_seqno_equal_3';
 --source include/start_group_replication.inc
 
 
@@ -64,7 +63,7 @@ INSERT INTO t1 VALUES (2);
 # triggered by STOP log events written to the relay log on restarts. (Step 2.)
 --source include/restart_mysqld.inc
 SET @debug_saved= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,gcs_assert_next_seqno_equal_4';
+SET @@GLOBAL.DEBUG= '+d,certifier_assert_next_seqno_equal_4';
 --source include/start_group_replication.inc
 
 --echo
@@ -81,9 +80,11 @@ DROP TABLE t1;
 
 --connection server1
 --source include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;
 
 --connection server2
 SET @@GLOBAL.DEBUG= @debug_saved;
 --source include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;

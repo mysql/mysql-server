@@ -27,12 +27,12 @@ static void *launch_broadcast_thread(void* arg)
   return 0;
 }
 
-Certifier_broadcast_thread::Certifier_broadcast_thread
-                                      (Gcs_communication_interface* comm_intf,
-                                       Gcs_control_interface* ctrl_intf,
-                                       Cluster_member_info* local_node_info)
+Certifier_broadcast_thread::
+Certifier_broadcast_thread(Gcs_communication_interface* comm_intf,
+                           Gcs_control_interface* ctrl_intf,
+                           Group_member_info* local_member_info)
   :aborted(false), broadcast_pthd_running(false), gcs_communication(comm_intf),
-   gcs_control(ctrl_intf), local_node(local_node_info)
+   gcs_control(ctrl_intf), local_member_info(local_member_info)
 {
   pthread_mutex_init(&broadcast_pthd_lock, NULL);
   pthread_cond_init(&broadcast_pthd_cond, NULL);
@@ -125,9 +125,9 @@ int Certifier_broadcast_thread::broadcast_gtid_executed()
 {
   DBUG_ENTER("Certifier_broadcast_thread::broadcast_gtid_executed");
 
-  if (this->local_node == NULL ||
-      this->local_node->get_recovery_status() !=
-                                        Cluster_member_info::MEMBER_ONLINE)
+  if (this->local_member_info == NULL ||
+      this->local_member_info->get_recovery_status() !=
+                                        Group_member_info::MEMBER_ONLINE)
   {
     DBUG_RETURN(0);
   }
@@ -169,7 +169,7 @@ int Certifier_broadcast_thread::broadcast_gtid_executed()
 
 
 Certifier::Certifier()
-  :gcs_communication(NULL), gcs_control(NULL), local_node(NULL),
+  :gcs_communication(NULL), gcs_control(NULL), local_member_info(NULL),
    initialized(false), next_seqno(1), positive_cert(0), negative_cert(0)
 {
   certification_info_sid_map= new Sid_map(NULL);
@@ -178,14 +178,14 @@ Certifier::Certifier()
   stable_gtid_set= new Gtid_set(stable_sid_map, NULL);
   broadcast_thread= new Certifier_broadcast_thread(gcs_communication,
                                                    gcs_control,
-                                                   local_node);
+                                                   local_member_info);
 
 #ifdef HAVE_PSI_INTERFACE
   PSI_mutex_info certifier_mutexes[]=
   {
     { &key_LOCK_certification_info, "LOCK_certification_info", 0}
   };
-  register_gcs_psi_keys(certifier_mutexes, 1, NULL, 0);
+  register_group_replication_psi_keys(certifier_mutexes, 1, NULL, 0);
 #endif /* HAVE_PSI_INTERFACE */
 
   mysql_mutex_init(key_LOCK_certification_info, &LOCK_certification_info,
@@ -240,7 +240,7 @@ int Certifier::initialize(rpl_gno last_delivered_gno)
   if (is_initialized())
     DBUG_RETURN(1);
 
-  rpl_gno last_executed_gno= get_last_executed_gno(gcs_cluster_sidno);
+  rpl_gno last_executed_gno= get_last_executed_gno(group_sidno);
   if (last_delivered_gno < 0)
     DBUG_RETURN(1);
 
@@ -248,11 +248,11 @@ int Certifier::initialize(rpl_gno last_delivered_gno)
   DBUG_PRINT("info",
              ("Certifier next sequence number: %lld; last_executed_gno: %lld; last_delivered_gno: %lld",
              next_seqno, last_executed_gno, last_delivered_gno));
-  DBUG_EXECUTE_IF("gcs_assert_next_seqno_equal_3",
+  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_3",
                   DBUG_ASSERT(next_seqno == 3 &&
                               last_delivered_gno == 2 &&
                               last_executed_gno == 0););
-  DBUG_EXECUTE_IF("gcs_assert_next_seqno_equal_4",
+  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_4",
                   DBUG_ASSERT(next_seqno == 4 &&
                               last_delivered_gno == 2 &&
                               last_executed_gno == 3););
@@ -290,8 +290,8 @@ rpl_gno Certifier::certify(const Gtid_set *snapshot_version,
     DBUG_RETURN(-1);
 
   mysql_mutex_lock(&LOCK_certification_info);
-  DBUG_EXECUTE_IF("gcs_force_1_negative_certification", {
-                  DBUG_SET("-d,gcs_force_1_negative_certification");
+  DBUG_EXECUTE_IF("certifier_force_1_negative_certification", {
+                  DBUG_SET("-d,certifier_force_1_negative_certification");
                   goto end;});
 
   for (std::list<const char*>::iterator it= write_set->begin();
@@ -323,13 +323,16 @@ rpl_gno Certifier::certify(const Gtid_set *snapshot_version,
   {
     result= next_seqno;
     next_seqno++;
-    DBUG_PRINT("info", ("GCS Certifier: generated sequence number: %llu", result));
+    DBUG_PRINT("info",
+               ("Group replication Certifier: generated sequence number: %llu",
+                result));
   }
   else
   {
     result= 1;
-    DBUG_PRINT("info", ("GCS Certifier: there was no sequence number generated "
-                        "since transaction already had a GTID specified"));
+    DBUG_PRINT("info",
+               ("Group replication Certifier: there was no sequence number "
+                "generated since transaction already had a GTID specified"));
   }
 
   /*
@@ -347,7 +350,8 @@ end:
   update_certified_transaction_count(result>0);
 
   mysql_mutex_unlock(&LOCK_certification_info);
-  DBUG_PRINT("info", ("GCS Certifier: certification result: %llu", result));
+  DBUG_PRINT("info", ("Group replication Certifier: certification result: %llu",
+                      result));
   DBUG_RETURN(result);
 }
 
@@ -470,13 +474,13 @@ Certifier::set_gcs_interfaces(Gcs_communication_interface* comm_if,
 }
 
 void
-Certifier::set_local_node_info(Cluster_member_info* local_info)
+Certifier::set_local_member_info(Group_member_info* local_info)
 {
-  DBUG_ENTER("Certifier::set_local_node_info");
+  DBUG_ENTER("Certifier::set_local_member_info");
 
-  this->local_node= local_info;
+  this->local_member_info= local_info;
 
-  broadcast_thread->set_local_node_info(local_info);
+  broadcast_thread->set_local_member_info(local_info);
 
   DBUG_VOID_RETURN;
 }
@@ -487,7 +491,7 @@ void Certifier::garbage_collect()
   mysql_mutex_lock(&LOCK_certification_info);
 
   /*
-    When a transaction "t" is applied to all nodes and for all
+    When a transaction "t" is applied to all group members and for all
     ongoing, i.e., not yet committed or aborted transactions,
     "t" was already committed when they executed (thus "t"
     precedes them), then "t" is stable and can be removed from
@@ -519,7 +523,7 @@ int Certifier::handle_certifier_data(uchar *data, uint len)
 
   this->incoming->push(new Data_packet(data, len));
 
-  if (get_gcs_members_number() == this->incoming->size())
+  if (plugin_get_group_members_number() == this->incoming->size())
     DBUG_RETURN(stable_set_handle());
   DBUG_RETURN(0);
 }
@@ -715,7 +719,7 @@ rpl_gno Certifier::get_last_sequence_number()
  */
 
 Gtid_Executed_Message::Gtid_Executed_Message()
-                      : Gcs_plugin_message(PAYLOAD_CERTIFICATION_EVENT)
+                      : Plugin_gcs_message(PAYLOAD_CERTIFICATION_EVENT)
 {
 }
 

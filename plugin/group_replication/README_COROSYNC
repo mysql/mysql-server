@@ -7,7 +7,7 @@ Corosync. Corosync is well known and reliable Group Communication
 System that is used in such applications as Pacemaker.
 
 In term of support, we develop MySQL Group Replication based on
-Corosync version 1.4.6, so this tutorial is based on this version.
+Corosync version 2.3.3, so this tutorial is based on this version.
 Regardless of this, no known problems are know to exists when using
 newer versions, but no extensive testing has been done on those.
 
@@ -33,17 +33,13 @@ RPM based distributions
 
 ==> From source
 
-The difference in the Debian release is that if you install Corosync
-1.4.6, this version is not built with NSS support so you will have to
-do it yourself.
-
 To compile it from source, first download Corosync version 1.4.6 from
 
   http://corosync.github.io/corosync/
 
-Then, follow the INSTALL file inside tarball, not forgetting the
---enable-nss on the configure phase. To perform this task you should
-need NSS headers installed in the system.
+Then, follow the INSTALL file inside tarball.
+To perform this task you should need NSS headers installed in the system,
+and LibQB.
 
 
 * == Configuring  == *
@@ -55,21 +51,22 @@ configuration file that is on:
 
   /etc/corosync/corosync.conf
 
-You should have an example configuration on the folder you can use,
-and information exists online about each one of the fields, so we only
-present here information about the basics to get you running.
+You should have an example configuration on the folder you can use, and
+information exists online and on the man pages about each one of the fields.
+Hence, here we only present information about the basics to get you running.
 
 First of all there are several main set of configurations you can find on
-this file: totem, logging, event, service, aisexec, etc. We only cover
+this file: totem, logging, quorum, nodelist and qb. We only cover
 the basic options.
 
-On totem to the default options you should activate encryption with
+On totem, modifying the default options, we suggest the activation of
+encryption with:
 
-  secauth: on         # Turn encryption on
-  crypto_accept: new
-  crypto_type: nss    # Use NSS
+  crypto_cipher: aes128
+  crypto_hash: sha256
 
-Below you should configure your network interface settings
+Typically below, you should find a interface section where you can input your
+network settings
 
   interface {
     # Only needed if you use redundant rings
@@ -83,7 +80,7 @@ Below you should configure your network interface settings
     mcastport: 5405
   }
 
-On the logging section you can set where Corosync prints its
+On the logging section you can set where Corosync prints its log
 messages. You can chose it to print to file, to standard output or
 syslog and what the log level is.
 
@@ -129,12 +126,14 @@ Run as root:
   $ chkconfig corosync on
 
 
-* == Run it  == *
+* == Run it == *
 
 ==> Start corosync daemon
 
   $ sudo service corosync start
 
+Note that, in some systems, if you choose not to start Corosync at boot time,
+the configuration will stop this command from working.
 
 ==> Check that corosync daemon is running
 

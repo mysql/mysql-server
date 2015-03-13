@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_UTILS_INCLUDED
-#define GCS_UTILS_INCLUDED
+#ifndef PLUGIN_UTILS_INCLUDED
+#define PLUGIN_UTILS_INCLUDED
 
 #include <map>
 #include <queue>
@@ -40,7 +40,7 @@ public:
       { &key_mutex, "LOCK_sync_queue_wait", 0}
     };
 
-    register_gcs_psi_keys(queue_mutexes, 1, queue_conds, 1);
+    register_group_replication_psi_keys(queue_mutexes, 1, queue_conds, 1);
 
     mysql_mutex_init(key_mutex, &lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_cond, &cond);
@@ -132,7 +132,7 @@ public:
       { &key_mutex, "LOCK_count_down_latch", 0}
     };
 
-    register_gcs_psi_keys(mutexes, 1, conds, 1);
+    register_group_replication_psi_keys(mutexes, 1, conds, 1);
 #endif /* HAVE_PSI_INTERFACE */
 
     mysql_mutex_init(key_mutex, &lock, MY_MUTEX_INIT_FAST);
@@ -219,7 +219,7 @@ public:
       { &key_mutex, "LOCK_wait_ticket", 0}
     };
 
-    register_gcs_psi_keys(map_mutexes, 1, map_conds, 1);
+    register_group_replication_psi_keys(map_mutexes, 1, map_conds, 1);
 #endif /* HAVE_PSI_INTERFACE */
 
     mysql_mutex_init(key_mutex, &lock, MY_MUTEX_INIT_FAST);
@@ -364,4 +364,4 @@ private:
   void operator=(Mutex_autolock const&);
 };
 
-#endif /* GCS_UTILS_INCLUDED */
+#endif /* PLUGIN_UTILS_INCLUDED */

@@ -17,18 +17,18 @@
 #include "plugin_psi.h"
 
 
-void register_gcs_psi_keys(PSI_mutex_info gcs_mutexes[],
-                           int mutex_count,
-                           PSI_cond_info gcs_conds[],
-                           int cond_count)
+void register_group_replication_psi_keys(PSI_mutex_info mutexes[],
+                                         int mutex_count,
+                                         PSI_cond_info conds[],
+                                         int cond_count)
 {
-  const char* category= "gcs";
-  if (gcs_mutexes != NULL)
+  const char* category= "group_replication";
+  if (mutexes != NULL)
   {
-    mysql_mutex_register(category, gcs_mutexes, mutex_count);
+    mysql_mutex_register(category, mutexes, mutex_count);
   }
-  if (gcs_conds != NULL)
+  if (conds != NULL)
   {
-    mysql_cond_register(category, gcs_conds, cond_count);
+    mysql_cond_register(category, conds, cond_count);
   }
 }

@@ -36,12 +36,12 @@ protected:
     uint port= 4444;
     gcs_member_id= new Gcs_member_identifier("stuff");
 
-    Cluster_member_info::Cluster_member_status status=
-                                            Cluster_member_info::MEMBER_OFFLINE;
+    Group_member_info::Group_member_status status=
+        Group_member_info::MEMBER_OFFLINE;
 
-    local_node= new Cluster_member_info((char*)hostname.c_str(), port,
-                                        (char*)uuid.c_str(),gcs_member_id,
-                                        status);
+    local_node= new Group_member_info((char*)hostname.c_str(), port,
+                                      (char*)uuid.c_str(),gcs_member_id,
+                                      status);
   }
 
   virtual void TearDown()
@@ -50,7 +50,7 @@ protected:
     delete local_node;
   }
 
-  Cluster_member_info* local_node;
+  Group_member_info* local_node;
   Gcs_member_identifier* gcs_member_id;
 };
 
@@ -59,7 +59,7 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest)
   vector<uchar>* encoded= new vector<uchar>();
   local_node->encode(encoded);
 
-  Cluster_member_info decoded_local_node(&encoded->front(), encoded->size());
+  Group_member_info decoded_local_node(&encoded->front(), encoded->size());
 
   ASSERT_EQ(local_node->get_port(),
             decoded_local_node.get_port());
@@ -96,8 +96,8 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeWithStatusTest)
 
   vector<uchar>* ms_exchangeable_data= ms_decoded.get_data();
 
-  Cluster_member_info decoded_local_node(&ms_exchangeable_data->front(),
-                                         ms_exchangeable_data->size());
+  Group_member_info decoded_local_node(&ms_exchangeable_data->front(),
+                                       ms_exchangeable_data->size());
 
   ASSERT_EQ(local_node->get_port(),
             decoded_local_node.get_port());
@@ -123,14 +123,14 @@ protected:
     uint port= 4444;
     gcs_member_id= new Gcs_member_identifier("stuff");
 
-    Cluster_member_info::Cluster_member_status status=
-                                            Cluster_member_info::MEMBER_OFFLINE;
+    Group_member_info::Group_member_status status=
+        Group_member_info::MEMBER_OFFLINE;
 
-    local_node= new Cluster_member_info((char*)hostname.c_str(), port,
-                                        (char*)uuid.c_str(),gcs_member_id,
-                                        status);
+    local_node= new Group_member_info((char*)hostname.c_str(), port,
+                                      (char*)uuid.c_str(),gcs_member_id,
+                                      status);
 
-    cluster_member_mgr= new Cluster_member_info_manager(local_node);
+    cluster_member_mgr= new Group_member_info_manager(local_node);
   }
 
   virtual void TearDown()
@@ -140,8 +140,8 @@ protected:
     delete local_node;
   }
 
-  Cluster_member_info_manager_interface* cluster_member_mgr;
-  Cluster_member_info* local_node;
+  Group_member_info_manager_interface* cluster_member_mgr;
+  Group_member_info* local_node;
   Gcs_member_identifier* gcs_member_id;
 };
 
@@ -153,11 +153,10 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
   uint port= 4444;
   Gcs_member_identifier gcs_member_id("another_stuff");
 
-  Cluster_member_info::Cluster_member_status status=
-                                           Cluster_member_info::MEMBER_OFFLINE;
+  Group_member_info::Group_member_status status=
+      Group_member_info::MEMBER_OFFLINE;
 
-  Cluster_member_info* new_member= new Cluster_member_info
-                                                      ((char*)hostname.c_str(),
+  Group_member_info* new_member= new Group_member_info((char*)hostname.c_str(),
                                                        port,
                                                        (char*)uuid.c_str(),
                                                        &gcs_member_id,
@@ -167,8 +166,8 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
 
   string uuid_to_get("8d7r947c-dr4a-17i3-59d1-f01faf1kkc44");
 
-  Cluster_member_info* retrieved_local_info=
-            cluster_member_mgr->get_cluster_member_info(uuid_to_get);
+  Group_member_info* retrieved_local_info=
+      cluster_member_mgr->get_group_member_info(uuid_to_get);
 
   ASSERT_TRUE(retrieved_local_info != NULL);
   ASSERT_EQ(*retrieved_local_info->get_uuid(),
@@ -179,11 +178,10 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
 
 TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectTest)
 {
-  cluster_member_mgr->update_member_status
-            (*local_node->get_uuid(),
-             Cluster_member_info::MEMBER_ONLINE);
+  cluster_member_mgr->update_member_status(*local_node->get_uuid(),
+                                           Group_member_info::MEMBER_ONLINE);
 
-  ASSERT_EQ(Cluster_member_info::MEMBER_ONLINE,
+  ASSERT_EQ(Group_member_info::MEMBER_ONLINE,
             local_node->get_recovery_status());
 }
 
@@ -192,15 +190,15 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDAfterEncodingTest)
   vector<uchar>* encoded= new vector<uchar>();
   cluster_member_mgr->encode(encoded);
 
-  vector<Cluster_member_info*>* decoded_members=
-                                 cluster_member_mgr->decode(&encoded->front());
+  vector<Group_member_info*>* decoded_members=
+      cluster_member_mgr->decode(&encoded->front());
 
   cluster_member_mgr->update(decoded_members);
 
   string uuid_to_get("8d7r947c-dr4a-17i3-59d1-f01faf1kkc44");
 
-  Cluster_member_info* retrieved_local_info=
-            cluster_member_mgr->get_cluster_member_info(uuid_to_get);
+  Group_member_info* retrieved_local_info=
+      cluster_member_mgr->get_group_member_info(uuid_to_get);
 
   ASSERT_TRUE(retrieved_local_info != NULL);
 
@@ -223,22 +221,21 @@ TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectAfterExchangeTest)
   vector<uchar>* encoded= new vector<uchar>();
   cluster_member_mgr->encode(encoded);
 
-  vector<Cluster_member_info*>* decoded_members=
-                                 cluster_member_mgr->decode(&encoded->front());
+  vector<Group_member_info*>* decoded_members=
+      cluster_member_mgr->decode(&encoded->front());
 
   cluster_member_mgr->update(decoded_members);
 
-  cluster_member_mgr->update_member_status
-                   (*local_node->get_uuid(),
-                   Cluster_member_info::MEMBER_ONLINE);
+  cluster_member_mgr->update_member_status(*local_node->get_uuid(),
+                                           Group_member_info::MEMBER_ONLINE);
 
-  ASSERT_EQ(Cluster_member_info::MEMBER_ONLINE,
+  ASSERT_EQ(Group_member_info::MEMBER_ONLINE,
             local_node->get_recovery_status());
 
-  Cluster_member_info* retrieved_local_info=
-        cluster_member_mgr->get_cluster_member_info(*local_node->get_uuid());
+  Group_member_info* retrieved_local_info=
+      cluster_member_mgr->get_group_member_info(*local_node->get_uuid());
 
-  ASSERT_EQ(Cluster_member_info::MEMBER_ONLINE,
+  ASSERT_EQ(Group_member_info::MEMBER_ONLINE,
             retrieved_local_info->get_recovery_status());
 
   delete retrieved_local_info;

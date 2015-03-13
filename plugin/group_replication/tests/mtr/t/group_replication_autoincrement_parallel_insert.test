@@ -1,5 +1,5 @@
 # Test to check for the behavior of the auto increment field of the tables
-# when inserting rows on them parallely on the different nodes of the Group.
+# when inserting rows on them parallely on the different members of the Group.
 
 --source include/have_group_replication_plugin.inc
 --source include/master-slave.inc

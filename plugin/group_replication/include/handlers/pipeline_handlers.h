@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_PIPELINE_INTERFACE_INCLUDED
-#define	GCS_PIPELINE_INTERFACE_INCLUDED
+#ifndef PIPELINE_HANDLERS_INCLUDED
+#define	PIPELINE_HANDLERS_INCLUDED
 
 #include "member_info.h"
 #include "pipeline_interfaces.h"
@@ -47,19 +47,19 @@ enum enum_handler_role
 };
 
 /**
-  @enum Gcs_handler_action
+  @enum enum_group_replication_handler_actions
 
   Enumeration of all actions sent to the plugin handlers.
 */
-typedef enum enum_gcs_handler_actions {
-  HANDLER_START_ACTION= 0,        // Action that signals the handlers to start
-  HANDLER_STOP_ACTION= 1,         // Action that signals the handlers to stop
-  HANDLER_APPLIER_CONF_ACTION= 2, // Configuration for applier handlers
-  HANDLER_CERT_CONF_ACTION= 3,    // Configuration for certification handlers
-  HANDLER_CERT_INFO_ACTION= 4,    // Certification info for the certifier
-  HANDLER_VIEW_CHANGE_ACTION= 5,  // Certification notification on view change
-  HANDLER_GCS_INTERF_ACTION= 6,   // Action with GCS interfaces to be used.
-  HANDLER_ACTION_NUMBER= 7        // The number of roles
+typedef enum enum_group_replication_handler_actions {
+  HANDLER_START_ACTION= 0,         // Action that signals the handlers to start
+  HANDLER_STOP_ACTION= 1,          // Action that signals the handlers to stop
+  HANDLER_APPLIER_CONF_ACTION= 2,  // Configuration for applier handlers
+  HANDLER_CERT_CONF_ACTION= 3,     // Configuration for certification handlers
+  HANDLER_CERT_INFO_ACTION= 4,     // Certification info for the certifier
+  HANDLER_VIEW_CHANGE_ACTION= 5,   // Certification notification on view change
+  HANDLER_GCS_INTERFACE_ACTION= 6, // Action with GCS interfaces to be used.
+  HANDLER_ACTION_NUMBER= 7         // The number of roles
 } Plugin_handler_action;
 
 /**
@@ -106,16 +106,16 @@ public:
    @param applier_name              the applier's channel name
    @param reset_logs                if a reset was executed in the server
    @param plugin_shutdown_timeout   the plugin's timeout for component shutdown
-   @param cluster_sidno             the cluster configured sidno
+   @param group_sidno               the group configured sidno
   */
   Handler_applier_configuration_action(char *applier_name,
                                        bool reset_logs,
                                        ulong plugin_shutdown_timeout,
-                                       rpl_sidno cluster_sidno)
+                                       rpl_sidno group_sidno)
     :Pipeline_action(HANDLER_APPLIER_CONF_ACTION),
     applier_name(applier_name), reset_logs(reset_logs),
     applier_shutdown_timeout(plugin_shutdown_timeout),
-    cluster_sidno(cluster_sidno), initialization_conf(true), last_queued_gno(0)
+    group_sidno(group_sidno), initialization_conf(true), last_queued_gno(0)
     {
       DBUG_ASSERT(applier_name != NULL);
     }
@@ -128,7 +128,7 @@ public:
   Handler_applier_configuration_action(ulong plugin_shutdown_timeout)
     :Pipeline_action(HANDLER_APPLIER_CONF_ACTION), applier_name(NULL),
     reset_logs(false), applier_shutdown_timeout(plugin_shutdown_timeout),
-    cluster_sidno(0), initialization_conf(false), last_queued_gno(0)
+    group_sidno(0), initialization_conf(false), last_queued_gno(0)
   {
   }
 
@@ -152,7 +152,7 @@ public:
   }
 
   rpl_sidno get_sidno() {
-    return cluster_sidno;
+    return group_sidno;
   }
 
   void set_last_queued_gno(rpl_gno last_queued_gno) {
@@ -191,8 +191,8 @@ private:
   bool reset_logs;
   /*The plugin's timeout for component shutdown set in the applier*/
   ulong applier_shutdown_timeout;
-  /*The configured cluster sidno*/
-  rpl_sidno cluster_sidno;
+  /*The configured group sidno*/
+  rpl_sidno group_sidno;
 
   //Internal fields
 
@@ -217,24 +217,25 @@ public:
    Configuration for certification handlers
 
    @param last_delivered_gno   the last certified gno in the plugin
+   @param group_sidno          the group sidno
   */
   Handler_certifier_configuration_action(rpl_gno last_delivered_gno,
-                                         rpl_sidno cluster_sidno)
+                                         rpl_sidno group_sidno)
    :Pipeline_action(HANDLER_CERT_CONF_ACTION),
-   last_delivered_gno(last_delivered_gno), cluster_sidno(cluster_sidno)
+   last_delivered_gno(last_delivered_gno), group_sidno(group_sidno)
   {}
 
   rpl_gno get_last_delivered_gno() {
     return last_delivered_gno;
   }
 
-  rpl_sidno get_cluster_sidno() {
-    return cluster_sidno;
+  rpl_sidno get_group_sidno() {
+    return group_sidno;
   }
 
 private:
   rpl_gno last_delivered_gno;
-  rpl_sidno cluster_sidno;
+  rpl_sidno group_sidno;
 };
 
 /**
@@ -252,7 +253,8 @@ public:
     @param cert_info   A certification info
     @param seq_number  A sequence number associated to the database
   */
-  Handler_certifier_information_action(std::map<std::string, std::string>* cert_info,
+  Handler_certifier_information_action(std::map<std::string,
+                                       std::string>* cert_info,
                                        rpl_gno seq_number)
    :Pipeline_action(HANDLER_CERT_INFO_ACTION),
    certification_info(cert_info), sequence_number(seq_number)
@@ -283,7 +285,7 @@ public:
   /**
     Creates an action to inform handler of a View Change
 
-    @param is_leaving informs if the node is leaving
+    @param is_leaving informs if the member is leaving
   */
   View_change_pipeline_action(bool is_leaving)
     :Pipeline_action(HANDLER_VIEW_CHANGE_ACTION), leaving(is_leaving)
@@ -294,31 +296,31 @@ public:
   }
 
 private:
-  /*If this node is leaving the cluster on this view change*/
+  /*If this member is leaving the group on this view change*/
   bool leaving;
 };
 
 /**
-  @class Handler_GCS_interfaces_action
+  @class Handler_gcs_interfaces_action
 
   Action that carries GCS interfaces to be used on handlers that need them.
 */
-class Handler_GCS_interfaces_action : public Pipeline_action
+class Handler_gcs_interfaces_action : public Pipeline_action
 {
 public:
   /**
     An action that contains group communication related interfaces to
     be used on interested handlers.
 
-    @param local_info GCS info on the local node
-    @param comm_if    GCS communication interface
-    @param ctrl_if    GCS control interface
+    @param local_member_info Info on the local member
+    @param comm_if           GCS communication interface
+    @param ctrl_if           GCS control interface
   */
-  Handler_GCS_interfaces_action(Cluster_member_info *local_info,
+  Handler_gcs_interfaces_action(Group_member_info *local_member_info,
                                 Gcs_communication_interface *comm_if,
                                 Gcs_control_interface *ctrl_if)
-   :Pipeline_action(HANDLER_GCS_INTERF_ACTION),
-   local_info(local_info), communication_interface(comm_if),
+   :Pipeline_action(HANDLER_GCS_INTERFACE_ACTION),
+   local_member_info(local_member_info), communication_interface(comm_if),
    control_interface(ctrl_if)
   {}
 
@@ -330,14 +332,14 @@ public:
     return control_interface;
   }
 
-  Cluster_member_info* get_local_info() {
-    return local_info;
+  Group_member_info* get_local_member_info() {
+    return local_member_info;
   }
 
 private:
-  Cluster_member_info *local_info;
+  Group_member_info *local_member_info;
   Gcs_communication_interface *communication_interface;
   Gcs_control_interface *control_interface;
 };
 
-#endif	/* GCS_PIPELINE_INTERFACE_INCLUDED */
+#endif	/* PIPELINE_HANDLERS_INCLUDED */

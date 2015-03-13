@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_RECOVERY_INCLUDE
-#define GCS_RECOVERY_INCLUDE
+#ifndef RECOVERY_INCLUDE
+#define RECOVERY_INCLUDE
 
 #include <list>
 
@@ -33,22 +33,22 @@ public:
   @param applier
             reference to the applier module
   @param comm_if
-            reference to the communication interface of the current cluster
+            reference to the communication interface of the current group
   @param ctrl_if
-            reference to the control interface of the current cluster
-  @param local_info
-            reference to the local node information
-  @param cluster_info_if
-            reference to the Global cluster view manager
-  @param gcs_component_stop_timeout
+            reference to the control interface of the current group
+  @param local_member_info
+            reference to the local member information
+  @param group_info_if
+            reference to the Global Group view manager
+  @param components_stop_timeout
             timeout value for the recovery module during shutdown.
  */
   Recovery_module(Applier_module_interface *applier,
                   Gcs_communication_interface *comm_if,
                   Gcs_control_interface *ctrl_if,
-                  Cluster_member_info *local_info,
-                  Cluster_member_info_manager_interface* cluster_info_if,
-                  ulong gcs_components_stop_timeout);
+                  Group_member_info *local_member_info,
+                  Group_member_info_manager_interface* group_info_if,
+                  ulong components_stop_timeout);
 
   ~Recovery_module();
 
@@ -61,12 +61,12 @@ public:
     Starts the recovery process, initializing the recovery thread.
     This method is designed to be as light as possible, as if it involved any
     major computation or wait process that would block the view change process
-    delaying the cluster.
+    delaying the group.
 
     @note this method only returns when the recovery thread is already running
 
     @param group_name       the joiner's group name
-    @param rec_view_id          the new view id
+    @param rec_view_id      the new view id
 
     @return the operation status
       @retval 0      OK
@@ -97,8 +97,8 @@ public:
   int recovery_thread_handle();
 
   /**
-    Set retrieved certification info from a GCS channel extracted from
-    a given View_change event.
+    Set retrieved certification info from a group replication channel extracted
+    from a given View_change event.
 
     @param info  the given view_change_event
 
@@ -122,19 +122,20 @@ public:
   int stop_recovery();
 
   /**
-    This method executes what action to take whenever a node exists the cluster.
+    This method decides what action to take when a member exits the group and
+    executes it.
     It can for the joiner:
       If it exited, then terminate the recovery process.
       If the donor left, and the state transfer is still ongoing, then pick a
       new one and restart the transfer.
 
-    @param did_nodes_left states if members left the view
+    @param did_members_left states if members left the view
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
    */
-  int update_recovery_process(bool did_nodes_left);
+  int update_recovery_process(bool did_members_left);
 
 
   int donor_failover();
@@ -182,9 +183,9 @@ public:
 private:
 
    /**
-     Selects a donor among the cluster nodes.
+     Selects a donor among the group members.
      Being open to several implementations, for now this method simply picks
-     the first non joining node in the list.
+     the first non joining member in the list.
 
      @return operation statue
        @retval 0   Donor found
@@ -270,17 +271,17 @@ private:
   void clean_recovery_thread_context();
 
   /**
-    Starts a wait process until the node fulfills the necessary condition to be
-    acknowledge as being online.
+    Starts a wait process until the applier fulfills the necessary condition for
+    the member to be acknowledge as being online.
     As of now, this condition is met when the applier module's queue size drops
     below a certain margin.
   */
   void wait_for_applier_module_recovery();
 
   /**
-    Sends a message throughout the cluster acknowledge the node as online.
+    Sends a message throughout the group stating the member as online.
   */
-  void notify_cluster_recovery_end();
+  void notify_group_recovery_end();
 
   //recovery thread variables
   my_thread_handle recovery_pthd;
@@ -294,21 +295,21 @@ private:
   /* Communication interface for GCS*/
   Gcs_communication_interface* gcs_communication_interface;
 
-  /*Information about the local node*/
-  Cluster_member_info* local_node_information;
+  /*Information about the local member*/
+  Group_member_info* local_member_info;
 
   /* The plugin's applier module interface*/
   Applier_module_interface *applier_module;
 
-  /* The group to which the recovering node belongs*/
+  /* The group to which the recovering member belongs*/
   string group_name;
   /* The associated view id for the current recovery session */
   string view_id;
 
-  /* The selected donor node uuid*/
+  /* The selected donor member uuid*/
   string selected_donor_uuid;
-  /* Pointer to the Cluster Member manager*/
-  Cluster_member_info_manager_interface *cluster_info;
+  /* Pointer to the Group Member manager*/
+  Group_member_info_manager_interface *group_info;
 
   /* Donors who recovery could not connect */
   std::list<string> rejected_donors;
@@ -360,4 +361,4 @@ private:
   long max_connection_attempts_to_donors;
 };
 
-#endif /* GCS_RECOVERY_INCLUDE */
+#endif /* RECOVERY_INCLUDE */

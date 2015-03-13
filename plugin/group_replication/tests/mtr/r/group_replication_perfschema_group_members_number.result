@@ -5,27 +5,27 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 
 ###########################################################
-# 1. No nodes on group.
+# 1. No members on group.
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 
 ###########################################################
-# 2. One node on group.
+# 2. One member on group.
 include/start_group_replication.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 
 ###########################################################
-# 3. Two nodes on group.
+# 3. Two members on group.
 include/start_group_replication.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 
 ###########################################################
-# 4. Three nodes on group.
+# 4. Three members on group.
 include/start_group_replication.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
@@ -37,21 +37,21 @@ group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE
 group_replication_applier	MEMBER_ID	MEMBER_HOST	MEMBER_PORT	ONLINE
 
 ###########################################################
-# 5. Two nodes on group.
+# 5. Two members on group.
 include/stop_group_replication.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 
 ###########################################################
-# 6. One node on group.
+# 6. One member on group.
 include/stop_group_replication.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 
 ###########################################################
-# 7. No nodes on group.
+# 7. No members on group.
 include/stop_group_replication.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 include/rpl_group_replication_wait_for_number_of_members.inc

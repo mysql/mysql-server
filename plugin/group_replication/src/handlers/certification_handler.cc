@@ -64,14 +64,14 @@ Certification_handler::handle_action(Pipeline_action* action)
 
     error= cert_module->initialize(conf_action->get_last_delivered_gno());
 
-    cluster_sidno= conf_action->get_cluster_sidno();
+    group_sidno= conf_action->get_group_sidno();
   }
-  else if (action_type == HANDLER_GCS_INTERF_ACTION)
+  else if (action_type == HANDLER_GCS_INTERFACE_ACTION)
   {
-    Handler_GCS_interfaces_action *gcs_intf_action=
-      (Handler_GCS_interfaces_action*) action;
+    Handler_gcs_interfaces_action *gcs_intf_action=
+        (Handler_gcs_interfaces_action*) action;
 
-    cert_module->set_local_node_info(gcs_intf_action->get_local_info());
+    cert_module->set_local_member_info(gcs_intf_action->get_local_member_info());
     cert_module->set_gcs_interfaces(gcs_intf_action->get_comm_interface(),
                                     gcs_intf_action->get_control_interface());
   }
@@ -153,7 +153,7 @@ Certification_handler::certify(Pipeline_event *pevent, Continuation *cont)
       else
       {
         transaction_termination_ctx.m_generated_gtid= TRUE;
-        transaction_termination_ctx.m_sidno= gcs_cluster_sidno;
+        transaction_termination_ctx.m_sidno= group_sidno;
         transaction_termination_ctx.m_gno= seq_number;
       }
     }
@@ -220,7 +220,7 @@ Certification_handler::inject_gtid(Pipeline_event *pevent, Continuation *cont)
     Gtid_log_event *gle_old= (Gtid_log_event*)event;
 
     // Create new GTID event.
-    Gtid gtid= { cluster_sidno, get_gtid_generated_id() };
+    Gtid gtid= { group_sidno, get_gtid_generated_id() };
     Gtid_specification gtid_specification= { GTID_GROUP, gtid };
     Gtid_log_event *gle= new Gtid_log_event(gle_old->server_id,
                                             gle_old->is_using_trans_cache(),

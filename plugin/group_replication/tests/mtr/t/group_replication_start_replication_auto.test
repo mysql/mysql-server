@@ -1,8 +1,8 @@
 # WL#7660 - GCS PLUGIN IMPLEMENTATION
 #
-# This test checks the basic functionality of the GCS replication
-# plugin which should work with the .opt file in which the GCS
-# replication options are passed as options.
+# This test checks the basic functionality of Group Replication
+# plugin which should work with the .opt file in which the plugin
+# options are passed as options.
 
 --source include/have_group_replication_plugin.inc
 --source include/force_restart.inc
@@ -13,7 +13,7 @@ SELECT @@group_replication_start_on_boot;
 --error ER_GROUP_REPLICATION_RUNNING
 START GROUP_REPLICATION;
 
-# Even after the server restart the command for starting the GCS_REPLICATION
+# Even after the server restart the command for starting the GROUP_REPLICATION
 # should not fail.
 
 --source include/restart_mysqld.inc
@@ -21,7 +21,7 @@ START GROUP_REPLICATION;
 --error ER_GROUP_REPLICATION_RUNNING
 START GROUP_REPLICATION;
 
-#Check if the node information is correct on the table
+#Check if the member information is correct on the table
 
 --let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 

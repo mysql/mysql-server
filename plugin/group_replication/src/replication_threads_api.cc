@@ -39,10 +39,10 @@ Replication_thread_api::initialize_channel(char* hostname,
   info.port= port;
 
   info.auto_position= true;
-  if (priority == GCS_APPLIER_THREAD_PRIORITY)
+  if (priority == GROUP_REPLICATION_APPLIER_THREAD_PRIORITY)
   {
     info.replicate_same_server_id= true;
-    info.thd_tx_priority= GCS_APPLIER_THREAD_PRIORITY;
+    info.thd_tx_priority= GROUP_REPLICATION_APPLIER_THREAD_PRIORITY;
   }
   info.type= GROUP_REPLICATION_CHANNEL;
 

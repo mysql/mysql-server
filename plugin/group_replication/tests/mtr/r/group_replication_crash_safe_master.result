@@ -11,17 +11,17 @@ include/start_group_replication.inc
 include/start_group_replication.inc
 CREATE TABLE t1(i INT, a LONGBLOB, PRIMARY KEY(i)) ENGINE=INNODB;
 # Test case1: Set DEBUG POINT before binlog to make
-# the first node crash for transaction
+# the first member crash for transaction
 BEGIN;
 INSERT INTO t1 VALUES (3, REPEAT('a',2));;
 INSERT INTO t1 VALUES (2, REPEAT('a',2));;
 INSERT INTO t1 VALUES (1, REPEAT('a',2));;
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
-# Restart the crashed node
+# Restart the crashed member
 include/assert.inc [On server1, test the data will be rolled back after restart.]
 include/rpl_sync.inc
-# On the second node, test replication will work fine, and the data
+# On the second member, test replication will work fine, and the data
 # is not replicated
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/start_group_replication.inc
@@ -42,10 +42,10 @@ INSERT INTO t1 VALUES (2, REPEAT('a',2));;
 INSERT INTO t1 VALUES (1, REPEAT('a',2));;
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
-# Restart the crashed node
+# Restart the crashed member
 include/assert.inc [On server1, test the data will be recovered after the server1 restart.]
 include/rpl_sync.inc
-# On the second node, test that the replication is working fine, and
+# On the second member, test that the replication is working fine, and
 # data gets replicated here.
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 include/start_group_replication.inc
@@ -59,7 +59,7 @@ DROP TABLE temp;
 include/rpl_sync.inc
 CREATE TABLE t1(i INT AUTO_INCREMENT PRIMARY KEY, a LONGBLOB) ENGINE=INNODB;
 # Test case3: Set DEBUG POINT after binlogging half of the transaction and
-# then crash the node and followed by restarting the node.
+# then crash the member and followed by restarting the member.
 set AUTOCOMMIT=0;
 BEGIN;
 INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
@@ -88,9 +88,9 @@ INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
 INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
-# Restart the crashed node
+# Restart the crashed member
 # Test the data will not be recovered successfully
-# after the crashed first node restarts.
+# after the crashed first member restarts.
 include/assert.inc [On server1, test the data will be recovered after the server1 restart.]
 include/start_group_replication.inc
 include/diff_tables.inc [server1:test.t1, server2:test.t1]

@@ -14,7 +14,7 @@ include/rpl_sync.inc
 # 2. Force error on before_commit listener on the next
 #    transactions.
 SET @debug_saved= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,gcs_force_error_on_before_commit_listener';
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_error_on_before_commit_listener';
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 SET SESSION sql_log_bin= 1;

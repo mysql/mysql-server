@@ -19,22 +19,22 @@
 /*
   DBMS lifecycle events observers.
 */
-int gcs_before_handle_connection(Server_state_param *param)
+int group_replication_before_handle_connection(Server_state_param *param)
 {
   return 0;
 }
 
-int gcs_before_recovery(Server_state_param *param)
+int group_replication_before_recovery(Server_state_param *param)
 {
   return 0;
 }
 
-int gcs_after_engine_recovery(Server_state_param *param)
+int group_replication_after_engine_recovery(Server_state_param *param)
 {
   return 0;
 }
 
-int gcs_after_recovery(Server_state_param *param)
+int group_replication_after_recovery(Server_state_param *param)
 {
   /*
     The plugin was initialized on server start
@@ -46,18 +46,19 @@ int gcs_after_recovery(Server_state_param *param)
 
     wait_on_engine_initialization= false;
 
-    configure_cluster_member_manager();
+    configure_group_member_manager();
 
     initialize_recovery_module();
 
     if ((error= configure_and_start_applier_module()))
       return error;
 
-    if ((error= configure_and_start_gcs()))
+    if ((error= configure_and_start_group_communication()))
     {
       //terminate the before created pipeline
-      log_message(MY_ERROR_LEVEL,
-                  "Error on gcs initialization methods, killing the applier");
+    log_message(MY_ERROR_LEVEL,
+                "Error on group communication initialization methods, "
+                "killing the Group Replication applier");
       applier_module->terminate_applier_thread();
       return error;
     }
@@ -67,15 +68,15 @@ int gcs_after_recovery(Server_state_param *param)
   return 0;
 }
 
-int gcs_before_server_shutdown(Server_state_param *param)
+int group_replication_before_server_shutdown(Server_state_param *param)
 {
-  if (is_gcs_rpl_running())
+  if (plugin_is_group_replication_running())
     group_replication_stop();
 
   return 0;
 }
 
-int gcs_after_server_shutdown(Server_state_param *param)
+int group_replication_after_server_shutdown(Server_state_param *param)
 {
   return 0;
 }
@@ -83,10 +84,10 @@ int gcs_after_server_shutdown(Server_state_param *param)
 Server_state_observer server_state_observer = {
   sizeof(Server_state_observer),
 
-  gcs_before_handle_connection, //before the client connect the node
-  gcs_before_recovery,           //before_recovery
-  gcs_after_engine_recovery,     //after engine recovery
-  gcs_after_recovery,            //after_recovery
-  gcs_before_server_shutdown,    //before shutdown
-  gcs_after_server_shutdown,     //after shutdown
+  group_replication_before_handle_connection,  //before the client connects to the server
+  group_replication_before_recovery,           //before recovery
+  group_replication_after_engine_recovery,     //after engine recovery
+  group_replication_after_recovery,            //after recovery
+  group_replication_before_server_shutdown,    //before shutdown
+  group_replication_after_server_shutdown,     //after shutdown
 };

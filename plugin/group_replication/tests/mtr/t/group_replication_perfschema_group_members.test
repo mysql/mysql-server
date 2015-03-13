@@ -1,82 +1,82 @@
 # WL#6841 - GCS Replication: P_S table to show GCS kernel stats
 
-# This test checks the basic functionality of the GCS replication
+# This test checks the basic functionality of the Group Replication
 # P_S for replication_group_members table.
 # DDL and DML testing for this table is addressed in other tests.
 
 --source include/have_group_replication_plugin.inc
 
 --let $group_replication_group_name= 8a84f357-aaa4-10df-85ab-c70aa9429562
---let $gcs_channel_name= group_replication_applier
+--let $group_replication_channel_name= group_replication_applier
 
 # This is a valid name being given to the group name
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
 # Checking the performance Schema output for the replication_group_members table.
 --let $channel_name= query_get_value(SELECT Channel_Name from performance_schema.replication_group_members, Channel_Name, 1)
---let $assert_text= The value of channel name should be $gcs_channel_name
---let $assert_cond= "$channel_name" = "$gcs_channel_name"
+--let $assert_text= The value of channel name should be $group_replication_channel_name
+--let $assert_cond= "$channel_name" = "$group_replication_channel_name"
 --source include/assert.inc
 
 --let $member_id= query_get_value(SELECT Member_Id from performance_schema.replication_group_members, Member_Id, 1)
---let $assert_text= The value of member_id should be empty before starting gcs
+--let $assert_text= The value of member_id should be empty before starting group replication
 --let $assert_cond= "$member_id" = ""
 --source include/assert.inc
 
 --let $member_host= query_get_value(SELECT Member_Host from performance_schema.replication_group_members, Member_Host, 1)
---let $assert_text= The value of member_host should be empty before starting gcs
+--let $assert_text= The value of member_host should be empty before starting group replication
 --let $assert_cond= "$member_host" = ""
 --source include/assert.inc
 
 --let $member_port= query_get_value(SELECT Member_Port from performance_schema.replication_group_members, Member_Port, 1)
---let $assert_text= The value of member_port should be NULL before starting gcs
+--let $assert_text= The value of member_port should be NULL before starting group replication
 --let $assert_cond= "$member_port" = "NULL"
 --source include/assert.inc
 
 --let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
---let $assert_text= The value of member_state should be offline before starting gcs
+--let $assert_text= The value of member_state should be offline before starting group replication
 --let $assert_cond= "$member_state" = "OFFLINE"
 --source include/assert.inc
 
-# Start GCS replication
+# Start Group Replication
 --source include/start_group_replication.inc
 
 --let $channel_name= query_get_value(SELECT Channel_Name from performance_schema.replication_group_members, Channel_Name, 1)
---let $assert_text= The value of channel name should be $gcs_channel_name
---let $assert_cond= "$channel_name" = "$gcs_channel_name"
+--let $assert_text= The value of channel name should be $group_replication_channel_name
+--let $assert_cond= "$channel_name" = "$group_replication_channel_name"
 --source include/assert.inc
 
 --let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $member_id= query_get_value(SELECT Member_Id from performance_schema.replication_group_members, Member_Id, 1)
---let $assert_text= The value of member_id should be equal to server uuid after starting gcs
+--let $assert_text= The value of member_id should be equal to server uuid after starting group replication
 --let $assert_cond= "$member_id" = "$server_uuid"
 --source include/assert.inc
 
 --let $member_host= query_get_value(SELECT Member_Host from performance_schema.replication_group_members, Member_Host, 1)
---let $assert_text= The value of member_host should not be empty after starting gcs
+--let $assert_text= The value of member_host should not be empty after starting group replication
 --let $assert_cond= "$member_host" != ""
 --source include/assert.inc
 
 --let $member_port= query_get_value(SELECT Member_Port from performance_schema.replication_group_members, Member_Port, 1)
---let $assert_text= The value of member_port should not be NULL after starting gcs
+--let $assert_text= The value of member_port should not be NULL after starting group replication
 --let $assert_cond= "$member_port" = "$MASTER_MYPORT"
 --source include/assert.inc
 
 --let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
---let $assert_text= The value of member_state should be online after starting gcs
+--let $assert_text= The value of member_state should be online after starting group replication
 --let $assert_cond= "$member_state" = "ONLINE"
 --source include/assert.inc
 
-# Stop GCS replication
+# Stop Group Replication
 --source include/stop_group_replication.inc
 
 --let $channel_name= query_get_value(SELECT Channel_Name from performance_schema.replication_group_members, Channel_Name, 1)
---let $assert_text= The value of channel name should be $gcs_channel_name
---let $assert_cond= "$channel_name" = "$gcs_channel_name"
+--let $assert_text= The value of channel name should be $group_replication_channel_name
+--let $assert_cond= "$channel_name" = "$group_replication_channel_name"
 --source include/assert.inc
 
 --let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
---let $assert_text= The value of member_state should be offline after stoping gcs
+--let $assert_text= The value of member_state should be offline after stoping group replication
 --let $assert_cond= "$member_state" = "OFFLINE"
 --source include/assert.inc
 

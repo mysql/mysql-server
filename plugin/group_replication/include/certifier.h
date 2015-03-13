@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_CERTIFIER
-#define GCS_CERTIFIER
+#ifndef CERTIFIER_INCLUDE
+#define CERTIFIER_INCLUDE
 
 #include <map>
 #include <string>
@@ -25,7 +25,7 @@
 #include "gcs_communication_interface.h"
 #include "gcs_control_interface.h"
 #include "member_info.h"
-#include "plugin_messages.h"
+#include "gcs_plugin_messages.h"
 #include "plugin_utils.h"
 #include "pipeline_interfaces.h"
 
@@ -38,8 +38,8 @@
 
   Snapshot Isolation is based on assigning logical timestamp to optimistic
   transactions, i.e. the ones which successfully meet certification and
-  are good to commit on all nodes in the group. This timestamp is a
-  monotonically increasing counter, and is same across all nodes in the group.
+  are good to commit on all members in the group. This timestamp is a
+  monotonically increasing counter, and is same across all members in the group.
 
   This timestamp, which in our algorithm is the snapshot version, is further
   used to update the certification info.
@@ -61,13 +61,13 @@ public:
   /**
     Certifier_broadcast_thread constructor
 
-    @param comm_intf       Reference to the GCS Communication Interface
-    @param ctrl_intf       Reference to the GCS Control Interface
-    @param local_node_info Reference to the local node information
+    @param comm_intf          Reference to the GCS Communication Interface
+    @param ctrl_intf          Reference to the GCS Control Interface
+    @param local_member_info  Reference to the local member information
    */
   Certifier_broadcast_thread(Gcs_communication_interface* comm_intf,
                              Gcs_control_interface* ctrl_intf,
-                             Cluster_member_info* local_node_info);
+                             Group_member_info* local_member_info);
   virtual ~Certifier_broadcast_thread();
 
   /**
@@ -107,13 +107,13 @@ public:
   }
 
   /**
-    Sets the broadcast thread's GCS local node info
+    Sets the broadcast thread's GCS local member info
 
-    @param local_node  Reference to the local node information
+    @param local_member_info  Reference to the local member information
    */
-  void set_local_node_info(Cluster_member_info* local_node)
+  void set_local_member_info(Group_member_info* local_member_info)
   {
-    this->local_node = local_node;
+    this->local_member_info = local_member_info;
   }
 
 private:
@@ -132,12 +132,12 @@ private:
   pthread_cond_t broadcast_pthd_cond;
   bool broadcast_pthd_running;
 
-  //GCS interfaces to the Cluster where one belongs
+  //GCS interfaces to the Group where one belongs
   Gcs_communication_interface* gcs_communication;
   Gcs_control_interface* gcs_control;
 
-  //Local node information
-  Cluster_member_info* local_node;
+  //Local member information
+  Group_member_info* local_member_info;
 
   /**
     Broadcast local GTID_EXECUTED to group.
@@ -162,7 +162,7 @@ public:
   virtual void set_certification_info(std::map<std::string, std::string> *cert_info,
                                       rpl_gno sequence_number)= 0;
 
-  virtual void set_local_node_info(Cluster_member_info* local_info)= 0;
+  virtual void set_local_member_info(Group_member_info* local_info)= 0;
 
   virtual void set_gcs_interfaces(Gcs_communication_interface* comm_if,
                                   Gcs_control_interface* ctrl_if)= 0;
@@ -276,7 +276,7 @@ public:
   ulonglong get_certification_info_size();
 
   /**
-    Get method to retrieve the last sequence number of the node.
+    Get method to retrieve the last sequence number of this group member.
     */
   rpl_gno get_last_sequence_number();
 
@@ -284,19 +284,19 @@ public:
    All the methods below exist in order to inject dependencies into to the
    Certifier that one cannot do at object construction time
    */
-  void set_local_node_info(Cluster_member_info* local_info);
+  void set_local_member_info(Group_member_info* local_info);
 
   void set_gcs_interfaces(Gcs_communication_interface* comm_if,
                           Gcs_control_interface* ctrl_if);
 
 private:
 
-  //GCS interfaces to the Cluster where one belongs
+  //GCS interfaces to the Group where one belongs
   Gcs_communication_interface* gcs_communication;
   Gcs_control_interface* gcs_control;
 
-  //Local node information
-  Cluster_member_info* local_node;
+  //Local member information
+  Group_member_info* local_member_info;
 
   /**
     Is certifier initialized.
@@ -400,7 +400,7 @@ private:
 
 /*
   Update method to store the count of the positively and negatively
-  certified transaction on a particular node.
+  certified transaction on a particular group member.
 */
   void update_certified_transaction_count(bool result);
 };
@@ -410,7 +410,7 @@ private:
 
   Class to convey the serialized contents of the previously executed GTIDs
  */
-class Gtid_Executed_Message: public Gcs_plugin_message
+class Gtid_Executed_Message: public Plugin_gcs_message
 {
 public:
   /**
@@ -438,4 +438,4 @@ private:
   std::vector<uchar> data;
 };
 
-#endif /* GCS_CERTIFIER */
+#endif /* CERTIFIER_INCLUDE */

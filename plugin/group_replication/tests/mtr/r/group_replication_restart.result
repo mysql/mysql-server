@@ -3,7 +3,7 @@
 # that all remote transactions are only queued on relay log.
 # Execute some transactions on server1.
 include/start_group_replication.inc
-SET @@GLOBAL.DEBUG= '+d,gcs_applier_do_not_start_sql_thread';
+SET @@GLOBAL.DEBUG= '+d,group_replication_do_not_start_applier_thread';
 include/start_group_replication.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES (1);
 # 2. Restart server2 and verify that certifier sequence
 # number is set from relay log certified transactions.
 # restart
-SET @@GLOBAL.DEBUG= '+d,gcs_assert_next_seqno_equal_3';
+SET @@GLOBAL.DEBUG= '+d,certifier_assert_next_seqno_equal_3';
 include/start_group_replication.inc
 ############################################################
 # 3. Insert must fail with duplicate entry.
@@ -26,7 +26,7 @@ INSERT INTO t1 VALUES (2);
 # number is set from GTID_EXECUTED.
 # restart
 SET @debug_saved= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,gcs_assert_next_seqno_equal_4';
+SET @@GLOBAL.DEBUG= '+d,certifier_assert_next_seqno_equal_4';
 include/start_group_replication.inc
 
 ############################################################
@@ -35,7 +35,9 @@ include/rpl_group_replication_wait_for_number_of_members.inc
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;
 SET @@GLOBAL.DEBUG= @debug_saved;
 include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;

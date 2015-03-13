@@ -37,16 +37,16 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 
   SET (GROUP_REPLICATION_SOURCES
        src/applier.cc
-       src/binding_factory.cc
        src/certifier.cc
+       src/gcs_binding_factory.cc
        src/gcs_event_handlers.cc
+       src/gcs_plugin_messages.cc
        src/member_info.cc
        src/observer_server_actions.cc
        src/observer_server_state.cc
        src/observer_trans.cc
        src/pipeline_factory.cc
        src/plugin.cc
-       src/plugin_messages.cc
        src/plugin_psi.cc
        src/ps_information.cc
        src/recovery.cc

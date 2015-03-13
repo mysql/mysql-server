@@ -1,5 +1,5 @@
 #
-# This test will create in parallel, in the same node, two transactions
+# This test will create in parallel, in the same member, two transactions
 # with two different clients.
 #
 # The success of this test is determined by its termination. Any failure

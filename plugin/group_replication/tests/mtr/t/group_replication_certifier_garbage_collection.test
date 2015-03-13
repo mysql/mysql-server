@@ -40,14 +40,14 @@ INSERT INTO t1 VALUES (1);
 
 --echo
 --echo ############################################################
---echo #  2. Stop server 2 GCS applier so that certified remote
---echo #     transactions are not applied.
+--echo #  2. Stop server 2 group replication applier so that
+--echo #     certified remote transactions are not applied.
 --echo #     This will mimic a slow server.
 --connection server2
 
 --source include/stop_group_replication.inc
 SET @server2_debug_saved= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,gcs_applier_do_not_start_sql_thread';
+SET @@GLOBAL.DEBUG= '+d,group_replication_do_not_start_applier_thread';
 --source include/start_group_replication.inc
 
 
@@ -140,8 +140,8 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 
 --echo
 --echo ############################################################
---echo #  7. Start server 2 GCS applier so that certified remote
---echo #     transactions not applied.
+--echo #  7. Start server 2 group replication applier so that
+--echo #     certified remote transactions not applied.
 --echo #     Wait until all group transactions are applied.
 --connection server2
 

@@ -18,28 +18,30 @@
 
 #include <mysql/group_replication_priv.h>
 
-int gcs_reset_master_logs(Binlog_transmit_param *param);
+int group_replication_reset_master_logs(Binlog_transmit_param *param);
 
 // Remaining binlog transmit observer methods, not used as of now
 
-int gcs_transmit_start(Binlog_transmit_param *param,
-                       const char *log_file, my_off_t log_pos);
+int group_replication_transmit_start(Binlog_transmit_param *param,
+                                     const char *log_file, my_off_t log_pos);
 
-int gcs_transmit_stop(Binlog_transmit_param *param);
+int group_replication_transmit_stop(Binlog_transmit_param *param);
 
-int gcs_reserve_header(Binlog_transmit_param *param,
-                       unsigned char *header,
-                       unsigned long size,
-                       unsigned long *len);
+int group_replication_reserve_header(Binlog_transmit_param *param,
+                                     unsigned char *header,
+                                     unsigned long size,
+                                     unsigned long *len);
 
-int gcs_before_send_event(Binlog_transmit_param *param,
-                          unsigned char *packet, unsigned long len,
-                          const char *log_file, my_off_t log_pos);
+int group_replication_before_send_event(Binlog_transmit_param *param,
+                                        unsigned char *packet,
+                                        unsigned long len,
+                                        const char *log_file, my_off_t log_pos);
 
-int gcs_after_send_event(Binlog_transmit_param *param,
-                         const char *event_buf, unsigned long len,
-                         const char *skipped_log_file,
-                         my_off_t skipped_log_pos);
+int group_replication_after_send_event(Binlog_transmit_param *param,
+                                       const char *event_buf,
+                                       unsigned long len,
+                                       const char *skipped_log_file,
+                                       my_off_t skipped_log_pos);
 
 //Binlog_transmit observer struct
 extern Binlog_transmit_observer binlog_transmit_observer;

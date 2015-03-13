@@ -21,8 +21,8 @@
 using std::string;
 
 enum enum_member_state
-map_protocol_node_state_to_server_member_state
-                   (Cluster_member_info::Cluster_member_status protocol_status)
+map_protocol_member_state_to_server_member_state
+                   (Group_member_info::Group_member_status protocol_status)
 {
   switch(protocol_status)
   {
@@ -38,7 +38,7 @@ map_protocol_node_state_to_server_member_state
 }
 
 char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num,
-                                     char* gcs_group_pointer)
+                                     char* group_name_pointer)
 {
   if(last_seq_num > 0)
   {
@@ -46,7 +46,7 @@ char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num,
     char *last_cert_seq_num= my_safe_itoa(10, last_seq_num,
                                           &seq_num[sizeof(seq_num)- 1]);
 
-    string group(gcs_group_pointer);
+    string group(group_name_pointer);
     group.append(":");
     group.append(last_cert_seq_num);
     buf= (char*)my_malloc(
@@ -60,13 +60,13 @@ char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num,
   return buf;
 }
 
-bool get_gcs_group_members_info(uint index,
-                                GROUP_REPLICATION_GROUP_MEMBERS_INFO *info,
-                                Cluster_member_info_manager_interface
-                                                        *cluster_member_manager,
-                                Gcs_interface *gcs_module,
-                                char* gcs_group_pointer,
-                                char *channel_name)
+bool get_group_members_info(uint index,
+                            GROUP_REPLICATION_GROUP_MEMBERS_INFO *info,
+                            Group_member_info_manager_interface
+                                *group_member_manager,
+                            Gcs_interface *gcs_module,
+                            char *group_name_pointer,
+                            char *channel_name)
 {
   //Initialize all values
   memset(info, 0, sizeof(GROUP_REPLICATION_GROUP_MEMBERS_INFO));
@@ -88,7 +88,7 @@ bool get_gcs_group_members_info(uint index,
    This case means that the plugin has never been initialized...
    and one would not be able to extract information
    */
-  if(cluster_member_manager == NULL)
+  if (group_member_manager == NULL)
   {
     info->member_id= my_strndup(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -110,10 +110,10 @@ bool get_gcs_group_members_info(uint index,
   }
 
   Gcs_control_interface* ctrl_if= NULL;
-  if(gcs_group_pointer != NULL)
+  if(group_name_pointer != NULL)
   {
-    string gcs_group_name(gcs_group_pointer);
-    Gcs_group_identifier group_id(gcs_group_name);
+    string group_name(group_name_pointer);
+    Gcs_group_identifier group_id(group_name);
 
     ctrl_if= gcs_module->get_control_session(group_id);
   }
@@ -139,8 +139,8 @@ bool get_gcs_group_members_info(uint index,
     }
   }
 
-  Cluster_member_info* member_info
-              = cluster_member_manager->get_cluster_member_info_by_index(index);
+  Group_member_info* member_info=
+      group_member_manager->get_group_member_info_by_index(index);
 
   if(member_info == NULL) // The requested member is not managed...
   {
@@ -167,7 +167,7 @@ bool get_gcs_group_members_info(uint index,
   info->member_port= member_info->get_port();
 
   info->member_state=
-      map_protocol_node_state_to_server_member_state(
+      map_protocol_member_state_to_server_member_state(
           member_info->get_recovery_status());
 
   delete member_info;
@@ -175,13 +175,13 @@ bool get_gcs_group_members_info(uint index,
   return false;
 }
 
-bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
-                                Cluster_member_info_manager_interface
-                                                        *cluster_member_manager,
-                                Applier_module *applier_module,
-                                Gcs_interface *gcs_module,
-                                char* gcs_group_pointer,
-                                char *channel_name)
+bool get_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
+                            Group_member_info_manager_interface
+                                *group_member_manager,
+                            Applier_module *applier_module,
+                            Gcs_interface *gcs_module,
+                            char *group_name_pointer,
+                            char *channel_name)
 {
   //Initialize all fields
   memset(info, 0, sizeof(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO));
@@ -196,7 +196,7 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
   info->transaction_in_queue= 0;
 
   //This means that the plugin never started
-  if(cluster_member_manager == NULL)
+  if (group_member_manager == NULL)
   {
     info->member_id= my_strndup(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -234,10 +234,10 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
 
   //Retrieve view information
   Gcs_view* view= NULL;
-  if(gcs_group_pointer != NULL)
+  if(group_name_pointer != NULL)
   {
-    string gcs_group_name(gcs_group_pointer);
-    Gcs_group_identifier group_id(gcs_group_name);
+    string group_name(group_name_pointer);
+    Gcs_group_identifier group_id(group_name);
 
     if(gcs_module != NULL)
     {
@@ -263,7 +263,7 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
 
   Certification_handler *cert= NULL;
 
-  //Check if the gcs replication has started and a valid certifier exists
+  //Check if the group replication has started and a valid certifier exists
   if(applier_module != NULL &&
      (cert = applier_module->get_certification_handler()) != NULL)
   {
@@ -283,17 +283,17 @@ bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info,
     rpl_gno temp_seq_num= cert_module->get_last_sequence_number();
     char* buf= NULL;
     info->last_conflict_free_transaction=
-        get_last_certified_transaction(buf, temp_seq_num, gcs_group_pointer);
+        get_last_certified_transaction(buf, temp_seq_num, group_name_pointer);
   }
 
   return false;
 }
 
-bool get_gcs_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info,
-                               Gcs_interface *gcs_module,
-                               char* gcs_group_pointer,
-                               char *channel_name,
-                               bool is_gcs_running)
+bool get_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info,
+                           Gcs_interface *gcs_module,
+                           char *group_name_pointer,
+                           char *channel_name,
+                           bool is_group_replication_running)
 {
   //Initialize all fields
   memset(info, 0, sizeof(GROUP_REPLICATION_CONNECTION_STATUS_INFO));
@@ -311,18 +311,18 @@ bool get_gcs_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info,
                                    MYF(0));
   }
 
-  if(gcs_group_pointer != NULL)
+  if(group_name_pointer != NULL)
   {
     info->group_name= my_strndup(
 #ifdef HAVE_PSI_MEMORY_INTERFACE
                                 PSI_NOT_INSTRUMENTED,
 #endif
-                                gcs_group_pointer,
-                                strlen(gcs_group_pointer),
+                                group_name_pointer,
+                                strlen(group_name_pointer),
                                 MYF(0));
   }
 
-  info->service_state= is_gcs_running;
+  info->service_state= is_group_replication_running;
 
   return false;
 }

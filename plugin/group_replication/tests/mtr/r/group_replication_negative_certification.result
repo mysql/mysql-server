@@ -14,9 +14,9 @@ include/sync_slave_sql_with_master.inc
 # 2. Force negative certification outcome of the next
 #    transaction.
 SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,gcs_force_1_negative_certification';
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
 SET @@GLOBAL.DEBUG= @debug_saved;
-SET @@GLOBAL.DEBUG= '+d,gcs_force_1_negative_certification';
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
 
 ############################################################
 # 3. First insert must be aborted.

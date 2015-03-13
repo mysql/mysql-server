@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 #
-# Setup a new 2 node cluster
+# Setup a new 2 member group
 #
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression(".*Error when configuring the group recovery connection *.*");
@@ -19,7 +19,7 @@ SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 include/rpl_group_replication_wait_for_number_of_members.inc
 #
-# Start recovery on a new node and kill the donor
+# Start recovery on a new member and kill the donor
 #
 SET @debug_save= @@GLOBAL.DEBUG;
 SET SESSION sql_log_bin= 0;
@@ -29,14 +29,14 @@ SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
 SET GLOBAL group_replication_group_name= "55d07150-9a4d-11e3-a5e2-0800200c9a66";
 START GROUP_REPLICATION;
 include/rpl_group_replication_wait_for_member_state.inc
-# Stop gcs replication on node 1 making it leave the cluster
+# Stop group replication on member 1 making it leave the group
 include/stop_group_replication.inc
-# Unblock recovery and watch the node go online despite the donor exit
+# Unblock recovery and watch the member go online despite the donor exit
 SET @@GLOBAL.DEBUG= @debug_save;
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 include/rpl_group_replication_wait_for_member_state.inc
-include/assert.inc [On the recovered node, the table should exist and have 1 elements;]
-include/assert.inc [On the recovered node, the executed GTID should be the same as on server 1]
+include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
+include/assert.inc [On the recovered member, the executed GTID should be the same as on server 1]
 #
 # Cleaning up
 #

@@ -1,10 +1,9 @@
 # Test to check the query size limitation of the GCS binding in use.
-# Currently we are using Corosync 1.4.6 for the test. For version below 1.4.6
-# the test will fail due to different size of the maximum sized packet that is
-# sent.
+# Currently we are using Corosync 2.3.3 for the test. For older versions the
+# test may fail due to different constrains on the size of the maximum packet
 #
 # The limits specified in the test can be changed to tune the test for
-# diferent versions/bidings.
+# different versions/bindings.
 
 --source include/have_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
@@ -12,11 +11,11 @@
 
 #    The test is implemented as follows:
 #
-#    On Node 1 :
+#    On Member 1 :
 #      create tables and insert some rows.
 #      create a procedure to update the rows in different conditions.
 #
-#    On Node 2 :
+#    On Member 2 :
 #      check that the data is replicated correctly and no failure happened
 #      during the GCS message broadcast.
 
@@ -29,7 +28,7 @@
 --connection server1
 --let $file= $MYSQLTEST_VARDIR/tmp/temp_file.data
 
-#CASE I - 1 update of size almost 499 kb.
+#CASE I - 1 insert of the max determined size.
 
 CREATE TABLE t1 (a INT, t LONGTEXT, PRIMARY KEY(a));
 --source include/rpl_sync.inc

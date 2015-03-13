@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_PLUGIN_PSI_INCLUDED
-#define GCS_PLUGIN_PSI_INCLUDED
+#ifndef PLUGIN_PSI_INCLUDED
+#define PLUGIN_PSI_INCLUDED
 
 
 #include "plugin_server_include.h"
@@ -23,15 +23,15 @@
 /*
   Register the psi keys for mutexes and conditions
 
-  @param[in]  gcs_mutexes    PSI mutex info
-  @param[in]  mutex_count    The number of elements in gcs_mutexes
-  @param[in]  gcs_conds      PSI condition info
-  @param[in]  cond_count     The number of elements in gcs_conds
+  @param[in]  mutexes        PSI mutex info
+  @param[in]  mutex_count    The number of elements in mutexes
+  @param[in]  conditions     PSI condition info
+  @param[in]  cond_count     The number of elements in conditions
 */
-void register_gcs_psi_keys(PSI_mutex_info gcs_mutexes[],
-                           int mutex_count,
-                           PSI_cond_info gcs_conds[],
-                           int cond_count);
+void register_group_replication_psi_keys(PSI_mutex_info mutexes[],
+                                         int mutex_count,
+                                         PSI_cond_info conditions[],
+                                         int cond_count);
 
 
-#endif /* GCS_PLUGIN_PSI_INCLUDED */
+#endif /* PLUGIN_PSI_INCLUDED */

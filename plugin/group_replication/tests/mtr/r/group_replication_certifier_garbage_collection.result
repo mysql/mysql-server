@@ -18,12 +18,12 @@ INSERT INTO t1 VALUES (1);
 include/rpl_sync.inc
 
 ############################################################
-#  2. Stop server 2 GCS applier so that certified remote
-#     transactions are not applied.
+#  2. Stop server 2 group replication applier so that
+#     certified remote transactions are not applied.
 #     This will mimic a slow server.
 include/stop_group_replication.inc
 SET @server2_debug_saved= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,gcs_applier_do_not_start_sql_thread';
+SET @@GLOBAL.DEBUG= '+d,group_replication_do_not_start_applier_thread';
 include/start_group_replication.inc
 
 ############################################################
@@ -58,8 +58,8 @@ include/assert.inc ['There is a value 1 in table t1']
 include/assert.inc ['There is no value 2 in table t1']
 
 ############################################################
-#  7. Start server 2 GCS applier so that certified remote
-#     transactions not applied.
+#  7. Start server 2 group replication applier so that
+#     certified remote transactions not applied.
 #     Wait until all group transactions are applied.
 include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= @server2_debug_saved;

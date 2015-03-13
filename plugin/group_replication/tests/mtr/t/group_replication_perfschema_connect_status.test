@@ -1,14 +1,14 @@
 # WL#6841 - GCS Replication: P_S table to show GCS kernel stats
 
-# This test checks the basic functionality of the GCS replication
+# This test checks the basic functionality of the Group Replication
 # P_S for replication_connection_status table.
 # DDL and DML testing for this table is addressed in other tests.
 #
 # The follwing scenarios are tested:
 #
-#  - Test each field on a fresh gcs replication setup.
+#  - Test each field on a fresh group replication setup.
 #  - Cause group_name to reset if mysql server restarted.
-#  - Verify that the fileds are not preserved when plugin is uninstalled.
+#  - Verify that the fields are not preserved when plugin is uninstalled.
 
 --source include/have_group_replication_plugin.inc
 
@@ -26,11 +26,11 @@
 --source include/assert.inc
 
 --let $service_state= query_get_value(SELECT Service_state from performance_schema.replication_connection_status, Service_state, 1)
---let $assert_text= The value of service state before GCS start should be OFF
+--let $assert_text= The value of service state before Group Replication start should be OFF
 --let $assert_cond= "$service_state" = "No such row"
 --source include/assert.inc
 
-# Start GCS replication
+# Start Group Replication
 --source include/start_group_replication.inc
 
 --let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
@@ -39,11 +39,11 @@
 --source include/assert.inc
 
 --let $service_state= query_get_value(SELECT Service_state from performance_schema.replication_connection_status, Service_state, 1)
---let $assert_text= The value of service state before GCS start should be ON
+--let $assert_text= The value of service state after Group Replication start should be ON
 --let $assert_cond= "$service_state" = "ON"
 --source include/assert.inc
 
-# Stop GCS replication
+# Stop Group Replication
 --source include/stop_group_replication.inc
 
 --let $group_name= query_get_value(SELECT Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
@@ -53,7 +53,7 @@
 --source include/assert.inc
 
 --let $service_state= query_get_value(SELECT Service_state from performance_schema.replication_connection_status, Service_state, 1)
---let $assert_text= The value of service state before GCS start should be OFF again
+--let $assert_text= The value of service state after Group Replication stop should be OFF again
 --let $assert_cond= "$service_state" = "OFF"
 --source include/assert.inc
 

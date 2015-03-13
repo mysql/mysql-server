@@ -23,7 +23,7 @@
 #include "recovery_message.h"
 #include "applier.h"
 
-#include "plugin_messages.h"
+#include "gcs_plugin_messages.h"
 #include "recovery.h"
 
 #include <algorithm>
@@ -32,28 +32,28 @@ using std::set;
 using std::find;
 
 /**
-  Gcs_member_info_pointer_comparator to guarantee uniqueness
+  Group_member_info_pointer_comparator to guarantee uniqueness
  */
-struct Gcs_member_info_pointer_comparator
+struct Group_member_info_pointer_comparator
 {
-  bool operator()(Cluster_member_info* one,
-                  Cluster_member_info* other) const
+  bool operator()(Group_member_info* one,
+                  Group_member_info* other) const
   {
     return *one < *other;
   }
 };
 
 /*
-  @class Gcs_plugin_view_modification_notifier
+  @class Plugin_gcs_view_modification_notifier
 
   This class is used with the purpose of issuing a view changing event
   and wait for its completion.
  */
-class Gcs_plugin_view_modification_notifier
+class Plugin_gcs_view_modification_notifier
 {
 public:
-  Gcs_plugin_view_modification_notifier();
-  virtual ~Gcs_plugin_view_modification_notifier();
+  Plugin_gcs_view_modification_notifier();
+  virtual ~Plugin_gcs_view_modification_notifier();
 
   /**
     Signals that a view modification is about to start
@@ -85,26 +85,26 @@ private:
 };
 
 /*
-  @class Gcs_plugin_events_handler
+  @class Plugin_gcs_events_handler
 
   Implementation of all GCS event handlers to the plugin
  */
-class Gcs_plugin_events_handler: public Gcs_communication_event_listener,
+class Plugin_gcs_events_handler: public Gcs_communication_event_listener,
                                  public Gcs_control_event_listener,
                                  public Gcs_control_data_exchange_event_listener
 {
 public:
   /**
-    Gcs_plugin_events_handler constructor
+    Plugin_gcs_events_handler constructor
 
     It receives, via the constructor, all the necessary dependencies to work.
   */
-  Gcs_plugin_events_handler(Applier_module_interface* applier_module,
+  Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                             Recovery_module* recovery_module,
-                            Cluster_member_info_manager_interface* cluster_mgr,
-                            Cluster_member_info* local_node_info,
-                            Gcs_plugin_view_modification_notifier* vc_notifier);
-  virtual ~Gcs_plugin_events_handler();
+                            Group_member_info_manager_interface* group_manager,
+                            Group_member_info* local_member_info,
+                            Plugin_gcs_view_modification_notifier* vc_notifier);
+  virtual ~Plugin_gcs_events_handler();
 
   /*
    Implementation of all callback methods
@@ -123,17 +123,17 @@ private:
   void handle_recovery_message(Gcs_message& message);
 
   /*
-   Methods to act upon nodes after a on_view_change(...) is called
+   Methods to act upon members after a on_view_change(...) is called
    */
-  void update_cluster_info_manager(Gcs_view *new_view, bool is_leaving);
-  void handle_joining_nodes(Gcs_view *new_view, bool is_joining);
-  void handle_leaving_nodes(Gcs_view* new_view, bool is_joining,
+  void update_group_info_manager(Gcs_view *new_view, bool is_leaving);
+  void handle_joining_members(Gcs_view *new_view, bool is_joining);
+  void handle_leaving_members(Gcs_view* new_view, bool is_joining,
                             bool is_leaving);
 
-  void update_node_status(vector<Gcs_member_identifier>* members,
-                          Cluster_member_info::Cluster_member_status status,
-                          Cluster_member_info::Cluster_member_status
-                                                              condition_status);
+  void
+  update_member_status(vector<Gcs_member_identifier>* members,
+                       Group_member_info::Group_member_status status,
+                       Group_member_info::Group_member_status condition_status);
 
   /**
     Verifies if a certain Vector of Member Ids contains a given member id.
@@ -149,17 +149,17 @@ private:
   Applier_module_interface* applier_module;
   Recovery_module* recovery_module;
 
-  Cluster_member_info_manager_interface* cluster_info_mgr;
-  Cluster_member_info* local_node_info;
+  Group_member_info_manager_interface* group_info_mgr;
+  Group_member_info* local_member_info;
 
   /*
     Holds, until view can be installed, all Member information received from
     other members
   */
-  set<Cluster_member_info*,
-      Gcs_member_info_pointer_comparator>* temporary_states;
+  set<Group_member_info*,
+      Group_member_info_pointer_comparator>* temporary_states;
 
-  Gcs_plugin_view_modification_notifier* view_change_notifier;
+  Plugin_gcs_view_modification_notifier* view_change_notifier;
 };
 
 #endif /* GCS_EVENT_HANDLERS_INCLUDE */

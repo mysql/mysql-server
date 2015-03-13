@@ -33,7 +33,7 @@ static bool reinit_cache(IO_CACHE *cache,
 
 void cleanup_transaction_write_set(Transaction_write_set *transaction_write_set)
 {
-  DBUG_ENTER("cleanup_write_set");
+  DBUG_ENTER("cleanup_transaction_write_set");
   if (transaction_write_set != NULL)
   {
     my_free (transaction_write_set->write_set);
@@ -45,7 +45,7 @@ void cleanup_transaction_write_set(Transaction_write_set *transaction_write_set)
 int add_write_set(Transaction_context_log_event *tcle,
                   Transaction_write_set *set)
 {
-  DBUG_ENTER("enter_write_set");
+  DBUG_ENTER("add_write_set");
   int iterator= set->write_set_size;
   for (int i = 0; i < iterator; i++)
   {
@@ -69,14 +69,14 @@ int add_write_set(Transaction_context_log_event *tcle,
   Transaction lifecycle events observers.
 */
 
-int gcs_trans_before_dml(Trans_param *param, int& out)
+int group_replication_trans_before_dml(Trans_param *param, int& out)
 {
-  DBUG_ENTER("gcs_trans_before_dml");
+  DBUG_ENTER("group_replication_trans_before_dml");
 
   out= 0;
 
   //If group replication has not started, then moving along...
-  if (!is_gcs_rpl_running())
+  if (!plugin_is_group_replication_running())
   {
     DBUG_RETURN(0);
   }
@@ -118,7 +118,7 @@ int gcs_trans_before_dml(Trans_param *param, int& out)
   }
   /*
     Cycle through all involved tables to assess if they all
-    comply with the runtime GCS requirements. For now:
+    comply with the plugin runtime requirements. For now:
     - The table must be from a transactional engine
     - It must contain at least one primary key
    */
@@ -142,15 +142,15 @@ int gcs_trans_before_dml(Trans_param *param, int& out)
   DBUG_RETURN(0);
 }
 
-int gcs_trans_before_commit(Trans_param *param)
+int group_replication_trans_before_commit(Trans_param *param)
 {
-  DBUG_ENTER("gcs_trans_before_commit");
+  DBUG_ENTER("group_replication_trans_before_commit");
   int error= 0;
 
-  DBUG_EXECUTE_IF("gcs_force_error_on_before_commit_listener",
+  DBUG_EXECUTE_IF("group_replication_force_error_on_before_commit_listener",
                   DBUG_RETURN(1););
 
-  if (!is_gcs_rpl_running())
+  if (!plugin_is_group_replication_running())
     DBUG_RETURN(0);
 
   /*If the originating id belongs to a thread in the plugin, the transaction was already certified*/
@@ -158,13 +158,13 @@ int gcs_trans_before_commit(Trans_param *param)
         || recovery_module->is_own_event_channel(param->thread_id))
     DBUG_RETURN(0);
 
-  Cluster_member_info* for_local_status=
-      cluster_member_mgr->get_cluster_member_info(*local_member_info->get_uuid());
-  Cluster_member_info::Cluster_member_status node_status=
+  Group_member_info* for_local_status=
+      group_member_mgr->get_group_member_info(*local_member_info->get_uuid());
+  Group_member_info::Group_member_status member_status=
       for_local_status->get_recovery_status();
   delete for_local_status;
 
-  if (node_status == Cluster_member_info::MEMBER_IN_RECOVERY)
+  if (member_status == Group_member_info::MEMBER_IN_RECOVERY)
   {
     log_message(MY_ERROR_LEVEL,
                 "Transaction cannot be executed while Group Replication is recovering."
@@ -172,7 +172,7 @@ int gcs_trans_before_commit(Trans_param *param)
     DBUG_RETURN(1);
   }
 
-  if (node_status == Cluster_member_info::MEMBER_OFFLINE)
+  if (member_status == Group_member_info::MEMBER_OFFLINE)
   {
     log_message(MY_ERROR_LEVEL,
                 "Transaction cannot be executed while Group Replication is OFFLINE."
@@ -194,7 +194,7 @@ int gcs_trans_before_commit(Trans_param *param)
   Gtid_log_event *gle= NULL;
 
   Transaction_context_log_event *tcle= NULL;
-  // GCS cache.
+  // group replication cache.
   IO_CACHE cache;
   // Todo optimize for memory (IO-cache's buf to start with, if not enough then trans mem-root)
   // to avoid New message create/delete and/or its implicit MessageBuffer.
@@ -232,12 +232,13 @@ int gcs_trans_before_commit(Trans_param *param)
                            param->thread_id, trx_cache_log_position,
                            stmt_cache_log_position));
 
-  // Open GCS cache.
-  if (open_cached_file(&cache, mysql_tmpdir, "gcs_trans_before_commit_cache",
+  // Open group replication cache.
+  if (open_cached_file(&cache, mysql_tmpdir, "group_replication_trans_before_commit",
                        param->cache_log_max_size, MYF(MY_WME)))
   {
-    log_message(MY_ERROR_LEVEL, "Failed to create gcs commit cache "
-                                "on session %u", param->thread_id);
+    log_message(MY_ERROR_LEVEL,
+                "Failed to create group replication commit cache on session %u",
+                param->thread_id);
     error= 1;
     goto err;
   }
@@ -290,14 +291,14 @@ int gcs_trans_before_commit(Trans_param *param)
     }
   }
 
-  // Write transaction context to GCS cache.
+  // Write transaction context to group replication cache.
   tcle->write(&cache);
 
-  // Write Gtid log event to GCS cache.
+  // Write Gtid log event to group replication cache.
   gle= new Gtid_log_event(param->server_id, is_dml, 0, 1, gtid_specification);
   gle->write(&cache);
 
-  // Reinit GCS cache to read.
+  // Reinit group replication cache to read.
   if (reinit_cache(&cache, READ_CACHE, 0))
   {
     log_message(MY_ERROR_LEVEL, "Error while re-initializing an internal "
@@ -307,7 +308,7 @@ int gcs_trans_before_commit(Trans_param *param)
     goto err;
   }
 
-  // Copy GCS cache to buffer.
+  // Copy group replication cache to buffer.
   if (transaction_msg.append_cache(&cache))
   {
     log_message(MY_ERROR_LEVEL, "Error while appending data to an internal "
@@ -344,7 +345,7 @@ int gcs_trans_before_commit(Trans_param *param)
     goto err;
   }
 
-  DEBUG_SYNC_C("gcs_before_message_broadcast");
+  DEBUG_SYNC_C("group_replication_before_message_broadcast");
 
   //Broadcast the Transaction Message
   if (send_transaction_message(&transaction_msg))
@@ -379,32 +380,32 @@ err:
   DBUG_RETURN(error);
 }
 
-int gcs_trans_before_rollback(Trans_param *param)
+int group_replication_trans_before_rollback(Trans_param *param)
 {
-  DBUG_ENTER("gcs_trans_before_rollback");
+  DBUG_ENTER("group_replication_trans_before_rollback");
   DBUG_RETURN(0);
 }
 
-int gcs_trans_after_commit(Trans_param *param)
+int group_replication_trans_after_commit(Trans_param *param)
 {
-  DBUG_ENTER("gcs_trans_after_commit");
+  DBUG_ENTER("group_replication_trans_after_commit");
   DBUG_RETURN(0);
 }
 
-int gcs_trans_after_rollback(Trans_param *param)
+int group_replication_trans_after_rollback(Trans_param *param)
 {
-  DBUG_ENTER("gcs_trans_after_rollback");
+  DBUG_ENTER("group_replication_trans_after_rollback");
   DBUG_RETURN(0);
 }
 
 Trans_observer trans_observer = {
   sizeof(Trans_observer),
 
-  gcs_trans_before_dml,
-  gcs_trans_before_commit,
-  gcs_trans_before_rollback,
-  gcs_trans_after_commit,
-  gcs_trans_after_rollback,
+  group_replication_trans_before_dml,
+  group_replication_trans_before_commit,
+  group_replication_trans_before_rollback,
+  group_replication_trans_after_commit,
+  group_replication_trans_after_rollback,
 };
 
 /*
@@ -435,13 +436,12 @@ static bool reinit_cache(IO_CACHE *cache,
 
 bool send_transaction_message(Transaction_Message* msg)
 {
-  string gcs_group_name(gcs_group_pointer);
-  Gcs_group_identifier group_id(gcs_group_name);
+  string group_name(group_name_pointer);
+  Gcs_group_identifier group_id(group_name);
 
-  Gcs_communication_interface *comm_if
-                              = gcs_module->get_communication_session(group_id);
-  Gcs_control_interface *ctrl_if
-                              = gcs_module->get_control_session(group_id);
+  Gcs_communication_interface *comm_if=
+      gcs_module->get_communication_session(group_id);
+  Gcs_control_interface *ctrl_if= gcs_module->get_control_session(group_id);
 
   Gcs_message to_send(*ctrl_if->get_local_information(),
                       *ctrl_if->get_current_view()->get_group_id(),
@@ -457,7 +457,7 @@ bool send_transaction_message(Transaction_Message* msg)
 
 //Transaction Message implementation
 
-Transaction_Message::Transaction_Message():Gcs_plugin_message(PAYLOAD_TRANSACTION_EVENT)
+Transaction_Message::Transaction_Message():Plugin_gcs_message(PAYLOAD_TRANSACTION_EVENT)
 {
 }
 
@@ -468,7 +468,7 @@ Transaction_Message::~Transaction_Message()
 bool
 Transaction_Message::append_cache(IO_CACHE *src)
 {
-  DBUG_ENTER("copy_cache");
+  DBUG_ENTER("append_cache");
   size_t length;
 
   DBUG_ASSERT(src->type == READ_CACHE);

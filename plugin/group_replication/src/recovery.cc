@@ -26,7 +26,7 @@ using std::vector;
 static char DEFAULT_USER[]= "root";
 /** Default password for donor connection*/
 static char DEFAULT_PASSWORD[]= "";
-/** The number of queued transactions below which we declare the node online */
+/** The number of queued transactions below which we declare the member online */
 static uint RECOVERY_TRANSACTION_THRESHOLD= 0;
 
 /** The relay log name*/
@@ -43,15 +43,15 @@ Recovery_module::
 Recovery_module(Applier_module_interface *applier,
                 Gcs_communication_interface *comm_if,
                 Gcs_control_interface *ctrl_if,
-                Cluster_member_info *local_info,
-                Cluster_member_info_manager_interface *cluster_info_if,
-                ulong gcs_components_stop_timeout)
+                Group_member_info *local_info,
+                Group_member_info_manager_interface *group_info_if,
+                ulong components_stop_timeout)
   : gcs_control_interface(ctrl_if),gcs_communication_interface(comm_if),
-    local_node_information(local_info), applier_module(applier),
-    cluster_info(cluster_info_if), donor_connection_retry_count(0),
+    local_member_info(local_info), applier_module(applier),
+    group_info(group_info_if), donor_connection_retry_count(0),
     recovery_running(false), donor_transfer_finished(false),
     connected_to_donor(false), donor_connection_interface(recovery_channel_name),
-    stop_wait_timeout(gcs_components_stop_timeout),
+    stop_wait_timeout(components_stop_timeout),
     max_connection_attempts_to_donors(-1)
 {
   selected_donor_uuid.clear();
@@ -74,7 +74,7 @@ Recovery_module(Applier_module_interface *applier,
     { &recovery_cond_key, "recovery_COND", 0}
   };
 
-  register_gcs_psi_keys(recovery_mutexes, 3, recovery_conds, 2);
+  register_group_replication_psi_keys(recovery_mutexes, 3, recovery_conds, 2);
 #endif /* HAVE_PSI_INTERFACE */
 
   mysql_mutex_init(run_mutex_key, &run_lock, MY_MUTEX_INIT_FAST);
@@ -123,16 +123,16 @@ Recovery_module::start_recovery(const string& group_name,
     log_message(MY_INFORMATION_LEVEL,
                 "The number of group replication recovery connections attempts was not set. "
                 "Defaulting to the maximum number of possible donors.");
-    max_connection_attempts_to_donors= cluster_info->get_number_of_members() -1;
+    max_connection_attempts_to_donors= group_info->get_number_of_members() -1;
   }
 
 #ifdef HAVE_PSI_INTERFACE
   PSI_thread_info threads[]= {
     { &key_thread_recovery,
-      "gcs-recovery-module", PSI_FLAG_GLOBAL
+      "group-replication-recovery-module", PSI_FLAG_GLOBAL
     }
   };
-  mysql_thread_register("gcs-recovery-module", threads, 1);
+  mysql_thread_register("group-replication-recovery-module", threads, 1);
 #endif
 
   if (mysql_thread_create(key_thread_recovery,
@@ -184,7 +184,7 @@ Recovery_module::stop_recovery()
 
   while (recovery_running)
   {
-    DBUG_PRINT("loop", ("killing gcs recovery thread"));
+    DBUG_PRINT("loop", ("killing group replication recovery thread"));
 
     mysql_mutex_lock(&recovery_thd->LOCK_thd_data);
     /*
@@ -235,7 +235,7 @@ Recovery_module::stop_recovery()
 }
 
 int
-Recovery_module::update_recovery_process(bool did_nodes_left)
+Recovery_module::update_recovery_process(bool did_members_left)
 {
   DBUG_ENTER("Recovery_module::update_recovery_process");
 
@@ -243,8 +243,8 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
 
   if (recovery_running)
   {
-    //If i left the Cluster... the cluster manager will only have me
-    if (cluster_info->get_number_of_members() == 1)
+    //If i left the Group... the group manager will only have me
+    if (group_info->get_number_of_members() == 1)
     {
       stop_recovery();
     }
@@ -254,14 +254,14 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
         Lock to avoid concurrency between this code that handles failover and
         the establish_donor_connection method. We either:
         1) lock first and see that the method did not run yet, updating the list
-           of cluster members that will be used there.
+           of group members that will be used there.
         2) lock after the method executed, and if the selected donor is leaving
            we stop the connection thread and select a new one.
       */
       mysql_mutex_lock(&donor_selection_lock);
 
-      //if some node left, reset the counter as potential failed members left
-      if (did_nodes_left)
+      //if some member left, reset the counter as potential failed members left
+      if (did_members_left)
       {
         donor_connection_retry_count= 0;
         rejected_donors.clear();
@@ -273,8 +273,8 @@ Recovery_module::update_recovery_process(bool did_nodes_left)
        2) We are already connected to him.
       */
 
-      Cluster_member_info* donor=
-            cluster_info->get_cluster_member_info(selected_donor_uuid);
+      Group_member_info* donor=
+          group_info->get_group_member_info(selected_donor_uuid);
 
       if ((donor == NULL) && connected_to_donor)
       {
@@ -378,13 +378,13 @@ Recovery_module::recovery_thread_handle()
     goto cleanup;
   }
 
-  if(cluster_info->get_number_of_members() == 1)
+  if (group_info->get_number_of_members() == 1)
   {
     log_message(MY_INFORMATION_LEVEL,
                 "Only one server alive."
                 "Declaring this server as online within the replication group");
 
-    goto single_node_online;
+    goto single_member_online;
   }
 
   THD_STAGE_INFO(recovery_thd, stage_connecting_to_master);
@@ -416,7 +416,7 @@ Recovery_module::recovery_thread_handle()
     the wrong context.
   */
 
-single_node_online:
+single_member_online:
   if (!recovery_aborted)
     applier_module->awake_applier_module();
 
@@ -424,9 +424,9 @@ single_node_online:
 
 cleanup:
 
-  //if finished, declare the node online
+  //if finished, declare the member online
   if (!recovery_aborted && !error)
-    notify_cluster_recovery_end();
+    notify_group_recovery_end();
 
   mysql_mutex_lock(&run_lock);
   recovery_running= false;
@@ -434,8 +434,8 @@ cleanup:
   mysql_mutex_unlock(&run_lock);
 
   /*
-   If recovery failed, it's no use to continue in the group as the node cannot
-   take an active part in the cluster, so it leaves.
+   If recovery failed, it's no use to continue in the group as the member cannot
+   take an active part in it, so it must leave.
 
    This code can only be invoked after recovery being declared as terminated as
    otherwise it would deadlock with the method waiting for the last view, and
@@ -510,19 +510,18 @@ bool Recovery_module::select_donor()
   bool clean_run= rejected_donors.empty();
   while (!no_available_donors)
   {
-    std::vector<Cluster_member_info*>* member_set=
-                                              cluster_info->get_all_members();
-    std::vector<Cluster_member_info*>::iterator it= member_set->begin();
-    //select the first online node
+    std::vector<Group_member_info*>* member_set= group_info->get_all_members();
+    std::vector<Group_member_info*>::iterator it= member_set->begin();
+    //select the first online member
     while (it != member_set->end())
     {
-      Cluster_member_info* member = *it;
+      Group_member_info* member= *it;
       //is online and it's not me and didn't error out before
       string m_uuid= *member->get_uuid();
 
       bool is_online= member->get_recovery_status() ==
-                                Cluster_member_info::MEMBER_ONLINE;
-      bool not_self= m_uuid.compare(*local_node_information->get_uuid());
+          Group_member_info::MEMBER_ONLINE;
+      bool not_self= m_uuid.compare(*local_member_info->get_uuid());
       bool not_rejected= std::find(rejected_donors.begin(),
                                    rejected_donors.end(),
                                    m_uuid) == rejected_donors.end();
@@ -643,8 +642,8 @@ int Recovery_module::initialize_donor_connection(bool purge_logs){
 
   int error= 0;
 
-  Cluster_member_info* selected_donor=
-          cluster_info->get_cluster_member_info(selected_donor_uuid);
+  Group_member_info* selected_donor=
+      group_info->get_group_member_info(selected_donor_uuid);
 
   if (selected_donor == NULL)
   {
@@ -789,13 +788,13 @@ void Recovery_module::wait_for_applier_module_recovery()
   }
 }
 
-void Recovery_module::notify_cluster_recovery_end()
+void Recovery_module::notify_group_recovery_end()
 {
-  DBUG_ENTER("Recovery_module::notify_cluster_recovery_end");
+  DBUG_ENTER("Recovery_module::notify_group_recovery_end");
 
-  Recovery_message *recovery_msg
-    = new Recovery_message(Recovery_message::RECOVERY_END_MESSAGE,
-                           local_node_information->get_uuid());
+  Recovery_message *recovery_msg=
+      new Recovery_message(Recovery_message::RECOVERY_END_MESSAGE,
+                           local_member_info->get_uuid());
 
   vector<uchar> encoded_recovery_msg;
   recovery_msg->encode(&encoded_recovery_msg);

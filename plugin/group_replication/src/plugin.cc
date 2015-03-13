@@ -17,7 +17,7 @@
 #include "observer_server_actions.h"
 #include "observer_server_state.h"
 #include "observer_trans.h"
-#include "binding_factory.h"
+#include "gcs_binding_factory.h"
 #include "gcs_corosync_control_interface.h"
 #include "plugin.h"
 #include "plugin_log.h"
@@ -26,74 +26,69 @@
 
 using std::string;
 
+/* Plugin generic fields */
+
 static MYSQL_PLUGIN plugin_info_ptr;
 
-/* configuration related: */
+//The plugin running flag and lock
+static pthread_mutex_t plugin_running_mutex;
+static bool group_replication_running;
+bool wait_on_engine_initialization= false;
 
+/* Plugin modules */
+//The plugin applier
+Applier_module *applier_module= NULL;
+//The plugin recovery module
+Recovery_module *recovery_module= NULL;
+//The plugin group communication module
+Gcs_interface *gcs_module= NULL;
+
+/* Group communication options */
 ulong gcs_protocol_opt;
-
 const char *available_bindings_names[]= {"COROSYNC", (char *)0};
-
 TYPELIB gcs_protocol_typelib=
 { array_elements(available_bindings_names) - 1, "", available_bindings_names, NULL };
 
-//Plugin related
-const char *group_replication_plugin_name= "group_replication";
-char gcs_replication_group[UUID_LENGTH+1];
-char gcs_replication_boot;
-rpl_sidno gcs_cluster_sidno;
-
-//Applier module related
-ulong handler_pipeline_type;
-bool known_server_reset;
-
-//Recovery module related
-char gcs_recovery_user[USERNAME_LENGTH + 1];
-char *gcs_recovery_user_pointer= NULL;
-
-/**
-  Dummy variable associated to the recovery password sysvar making it never
-  accessible.
-  The real value resides in the below field
-*/
-char *gcs_dummy_recovery_password= NULL;
-
-//Invisible. After Recovery consumes it will be nullified
-char gcs_recovery_password[MAX_PASSWORD_LENGTH + 1];
-
-ulong gcs_recovery_retry_count= 0;
-
-//Generic components variables
-ulong gcs_components_stop_timeout= LONG_TIMEOUT;
-
-//Certification latch
-Wait_ticket<my_thread_id> *certification_latch;
-
-//GCS module variables
-char *gcs_group_pointer= NULL;
-Gcs_interface *gcs_module= NULL;
-Gcs_plugin_events_handler* events_handler= NULL;
-Gcs_plugin_view_modification_notifier* view_change_notifier= NULL;
+Plugin_gcs_events_handler* events_handler= NULL;
+Plugin_gcs_view_modification_notifier* view_change_notifier= NULL;
 
 int gcs_communication_event_handle= 0;
 int gcs_control_event_handler= 0;
 int gcs_control_exchanged_data_handle= 0;
 
-/* end of conf */
+/* Group management information */
+Group_member_info_manager_interface *group_member_mgr= NULL;
+Group_member_info* local_member_info= NULL;
 
-//The plugin running flag and lock
-static pthread_mutex_t gcs_running_mutex;
-static bool gcs_running;
-bool wait_on_engine_initialization= false;
+/* Plugin group related options */
+const char *group_replication_plugin_name= "group_replication";
+char group_name[UUID_LENGTH+1];
+char *group_name_pointer= NULL;
+char start_group_replication_at_boot;
+rpl_sidno group_sidno;
 
-//The plugin applier
-Applier_module *applier_module= NULL;
-//The plugin recovery module
-Recovery_module *recovery_module= NULL;
+/* Applier module related */
+ulong handler_pipeline_type;
+bool known_server_reset;
 
-//Application management information
-Cluster_member_info_manager_interface *cluster_member_mgr= NULL;
-Cluster_member_info* local_member_info= NULL;
+/* Recovery module related */
+char recovery_user[USERNAME_LENGTH + 1];
+char *recovery_user_pointer= NULL;
+/**
+  Dummy variable associated to the recovery password sysvar making it never
+  accessible.
+  The real value resides in the below field
+*/
+char *dummy_recovery_password= NULL;
+//Invisible. After Recovery consumes it will be nullified
+char recovery_password[MAX_PASSWORD_LENGTH + 1];
+ulong recovery_retry_count= 0;
+
+/* Generic components variables */
+ulong components_stop_timeout= LONG_TIMEOUT;
+
+/* Certification latch */
+Wait_ticket<my_thread_id> *certification_latch;
 
 /*
   Internal auxiliary functions signatures.
@@ -102,19 +97,19 @@ static int check_group_name_string(const char *str);
 
 static int check_if_server_properly_configured();
 
-static bool init_cluster_sidno();
+static bool init_group_sidno();
 
 static bool server_engine_initialized();
 
 /*
   Auxiliary public functions.
 */
-bool is_gcs_rpl_running()
+bool plugin_is_group_replication_running()
 {
-  return gcs_running;
+  return group_replication_running;
 }
 
-int gcs_set_retrieved_cert_info(void* info)
+int plugin_group_replication_set_retrieved_certification_info(void* info)
 {
   return recovery_module->set_retrieved_cert_info(info);
 }
@@ -133,65 +128,69 @@ int log_message(enum plugin_log_level level, const char *format, ...)
 /*
   Plugin interface.
 */
-struct st_mysql_group_replication gcs_rpl_descriptor=
+struct st_mysql_group_replication group_replication_descriptor=
 {
   MYSQL_GROUP_REPLICATION_INTERFACE_VERSION,
-  gcs_rpl_start,
-  gcs_rpl_stop,
-  is_gcs_rpl_running,
-  gcs_set_retrieved_cert_info,
-  get_gcs_connection_status,
-  get_gcs_group_members,
-  get_gcs_group_member_stats,
-  get_gcs_members_number,
+  plugin_group_replication_start,
+  plugin_group_replication_stop,
+  plugin_is_group_replication_running,
+  plugin_group_replication_set_retrieved_certification_info,
+  plugin_get_connection_status,
+  plugin_get_group_members,
+  plugin_get_group_member_stats,
+  plugin_get_group_members_number,
 };
 
-bool get_gcs_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info)
+bool
+plugin_get_connection_status(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info)
 {
   char* channel_name= applier_module_channel_name;
 
-  return get_gcs_connection_status(info, gcs_module, gcs_group_pointer,
-                                   channel_name, is_gcs_rpl_running());
+  return get_connection_status(info, gcs_module, group_name_pointer,
+                               channel_name,
+                               plugin_is_group_replication_running());
 }
 
-bool get_gcs_group_members(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
+bool
+plugin_get_group_members(uint index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info)
 {
   char* channel_name= applier_module_channel_name;
 
-  return get_gcs_group_members_info(index, info,cluster_member_mgr, gcs_module,
-                                    gcs_group_pointer, channel_name);
+  return get_group_members_info(index, info,group_member_mgr, gcs_module,
+                                group_name_pointer, channel_name);
 }
 
-uint get_gcs_members_number()
+uint plugin_get_group_members_number()
 {
-  return cluster_member_mgr == NULL? 1 :
-                                    (uint)cluster_member_mgr
+  return group_member_mgr == NULL? 1 :
+                                    (uint)group_member_mgr
                                                       ->get_number_of_members();
 }
 
-bool get_gcs_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info)
+bool
+plugin_get_group_member_stats(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO *info)
 {
   char* channel_name= applier_module_channel_name;
 
-  return get_gcs_group_member_stats(info, cluster_member_mgr, applier_module,
-                                gcs_module, gcs_group_pointer, channel_name);
+  return get_group_member_stats(info, group_member_mgr, applier_module,
+                                gcs_module, group_name_pointer, channel_name);
 }
 
-int gcs_rpl_start()
+int plugin_group_replication_start()
 {
-  Mutex_autolock a(&gcs_running_mutex);
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
-  DBUG_ENTER("gcs_rpl_start");
+  DBUG_ENTER("plugin_group_replication_start");
   int error= 0;
 
-  if (is_gcs_rpl_running())
-    DBUG_RETURN(GCS_ALREADY_RUNNING);
+  if (plugin_is_group_replication_running())
+    DBUG_RETURN(GROUP_REPLICATION_ALREADY_RUNNING);
   if (check_if_server_properly_configured())
-    DBUG_RETURN(GCS_CONFIGURATION_ERROR);
-  if (check_group_name_string(gcs_group_pointer))
-    DBUG_RETURN(GCS_CONFIGURATION_ERROR);
-  if (init_cluster_sidno())
-    DBUG_RETURN(GCS_CONFIGURATION_ERROR);
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  if (check_group_name_string(group_name_pointer))
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  if (init_group_sidno())
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
 
   /*
     Instantiate certification latch.
@@ -200,20 +199,20 @@ int gcs_rpl_start()
 
   if(gcs_module->initialize())
   {
-    error= GCS_CONFIGURATION_ERROR;
+    error= GROUP_REPLICATION_CONFIGURATION_ERROR;
     goto err;
   }
 
   if (server_engine_initialized())
   {
-    configure_cluster_member_manager();
+    configure_group_member_manager();
 
     initialize_recovery_module();
 
     //we can only start the applier if the log has been initialized
     if (configure_and_start_applier_module())
     {
-      error= GCS_REPLICATION_APPLIER_INIT_ERROR;
+      error= GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR;
       goto err;
     }
   }
@@ -223,19 +222,20 @@ int gcs_rpl_start()
     DBUG_RETURN(0); //leave the decision for later
   }
 
-  if ((error= configure_and_start_gcs()))
+  if ((error= configure_and_start_group_communication()))
   {
     //terminate the before created pipeline
     log_message(MY_ERROR_LEVEL,
-                "Error on gcs initialization methods, killing the applier");
+                "Error on group communication initialization methods, "
+                "killing the Group Replication applier");
     applier_module->terminate_applier_thread();
     goto err;
   }
 
   if(!(view_change_notifier
-                       ->wait_for_view_modification(VIEW_MODIFICATION_TIMEOUT)))
+           ->wait_for_view_modification(VIEW_MODIFICATION_TIMEOUT)))
   {
-    gcs_running= true;
+    group_replication_running= true;
   }
   else
   {
@@ -253,14 +253,14 @@ err:
   DBUG_RETURN(error); //All is OK
 }
 
-int configure_cluster_member_manager()
+int configure_group_member_manager()
 {
   //Retrieve local GCS information
-  string group_id_str(gcs_group_pointer);
+  string group_id_str(group_name_pointer);
   Gcs_group_identifier group_id(group_id_str);
   Gcs_control_interface* gcs_ctrl= gcs_module->get_control_session(group_id);
 
-  //Configure Cluster Member Manager
+  //Configure Group Member Manager
   char *hostname, *uuid;
   uint port;
   get_server_host_port_uuid(&hostname, &port, &uuid);
@@ -270,39 +270,38 @@ int configure_cluster_member_manager()
     delete local_member_info;
   }
 
-  local_member_info = new Cluster_member_info(hostname,
-                                              port,
-                                              uuid,
-                                              gcs_ctrl->get_local_information(),
-                                              Cluster_member_info::MEMBER_OFFLINE);
+  local_member_info= new Group_member_info(hostname,
+                                           port,
+                                           uuid,
+                                           gcs_ctrl->get_local_information(),
+                                           Group_member_info::MEMBER_OFFLINE);
 
-  //Create the membership info visible for the cluster
-  if(cluster_member_mgr != NULL)
+  //Create the membership info visible for the group
+  if(group_member_mgr != NULL)
   {
-    delete cluster_member_mgr;
+    delete group_member_mgr;
   }
 
-  cluster_member_mgr= new Cluster_member_info_manager(local_member_info);
+  group_member_mgr= new Group_member_info_manager(local_member_info);
 
   return 0;
 }
 
-int gcs_rpl_stop()
+int plugin_group_replication_stop()
 {
-  Mutex_autolock a(&gcs_running_mutex);
-  DBUG_ENTER("gcs_rpl_stop");
+  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  DBUG_ENTER("plugin_group_replication_stop");
 
-  if (!is_gcs_rpl_running())
+  if (!plugin_is_group_replication_running())
     DBUG_RETURN(0);
 
   /* first leave all joined groups (currently one) */
-  string gcs_group_name(gcs_group_pointer);
-  Gcs_group_identifier group_id(gcs_group_name);
+  string group_name(group_name_pointer);
+  Gcs_group_identifier group_id(group_name);
 
-  Gcs_control_interface *ctrl_if=
-                                gcs_module->get_control_session(group_id);
+  Gcs_control_interface *ctrl_if= gcs_module->get_control_session(group_id);
   Gcs_communication_interface *comm_if=
-                                gcs_module->get_communication_session(group_id);
+      gcs_module->get_communication_session(group_id);
 
   view_change_notifier->start_view_modification();
 
@@ -340,7 +339,7 @@ int gcs_rpl_stop()
   {
     //Do not trow an error since recovery is not vital, but warn either way
     log_message(MY_WARNING_LEVEL,
-                "On shutdown there was a timeout on the group replication "
+                "On shutdown there was a timeout on the Group Replication "
                 "recovery module termination. Check the log for more details");
   }
 
@@ -351,12 +350,12 @@ int gcs_rpl_stop()
   int error= 0;
   if((error= terminate_applier_module()))
     log_message(MY_ERROR_LEVEL,
-                "On shutdown there was a timeout on the group replication"
+                "On shutdown there was a timeout on the Group Replication"
                 " applier termination.");
 
   /*
-    Even if the applier did not terminate, let gcs_running be false
-    as he can shutdown in the meanwhile.
+    Even if the applier did not terminate, let group_replication_running be
+    false as he can shutdown in the meanwhile.
   */
 
   gcs_module->finalize();
@@ -370,39 +369,41 @@ int gcs_rpl_stop()
     certification_latch= NULL;
   }
 
-  gcs_running= false;
+  group_replication_running= false;
   DBUG_RETURN(error);
 }
 
-int gcs_replication_init(MYSQL_PLUGIN plugin_info)
+int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 {
-  pthread_mutex_init(&gcs_running_mutex, NULL);
+  pthread_mutex_init(&plugin_running_mutex, NULL);
   plugin_info_ptr= plugin_info;
   if (group_replication_init(group_replication_plugin_name))
   {
     log_message(MY_ERROR_LEVEL,
-                "Failure on GCS Cluster handler initialization");
+                "Failure on Group Replication handler initialization");
     return 1;
   }
 
-  if(register_server_state_observer(&server_state_observer, (void *)plugin_info_ptr))
+  if(register_server_state_observer(&server_state_observer,
+                                    (void *)plugin_info_ptr))
   {
     log_message(MY_ERROR_LEVEL,
-                "Failure in GCS cluster during registering the server state observers");
+                "Failure when registering the server state observers");
     return 1;
   }
 
   if (register_trans_observer(&trans_observer, (void *)plugin_info_ptr))
   {
     log_message(MY_ERROR_LEVEL,
-                "Failure in GCS cluster during registering the transactions state observers");
+                "Failure when registering the transactions state observers");
     return 1;
   }
 
-  if (register_binlog_transmit_observer (&binlog_transmit_observer, (void *)plugin_info_ptr))
+  if (register_binlog_transmit_observer(&binlog_transmit_observer,
+                                        (void *)plugin_info_ptr))
   {
     log_message(MY_ERROR_LEVEL,
-                "Failure in GCS cluster during registering the binlog state observers");
+                "Failure when registering the binlog state observers");
     return 1;
   }
 
@@ -410,17 +411,18 @@ int gcs_replication_init(MYSQL_PLUGIN plugin_info)
          Gcs_binding_factory::get_gcs_implementation
                               ((plugin_gcs_bindings)gcs_protocol_opt)) == NULL)
   {
-    log_message(MY_ERROR_LEVEL, "Failure in GCS protocol initialization");
+    log_message(MY_ERROR_LEVEL,
+                "Failure in group communication protocol initialization");
     return 1;
   };
 
-  if (gcs_replication_boot && group_replication_start())
+  if (start_group_replication_at_boot && group_replication_start())
     return 1;
 
   return 0;
 }
 
-int gcs_replication_deinit(void *p)
+int plugin_group_replication_deinit(void *p)
 {
   if (group_replication_cleanup())
     return 1;
@@ -428,10 +430,10 @@ int gcs_replication_deinit(void *p)
   Gcs_binding_factory::cleanup_gcs_implementation
                                        ((plugin_gcs_bindings)gcs_protocol_opt);
 
-  if(cluster_member_mgr != NULL)
+  if(group_member_mgr != NULL)
   {
-    delete cluster_member_mgr;
-    cluster_member_mgr= NULL;
+    delete group_member_mgr;
+    group_member_mgr= NULL;
   }
 
   if(local_member_info != NULL)
@@ -443,28 +445,29 @@ int gcs_replication_deinit(void *p)
   if (unregister_server_state_observer(&server_state_observer, p))
   {
     log_message(MY_ERROR_LEVEL,
-                "Failure in GCS cluster during unregistering the server state observers");
+                "Failure when unregistering the server state observers");
     return 1;
   }
 
   if (unregister_trans_observer(&trans_observer, p))
   {
     log_message(MY_ERROR_LEVEL,
-                "Failure in GCS cluster during unregistering the transactions state observers");
+                "Failure when unregistering the transactions state observers");
     return 1;
   }
 
   if (unregister_binlog_transmit_observer(&binlog_transmit_observer, p))
   {
     log_message(MY_ERROR_LEVEL,
-                "Failure in GCS cluster during unregistering the binlog state observers");
+                "Failure when unregistering the binlog state observers");
     return 1;
   }
 
   log_message(MY_INFORMATION_LEVEL,
-              "The observers in GCS cluster have been successfully unregistered");
+              "All Group Replication server observers"
+              " have been successfully unregistered");
 
-  pthread_mutex_destroy(&gcs_running_mutex);
+  pthread_mutex_destroy(&plugin_running_mutex);
 
   return 0;
 }
@@ -474,21 +477,21 @@ static void update_boot(MYSQL_THD thd, SYS_VAR *var, void *ptr, const void *val)
   DBUG_ENTER("update_boot");
 
   *(char *)ptr= *(char *)val;
-  gcs_replication_boot= *((char *) ptr);
+  start_group_replication_at_boot= *((char *) ptr);
 
   DBUG_VOID_RETURN;
 }
 
-static bool init_cluster_sidno()
+static bool init_group_sidno()
 {
-  DBUG_ENTER("init_cluster_sid");
-  rpl_sid cluster_sid;
+  DBUG_ENTER("init_group_sidno");
+  rpl_sid group_sid;
 
-  if (cluster_sid.parse(gcs_group_pointer) != RETURN_STATUS_OK)
+  if (group_sid.parse(group_name_pointer) != RETURN_STATUS_OK)
     DBUG_RETURN(true);
 
-  gcs_cluster_sidno = get_sidno_from_global_sid_map(cluster_sid);
-  if (gcs_cluster_sidno <= 0)
+  group_sidno = get_sidno_from_global_sid_map(group_sid);
+  if (group_sidno <= 0)
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
@@ -496,12 +499,12 @@ static bool init_cluster_sidno()
 
 void declare_plugin_running()
 {
-  gcs_running= true;
+  group_replication_running= true;
 }
 
 int configure_and_start_applier_module()
 {
-  DBUG_ENTER("configure_and_start_applier");
+  DBUG_ENTER("configure_and_start_applier_module");
 
   int error= 0;
 
@@ -511,7 +514,7 @@ int configure_and_start_applier_module()
     if ((error= applier_module->is_running())) //it is still running?
     {
       log_message(MY_ERROR_LEVEL,
-                  "Cannot start the group replication applier as a previous "
+                  "Cannot start the Group Replication applier as a previous "
                   "shutdown is still running: "
                   "The thread will stop once its task is complete.");
       DBUG_RETURN(error);
@@ -533,8 +536,8 @@ int configure_and_start_applier_module()
   error=
     applier_module->setup_applier_module((Handler_pipeline_type)handler_pipeline_type,
                                          known_server_reset,
-                                         gcs_components_stop_timeout,
-                                         gcs_cluster_sidno);
+                                         components_stop_timeout,
+                                         group_sidno);
   if (error)
   {
     //Delete the possible existing pipeline
@@ -547,7 +550,7 @@ int configure_and_start_applier_module()
   if ((error= applier_module->initialize_applier_thread()))
   {
     log_message(MY_ERROR_LEVEL,
-                "Unable to initialize the group replication applier module.");
+                "Unable to initialize the Group Replication applier module.");
     //clean a possible existent pipeline
     applier_module->terminate_applier_pipeline();
     delete applier_module;
@@ -555,7 +558,7 @@ int configure_and_start_applier_module()
   }
   else
     log_message(MY_INFORMATION_LEVEL,
-                "Group replication applier module successfully initialized!");
+                "Group Replication applier module successfully initialized!");
 
   DBUG_RETURN(error);
 }
@@ -573,50 +576,49 @@ int terminate_applier_module()
     }
     else
     {
-      error= GCS_APPLIER_STOP_TIMEOUT;
+      error= GROUP_REPLICATION_APPLIER_STOP_TIMEOUT;
     }
   }
   return error;
 }
 
-int configure_and_start_gcs()
+int configure_and_start_group_communication()
 {
   //Create data to be exchanged here...
-  string group_id_str(gcs_group_pointer);
+  string group_id_str(group_name_pointer);
   Gcs_group_identifier group_id(group_id_str);
   Gcs_control_interface* gcs_ctrl= gcs_module->get_control_session(group_id);
 
-  gcs_ctrl
-        ->set_exchangeable_data(cluster_member_mgr->get_exchangeable_format());
+  gcs_ctrl->set_exchangeable_data(group_member_mgr->get_exchangeable_format());
 
-  view_change_notifier= new Gcs_plugin_view_modification_notifier();
-  events_handler= new Gcs_plugin_events_handler(applier_module,
+  view_change_notifier= new Plugin_gcs_view_modification_notifier();
+  events_handler= new Plugin_gcs_events_handler(applier_module,
                                                 recovery_module,
-                                                cluster_member_mgr,
+                                                group_member_mgr,
                                                 local_member_info,
                                                 view_change_notifier);
 
   view_change_notifier->start_view_modification();
 
   gcs_control_event_handler= gcs_ctrl->add_event_listener(events_handler);
-  gcs_control_exchanged_data_handle
-                   = gcs_ctrl->add_data_exchange_event_listener(events_handler);
+  gcs_control_exchanged_data_handle=
+      gcs_ctrl->add_data_exchange_event_listener(events_handler);
 
   //Set interfaces for Certifier
   Gcs_communication_interface *comm_if=
-                            gcs_module->get_communication_session(group_id);
+      gcs_module->get_communication_session(group_id);
 
   gcs_communication_event_handle= comm_if->add_event_listener(events_handler);
 
   //Transmit the interfaces to the interested handlers.
-  Handler_GCS_interfaces_action *interf_action=
-    new Handler_GCS_interfaces_action(local_member_info, comm_if, gcs_ctrl);
+  Handler_gcs_interfaces_action *interf_action=
+    new Handler_gcs_interfaces_action(local_member_info, comm_if, gcs_ctrl);
   applier_module->handle_pipeline_action(interf_action);
   delete interf_action;
 
   if (gcs_ctrl->join())
   {
-    return GCS_COMMUNICATION_LAYER_JOIN_ERROR;
+    return GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR;
   }
 
   return 0;
@@ -624,23 +626,21 @@ int configure_and_start_gcs()
 
 int initialize_recovery_module()
 {
-  string group_id_str(gcs_group_pointer);
+  string group_id_str(group_name_pointer);
   Gcs_group_identifier group_id(group_id_str);
 
   Gcs_communication_interface *comm_if=
-                            gcs_module->get_communication_session(group_id);
+      gcs_module->get_communication_session(group_id);
   Gcs_control_interface *ctrl_if=
-                            gcs_module->get_control_session(group_id);
+      gcs_module->get_control_session(group_id);
 
   recovery_module = new Recovery_module(applier_module, comm_if,
                                         ctrl_if, local_member_info,
-                                        cluster_member_mgr,
-                                        gcs_components_stop_timeout);
+                                        group_member_mgr,
+                                        components_stop_timeout);
 
-  recovery_module
-              ->set_recovery_donor_connection_user(gcs_recovery_user_pointer);
-  recovery_module
-              ->set_recovery_donor_connection_password(&gcs_recovery_password[0]);
+  recovery_module->set_recovery_donor_connection_user(recovery_user_pointer);
+  recovery_module->set_recovery_donor_connection_password(&recovery_password[0]);
 
   return 0;
 }
@@ -651,9 +651,7 @@ int terminate_recovery_module()
   if(recovery_module != NULL)
   {
     error = recovery_module->stop_recovery();
-
     delete recovery_module;
-
     recovery_module= NULL;
   }
   return error;
@@ -668,7 +666,7 @@ void register_server_reset_master(){
 }
 
 /*
-  This method is used to accomplish the startup validations of the GCS plugin
+  This method is used to accomplish the startup validations of the plugin
   regarding system configuration.
 
   It currently verifies:
@@ -685,7 +683,7 @@ static int check_if_server_properly_configured()
 {
   DBUG_ENTER("check_if_server_properly_configured");
 
-  //Struct that holds startup and runtime GCS requirements
+  //Struct that holds startup and runtime requirements
   Trans_context_info startup_pre_reqs;
 
   get_server_startup_prerequirements(startup_pre_reqs, true);
@@ -765,11 +763,10 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *var, void* prt,
   char buff[NAME_CHAR_LEN];
   const char *str;
 
-  //safe_mutex_assert_owner(&gcs_running_mutex);
-  if (is_gcs_rpl_running())
+  if (plugin_is_group_replication_running())
   {
     log_message(MY_ERROR_LEVEL,
-                "The group name cannot be changed when cluster is running");
+                "The group name cannot be changed when Group Replication is running");
     DBUG_RETURN(1);
   }
 
@@ -788,8 +785,8 @@ static void update_group_name(MYSQL_THD thd, SYS_VAR *var, void *ptr, const
   DBUG_ENTER("update_group_name");
 
   const char *newGroup= *(const char**)val;
-  strncpy(gcs_replication_group, newGroup, UUID_LENGTH);
-  gcs_group_pointer= &gcs_replication_group[0];
+  strncpy(group_name, newGroup, UUID_LENGTH);
+  group_name_pointer= &group_name[0];
 
   DBUG_VOID_RETURN;
 }
@@ -825,8 +822,8 @@ static void update_recovery_con_user(MYSQL_THD thd, SYS_VAR *var, void *ptr,
   DBUG_ENTER("update_recovery_con_user");
 
   const char *new_user= *(const char**)value;
-  strncpy(gcs_recovery_user, new_user, strlen(new_user)+1);
-  gcs_recovery_user_pointer= &gcs_recovery_user[0];
+  strncpy(recovery_user, new_user, strlen(new_user)+1);
+  recovery_user_pointer= &recovery_user[0];
   if (recovery_module != NULL)
   {
     recovery_module->set_recovery_donor_connection_user(new_user);
@@ -852,7 +849,7 @@ static int check_recovery_con_password(MYSQL_THD thd, SYS_VAR *var, void* ptr,
     DBUG_RETURN(1);
   }
 
-  strncpy(gcs_recovery_password, str, strlen(str)+1);
+  strncpy(recovery_password, str, strlen(str)+1);
   if (recovery_module != NULL)
   {
     recovery_module->set_recovery_donor_connection_password(str);
@@ -874,11 +871,11 @@ static void update_recovery_retry_count(MYSQL_THD thd, SYS_VAR *var, void *ptr,
   DBUG_ENTER("update_recovery_retry_count");
 
   ulong in_val= *static_cast<const ulong*>(value);
-  gcs_recovery_retry_count= in_val;
+  recovery_retry_count= in_val;
 
   if (recovery_module != NULL)
   {
-    recovery_module->set_recovery_donor_retry_count(gcs_recovery_retry_count);
+    recovery_module->set_recovery_donor_retry_count(recovery_retry_count);
   }
 
   DBUG_VOID_RETURN;
@@ -892,15 +889,15 @@ static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var, void *ptr,
   DBUG_ENTER("update_component_timeout");
 
   ulong in_val= *static_cast<const ulong*>(value);
-  gcs_components_stop_timeout= in_val;
+  components_stop_timeout= in_val;
 
   if (applier_module != NULL)
   {
-    applier_module->set_stop_wait_timeout(gcs_components_stop_timeout);
+    applier_module->set_stop_wait_timeout(components_stop_timeout);
   }
   if (recovery_module != NULL)
   {
-    recovery_module->set_stop_wait_timeout(gcs_components_stop_timeout);
+    recovery_module->set_stop_wait_timeout(components_stop_timeout);
   }
 
   DBUG_VOID_RETURN;
@@ -908,16 +905,16 @@ static void update_component_timeout(MYSQL_THD thd, SYS_VAR *var, void *ptr,
 
 //Base plugin variables
 
-static MYSQL_SYSVAR_BOOL(start_on_boot, gcs_replication_boot,
+static MYSQL_SYSVAR_BOOL(start_on_boot, start_group_replication_at_boot,
   PLUGIN_VAR_OPCMDARG,
-  "Whether this server should start the group or not during bootstrap.",
+  "Whether the server should start Group Replication or not during bootstrap.",
   NULL,
   update_boot,
   0);
 
-static MYSQL_SYSVAR_STR(group_name, gcs_group_pointer,
+static MYSQL_SYSVAR_STR(group_name, group_name_pointer,
   PLUGIN_VAR_OPCMDARG,
-  "The cluster name this server has joined.",
+  "The group name",
   check_group_name,
   update_group_name,
   NULL);
@@ -937,13 +934,13 @@ static MYSQL_SYSVAR_ENUM(pipeline_type_var, handler_pipeline_type,
    PLUGIN_VAR_OPCMDARG,
    "pipeline types"
    "possible values are STANDARD",
-   NULL, NULL, STANDARD_GCS_PIPELINE, &pipeline_name_typelib_t);
+   NULL, NULL, STANDARD_GROUP_REPLICATION_PIPELINE, &pipeline_name_typelib_t);
 
 //GCS module variables
 
 static MYSQL_SYSVAR_ENUM(gcs_protocol, gcs_protocol_opt,
   PLUGIN_VAR_OPCMDARG,
-  "The name of GCS protocol to us.",
+  "The name of group communication protocol to use.",
   NULL,
   NULL,
   COROSYNC,
@@ -953,7 +950,7 @@ static MYSQL_SYSVAR_ENUM(gcs_protocol, gcs_protocol_opt,
 
 static MYSQL_SYSVAR_STR(
   recovery_user,                              /* name */
-  gcs_recovery_user_pointer,                  /* var */
+  recovery_user_pointer,                      /* var */
   PLUGIN_VAR_OPCMDARG,                        /* optional var */
   "The user name of the account that recovery uses for the donor connection",
   check_recovery_con_user,                                       /* check func*/
@@ -962,7 +959,7 @@ static MYSQL_SYSVAR_STR(
 
 static MYSQL_SYSVAR_STR(
   recovery_password,                          /* name */
-  gcs_dummy_recovery_password,                /* var */
+  dummy_recovery_password,                    /* var */
   PLUGIN_VAR_OPCMDARG,                        /* optional var */
   "The password of the account that recovery uses for the donor connection",
   check_recovery_con_password,                /* check func*/
@@ -971,7 +968,7 @@ static MYSQL_SYSVAR_STR(
 
 static MYSQL_SYSVAR_ULONG(
   recovery_retry_count,              /* name */
-  gcs_recovery_retry_count,          /* var */
+  recovery_retry_count,              /* var */
   PLUGIN_VAR_OPCMDARG,               /* optional var */
   "The number of times that the joiner tries to connect to the donor before giving up.",
   NULL,                              /* check func. */
@@ -985,19 +982,19 @@ static MYSQL_SYSVAR_ULONG(
 //Generic timeout setting
 
 static MYSQL_SYSVAR_ULONG(
-  components_stop_timeout,           /* name */
-  gcs_components_stop_timeout,       /* var */
-  PLUGIN_VAR_OPCMDARG,               /* optional var */
+  components_stop_timeout,                         /* name */
+  components_stop_timeout,       /* var */
+  PLUGIN_VAR_OPCMDARG,                             /* optional var */
   "Timeout in seconds that the plugin waits for each of the components when shutting down.",
-  NULL,                              /* check func. */
-  update_component_timeout,          /* update func. */
-  LONG_TIMEOUT,                      /* default */
-  2,                                 /* min */
-  LONG_TIMEOUT,                      /* max */
-  0                                  /* block */
+        NULL,                                      /* check func. */
+  update_component_timeout,                        /* update func. */
+  LONG_TIMEOUT,                                    /* default */
+  2,                                               /* min */
+  LONG_TIMEOUT,                                    /* max */
+  0                                                /* block */
 );
 
-static SYS_VAR* gcs_system_vars[]= {
+static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(group_name),
   MYSQL_SYSVAR(start_on_boot),
   MYSQL_SYSVAR(pipeline_type_var),
@@ -1009,20 +1006,20 @@ static SYS_VAR* gcs_system_vars[]= {
   NULL,
 };
 
-mysql_declare_plugin(gcs_repl_plugin)
+mysql_declare_plugin(group_replication_plugin)
 {
   MYSQL_GROUP_REPLICATION_PLUGIN,
-  &gcs_rpl_descriptor,
+  &group_replication_descriptor,
   group_replication_plugin_name,
   "ORACLE",
   "Group Replication",
   PLUGIN_LICENSE_GPL,
-  gcs_replication_init,   /* Plugin Init */
-  gcs_replication_deinit, /* Plugin Deinit */
-  0x0030,                 /* 0.3.0 Plugin version*/
-  NULL,                   /* status variables */
-  gcs_system_vars,        /* system variables */
-  NULL,                   /* config options */
-  0,                      /* flags */
+  plugin_group_replication_init,    /* Plugin Init */
+  plugin_group_replication_deinit,  /* Plugin Deinit */
+  0x0030,                           /* 0.3.0 Plugin version*/
+  NULL,                             /* status variables */
+  group_replication_system_vars,    /* system variables */
+  NULL,                             /* config options */
+  0,                                /* flags */
 }
 mysql_declare_plugin_end;

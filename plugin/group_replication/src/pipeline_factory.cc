@@ -46,7 +46,7 @@ int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
   */
   switch (pipeline_type)
   {
-    case STANDARD_GCS_PIPELINE:
+    case STANDARD_GROUP_REPLICATION_PIPELINE:
       (*pipeline_conf)= new Handler_id[3];
       (*pipeline_conf)[0]= CATALOGING_HANDLER;
       (*pipeline_conf)[1]= CERTIFICATION_HANDLER;

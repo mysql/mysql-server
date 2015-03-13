@@ -35,6 +35,6 @@ server1
 include/start_group_replication.inc
 INSERT INTO t1 VALUES (5);
 include/rpl_sync.inc
-include/assert.inc [On the node, the table should contain 5 elements]
+include/assert.inc [The table should contain 5 elements]
 DROP TABLE t1;
 include/rpl_end.inc

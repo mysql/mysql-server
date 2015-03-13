@@ -5,44 +5,44 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 SET @debug_save= @@GLOBAL.DEBUG;
 #
-# 1) Setup a new single node cluster
+# 1) Setup a new single member group
 #
 server1
 # Set the debug flag to block recovery
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
-# Node should be offline before start
-include/assert.inc [On the new stopped node, the status is OFFLINE]
+# Member should be offline before start
+include/assert.inc [On the new stopped member, the status is OFFLINE]
 include/start_group_replication.inc
-# Node should be online as the node is alone and doesn't need recovery
+# Member should be online as the member is alone and doesn't need recovery
 include/rpl_group_replication_wait_for_member_state.inc
 #
-# 2) A new node enters the existing cluster
+# 2) A new member enters the existing group
 #
 server2
 # Set the debug flag to block recovery
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait';
 SET GLOBAL group_replication_group_name= "89ab83b0-9f17-11e3-a5e2-0800200c9a66";
 START GROUP_REPLICATION;
-# Node should be marked as on recovery on both nodes
+# Member should be marked as on recovery on both members
 include/rpl_group_replication_wait_for_member_state.inc
 server1
 include/rpl_group_replication_wait_for_member_state.inc
 server2
 SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
-# Node should be marked as online on both nodes
+# Member should be marked as online on both members
 include/rpl_group_replication_wait_for_member_state.inc
 server1
 include/rpl_group_replication_wait_for_member_state.inc
 #
-# 3) A node leaves the existing cluster
+# 3) A member leaves the existing group
 #
-# Add a new node to hold quorum
+# Add a new member to hold quorum
 server3
 include/start_group_replication.inc
-# Node should be marked as online
+# Member should be marked as online
 include/rpl_group_replication_wait_for_member_state.inc
 include/stop_group_replication.inc
-# Node should be marked as offline after stop
+# Member should be marked as offline after stop
 include/rpl_group_replication_wait_for_member_state.inc
 #
 # Cleaning up

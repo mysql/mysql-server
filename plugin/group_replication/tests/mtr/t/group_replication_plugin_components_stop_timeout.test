@@ -1,5 +1,5 @@
 #
-# SERVER CRASHED ON SETTING GCS_REPLICATION_PLUGIN_COMPONENTS_STOP_TIMEOUT
+# SERVER CRASHED ON SETTING GROUP_REPLICATION_PLUGIN_COMPONENTS_STOP_TIMEOUT
 #
 # This test checks that the value of the group_replication_components_stop_timeout
 # is settable even without group replication running.

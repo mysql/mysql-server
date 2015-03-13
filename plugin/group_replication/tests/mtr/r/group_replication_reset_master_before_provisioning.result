@@ -11,8 +11,8 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 INSERT INTO t1 VALUES (4);
 include/sync_slave_sql_with_master.inc
-include/assert.inc [On node 2, all executed GTID should belong to the cluster]
-include/assert.inc [On node 1, all executed GTID should belong to the cluster]
+include/assert.inc [On member 2, all executed GTID should belong to the group]
+include/assert.inc [On member 1, all executed GTID should belong to the group]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_group_replication.inc
@@ -27,13 +27,13 @@ include/start_group_replication.inc
 INSERT INTO t1 VALUES (2);
 INSERT INTO t1 VALUES (3);
 include/sync_slave_sql_with_master.inc
-include/assert.inc [On node 2, the table should exist and have 3 elements]
-include/assert.inc [On node 1, the table should exist and have 3 elements]
-[ The value of stable_set should contain both provisioned and cluster GIIDs ]
+include/assert.inc [On member 2, the table should exist and have 3 elements]
+include/assert.inc [On member 1, the table should exist and have 3 elements]
+[ The value of stable_set should contain both provisioned and group GIIDs ]
 include/stop_group_replication.inc
 include/start_group_replication.inc
 INSERT INTO t1 VALUES (4);
-include/assert.inc [On node 2, the table should exist and have 4 elements]
-include/assert.inc [On node 1, the table should exist and have 4 elements]
+include/assert.inc [On member 2, the table should exist and have 4 elements]
+include/assert.inc [On member 1, the table should exist and have 4 elements]
 DROP TABLE t1;
 include/rpl_end.inc

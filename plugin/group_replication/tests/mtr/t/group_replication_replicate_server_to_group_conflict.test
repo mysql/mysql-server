@@ -107,7 +107,7 @@ SET GTID_NEXT= 'AUTOMATIC';
 --echo
 --echo ############################################################
 --echo #  6. Wait until server 1 SQL thread from server 3 reaches
---echo #     the gcs_before_message_broadcast debug sync point.
+--echo #     the group_replication_before_message_broadcast debug sync point.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'

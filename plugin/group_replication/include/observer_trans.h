@@ -17,19 +17,21 @@
 #define OBSERVER_TRANS
 
 #include "gcs_communication_interface.h"
-#include "binding_factory.h"
+#include "gcs_binding_factory.h"
 #include "plugin.h"
 
 /*
   Transaction lifecycle events observers.
 */
-int gcs_trans_before_commit(Trans_param *param);
+int group_replication_trans_before_dml(Trans_param *param, int& out);
 
-int gcs_trans_before_rollback(Trans_param *param);
+int group_replication_trans_before_commit(Trans_param *param);
 
-int gcs_trans_after_commit(Trans_param *param);
+int group_replication_trans_before_rollback(Trans_param *param);
 
-int gcs_trans_after_rollback(Trans_param *param);
+int group_replication_trans_after_commit(Trans_param *param);
+
+int group_replication_trans_after_rollback(Trans_param *param);
 
 extern Trans_observer trans_observer;
 
@@ -37,7 +39,7 @@ extern Trans_observer trans_observer;
   @class Transaction_Message
   Class to convey the serialized contents of the TCLE
  */
-class Transaction_Message: public Gcs_plugin_message
+class Transaction_Message: public Plugin_gcs_message
 {
 public:
   /**

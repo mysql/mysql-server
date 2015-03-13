@@ -49,8 +49,8 @@ Applier_module::Applier_module()
     { &suspend_key_mutex, "LOCK_applier_suspend", 0}
   };
 
-  register_gcs_psi_keys(applier_mutexes, 2,
-                        applier_conds, 3);
+  register_group_replication_psi_keys(applier_mutexes, 2,
+                                      applier_conds, 3);
 #endif /* HAVE_PSI_INTERFACE */
 
   mysql_mutex_init(run_key_mutex, &run_lock, MY_MUTEX_INIT_FAST);
@@ -83,7 +83,7 @@ int
 Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
                                      bool reset_logs,
                                      ulong stop_timeout,
-                                     rpl_sidno cluster_sidno)
+                                     rpl_sidno group_sidno)
 {
   DBUG_ENTER("Applier_module::setup_applier_module");
 
@@ -106,7 +106,7 @@ Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
     new Handler_applier_configuration_action(applier_module_channel_name,
                                              reset_logs,
                                              stop_timeout,
-                                             cluster_sidno);
+                                             group_sidno);
 
   error= pipeline->handle_action(applier_conf_action);
 
@@ -121,7 +121,7 @@ Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
   delete applier_conf_action;
 
   Handler_certifier_configuration_action *cert_conf_action=
-    new Handler_certifier_configuration_action(last_queued_gno, cluster_sidno);
+    new Handler_certifier_configuration_action(last_queued_gno, group_sidno);
 
   error = pipeline->handle_action(cert_conf_action);
 
@@ -248,8 +248,8 @@ Applier_module::applier_thread_handle()
     uchar* payload_end= data_packet->payload + data_packet->len;
 
     /**
-      TODO: handle the applier error in a way that it causes the node to leave
-      the view maybe?
+      TODO: handle the applier error in a way that it causes the member to leave
+      the group with proper status change
     */
     while ((payload != payload_end) && !applier_error)
     {
@@ -312,10 +312,10 @@ Applier_module::initialize_applier_thread()
 #ifdef HAVE_PSI_INTERFACE
   PSI_thread_info threads[]= {
     { &key_thread_receiver,
-      "gcs-applier-module", PSI_FLAG_GLOBAL
+      "group-replication-applier-module", PSI_FLAG_GLOBAL
     }
   };
-  mysql_thread_register("gcs-applier-module", threads, 1);
+  mysql_thread_register("group-replication-applier-module", threads, 1);
 #endif
 
   if ((mysql_thread_create(key_thread_receiver,
@@ -375,7 +375,7 @@ Applier_module::terminate_applier_thread()
 
   while (applier_running)
   {
-    DBUG_PRINT("loop", ("killing gcs applier thread"));
+    DBUG_PRINT("loop", ("killing group replication applier thread"));
 
     mysql_mutex_lock(&applier_thd->LOCK_thd_data);
     /*

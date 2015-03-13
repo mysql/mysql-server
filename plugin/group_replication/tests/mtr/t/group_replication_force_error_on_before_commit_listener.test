@@ -25,7 +25,7 @@ INSERT INTO t1 VALUES (1);
 --echo #    transactions.
 --connection server1
 SET @debug_saved= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,gcs_force_error_on_before_commit_listener';
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_error_on_before_commit_listener';
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");

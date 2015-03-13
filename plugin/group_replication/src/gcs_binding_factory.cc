@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "binding_factory.h"
+#include "gcs_binding_factory.h"
 
 #include "gcs_corosync_interface.h"
 
@@ -44,8 +44,8 @@ Gcs_binding_factory::get_gcs_implementation
 }
 
 void
-Gcs_binding_factory::cleanup_gcs_implementation
-                               (plugin_gcs_bindings binding_implementation_type)
+Gcs_binding_factory::
+cleanup_gcs_implementation(plugin_gcs_bindings binding_implementation_type)
 {
   switch(binding_implementation_type)
   {

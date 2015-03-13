@@ -19,14 +19,14 @@ include/rpl_sync.inc
 #    connection server_1.
 #    Commit a transaction that will be block before broadcast.
 [connection server_1]
-SET DEBUG_SYNC='gcs_before_message_broadcast WAIT_FOR waiting';
+SET DEBUG_SYNC='group_replication_before_message_broadcast WAIT_FOR waiting';
 BEGIN;
 INSERT INTO t3 values(1,5);
 COMMIT;
 
 ############################################################
 # 3. Wait until server_1 connection reaches the
-# gcs_before_message_broadcast debug sync point.
+# group_replication_before_message_broadcast debug sync point.
 [connection server1]
 
 ############################################################
@@ -52,8 +52,8 @@ Got one of the listed errors
 # 7. Assert that number of certified transactions are the
 #    expected ones.
 [connection server1]
-include/assert.inc [The value of Count_Transactions_Checked should be 7 after starting gcs]
-include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting gcs]
+include/assert.inc [The value of Count_Transactions_Checked should be 7 after starting group replication]
+include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
 
 ############################################################
 # Checking the positive case in which there is no conflict.
@@ -68,14 +68,14 @@ INSERT INTO t2 VALUES (8);
 #    connection server_1.
 #    Commit a transaction that will be block before broadcast.
 [connection server_1]
-SET DEBUG_SYNC='gcs_before_message_broadcast WAIT_FOR waiting';
+SET DEBUG_SYNC='group_replication_before_message_broadcast WAIT_FOR waiting';
 BEGIN;
 INSERT INTO t3 values(6,8);
 COMMIT;
 
 ############################################################
 # 2. Wait until server_1 connection reaches the
-# gcs_before_message_broadcast debug sync point.
+# group_replication_before_message_broadcast debug sync point.
 [connection server1]
 
 ############################################################
@@ -109,8 +109,8 @@ include/assert.inc [Table t1 will contain row after the above execution]
 include/assert.inc [Table t3 will contain 1 rows after the above execution]
 include/assert.inc [Table t2 will contain 2 rows after the above execution]
 include/assert.inc [Table t1 will contain 3 rows after the above execution]
-include/assert.inc [The value of Count_Transactions_Checked should be 12 after starting gcs]
-include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting gcs]
+include/assert.inc [The value of Count_Transactions_Checked should be 12 after starting group replication]
+include/assert.inc [The value of Count_Conflicts_Detected should be 1 after starting group replication]
 
 ############################################################
 # Clean up.

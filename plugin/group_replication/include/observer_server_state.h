@@ -21,17 +21,17 @@
 /*
   DBMS lifecycle events observers.
 */
-int gcs_before_handle_connection(Server_state_param *param);
+int group_replication_before_handle_connection(Server_state_param *param);
 
-int gcs_before_recovery(Server_state_param *param);
+int group_replication_before_recovery(Server_state_param *param);
 
-int gcs_after_engine_recovery(Server_state_param *param);
+int group_replication_after_engine_recovery(Server_state_param *param);
 
-int gcs_after_recovery(Server_state_param *param);
+int group_replication_after_recovery(Server_state_param *param);
 
-int gcs_before_server_shutdown(Server_state_param *param);
+int group_replication_before_server_shutdown(Server_state_param *param);
 
-int gcs_after_server_shutdown(Server_state_param *param);
+int group_replication_after_server_shutdown(Server_state_param *param);
 
 extern Server_state_observer server_state_observer;
 

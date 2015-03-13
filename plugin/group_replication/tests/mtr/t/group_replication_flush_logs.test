@@ -38,7 +38,7 @@ flush error logs;
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/master-bin.000002
 
-# Testing if the replication is working fine between the nodes.
+# Testing if the replication is working fine between the members.
 
 --source include/rpl_sync.inc
 --connection server1
@@ -84,7 +84,7 @@ flush relay logs;
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-bin.000002
 
-# Testing if the replication is working fine between the nodes.
+# Testing if the replication is working fine between the members.
 
 --connection server1
 INSERT INTO t1 VALUES(3);
@@ -128,7 +128,7 @@ flush slow logs;
 --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-bin.000002
 
 
-# Testing if the replication is working fine between the nodes.
+# Testing if the replication is working fine between the members.
 
 --source include/rpl_sync.inc
 --connection server1
@@ -173,7 +173,7 @@ flush general logs;
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-bin.000002
 
-# Testing if the replication is working fine between the nodes.
+# Testing if the replication is working fine between the members.
 
 --connection server1
 INSERT INTO t1 VALUES(7);
@@ -216,7 +216,7 @@ flush engine logs;
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-bin.000002
 
-# Testing if the replication is working fine between the nodes.
+# Testing if the replication is working fine between the members.
 
 --connection server1
 INSERT INTO t1 VALUES(9);
@@ -271,7 +271,7 @@ flush binary logs;
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-bin.000002
 
-# Testing if the replication is working fine between the nodes.
+# Testing if the replication is working fine between the members.
 
 --connection server1
 INSERT INTO t1 VALUES(11);
@@ -317,7 +317,7 @@ flush error logs, relay logs;
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-bin.000002
 
-# Testing if the replication is working fine between the nodes.
+# Testing if the replication is working fine between the members.
 
 --source include/rpl_sync.inc
 --connection server1
@@ -389,7 +389,7 @@ flush logs;
 --error 1
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/group_replication_applier.000002
 
-# Testing if the replication is working fine between the nodes.
+# Testing if the replication is working fine between the members.
 --connection server1
 
 INSERT INTO t1 VALUES(15);

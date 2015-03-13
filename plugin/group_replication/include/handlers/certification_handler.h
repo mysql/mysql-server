@@ -33,7 +33,7 @@ public:
   Certifier_interface *get_certifier();
 
   void set_certification_info(std::map<std::string, std::string>* cert_info,
-                             rpl_gno seq_number);
+                              rpl_gno seq_number);
 
 private:
   Certifier* cert_module;
@@ -45,7 +45,7 @@ private:
 
   rpl_gno seq_number;
 
-  rpl_sidno cluster_sidno;
+  rpl_sidno group_sidno;
 
   /**
    Inform handler that transaction has GTID_NEXT specified.

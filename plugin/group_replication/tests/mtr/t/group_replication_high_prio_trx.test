@@ -1,8 +1,8 @@
 # Scenario:
 #  SigCon=    ({R(B), W(B)})
-#  GCSApplier=({R(B), W(B), C}, HIGH_PRIORITY).
+#  GroupRepApplier=({R(B), W(B), C}, HIGH_PRIORITY).
 #
-# Outcome: SigCon must abort, GCSApplier must commit.
+# Outcome: SigCon must abort, THe GroupRepApplier must commit.
 #
 # Full details on WL#6835.
 

@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_APPLIER_INCLUDE
-#define GCS_APPLIER_INCLUDE
+#ifndef APPLIER_INCLUDE
+#define APPLIER_INCLUDE
 
 #include <vector>
 
@@ -166,7 +166,7 @@ public:
     @param[in] pipeline_type        the chosen pipeline
     @param[in] reset_logs           if a reset happened in the server
     @param[in] stop_timeout         the timeout when waiting on shutdown
-    @param[in] cluster_sidno        the cluster configured sidno
+    @param[in] group_sidno          the group configured sidno
 
     @return the operation status
       @retval 0      OK
@@ -175,7 +175,7 @@ public:
   int setup_applier_module(Handler_pipeline_type pipeline_type,
                            bool reset_logs,
                            ulong stop_timeout,
-                           rpl_sidno cluster_sidno);
+                           rpl_sidno group_sidno);
 
   /**
     Runs the applier thread process, reading events and processing them.
@@ -302,7 +302,7 @@ public:
   */
   virtual void awake_applier_module()
   {
-    DBUG_EXECUTE_IF("gcs_applier_do_not_start_sql_thread",
+    DBUG_EXECUTE_IF("group_replication_do_not_start_applier_thread",
                     {
                       //Send a stop signal to all handlers.
                       Pipeline_action *stop_action = new Handler_stop_action();
@@ -487,7 +487,7 @@ private:
 
   /**
     The Format description event used for Pipeline Events
-    One event is enough for now as we assume that the cluster is homogeneous.
+    One event is enough for now as we assume that the group is homogeneous.
     If heterogeneous sources are used, then different format description events
     can be used to describe each source.
   */
@@ -497,4 +497,4 @@ private:
   ulong stop_wait_timeout;
 };
 
-#endif /* GCS_APPLIER_INCLUDE */
+#endif /* APPLIER_INCLUDE */

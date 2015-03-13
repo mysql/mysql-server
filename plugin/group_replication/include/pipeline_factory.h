@@ -37,7 +37,7 @@ enum Handler_id
 */
 enum Handler_pipeline_type
 {
-  STANDARD_GCS_PIPELINE= 0
+  STANDARD_GROUP_REPLICATION_PIPELINE= 0
 };
 
 /**

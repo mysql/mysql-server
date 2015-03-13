@@ -20,12 +20,12 @@ INSERT INTO t12 VALUES (1,1,'1');
 INSERT INTO t12 VALUES (2,2,UUID());
 --enable_warnings
 
-# Create invoked features on node1 and node2 and see its behavior
+# Create invoked features on member1 and member2 and see its behavior
 --echo
 # Create view for tables t11
 CREATE VIEW v11 AS SELECT * FROM t11;
 
-# Creating some invoked features on cluster nodes and check its behavior on the cluster.
+# Creating some invoked features on group members and check its behavior on the group.
 --connection server1
 DELIMITER |;
 
@@ -74,7 +74,7 @@ END|
 
 DELIMITER ;|
 
-# Syncing the second node with the first one
+# Syncing the second member with the first one
 --source include/rpl_sync.inc
 --connection server1
 
@@ -124,7 +124,7 @@ SELECT routine_type, routine_name FROM information_schema.routines WHERE routine
 --sorted_result
 SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
 
-# Syncing the two nodes involved in the cluster
+# Syncing the two members involved in the group
 --source include/rpl_sync.inc
 
 --let $diff_tables= server1:t11, server2:t11
@@ -136,7 +136,7 @@ SELECT event_name, status FROM information_schema.events WHERE event_schema='tes
 --let $diff_tables= server1:t13, server2:t13
 --source include/diff_tables.inc
 
-# Check replicated objects in the cluster
+# Check replicated objects in the group
 --echo
 --sorted_result
 SHOW TABLES LIKE 't%';

@@ -1,6 +1,6 @@
 # WL#6842 - GCS APPLIER MODULE
 
-# This test checks the basic functionality of the GCS replication
+# This test checks the basic functionality of the Group Replication
 # plugin: the initialization of it's applier module and error cases.
 
 --source include/have_debug.inc

@@ -13,67 +13,67 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "plugin_messages.h"
+#include "gcs_plugin_messages.h"
 #include "gcs_message.h"
 
 #include <mysql/group_replication_priv.h>
 
-Gcs_plugin_message::Gcs_plugin_message(gcs_payload_message_code message_code)
+Plugin_gcs_message::Plugin_gcs_message(payload_gcs_message_code message_code)
 {
   this->message_code= message_code;
 }
 
-Gcs_plugin_message::~Gcs_plugin_message()
+Plugin_gcs_message::~Plugin_gcs_message()
 {
 }
 
 void
-Gcs_plugin_message::encode(vector<uchar>* buf)
+Plugin_gcs_message::encode(vector<uchar>* buf)
 {
   /*
     Encode the message code in a fixed size and then delegate to the
     subclass implementation of encode_message()
    */
-  uchar s[gcs_payload_message_code_encoded_size];
+  uchar s[payload_gcs_message_code_encoded_size];
   int2store(s, this->message_code);
-  buf->insert(buf->end(), s, s + gcs_payload_message_code_encoded_size);
+  buf->insert(buf->end(), s, s + payload_gcs_message_code_encoded_size);
 
   this->encode_message(buf);
 }
 
 void
-Gcs_plugin_message::decode(uchar* buf, size_t len)
+Plugin_gcs_message::decode(uchar* buf, size_t len)
 {
   /*
     Decode the message code in a fixed size and then delegate to the
     subclass implementation of encode_message()
   */
-  this->message_code= Gcs_plugin_message_utils::retrieve_code(buf);
+  this->message_code= Plugin_gcs_message_utils::retrieve_code(buf);
 
-  uchar* data_pointer= buf + gcs_payload_message_code_encoded_size;
+  uchar* data_pointer= buf + payload_gcs_message_code_encoded_size;
   this->decode_message(data_pointer, len);
 }
 
-gcs_payload_message_code
-Gcs_plugin_message::get_message_code()
+payload_gcs_message_code
+Plugin_gcs_message::get_message_code()
 {
   return this->message_code;
 }
 
-gcs_payload_message_code
-Gcs_plugin_message_utils::retrieve_code(uchar* buf)
+payload_gcs_message_code
+Plugin_gcs_message_utils::retrieve_code(uchar* buf)
 {
-  return (gcs_payload_message_code) uint2korr(buf);
+  return (payload_gcs_message_code) uint2korr(buf);
 }
 
 uchar*
-Gcs_plugin_message_utils::retrieve_data(Gcs_message* msg/*uchar* raw_buf*/)
+Plugin_gcs_message_utils::retrieve_data(Gcs_message* msg/*uchar* raw_buf*/)
 {
-  return msg->get_payload()+gcs_payload_message_code_encoded_size;
+  return msg->get_payload()+payload_gcs_message_code_encoded_size;
 }
 
 size_t
-Gcs_plugin_message_utils::retrieve_length(Gcs_message* msg/*size_t raw_len*/)
+Plugin_gcs_message_utils::retrieve_length(Gcs_message* msg/*size_t raw_len*/)
 {
-  return msg->get_payload_length()-gcs_payload_message_code_encoded_size;
+  return msg->get_payload_length()-payload_gcs_message_code_encoded_size;
 }

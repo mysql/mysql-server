@@ -1,11 +1,11 @@
-# Test to check the behavior of the GCS nodes when the crash happens on
-# a node followed by a recovery on the same.
+# Test to check the behavior of Group Replication members when the crash
+# happens on a member followed by a recovery on the same.
 #
 # The general format of the test is :
 #
-# 1. Crash a node after a transaction but before the commit stage.
-# 2. Restart the node.
-# 3. Check that no data is replicated on the other nodes.
+# 1. Crash a member after a transaction but before the commit stage.
+# 2. Restart the member.
+# 3. Check that no data is replicated on the other members.
 #
 
 --source include/have_group_replication_plugin.inc
@@ -52,7 +52,7 @@ RESET MASTER;
 CREATE TABLE t1(i INT, a LONGBLOB, PRIMARY KEY(i)) ENGINE=INNODB;
 
 --echo # Test case1: Set DEBUG POINT before binlog to make
---echo # the first node crash for transaction
+--echo # the first member crash for transaction
 
 BEGIN;
 --let $rows= 3
@@ -73,7 +73,7 @@ WHILE($rows)
 COMMIT;
 
 --enable_reconnect
---echo # Restart the crashed node
+--echo # Restart the crashed member
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -82,10 +82,10 @@ COMMIT;
 --let $assert_text= On server1, test the data will be rolled back after restart.
 --source include/assert.inc
 
-# Sync the second node with the first one.
+# Sync the second member with the first one.
 --source include/rpl_sync.inc
 
---echo # On the second node, test replication will work fine, and the data
+--echo # On the second member, test replication will work fine, and the data
 --echo # is not replicated
 --let $diff_tables= server1:test.t1, server2:test.t1
 --source include/diff_tables.inc
@@ -93,18 +93,18 @@ COMMIT;
 --connection server1
 --source include/start_group_replication.inc
 
---let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
 --let $assert_text= The value of member_state should be online
---let $assert_cond= "$node_state" = "ONLINE"
+--let $assert_cond= "$member_state" = "ONLINE"
 --source include/assert.inc
 
 --connection server2
---let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
 --let $assert_text= The value of member_state should be online
---let $assert_cond= "$node_state" = "ONLINE"
+--let $assert_cond= "$member_state" = "ONLINE"
 --source include/assert.inc
 
-# Check if the cluster is still working
+# Check if the group is still working
 CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
 INSERT INTO temp VALUES (1);
 
@@ -149,7 +149,7 @@ COMMIT;
 
 --source include/wait_until_disconnected.inc
 --enable_reconnect
---echo # Restart the crashed node
+--echo # Restart the crashed member
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -158,10 +158,10 @@ COMMIT;
 --let $assert_text= On server1, test the data will be recovered after the server1 restart.
 --source include/assert.inc
 
-# Sync the second node with the first one.
+# Sync the second member with the first one.
 --source include/rpl_sync.inc
 
---echo # On the second node, test that the replication is working fine, and
+--echo # On the second member, test that the replication is working fine, and
 --echo # data gets replicated here.
 --let $diff_tables= server1:test.t1, server2:test.t1
 --source include/diff_tables.inc
@@ -169,18 +169,18 @@ COMMIT;
 --connection server1
 --source include/start_group_replication.inc
 
---let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
 --let $assert_text= The value of member_state should be online
---let $assert_cond= "$node_state" = "ONLINE"
+--let $assert_cond= "$member_state" = "ONLINE"
 --source include/assert.inc
 
 --connection server2
---let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
 --let $assert_text= The value of member_state should be online
---let $assert_cond= "$node_state" = "ONLINE"
+--let $assert_cond= "$member_state" = "ONLINE"
 --source include/assert.inc
 
-# Check if the cluster is still working
+# Check if the group is still working
 CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
 INSERT INTO temp VALUES (1);
 
@@ -204,7 +204,7 @@ DROP TABLE temp;
 CREATE TABLE t1(i INT AUTO_INCREMENT PRIMARY KEY, a LONGBLOB) ENGINE=INNODB;
 
 --echo # Test case3: Set DEBUG POINT after binlogging half of the transaction and
---echo # then crash the node and followed by restarting the node.
+--echo # then crash the member and followed by restarting the member.
 set AUTOCOMMIT=0;
 BEGIN;
 --let $rows= 24
@@ -224,13 +224,13 @@ COMMIT;
 
 --source include/wait_until_disconnected.inc
 --enable_reconnect
---echo # Restart the crashed node
+--echo # Restart the crashed member
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
 --echo # Test the data will not be recovered successfully
---echo # after the crashed first node restarts.
+--echo # after the crashed first member restarts.
 
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM t1`
 --let $assert_text= On server1, test the data will be recovered after the server1 restart.
@@ -239,8 +239,8 @@ COMMIT;
 --connection server1
 --source include/start_group_replication.inc
 
-# On restarting group replication on the first node it will be getting the transactions
-# from a donor and try to get in sync with the other nodes in the cluster.
+# On restarting group replication on the first member it will be getting the transactions
+# from a donor and try to get in sync with the other members in the group.
 
 --let $diff_tables= server1:test.t1, server2:test.t1
 --source include/diff_tables.inc
@@ -250,18 +250,18 @@ COMMIT;
 --let $assert_text= The table has 24 rows after the restart.
 --source include/assert.inc
 
---let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
 --let $assert_text= The value of member_state should be online
---let $assert_cond= "$node_state" = "ONLINE"
+--let $assert_cond= "$member_state" = "ONLINE"
 --source include/assert.inc
 
 --connection server2
---let $node_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
+--let $member_state= query_get_value(SELECT Member_State from performance_schema.replication_group_members, Member_State, 1)
 --let $assert_text= The value of member_state should be online
---let $assert_cond= "$node_state" = "ONLINE"
+--let $assert_cond= "$member_state" = "ONLINE"
 --source include/assert.inc
 
-# Check if the cluster is still running
+# Check if the group is still running
 --connection server1
 
 CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;

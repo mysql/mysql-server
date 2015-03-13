@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_REPLICATION_THREADS_API_INCLUDE
-#define GCS_REPLICATION_THREADS_API_INCLUDE
+#ifndef REPLICATION_THREADS_API_INCLUDE
+#define REPLICATION_THREADS_API_INCLUDE
 
 #include <string>
 #include <mysql/group_replication_priv.h>
 
 #define DEFAULT_THREAD_PRIORITY 0
 //Applier thread InnoDB priority
-#define GCS_APPLIER_THREAD_PRIORITY 1
+#define GROUP_REPLICATION_APPLIER_THREAD_PRIORITY 1
 
 class Replication_thread_api
 {
@@ -172,8 +172,8 @@ public:
   /**
     Returns last GNO from the applier for a given UUID.
 
-    @param sidno    the SIDNO of the cluster UUID, so that we get the
-                    last GNO of cluster already certified transactions
+    @param sidno    the SIDNO of the group UUID, so that we get the
+                    last GNO of group's already certified transactions
                     on relay log.
 
     @return
@@ -195,4 +195,4 @@ private:
   char* interface_channel;
 };
 
-#endif /* GCS_REPLICATION_THREADS_API_INCLUDE */
+#endif /* REPLICATION_THREADS_API_INCLUDE */

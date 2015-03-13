@@ -7,9 +7,9 @@
 #
 # I.   The general stability part when servers leave and join randomly.
 #      The purpose is to prove no hangup or crashes.
-# II.  Two node cluster that demonstrates some (feasible) of Primary component
+# II.  Two member group that demonstrates some (feasible) of Primary component
 #      properties.
-# III. Proof of view-id monotonicity and cluster-wide consistency.
+# III. Proof of view-id monotonicity and group-wide consistency.
 #
 --source include/have_group_replication_plugin.inc
 --let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429573
@@ -23,17 +23,13 @@
 --let $group_replication_error_connection_number= 4
 
 #
-# First prepare four nodes and manually create a table on each.
+# First prepare four members and manually create a table on each.
 #
 --connection server1
 
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("could not form the cluster");
-SET SESSION sql_log_bin= 1;
-
 if (`select view_id <> 0 from performance_schema.replication_group_member_stats`)
 {
-    --echo incorrect non-zero view_id when the Node is never started.
+    --echo incorrect non-zero view_id when the Member is never started.
     --source ../inc/group_replication_error_out.inc
     --die
 }
@@ -45,9 +41,9 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 #
 # Part I.
 #
-# Restart four nodes few times to prove general stability. It should
-# be done carefully to not destroy the cluster by occasional
-# withdrawal more than cluster.number_of_nodes / 2 - 1 nodes at a
+# Restart four members few times to prove general stability. It should
+# be done carefully to not destroy the group by occasional
+# withdrawal more than group.number_of_members / 2 - 1 members at a
 # time, that is not more than 1 in the condition of this test.
 # The test implements the following transition: 4 -> 3 -> 2 -> 3 -> 4.
 #
@@ -85,7 +81,7 @@ while($restart_cnt)
     --connection server$s_id2
 
     #
-    # Here is the care point: don't go stopping the 2nd node until
+    # Here is the care point: don't go stopping the 2nd member until
     # it's proved the previous one is out of the view.
     #
     --let $group_replication_number_of_members= 3
@@ -108,14 +104,14 @@ while($restart_cnt)
 --enable_result_log
 --enable_query_log
 
-#Check if all nodes are online
+#Check if all members are online
 --let $group_replication_number_of_members= 4
 --source ../inc/group_replication_wait_for_number_of_members.inc
 
 #
 # Part II.
 #
-# Form the 2 node cluster and verify view-id on each node, must be equal.
+# Form the 2 member group and verify view-id on each member, must be equal.
 # At forming make sure two extra members exits one by one so the quorum
 # is not get lost.
 #
@@ -142,7 +138,7 @@ INSERT INTO t1 SET c1=1;
 
 #
 # Success in getting expected value indicates the Primary Component
-# is installed. Let's verify the # of nodes is as PS says
+# is installed. Let's verify the # of members is as PS says
 #
 let $count= 1;
 let $table= t1;
@@ -150,7 +146,7 @@ let $table= t1;
 
 if (`SELECT COUNT(*) <> 2 from performance_schema.replication_group_members`)
 {
-    --echo Unexpected cluster membership.
+    --echo Unexpected group membership.
     --source ../inc/group_replication_error_out.inc
     --die
 }
@@ -178,7 +174,7 @@ if ($view_id_server1 != $view_id_server2)
 
 #
 # Verify the Primary Component property of aborting transactions
-# whose originator nodes left the Primary Component.
+# whose originator members left the Primary Component.
 # The policy is tentative, it might (should) be a subject of
 # softer treatment, e.g wait with aborting till a timeout elapses.
 # Yet it's tested 'cos it's there.
@@ -186,7 +182,7 @@ if ($view_id_server1 != $view_id_server2)
 --connection server1
 BEGIN;
 INSERT INTO t1 SET c1=2;
-# Split the cluster and see that the left alone server1 won't make
+# Split the group and see that the left alone server1 won't make
 # Primary Component out of itself.
 
 --connection server2
@@ -199,7 +195,7 @@ rollback;
 #
 # Part III.
 #
-# Form the four node cluster, check up monotonic and cluster consistent view-id.
+# Form the four member group, check up monotonic and group consistent view-id.
 #
 --connection server2
 --source include/start_group_replication.inc
@@ -232,7 +228,7 @@ if ($view_id_now <= $view_id_server1_number)
 }
 
 #
-#  view-id cross cluster consistency
+#  view-id cross group consistency
 #
 --let $s_cnt=3
 while ($s_cnt)
@@ -241,7 +237,7 @@ while ($s_cnt)
     --let $view_id_now_s=`select RIGHT(view_id,2) from performance_schema.replication_group_member_stats`
     if ($view_id_now != $view_id_now_s)
     {
-      --echo The 4th node view inconsistent with that of $s_cnt.
+      --echo The 4th member view inconsistent with that of $s_cnt.
       --source ../inc/group_replication_error_out.inc
       --die
     }

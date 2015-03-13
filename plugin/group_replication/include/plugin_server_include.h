@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_PLUGIN_SERVER_INCLUDE
-#define GCS_PLUGIN_SERVER_INCLUDE
+#ifndef PLUGIN_SERVER_INCLUDE
+#define PLUGIN_SERVER_INCLUDE
 
 #ifndef MYSQL_SERVER
 #define MYSQL_SERVER
@@ -36,4 +36,4 @@
 #include <my_sys.h>
 #include <my_stacktrace.h>
 
-#endif /* GCS_PLUGIN_SERVER_INCLUDE */
+#endif /* PLUGIN_SERVER_INCLUDE */

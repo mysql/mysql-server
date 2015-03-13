@@ -13,18 +13,18 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_RECOVERY_MESSAGE_INCLUDED
-#define GCS_RECOVERY_MESSAGE_INCLUDED
+#ifndef RECOVERY_MESSAGE_INCLUDED
+#define RECOVERY_MESSAGE_INCLUDED
 
 #define RECOVERY_MESSAGE_TYPE_LENGTH 2
 
 #include <string>
 #include <set>
-#include "plugin_messages.h"
+#include "gcs_plugin_messages.h"
 
 using std::string;
 
-class Recovery_message : public Gcs_plugin_message
+class Recovery_message : public Plugin_gcs_message
 {
 
 public:
@@ -34,7 +34,7 @@ public:
  */
   typedef enum
   {
-    /**Recovery ended, node is online.*/
+    /**Recovery ended, member is online.*/
     RECOVERY_END_MESSAGE,
     /**Donor transmitted all data (for future use)*/
     DONOR_FINISHED_MESSAGE,
@@ -46,10 +46,10 @@ public:
   /**
     Message constructor
 
-    @param[in] type       the recovery message type
-    @param[in] node_uuid  the origination node uuid
+    @param[in] type         the recovery message type
+    @param[in] member_uuid  the origination member uuid
   */
-  Recovery_message(Recovery_message_type type, string* node_uuid);
+  Recovery_message(Recovery_message_type type, string* member_uuid);
 
   /**
     Message destructor
@@ -71,9 +71,9 @@ public:
   }
 
   /** Returns this message sender's uuid */
-  string *get_node_uuid()
+  string *get_member_uuid()
   {
-    return node_uuid;
+    return member_uuid;
   }
 
 protected:
@@ -97,8 +97,8 @@ protected:
 private:
   /**The message type*/
   Recovery_message_type recovery_message_type;
-  /**The node uuid where the message originated*/
-  string* node_uuid;
+  /**The member uuid where the message originated*/
+  string* member_uuid;
 };
 
-#endif // GCS_RECOVERY_MESSAGE_INCLUDED
+#endif /* RECOVERY_MESSAGE_INCLUDED */

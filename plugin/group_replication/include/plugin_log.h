@@ -13,12 +13,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef GCS_PLUGIN_LOG_INCLUDED
-#define GCS_PLUGIN_LOG_INCLUDED
+#ifndef PLUGIN_LOG_INCLUDED
+#define PLUGIN_LOG_INCLUDED
 
 #include <mysql/plugin.h>
 #include <mysql/service_my_plugin_log.h>
 
 int log_message(enum plugin_log_level level, const char *format, ...);
 
-#endif /* GCS_PLUGIN_LOG_INCLUDED */
+#endif /* PLUGIN_LOG_INCLUDED */

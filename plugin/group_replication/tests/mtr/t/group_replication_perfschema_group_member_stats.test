@@ -1,6 +1,6 @@
 # WL#6839 - GCS Replication: P_S table to show DBSM stats
 
-# This test checks the basic functionality of the GCS replication
+# This test checks the basic functionality of Group Replication
 # P_S for replication_group_member_stats table.
 
 --source include/have_debug.inc
@@ -38,42 +38,42 @@ RESET MASTER;
 # Checking the performance Schema output for the replication_group_member_stats table.
 
 --let $member_id= query_get_value(SELECT Member_Id from performance_schema.replication_group_member_stats, Member_Id, 1)
---let $assert_text= The value of member_id should be empty before starting gcs
+--let $assert_text= The value of member_id should be empty before starting group replication
 --let $assert_cond= "$member_id" = ""
 --source include/assert.inc
 
 --let $view_id= query_get_value(SELECT View_Id from performance_schema.replication_group_member_stats, View_Id, 1)
---let $assert_text= The value of view_id should be EMPTY before GCS start
+--let $assert_text= The value of view_id should be EMPTY before starting group replication
 --let $assert_cond= "$View_Id" = ""
 --source include/assert.inc
 
 --let $transaction_in_queue= query_get_value(SELECT Count_Transactions_in_queue from performance_schema.replication_group_member_stats, Count_Transactions_in_queue, 1)
---let $assert_text= The value of Count_Transactions_in_queue should be 0 before starting gcs
+--let $assert_text= The value of Count_Transactions_in_queue should be 0 before starting group replication
 --let $assert_cond= "$transaction_in_queue" = 0
 --source include/assert.inc
 
 --let $certified_transactions= query_get_value(SELECT Count_Transactions_checked from performance_schema.replication_group_member_stats, Count_Transactions_checked, 1)
---let $assert_text= The value of Count_Transactions_checked should be 0 before starting gcs
+--let $assert_text= The value of Count_Transactions_checked should be 0 before starting group replication
 --let $assert_cond= "$certified_transactions" = 0
 --source include/assert.inc
 
 --let $negatively_certified= query_get_value(SELECT Count_conflicts_detected from performance_schema.replication_group_member_stats, Count_conflicts_detected, 1)
---let $assert_text= The value of Count_conflicts_detected should be 0 before starting gcs
+--let $assert_text= The value of Count_conflicts_detected should be 0 before starting group replication
 --let $assert_cond= "$negatively_certified" = 0
 --source include/assert.inc
 
 --let $certification_db_size= query_get_value(SELECT Count_Transactions_validating from performance_schema.replication_group_member_stats, Count_Transactions_validating, 1)
---let $assert_text= The value of Count_Transactions_validating should be 0 before starting gcs
+--let $assert_text= The value of Count_Transactions_validating should be 0 before starting group replication
 --let $assert_cond= "$certification_db_size" = 0
 --source include/assert.inc
 
 --let $stable_set= query_get_value(SELECT Transactions_Committed_all_members from performance_schema.replication_group_member_stats, Transactions_Committed_all_members, 1)
---let $assert_text= The value of Transactions_Committed_all_members should be empty before starting gcs
+--let $assert_text= The value of Transactions_Committed_all_members should be empty before starting group replication
 --let $assert_cond= "$stable_set" = 0
 --source include/assert.inc
 
 --let $last_certified_transaction= query_get_value(SELECT Last_conflict_free_transaction from performance_schema.replication_group_member_stats, Last_conflict_free_transaction, 1)
---let $assert_text= The value of Last_conflict_free_transaction should be 0 before starting gcs
+--let $assert_text= The value of Last_conflict_free_transaction should be 0 before starting group replication
 --let $assert_cond= "$last_certified_transaction" = ""
 --source include/assert.inc
 
@@ -81,12 +81,12 @@ RESET MASTER;
 --echo Values being updated after executing some transactions
 --echo ########################################################
 
-# Start GCS replication
+# Start Group Replication
 --source include/start_group_replication.inc
 
 --let $raw_view_id= query_get_value(SELECT View_Id from performance_schema.replication_group_member_stats, View_Id, 1)
 --let $view_id= `SELECT RIGHT('$raw_view_id', 1)`
---let $assert_text= The value of view_id should be a number followed by ONE at GCS start
+--let $assert_text= The value of view_id should be a number followed by ONE at group replication start
 --let $assert_cond= "$View_Id" = 1
 --source include/assert.inc
 
@@ -107,7 +107,7 @@ START GROUP_REPLICATION;
 --let $group_replication_member_state= RECOVERING
 --source ../inc/group_replication_wait_for_member_state.inc
 
---echo # Apply some transactions on the first node so that the queue of the second node is not empty.
+--echo # Apply some transactions on the first member so that the queue of the second member is not empty.
 --connection server1
 --echo server1
 
@@ -138,27 +138,27 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 
 --let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $member_id= query_get_value(SELECT Member_Id from performance_schema.replication_group_member_stats, Member_Id, 1)
---let $assert_text= The value of member_id should be equal to server UUID after starting gcs
+--let $assert_text= The value of member_id should be equal to server UUID after starting group replication
 --let $assert_cond= "$member_id" = "$server_uuid"
 --source include/assert.inc
 
 --let $certified_transactions= query_get_value(SELECT Count_Transactions_checked from performance_schema.replication_group_member_stats, Count_Transactions_checked, 1)
---let $assert_text= The value of Count_Transactions_checked should be 6 after starting gcs
+--let $assert_text= The value of Count_Transactions_checked should be 6 after starting group replication
 --let $assert_cond= "$certified_transactions" = 6
 --source include/assert.inc
 
 --let $negatively_certified= query_get_value(SELECT Count_conflicts_detected from performance_schema.replication_group_member_stats, Count_conflicts_detected, 1)
---let $assert_text= The value of Count_conflicts_detected should be 0 after starting gcs
+--let $assert_text= The value of Count_conflicts_detected should be 0 after starting group replication
 --let $assert_cond= "$negatively_certified" = 0
 --source include/assert.inc
 
 --let $certification_db_size= query_get_value(SELECT Count_Transactions_validating from performance_schema.replication_group_member_stats, Count_Transactions_validating, 1)
---let $assert_text= The value of Count_Transactions_validating should be 5 after starting gcs
+--let $assert_text= The value of Count_Transactions_validating should be 5 after starting group replication
 --let $assert_cond= "$certification_db_size" = 5
 --source include/assert.inc
 
 --let $stable_set= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)
---let $assert_text= The value of Transactions_committed_all_members should be empty currently for the gcs
+--let $assert_text= The value of Transactions_committed_all_members should be empty currently for the group replication
 --let $assert_cond= "$stable_set" = 0
 --source include/assert.inc
 
@@ -170,7 +170,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 #After a minute, the stable set should be updated
 --sleep 65
 
---echo [ The value of stable_set must be equal to the node GTID executed set ]
+--echo [ The value of stable_set must be equal to the member GTID executed set ]
 --let $wait_condition= SELECT Transactions_committed_all_members = "8a84f397-aaa4-18df-89ab-c70aa9823561:1-6" from performance_schema.replication_group_member_stats;
 --source include/wait_condition.inc
 if (!$success)
@@ -186,7 +186,7 @@ DROP TABLE t1;
 --echo The values being checked after stop
 --echo ####################################
 
-# Stop GCS replication
+# Stop Group Replication
 --source include/stop_group_replication.inc
 
 --connection server2
