@@ -501,9 +501,12 @@ CHECK_SYMBOL_EXISTS(TIOCGWINSZ "sys/ioctl.h" GWINSZ_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/ioctl.h" FIONREAD_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/filio.h" FIONREAD_IN_SYS_FILIO)
 CHECK_SYMBOL_EXISTS(SIGEV_THREAD_ID "signal.h;time.h" HAVE_SIGEV_THREAD_ID)
-CHECK_SYMBOL_EXISTS(SIGEV_PORT "signal.h;time.h" HAVE_SIGEV_PORT)
+CHECK_SYMBOL_EXISTS(SIGEV_PORT "signal.h;time.h;sys/siginfo.h" HAVE_SIGEV_PORT)
 
 CHECK_SYMBOL_EXISTS(log2  math.h HAVE_LOG2)
+
+# On Solaris, it is only visible in C99 mode
+CHECK_SYMBOL_EXISTS(isinf "math.h" HAVE_C_ISINF)
 
 # isinf() prototype not found on Solaris
 CHECK_CXX_SOURCE_COMPILES(
@@ -511,7 +514,14 @@ CHECK_CXX_SOURCE_COMPILES(
 int main() { 
   isinf(0.0); 
   return 0;
-}" HAVE_ISINF)
+}" HAVE_CXX_ISINF)
+
+IF (HAVE_C_ISINF AND HAVE_CXX_ISINF)
+  SET(HAVE_ISINF 1 CACHE INTERNAL "isinf visible in C and C++" FORCE)
+ELSE()
+  SET(HAVE_ISINF 0 CACHE INTERNAL "isinf visible in C and C++" FORCE)
+ENDIF()
+
 
 # The results of these four checks are only needed here, not in code.
 CHECK_FUNCTION_EXISTS (timer_create HAVE_TIMER_CREATE)
