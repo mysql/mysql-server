@@ -5307,6 +5307,10 @@ buf_page_monitor(
 		/* Account reading of leaf pages into the buffer pool(s). */
 		if (level == 0 && io_type == BUF_IO_READ
 		    && index_id != ibuf_index_id) {
+			ib::info() /* XXX */
+				<< buf_stat_per_index->get(index_id)
+				<< " inc (read) index_id=" << index_id
+				<< " " << bpage->id;
 			buf_stat_per_index->inc(index_id);
 		}
 	}

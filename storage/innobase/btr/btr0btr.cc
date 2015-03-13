@@ -381,6 +381,13 @@ btr_page_create(
 	}
 
 	btr_page_set_index_id(page, page_zip, index->id, mtr);
+
+	if (level == 0) {
+		ib::info() /* XXX */
+			<< buf_stat_per_index->get(index->id)
+			<< " inc (crea) index_id=" << index->id;
+		buf_stat_per_index->inc(index->id);
+	}
 }
 
 /**************************************************************//**
