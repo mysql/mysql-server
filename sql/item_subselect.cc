@@ -2928,13 +2928,13 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
 
   if (unit->first_select()->item_list.elements == 1)
   {
-    set_row(unit->types, row);
+    set_row(unit->item_list, row);
     item->collation.set(row[0]->collation);
   }
   else
   {
     bool maybe_null_saved= maybe_null;
-    set_row(unit->types, row);
+    set_row(unit->item_list, row);
     maybe_null= maybe_null_saved;
   }
 }
