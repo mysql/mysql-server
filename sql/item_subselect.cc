@@ -2983,7 +2983,7 @@ bool subselect_single_select_engine::exec()
         pushed down into the subquery. Those optimizations are ref[_or_null]
         acceses. Change them to be full table scans.
       */
-      for (uint j= join->const_tables; j < join->primary_tables; j++)
+      for (uint j= join->const_tables; j < join->tables; j++)
       {
         QEP_TAB *tab= join->qep_tab + j;
         if (tab->ref().key_parts)
