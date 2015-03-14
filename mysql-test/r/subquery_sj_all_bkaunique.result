@@ -11868,6 +11868,20 @@ col_date_key
 2008-06-10
 2008-09-12
 2009-02-23
+SELECT COUNT(r1.col_date_key) AS COUNT_NUM
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+(SELECT ir2.pk
+FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+ON ir2.col_varchar_nokey = ir1.col_varchar_key
+WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+AND ir2.pk IN
+(SELECT iir2.pk
+FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+ON iir2.col_varchar_nokey = iir1.col_varchar_key
+WHERE iir2.pk<3));
+COUNT_NUM
+15
 DROP TABLE t1,t2,t3;
 #
 # Bug#20554585 ASSERT JOIN()->TABLES == 0... IN JOIN_TAB::GET_SJ_STRATEGY ON SUBQUERY + VAR
