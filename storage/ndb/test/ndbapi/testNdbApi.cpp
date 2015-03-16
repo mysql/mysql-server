@@ -3585,7 +3585,25 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
       
       NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
       
-      CHECK(scan != NULL);
+      if (scan == NULL)
+      {
+        /* getNdbScanOperation can fail in same way as startTransaction
+         * since it starts a buddy transaction for scan operations.
+         */
+        const NdbError err = trans->getNdbError();
+        if (err.code == 4009)
+        {
+          g_info.println("%u: Failed to get scan operation transaction Error : %u %s",
+                   stepNo, err.code, err.message);
+          trans->close();
+          break;
+        }
+        g_err.println("ERR: %u: %u: Failed to get scan operation transaction Error : %u %s",
+                 __LINE__, stepNo, err.code, err.message);
+        trans->close();
+        delete[] buff;
+        return NDBT_FAILED;
+      }
       
       CHECK(0 == scan->readTuples());
       
@@ -3601,9 +3619,27 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
       
       CHECK(0 == scan->setInterpretedCode(&prog));
       
-      CHECK(0 == trans->execute(NdbTransaction::NoCommit));
+      int ret = trans->execute(NdbTransaction::NoCommit);
 
       const NdbError execError= trans->getNdbError();
+
+      if (ret != 0)
+      {
+        /* Transaction was aborted.  Should be due to node disconnect. */
+        if(execError.classification != NdbError::NodeRecoveryError)
+        {
+          g_err.println("ERR: %u: %u: Execute aborted transaction with invalid error code: %u",
+                   __LINE__, stepNo, execError.code);
+          NDB_ERR_OUT(g_err, execError);
+          trans->close();
+          delete[] buff;
+          return NDBT_FAILED;
+        }
+        g_info.println("%u: Execute aborted transaction with NR error code: %u",
+                 stepNo, execError.code);
+        trans->close();
+        break;
+      }
 
       /* Can get success (0), or 874 for too much AttrInfo, depending
        * on timing
