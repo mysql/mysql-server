@@ -168,7 +168,7 @@ create trigger trg before insert on t1_sp
 for each row set @counter=@counter+1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure trig_sp()
 begin
 declare done int default 0;
@@ -355,7 +355,7 @@ Testcase y.y.y.5: Rollback of nested trigger references
 -------------------------------------------------------
 set @@sql_mode='traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 use test;
 drop table if exists t1;
 drop table if exists t2;

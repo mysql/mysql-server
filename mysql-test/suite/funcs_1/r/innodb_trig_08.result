@@ -301,7 +301,7 @@ Testcase 3.5.8.5-case:
 ----------------------
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create trigger trg3 before insert on tb3 for each row
 BEGIN
 SET new.f120=char(ascii(new.f120)-32);

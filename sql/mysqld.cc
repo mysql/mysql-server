@@ -7718,8 +7718,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (!(global_system_variables.sql_mode & MODE_NO_AUTO_CREATE_USER))
   {
-    sql_print_warning("'NO_AUTO_CREATE_USER' sql mode is not set. "
-                      "It will be made read-only in a future release.");
+    sql_print_warning("'NO_AUTO_CREATE_USER' sql mode was not set.");
   }
 
   if (!my_enable_symlinks)

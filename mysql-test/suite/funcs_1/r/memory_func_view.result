@@ -1,6 +1,6 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET timestamp=UNIX_TIMESTAMP('2010-01-01');
 DROP TABLE IF EXISTS t1_selects, t1_modes, t1_values;
 DROP VIEW  IF EXISTS v1;
@@ -289,7 +289,7 @@ INSERT INTO t1_values SET select_id = @select_id,
 my_char_30 = 'Viana do Castelo';
 SET sql_mode = '';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 "# The basic preparations end and the main test starts here"
 --------------------------------------------------------------------------------

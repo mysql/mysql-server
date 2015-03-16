@@ -342,7 +342,7 @@ DROP TABLE t1;
 SET @ts='2001-01-01 00:00:00.123456';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 c85 TIMESTAMP(6), c86 TIMESTAMP(5), c87 TIMESTAMP(4),
 c88 TIMESTAMP(3), c89 TIMESTAMP(2), c90 TIMESTAMP(1)

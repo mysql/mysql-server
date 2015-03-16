@@ -165,7 +165,7 @@ INSERT INTO global_suppressions VALUES
  /*It will print a warning if server is run without --explicit_defaults_for_timestamp.*/
  ("TIMESTAMP with implicit DEFAULT value is deprecated. Please use --explicit_defaults_for_timestamp server option (see documentation for more details)*"),
  /*It will print a warning if a server is run without NO_AUTO_CREATE_USER sql mode.*/
- ("'NO_AUTO_CREATE_USER' sql mode is not set. It will be made read-only in a future release."),
+ ("'NO_AUTO_CREATE_USER' sql mode was not set."),
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 

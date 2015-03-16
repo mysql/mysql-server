@@ -2,7 +2,7 @@ drop table if exists t1,t2;
 drop database if exists mysqltest;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (
 col1 int not null auto_increment primary key,
 col2 varchar(30) not null,
@@ -2652,7 +2652,7 @@ DROP TABLE t1;
 SET @orig_sql_mode = @@sql_mode;
 SET sql_mode= '';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Test with '767' as index size limit.
 CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB;
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
@@ -2685,7 +2685,7 @@ COUNT(*)
 DROP TABLE t1;
 SET sql_mode= @orig_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # BUG#17246318 - ALTER TABLE SHOULD NOT ALLOW CREATION OF TABLES
 #                WITH BOTH 5.5 AND 5.6 TEMPORALS
 #

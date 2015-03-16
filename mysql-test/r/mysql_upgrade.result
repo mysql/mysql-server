@@ -114,7 +114,7 @@ mysql_upgrade: Got error: 2005: Unknown MySQL server host 'not_existing_host' (e
 Upgrade process encountered error and will not continue.
 set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
@@ -204,13 +204,13 @@ WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been
 SET @orig_sql_mode= @@sql_mode;
 SET sql_mode= (SELECT replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT USAGE ON *.* TO 'user3'@'%';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET sql_mode= @orig_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 Run mysql_upgrade with all privileges on a user
 mysql.columns_priv                                 OK
