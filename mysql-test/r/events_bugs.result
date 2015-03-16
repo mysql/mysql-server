@@ -54,7 +54,7 @@ set global event_scheduler= on;
 set @old_sql_mode:=@@sql_mode;
 set sql_mode=ansi;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select get_lock('test_bug16407', 60);
 get_lock('test_bug16407', 60)
 1
@@ -77,7 +77,7 @@ events_test	e_16407	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_
 "Let's check whether we change the sql_mode on ALTER EVENT"
 set sql_mode='traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter event e_16407 do select 1;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
@@ -85,7 +85,7 @@ events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CR
 drop event e_16407;
 set sql_mode="ansi";
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select get_lock('ee_16407_2', 60);
 get_lock('ee_16407_2', 60)
 1
@@ -93,7 +93,7 @@ set global event_scheduler= 1;
 "Another sql_mode test"
 set sql_mode="traditional";
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table events_smode_test(ev_name char(10), a date);
 "This should never insert something"
 create event ee_16407_2 on schedule every 60 second do
@@ -114,7 +114,7 @@ insert into events_test.events_smode_test values ('ee_16407_3','1980-02-29');
 end|
 set sql_mode=""|
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 "This will insert rows but they will be truncated"
 create event ee_16407_4 on schedule every 60 second do
 begin
@@ -163,7 +163,7 @@ get_lock('ee_16407_5', 60)
 set global event_scheduler= on;
 set sql_mode='traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure ee_16407_5_pendant() begin insert into events_test.events_smode_test values('ee_16407_5','2001-02-29'); end|
 create procedure ee_16407_6_pendant() begin insert into events_test.events_smode_test values('ee_16407_6','2004-02-29'); end|
 create event ee_16407_5 on schedule every 60 second do
@@ -650,13 +650,13 @@ DROP EVENT IF EXISTS e2;
 set @orig_sql_mode = @@sql_mode;
 set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT EVENT ON *.* TO mysqltest_u1@localhost;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 set sql_mode= @orig_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 SET GLOBAL READ_ONLY = 1;
 

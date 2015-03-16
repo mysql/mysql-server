@@ -336,7 +336,7 @@ DROP TRIGGER tr1;
 DROP TABLE t1;
 SET sql_mode=traditional;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT 1/0;
 1/0
 NULL
@@ -344,7 +344,7 @@ Warnings:
 Warning	1365	Division by 0
 SET sql_mode='';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE proc_c()
 BEGIN
 DECLARE div_zero INTEGER;
@@ -359,7 +359,7 @@ Warning	1365	Division by 0
 DROP PROCEDURE proc_c;
 SET sql_mode=traditional;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE FUNCTION fn1() RETURNS TINYINT
 BEGIN
 SET  @x=floor('1a');

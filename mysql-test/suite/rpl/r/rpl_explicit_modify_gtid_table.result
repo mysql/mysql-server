@@ -9,14 +9,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 INSERT INTO mysql.gtid_executed VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 1, 1);
 Warnings:
-Warning	3130	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 #
 # Verify that explicit update to mysql.gtid_executed
 # is causing a warning.
 #
 UPDATE mysql.gtid_executed SET interval_end = 2 WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 Warnings:
-Warning	3130	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 #
 # Verify that explicit select from mysql.gtid_executed
 # with 'FOR UPDATE' is causing a warning.
@@ -25,14 +25,14 @@ SELECT * FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-a
 source_uuid	interval_start	interval_end
 aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa	1	2
 Warnings:
-Warning	3130	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 #
 # Verify that explicit delete from mysql.gtid_executed
 # is causing a warning.
 #
 DELETE FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 Warnings:
-Warning	3130	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 #
 # Verify that no warning on explicit select from mysql.gtid_executed
 #
@@ -46,7 +46,7 @@ call mtr.add_suppression("The transaction owned GTID is already in the "
                          "explicit modifying from user client.");
 INSERT INTO mysql.gtid_executed VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 1, 1);
 Warnings:
-Warning	3130	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 #
 # Verify that the GTID is inserted into table, but
 # is not inserted into GLOBAL.GTID_EXECUTED.

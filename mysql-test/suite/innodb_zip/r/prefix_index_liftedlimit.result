@@ -1197,7 +1197,7 @@ col_1_varbinary = REPEAT("c", 4000)
 DROP INDEX prefix_idx ON worklog5743;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE INDEX prefix_idx ON worklog5743(col_1_varbinary (4000));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes

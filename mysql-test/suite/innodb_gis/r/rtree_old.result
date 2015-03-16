@@ -807,7 +807,7 @@ ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 drop table t1, t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1101	BLOB/TEXT column 'geometry' can't have a default value
@@ -1509,7 +1509,7 @@ INSERT INTO t1(foo) VALUES (NULL);
 ERROR 23000: Column 'foo' cannot be null
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1() VALUES ();
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SET sql_mode = default;

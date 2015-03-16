@@ -264,7 +264,7 @@ First, let's add a column to the end and check the error is emitted.
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE mysql.event ADD dummy INT;
 SET sql_mode = default;
 SHOW EVENTS;

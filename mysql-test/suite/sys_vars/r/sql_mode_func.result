@@ -8,7 +8,7 @@ CREATE TEMPORARY TABLE t2(a varchar(20) null, b varchar(20));
 ANSI mode
 SET SESSION sql_mode = ANSI;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@SESSION.sql_mode;
 @@SESSION.sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
@@ -25,7 +25,7 @@ ERROR HY000: Invalid use of group function
 Expected error for invalid group function
 SET SESSION sql_mode = @sql_mode_session;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET GLOBAL sql_mode = @sql_mode_global;
 '#--------------------FN_DYNVARS_153_02-------------------------#'
 STRICT_TRANS_TABLES mode
@@ -33,7 +33,7 @@ DELETE FROM t1;
 DELETE FROM t2;
 SET SESSION sql_mode = STRICT_TRANS_TABLES;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@SESSION.sql_mode;
 @@SESSION.sql_mode
 STRICT_TRANS_TABLES
@@ -53,7 +53,7 @@ a	b
 Should return no rows in columns a,b;
 SET SESSION sql_mode = @sql_mode_session;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET GLOBAL sql_mode = @sql_mode_global;
 '#--------------------FN_DYNVARS_153_03-------------------------#'
 TRADITIONAL  mode
@@ -78,7 +78,7 @@ Should return no rows in columns a,b;
 '#-------------------FN_DYNVARS_153_04-------------------------#'
 SET GLOBAL sql_mode = '';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ** Connecting con_int1 using root **
 ** Connection con_int1 **
 SELECT @@SESSION.sql_mode;
@@ -87,7 +87,7 @@ SELECT @@SESSION.sql_mode;
 '' Expected
 SET SESSION sql_mode = 'TRADITIONAL';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ** Connecting con_int2 using root **
 ** Connection con_int2 **
 SELECT @@SESSION.sql_mode;

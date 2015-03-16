@@ -67,7 +67,7 @@ INSTALL PLUGIN example SONAME 'ha_example.so';
 select @@session.sql_mode into @old_sql_mode;
 set session sql_mode='';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set global example_ulong_var=500;
 select @@global.example_ulong_var;
 @@global.example_ulong_var
@@ -90,7 +90,7 @@ select @@global.example_ulong_var;
 500
 set session sql_mode=@old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set session old=bla;
 ERROR HY000: Variable 'old' is a read only variable
 UNINSTALL PLUGIN example;

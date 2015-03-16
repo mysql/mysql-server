@@ -284,7 +284,7 @@ st_intersection(point(6,8),multipoint(point(3,1),point(-4,-6),point(1,6),point(-
 ERROR 22023: Invalid GIS data provided to function st_union.
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
 st_geomcollfromwkb(point(1,1)));
 ERROR 22023: Invalid GIS data provided to function st_difference.

@@ -841,7 +841,7 @@ drop function chistics|
 insert into t1 values ("foo", 1), ("bar", 2), ("zip", 3)|
 set @@sql_mode = 'ANSI'|
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop procedure if exists modes$
 create procedure modes(out c1 int, out c2 int)
 begin
@@ -3672,7 +3672,7 @@ create table t3 (s1 int unique)|
 set @sm=@@sql_mode|
 set sql_mode='traditional'|
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure bug6127()
 begin
 declare continue handler for sqlstate '23000'
@@ -3697,7 +3697,7 @@ s1
 1
 set sql_mode=@sm|
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t3|
 drop procedure bug6127|
 drop procedure if exists bug12589_1|
@@ -5424,7 +5424,7 @@ call proc_20028_c()|
 ERROR 22012: Division by 0
 SET sql_mode='TRADITIONAL'|
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop function func_20028_a|
 drop function func_20028_b|
 drop function func_20028_c|
@@ -5481,7 +5481,7 @@ Warning	1329	No data - zero rows fetched, selected, or processed
 call proc_20028_c()|
 SET @@sql_mode=@save_sql_mode|
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop function func_20028_a|
 drop function func_20028_b|
 drop function func_20028_c|
@@ -6899,13 +6899,13 @@ Warnings:
 Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
 set @@sql_mode= @old_mode;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select name from mysql.proc where name = 'p' and sql_mode = @full_mode;

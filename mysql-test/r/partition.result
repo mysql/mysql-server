@@ -367,7 +367,7 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 SET sql_mode='';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INT)
 ENGINE=NonExistentEngine;
 Warnings:
@@ -1830,7 +1830,7 @@ PARTITION BY KEY (a)
 (PARTITION p0);
 set session sql_mode='no_table_options';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2636,7 +2636,7 @@ DROP TABLE t1;
 #
 SET sql_mode= 'STRICT_TRANS_TABLES';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (d TIME)
 PARTITION BY RANGE COLUMNS (d)
 (PARTITION p0 VALUES LESS THAN ('2000-01-01'),

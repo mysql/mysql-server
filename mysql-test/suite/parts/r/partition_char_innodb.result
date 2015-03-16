@@ -481,7 +481,7 @@ PARTITIONS 27 */
 0 inserts;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t2 values (char(ascii('A')+26));
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
