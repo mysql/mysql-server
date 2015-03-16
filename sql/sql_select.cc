@@ -33,6 +33,7 @@
 #include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
 #include "lock.h"                // mysql_unlock_some_tables,
                                  // mysql_unlock_read_tables
+#include "mysqld.h"              // stage_init
 #include "sql_show.h"            // append_identifier
 #include "sql_base.h"
 #include "auth_common.h"         // *_ACL
@@ -60,7 +61,7 @@ static store_key *get_store_key(THD *thd,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
-uint find_shortest_key(TABLE *table, const key_map *usable_keys);
+uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 /**
   Handle a data manipulation query, from preparation through cleanup
 
@@ -3918,7 +3919,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
 
 bool
 test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
-                         key_map usable_keys,  int ref_key,
+                         Key_map usable_keys,  int ref_key,
                          ha_rows select_limit,
                          int *new_key, int *new_key_direction,
                          ha_rows *new_select_limit, uint *new_used_key_parts,
@@ -3936,7 +3937,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   if (join)
     ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   uint nr;
-  key_map keys;
+  Key_map keys;
   uint best_key_parts= 0;
   int best_key_direction= 0;
   ha_rows best_records= 0;

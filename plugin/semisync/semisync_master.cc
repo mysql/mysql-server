@@ -16,6 +16,7 @@
 
 
 #include "semisync_master.h"
+#include "mysqld.h"                             // max_connections
 #if defined(ENABLED_DEBUG_SYNC)
 #include "debug_sync.h"
 #include "sql_class.h"

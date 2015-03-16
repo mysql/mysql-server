@@ -18,6 +18,7 @@
 
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"                // sql_print_error
+#include "mysqld.h"             // sync_masterinfo_period
 #include "rpl_slave.h"          // master_retry_count
 
 

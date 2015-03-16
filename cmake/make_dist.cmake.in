@@ -151,15 +151,6 @@ CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
    ${PACKAGE_DIR}/sql/sql_hints.yy.cc COPYONLY)
 
-# Copy spec files
-SET(SPECFILENAME "mysql.${VERSION}.spec")
-IF("${VERSION}" MATCHES "-ndb-")
-  STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
-  SET(SPECFILENAME "mysql-cluster-${NDBVERSION}.spec")
-ENDIF()
-CONFIGURE_FILE(${CMAKE_BINARY_DIR}/support-files/${SPECFILENAME}
-   ${PACKAGE_DIR}/support-files/${SPECFILENAME} COPYONLY)
-
 # Add documentation, if user has specified where to find them
 IF(MYSQL_DOCS_LOCATION)
   MESSAGE("Copying documentation files from " ${MYSQL_DOCS_LOCATION})

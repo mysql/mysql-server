@@ -25,6 +25,7 @@
 #include "item_cmpfunc.h"                // and_conds
 #include "key.h"                         // find_ref_key
 #include "log.h"                         // sql_print_warning
+#include "mysqld.h"                      // reg_ext key_file_frm ...
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
@@ -6548,9 +6549,9 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
   if (index_hints)
   {
     /* Temporary variables used to collect hints of each kind. */
-    key_map index_join[INDEX_HINT_FORCE + 1];
-    key_map index_order[INDEX_HINT_FORCE + 1];
-    key_map index_group[INDEX_HINT_FORCE + 1];
+    Key_map index_join[INDEX_HINT_FORCE + 1];
+    Key_map index_order[INDEX_HINT_FORCE + 1];
+    Key_map index_group[INDEX_HINT_FORCE + 1];
     Index_hint *hint;
     bool have_empty_use_join= FALSE, have_empty_use_order= FALSE, 
          have_empty_use_group= FALSE;

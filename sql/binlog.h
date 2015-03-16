@@ -32,6 +32,8 @@ class Log_event;
 class Gtid_set;
 struct Gtid;
 
+typedef int64 query_id_t;
+
 /**
   Logical timestamp generator for logical timestamping binlog transactions.
   A transaction is associated with two sequence numbers see
@@ -944,66 +946,6 @@ extern bool opt_binlog_order_commits;
   @returns true if a problem occurs, false otherwise.
  */
 
-inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
-{
-  DBUG_ENTER("normalize_binlog_name");
-  bool error= false;
-  char buff[FN_REFLEN];
-  char *ptr= (char*) from;
-  char *opt_name= is_relay_log ? opt_relay_logname : opt_bin_logname;
+bool normalize_binlog_name(char *to, const char *from, bool is_relay_log);
 
-  DBUG_ASSERT(from);
-
-  /* opt_name is not null and not empty and from is a relative path */
-  if (opt_name && opt_name[0] && from && !test_if_hard_path(from))
-  {
-    // take the path from opt_name
-    // take the filename from from 
-    char log_dirpart[FN_REFLEN], log_dirname[FN_REFLEN];
-    size_t log_dirpart_len, log_dirname_len;
-    dirname_part(log_dirpart, opt_name, &log_dirpart_len);
-    dirname_part(log_dirname, from, &log_dirname_len);
-
-    /* log may be empty => relay-log or log-bin did not 
-        hold paths, just filename pattern */
-    if (log_dirpart_len > 0)
-    {
-      /* create the new path name */
-      if(fn_format(buff, from+log_dirname_len, log_dirpart, "",
-                   MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
-      {
-        error= true;
-        goto end;
-      }
-
-      ptr= buff;
-    }
-  }
-
-  DBUG_ASSERT(ptr);
-  if (ptr)
-  {
-    size_t length= strlen(ptr);
-
-    // Strips the CR+LF at the end of log name and \0-terminates it.
-    if (length && ptr[length-1] == '\n')
-    {
-      ptr[length-1]= 0;
-      length--;
-      if (length && ptr[length-1] == '\r')
-      {
-        ptr[length-1]= 0;
-        length--;
-      }
-    }
-    if (!length)
-    {
-      error= true;
-      goto end;
-    }
-    strmake(to, ptr, length);
-  }
-end:
-  DBUG_RETURN(error);
-}
 #endif /* BINLOG_H_INCLUDED */

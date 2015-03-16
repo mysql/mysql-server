@@ -26,6 +26,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 /* Include necessary SQL headers */
 #include <debug_sync.h>
 #include <log.h>
+#include <mysqld.h>
 #include <strfunc.h>
 #include <sql_acl.h>
 #include <sql_class.h>
@@ -63,7 +64,6 @@ const char* sub_sep = "#sp#";
 const char* part_sep = "#P#";
 const char* sub_sep = "#SP#";
 #endif /* _WIN32 */
-extern char*	innobase_file_format_max;
 
 Ha_innopart_share::Ha_innopart_share(
 	TABLE_SHARE*	table_share)
@@ -1167,15 +1167,6 @@ share_error:
 	/* Index block size in InnoDB: used by MySQL in query optimization. */
 	stats.block_size = UNIV_PAGE_SIZE;
 
-	if (m_prebuilt->table != NULL) {
-		/* We update the highest file format in the system table
-		space, if this table has higher file format setting. */
-
-		trx_sys_file_format_max_upgrade(
-			(const char**) &innobase_file_format_max,
-			dict_table_get_format(m_prebuilt->table));
-	}
-
 	/* Only if the table has an AUTOINC column. */
 	if (m_prebuilt->table != NULL
 	    && !m_prebuilt->table->ibd_file_missing
@@ -1653,6 +1644,11 @@ ha_innopart::index_init(
 			destroy_record_priority_queue();
 			DBUG_RETURN(error);
 		}
+		/* Disable prefetch.
+		The prefetch buffer is not partitioning aware, so it may return
+		rows from a different partition if either the prefetch buffer is
+		full, or it is non-empty and the partition is exhausted. */
+		m_prebuilt->m_no_prefetch = true;
 	}
 
 	error = change_active_index(part_id, keynr);
@@ -1683,6 +1679,7 @@ ha_innopart::index_end()
 	}
 	if (m_ordered) {
 		destroy_record_priority_queue();
+		m_prebuilt->m_no_prefetch = false;
 	}
 
 	DBUG_RETURN(ha_innobase::index_end());
@@ -2013,18 +2010,6 @@ ha_innopart::index_next_in_part(
 	      || m_prebuilt->used_in_HANDLER
 	      || m_part_info->num_partitions_used() <= 1);
 
-	/* TODO: Handle this in a nicer way!
-	Reset the fetch count, so the prefetch buffer is never used when
-	sorting records through the priority queue.
-	The prefetch buffer is not partitioning aware, so it may return
-	rows from the current partition if either the prefetch buffer is
-	full, or it is non-empty and the partition is exhausted. */
-
-	if (m_ordered_scan_ongoing) {
-		ut_ad(m_ordered_rec_buffer != NULL);
-		m_prebuilt->n_rows_fetched = 0;
-	}
-
 	DBUG_RETURN(error);
 }
 
@@ -2087,22 +2072,11 @@ ha_innopart::index_prev_in_part(
 	error = ha_innobase::index_prev(record);
 	update_partition(part);
 
-	/* TODO: Handle this in a nicer way!
-	Reset the fetch count, so the prefetch buffer is never used when
-	sorting records through the priority queue.
-	The prefetch buffer is not partitioning aware, so it may return
-	rows from the current partition if either the prefetch buffer is
-	full, or it is non-empty and the partition is exhausted. */
-
 	ut_ad(m_ordered_scan_ongoing
 	      || m_ordered_rec_buffer == NULL
 	      || m_prebuilt->used_in_HANDLER
 	      || m_part_info->num_partitions_used() <= 1);
 
-	if (m_ordered_scan_ongoing) {
-		ut_ad(m_ordered_rec_buffer != NULL);
-		m_prebuilt->n_rows_fetched = 0;
-	}
 	return(error);
 }
 
@@ -2283,18 +2257,6 @@ ha_innopart::read_range_next_in_part(
 	}
 	update_partition(part);
 
-	/* TODO: Handle this in a nicer way!
-	Reset the fetch count, so the prefetch buffer is never used when
-	sorting records through the priority queue.
-	The prefetch buffer is not partitioning aware, so it may return
-	rows from the current partition if either the prefetch buffer is
-	full, or it is non-empty and the partition is exhausted. */
-
-	if (m_ordered_scan_ongoing) {
-		ut_ad(m_ordered_rec_buffer != NULL);
-		m_prebuilt->n_rows_fetched = 0;
-	}
-
 	return(error);
 }
 
@@ -2393,6 +2355,7 @@ ha_innopart::rnd_pos(
 	uint	part_id;
 	DBUG_ENTER("ha_innopart::rnd_pos");
 	ut_ad(PARTITION_BYTES_IN_POS == 2);
+	DBUG_DUMP("pos", pos, ref_length);
 
 	ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
@@ -2409,6 +2372,8 @@ ha_innopart::rnd_pos(
 	error = ha_innobase::index_read(buf, pos + PARTITION_BYTES_IN_POS,
 				ref_length - PARTITION_BYTES_IN_POS,
 				HA_READ_KEY_EXACT);
+	DBUG_PRINT("info", ("part %u index_read returned %d", part_id, error));
+	DBUG_DUMP("buf", buf, table_share->reclength);
 
 	update_partition(part_id);
 

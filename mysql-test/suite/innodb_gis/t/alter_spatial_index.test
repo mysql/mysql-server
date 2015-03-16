@@ -675,6 +675,9 @@ update t1 set b = st_geomfromtext('point(0 0)');
 # Add spatial index success.
 alter table t1 add spatial index(b), algorithm=inplace;
 
+# Delete rows.
+delete from t1;
+
 #cleanup
 DROP table t1;
 
@@ -694,6 +697,13 @@ alter table t1 add b geometry not null, add spatial index(b), algorithm=copy;
 alter table t1 add b geometry not null, algorithm=copy;
 
 # Add spatial index.
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+alter table t1 add spatial index(b), algorithm=copy;
+
+# Update invalide geo data to point(0 0).
+update t1 set b = st_geomfromtext('point(0 0)');
+
+# Add spatial index success.
 alter table t1 add spatial index(b), algorithm=copy;
 
 # Delete rows.

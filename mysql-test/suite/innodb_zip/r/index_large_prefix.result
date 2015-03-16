@@ -89,17 +89,6 @@ create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2;
 create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4;
 create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
 create table worklog5743_16(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=16;
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-create index idx1 on worklog5743_1(a2(4000));
-ERROR 42000: Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Error	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create index idx2 on worklog5743_1(a2(4000));
 ERROR 42000: Specified key was too long; max key length is 3072 bytes
 show warnings;
@@ -121,21 +110,9 @@ Error	1118	Row size too large. The maximum row size for the used table type, not
 create index idx6 on worklog5743_1(a1, a2(428));
 show warnings;
 Level	Code	Message
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET sql_mode= '';
 Warnings:
 Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-create index idx1 on worklog5743_2(a2(4000));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create index idx2 on worklog5743_2(a2(4000));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 show warnings;
@@ -158,18 +135,6 @@ Error	1118	Row size too large. The maximum row size for the used table type, not
 create index idx6 on worklog5743_2(a1, a2(940));
 show warnings;
 Level	Code	Message
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-create index idx1 on worklog5743_4(a2(4000));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create index idx2 on worklog5743_4(a2(4000));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 show warnings;
@@ -192,18 +157,6 @@ Error	1118	Row size too large. The maximum row size for the used table type, not
 create index idx6 on worklog5743_4(a1, a2(1964));
 show warnings;
 Level	Code	Message
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-create index idx1 on worklog5743_8(a2(1000));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create index idx2 on worklog5743_8(a2(3073));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes
@@ -232,18 +185,6 @@ Error	1071	Specified key was too long; max key length is 3072 bytes
 create index idx7 on worklog5743_8(a1, a2(2000), a3(1068));
 show warnings;
 Level	Code	Message
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-create index idx1 on worklog5743_16(a2(1000));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-show warnings;
-Level	Code	Message
-Warning	1071	Specified key was too long; max key length is 767 bytes
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create index idx2 on worklog5743_16(a2(3073));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 3072 bytes
@@ -278,17 +219,11 @@ insert into worklog5743_2 values(9, repeat("a", 10000));
 insert into worklog5743_4 values(9, repeat("a", 10000));
 insert into worklog5743_8 values(9, repeat("a", 10000), repeat("a", 10000));
 insert into worklog5743_16 values(9, repeat("a", 10000), repeat("a", 10000));
-set global innodb_large_prefix=0;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 insert into worklog5743_1 values(2, repeat("b", 10000));
 insert into worklog5743_2 values(2, repeat("b", 10000));
 insert into worklog5743_4 values(2, repeat("b", 10000));
 insert into worklog5743_8 values(2, repeat("b", 10000), repeat("b", 10000));
 insert into worklog5743_16 values(2, repeat("b", 10000), repeat("b", 10000));
-set global innodb_large_prefix=1;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 select a1, left(a2, 20) from worklog5743_1;
 a1	left(a2, 20)
 9	aaaaaaaaaaaaaaaaaaaa

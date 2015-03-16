@@ -17,6 +17,7 @@
 
 #include "auth_common.h"                    // check_access
 #include "current_thd.h"
+#include "mysqld.h"                         // opt_log_slow_admin_statements
 #include "sql_table.h"                      // mysql_alter_table, etc.
 #include "partition_info.h"                 // class partition_info etc.
 #include "sql_base.h"                       // open_and_lock_tables, etc

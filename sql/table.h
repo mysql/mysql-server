@@ -24,6 +24,7 @@
 #include "datadict.h"      // frm_type_enum
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
+#include "enum_query_type.h" // enum_query_type
 #include "opt_costmodel.h" // Cost_model_table
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
@@ -49,6 +50,8 @@ struct LEX;
 typedef int8 plan_idx;
 class Opt_hints_qb;
 class Opt_hints_table;
+
+typedef int64 query_id_t;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -605,8 +608,8 @@ struct TABLE_SHARE
      Set of keys in use, implemented as a Bitmap.
      Excludes keys disabled by ALTER TABLE ... DISABLE KEYS.
   */
-  key_map keys_in_use;
-  key_map keys_for_keyread;
+  Key_map keys_in_use;
+  Key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
   /**
@@ -1010,8 +1013,8 @@ public:
     Map of keys that can be used to retrieve all data from this table 
     needed by the query without reading the row.
   */
-  key_map covering_keys;
-  key_map quick_keys, merge_keys;
+  Key_map covering_keys;
+  Key_map quick_keys, merge_keys;
   
   /*
     possible_quick_keys is a superset of quick_keys to use with EXPLAIN of
@@ -1023,7 +1026,7 @@ public:
     optimizer at the top level. OTOH they directly use the range optimizer,
     that collects all keys usable for range access here.
   */
-  key_map possible_quick_keys;
+  Key_map possible_quick_keys;
 
   /*
     A set of keys that can be used in the query that references this
@@ -1036,11 +1039,11 @@ public:
 
     The set is implemented as a bitmap.
   */
-  key_map keys_in_use_for_query;
+  Key_map keys_in_use_for_query;
   /* Map of keys that can be used to calculate GROUP BY without sorting */
-  key_map keys_in_use_for_group_by;
+  Key_map keys_in_use_for_group_by;
   /* Map of keys that can be used to calculate ORDER BY without sorting */
-  key_map keys_in_use_for_order_by;
+  Key_map keys_in_use_for_order_by;
   KEY  *key_info;			/* data of keys defined for the table */
 
   Field *next_number_field;		/* Set if next_number is activated */
@@ -2833,6 +2836,7 @@ extern LEX_STRING MYSQL_SCHEMA_NAME;
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
 extern LEX_STRING WORKER_INFO_NAME;
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 inline bool is_infoschema_db(const char *name, size_t len)
 {

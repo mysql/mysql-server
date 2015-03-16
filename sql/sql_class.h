@@ -2802,24 +2802,8 @@ public:
     killed_state killed_val; /* to cache the volatile 'killed' */
     return (killed_val= killed) != KILL_BAD_DATA ? killed_val : 0;
   }
-  inline void send_kill_message() const
-  {
-    int err= killed_errno();
-    if (err && !get_stmt_da()->is_set())
-    {
-      if ((err == KILL_CONNECTION) && !connection_events_loop_aborted())
-        err = KILL_QUERY;
-      /*
-        KILL is fatal because:
-        - if a condition handler was allowed to trap and ignore a KILL, one
-        could create routines which the DBA could not kill
-        - INSERT/UPDATE IGNORE should fail: if KILL arrives during
-        JOIN::optimize(), statement cannot possibly run as its caller expected
-        => "OK" would be misleading the caller.
-      */
-      my_error(err, MYF(ME_FATALERROR));
-    }
-  }
+  void send_kill_message() const;
+
   void set_status_var_init();
   void reset_n_backup_open_tables_state(Open_tables_backup *backup);
   void restore_backup_open_tables_state(Open_tables_backup *backup);

@@ -980,8 +980,7 @@ row_undo_mod_upd_exist_sec(
 			format.  REDUNDANT and COMPACT formats
 			store a local 768-byte prefix of each
 			externally stored column. */
-			ut_a(dict_table_get_format(index->table)
-			     >= UNIV_FORMAT_B);
+			ut_a(dict_table_has_atomic_blobs(index->table));
 
 			/* This is only legitimate when
 			rolling back an incomplete transaction

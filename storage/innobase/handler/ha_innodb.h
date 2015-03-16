@@ -81,7 +81,7 @@ public:
 
 	uint max_supported_key_part_length() const;
 
-	const key_map* keys_to_use_for_scanning();
+	const Key_map* keys_to_use_for_scanning();
 
 	int open(const char *name, int mode, uint test_if_locked);
 

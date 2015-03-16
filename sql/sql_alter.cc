@@ -21,7 +21,7 @@
 #include "sql_base.h"                        // open_temporary_tables
 #include "log.h"
 #include "sql_class.h"                       // THD
-
+#include "mysqld.h"                          // lower_case_table_names
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   :drop_list(rhs.drop_list, mem_root),

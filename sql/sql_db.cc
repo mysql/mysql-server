@@ -20,6 +20,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_db.h"
 
+#include "mysqld.h"                      // lower_case_table_names ...
 #include "psi_memory_key.h"
 #include "sql_cache.h"                   // query_cache_*
 #include "lock.h"                        // lock_schema_name

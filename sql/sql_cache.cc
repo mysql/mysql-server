@@ -346,6 +346,7 @@ TODO list:
 #include "current_thd.h"
 #include "psi_memory_key.h"
 #include "sql_class.h"
+#include "mysqld.h"                      // stage_waiting_for_query_cache_lock
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"

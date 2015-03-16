@@ -43,6 +43,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "rpl_slave.h"
 #include "rpl_msr.h"       /* multisource replication */
 #include "rpl_filter.h"
+#include "mysqld.h"        // slave_net_timeout national_charset_info ...
 #include "log_event.h"
 #include "lex_symbol.h"
 #include "item_create.h"

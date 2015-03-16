@@ -4777,13 +4777,13 @@ void ha_partition::late_extra_no_cache(uint partition_id)
 /**
   Get keys to use for scanning.
 
-  @return key_map of keys usable for scanning
+  @return Key_map of keys usable for scanning
 
   @note No need to use read_partitions here, since it does not depend on
   which partitions is used, only which storage engine used.
 */
 
-const key_map *ha_partition::keys_to_use_for_scanning()
+const Key_map *ha_partition::keys_to_use_for_scanning()
 {
   DBUG_ENTER("ha_partition::keys_to_use_for_scanning");
   DBUG_RETURN(m_file[0]->keys_to_use_for_scanning());

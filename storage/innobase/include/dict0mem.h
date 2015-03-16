@@ -119,9 +119,10 @@ the Compact page format is used, i.e ROW_FORMAT != REDUNDANT */
 /** Width of the ZIP_SSIZE flag */
 #define DICT_TF_WIDTH_ZIP_SSIZE		4
 
-/** Width of the ATOMIC_BLOBS flag.  The Antelope file formats broke up
-BLOB and TEXT fields, storing the first 768 bytes in the clustered index.
-Barracuda row formats store the whole blob or text field off-page atomically.
+/** Width of the ATOMIC_BLOBS flag.  The ROW_FORMAT=REDUNDANT and
+ROW_FORMAT=COMPACT broke up BLOB and TEXT fields, storing the first 768 bytes
+in the clustered index. ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED
+store the whole blob or text field off-page atomically.
 Secondary indexes are created from this external data using row_ext_t
 to cache the BLOB prefixes. */
 #define DICT_TF_WIDTH_ATOMIC_BLOBS	1
@@ -526,7 +527,8 @@ struct dict_col_t{
 					of an index */
 	unsigned	max_prefix:12;	/*!< maximum index prefix length on
 					this column. Our current max limit is
-					3072 for Barracuda table */
+					3072 (REC_VERSION_56_MAX_INDEX_COL_LEN)
+					bytes. */
 };
 
 /** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
@@ -545,17 +547,17 @@ files would be at risk! */
 /** Find out maximum indexed column length by its table format.
 For ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT, the maximum
 field length is REC_ANTELOPE_MAX_INDEX_COL_LEN - 1 (767). For
-Barracuda row formats COMPRESSED and DYNAMIC, the length could
+ROW_FORMAT=COMPRESSED and ROW_FORMAT=DYNAMIC, the length could
 be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
-#define DICT_MAX_FIELD_LEN_BY_FORMAT(table)				\
-		((dict_table_get_format(table) < UNIV_FORMAT_B)		\
-			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
-			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+#define DICT_MAX_FIELD_LEN_BY_FORMAT(table)	\
+	(dict_table_has_atomic_blobs(table)	\
+	 ? REC_VERSION_56_MAX_INDEX_COL_LEN	\
+	 : REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)
 
-#define DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags)			\
-		((DICT_TF_HAS_ATOMIC_BLOBS(flags) < UNIV_FORMAT_B)	\
-			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
-			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+#define DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags)	\
+	(DICT_TF_HAS_ATOMIC_BLOBS(flags)		\
+	 ? REC_VERSION_56_MAX_INDEX_COL_LEN		\
+	 : REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)
 
 /** Defines the maximum fixed length column size */
 #define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN

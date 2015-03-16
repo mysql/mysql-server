@@ -2521,16 +2521,8 @@ set session old_alter_table=0;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-SET GLOBAL innodb_large_prefix=OFF;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create table t1 (v varchar(65530), key(v));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-SET GLOBAL innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-drop table t1;
+Got one of the listed errors
 create table t1 (v varchar(65536));
 Warnings:
 Note	1246	Converting column 'v' from VARCHAR to TEXT
@@ -2666,57 +2658,6 @@ character set = latin1 engine = innodb;
 create table t8 (col1 blob, index(col1(767)))
 character set = latin1 engine = innodb;
 drop table t1, t2, t3, t4, t5, t6, t7, t8;
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
-SET GLOBAL innodb_large_prefix=OFF;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-create table t1 (col1 varchar(768), index(col1))
-character set = latin1 engine = innodb;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-create table t2 (col1 varbinary(768), index(col1))
-character set = latin1 engine = innodb;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-create table t3 (col1 text, index(col1(768)))
-character set = latin1 engine = innodb;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-create table t4 (col1 blob, index(col1(768)))
-character set = latin1 engine = innodb;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-SET GLOBAL innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `col1` varchar(768) DEFAULT NULL,
-  KEY `col1` (`col1`(767))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-drop table t1, t2, t3, t4;
-set global innodb_large_prefix=OFF;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-create table t1 (col1 varchar(768) primary key)
-character set = latin1 engine = innodb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
-create table t2 (col1 varbinary(768) primary key)
-character set = latin1 engine = innodb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
-create table t3 (col1 text, primary key(col1(768)))
-character set = latin1 engine = innodb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
-create table t4 (col1 blob, primary key(col1(768)))
-character set = latin1 engine = innodb;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
-SET sql_mode = default;
-set global innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 CREATE TABLE t1
 (
 id INT PRIMARY KEY

@@ -25,6 +25,7 @@
 #include "lock.h"         // lock_object_name
 #include "log.h"          // sql_print_warning
 #include "log_event.h"    // append_query_string
+#include "mysqld.h"       // trust_function_creators
 #include "sp_cache.h"     // sp_cache_invalidate
 #include "sp_head.h"      // Stored_program_creation_ctx
 #include "sql_base.h"     // close_thread_tables

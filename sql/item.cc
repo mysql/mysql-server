@@ -26,6 +26,7 @@
 #include "item_strfunc.h"    // Item_func_conv_charset
 #include "item_sum.h"        // Item_sum
 #include "log_event.h"       // append_query_string
+#include "mysqld.h"          // lower_case_table_names files_charset_info
 #include "sp.h"              // sp_map_item_type
 #include "sp_rcontext.h"     // sp_rcontext
 #include "sql_base.h"        // view_ref_found
@@ -9025,7 +9026,7 @@ String *Item_cache_datetime::val_str(String *str)
         return NULL;
       str_value_cached= TRUE;
     }
-    else if (!cache_value())
+    else if (!cache_value() || null_value)
       return NULL;
   }
   return &str_value;

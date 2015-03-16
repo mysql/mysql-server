@@ -23,7 +23,7 @@
 #include "rpl_mi.h"            // Master_info
 #include "sql_class.h"         // THD
 #include "sql_plugin.h"        // plugin_int_to_ref
-
+#include "mysqld.h"            // server_uuid
 
 #include <vector>
 

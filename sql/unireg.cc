@@ -27,6 +27,7 @@
 #include "unireg.h"
 
 #include "current_thd.h"
+#include "mysqld.h"                           // opt_sync_frm key_file_frm
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"
 #include "sql_class.h"                        // THD, Internal_error_handler

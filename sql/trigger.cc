@@ -17,6 +17,7 @@
 #include "my_global.h"
 #include "sql_class.h"
 #include "trigger.h"
+#include "mysqld.h"               // table_alias_charset
 #include "mysys_err.h"            // EE_OUTOFMEMORY
 #include "trigger_creation_ctx.h" // Trigger_creation_ctx
 #include "sql_parse.h"            // parse_sql

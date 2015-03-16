@@ -75,6 +75,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
+#include "options_mysqld.h"
 #include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"
 #include "rpl_slave.h"
@@ -559,8 +560,8 @@ char mysql_unpacked_real_data_home[FN_REFLEN];
 size_t mysql_unpacked_real_data_home_len;
 size_t mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
-const key_map key_map_empty(0);
-key_map key_map_full(0);                        // Will be initialized later
+const Key_map key_map_empty(0);
+Key_map key_map_full(0);                        // Will be initialized later
 char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
@@ -3733,7 +3734,7 @@ static int init_server_auto_options()
   DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-    if (!Uuid::is_valid(uuid))
+    if (!binary_log::Uuid::is_valid(uuid))
     {
       sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;

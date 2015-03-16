@@ -27,6 +27,7 @@
 #include "field.h"                    // Field
 #include "item.h"                     // Item
 #include "key.h"                      // is_key_used
+#include "mysqld.h"                   // stage_init mysql_tmpdir
 #include "opt_explain.h"              // Modification_plan
 #include "opt_trace.h"                // Opt_trace_object
 #include "psi_memory_key.h"
@@ -294,7 +295,7 @@ bool mysql_update(THD *thd,
   table->quick_keys.clear_all();
   table->possible_quick_keys.clear_all();
 
-  key_map covering_keys_for_cond;
+  Key_map covering_keys_for_cond;
   if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond,
                            values))
     DBUG_RETURN(1);
@@ -476,7 +477,7 @@ bool mysql_update(THD *thd,
       impossible= true;
     else if (conds != NULL)
     {
-      key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+      Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
       impossible= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
                                     ORDER::ORDER_NOT_RELEVANT, &qep_tab,
@@ -1092,7 +1093,7 @@ exit_without_my_ok:
   @return false if success, true if error
 */
 bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
-                          key_map *covering_keys_for_cond,
+                          Key_map *covering_keys_for_cond,
                           List<Item> &update_value_list)
 {
   List<Item> all_fields;

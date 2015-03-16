@@ -18,6 +18,7 @@
 #include "auth_common.h" // CREATE_VIEW_ACL
 #include "binlog.h"      // mysql_bin_log
 #include "datadict.h"    // dd_frm_type
+#include "mysqld.h"      // stage_end reg_ext key_file_frm
 #include "opt_trace.h"   // Opt_trace_object
 #include "parse_file.h"  // File_option
 #include "sp_cache.h"    // sp_cache_invalidate

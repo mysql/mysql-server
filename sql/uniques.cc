@@ -34,6 +34,7 @@
 
 #include "malloc_allocator.h"
 #include "my_tree.h"                            // element_count
+#include "mysqld.h"                             // mysql_tmpdir
 #include "opt_costmodel.h"
 #include "priority_queue.h"
 #include "psi_memory_key.h"

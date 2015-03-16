@@ -20,6 +20,7 @@
 #include "rpl_rli.h"                          // Relay_log_info
 #include "sql_class.h"                        // THD
 #include "sql_parse.h"                        // stmt_causes_implicit_commit
+#include "mysqld.h"                           // connection_events_loop_aborted
 
 #include "pfs_transaction_provider.h"
 #include "mysql/psi/mysql_transaction.h"

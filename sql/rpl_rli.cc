@@ -17,6 +17,7 @@
 
 #include "my_dir.h"                // MY_STAT
 #include "log_event.h"             // Log_event
+#include "mysqld.h"                // sync_relaylog_period ...
 #include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...
 #include "rpl_info_factory.h"      // Rpl_info_factory
 #include "rpl_mi.h"                // Master_info
@@ -2336,6 +2337,14 @@ size_t Relay_log_info::get_number_info_rli_fields()
 { 
   return sizeof(info_rli_fields)/sizeof(info_rli_fields[0]);
 }
+
+void Relay_log_info::start_sql_delay(time_t delay_end)
+{
+  mysql_mutex_assert_owner(&data_lock);
+  sql_delay_end= delay_end;
+  THD_STAGE_INFO(info_thd, stage_sql_thd_waiting_until_delay);
+}
+
 
 bool Relay_log_info::read_info(Rpl_info_handler *from)
 {

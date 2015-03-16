@@ -37,6 +37,7 @@
 #include "my_aes.h"                  // MY_AES_IV_SIZE
 #include "my_md5.h"                  // MD5_HASH_SIZE
 #include "my_rnd.h"                  // my_rand_buffer
+#include "mysqld.h"                  // LOCK_des_key_file
 #include "sha1.h"                    // SHA1_HASH_SIZE
 #include "auth_common.h"             // check_password_policy
 #include "des_key_file.h"            // st_des_keyblock
@@ -5676,6 +5677,15 @@ static void set_clock_seq_str()
   tohex(clock_seq_and_node_str+1, clock_seq, 4);
   nanoseq= 0;
 }
+
+
+void Item_func_uuid::fix_length_and_dec()
+{
+  collation.set(system_charset_info,
+                DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
+  fix_char_length(UUID_LENGTH);
+}
+
 
 
 bool Item_func_uuid::itemize(Parse_context *pc, Item **res)

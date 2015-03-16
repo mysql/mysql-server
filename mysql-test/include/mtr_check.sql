@@ -62,7 +62,6 @@ BEGIN
   -- timestamp changes if time passes. server_uuid changes if server restarts.
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
     WHERE variable_name NOT IN ('timestamp', 'server_uuid',
-                                'innodb_file_format_max',
                                 'gtid_executed', 'gtid_purged',
                                 'group_replication_group_name')
     ORDER BY VARIABLE_NAME;

@@ -20,6 +20,7 @@
 #include "event_data_objects.h"
 #include "event_queue.h"
 #include "event_db_repository.h"
+#include "mysqld.h"                  // my_localhost slave_net_timeout
 #include "auth_common.h"             // SUPER_ACL
 #include "log.h"
 #include "mysqld_thd_manager.h"      // Global_THD_manager

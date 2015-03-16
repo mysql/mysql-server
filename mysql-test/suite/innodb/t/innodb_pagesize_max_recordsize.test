@@ -57,8 +57,6 @@ SET innodb_strict_mode=ON;
 # Check page size 32k
 SELECT @@innodb_page_size;
 
-SELECT @@innodb_file_format;
-
 SELECT @@Innodb_file_per_table;
 
 # Check the error when the max record length > 16K for innodb_page_size=64k/32k
@@ -124,8 +122,6 @@ col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255)
 ENGINE = innodb ROW_FORMAT=FIXED;
 
 SET innodb_strict_mode=OFF;
-SET GLOBAL innodb_file_format='Antelope';
-SELECT @@innodb_file_format;
 
 # Check the Warning |  139 | Row size too large (> 16318)
 
@@ -144,9 +140,6 @@ col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255)
 ENGINE = innodb ;
 
 DROP TABLE tab5;
-
-SET GLOBAL innodb_file_format='Barracuda';
-SELECT @@innodb_file_format;
 
 #Check the ERROR 1118 (42000): Row size too large (> 16383).
 

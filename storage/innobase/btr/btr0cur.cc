@@ -7121,11 +7121,11 @@ btr_check_blob_fil_page_type(
 		ulint	flags = fil_space_get_flags(space_id);
 
 #ifndef UNIV_DEBUG /* Improve debug test coverage */
-		if (dict_tf_get_format(flags) == UNIV_FORMAT_A) {
+		if (!DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
 			/* Old versions of InnoDB did not initialize
 			FIL_PAGE_TYPE on BLOB pages.  Do not print
 			anything about the type mismatch when reading
-			a BLOB page that is in Antelope format.*/
+			a BLOB page that may be from old versions. */
 			return;
 		}
 #endif /* !UNIV_DEBUG */

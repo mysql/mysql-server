@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "handler.h"                            // enum_schema_tables
+#include "sql_string.h"
 #include "table.h"                              // enum_schema_table_state
 #include "set_var.h"                            // enum_var_type
 

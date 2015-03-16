@@ -8,15 +8,9 @@ SET NAMES utf8;
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 Variable_name	Value
 innodb_strict_mode	ON
-# Neither file_format=antelope nor file_per_table=OFF will prevent
+# innodb_file_per_table=OFF will not prevent
 # CREATE TABLESPACE from working because the tablespace is an empty
 # shell that can contain multiple row formats.
-SET GLOBAL innodb_file_format = 'antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-SHOW VARIABLES LIKE 'innodb_file_format';
-Variable_name	Value
-innodb_file_format	Antelope
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -511,9 +505,6 @@ Error	1031	Table storage engine for 't_temp_zip' doesn't have this option
 #
 # Try to add a second table to a single-table tablespace
 #
-SET GLOBAL innodb_file_format = 'barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE s_single (a int, b text) ROW_FORMAT=dynamic;
 CREATE TABLE t_second (a int, b text) TABLESPACE s_single;

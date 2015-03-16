@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -57,7 +57,6 @@ extern mysql_pfs_key_t	buf_pool_zip_mutex_key;
 extern mysql_pfs_key_t	cache_last_read_mutex_key;
 extern mysql_pfs_key_t	dict_foreign_err_mutex_key;
 extern mysql_pfs_key_t	dict_sys_mutex_key;
-extern mysql_pfs_key_t	file_format_max_mutex_key;
 extern mysql_pfs_key_t	fil_system_mutex_key;
 extern mysql_pfs_key_t	flush_list_mutex_key;
 extern mysql_pfs_key_t	fts_bg_threads_mutex_key;

@@ -36,7 +36,7 @@ SELECT variable_value FROM information_schema.global_status
 # to use a freshly created database for this test we do not return the
 # table or index IDs. We can return the space IS of mysql schema tables
 # since they are created consistently during bootstrap.
-SELECT	t.space, t.name table_name, t.n_cols, t.flag table_flags,
+SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 	i.name index_name, i.page_no root_page, i.type,
 	i.n_fields, i.merge_threshold
 	FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
@@ -295,15 +295,11 @@ SHOW WARNINGS;
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Antelope`;
---error ER_ILLEGAL_HA
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
---error ER_ILLEGAL_HA
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
-SET GLOBAL innodb_file_format = `Barracuda`;
-
+DROP TABLE t4,t5;
 
 --echo # Test 7) This series of tests were moved from innodb-index to here
 --echo # because the second alter table t1 assumes a 16k page size.

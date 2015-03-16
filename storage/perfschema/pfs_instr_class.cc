@@ -21,6 +21,7 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "table.h"
+#include "mysqld.h"                             // lower_case_table_names
 #include "pfs_instr_class.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_instr.h"
@@ -1388,8 +1389,20 @@ PFS_stage_key register_stage_class(const char *name,
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
     entry->m_prefix_length= prefix_length;
     entry->m_event_name_index= index;
-    entry->m_enabled= false; /* disabled by default */
-    entry->m_timed= false;
+
+    if (flags & PSI_FLAG_STAGE_PROGRESS)
+    {
+      /* Stages with progress information are enabled and timed by default */
+      entry->m_enabled= true;
+      entry->m_timed= true;
+    }
+    else
+    {
+      /* Stages without progress information are disabled by default */
+      entry->m_enabled= false;
+      entry->m_timed= false;
+    }
+
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     PFS_atomic::add_u32(&stage_class_allocated_count, 1);

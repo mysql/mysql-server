@@ -32,11 +32,19 @@ TEST(PartitionedRwlock, InitDestroy)
 {
   Partitioned_rwlock rwlock;
 
-  bool r= rwlock.init(32, PSI_NOT_INSTRUMENTED);
+  bool r= rwlock.init(32
+#ifdef HAVE_PSI_INTERFACE
+                      , PSI_NOT_INSTRUMENTED
+#endif
+                      );
   EXPECT_FALSE(r);
   rwlock.destroy();
 
-  r= rwlock.init(8, PSI_NOT_INSTRUMENTED);
+  r= rwlock.init(8
+#ifdef HAVE_PSI_INTERFACE
+                 , PSI_NOT_INSTRUMENTED
+#endif
+                 );
   EXPECT_FALSE(r);
   rwlock.destroy();
 }
@@ -107,7 +115,11 @@ TEST(PartitionedRwlock, Concurrent)
 
   Partitioned_rwlock rwlock;
   volatile uint shared_counter= 0;
-  rwlock.init(PARTS_NUM, PSI_NOT_INSTRUMENTED);
+  rwlock.init(PARTS_NUM
+#ifdef HAVE_PSI_INTERFACE
+              , PSI_NOT_INSTRUMENTED
+#endif
+              );
 
   Reader_thread readers[PARTS_NUM];
   Writer_thread writer(&rwlock, &shared_counter);

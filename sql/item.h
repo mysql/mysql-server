@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "field.h"       // Derivation
+#include "my_decimal.h"  // my_decimal
 #include "parse_tree_node_base.h" // Parse_tree_node
 #include "sql_array.h"   // Bounds_checked_array
 #include "trigger_def.h" // enum_trigger_variable_type

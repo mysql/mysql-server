@@ -422,66 +422,6 @@ err:
 }
 
 /**
-  Update user.auth.str based on the plugin.
-
-  @param thd        Thread context
-  @param lex_user   user for which auth str needs to be generated
-
-  @retval 0 ok
-  @retval 1 ERROR;
-*/
-
-bool update_auth_str(THD *thd, LEX_USER *Str)
-{
-  plugin_ref plugin= NULL;
-  char outbuf[MAX_FIELD_WIDTH]= {0};
-  unsigned int buflen= MAX_FIELD_WIDTH, inbuflen;
-  const char *inbuf;
-  char *password= NULL;
-
-  plugin= my_plugin_lock_by_name(0, Str->plugin,
-                                 MYSQL_AUTHENTICATION_PLUGIN);
-
-  /* for authentication_string generate hash out of it */
-  if (plugin)
-  {
-    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-    {
-      inbuf= Str->auth.str;
-      inbuflen= Str->auth.length;
-      if (auth->generate_authentication_string(outbuf,
-                                               &buflen,
-                                               inbuf,
-                                               inbuflen))
-      {
-        plugin_unlock(0, plugin);
-        return(1);
-      }
-      if (buflen)
-      {
-        password= (char *) thd->alloc(buflen);
-        memcpy(password, outbuf, buflen);
-      }
-      else
-        password= const_cast<char*>("");
-      /* erase in memory copy of plain text password */
-      memset((char*)(Str->auth.str), 0, Str->auth.length);
-      /* Use the authentication_string field as password */
-      Str->auth.str= password;
-      Str->auth.length= buflen;
-      thd->lex->contains_plaintext_password= false;
-    }
-    plugin_unlock(0, plugin);
-  }
-  else
-  {
-     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), Str->plugin.str);
-     return(1);
-  }
-  return(0);
-}
-
-/**
    This function does following:
    1. Convert plain text password to hash and update the same in
       user definition.
@@ -501,6 +441,11 @@ bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_se
 {
   bool user_exists= false;
   ACL_USER *acl_user;
+  plugin_ref plugin= NULL;
+  char outbuf[MAX_FIELD_WIDTH]= {0};
+  unsigned int buflen= MAX_FIELD_WIDTH, inbuflen;
+  const char *inbuf;
+  char *password= NULL;
 
   what_to_set= 0;
   /* update plugin,auth str attributes */
@@ -539,12 +484,9 @@ bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_se
   {
     if (thd->lex->sql_command == SQLCOM_ALTER_USER)
     {
-      if (Str->uses_identified_by_clause)
-      {
-        /* If no plugin is given, get existing plugin */
-        if (!Str->uses_identified_with_clause)
-          Str->plugin= acl_user->plugin;
-      }
+      /* If no plugin is given, get existing plugin */
+      if (!Str->uses_identified_with_clause)
+        Str->plugin= acl_user->plugin;
       /*
         always check for password expire/interval attributes as there is no
         way to differentiate NEVER EXPIRE and EXPIRE DEFAULT scenario
@@ -585,50 +527,75 @@ bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_se
     if (!Str->uses_identified_with_clause)
       Str->plugin= default_auth_plugin_name;
   }
+
+  plugin= my_plugin_lock_by_name(0, Str->plugin,
+                                 MYSQL_AUTHENTICATION_PLUGIN);
+
+  /* check if plugin is loaded */
+  if (!plugin)
+  {
+    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), Str->plugin.str);
+    return(1);
+  }
   /*
     If auth string is specified, change it to hash.
     Validate empty credentials for new user ex: CREATE USER u1;
   */
   if (Str->uses_identified_by_clause ||
       (Str->auth.length == 0 && !user_exists))
-    if (update_auth_str(thd, Str))
+  {
+    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
+    inbuf= Str->auth.str;
+    inbuflen= Str->auth.length;
+    if (auth->generate_authentication_string(outbuf,
+                                             &buflen,
+                                             inbuf,
+                                             inbuflen))
+    {
+      plugin_unlock(0, plugin);
       return(1);
+    }
+    if (buflen)
+    {
+      password= (char *) thd->alloc(buflen);
+      memcpy(password, outbuf, buflen);
+    }
+    else
+      password= const_cast<char*>("");
+    /* erase in memory copy of plain text password */
+    memset((char*)(Str->auth.str), 0, Str->auth.length);
+    /* Use the authentication_string field as password */
+    Str->auth.str= password;
+    Str->auth.length= buflen;
+    thd->lex->contains_plaintext_password= false;
+  }
+
   /* Validate hash string */
   if(Str->uses_identified_by_password_clause ||
      Str->uses_authentication_string_clause)
   {
-    plugin_ref plugin= my_plugin_lock_by_name(0, Str->plugin,
-                                              MYSQL_AUTHENTICATION_PLUGIN);
-    if (plugin)
+    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
+    /*
+      Validate hash string in following cases:
+        1. IDENTIFIED BY PASSWORD.
+        2. IDENTIFIED WITH .. AS 'auth_str' for ALTER USER statement
+           and its a replication slave thread
+    */
+    if (Str->uses_identified_by_password_clause ||
+        (Str->uses_authentication_string_clause &&
+        thd->lex->sql_command == SQLCOM_ALTER_USER &&
+        thd->slave_thread))
     {
-      st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-      /*
-        Validate hash string in following cases:
-          1. IDENTIFIED BY PASSWORD.
-          2. IDENTIFIED WITH .. AS 'auth_str' for ALTER USER statement
-             and its a replication slave thread
-      */
-      if (Str->uses_identified_by_password_clause ||
-          (Str->uses_authentication_string_clause &&
-          thd->lex->sql_command == SQLCOM_ALTER_USER &&
-          thd->slave_thread))
+      if (auth->validate_authentication_string((char*)Str->auth.str,
+                                               Str->auth.length))
       {
-        if (auth->validate_authentication_string((char*)Str->auth.str,
-                                                 Str->auth.length))
-        {
-          my_error(ER_PASSWORD_FORMAT, MYF(0));
-          plugin_unlock(0, plugin);
-          return(1);
-        }
+        my_error(ER_PASSWORD_FORMAT, MYF(0));
+        plugin_unlock(0, plugin);
+        return(1);
       }
-      plugin_unlock(0, plugin);
-    }
-    else
-    {
-      my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), Str->plugin.str);
-      return(1);
     }
   }
+  plugin_unlock(0, plugin);
   return(0);
 }
 

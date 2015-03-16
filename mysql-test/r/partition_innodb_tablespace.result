@@ -33,16 +33,16 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
-name	n_cols	file_format	row_format
-test/t1#p#p0	5	Antelope	Compact
-test/t1#p#p1	5	Antelope	Compact
-SELECT name,file_format,row_format
+name	n_cols	row_format
+test/t1#p#p0	5	Compact
+test/t1#p#p1	5	Compact
+SELECT name,row_format
 FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
-name	file_format	row_format
-test/t1#p#p0	Antelope	Compact or Redundant
-test/t1#p#p1	Antelope	Compact or Redundant
+name	row_format
+test/t1#p#p0	Compact or Redundant
+test/t1#p#p1	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -72,16 +72,16 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
-name	n_cols	file_format	row_format
-test/t1#p#p0	5	Antelope	Compact
-test/t1#p#p1	5	Antelope	Compact
-SELECT name,file_format,row_format
+name	n_cols	row_format
+test/t1#p#p0	5	Compact
+test/t1#p#p1	5	Compact
+SELECT name,row_format
 FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
-name	file_format	row_format
-test/t1#p#p0	Antelope	Compact or Redundant
-test/t1#p#p1	Antelope	Compact or Redundant
+name	row_format
+test/t1#p#p0	Compact or Redundant
+test/t1#p#p1	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -100,16 +100,16 @@ t11	CREATE TABLE `t11` (
 /*!50100 PARTITION BY HASH (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
-name	n_cols	file_format	row_format
-test/t11#p#p0	5	Antelope	Compact
-test/t11#p#p1	5	Antelope	Compact
-SELECT name,file_format,row_format
+name	n_cols	row_format
+test/t11#p#p0	5	Compact
+test/t11#p#p1	5	Compact
+SELECT name,row_format
 FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
-name	file_format	row_format
-test/t11#p#p0	Antelope	Compact or Redundant
-test/t11#p#p1	Antelope	Compact or Redundant
+name	row_format
+test/t11#p#p0	Compact or Redundant
+test/t11#p#p1	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -137,16 +137,16 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
  PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB) */
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
-name	n_cols	file_format	row_format
-test/t1#p#p0	5	Antelope	Compact
-test/t1#p#p1	5	Antelope	Compact
-SELECT name,file_format,row_format
+name	n_cols	row_format
+test/t1#p#p0	5	Compact
+test/t1#p#p1	5	Compact
+SELECT name,row_format
 FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
-name	file_format	row_format
-test/t1#p#p0	Antelope	Compact or Redundant
-test/t1#p#p1	Antelope	Compact or Redundant
+name	row_format
+test/t1#p#p0	Compact or Redundant
+test/t1#p#p1	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -204,24 +204,24 @@ SUBPARTITION BY HASH ( TO_DAYS(purchased))
  PARTITION p2 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
   SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB)) */
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
-name	n_cols	file_format	row_format
-test/t1#p#p0#sp#s0	5	Antelope	Compact
-test/t1#p#p0#sp#s1	5	Antelope	Compact
-test/t1#p#p1#sp#s2	5	Antelope	Compact
-test/t1#p#p1#sp#s3	5	Antelope	Compact
-test/t1#p#p2#sp#s4	5	Antelope	Compact
-test/t1#p#p2#sp#s5	5	Antelope	Compact
-SELECT name,file_format,row_format
+name	n_cols	row_format
+test/t1#p#p0#sp#s0	5	Compact
+test/t1#p#p0#sp#s1	5	Compact
+test/t1#p#p1#sp#s2	5	Compact
+test/t1#p#p1#sp#s3	5	Compact
+test/t1#p#p2#sp#s4	5	Compact
+test/t1#p#p2#sp#s5	5	Compact
+SELECT name,row_format
 FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
-name	file_format	row_format
-test/t1#p#p0#sp#s0	Antelope	Compact or Redundant
-test/t1#p#p0#sp#s1	Antelope	Compact or Redundant
-test/t1#p#p1#sp#s2	Antelope	Compact or Redundant
-test/t1#p#p1#sp#s3	Antelope	Compact or Redundant
-test/t1#p#p2#sp#s4	Antelope	Compact or Redundant
-test/t1#p#p2#sp#s5	Antelope	Compact or Redundant
+name	row_format
+test/t1#p#p0#sp#s0	Compact or Redundant
+test/t1#p#p0#sp#s1	Compact or Redundant
+test/t1#p#p1#sp#s2	Compact or Redundant
+test/t1#p#p1#sp#s3	Compact or Redundant
+test/t1#p#p2#sp#s4	Compact or Redundant
+test/t1#p#p2#sp#s5	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -285,24 +285,24 @@ SUBPARTITION BY HASH ( TO_DAYS(purchased))
  PARTITION p2 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data/' ENGINE = InnoDB,
   SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2/' ENGINE = InnoDB)) */
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
 FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
-name	n_cols	file_format	row_format
-test/t1#p#p0#sp#s0	5	Barracuda	Dynamic
-test/t1#p#p0#sp#s1	5	Barracuda	Dynamic
-test/t1#p#p1#sp#s2	5	Barracuda	Dynamic
-test/t1#p#p1#sp#s3	5	Barracuda	Dynamic
-test/t1#p#p2#sp#s4	5	Barracuda	Dynamic
-test/t1#p#p2#sp#s5	5	Barracuda	Dynamic
-SELECT name,file_format,row_format
+name	n_cols	row_format
+test/t1#p#p0#sp#s0	5	Dynamic
+test/t1#p#p0#sp#s1	5	Dynamic
+test/t1#p#p1#sp#s2	5	Dynamic
+test/t1#p#p1#sp#s3	5	Dynamic
+test/t1#p#p2#sp#s4	5	Dynamic
+test/t1#p#p2#sp#s5	5	Dynamic
+SELECT name,row_format
 FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
-name	file_format	row_format
-test/t1#p#p0#sp#s0	Barracuda	Dynamic
-test/t1#p#p0#sp#s1	Barracuda	Dynamic
-test/t1#p#p1#sp#s2	Barracuda	Dynamic
-test/t1#p#p1#sp#s3	Barracuda	Dynamic
-test/t1#p#p2#sp#s4	Barracuda	Dynamic
-test/t1#p#p2#sp#s5	Barracuda	Dynamic
+name	row_format
+test/t1#p#p0#sp#s0	Dynamic
+test/t1#p#p0#sp#s1	Dynamic
+test/t1#p#p1#sp#s2	Dynamic
+test/t1#p#p1#sp#s3	Dynamic
+test/t1#p#p2#sp#s4	Dynamic
+test/t1#p#p2#sp#s5	Dynamic
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path

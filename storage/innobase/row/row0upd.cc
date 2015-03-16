@@ -1538,10 +1538,10 @@ row_upd_store_row(
 	offsets = rec_get_offsets(rec, clust_index, offsets_,
 				  ULINT_UNDEFINED, &heap);
 
-	if (dict_table_get_format(node->table) >= UNIV_FORMAT_B) {
-		/* In DYNAMIC or COMPRESSED format, there is no prefix
-		of externally stored columns in the clustered index
-		record. Build a cache of column prefixes. */
+	if (dict_table_has_atomic_blobs(node->table)) {
+		/* There is no prefix of externally stored columns in
+		the clustered index record. Build a cache of column
+		prefixes. */
 		ext = &node->ext;
 	} else {
 		/* REDUNDANT and COMPACT formats store a local

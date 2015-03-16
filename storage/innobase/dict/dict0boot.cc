@@ -341,8 +341,8 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
 	/* ROW_FORMAT = (N_COLS >> 31) ? COMPACT : REDUNDANT */
 	dict_mem_table_add_col(table, heap, "N_COLS", DATA_INT, 0, 4);
-	/* The low order bit of TYPE is always set to 1.  If the format
-	is UNIV_FORMAT_B or higher, this field matches table->flags. */
+	/* The low order bit of TYPE is always set to 1.  If ROW_FORMAT
+	is not REDUNDANT or COMPACT, this field matches table->flags. */
 	dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0);
 	/* MIX_LEN may contain additional table flags when

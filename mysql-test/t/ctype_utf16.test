@@ -696,10 +696,8 @@ create table t1 (a varchar(334) character set utf16 primary key) engine=MyISAM;
 create table t1 (a varchar(150) character set utf16 primary key);
 show create table t1;
 drop table t1;
-set GLOBAL innodb_large_prefix=OFF;
---error ER_TOO_LONG_KEY
+--error ER_INDEX_COLUMN_TOO_LONG
 create table t1 (a varchar(334) character set utf16 primary key);
-set GLOBAL innodb_large_prefix=default;
 
 #
 # Conversion to utf8

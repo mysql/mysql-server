@@ -629,7 +629,7 @@ public:
     index-only scanning when performing an ORDER BY query.
     Only called from one place in sql_select.cc
   */
-  virtual const key_map *keys_to_use_for_scanning();
+  virtual const Key_map *keys_to_use_for_scanning();
 
   /*
     Called in test_quick_select to determine if indexes should be used.
@@ -874,7 +874,7 @@ public:
     HA_KEYREAD_ONLY:
     Does the storage engine support index-only scans on this index.
     Enables use of HA_EXTRA_KEYREAD and HA_EXTRA_NO_KEYREAD
-    Used to set key_map keys_for_keyread and to check in optimiser for
+    Used to set Key_map keys_for_keyread and to check in optimiser for
     index-only scans.  When doing a read under HA_EXTRA_KEYREAD the handler
     only have to fill in the columns the key covers. If
     HA_PRIMARY_KEY_IN_READ_INDEX is set then also the PRIMARY KEY columns

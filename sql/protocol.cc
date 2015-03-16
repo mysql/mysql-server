@@ -22,6 +22,7 @@
 
 #include "protocol.h"
 #include "sql_class.h"                          // THD
+#include "mysqld.h"                             // global_system_variables
 #include <stdarg.h>
 
 using std::min;

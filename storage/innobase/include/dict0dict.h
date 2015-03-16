@@ -184,7 +184,7 @@ dict_col_copy_type(
 	dtype_t*		type);	/*!< out: data type */
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
-note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
+note that if !dict_table_has_atomic_blobs(table), no prefix
 needs to be stored in the undo log.
 @return bytes of column prefix to be stored in the undo log */
 UNIV_INLINE
@@ -846,23 +846,13 @@ dict_table_is_comp(
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((warn_unused_result));
 
-/********************************************************************//**
-Determine the file format of a table.
-@return file format version */
+/** Determine if a table uses atomic BLOBs (no locally stored prefix).
+@param[in]	table	InnoDB table
+@return whether BLOBs are atomic */
 UNIV_INLINE
-ulint
-dict_table_get_format(
-/*==================*/
-	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((warn_unused_result));
-/********************************************************************//**
-Determine the file format from a dict_table_t::flags.
-@return file format version */
-UNIV_INLINE
-ulint
-dict_tf_get_format(
-/*===============*/
-	ulint		flags)		/*!< in: dict_table_t::flags */
+bool
+dict_table_has_atomic_blobs(
+	const dict_table_t*	table)
 	__attribute__((warn_unused_result));
 
 /** Set the various values in a dict_table_t::flags pointer.

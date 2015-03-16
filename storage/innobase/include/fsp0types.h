@@ -182,8 +182,8 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
 They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
-The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
-so they should have a file format number plus the DICT_TF_COMPACT bit set.
+The newer row formats, COMPRESSED and DYNAMIC, will have at least
+the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
 bool
@@ -234,7 +234,7 @@ fsp_skip_sanity_check(
 #define FSP_FLAGS_WIDTH_ZIP_SSIZE	4
 /** Width of the ATOMIC_BLOBS flag.  The ability to break up a long
 column into an in-record prefix and an externally stored part is available
-to the two Barracuda row formats COMPRESSED and DYNAMIC. */
+to ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT. */
 #define FSP_FLAGS_WIDTH_ATOMIC_BLOBS	1
 /** Number of flag bits used to indicate the tablespace page size */
 #define FSP_FLAGS_WIDTH_PAGE_SSIZE	4

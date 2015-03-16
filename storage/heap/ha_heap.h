@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ class ha_heap: public handler
 {
   HP_INFO *file;
   HP_SHARE *internal_share;
-  key_map btree_keys;
+  Key_map btree_keys;
   /* number of records changed since last statistics update */
   uint    records_changed;
   uint    key_stat_version;
@@ -59,7 +59,7 @@ public:
             HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
             HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
-  const key_map *keys_to_use_for_scanning() { return &btree_keys; }
+  const Key_map *keys_to_use_for_scanning() { return &btree_keys; }
   uint max_supported_keys()          const { return MAX_KEY; }
   uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
   double scan_time()

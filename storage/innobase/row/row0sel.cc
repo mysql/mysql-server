@@ -109,10 +109,10 @@ row_sel_sec_rec_is_for_blob(
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
 
-	/* This function should never be invoked on an Antelope format
-	table, because they should always contain enough prefix in the
-	clustered index record. */
-	ut_ad(dict_table_get_format(table) >= UNIV_FORMAT_B);
+	/* This function should never be invoked on tables in
+	ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT, because they
+	should always contain enough prefix in the clustered index record. */
+	ut_ad(dict_table_has_atomic_blobs(table));
 	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
 	ut_ad(prefix_len >= sec_len);
 	ut_ad(prefix_len > 0);
@@ -5449,13 +5449,15 @@ requires_clust_rec:
 				offsets));
 	ut_ad(!rec_get_deleted_flag(result_rec, comp));
 
-	/* At this point, the clustered index record is protected
+	/* Decide whether to prefetch extra rows.
+	At this point, the clustered index record is protected
 	by a page latch that was acquired when pcur was positioned.
 	The latch will not be released until mtr_commit(&mtr). */
 
 	if ((match_mode == ROW_SEL_EXACT
 	     || prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD)
 	    && prebuilt->select_lock_type == LOCK_NONE
+	    && !prebuilt->m_no_prefetch
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->templ_contains_fixed_point
 	    && !prebuilt->clust_index_was_generated

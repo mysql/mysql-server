@@ -18,6 +18,7 @@
 #include "event_parse_data.h"
 #include "sql_time.h"                           // TIME_to_timestamp
 #include "item_timefunc.h"                      // get_interval_value
+#include "mysqld.h"                             // server_id
 
 /*
   Returns a new instance

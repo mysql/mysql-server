@@ -30,6 +30,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "lock.h"                            // mysql_lock_abort_for_thread
+#include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
 #include "psi_memory_key.h"
@@ -2392,6 +2393,25 @@ void thd_increment_bytes_received(size_t length)
 void THD::set_status_var_init()
 {
   memset(&status_var, 0, sizeof(status_var));
+}
+
+void THD::send_kill_message() const
+{
+  int err= killed_errno();
+  if (err && !get_stmt_da()->is_set())
+  {
+    if ((err == KILL_CONNECTION) && !connection_events_loop_aborted())
+      err = KILL_QUERY;
+    /*
+      KILL is fatal because:
+      - if a condition handler was allowed to trap and ignore a KILL, one
+      could create routines which the DBA could not kill
+      - INSERT/UPDATE IGNORE should fail: if KILL arrives during
+      JOIN::optimize(), statement cannot possibly run as its caller expected
+      => "OK" would be misleading the caller.
+    */
+    my_error(err, MYF(ME_FATALERROR));
+  }
 }
 
 

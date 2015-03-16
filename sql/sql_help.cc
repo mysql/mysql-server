@@ -602,7 +602,7 @@ bool prepare_simple_select(THD *thd, Item *cond,
 
   // Wrapper for correct JSON in optimizer trace
   Opt_trace_object wrapper(&thd->opt_trace);
-  key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+  Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
   QUICK_SELECT_I *qck;
   const bool impossible=
     test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,

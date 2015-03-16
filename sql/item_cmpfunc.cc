@@ -30,6 +30,7 @@
 #include "opt_trace.h"
 #include "parse_tree_helpers.h"
 #include "template_utils.h"
+#include "mysqld.h"                             // log10
 
 #include <algorithm>
 using std::min;

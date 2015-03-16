@@ -26,10 +26,11 @@
 #include "thr_lock.h"          // thr_lock_type
 #include "discrete_interval.h" // Discrete_interval
 #include "key.h"               // KEY
-#include "mysqld.h"            // key_map
+#include "sql_bitmap.h"        // Key_map
 #include "sql_const.h"         // SHOW_COMP_OPTION
 #include "sql_list.h"          // SQL_I_List
 #include "sql_plugin_ref.h"    // plugin_ref
+#include "system_variables.h"  // System_variables
 
 #include "mysql/psi/psi.h"
 
@@ -48,6 +49,9 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
 
+
+extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
+extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
 
 // the following is for checking tables
 
@@ -2127,7 +2131,6 @@ public:
   void end_psi_batch_mode();
 
 private:
-  friend class DsMrr_impl;
   /**
     The lock type set by when calling::ha_external_lock(). This is 
     propagated down to the storage engine. The reason for also storing 
@@ -2430,7 +2433,7 @@ public:
   virtual int multi_range_read_next(char **range_info);
 
 
-  virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
+  virtual const Key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
   virtual uint extra_rec_buf_length() const { return 0; }
@@ -3599,7 +3602,7 @@ class DsMrr_impl
 public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
-  DsMrr_impl() : h2(NULL) {}
+  DsMrr_impl(handler *owner) : h(owner), table(NULL), h2(NULL) {}
 
   ~DsMrr_impl()
   {
@@ -3612,14 +3615,15 @@ public:
       reset();
     DBUG_ASSERT(h2 == NULL);
   }
-  
+
+private:
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
     It is used to retrieve full table rows by calling rnd_pos().
   */
-  handler *h;
+  handler *const h;
   TABLE *table; /* Always equal to h->table */
-private:
+
   /* Secondary handler object.  It is used for scanning the index */
   handler *h2;
 
@@ -3643,19 +3647,16 @@ public:
     This function just initializes the object. To do a DS-MRR scan,
     this must also be initialized by calling dsmrr_init().
 
-    @param h_arg     pointer to the handler that owns this object
     @param table_arg pointer to the TABLE that owns the handler
   */
 
-  void init(handler *h_arg, TABLE *table_arg)
+  void init(TABLE *table_arg)
   {
-    DBUG_ASSERT(h_arg != NULL);
     DBUG_ASSERT(table_arg != NULL);
-    h= h_arg; 
     table= table_arg;
   }
 
-  int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
+  int dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
 

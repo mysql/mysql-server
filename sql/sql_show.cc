@@ -31,6 +31,7 @@
 #include "item.h"                           // Item_empty_string
 #include "item_cmpfunc.h"                   // Item_cond
 #include "log.h"                            // sql_print_warning
+#include "mysqld.h"                         // lower_case_table_names
 #include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "opt_trace.h"                      // fill_optimizer_trace_info
 #include "protocol.h"                       // Protocol
@@ -1398,6 +1399,11 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
                       to tailor the format of the statement.  Can be
                       NULL, in which case only SQL_MODE is considered
                       when building the statement.
+    show_database     If true, then print the database before the table
+                      name. The database name is only printed in the event
+                      that it is different from the current database.
+                      If false, then do not print the database before
+                      the table name.
   
   NOTE
     Currently always return 0, but might return error code in the

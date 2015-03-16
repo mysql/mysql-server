@@ -23,6 +23,7 @@
 #include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "sql_class.h"                  // THD
 #include "sql_plugin.h"                 // plugin_unlock
+#include "mysqld.h"                     // key_thread_one_connection
 
 #include <algorithm>
 using std::min;

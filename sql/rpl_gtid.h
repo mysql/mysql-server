@@ -24,16 +24,11 @@
 #include "my_atomic.h"          // my_atomic_add32
 #include "prealloced_array.h"   // Prealloced_array
 #include "control_events.h"     // binary_log::Uuid
-
-#ifdef MYSQL_SERVER
-#include "mysqld.h"             // key_rwlock_global_sid_lock
-#include "table.h"
-#endif
-
 #include <list>
 #include "atomic_class.h"
 
-using binary_log::Uuid;
+struct TABLE_LIST;
+
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -421,7 +416,7 @@ rpl_gno parse_gno(const char **s);
 */
 int format_gno(char *s, rpl_gno gno);
 
-typedef Uuid rpl_sid;
+typedef binary_log::Uuid rpl_sid;
 
 
 /**

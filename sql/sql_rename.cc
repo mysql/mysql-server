@@ -23,6 +23,7 @@
 #include "sql_trigger.h"          // change_trigger_table_name
 #include "sql_view.h"             // mysql_frm_type, mysql_rename_view
 #include "lock.h"       // MYSQL_OPEN_SKIP_TEMPORARY
+#include "mysqld.h"     // lower_case_table_names
 #include "sql_base.h"   // tdc_remove_table, lock_table_names,
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "datadict.h"

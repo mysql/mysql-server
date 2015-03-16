@@ -33,6 +33,7 @@
 #include "records.h"          // init_read_record, end_read_record
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
+#include "mysqld.h"                             // opt_allow_suspicious_udfs
 #include "sql_plugin.h"                         // check_valid_path
 #include "sql_class.h"                          // THD
 

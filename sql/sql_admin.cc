@@ -32,6 +32,7 @@
 #include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher
 #include "log.h"
 #include "myisam.h"                          // TT_USEFRM
+#include "mysqld.h"                          // key_file_misc
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

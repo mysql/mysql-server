@@ -32,6 +32,7 @@
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum
 #include "lock.h"                // mysql_unlock_some_tables
+#include "mysqld.h"              // stage_optimizing
 #include "opt_explain.h"         // join_type_str
 #include "opt_trace.h"           // Opt_trace_object
 #include "sql_base.h"            // init_ftfuncs
@@ -86,7 +87,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after);
 
 static bool
 test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
-                        const bool no_changes, const key_map *map,
+                        const bool no_changes, const Key_map *map,
                         const char *clause_type);
 
 static Item_func_match *test_if_ft_index_order(ORDER *order);
@@ -1358,7 +1359,7 @@ ok:
     key index   otherwise
 */
 
-uint find_shortest_key(TABLE *table, const key_map *usable_keys)
+uint find_shortest_key(TABLE *table, const Key_map *usable_keys)
 {
   uint best= MAX_KEY;
   uint usable_clustered_pk= (table->file->primary_key_is_clustered() &&
@@ -1473,7 +1474,7 @@ is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
 
 static uint
 test_if_subkey(ORDER *order, JOIN_TAB *tab, uint ref, uint ref_key_parts,
-	       const key_map *usable_keys)
+	       const Key_map *usable_keys)
 {
   uint nr;
   uint min_length= (uint) ~0;
@@ -1587,7 +1588,7 @@ public:
   @param order         Linked list of ORDER BY arguments
   @param select_limit  LIMIT value, or HA_POS_ERROR if no limit
   @param no_changes    No changes will be made to the query plan.
-  @param map           key_map of applicable indexes.
+  @param map           Key_map of applicable indexes.
   @param clause_type   "ORDER BY" etc for printing in optimizer trace
 
   @todo
@@ -1608,7 +1609,7 @@ public:
 
 static bool
 test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
-                        const bool no_changes, const key_map *map,
+                        const bool no_changes, const Key_map *map,
                         const char *clause_type)
 {
   int ref_key;
@@ -1705,7 +1706,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
   */
-  key_map usable_keys= *map;
+  Key_map usable_keys= *map;
 
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
@@ -1815,7 +1816,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
             this table?". The answer does not depend on the outcome of
             the range optimizer.
           */
-          key_map new_ref_key_map;  // Force the creation of quick select
+          Key_map new_ref_key_map;  // Force the creation of quick select
           new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
           Opt_trace_object
@@ -1923,7 +1924,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
       trace_recest.add_utf8_table(tab->table_ref).
         add_utf8("index", table->key_info[best_key].name);
 
-      key_map keys_to_use;           // Force the creation of quick select
+      Key_map keys_to_use;           // Force the creation of quick select
       keys_to_use.set_bit(best_key); // only best_key.
       QUICK_SELECT_I *qck;
       test_quick_select(thd,
@@ -5157,7 +5158,7 @@ bool JOIN::extract_func_dependent_tables()
           tab->keys().set_bit(key);               // QQ: remove this ?
 
           table_map refs= 0;
-          key_map const_ref, eq_part;
+          Key_map const_ref, eq_part;
           do
           {
             if (keyuse->val->type() != Item::NULL_ITEM && !keyuse->optimize)
@@ -5229,7 +5230,7 @@ void JOIN::update_sargable_from_const(SARGABLE_PARAM *sargables)
   {
     Field *const field= sargables->field;
     JOIN_TAB *const tab= field->table->reginfo.join_tab;
-    key_map possible_keys= field->key_start;
+    Key_map possible_keys= field->key_start;
     possible_keys.intersect(field->table->keys_in_use_for_query);
     bool is_const= true;
     for (uint j= 0; j < sargables->num_values; j++)
@@ -6474,7 +6475,7 @@ static uint get_semi_join_select_list_index(Item_field *item_field)
  */
 static void 
 warn_index_not_applicable(THD *thd, const Field *field, 
-                          const key_map cant_use_index) 
+                          const Key_map cant_use_index) 
 {
   if (thd->lex->describe)
     for (uint j=0 ; j < field->table->s->keys ; j++)
@@ -6562,7 +6563,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
     else if (tl->table->reginfo.join_tab)
     {
       JOIN_TAB *stat= tl->table->reginfo.join_tab;
-      key_map possible_keys=field->key_start;
+      Key_map possible_keys=field->key_start;
       possible_keys.intersect(tl->table->keys_in_use_for_query);
       stat[0].keys().merge(possible_keys);             // Add possible keys
 
@@ -7542,7 +7543,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
  */
 static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
                                                const JOIN_TAB *join_tab,
-                                               const key_map new_keys,
+                                               const Key_map new_keys,
                                                const char* cause)
 {
 #ifdef OPTIMIZER_TRACE
@@ -7550,7 +7551,7 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
     return;
 
   KEY *key_info= join_tab->table()->key_info;
-  key_map existing_keys= join_tab->const_keys;
+  Key_map existing_keys= join_tab->const_keys;
   uint nbrkeys= join_tab->table()->s->keys;
 
   Opt_trace_object trace_summary(trace, "const_keys_added");
@@ -7639,7 +7640,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   if (indexed_fields.elements == 0)
     return;
 
-  key_map possible_keys;
+  Key_map possible_keys;
   possible_keys.set_all();
 
   /* Intersect the keys of all group fields. */
@@ -8993,7 +8994,7 @@ static bool make_join_select(JOIN *join, Item *cond)
             if (tab->condition() && !tab->condition()->fixed)
               tab->condition()->quick_fix_field();
 
-            key_map usable_keys= tab->keys();
+            Key_map usable_keys= tab->keys();
             ORDER::enum_order interesting_order= ORDER::ORDER_NOT_RELEVANT;
 
             if (recheck_reason == LOW_LIMIT)

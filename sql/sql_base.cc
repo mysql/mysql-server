@@ -23,6 +23,7 @@
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
                          // mysql_lock_have_duplicate
+#include "mysqld.h"      // slave_open_temp_tables table_def_size ..
 #include "sql_show.h"    // append_identifier
 #include "strfunc.h"     // find_type
 #include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL

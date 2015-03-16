@@ -227,8 +227,8 @@ fsp_flags_to_dict_tf(
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
 They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
-The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
-so they should have a file format number plus the DICT_TF_COMPACT bit set.
+The newer row formats, COMPRESSED and DYNAMIC, will have at least
+the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
 bool
@@ -253,7 +253,7 @@ fsp_flags_is_valid(
 		return(true);
 	}
 
-	/* Barracuda row formats COMPRESSED and DYNAMIC use a feature called
+	/* Row_FORMAT=COMPRESSED and ROW_FORMAT=DYNAMIC use a feature called
 	ATOMIC_BLOBS which builds on the page structure introduced for the
 	COMPACT row format by allowing long fields to be broken into prefix
 	and externally stored parts. So if it is Post_antelope, it uses
@@ -287,9 +287,6 @@ fsp_flags_is_valid(
 		return(false);
 	}
 
-#if UNIV_FORMAT_MAX != UNIV_FORMAT_B
-# error UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations.
-#endif
 #if FSP_FLAGS_POS_UNUSED != 13
 # error You have added a new FSP_FLAG without adding a validation check.
 #endif

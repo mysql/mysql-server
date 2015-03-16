@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "handler.h"                 // enum_schema_tables
+#include "mysql_com.h"               // enum_server_command
 
 class Comp_creator;
 class Generated_column;

@@ -46,6 +46,7 @@ This file contains the implementation of error and warnings related
 #include "current_thd.h"
 #include "log.h"          // sql_print_warning
 #include "sql_class.h"    // THD
+#include "mysqld.h"       // error_message_charset_info
 
 using std::min;
 using std::max;

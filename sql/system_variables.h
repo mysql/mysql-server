@@ -20,6 +20,7 @@
 #include "my_base.h"          // ha_rows
 #include "rpl_gtid.h"         // Gitd_specification
 #include "sql_plugin_ref.h"   // plugin_ref
+#include "sql_cmd.h"          // SQLCOM_END
 
 class MY_LOCALE;
 class Time_zone;

@@ -19,6 +19,7 @@
 
 #include "my_global.h"                  /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "violite.h"                    /* SSL_type */
+#include "mysql_time.h"                 /* MYSQL_TIME */
 
 #include "auth_common.h"
 

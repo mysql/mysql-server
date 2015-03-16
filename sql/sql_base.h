@@ -204,7 +204,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
 
 bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx);
 
-bool get_key_map_from_key_list(key_map *map, TABLE *table,
+bool get_key_map_from_key_list(Key_map *map, TABLE *table,
                                List<String> *index_list);
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,

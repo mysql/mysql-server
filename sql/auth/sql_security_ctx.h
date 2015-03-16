@@ -21,9 +21,10 @@
 #include "mysql_com.h"
 #include "sql_const.h"
 #include "auth/auth_acls.h"
-#include "mysqld.h"                             // system_charset_info
 
 #include <algorithm>
+
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 /**
   @class Security_context
@@ -74,9 +75,9 @@ public:
   }
 
 
-  inline void set_user_ptr(const char *user_arg, const int user_arg_length);
+  inline void set_user_ptr(const char *user_arg, const size_t user_arg_length);
 
-  inline void assign_user(const char *user_arg, const int user_arg_length);
+  inline void assign_user(const char *user_arg, const size_t user_arg_length);
 
 
   /**
@@ -99,9 +100,9 @@ public:
   }
 
 
-  inline void set_host_ptr(const char *host_arg, const int host_arg_length);
+  inline void set_host_ptr(const char *host_arg, const size_t host_arg_length);
 
-  inline void assign_host(const char *host_arg, const int host_arg_length);
+  inline void assign_host(const char *host_arg, const size_t host_arg_length);
 
 
   /**
@@ -453,7 +454,7 @@ private:
 */
 
 void Security_context::set_user_ptr(const char *user_arg,
-                                    const int user_arg_length)
+                                    const size_t user_arg_length)
 {
   DBUG_ENTER("Security_context::set_user_ptr");
 
@@ -478,7 +479,7 @@ void Security_context::set_user_ptr(const char *user_arg,
 */
 
 void Security_context::assign_user(const char *user_arg,
-                                   const int user_arg_length)
+                                   const size_t user_arg_length)
 {
   DBUG_ENTER("Security_context::assign_user");
 
@@ -503,7 +504,7 @@ void Security_context::assign_user(const char *user_arg,
   @param[in]    host_arg_length  Length of "host_arg" param.
 */
 
-void Security_context::set_host_ptr(const char *host_arg, const int host_arg_length)
+void Security_context::set_host_ptr(const char *host_arg, const size_t host_arg_length)
 {
   DBUG_ENTER("Security_context::set_host_ptr");
 
@@ -528,7 +529,7 @@ void Security_context::set_host_ptr(const char *host_arg, const int host_arg_len
   @param[in]    host_arg_length  Length of "host_arg" param.
 */
 
-void Security_context::assign_host(const char *host_arg, const int host_arg_length)
+void Security_context::assign_host(const char *host_arg, const size_t host_arg_length)
 {
   DBUG_ENTER("Security_context::assign_host");
 

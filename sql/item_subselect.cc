@@ -26,6 +26,7 @@
 #include "current_thd.h"         // current_thd
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum_max
+#include "mysqld.h"              // in_left_expr_name
 #include "opt_trace.h"           // OPT_TRACE_TRANSFORM
 #include "parse_tree_nodes.h"    // PT_subselect
 #include "sql_class.h"           // THD
@@ -2928,13 +2929,13 @@ void subselect_union_engine::fix_length_and_dec(Item_cache **row)
 
   if (unit->first_select()->item_list.elements == 1)
   {
-    set_row(unit->types, row);
+    set_row(unit->item_list, row);
     item->collation.set(row[0]->collation);
   }
   else
   {
     bool maybe_null_saved= maybe_null;
-    set_row(unit->types, row);
+    set_row(unit->item_list, row);
     maybe_null= maybe_null_saved;
   }
 }
@@ -2983,7 +2984,7 @@ bool subselect_single_select_engine::exec()
         pushed down into the subquery. Those optimizations are ref[_or_null]
         acceses. Change them to be full table scans.
       */
-      for (uint j= join->const_tables; j < join->primary_tables; j++)
+      for (uint j= join->const_tables; j < join->tables; j++)
       {
         QEP_TAB *tab= join->qep_tab + j;
         if (tab->ref().key_parts)

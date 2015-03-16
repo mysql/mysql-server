@@ -33,6 +33,7 @@
 #include "mysqld_thd_manager.h"
 #include "template_utils.h"
 #include "current_thd.h"
+#include "mysqld.h"                             // my_localhost
 
 /**
   This class implements the parse tree visiting service.

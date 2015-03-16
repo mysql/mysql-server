@@ -1345,7 +1345,11 @@ my_bool acl_init(bool dont_read_acl_tables)
                            &my_charset_utf8_bin);
 
   mysql_rwlock_init(key_rwlock_proxy_users, &proxy_users_rwlock);
-  LOCK_grant.init(LOCK_GRANT_PARTITIONS, key_rwlock_LOCK_grant);
+  LOCK_grant.init(LOCK_GRANT_PARTITIONS
+#ifdef HAVE_PSI_INTERFACE
+                  , key_rwlock_LOCK_grant
+#endif
+                  );
   rwlocks_initialized= true;
 
   /*

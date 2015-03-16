@@ -19,7 +19,6 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "auth_acls.h"                          /* ACL information */
 #include "sql_string.h"                         /* String */
-#include "table.h"                              /* TABLE_LIST */
 #include "field.h"
 
 /* Forward Declarations */
@@ -28,6 +27,7 @@ class THD;
 struct GRANT_INFO;
 struct LEX;
 typedef struct user_conn USER_CONN;
+struct TABLE_LIST;
 
 /* Classes */
 
@@ -563,7 +563,6 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list);
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 
-bool update_auth_str(THD *thd, LEX_USER *Str);
 bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_set);
 
 /* sql_auth_cache */
@@ -700,8 +699,18 @@ bool check_global_access(THD *thd, ulong want_access);
 /* sql_user_table */
 void close_acl_tables(THD *thd);
 
+#ifndef EMBEDDED_LIBRARY
+typedef enum ssl_artifacts_status
+{
+  SSL_ARTIFACTS_NOT_FOUND= 0,
+  SSL_ARTIFACTS_VIA_OPTIONS,
+  SSL_ARTIFACTS_AUTO_DETECTED
+} ssl_artifacts_status;
+#endif
+
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
+
 #endif /* AUTH_COMMON_INCLUDED */

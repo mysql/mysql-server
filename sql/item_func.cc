@@ -30,6 +30,7 @@
 #include "item_cmpfunc.h"        // get_datetime_value
 #include "item_strfunc.h"        // Item_func_geohash
 #include <mysql/service_thd_wait.h>
+#include "mysqld.h"              // log_10 stage_user_sleep
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "psi_memory_key.h"
 #include "rpl_mi.h"              // Master_info
@@ -96,6 +97,8 @@ void Item_func::set_arguments(List<Item> &list, bool context_free)
         with_sum_func|= item->with_sum_func;
     }
   }
+  else
+    arg_count= 0; // OOM
   list.empty();					// Fields are used
 }
 
@@ -8415,3 +8418,10 @@ bool Item_func_version::itemize(Parse_context *pc, Item **res)
   return false;
 }
 
+Item_func_version::Item_func_version(const POS &pos)
+  : Item_static_string_func(pos, NAME_STRING("version()"),
+                            server_version,
+                            strlen(server_version),
+                            system_charset_info,
+                            DERIVATION_SYSCONST)
+{}

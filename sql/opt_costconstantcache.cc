@@ -34,6 +34,7 @@
 #include "transaction.h"
 #include "current_thd.h"
 #include "sql_tmp_table.h"                // init_cache_tmp_engine_properties
+#include "mysqld.h"                       // key_LOCK_cost_const
 
 Cost_constant_cache *cost_constant_cache= NULL;
 

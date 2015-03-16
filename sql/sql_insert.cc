@@ -23,6 +23,7 @@
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "item.h"                     // Item
 #include "lock.h"                     // mysql_unlock_tables
+#include "mysqld.h"                   // stage_init
 #include "opt_explain.h"              // Modification_plan
 #include "opt_explain_format.h"       // enum_mod_type
 #include "rpl_rli.h"                  // Relay_log_info

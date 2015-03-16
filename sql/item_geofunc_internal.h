@@ -407,7 +407,7 @@ inline bool is_empty_geocollection(const String &wkbres)
     return true;
 
   Is_empty_geometry checker;
-  uint32 len= wkbres.length() - GEOM_HEADER_SIZE;
+  uint32 len= static_cast<uint32>(wkbres.length()) - GEOM_HEADER_SIZE;
   wkb_scanner(wkbres.ptr() + GEOM_HEADER_SIZE, &len,
               Geometry::wkb_geometrycollection, false, &checker);
   return checker.is_empty;

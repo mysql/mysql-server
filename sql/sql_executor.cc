@@ -38,6 +38,7 @@
 #include "sql_optimizer.h"    // JOIN
 #include "sql_show.h"         // get_schema_tables_result
 #include "sql_tmp_table.h"    // create_tmp_table
+#include "mysqld.h"           // stage_executing
 
 #include <algorithm>
 using std::max;
@@ -675,7 +676,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
       {
         Field *field= item_field->field;
         JOIN_TAB *stat= field->table->reginfo.join_tab;
-        key_map possible_keys= field->key_start;
+        Key_map possible_keys= field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);
         stat[0].const_keys.merge(possible_keys);
         stat[0].keys().merge(possible_keys);
@@ -2356,7 +2357,7 @@ join_init_quick_read_record(QEP_TAB *tab)
       (tab->table()->file->inited != handler::NONE))
       tab->table()->file->ha_index_or_rnd_end();
 
-  key_map needed_reg_dummy;
+  Key_map needed_reg_dummy;
   QUICK_SELECT_I *old_qck= tab->quick();
   QUICK_SELECT_I *qck;
   DEBUG_SYNC(thd, "quick_not_created");
