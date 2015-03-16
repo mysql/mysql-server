@@ -949,7 +949,7 @@ DROP TABLE t1;
 #
 SET @@SQL_MODE = '';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE FUNCTION testf_bug11763507() RETURNS INT
 BEGIN
 RETURN 0;

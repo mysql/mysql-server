@@ -918,7 +918,7 @@ set GLOBAL query_cache_size=1355776;
 flush status;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 `date` datetime NOT NULL default '0000-00-00 00:00:00',
 KEY `date` (`date`)
