@@ -11022,7 +11022,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   /* handle old table */
   if (!is_old_table_tmpfile)
   {
-    ndbcluster_drop_event(thd, ndb, share, "rename table", 
+    ndbcluster_drop_event(thd, ndb, share,
                           old_dbname, m_tabname);
   }
 

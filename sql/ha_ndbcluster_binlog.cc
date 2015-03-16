@@ -5093,7 +5093,6 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
 
 int
 ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
-                      const char *type_str,
                       const char *dbname,
                       const char *tabname)
 {
@@ -5154,7 +5153,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
 
   if (dbname && tabname)
   {
-    if (ndbcluster_drop_event(thd, ndb, share, type_str, dbname, tabname))
+    if (ndbcluster_drop_event(thd, ndb, share, dbname, tabname))
       DBUG_RETURN(-1);
   }
 

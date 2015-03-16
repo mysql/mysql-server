@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,7 +58,6 @@ int ndbcluster_create_event_ops(THD *thd,
                                 const NDBTAB *ndbtab,
                                 const char *event_name);
 int ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
-                          const char *type_str,
                           const char * dbname, const char * tabname);
 int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                                  const char *type_str,
