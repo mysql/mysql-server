@@ -4306,22 +4306,73 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
 
 #define MTYP_TYPENR(type) (type & 127)	/* Remove bits from type */
 
-#define f_is_dec(x)		((x) & FIELDFLAG_DECIMAL)
-#define f_is_num(x)		((x) & FIELDFLAG_NUMBER)
-#define f_is_zerofill(x)	((x) & FIELDFLAG_ZEROFILL)
-#define f_is_packed(x)		((x) & FIELDFLAG_PACK)
-#define f_packtype(x)		(((x) >> FIELDFLAG_PACK_SHIFT) & 15)
-#define f_decimals(x)		((uint8) (((x) >> FIELDFLAG_DEC_SHIFT) & FIELDFLAG_MAX_DEC))
-#define f_is_alpha(x)		(!f_is_num(x))
-#define f_is_binary(x)          ((x) & FIELDFLAG_BINARY) // 4.0- compatibility
-#define f_is_enum(x)            (((x) & (FIELDFLAG_INTERVAL | FIELDFLAG_NUMBER)) == FIELDFLAG_INTERVAL)
-#define f_is_bitfield(x)        (((x) & (FIELDFLAG_BITFIELD | FIELDFLAG_NUMBER)) == FIELDFLAG_BITFIELD)
-#define f_is_blob(x)		(((x) & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB)
-#define f_is_geom(x)		(((x) & (FIELDFLAG_GEOM | FIELDFLAG_NUMBER)) == FIELDFLAG_GEOM)
-#define f_is_equ(x)		((x) & (1+2+FIELDFLAG_PACK+31*256))
-#define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
-#define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
-#define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)
-#define f_bit_as_char(x)        ((x) & FIELDFLAG_TREAT_BIT_AS_CHAR)
+inline int f_is_dec(int x)
+{
+  return (x & FIELDFLAG_DECIMAL);
+}
+inline int f_is_num(int x)
+{
+  return (x & FIELDFLAG_NUMBER);
+}
+inline int f_is_zerofill(int x)
+{
+  return (x & FIELDFLAG_ZEROFILL);
+}
+inline int f_is_packed(int x)
+{
+  return (x & FIELDFLAG_PACK);
+}
+inline int f_packtype(int x)
+{
+  return ((x >> FIELDFLAG_PACK_SHIFT) & 15);
+}
+inline uint8 f_decimals(int x)
+{
+  return ((uint8) ((x >> FIELDFLAG_DEC_SHIFT) & FIELDFLAG_MAX_DEC));
+}
+inline int f_is_alpha(int x)
+{
+  return (!f_is_num(x));
+}
+inline int f_is_binary(int x)
+{
+  return (x & FIELDFLAG_BINARY); // 4.0- compatibility
+}
+inline int f_is_enum(int x)
+{
+  return ((x & (FIELDFLAG_INTERVAL | FIELDFLAG_NUMBER)) == FIELDFLAG_INTERVAL);
+}
+inline int f_is_bitfield(int x)
+{
+  return ((x & (FIELDFLAG_BITFIELD | FIELDFLAG_NUMBER)) == FIELDFLAG_BITFIELD);
+}
+inline int f_is_blob(int x)
+{
+  return ((x & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB);
+}
+inline int f_is_geom(int x)
+{
+  return ((x & (FIELDFLAG_GEOM | FIELDFLAG_NUMBER)) == FIELDFLAG_GEOM);
+}
+inline int f_is_equ(int x)
+{
+  return (x & (1+2+FIELDFLAG_PACK+31*256));
+}
+inline int f_settype(int x)
+{
+  return (x << FIELDFLAG_PACK_SHIFT);
+}
+inline int f_maybe_null(int x)
+{
+  return (x & FIELDFLAG_MAYBE_NULL);
+}
+inline int f_no_default(int x)
+{
+  return (x & FIELDFLAG_NO_DEFAULT);
+}
+inline int f_bit_as_char(int x)
+{
+  return (x & FIELDFLAG_TREAT_BIT_AS_CHAR);
+}
 
 #endif /* FIELD_INCLUDED */
