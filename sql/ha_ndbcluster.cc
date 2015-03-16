@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -5867,6 +5867,7 @@ int ha_ndbcluster::end_bulk_delete()
                        &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
+      m_rows_deleted = 0;
       DBUG_RETURN(ndb_err(trans));
     }
     THD *thd= table->in_use;
@@ -8153,11 +8154,31 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
         rbwr is on, thus the transaction has already been
         committed in exec_bulk_update() or end_bulk_delete()
       */
-      DBUG_PRINT("info", ("autocommit+rbwr, transaction already comitted"));
-      if (trans->commitStatus() != NdbTransaction::Committed)
+      DBUG_PRINT("info", ("autocommit+rbwr, transaction already committed"));
+      const NdbTransaction::CommitStatusType commitStatus = trans->commitStatus();
+      
+      if(commitStatus == NdbTransaction::Committed)
       {
-        sql_print_error("found uncomitted autocommit+rbwr transaction, "
-                        "commit status: %d", trans->commitStatus());
+        /* Already committed transaction to save roundtrip */
+        DBUG_ASSERT(get_thd_ndb(current_thd)->m_error == FALSE);
+      }
+      else if(commitStatus == NdbTransaction::Aborted)
+      {
+        /* Commit failed before transaction was started */ 
+        DBUG_ASSERT(get_thd_ndb(current_thd)->m_error == TRUE);
+      }
+      else if(commitStatus == NdbTransaction::NeedAbort)
+      {
+        /* Commit attempt failed and rollback is needed */
+        res = -1; 
+        
+      }
+      else
+      {
+        /* Commit was never attempted - this should not be possible */
+        DBUG_ASSERT(commitStatus == NdbTransaction::Started || commitStatus == NdbTransaction::NotStarted);
+        sql_print_error("found uncommitted autocommit+rbwr transaction, "
+                        "commit status: %d", commitStatus);
         abort();
       }
     }
