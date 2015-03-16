@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,15 +31,8 @@
 #define MAX_NDB_OBJECTS 32678
 
 #define CHECK(b) if (!(b)) { \
-  ndbout << "ERR: failed on line " << __LINE__ << endl; \
+  g_err.println("ERR: failed on line %u", __LINE__); \
   return -1; } 
-
-#define CHECKE(b) if (!(b)) { \
-  errors++; \
-  ndbout << "ERR: "<< step->getName() \
-         << " failed on line " << __LINE__ << endl; \
-  result = NDBT_FAILED; \
-  continue; } 
 
 static const char* ApiFailTestRun = "ApiFailTestRun";
 static const char* ApiFailTestComplete = "ApiFailTestComplete";
@@ -3383,7 +3376,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
    */
   if (otherConnection != NULL)
   {
-    ndbout << "FragApiFail : Connection not null" << endl;
+    g_err.println("FragApiFail : Connection not null");
     return NDBT_FAILED;
   }
   
@@ -3395,7 +3388,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
   
   if (otherConnection == NULL)
   {
-    ndbout << "FragApiFail : Connection is null" << endl;
+    g_err.println("FragApiFail : Connection is null");
     return NDBT_FAILED;
   }
   
@@ -3403,7 +3396,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
   
   if (rc!= 0)
   {
-    ndbout << "FragApiFail : Connect failed with rc " << rc << endl;
+    g_err.println("FragApiFail : Connect failed with rc %d", rc);
     return NDBT_FAILED;
   }
   
@@ -3412,7 +3405,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
    */
   if (otherConnection->wait_until_ready(10,10) != 0)
   {
-    ndbout << "FragApiFail : Cluster connection was not ready" << endl;
+    g_err.println("FragApiFail : Cluster connection was not ready");
     return NDBT_FAILED;
   }
   
@@ -3428,7 +3421,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
     
     if (rc != 0)
     {
-      ndbout << "FragApiFail : Ndb " << i << " was not ready" << endl;
+      g_err.println("FragApiFail : Ndb %d was not ready", i);
       return NDBT_FAILED;
     }
     
@@ -3463,8 +3456,7 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
    */
   int otherNodeId = otherConnection->node_id();
   
-  ndbout << "FragApiFail : Forcing disconnect of node " 
-         << otherNodeId << endl;
+  g_info.println("FragApiFail : Forcing disconnect of node %u", otherNodeId);
   
   /* All dump 900 <nodeId> */
   int args[2]= {900, otherNodeId};
@@ -3556,7 +3548,7 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
     if (ctx->isTestStopped() ||
         (ctx->getProperty(ApiFailTestComplete) != 0))
     {
-      ndbout << stepNo << ": Test stopped, exiting thread" << endl;
+      g_info.println("%u: Test stopped, exiting thread", stepNo);
       /* Asked to stop by main test thread */
       delete[] buff;
       return NDBT_OK;
@@ -3572,27 +3564,46 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
       NdbTransaction* trans= otherNdb->startTransaction();
       if (!trans)
       {
-        ndbout << stepNo << ": Failed to start transaction from Ndb object" 
-               << " Error : " 
-               << otherNdb->getNdbError().code << " "
-               << otherNdb->getNdbError().message << endl;
+        const NdbError err = otherNdb->getNdbError();
         
         /* During this test, if we attempt to get a transaction
          * when the API is disconnected, we can get error 4009
          * (Cluster failure).  We treat this similarly to the
          * "Node failure caused abort of transaction" case
          */
-        if (otherNdb->getNdbError().code == 4009)
+        if (err.code == 4009)
         {
+          g_info.println("%u: Failed to start transaction from Ndb object Error : %u %s",
+                   stepNo, err.code, err.message);
           break;
         }
+        g_err.println("ERR: %u: %u: Failed to start transaction from Ndb object Error : %u %s",
+                      __LINE__, stepNo, err.code, err.message);
         delete[] buff;
         return NDBT_FAILED;
       }
       
       NdbScanOperation* scan= trans->getNdbScanOperation(ctx->getTab());
       
-      CHECK(scan != NULL);
+      if (scan == NULL)
+      {
+        /* getNdbScanOperation can fail in same way as startTransaction
+         * since it starts a buddy transaction for scan operations.
+         */
+        const NdbError err = trans->getNdbError();
+        if (err.code == 4009)
+        {
+          g_info.println("%u: Failed to get scan operation transaction Error : %u %s",
+                   stepNo, err.code, err.message);
+          trans->close();
+          break;
+        }
+        g_err.println("ERR: %u: %u: Failed to get scan operation transaction Error : %u %s",
+                 __LINE__, stepNo, err.code, err.message);
+        trans->close();
+        delete[] buff;
+        return NDBT_FAILED;
+      }
       
       CHECK(0 == scan->readTuples());
       
@@ -3608,19 +3619,37 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
       
       CHECK(0 == scan->setInterpretedCode(&prog));
       
-      CHECK(0 == trans->execute(NdbTransaction::NoCommit));
-      
-      Uint32 execError= trans->getNdbError().code;
-      
+      int ret = trans->execute(NdbTransaction::NoCommit);
+
+      const NdbError execError= trans->getNdbError();
+
+      if (ret != 0)
+      {
+        /* Transaction was aborted.  Should be due to node disconnect. */
+        if(execError.classification != NdbError::NodeRecoveryError)
+        {
+          g_err.println("ERR: %u: %u: Execute aborted transaction with invalid error code: %u",
+                   __LINE__, stepNo, execError.code);
+          NDB_ERR_OUT(g_err, execError);
+          trans->close();
+          delete[] buff;
+          return NDBT_FAILED;
+        }
+        g_info.println("%u: Execute aborted transaction with NR error code: %u",
+                 stepNo, execError.code);
+        trans->close();
+        break;
+      }
+
       /* Can get success (0), or 874 for too much AttrInfo, depending
        * on timing
        */
-      if ((execError != 0) &&
-          (execError != 874) && 
-          (execError != 4002))
+      if ((execError.code != 0) &&
+          (execError.code != 874) &&
+          (execError.code != 4002))
       {
-        ndbout_c("%u incorrect error code: %u", __LINE__, execError);
-        NDB_ERR(trans->getNdbError());
+        g_err.println("ERR: %u: %u: incorrect error code: %u", __LINE__, stepNo, execError.code);
+        NDB_ERR_OUT(g_err, execError);
         trans->close();
         delete[] buff;
         return NDBT_FAILED;
@@ -3634,19 +3663,18 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
       /* 'Success case' is 874 for too much AttrInfo */
       if (scanError.code != 874)
       {
-       /* When disconnected, we get 
-         * 4028 : 'Node failure caused abort of transaction' 
-         */
+       /* When disconnected, we get should get a node failure related error */
         if (scanError.classification == NdbError::NodeRecoveryError)
         {
-          ndbout << stepNo << ": Scan failed due to node failure/disconnect" << endl;
+          g_info.println("%u: Scan failed due to node failure/disconnect with error code %u",
+                         stepNo, scanError.code);
           trans->close();
           break;
         }
         else
         {
-          ndbout_c("%u incorrect error code: %u", __LINE__, execError);
-          NDB_ERR(scan->getNdbError());
+          g_err.println("ERR: %u: %u: incorrect error code: %u", __LINE__, stepNo, scanError.code);
+          NDB_ERR_OUT(g_err, scanError);
           trans->close();
           delete[] buff;
           return NDBT_FAILED;
@@ -3659,7 +3687,7 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
     } // while (true)
     
     /* Node failure case - as expected */
-    ndbout << stepNo << ": Scan thread finished iteration" << endl;
+    g_info.println("%u: Scan thread finished iteration", stepNo);
 
     /* Signal that we've finished running this iteration */
     ctx->decProperty(ApiFailTestsRunning);
