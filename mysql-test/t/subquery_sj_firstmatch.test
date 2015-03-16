@@ -20,6 +20,10 @@ if (`select locate('loosescan', @@optimizer_switch) > 0`)
 {
   set optimizer_switch='loosescan=off';
 }
+if (`select locate('duplicateweedout', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='duplicateweedout=off';
+}
 if (`select locate('index_condition_pushdown', @@optimizer_switch) > 0`) 
 {
   set optimizer_switch='index_condition_pushdown=off';
