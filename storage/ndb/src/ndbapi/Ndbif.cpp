@@ -1,5 +1,4 @@
-/* Copyright (c) 2003-2007 MySQL AB
-
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1163,11 +1162,25 @@ Ndb::check_send_timeout()
   const Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
   const Uint64 current_time = NdbTick_CurrentMillisecond();
   assert(current_time >= the_last_check_time);
+#ifndef DBUG_OFF
+  if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
+  {
+    fprintf(stderr, "Forcing immediate timeout check in Ndb::check_send_timeout()\n");
+    the_last_check_time = current_time - 1000 - 1;
+  }
+#endif
   if (current_time - the_last_check_time > 1000) {
     the_last_check_time = current_time;
     Uint32 no_of_sent = theNoOfSentTransactions;
     for (Uint32 i = 0; i < no_of_sent; i++) {
       NdbTransaction* a_con = theSentTransactionsArray[i];
+#ifndef DBUG_OFF
+      if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
+      {
+        fprintf(stderr, "Inducing early timeout in Ndb::check_send_timeout()\n");
+        a_con->theStartTransTime = current_time - timeout - 1;
+      }
+#endif
       if ((current_time - a_con->theStartTransTime) > timeout)
       {
 #ifdef VM_TRACE
@@ -1182,6 +1195,7 @@ Ndb::check_send_timeout()
         a_con->setOperationErrorCodeAbort(4012);
 	a_con->theCommitStatus = NdbTransaction::NeedAbort;
         a_con->theCompletionStatus = NdbTransaction::CompletedFailure;
+        a_con->theReturnStatus = NdbTransaction::ReturnFailure;
         a_con->handleExecuteCompletion();
         remove_sent_list(i);
         insert_completed_list(a_con);
@@ -1364,6 +1378,13 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
     const NDB_TICKS now = NdbTick_getCurrentTicks();
     waitTime = aMilliSecondsToWait - 
       (int)NdbTick_Elapsed(start,now).milliSec();
+#ifndef DBUG_OFF
+    if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
+    {
+      fprintf(stderr, "Inducing early timeout in Ndb::waitCompletedTransactions()\n");
+      break;
+    }
+#endif
   } while (waitTime > 0);
 }//Ndb::waitCompletedTransactions()
 
