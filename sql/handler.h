@@ -767,6 +767,24 @@ struct handlerton
      implemented.
    */
    uint (*partition_flags)();
+
+
+  /**
+    Get the tablespace name from the SE for the given schema and table.
+
+    @param       thd              Thread context.
+    @param       db_name          Name of the relevant schema.
+    @param       table_name       Name of the relevant table.
+    @param [out] tablespace_name  Name of the tablespace containing the table.
+
+    @return Operation status.
+      @retval == 0  Success.
+      @retval != 0  Error (handler error code returned).
+   */
+
+  int (*get_tablespace)(THD* thd, LEX_CSTRING db_name, LEX_CSTRING table_name,
+                        LEX_CSTRING *tablespace_name);
+
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
                         class Item *cond, 
