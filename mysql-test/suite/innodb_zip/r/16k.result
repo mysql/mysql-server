@@ -11,7 +11,7 @@ variable_value
 {checked_valid}
 # Test 3) Query some information_shema tables that are dependent upon
 #         the page size.
-SELECT	t.space, t.name table_name, t.n_cols, t.flag table_flags,
+SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 i.name index_name, i.page_no root_page, i.type,
 i.n_fields, i.merge_threshold
 FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
@@ -19,29 +19,29 @@ INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'mysql%'
 	ORDER BY t.space, i.page_no;
-space	table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
-2	mysql/plugin	5	1	PRIMARY	3	3	1	50
-3	mysql/servers	12	1	PRIMARY	3	3	1	50
-4	mysql/help_topic	9	1	PRIMARY	3	3	1	50
-4	mysql/help_topic	9	1	name	4	2	1	50
-5	mysql/help_category	7	1	PRIMARY	3	3	1	50
-5	mysql/help_category	7	1	name	4	2	1	50
-6	mysql/help_relation	5	1	PRIMARY	3	3	2	50
-7	mysql/help_keyword	5	1	PRIMARY	3	3	1	50
-7	mysql/help_keyword	5	1	name	4	2	1	50
-8	mysql/time_zone_name	5	1	PRIMARY	3	3	1	50
-9	mysql/time_zone	5	1	PRIMARY	3	3	1	50
-10	mysql/time_zone_transition	6	1	PRIMARY	3	3	2	50
-11	mysql/time_zone_transition_type	8	1	PRIMARY	3	3	2	50
-12	mysql/time_zone_leap_second	5	1	PRIMARY	3	3	1	50
-13	mysql/innodb_table_stats	9	1	PRIMARY	3	3	2	50
-14	mysql/innodb_index_stats	11	1	PRIMARY	3	3	4	50
-15	mysql/slave_relay_log_info	12	1	PRIMARY	3	3	1	50
-16	mysql/slave_master_info	27	1	PRIMARY	3	3	1	50
-17	mysql/slave_worker_info	16	1	PRIMARY	3	3	2	50
-18	mysql/gtid_executed	6	1	PRIMARY	3	3	2	50
-19	mysql/server_cost	7	1	PRIMARY	3	3	1	50
-20	mysql/engine_cost	9	1	PRIMARY	3	3	3	50
+table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
+mysql/plugin	5	1	PRIMARY	3	3	1	50
+mysql/servers	12	1	PRIMARY	3	3	1	50
+mysql/help_topic	9	1	PRIMARY	3	3	1	50
+mysql/help_topic	9	1	name	4	2	1	50
+mysql/help_category	7	1	PRIMARY	3	3	1	50
+mysql/help_category	7	1	name	4	2	1	50
+mysql/help_relation	5	1	PRIMARY	3	3	2	50
+mysql/help_keyword	5	1	PRIMARY	3	3	1	50
+mysql/help_keyword	5	1	name	4	2	1	50
+mysql/time_zone_name	5	1	PRIMARY	3	3	1	50
+mysql/time_zone	5	1	PRIMARY	3	3	1	50
+mysql/time_zone_transition	6	1	PRIMARY	3	3	2	50
+mysql/time_zone_transition_type	8	1	PRIMARY	3	3	2	50
+mysql/time_zone_leap_second	5	1	PRIMARY	3	3	1	50
+mysql/innodb_table_stats	9	1	PRIMARY	3	3	2	50
+mysql/innodb_index_stats	11	1	PRIMARY	3	3	4	50
+mysql/slave_relay_log_info	12	1	PRIMARY	3	3	1	50
+mysql/slave_master_info	27	1	PRIMARY	3	3	1	50
+mysql/slave_worker_info	16	1	PRIMARY	3	3	2	50
+mysql/gtid_executed	6	1	PRIMARY	3	3	2	50
+mysql/server_cost	7	1	PRIMARY	3	3	1	50
+mysql/engine_cost	9	1	PRIMARY	3	3	3	50
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
@@ -724,8 +724,8 @@ SELECT COUNT(*) FROM
 (SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
 WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1536	100.00	NULL
-2	DERIVED	t1	NULL	index_merge	PRIMARY,idx	idx,PRIMARY	5,4	NULL	1536	100.00	Using sort_union(idx,PRIMARY); Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1537	100.00	NULL
+2	DERIVED	t1	NULL	index_merge	PRIMARY,idx	idx,PRIMARY	5,4	NULL	1537	100.00	Using sort_union(idx,PRIMARY); Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from (/* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (PRIMARY) FORCE INDEX (`idx`) where ((`test`.`t1`.`a` between 2 and 7) or (`test`.`t1`.`pk` = 1000000))) `t`
 SELECT COUNT(*) FROM

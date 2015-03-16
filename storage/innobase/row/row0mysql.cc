@@ -952,6 +952,8 @@ row_create_prebuilt(
 	prebuilt->fts_doc_id_in_read_set = 0;
 	prebuilt->blob_heap = NULL;
 
+	prebuilt->m_no_prefetch = false;
+
 	DBUG_RETURN(prebuilt);
 }
 

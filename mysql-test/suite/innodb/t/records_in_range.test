@@ -1,0 +1,431 @@
+#
+# Test btr_estimate_n_rows_in_range() which is used by
+# ha_innobase::records_in_range()
+#
+
+-- source include/have_debug.inc
+-- source include/have_innodb.inc
+
+CREATE TABLE records_in_range_test (
+	c1 VARCHAR(16),
+	c2 VARCHAR(512),
+	PRIMARY KEY (c1)
+) ENGINE=INNODB;
+
+# Insert some records so that they cannot fit in one page for some page sizes
+# in order to exercise records_in_range() where 1, 2 or more pages are sampled
+INSERT INTO records_in_range_test VALUES
+('ccc', REPEAT('v', 512)),
+('kkk01', REPEAT('v', 512)),
+('kkk02', REPEAT('v', 512)),
+('kkk03', REPEAT('v', 512)),
+('kkk04', REPEAT('v', 512)),
+('kkk05', REPEAT('v', 512)),
+('kkk06', REPEAT('v', 512)),
+('kkk07', REPEAT('v', 512)),
+('kkk08', REPEAT('v', 512)),
+('mmm', REPEAT('v', 512)),
+('nnn', REPEAT('v', 512)),
+('uuu01', REPEAT('v', 512)),
+('uuu02', REPEAT('v', 512)),
+('uuu03', REPEAT('v', 512)),
+('uuu04', REPEAT('v', 512)),
+('uuu05', REPEAT('v', 512)),
+('uuu06', REPEAT('v', 512)),
+('uuu07', REPEAT('v', 512)),
+('uuu08', REPEAT('v', 512)),
+('xxx', REPEAT('v', 512));
+
+ANALYZE TABLE records_in_range_test;
+
+# 16k or bigger page size: 1 leaf page
+# 8k page size: 2 leaf pages
+# 4k page size: 4 leaf pages
+-- replace_result 1 1or2or4  2 1or2or4  4 1or2or4
+SELECT index_name, stat_name, stat_value
+FROM mysql.innodb_index_stats
+WHERE
+table_name='records_in_range_test' AND stat_name = 'n_leaf_pages';
+
+# 16k or bigger page size: 1 page in total (leaf + nonleaf)
+# 8k page size: 3 pages in total (leaf + nonleaf)
+# 4k page size: 5 pages in total (leaf + nonleaf)
+-- replace_result 1 1or3or5  3 1or3or5  5 1or3or5
+SELECT index_name, stat_name, stat_value
+FROM mysql.innodb_index_stats
+WHERE
+table_name='records_in_range_test' AND stat_name = 'size';
+
+# We exploit the warning mechanism here to display the return value from
+# btr_estimate_n_rows_in_range()
+SET SESSION DEBUG='+d,print_btr_estimate_n_rows_in_range_return_value';
+
+-- echo
+-- echo In all SELECTs below the number of the records in the range returned
+-- echo by COUNT(*) must be the same as the number returned by
+-- echo btr_estimate_n_rows_in_range() which can be seen inside the artificial
+-- echo warning
+
+-- echo
+-- echo Test left-unbounded, right-open intervals
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'aaa';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 < 'zzz';
+
+-- echo
+-- echo Test left-unbounded, right-closed intervals
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'aaa';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 <= 'zzz';
+
+-- echo
+-- echo Test left-open, right-unbounded intervals
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz';
+
+-- echo
+-- echo Test left-closed, right-unbounded intervals
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz';
+
+-- echo
+-- echo Test left-open, right-open intervals
+-- echo In some cases here the optimizer is smart enough not to call
+-- echo ha_innobase::records_in_range() at all, so we get no warning containing
+-- echo the value returned from btr_estimate_n_rows_in_range()
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 < 'zzz';
+
+-- echo
+-- echo Test left-closed, right-open intervals
+-- echo In some cases here the optimizer is smart enough not to call
+-- echo ha_innobase::records_in_range() at all, so we get no warning containing
+-- echo the value returned from btr_estimate_n_rows_in_range()
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 < 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 < 'zzz';
+
+-- echo
+-- echo Test left-open, right-closed intervals
+-- echo In some cases here the optimizer is smart enough not to call
+-- echo ha_innobase::records_in_range() at all, so we get no warning containing
+-- echo the value returned from btr_estimate_n_rows_in_range()
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'aaa' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'ccc' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'eee' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'mmm' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'nnn' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'qqq' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'xxx' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 > 'zzz' AND c1 <= 'zzz';
+
+-- echo
+-- echo Test left-closed, right-closed intervals
+-- echo In some cases here the optimizer is smart enough not to call
+-- echo ha_innobase::records_in_range() at all, so we get no warning containing
+-- echo the value returned from btr_estimate_n_rows_in_range()
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'aaa' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'ccc' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'eee' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'mmm' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'nnn' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'qqq' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'xxx' AND c1 <= 'zzz';
+-- echo
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'bbb';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'ccc';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'eee';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'mmm';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'nnn';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'qqq';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'xxx';
+SELECT COUNT(*) FROM records_in_range_test WHERE c1 >= 'zzz' AND c1 <= 'zzz';
+
+SET SESSION DEBUG='-d,print_btr_estimate_n_rows_in_range_return_value';
+
+DROP TABLE records_in_range_test;

@@ -4481,11 +4481,15 @@ end_with_restore_list:
   case SQLCOM_ALTER_USER:
   {
     LEX_USER *user, *tmp_user;
+    bool changing_own_password= false;
+    bool own_password_expired= thd->security_context()->password_expired();
+    bool check_permission= true;
 
     List_iterator <LEX_USER> user_list(lex->users_list);
     while ((tmp_user= user_list++))
     {
       bool update_password_only= FALSE;
+      bool is_self= false;
 
       /* If it is an empty lex_user update it with current user */
       if (!tmp_user->host.str && !tmp_user->user.str)
@@ -4513,23 +4517,39 @@ end_with_restore_list:
           (thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED))
         update_password_only= TRUE;
 
+      is_self= !strcmp(thd->security_context()->user().length ?
+                       thd->security_context()->user().str : "",
+                       user->user.str) &&
+               !my_strcasecmp(&my_charset_latin1, user->host.str,
+                              thd->security_context()->priv_host().str);
       /*
         if user executes ALTER statement to change password only
         for himself then skip access check.
       */
-      if (update_password_only &&
-          !(strcmp(thd->security_context()->user().str, user->user.str) ||
-          my_strcasecmp(&my_charset_latin1, user->host.str,
-                        thd->security_context()->priv_host().str)))
+      if (update_password_only && is_self)
+      {
+        changing_own_password= true;
         continue;
-      else
+      }
+      else if (check_permission)
       {
         if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
             check_global_access(thd, CREATE_USER_ACL))
           goto error;
-        else
-          break;
+
+        check_permission= false;
       }
+
+      if (is_self &&
+          (user->uses_identified_by_clause ||
+           user->uses_identified_with_clause ||
+           user->uses_authentication_string_clause ||
+           user->uses_identified_by_password_clause))
+      {
+        changing_own_password= true;
+        break;
+      }
+
       if (update_password_only &&
           !strcmp(thd->security_context()->priv_user().str,""))
       {
@@ -4538,6 +4558,13 @@ end_with_restore_list:
         goto error;
       }
     }
+
+    if (unlikely(own_password_expired && !changing_own_password))
+    {
+      my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+      goto error;
+    }
+
     /* Conditionally writes to binlog */
     if (!(res= mysql_alter_user(thd, lex->users_list)))
       my_ok(thd);

@@ -894,6 +894,8 @@ struct row_prebuilt_t {
 					search key values from MySQL format
 					to InnoDB format.*/
 	uint		srch_key_val_len; /*!< Size of search key */
+	/** Disable prefetch. */
+	bool		m_no_prefetch;
 
 };
 

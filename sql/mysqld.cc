@@ -333,10 +333,7 @@ ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 #if MYSQL_VERSION_ID >= 50800
 #error "show_compatibility_56 is to be removed in MySQL 5.8"
 #else
-/*
-  Default value TRUE for the EMBEDDED_LIBRARY,
-  default value from Sys_show_compatibility_56 otherwise.
-*/
+/* Default value TRUE for the EMBEDDED_LIBRARY */
 my_bool show_compatibility_56= TRUE;
 #endif /* MYSQL_VERSION_ID >= 50800 */
 

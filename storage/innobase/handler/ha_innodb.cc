@@ -12280,6 +12280,14 @@ ha_innobase::records_in_range(
 
 	mem_heap_free(heap);
 
+	DBUG_EXECUTE_IF(
+		"print_btr_estimate_n_rows_in_range_return_value",
+		push_warning_printf(
+			ha_thd(), Sql_condition::SL_WARNING,
+			ER_NO_DEFAULT,
+			"btr_estimate_n_rows_in_range(): %" PRId64, n_rows);
+	);
+
 func_exit:
 
 	m_prebuilt->trx->op_info = (char*)"";
@@ -13012,7 +13020,18 @@ ha_innobase::info_low(
 	}
 
 	if ((flag & HA_STATUS_AUTO) && table->found_next_number_field) {
-		stats.auto_increment_value = innobase_peek_autoinc();
+
+		ulonglong auto_inc_val = innobase_peek_autoinc();
+		/* Initialize autoinc value if not set. */
+		if (auto_inc_val == 0) {
+
+			dict_table_autoinc_lock(m_prebuilt->table);
+			innobase_initialize_autoinc();
+			dict_table_autoinc_unlock(m_prebuilt->table);
+
+			auto_inc_val = innobase_peek_autoinc();
+		}
+		stats.auto_increment_value = auto_inc_val;
 	}
 
 func_exit:

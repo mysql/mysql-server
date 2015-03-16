@@ -3731,14 +3731,15 @@ row_import_for_mysql(
 	table->ibd_file_missing = false;
 	table->flags2 &= ~DICT_TF2_DISCARDED;
 
-	if (autoinc != 0) {
-		ib::info() << table->name << " autoinc value set to "
-			<< autoinc;
+	/* Set autoinc value read from cfg file. The value is set to zero
+	if the cfg file is missing and is initialized later from table
+	column value. */
+	ib::info() << table->name << " autoinc value set to "
+		<< autoinc;
 
-		dict_table_autoinc_lock(table);
-		dict_table_autoinc_initialize(table, autoinc);
-		dict_table_autoinc_unlock(table);
-	}
+	dict_table_autoinc_lock(table);
+	dict_table_autoinc_initialize(table, autoinc);
+	dict_table_autoinc_unlock(table);
 
 	ut_a(err == DB_SUCCESS);
 

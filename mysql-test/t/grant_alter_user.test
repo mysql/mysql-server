@@ -563,6 +563,66 @@ SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
 
+
+--echo #
+--echo # Bug #20553132 USER WITH EXPIRED PASSWORD ABLE TO EXECUTE
+--echo #               ALTER USER .. PASSWORD EXPIRE COMMAND
+--echo #
+
+connection default;
+
+CREATE USER 20553132_u1@localhost;
+CREATE USER 20553132_u2@localhost;
+CREATE USER '20553132_u3'@'%';
+GRANT ALL ON *.* TO 20553132_u1@localhost;
+ALTER USER 20553132_u1@localhost PASSWORD EXPIRE;
+ALTER USER '20553132_u3'@'%' PASSWORD EXPIRE;
+
+--connect(con_20553132_u1, localhost, 20553132_u1)
+--error ER_MUST_CHANGE_PASSWORD
+ALTER USER 20553132_u1@localhost PASSWORD EXPIRE NEVER;
+--error ER_MUST_CHANGE_PASSWORD
+ALTER USER 20553132_u1@localhost PASSWORD EXPIRE DEFAULT;
+--error ER_MUST_CHANGE_PASSWORD
+ALTER USER 20553132_u1@localhost, 20553132_u2@localhost IDENTIFIED BY 'abcd' PASSWORD EXPIRE NEVER;
+
+# Must succeed
+ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED BY 'defg' PASSWORD EXPIRE NEVER;
+
+disconnect con_20553132_u1;
+
+connection default;
+ALTER USER 20553132_u1@localhost PASSWORD EXPIRE;
+
+--connect(con_20553132_u1, localhost, 20553132_u1, defg)
+# Must succeed
+ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'hijk' PASSWORD EXPIRE DEFAULT;
+disconnect con_20553132_u1;
+
+--connect(con_20553132_u1, localhost, 20553132_u1, hijk)
+SELECT USER();
+
+disconnect con_20553132_u1;
+
+--connect(con_20553132_u3, localhost, 20553132_u3)
+ALTER USER CURRENT_USER() IDENTIFIED BY 'abcd';
+SELECT CURRENT_USER();
+disconnect con_20553132_u3;
+
+connection default;
+ALTER USER '20553132_u3'@'%' PASSWORD EXPIRE;
+
+--connect(con_20553132_u3, localhost, 20553132_u3, abcd)
+ALTER USER '20553132_u3'@'%' IDENTIFIED BY 'abcd';
+SELECT CURRENT_USER();
+disconnect con_20553132_u3;
+
+connection default;
+DROP USER 20553132_u1@localhost;
+DROP USER 20553132_u2@localhost;
+DROP USER '20553132_u3'@'%';
+
+--source include/wait_until_count_sessions.inc
 --echo
 --echo End of 5.7 tests!
 --echo
@@ -637,7 +697,7 @@ disconnect con1;
 connection default;
 ALTER USER bug20634154@localhost IDENTIFIED BY 'def' PASSWORD EXPIRE INTERVAL 10 DAY;
 --connect(con1, localhost, bug20634154, def)
-# this will login as we set the password
+# this will work
 SELECT CURRENT_USER();
 disconnect con1;
 connection default;

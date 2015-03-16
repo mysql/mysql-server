@@ -1,4 +1,9 @@
 -- source include/not_embedded.inc
+# Performance schema tracks prepared statements separately, and does not 
+# yet have a summary view that we can use for this view.
+# Until then, we disable this test with --ps-protocol
+-- source suite/perfschema/include/no_protocol.inc
+
 # Tests for sys schema
 # Verify the sys.statements_with_full_table_scans view
 
