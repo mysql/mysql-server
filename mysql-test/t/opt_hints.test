@@ -442,30 +442,6 @@ SELECT /*+ QB_NAME(q1) NO_ICP(@q1 t1 PRIMARY) NO_ICP(@q1 t1 PRIMARY) */ * FROM t
 
 DROP TABLE t1;
 
---echo # MAX_EXECUTION_TIME hint testing
-
-CREATE TABLE t1 (a INT, b VARCHAR(300));
-INSERT INTO t1 VALUES (1, 'string');
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-INSERT INTO t1 SELECT * FROM t1;
-
---error ER_QUERY_TIMEOUT
-SELECT /*+ MAX_EXECUTION_TIME(1) */ * FROM t1 a, t1 b, t1 c;
-
-EXPLAIN SELECT /*+ MAX_EXECUTION_TIME(2) MAX_EXECUTION_TIME(10) */ * FROM t1;
-
-DROP TABLE t1;
-
-
 --echo # WL#8016 Parser for optimizer hints
 
 
@@ -605,32 +581,6 @@ SELECT /*+ NO_ICP(`�`) */ 1 FROM t1;
 DROP TABLE таблица;
 
 --echo
---echo # test the MAX_EXECUTION_TIME hint for SELECT statements:
---echo
-
-INSERT INTO t1 VALUES (1, 1), (2, 2);
-
-SELECT /*+ MAX_EXECUTION_TIME(4294967296) */ 1 FROM t1;
-
---error ER_QUERY_TIMEOUT
-SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1;
---error ER_QUERY_TIMEOUT
-SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1 UNION SELECT 1, 2, 3;
---error ER_QUERY_TIMEOUT
-(SELECT /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1) UNION (SELECT 1, 2, 3);
---error ER_QUERY_TIMEOUT
-((SELECT  /*+ MAX_EXECUTION_TIME(1) */ *, SLEEP(1000) FROM t1));
-
---echo
---echo # only SELECT statements supports the MAX_EXECUTION_TIME hint (warning):
---echo
-CREATE TABLE t2 (i INT);
-INSERT /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
-REPLACE /*+ MAX_EXECUTION_TIME(1) */ INTO t2 SELECT 1;
-UPDATE /*+ MAX_EXECUTION_TIME(1) */ t2 SET i = 1;
-DELETE /*+ MAX_EXECUTION_TIME(1) */ FROM t2 WHERE i = 1;
-
---echo
 --echo # derived tables and other subqueries:
 --echo
 
@@ -649,6 +599,8 @@ SELECT /*+ NO_ICP) */ 1;
 SELECT /*+ NO_ICP(t1 */ 1;
 SELECT /*+ NO_ICP(t1 ( */ 1;
 (SELECT 1) UNION (SELECT /*+ NO_ICP() */ 1);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2);
 
 --echo
 --echo # wrong place for hint, so recognize that stuff as a regular commentary:
@@ -673,7 +625,7 @@ SELECT /*+
 SELECT
 /*+ ? bad syntax */ 1;
 
-DROP TABLE t1, t2;
+DROP TABLE t1;
 
 --error ER_PARSE_ERROR
 SELECT /*+ 10;
