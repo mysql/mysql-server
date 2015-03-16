@@ -2196,6 +2196,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
     /* Find the extension of the current QEP with the lowest cost */
     join->best_read= DBL_MAX;
     join->best_rowcount= HA_POS_ERROR;
+    found_plan_with_allowed_sj= false;
     if (best_extension_by_limited_search(remaining_tables, idx, search_depth))
       DBUG_RETURN(true);
     /*
@@ -2346,12 +2347,37 @@ void Optimize_table_order::consider_plan(uint             idx,
     sort_cost= join->positions[idx].prefix_rowcount;
   }
 
-  const bool chosen= cost < join->best_read;
+
+  /* 
+    Check if the plan use a disabled strategy.  (This may happen if this join 
+    order does not support any of the enabled strategies.)  Currently
+    DuplicateWeedout is the only strategy for which this may happen.
+    If we have found a previous plan with only allowed strategies,
+    we only choose the current plan if it is both cheaper and does not use 
+    disabled strategies.  If all previous plans use a disabled strategy,
+    we choose the current plan if it is either cheaper or does not use a 
+    disabled strategy.
+  */
+  bool plan_uses_allowed_sj= true;
+  if (has_sj && !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_DUPSWEEDOUT))
+    for (uint i= join->const_tables; i <= idx && plan_uses_allowed_sj; i++)
+      if (join->positions[i].sj_strategy == SJ_OPT_DUPS_WEEDOUT)
+        plan_uses_allowed_sj= false;
+
+  const bool cheaper= cost < join->best_read;
+  const bool chosen= found_plan_with_allowed_sj ?
+    ( plan_uses_allowed_sj && cheaper) :  // must be: allowed and cheaper
+    ( plan_uses_allowed_sj || cheaper) ;  // must be: allowed or cheaper
+
   trace_obj->add("chosen", chosen);
   if (chosen)
   {
+    if (!cheaper)
+      trace_obj->add_alnum("cause", "previous_plan_used_duplicate_weedout");
+  
     memcpy((uchar*) join->best_positions, (uchar*) join->positions,
-            sizeof(POSITION) * (idx + 1));
+            sizeof(POSITION) * 
+(idx + 1));
 
     /*
       If many plans have identical cost, which one will be used
@@ -2362,6 +2388,7 @@ void Optimize_table_order::consider_plan(uint             idx,
     join->best_read= cost - 0.001;
     join->best_rowcount= (ha_rows)join->positions[idx].prefix_rowcount;
     join->sort_cost= sort_cost;
+    found_plan_with_allowed_sj= plan_uses_allowed_sj;
   }
   DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                  join->positions[idx].prefix_rowcount,
@@ -2592,8 +2619,18 @@ bool Optimize_table_order::best_extension_by_limited_search(
       else
         position->no_semijoin();
 
-      /* Expand only partial plans with lower cost than the best QEP so far */
-      if (position->prefix_cost >= join->best_read)
+      /* 
+        Expand only partial plans with lower cost than the best QEP so far.
+        However, if the best plan so far use a disable semi-join strategy, 
+        and we have not found any plans without a disabled strategy so far, 
+        we continue the search since this partial plan may support other 
+        semi-join strategies.  (DuplicateWeedout is the only strategy which 
+        may stilled be picked when it is disabled, so if DuplicateWeedout is
+        enabled, we may still prune.)
+      */
+      if (position->prefix_cost >= join->best_read && 
+          (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_DUPSWEEDOUT) ||
+           found_plan_with_allowed_sj))
       {
         DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                        position->prefix_rowcount,
@@ -2626,7 +2663,14 @@ bool Optimize_table_order::best_extension_by_limited_search(
             best_cost=     position->prefix_cost;
           }
         }
-        else
+        /* 
+          Do not prune plans if plans found so far use a disabled 
+          semi-join strategy.  DuplicateWeedout is the only strategy which 
+          may be picked when it is disabled, so if DuplicateWeedout is
+          enabled, we may still prune
+        */
+        else if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_DUPSWEEDOUT) ||
+                 found_plan_with_allowed_sj)
         {
           DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                          position->prefix_rowcount,
@@ -4348,7 +4392,7 @@ void Optimize_table_order::advance_sj_state(
                                         remaining_tables, &rowcount, &cost);
       /*
         Use the strategy if 
-         * it is cheaper then what we've had, or
+         * it is cheaper then what we've had, and strategy is enabled, or
          * we haven't picked any other semi-join strategy yet
         The second part is necessary because this strategy is the last one
         to consider (it needs "the most" tables in the prefix) and we can't
@@ -4358,7 +4402,9 @@ void Optimize_table_order::advance_sj_state(
         add("cost", cost).
         add("rows", rowcount).
         add("duplicate_tables_left", pos->dups_producing_tables != 0);
-      if (cost < best_cost || pos->dups_producing_tables)
+      if ((cost < best_cost &&
+           thd->optimizer_switch_flag(OPTIMIZER_SWITCH_DUPSWEEDOUT)) ||
+          pos->dups_producing_tables)
       {
         sj_strategy= SJ_OPT_DUPS_WEEDOUT;
         best_cost=     cost;
