@@ -40,15 +40,6 @@ static const bool bundle_mecab= true;
 static const bool bundle_mecab= false;
 #endif
 
-/** Print MeCab error. */
-static
-inline
-void
-mecab_parser_print_error()
-{
-	sql_print_error("Mecab: %s", MeCab::getTaggerError());
-}
-
 /** Set MeCab parser charset.
 @param[in]	charset charset string
 @retval	true	on success
@@ -124,13 +115,15 @@ mecab_parser_plugin_init(void*)
 	}
 
 	if (mecab_model == NULL) {
-		mecab_parser_print_error();
+		sql_print_error("Mecab: createModel() failed: %s",
+				MeCab::getLastError());
 		return(1);
 	}
 
 	mecab_tagger = mecab_model->createTagger();
 	if (mecab_tagger == NULL) {
-		mecab_parser_print_error();
+		sql_print_error("Mecab: createTagger() failed: %s",
+				MeCab::getLastError());
 		delete mecab_model;
 		mecab_model= NULL;
 		return(1);
@@ -198,7 +191,8 @@ mecab_parse(
 	mecab_lattice->set_sentence(doc, len);
 
 	if(!mecab_tagger->parse(mecab_lattice)) {
-		mecab_parser_print_error();
+		sql_print_error("Mecab: parse() failed: %s",
+				mecab_lattice->what());
 		return(1);
 	}
 
@@ -286,7 +280,8 @@ mecab_parser_parse(
 	/* Create mecab lattice for parsing */
 	mecab_lattice = mecab_model->createLattice();
 	if (mecab_lattice == NULL) {
-		mecab_parser_print_error();
+		sql_print_error("Mecab: createLattice() failed: %s",
+				MeCab::getLastError());
 		return(1);
 	}
 
