@@ -84,3 +84,13 @@ worklog5743;
 col_1_text = REPEAT("a", 3500)	col_2_text  = REPEAT("o", 3500)
 1	1
 DROP TABLE worklog5743;
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+create table t1(f1 varchar(3800) binary not null, key(f1))
+character set utf8 collate utf8_general_ci row_format=dynamic;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 3072 bytes
+insert into t1 values('aaa');
+drop table t1;
+SET sql_mode=default;

@@ -193,6 +193,10 @@ drop table t2;
 # 6. Creating temp-table with large prefix.				#
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+# This will lead to warnings on innodb_page_size=8k or 4k:
+# 8k: Specified key was too long; max key length is 1536 bytes
+# 4k: Specified key was too long; max key length is 768 bytes
+--disable_warnings
 #
 create temporary table t (
 	a int not null,
@@ -217,7 +221,6 @@ create temporary table t (
 drop table t;
 #
 SET innodb_strict_mode=OFF;
---disable_warnings
 --error ER_INDEX_COLUMN_TOO_LONG
 create temporary table t (
 	a int not null,

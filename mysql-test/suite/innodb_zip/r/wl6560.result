@@ -312,8 +312,6 @@ set global innodb_file_per_table = 1;
 create temporary table t (
 i int)
 engine = innodb row_format = compressed key_block_size = 8;
-show warnings;
-Level	Code	Message
 drop table t;
 create temporary table t (
 i int)
