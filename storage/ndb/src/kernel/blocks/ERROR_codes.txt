@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ Next DBTUP 4039
 Next DBLQH 5088
 Next DBDICT 6216
 Next DBDIH 7245
-Next DBTC 8108
+Next DBTC 8109
 Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
@@ -459,6 +459,8 @@ DBTC TCINDXREQ TESTING
 8105: prevent fix (bugXXX) to failed trigger op handling
 8106: simulate out of memory in fk_constructAttrInfoSetNull
 8107: Cause transaction abort with timeout error
+
+8108: Cause transaction timeout (error 4012) by failing to send TC_COMMITCONF
 
 CMVMI
 -----
