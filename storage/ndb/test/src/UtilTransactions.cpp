@@ -73,6 +73,7 @@ UtilTransactions::clearTable(Ndb* pNdb,
 	NdbSleep_MilliSleep(50);
 	continue;
       }
+      NDB_ERR(err);
       goto failed;
     }
 
@@ -86,11 +87,13 @@ UtilTransactions::clearTable(Ndb* pNdb,
 	par = 1;
 	goto restart;
       }
+      NDB_ERR(err);
       goto failed;
     }
     
     if( pOp->readTuples(NdbOperation::LM_Exclusive, flags, par) ) {
       err = pTrans->getNdbError();
+      NDB_ERR(err);
       goto failed;
     }
     
@@ -102,12 +105,14 @@ UtilTransactions::clearTable(Ndb* pNdb,
 	NdbSleep_MilliSleep(50);
 	continue;
       }
+      NDB_ERR(err);
       goto failed;
     }
     
     while((check = pOp->nextResult(true)) == 0){
       do {
 	if (pOp->deleteCurrentTuple() != 0){
+          NDB_ERR(err);
 	  goto failed;
 	}
 	deletedRows++;
@@ -127,6 +132,7 @@ UtilTransactions::clearTable(Ndb* pNdb,
 	  par = 1;
 	  goto restart;
 	}
+        NDB_ERR(err);
 	goto failed;
       }
     }
@@ -139,6 +145,7 @@ UtilTransactions::clearTable(Ndb* pNdb,
 	par = 1;
 	goto restart;
       }
+      NDB_ERR(err);
       goto failed;
     }
     closeTransaction(pNdb);
@@ -149,7 +156,6 @@ UtilTransactions::clearTable(Ndb* pNdb,
   
  failed:
   if(pTrans != 0) closeTransaction(pNdb);
-  NDB_ERR(err);
   return (err.code != 0 ? err.code : NDBT_FAILED);
 }
 
