@@ -73,7 +73,7 @@ public:
   NdbOut& operator<<(float);
   NdbOut& operator<<(double);
   NdbOut& endline(void);
-  NdbOut& flushline(void);
+  NdbOut& flushline(bool force=true);
   NdbOut& setHexFormat(int _format);
   NdbOut& hexdump(const Uint32 * words, size_t count);  
 
