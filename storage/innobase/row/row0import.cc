@@ -2085,7 +2085,7 @@ PageConverter::operator() (
 		    || fil_page_type_is_index(page_type)) {
 
 			buf_flush_init_for_writing(
-				block,
+				!is_compressed_table() ? block : NULL,
 				!is_compressed_table()
 				? block->frame : block->page.zip.data,
 				!is_compressed_table() ? 0 : m_page_zip_ptr,
