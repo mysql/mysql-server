@@ -3566,6 +3566,34 @@ recv_recovery_from_checkpoint_finish(void)
 	/* Free up the flush_rbt. */
 	buf_flush_free_flush_rbt();
 
+	/* Validate a few system page types that were left uninitialized
+	by older versions of MySQL. */
+	mtr_t		mtr;
+	buf_block_t*	block;
+	mtr.start();
+	mtr.set_sys_modified();
+	/* Bitmap page types will be reset in buf_dblwr_check_block()
+	without redo logging. */
+	block = buf_page_get(
+		page_id_t(IBUF_SPACE_ID, FSP_IBUF_HEADER_PAGE_NO),
+		univ_page_size, RW_X_LATCH, &mtr);
+	fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
+	/* Already MySQL 3.23.53 initialized FSP_IBUF_TREE_ROOT_PAGE_NO
+	to FIL_PAGE_INDEX. No need to reset that one. */
+	block = buf_page_get(
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO),
+		univ_page_size, RW_X_LATCH, &mtr);
+	fil_block_check_type(block, FIL_PAGE_TYPE_TRX_SYS, &mtr);
+	block = buf_page_get(
+		page_id_t(TRX_SYS_SPACE, FSP_FIRST_RSEG_PAGE_NO),
+		univ_page_size, RW_X_LATCH, &mtr);
+	fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
+	block = buf_page_get(
+		page_id_t(TRX_SYS_SPACE, FSP_DICT_HDR_PAGE_NO),
+		univ_page_size, RW_X_LATCH, &mtr);
+	fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
+	mtr.commit();
+
 	/* Roll back any recovered data dictionary transactions, so
 	that the data dictionary tables will be free of any locks.
 	The data dictionary latch should guarantee that there is at
