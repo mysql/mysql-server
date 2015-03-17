@@ -1114,12 +1114,6 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
 
   current_time= my_time(0);
 
-  mysql_audit_general_log(thd, current_time,
-                          user_host_buff, user_host_len,
-                          command_name[(uint) command].str,
-                          command_name[(uint) command].length,
-                          query, query_length);
-                        
   while (*current_handler)
     error|= (*current_handler++)->
       log_general(thd, current_time, user_host_buff,
@@ -2089,7 +2083,8 @@ bool slow_log_print(THD *thd, const char *query, uint query_length)
 }
 
 
-bool LOGGER::log_command(THD *thd, enum enum_server_command command)
+bool LOGGER::log_command(THD *thd, enum enum_server_command command,
+                         const char *query_str, size_t query_length)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_ctx;
@@ -2098,6 +2093,12 @@ bool LOGGER::log_command(THD *thd, enum enum_server_command command)
     Log command if we have at least one log event handler enabled and want
     to log this king of commands
   */
+
+  /* Audit notification when no general log handler present */
+  mysql_audit_general_log(thd, command_name[(uint) command].str,
+                          command_name[(uint) command].length,
+                          query_str, query_length);
+
   if (*general_log_handler_list && (what_to_log & (1L << (uint) command)))
   {
     if ((thd->variables.option_bits & OPTION_LOG_OFF)
@@ -2124,7 +2125,7 @@ bool general_log_print(THD *thd, enum enum_server_command command,
   uint error= 0;
 
   /* Print the message to the buffer if we want to log this king of commands */
-  if (! logger.log_command(thd, command))
+  if (! logger.log_command(thd, command, "", 0))
     return FALSE;
 
   va_start(args, format);
@@ -2138,7 +2139,7 @@ bool general_log_write(THD *thd, enum enum_server_command command,
                        const char *query, uint query_length)
 {
   /* Write the message to the log if we want to log this king of commands */
-  if (logger.log_command(thd, command))
+  if (logger.log_command(thd, command, query, query_length))
     return logger.general_log_write(thd, command, query, query_length);
 
   return FALSE;
