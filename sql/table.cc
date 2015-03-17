@@ -4298,6 +4298,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   clear_column_bitmaps();
 
   DBUG_ASSERT(key_read == 0);
+  no_keyread= false;
 
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));

@@ -2321,7 +2321,6 @@ public:
   Item *against;
   uint key, flags;
   bool join_key;
-  bool cleanup_table_ref;
   DTCollation cmp_collation;
   FT_INFO *ft_handler;
   TABLE_LIST *table_ref;
@@ -2345,7 +2344,7 @@ public:
   */
   Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b):
     Item_real_func(pos, a), against(against_arg), key(0), flags(b),
-    join_key(false), cleanup_table_ref(false),
+    join_key(false),
     ft_handler(NULL), table_ref(NULL),
     master(NULL), concat_ws(NULL), hints(NULL), simple_expression(false)
   {}
@@ -2361,8 +2360,6 @@ public:
       ft_handler->please->close_search(ft_handler);
       delete hints;
     }
-    if (cleanup_table_ref && table_ref)
-      table_ref->table->no_keyread= false;
     ft_handler= NULL;
     concat_ws= NULL;
     table_ref= NULL;           // required by Item_func_match::eq()

@@ -1191,6 +1191,10 @@ public:
      tree only.
    */
   my_bool key_read;
+  /**
+     Certain statements which need the full row, set this to ban index-only
+     access.
+  */
   my_bool no_keyread;
   my_bool locked_by_logger;
   /**
