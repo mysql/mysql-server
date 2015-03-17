@@ -183,7 +183,7 @@ Warnings:
 Warning	1292	Truncated incorrect BINARY(3) value: '1000'
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 select
 cast(_latin1'ab'  AS char)    as c1,
 cast(_latin1'a '  AS char)    as c2,
@@ -492,7 +492,7 @@ End of 5.1 tests
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 AS SELECT CONCAT(CAST(REPEAT('9', 1000) AS SIGNED)),
 CONCAT(CAST(REPEAT('9', 1000) AS UNSIGNED));
 Warnings:

@@ -132,7 +132,7 @@ ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTIO
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@sql_mode;
 @@sql_mode
 NO_AUTO_VALUE_ON_ZERO
@@ -146,7 +146,7 @@ HANDLER_WRITE	18
 # 4 locks (table + partition lock/unlock)
 SET @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@sql_mode;
 @@sql_mode
 ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -719,7 +719,7 @@ time_t	part	part2
 1293829200	0	0
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t3
 (a timestamp DEFAULT 0,
 b char(10),

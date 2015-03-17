@@ -12,7 +12,7 @@ create event abc3 on schedule every 1 second do
 insert into execution_log value('abc3');
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table event_like like mysql.event;
 insert into event_like select * from mysql.event;
 alter table mysql.event

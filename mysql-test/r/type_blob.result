@@ -1,7 +1,7 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
@@ -815,12 +815,12 @@ NULL
 drop table t1;
 set @@sql_mode='TRADITIONAL';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a text default '');
 ERROR 42000: BLOB/TEXT column 'a' can't have a default value
 set @@sql_mode='';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t (c TEXT CHARSET ASCII);
 INSERT INTO t (c) VALUES (REPEAT('1',65537));
 Warnings:

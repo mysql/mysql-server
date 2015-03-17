@@ -3523,7 +3523,10 @@ LEX::LEX()
    // Quite unlikely to overflow initial allocation, so no instrumentation.
    plugins(PSI_NOT_INSTRUMENTED),
    option_type(OPT_DEFAULT),
-  is_set_password_sql(false), is_lex_started(0),
+   is_set_password_sql(false),
+   // Initialize here to avoid uninitialized variable warnings.
+   keep_diagnostics(DA_KEEP_UNSPECIFIED),
+   is_lex_started(0),
   in_update_value_clause(false)
 {
   reset_query_tables_list(TRUE);

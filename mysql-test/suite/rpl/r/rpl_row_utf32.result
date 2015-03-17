@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET SQL_LOG_BIN=0;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (c1 char(255) DEFAULT NULL, KEY c1 (c1))
 ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf32;
 SET sql_mode = default;
@@ -18,7 +18,7 @@ include/start_slave.inc
 SET SQL_LOG_BIN=0;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 ( c1 varchar(255) DEFAULT NULL, KEY c1 (c1))
 ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf32;
 SET sql_mode = default;

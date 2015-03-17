@@ -1000,7 +1000,7 @@ DROP TABLE t1;
 #
 SET sql_mode = '';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (s1 VARCHAR(50) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES (0xDF84);
 ALTER TABLE t1 MODIFY column s1 VARCHAR(50) CHARACTER SET utf16le;
@@ -1240,7 +1240,7 @@ DROP TABLE t1;
 #
 SET sql_mode = '';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a VARCHAR(17000) CHARACTER SET utf16le);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT

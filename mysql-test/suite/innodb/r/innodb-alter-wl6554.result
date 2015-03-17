@@ -45,7 +45,7 @@ ALTER TABLE t2 CHANGE COLUMN fk fk VARCHAR(256);
 ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(300);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t2 ALGORITHM=INPLACE, CHANGE COLUMN fk fk VARCHAR(99999);
 ERROR 42000: BLOB/TEXT column 'fk' used in key specification without a key length
 ALTER TABLE t2 ALGORITHM=INPLACE, DROP INDEX fk;

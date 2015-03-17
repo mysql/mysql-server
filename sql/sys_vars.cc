@@ -3799,12 +3799,10 @@ static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
     if ((thd->variables.sql_mode ^ var->save_result.ulonglong_value) &
         MODE_NO_AUTO_CREATE_USER)
     {
-      uint code = thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER ?
-                  ER_WARN_DEPRECATED_SQLMODE_UNSET :
-                  ER_WARN_DEPRECATED_SQLMODE;
-
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          code, ER_THD(thd, code), "NO_AUTO_CREATE_USER");
+                          ER_WARN_DEPRECATED_SQLMODE,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
+                          "NO_AUTO_CREATE_USER");
     }
   }
 
