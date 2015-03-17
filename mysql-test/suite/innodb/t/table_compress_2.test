@@ -124,58 +124,11 @@ eval INSERT INTO $db.$table_lz4 VALUES (REPEAT('4',142857));
 
 COMMIT;
 
-eval FLUSH TABLES $db.$table_zlib WITH READ LOCK;
-UNLOCK TABLES;
-
-eval FLUSH TABLES $db.$table_lz4 WITH READ LOCK;
-UNLOCK TABLES;
-
-### check if the tables are compressed by comparing file size
-### with allocated size.
-### We also check the correctness of allocated size as reported by I_S.
---let $s1=`SELECT name,file_size,allocated_size FROM $i_s_table WHERE name LIKE '$db/$table_zlib'`
---let $s2=`SELECT name,file_size,allocated_size FROM $i_s_table WHERE name LIKE '$db/$table_lz4'`
---let COMPR_SIZES= $s1,$s2,$s3
 --let COMPR_TABLES= $db/$table_zlib,$db/$table_lz4
 
-perl;
-  use strict;
-  use File::Spec::Functions;
-  use warnings;
-  no warnings ('uninitialized');
-
-  my @ltables = sort(split(/\s*,\s*/,$ENV{'COMPR_TABLES'}));
-
-  my @lsizes = split(/\s*,\s*/,$ENV{'COMPR_SIZES'});
-  my %hsizes;
-  foreach (@lsizes) {
-      next if (/^\s*$/);
-      my @l = split(/\s+/,$_);
-      $hsizes{$l[0]} = [$l[1],$l[2]];
-  }
-
-  my $r1 = 'is compressed, or does not exist';
-  foreach (@ltables) {
-      if (not exists($hsizes{$_})) {
-          printf("%s %s\n",$_,$r1);
-          next;
-      }
-
-      my $plt = $hsizes{$_};
-
-### zlib compression is always available, cosmetically improve messages
-      my $g1 = $r1;
-      $g1 =~ s/,.*// if (/zlib/);
-
-      if ($plt->[0] > $plt->[1]) {
-          printf("%s %s\n",$_,$g1);
-      } else {
-          printf("%s is not compressed, file size '%s', allocated size '%s'\n",
-            $_,$plt->[0],$plt->[1]);
-      }
-  }
-
-EOF
+### check if the tables are compressed
+--let COMPR_EXPECT= 1,1
+--source include/innodb-compress-verify.inc
 
 ### cleanup
 --disable_warnings
