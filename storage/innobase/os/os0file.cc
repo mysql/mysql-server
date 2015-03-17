@@ -4608,50 +4608,53 @@ os_file_delete_if_exists_func(
 	const char*	name,
 	bool*		exist)
 {
-	bool	ret;
 	ulint	count	= 0;
 
-	if (exist) {
+	if (exist != NULL) {
 		*exist = true;
 	}
-loop:
-	/* In Windows, deleting an .ibd file may fail if ibbackup
-	is copying it */
 
-	ret = DeleteFile((LPCTSTR) name);
+	for (;;) {
+		/* In Windows, deleting an .ibd file may fail if ibbackup
+		is copying it */
 
-	if (ret) {
-		return(true);
-	}
+		bool	ret = DeleteFile((LPCTSTR) name);
 
-	DWORD lasterr = GetLastError();
-	if (lasterr == ERROR_FILE_NOT_FOUND
-	    || lasterr == ERROR_PATH_NOT_FOUND) {
-		/* the file does not exist, this not an error */
-		if (exist != NULL) {
-			*exist = false;
+		if (ret) {
+			return(true);
 		}
-		return(true);
+
+		DWORD	lasterr = GetLastError();
+
+		if (lasterr == ERROR_FILE_NOT_FOUND
+		    || lasterr == ERROR_PATH_NOT_FOUND) {
+
+			/* the file does not exist, this not an error */
+			if (exist != NULL) {
+				*exist = false;
+			}
+
+			return(true);
+		}
+
+		++count;
+
+		if (count > 100 && 0 == (count % 10)) {
+
+			/* Print error information */
+			os_file_get_last_error(true);
+
+			ib::warn() << "Delete of file '" << name << "' failed.";
+		}
+
+		/* Sleep for a second */
+		os_thread_sleep(1000000);
+
+		if (count > 2000) {
+
+			return(false);
+		}
 	}
-
-	++count;
-
-	if (count > 100 && 0 == (count % 10)) {
-
-		/* print error information */
-		os_file_get_last_error(true);
-
-		ib::warn() << "Delete of file '" << name << "' failed.";
-	}
-
-	os_thread_sleep(1000000);	/* sleep for a second */
-
-	if (count > 2000) {
-
-		return(false);
-	}
-
-	goto loop;
 }
 
 /** Deletes a file. The file has to be closed before calling this.
@@ -5113,10 +5116,9 @@ os_file_io(
 	byte*		compressed_page;
 	ssize_t		bytes_returned = 0;
 
-	/* We don't compress the first page of any file. */
-
 	if (type.is_compressed()) {
 
+		/* We don't compress the first page of any file. */
 		ut_ad(offset > 0);
 
 		ptr = os_file_compress_page(type, buf, &n, err);
@@ -6048,9 +6050,6 @@ AIO::init_slots()
 dberr_t
 AIO::init_linux_native_aio()
 {
-	/* If we are not using native AIO interface then skip this
-	part of initialization. */
-
 	/* Initialize the io_context array. One io_context
 	per segment in the array. */
 
