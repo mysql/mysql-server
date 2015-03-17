@@ -14,7 +14,7 @@
 
 call mtr.add_suppression("unknown variable 'loose_mecab_rc_file");
 call mtr.add_suppression("Fulltext index charset 'big5' doesn't match mecab charset");
-call mtr.add_suppression("Mecab: param.cpp");
+call mtr.add_suppression("Mecab: createModel.* failed: param.cpp");
 call mtr.add_suppression("Plugin 'mecab' init function returned error");
 
 -- disable_query_log
