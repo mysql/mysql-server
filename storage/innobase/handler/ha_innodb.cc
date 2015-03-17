@@ -2066,6 +2066,20 @@ innobase_raw_format(
 	return(ut_str_sql_format(buf_tmp, buf_tmp_used, buf, buf_size));
 }
 
+/** Check if the string is "empty" or "none".
+@param[in]      algorithm       Compression algorithm to check
+@return true if no algorithm requested */
+bool
+Compression::is_none(const char* algorithm)
+{
+	/* NULL is the same as NONE */
+	if (algorithm == NULL || innobase_strcasecmp(algorithm, "none") == 0) {
+		return(true);
+	}
+
+	return(false);
+}
+
 /** Check for supported COMPRESS := (ZLIB | LZ4 | NONE) supported values
 @param[in]	name		Name of the compression algorithm
 @param[out]	compression	The compression algorithm
@@ -2075,7 +2089,7 @@ Compression::check(
 	const char*	algorithm,
 	Compression*	compression)
 {
-	if (innobase_strcasecmp(algorithm, "none") == 0) {
+	if (is_none(algorithm)) {
 
 		compression->m_type = NONE;
 
@@ -2083,11 +2097,10 @@ Compression::check(
 
 		compression->m_type = ZLIB;
 
-#ifdef HAVE_LZ4
 	} else if (innobase_strcasecmp(algorithm, "lz4") == 0) {
 
 		compression->m_type = LZ4;
-#endif /* HAVE_LZ4 */
+
 	} else {
 		return(DB_UNSUPPORTED);
 	}
@@ -2102,12 +2115,6 @@ Compression::check(
 dberr_t
 Compression::validate(const char* algorithm)
 {
-        if (algorithm == NULL) {
-
-                /* NULL is the same as NONE */
-                return(DB_SUCCESS);
-        }
-
 	Compression	compression;
 
 	return(check(algorithm, &compression));
@@ -9184,12 +9191,13 @@ err_col:
 
 	} else {
 
-                const char*     compression = m_create_info->compress.str;
+                const char*     algorithm = m_create_info->compress.str;
 
 		err = DB_SUCCESS;
 
 		if (!(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)
-		    && m_create_info->compress.length > 0) {
+		    && m_create_info->compress.length > 0
+		    && !Compression::is_none(algorithm)) {
 
 			push_warning_printf(
 				m_thd,
@@ -9198,20 +9206,20 @@ err_col:
 				"InnoDB: Compression not supported for "
 				"shared tablespaces");
 
-			compression = NULL;
+			algorithm = NULL;
 
 			err = DB_UNSUPPORTED;
 
-		} else if (Compression::validate(compression) != DB_SUCCESS
+		} else if (Compression::validate(algorithm) != DB_SUCCESS
 			   || m_form->s->row_type == ROW_TYPE_COMPRESSED
 			   || m_create_info->key_block_size > 0) {
 
-                        compression = NULL;
+			algorithm = NULL;
                 }
 
 		if (err == DB_SUCCESS) {
 			err = row_create_table_for_mysql(
-				table, compression, m_trx, false);
+				table, algorithm, m_trx, false);
 		}
 
 		if (err == DB_IO_NO_PUNCH_HOLE_FS) {
@@ -9927,9 +9935,11 @@ create_table_info_t::create_options_are_invalid()
 
 	if (ret == NULL && m_create_info->compress.length > 0) {
 
-		dberr_t	err;
+		dberr_t		err;
+		Compression	compression;
 
-		err = Compression::validate(m_create_info->compress.str);
+		err = Compression::check(
+			m_create_info->compress.str, &compression);
 
 		if (err == DB_UNSUPPORTED) {
 
@@ -9943,9 +9953,8 @@ create_table_info_t::create_options_are_invalid()
 
 			ret = "COMPRESSION";
 
-		} else if (m_create_info->key_block_size > 0) {
-
-			ut_ad(row_format == ROW_TYPE_COMPRESSED);
+		} else if (m_create_info->key_block_size > 0
+			   && compression.m_type != Compression::NONE) {
 
 			push_warning_printf(
 				m_thd,

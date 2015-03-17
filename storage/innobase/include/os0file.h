@@ -176,6 +176,7 @@ static const ulint OS_FILE_ERROR_MAX = 100;
 /** Compression algorithm. */
 struct Compression {
 
+	/** Algorithm types supported */
 	enum Type {
 		/* Note: During recovery we don't have the compression type
 		because the .frm file has not been read yet. Therefore
@@ -210,8 +211,11 @@ struct Compression {
 		uint16_t	m_compressed_size;
 	};
 
+	/** Default constructor */
 	Compression() : m_type(NONE) { };
 
+	/** Specific constructor
+	@param[in]	type		Algorithm type */
 	explicit Compression(Type type)
 		:
 		m_type(type)
@@ -220,9 +224,7 @@ struct Compression {
 		switch (m_type) {
 		case NONE:
 		case ZLIB:
-#ifdef HAVE_LZ4
 		case LZ4:
-#endif /* HAVE_LZ4 */
 
 		default:
 			ut_error;
@@ -230,37 +232,32 @@ struct Compression {
 #endif /* UNIV_DEBUG */
 	}
 
-	/**
-	Check the page header type field.
+	/** Check the page header type field.
 	@param[in]	page		Page contents
 	@return true if it is a compressed page */
 	static bool is_compressed_page(const byte* page)
 		__attribute__((warn_unused_result));
 
-        /**
-	Check wether the compression algorithm is supported.
+        /** Check wether the compression algorithm is supported.
         @param[in]      algorithm       Compression algorithm to check
         @param[out]     type            The type that algorithm maps to
         @return DB_SUCCESS or error code */
 	static dberr_t check(const char* algorithm, Compression* type)
 		__attribute__((warn_unused_result));
 
-        /**
-	Validate the algorithm string.
+        /** Validate the algorithm string.
         @param[in]      algorithm       Compression algorithm to check
         @return DB_SUCCESS or error code */
 	static dberr_t validate(const char* algorithm)
 		__attribute__((warn_unused_result));
 
-        /**
-	Convert to a "string".
+        /** Convert to a "string".
         @param[in]      type            The compression type
         @return the string representation */
         static const char* to_string(Type type)
 		__attribute__((warn_unused_result));
 
-        /**
-	Convert the meta data to a std::string.
+        /** Convert the meta data to a std::string.
         @param[in]      meta		Page Meta data
         @return the string representation */
         static std::string to_string(const meta_t& meta)
@@ -272,6 +269,12 @@ struct Compression {
 	static void deserialize_header(
 		const byte*	page,
 		meta_t*		control);
+
+        /** Check if the string is "empty" or "none".
+        @param[in]      algorithm       Compression algorithm to check
+        @return true if no algorithm requested */
+	static bool is_none(const char* algorithm)
+		__attribute__((warn_unused_result));
 
 	/** Decompress the page data contents. Page type must be
 	FIL_PAGE_COMPRESSED, if not then the source contents are
@@ -376,36 +379,42 @@ public:
 
 	/** @return true if ignore missing flag is set */
 	static bool ignore_missing(ulint type)
+		__attribute__((warn_unused_result))
 	{
 		return((type & IGNORE_MISSING) == IGNORE_MISSING);
 	}
 
 	/** @return true if it is a read request */
 	bool is_read() const
+		__attribute__((warn_unused_result))
 	{
 		return((m_type & READ) == READ);
 	}
 
 	/** @return true if it is a write request */
 	bool is_write() const
+		__attribute__((warn_unused_result))
 	{
 		return((m_type & WRITE) == WRITE);
 	}
 
 	/** @return true if it is a redo log write */
 	bool is_log() const
+		__attribute__((warn_unused_result))
 	{
 		return((m_type & LOG) == LOG);
 	}
 
 	/** @return true if the simulated AIO thread should be woken up */
 	bool is_wake() const
+		__attribute__((warn_unused_result))
 	{
 		return((m_type & DO_NOT_WAKE) == 0);
 	}
 
 	/** @return true if partial read warning disabled */
 	bool is_partial_io_warning_disabled() const
+		__attribute__((warn_unused_result))
 	{
 		return((m_type & DISABLE_PARTIAL_IO_WARNINGS)
 		       == DISABLE_PARTIAL_IO_WARNINGS);
@@ -419,18 +428,21 @@ public:
 
 	/** @return true if missing files should be ignored */
 	bool ignore_missing() const
+		__attribute__((warn_unused_result))
 	{
 		return(ignore_missing(m_type));
 	}
 
 	/** @return true if punch hole should be used */
 	bool punch_hole() const
+		__attribute__((warn_unused_result))
 	{
 		return((m_type & PUNCH_HOLE) == PUNCH_HOLE);
 	}
 
 	/** @return true if the read should be validated */
 	bool validate() const
+		__attribute__((warn_unused_result))
 	{
 		ut_a(is_read() ^ is_write());
 
@@ -459,6 +471,7 @@ public:
 
 	/** @return the block size to use for IO */
 	ulint block_size() const
+		__attribute__((warn_unused_result))
 	{
 		return(m_block_size);
 	}
@@ -501,18 +514,21 @@ public:
 	/** Get the compression algorithm.
 	@return the compression algorithm */
 	Compression compression_algorithm() const
+		__attribute__((warn_unused_result))
 	{
 		return(m_compression);
 	}
 
 	/** @return true if the page should be compressed */
 	bool is_compressed() const
+		__attribute__((warn_unused_result))
 	{
 		return(compression_algorithm().m_type != Compression::NONE);
 	}
 
 	/** @return true if the page read should not be transformed. */
 	bool is_compression_enabled() const
+		__attribute__((warn_unused_result))
 	{
 		return((m_type & NO_COMPRESSION) == 0);
 	}
@@ -1673,7 +1689,8 @@ dberr_t
 os_file_punch_hole(
 	os_file_t	fh,
 	os_offset_t	off,
-	os_offset_t	len);
+	os_offset_t	len)
+	__attribute__((warn_unused_result));
 
 /** Check if the file system supports sparse files.
 
@@ -1689,7 +1706,8 @@ Note: On Windows we use the name and on Unices we use the file handle.
 bool
 os_is_sparse_file_supported(
 	const char*	path,
-	os_file_t	fh);
+	os_file_t	fh)
+	__attribute__((warn_unused_result));
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
@@ -1700,7 +1718,8 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 @return DB_SUCCESS or error code */
 
 dberr_t
-os_file_decompress_page(byte* src, byte* dst, ulint dst_len);
+os_file_decompress_page(byte* src, byte* dst, ulint dst_len)
+	__attribute__((warn_unused_result));
 
 #ifndef UNIV_NONINL
 #include "os0file.ic"
