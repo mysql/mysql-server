@@ -1,6 +1,3 @@
-#ifndef SQL_AUDIT_INCLUDED
-#define SQL_AUDIT_INCLUDED
-
 /* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -16,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef SQL_AUDIT_INCLUDED
+#define SQL_AUDIT_INCLUDED
 
 #include <my_global.h>
 
@@ -59,31 +58,47 @@ static inline uint make_user_name(THD *thd, char *buf)
   Call audit plugins of GENERAL audit class, MYSQL_AUDIT_GENERAL_LOG subtype.
   
   @param[in] thd
-  @param[in] time             time that event occurred
-  @param[in] user             User name
-  @param[in] userlen          User name length
   @param[in] cmd              Command name
   @param[in] cmdlen           Command name length
-  @param[in] query            Query string
-  @param[in] querylen         Query string length
-*/
+  @param[in] query_str        query text. Leave empty to fetch it from THD
+  @param[in] query_len        query text length. 0 to fetch it from THD
+  */
  
 static inline
-void mysql_audit_general_log(THD *thd, time_t time,
-                             const char *user, uint userlen,
-                             const char *cmd, uint cmdlen,
-                             const char *query, uint querylen)
+void mysql_audit_general_log(THD *thd, const char *cmd, uint cmdlen,
+                             const char *query_str, size_t query_len)
 {
 #ifndef EMBEDDED_LIBRARY
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
   {
     MYSQL_LEX_STRING sql_command, ip, host, external_user;
+    MYSQL_LEX_STRING query={ (char *)query_str, query_len };
     static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
     ha_rows rows= 0;
     int error_code= 0; 
+    char user_buff[MAX_USER_HOST_SIZE + 1];
+    const char *user= user_buff;
+    uint userlen= make_user_name(thd, user_buff);
+    time_t time= (time_t) thd->start_time.tv_sec;
 
     if (thd)
     {
+      if (!query_len)
+      {
+        /* no query specified, fetch from THD */
+        if (!thd->rewritten_query.length())
+          mysql_rewrite_query(thd);
+        if (thd->rewritten_query.length())
+        {
+          query.str= (char *) thd->rewritten_query.ptr();
+          query.length= thd->rewritten_query.length();
+        }
+        else
+        {
+          query.str= thd->query();
+          query.length= thd->query_length();
+        }
+      }
       ip.str= (char *) thd->security_ctx->get_ip()->ptr();
       ip.length= thd->security_ctx->get_ip()->length();
       host.str= (char *) thd->security_ctx->get_host()->ptr();
@@ -104,8 +119,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
       : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
-                       error_code, time, user, userlen, cmd, cmdlen, query,
-                       querylen, clientcs, rows, sql_command, host,
+                       error_code, time, user, userlen, cmd, cmdlen, query.str,
+                       query.length, clientcs, rows, sql_command, host,
                        external_user, ip);
   }
 #endif
