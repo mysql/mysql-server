@@ -23,7 +23,9 @@
 
 #include "binlog.h"                   // mysql_bin_log
 #include "debug_sync.h"               // DEBUG_SYNC
+#include "filesort.h"                 // Filesort
 #include "opt_explain.h"              // Modification_plan
+#include "opt_range.h"                // prune_partitions
 #include "opt_trace.h"                // Opt_trace_object
 #include "psi_memory_key.h"
 #include "records.h"                  // READ_RECORD

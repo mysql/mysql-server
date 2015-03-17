@@ -36,6 +36,7 @@
 #include "mysqld.h"                             // mysql_tmpdir
 #include "opt_trace.h"
 #include "sql_optimizer.h"              // JOIN
+#include "sql_executor.h"               // QEP_TAB
 #include "sql_base.h"
 #include "opt_costmodel.h"
 #include "priority_queue.h"

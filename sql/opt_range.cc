@@ -111,6 +111,7 @@
 #include "opt_range.h"
 
 #include "current_thd.h"
+#include "filesort.h"            // filesort_free_buffers
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
 #include "log.h"                 // sql_print_error

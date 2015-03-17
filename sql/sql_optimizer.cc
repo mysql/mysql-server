@@ -34,6 +34,7 @@
 #include "lock.h"                // mysql_unlock_some_tables
 #include "mysqld.h"              // stage_optimizing
 #include "opt_explain.h"         // join_type_str
+#include "opt_range.h"           // QUICK_SELECT_I
 #include "opt_trace.h"           // Opt_trace_object
 #include "sql_base.h"            // init_ftfuncs
 #include "sql_join_buffer.h"     // JOIN_CACHE

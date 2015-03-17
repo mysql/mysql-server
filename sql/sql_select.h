@@ -24,16 +24,9 @@
   classes to use when handling where clause
 */
 
-#include "procedure.h"
-#include <myisam.h>
-#include "sql_array.h"                        /* Array */
-#include "records.h"                          /* READ_RECORD */
-#include "opt_range.h"                        /* QUICK_SELECT_I */
-#include "filesort.h"
 
-#include "mem_root_array.h"
-#include "sql_executor.h"
-#include "sql_opt_exec_shared.h"
+#include "my_global.h"
+#include "sql_opt_exec_shared.h"      // join_type
 #include "item_cmpfunc.h"             // Item_cond_and
 
 #include <functional>
@@ -238,9 +231,6 @@ public:
   double read_cost;
 };
 
-
-// Key_use has a trivial destructor, no need to run it from Mem_root_array.
-typedef Mem_root_array<Key_use, true> Key_use_array;
 
 /// @returns join type according to quick select type used
 join_type calc_join_type(int quick_type);
@@ -844,8 +834,6 @@ public:
   }
 };
 
-
-typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 
 typedef struct st_select_check {
   uint const_ref,reg_ref;

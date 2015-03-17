@@ -30,6 +30,8 @@
 #include "item_sum.h"         // Item_sum
 #include "key.h"              // key_cmp
 #include "log.h"              // sql_print_error
+#include "filesort.h"         // Filesort
+#include "opt_range.h"        // QUICK_SELECT_I
 #include "opt_trace.h"        // Opt_trace_object
 #include "psi_memory_key.h"
 #include "query_result.h"     // Query_result

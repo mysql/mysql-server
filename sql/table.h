@@ -42,6 +42,7 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Table_cache_element;
 class Table_trigger_dispatcher;
+class QEP_TAB;
 class Query_result_union;
 class Temp_table_param;
 class Index_hint;
