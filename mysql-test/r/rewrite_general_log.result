@@ -101,8 +101,36 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	/* select#1 */ select ((@`a`) = 5) AS `@a=5`,(@b:=10) AS `@b:=10`,(@c:=20) AS `@c:=20`,(@d:=(40 + 5)) AS `@d:=40+5`,((@e:=80) + 5) AS `(@e:=80)+5`
+#
+# Bug#16953758: PREPARED STATEMENT IS WRITTEN TO GENERAL QUERY LOG AFTER ITS EXECUTION IS FINISH
+#
+TRUNCATE TABLE mysql.general_log;
+SET GLOBAL general_log='ON';
+SET @sql='SELECT command_type, argument FROM mysql.general_log WHERE argument LIKE "%Bug#16953758%"';
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+command_type	argument
+Query	SET @sql='SELECT command_type, argument FROM mysql.general_log WHERE argument LIKE "%Bug#16953758%"'
+Prepare	SELECT command_type, argument FROM mysql.general_log WHERE argument LIKE "%Bug#16953758%"
+Execute	SELECT command_type, argument FROM mysql.general_log WHERE argument LIKE "%Bug#16953758%"
+DEALLOCATE PREPARE stmt;
+#
+# Bug#18616826: PREPARED STATEMENTS WHOSE EXECUTION FAIL ARE NOT LOGGED TO THE GENERAL LOG
+#
+TRUNCATE TABLE mysql.general_log;
+SET @sql='DROP TABLE 18616826_does_not_exist';
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+ERROR 42S02: Unknown table 'test.18616826_does_not_exist'
+DEALLOCATE PREPARE stmt;
+SELECT command_type, argument FROM mysql.general_log WHERE argument LIKE "DROP TABLE 18616826_does_not_exist";
+command_type	argument
+Prepare	DROP TABLE 18616826_does_not_exist
+Execute	DROP TABLE 18616826_does_not_exist
 DROP TABLE test_log;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+
 End of 5.6 tests!
+

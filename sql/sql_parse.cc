@@ -6318,9 +6318,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
         no logging happens at all. If rewriting does not happen here,
         thd->rewritten_query is still empty from being reset in alloc_query().
       */
-      bool general= (opt_log && ! (opt_log_raw || thd->slave_thread));
-
-      if (general || opt_slow_log || opt_bin_log)
+      if (!(opt_log_raw || thd->slave_thread) || opt_slow_log || opt_bin_log)
       {
         mysql_rewrite_query(thd);
 
@@ -6328,7 +6326,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
           lex->safe_to_cache_query= false; // see comments below
       }
 
-      if (general)
+      if (!(opt_log_raw || thd->slave_thread))
       {
         if (thd->rewritten_query.length())
           general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
