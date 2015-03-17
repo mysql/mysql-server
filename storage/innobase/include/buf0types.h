@@ -30,6 +30,7 @@ Created 11/17/1995 Heikki Tuuri
 
 #include "dict0types.h" /* index_id_t */
 #include "os0event.h"
+#include "ut0lock_free_hash.h"
 #include "ut0mutex.h"
 #include "ut0ut.h"
 
@@ -130,27 +131,19 @@ typedef ib_mutex_t FlushListMutex;
 are cached in the buffer pool(s). This is a key,value store where the key is
 the index id and the value is the number of pages in the buffer pool that
 belong to this index. */
-/* XXX this is not protected by any latch, but it should */
 class buf_stat_per_index_t {
 public:
-	/** The type of the key. */
-	typedef index_id_t	key_t;
-
-	/** The type of the value. */
-	typedef uint64_t	val_t;
-
 	/** Constructor. */
 	buf_stat_per_index_t()
 	{
-		m_map = UT_NEW(
-			map_t(cmp_t(), alloc_t(mem_key_buf_stat_per_index_t)),
-			mem_key_buf_stat_per_index_t);
+		m_store = UT_NEW(ut_lock_free_hash_t(),
+				 mem_key_buf_stat_per_index_t);
 	}
 
 	/** Destructor. */
 	~buf_stat_per_index_t()
 	{
-		UT_DELETE(m_map);
+		UT_DELETE(m_store);
 	}
 
 	/** Increment the number of pages for a given index with 1.
@@ -158,15 +151,11 @@ public:
 	*/
 	void
 	inc(
-		key_t	index_id)
+		index_id_t	index_id)
 	{
-		map_t::iterator	it = m_map->find(index_id);
+		ut_ad(sizeof(index_id_t) >= sizeof(uintptr_t));
 
-		if (it != m_map->end()) {
-			++it->second;
-		} else {
-			m_map->insert(map_t::value_type(index_id, 1));
-		}
+		m_store->inc(static_cast<uintptr_t>(index_id));
 	}
 
 	/** Decrement the number of pages for a given index with 1.
@@ -174,46 +163,33 @@ public:
 	*/
 	void
 	dec(
-		key_t	index_id)
+		index_id_t	index_id)
 	{
-		map_t::iterator	it = m_map->find(index_id);
-
-		if (it != m_map->end()) {
-			ut_ad(it->second > 0);
-			it->second--;
-		}
+		m_store->dec(static_cast<uintptr_t>(index_id));
 	}
 
 	/** Get the number of pages in the buffer pool for a given index.
 	@param[in]	index_id	id of the index whose pages to peek
 	@return number of pages */
-	val_t
+	uintptr_t
 	get(
-		key_t	index_id)
+		index_id_t	index_id)
 	{
-		map_t::iterator	it = m_map->find(index_id);
+		const uintptr_t	ret
+			= m_store->get(static_cast<uintptr_t>(index_id));
 
-		if (it != m_map->end()) {
-			return(it->second);
+		if (ret == ut_lock_free_hash_t::NOT_FOUND) {
+			/* If the index is not found in this structure,
+			then 0 of its pages are in the buffer pool. */
+			return(0);
 		}
 
-		/* If the index is not found in this structure, then 0 of its
-		pages are in the buffer pool. */
-		return(0);
+		return(ret);
 	}
 
 private:
-	/** Comparator. */
-	typedef std::less<key_t>				cmp_t;
-
-	/** Allocator. */
-	typedef	ut_allocator<std::pair<const key_t, val_t> >	alloc_t;
-
-	/** key,value storage type. */
-	typedef std::map<key_t, val_t, cmp_t, alloc_t>		map_t;
-
-	/** key,value storage. */
-	map_t*	m_map;
+	/** (key, value) storage. */
+	ut_lock_free_hash_t*	m_store;
 };
 
 /** Container for how much pages from each index are contained in the buffer
