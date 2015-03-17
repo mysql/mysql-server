@@ -813,7 +813,12 @@ typedef struct st_position :public Sql_alloc
   */
   uint n_sj_tables;
 
-  table_map prefix_dups_producing_tables;
+  /*
+    Bitmap of semi-join inner tables that are in the join prefix and for
+    which there's no provision for how to eliminate semi-join duplicates
+    they produce.
+  */
+  table_map dups_producing_tables;
 
   table_map inner_tables_handled_with_other_sjs;
    
@@ -1033,13 +1038,6 @@ public:
     nests that have their tables both in and outside of the join prefix.
   */
   table_map cur_sj_inner_tables;
-  
-  /*
-    Bitmap of semi-join inner tables that are in the join prefix and for
-    which there's no provision for how to eliminate semi-join duplicates
-    they produce.
-  */
-  table_map cur_dups_producing_tables;
   
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/

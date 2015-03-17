@@ -6143,7 +6143,6 @@ choose_plan(JOIN *join, table_map join_tables)
   DBUG_ENTER("choose_plan");
 
   join->cur_embedding_map= 0;
-  join->cur_dups_producing_tables= 0;
   reset_nj_counters(join, join->join_list);
   qsort2_cmp jtab_sort_func;
 

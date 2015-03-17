@@ -1320,5 +1320,76 @@ SELECT * FROM t1 WHERE id in (select distinct id_agente from t2);
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # MDEV-7474: Semi-Join's DuplicateWeedout strategy skipped for some values of optimizer_search_depth
+--echo #
+
+CREATE TABLE t1 (
+	t1id BIGINT(20) NOT NULL,
+	code VARCHAR(20),
+	PRIMARY KEY (t1id)
+) COLLATE='utf8mb4_bin' ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+	t2id BIGINT(20) NOT NULL,
+	t1idref BIGINT(20) NOT NULL,
+	code VARCHAR(20),
+	PRIMARY KEY (t2id),
+	INDEX FK_T2_T1Id (t1idref),
+	CONSTRAINT FK_T2_T1Id FOREIGN KEY (t1idref) REFERENCES t1 (t1id)
+) COLLATE='utf8mb4_bin' ENGINE=InnoDB;
+
+CREATE TABLE t3 (
+	t3idref BIGINT(20) NOT NULL,
+	t2idref BIGINT(20) NOT NULL,
+	sequencenumber INT(10) NOT NULL,
+	PRIMARY KEY (t3idref, t2idref),
+	INDEX FK_T3_T2Id (t2idref),
+	CONSTRAINT FK_T3_T2Id FOREIGN KEY (t2idref) REFERENCES t2 (t2id)
+) COLLATE='utf8mb4_bin' ENGINE=InnoDB;
+
+# Load up dummy data (needed to reproduce issue)
+INSERT INTO t1 (t1id) VALUES (100001),(100017),(100018),(100026),(100027),(100028),(100029),(100030),
+(100031),(100032),(100033),(100034),(100035),(100036),(100037),(100038),(100040),(100041),(100042),
+(100043),(100044),(100045),(100046),(100047);
+
+INSERT IGNORE INTO t2 (t2id, t1idref) SELECT t1id, t1id FROM t1;
+
+# Now the test Data
+INSERT IGNORE INTO t1 VALUES (200001, 'a');
+INSERT IGNORE INTO t2 (t2id, t1idref) VALUES (200011, 200001),(200012, 200001),(200013, 200001);
+INSERT IGNORE INTO t3 VALUES (1, 200011, 1),  (1, 200012, 2), (1, 200013, 3);
+
+set @tmp7474= @@optimizer_search_depth;
+SET SESSION optimizer_search_depth = 1;
+
+let $query=
+SELECT SQL_NO_CACHE 
+T2_0_.t1idref,
+T2_0_.t2id
+FROM
+        t2 T2_0_ 
+WHERE
+        T2_0_.t1idref IN (
+                SELECT
+                        T1_1_.t1id 
+                FROM
+                        t3 T3_0_ 
+                INNER JOIN
+                        t2 T2_1_ 
+                                ON T3_0_.t2idref=T2_1_.t2id 
+                INNER JOIN
+                        t1 T1_1_ 
+                                ON T2_1_.t1idref=T1_1_.t1id            
+                WHERE
+                        T3_0_.t3idref= 1
+);
+
+eval $query;
+eval explain $query;
+
+drop table t3,t2,t1;
+set optimizer_search_depth=@tmp7474;
+
 --echo # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;

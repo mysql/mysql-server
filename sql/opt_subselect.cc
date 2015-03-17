@@ -2504,10 +2504,16 @@ void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
     LooseScan detector in best_access_path)
   */
   remaining_tables &= ~new_join_tab->table->map;
-  pos->prefix_dups_producing_tables= join->cur_dups_producing_tables;
+  table_map dups_producing_tables;
+
+  if (idx == join->const_tables)
+    dups_producing_tables= 0;
+  else
+    dups_producing_tables= pos[-1].dups_producing_tables;
+
   TABLE_LIST *emb_sj_nest;
   if ((emb_sj_nest= new_join_tab->emb_sj_nest))
-    join->cur_dups_producing_tables |= emb_sj_nest->sj_inner_tables;
+    dups_producing_tables |= emb_sj_nest->sj_inner_tables;
 
   Semi_join_strategy_picker **strategy;
   if (idx == join->const_tables)
@@ -2560,7 +2566,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
                    fanout from semijoin X.
                 3. We have no clue what to do about fanount of semi-join Y.
         */
-        if ((join->cur_dups_producing_tables & handled_fanout) ||
+        if ((dups_producing_tables & handled_fanout) ||
             (read_time < *current_read_time && 
              !(handled_fanout & pos->inner_tables_handled_with_other_sjs)))
         {
@@ -2573,7 +2579,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
             join->sjm_lookup_tables &= ~handled_fanout;
           *current_read_time= read_time;
           *current_record_count= rec_count;
-          join->cur_dups_producing_tables &= ~handled_fanout;
+          dups_producing_tables &= ~handled_fanout;
           //TODO: update bitmap of semi-joins that were handled together with
           // others.
           if (is_multiple_semi_joins(join, join->positions, idx, handled_fanout))
@@ -2600,6 +2606,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
 
   pos->prefix_cost.convert_from_cost(*current_read_time);
   pos->prefix_record_count= *current_record_count;
+  pos->dups_producing_tables= dups_producing_tables;
 }
 
 
@@ -3111,8 +3118,6 @@ void restore_prev_sj_state(const table_map remaining_tables,
       tab->join->cur_sj_inner_tables &= ~emb_sj_nest->sj_inner_tables;
     }
   }
-  POSITION *pos= tab->join->positions + idx;
-  tab->join->cur_dups_producing_tables= pos->prefix_dups_producing_tables;
 }
 
 

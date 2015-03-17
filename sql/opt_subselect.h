@@ -298,7 +298,7 @@ public:
 };
 
 
-extern void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
+void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
                       double *current_record_count, double *current_read_time,
                       POSITION *loose_scan_pos);
 void restore_prev_sj_state(const table_map remaining_tables, 
