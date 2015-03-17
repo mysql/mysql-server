@@ -801,19 +801,25 @@ buf_flush_update_zip_checksum(
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 }
 
-/********************************************************************//**
-Initializes a page for writing to the tablespace. */
+/** Initialize a page for writing to the tablespace.
+@param[in]	block		buffer block; NULL if bypassing the buffer pool
+@param[in,out]	page		page frame
+@param[in,out]	page_zip_	compressed page, or NULL if uncompressed
+@param[in]	newest_lsn	newest modification LSN to the page
+@param[in]	skip_checksum	whether to disable the page checksum */
 void
 buf_flush_init_for_writing(
-/*=======================*/
-	byte*	page,		/*!< in/out: page */
-	void*	page_zip_,	/*!< in/out: compressed page, or NULL */
-	lsn_t	newest_lsn,	/*!< in: newest modification lsn
-				to the page */
-	bool	skip_checksum)	/*!< in: if true, disable/skip checksum. */
+	const buf_block_t*	block,
+	byte*			page,
+	void*			page_zip_,
+	lsn_t			newest_lsn,
+	bool			skip_checksum)
 {
 	ib_uint32_t	checksum = BUF_NO_CHECKSUM_MAGIC;
 
+	ut_ad(block == NULL || block->frame == page);
+	ut_ad(block == NULL || page_zip_ == NULL
+	      || &block->page.zip == page_zip_);
 	ut_ad(page);
 
 	if (page_zip_) {
@@ -865,6 +871,58 @@ buf_flush_init_for_writing(
 	if (skip_checksum) {
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 	} else {
+		if (block != NULL && UNIV_PAGE_SIZE == 16384) {
+			/* The page type could be garbage in old files
+			created before MySQL 5.5. Such files always
+			had a page size of 16 kilobytes. */
+			ulint	page_type = fil_page_get_type(page);
+			ulint	reset_type = page_type;
+
+			switch (block->page.id.page_no() % 16384) {
+			case 0:
+				reset_type = block->page.id.page_no() == 0
+					? FIL_PAGE_TYPE_FSP_HDR
+					: FIL_PAGE_TYPE_XDES;
+				break;
+			case 1:
+				reset_type = FIL_PAGE_IBUF_BITMAP;
+				break;
+			default:
+				switch (page_type) {
+				case FIL_PAGE_INDEX:
+				case FIL_PAGE_RTREE:
+				case FIL_PAGE_UNDO_LOG:
+				case FIL_PAGE_INODE:
+				case FIL_PAGE_IBUF_FREE_LIST:
+				case FIL_PAGE_TYPE_ALLOCATED:
+				case FIL_PAGE_TYPE_SYS:
+				case FIL_PAGE_TYPE_TRX_SYS:
+				case FIL_PAGE_TYPE_BLOB:
+				case FIL_PAGE_TYPE_ZBLOB:
+				case FIL_PAGE_TYPE_ZBLOB2:
+					break;
+				case FIL_PAGE_TYPE_FSP_HDR:
+				case FIL_PAGE_TYPE_XDES:
+				case FIL_PAGE_IBUF_BITMAP:
+					/* These pages should have
+					predetermined page numbers
+					(see above). */
+				default:
+					reset_type = FIL_PAGE_TYPE_UNKNOWN;
+					break;
+				}
+			}
+
+			if (UNIV_UNLIKELY(page_type != reset_type)) {
+				ib::info()
+					<< "Resetting invalid page "
+					<< block->page.id << " type "
+					<< page_type << " to "
+					<< reset_type << " when flushing.";
+				fil_page_set_type(page, reset_type);
+			}
+		}
+
 		switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
 		case SRV_CHECKSUM_ALGORITHM_CRC32:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
@@ -979,12 +1037,12 @@ buf_flush_write_block_low(
 			frame = ((buf_block_t*) bpage)->frame;
 		}
 
-		buf_flush_init_for_writing(((buf_block_t*) bpage)->frame,
-					   bpage->zip.data
-					   ? &bpage->zip : NULL,
-					   bpage->newest_modification,
-					   fsp_is_checksum_disabled(
-						bpage->id.space()));
+		buf_flush_init_for_writing(
+			reinterpret_cast<const buf_block_t*>(bpage),
+			reinterpret_cast<const buf_block_t*>(bpage)->frame,
+			bpage->zip.data ? &bpage->zip : NULL,
+			bpage->newest_modification,
+			fsp_is_checksum_disabled(bpage->id.space()));
 		break;
 	}
 

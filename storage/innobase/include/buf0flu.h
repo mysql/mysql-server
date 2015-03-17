@@ -62,16 +62,19 @@ buf_flush_write_complete(
 /*=====================*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
 #endif /* !UNIV_HOTBACKUP */
-/********************************************************************//**
-Initializes a page for writing to the tablespace. */
+/** Initialize a page for writing to the tablespace.
+@param[in]	block		buffer block; NULL if bypassing the buffer pool
+@param[in,out]	page		page frame
+@param[in,out]	page_zip_	compressed page, or NULL if uncompressed
+@param[in]	newest_lsn	newest modification LSN to the page
+@param[in]	skip_checksum	whether to disable the page checksum */
 void
 buf_flush_init_for_writing(
-/*=======================*/
-	byte*	page,		/*!< in/out: page */
-	void*	page_zip_,	/*!< in/out: compressed page, or NULL */
-	lsn_t	newest_lsn,	/*!< in: newest modification lsn
-				to the page */
-	bool	skip_checksum);	/*!< in: if true, disable/skip checksum. */
+	const buf_block_t*	block,
+	byte*			page,
+	void*			page_zip_,
+	lsn_t			newest_lsn,
+	bool			skip_checksum);
 
 #ifndef UNIV_HOTBACKUP
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
