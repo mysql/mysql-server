@@ -1,0 +1,126 @@
+SET GLOBAL innodb_file_per_table=1;
+DROP TABLE IF EXISTS test.tc_zlib;
+CREATE TABLE test.tc_zlib (t LONGTEXT) COMPRESSION='zlib';
+DROP TABLE IF EXISTS test.tc_lz4;
+CREATE TABLE test.tc_lz4 (t LONGTEXT) COMPRESSION='lz4';
+INSERT INTO test.tc_zlib VALUES (REPEAT('z',142857));
+INSERT INTO test.tc_lz4 VALUES (REPEAT('4',142857));
+COMMIT;
+FLUSH TABLES test.tc_zlib, test.tc_lz4 WITH READ LOCK;
+UNLOCK TABLES;
+test/tc_lz4 is compressed
+test/tc_zlib is compressed
+ALTER TABLE test.tc_zlib COMPRESSION='none';
+ALTER TABLE test.tc_lz4 COMPRESSION='none';
+FLUSH TABLES test.tc_zlib, test.tc_lz4 WITH READ LOCK;
+UNLOCK TABLES;
+test/tc_lz4 is compressed
+test/tc_zlib is compressed
+OPTIMIZE TABLE test.tc_zlib;
+Table	Op	Msg_type	Msg_text
+test.tc_zlib	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.tc_zlib	optimize	status	OK
+OPTIMIZE TABLE test.tc_lz4;
+Table	Op	Msg_type	Msg_text
+test.tc_lz4	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.tc_lz4	optimize	status	OK
+FLUSH TABLES test.tc_zlib, test.tc_lz4 WITH READ LOCK;
+UNLOCK TABLES;
+test/tc_lz4 is not compressed
+test/tc_zlib is not compressed
+ALTER TABLE test.tc_zlib COMPRESSION='lz4';
+ALTER TABLE test.tc_lz4 COMPRESSION='zlib';
+FLUSH TABLES test.tc_zlib, test.tc_lz4 WITH READ LOCK;
+UNLOCK TABLES;
+test/tc_lz4 is not compressed
+test/tc_zlib is not compressed
+OPTIMIZE TABLE test.tc_zlib;
+Table	Op	Msg_type	Msg_text
+test.tc_zlib	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.tc_zlib	optimize	status	OK
+OPTIMIZE TABLE test.tc_lz4;
+Table	Op	Msg_type	Msg_text
+test.tc_lz4	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.tc_lz4	optimize	status	OK
+FLUSH TABLES test.tc_zlib, test.tc_lz4 WITH READ LOCK;
+UNLOCK TABLES;
+test/tc_lz4 is compressed
+test/tc_zlib is compressed
+ALTER TABLE test.tc_zlib COMPRESSION='zlib';
+ALTER TABLE test.tc_lz4 COMPRESSION='lz4';
+FLUSH TABLES test.tc_zlib, test.tc_lz4 WITH READ LOCK;
+UNLOCK TABLES;
+test/tc_lz4 is compressed
+test/tc_zlib is compressed
+OPTIMIZE TABLE test.tc_zlib;
+Table	Op	Msg_type	Msg_text
+test.tc_zlib	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.tc_zlib	optimize	status	OK
+OPTIMIZE TABLE test.tc_lz4;
+Table	Op	Msg_type	Msg_text
+test.tc_lz4	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.tc_lz4	optimize	status	OK
+FLUSH TABLES test.tc_zlib, test.tc_lz4 WITH READ LOCK;
+UNLOCK TABLES;
+test/tc_lz4 is compressed
+test/tc_zlib is compressed
+CREATE TABLESPACE tbs1 ADD DATAFILE 'LOCATION' ENGINE InnoDB;
+CREATE TABLESPACE tbs2k ADD DATAFILE 'LOCATION' OPTIONAL_FILE_BLOCK_SIZE_CLAUSE;
+CREATE TABLE test.t1 (x INTEGER) COMPRESSION='zlib' TABLESPACE=innodb_system;
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+CREATE TABLE test.t1 (x INTEGER) COMPRESSION='zlib' TABLESPACE=tbs1;
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+CREATE TABLE test.t1 (x INTEGER) COMPRESSION='lz4' TABLESPACE=tbs2k;
+Got one of the listed errors
+CREATE TABLE test.t1 (x INTEGER) KEY_BLOCK_SIZE=2 COMPRESSION='lz4' TABLESPACE=tbs2k;
+Got one of the listed errors
+SET GLOBAL innodb_file_per_table=0;
+CREATE TABLE test.t1 (x INTEGER) COMPRESSION='lz4' TABLESPACE=innodb_file_per_table;
+ALTER TABLE test.t1 COMPRESSION='zlib' TABLESPACE=innodb_file_per_table;
+DROP TABLE test.t1;
+SET GLOBAL innodb_file_per_table=1;
+ALTER TABLE test.tc_lz4 TABLESPACE=innodb_system;
+Warnings:
+Warning	138	InnoDB: Cannot compress pages of shared tablespaces
+ALTER TABLE test.tc_zlib TABLESPACE=innodb_file_per_table;
+ALTER TABLE test.tc_lz4 TABLESPACE=innodb_file_per_table;
+FLUSH TABLES test.tc_zlib, test.tc_lz4 WITH READ LOCK;
+UNLOCK TABLES;
+test/tc_lz4 is compressed
+test/tc_zlib is compressed
+CREATE TABLE test.t1 (x INTEGER) KEY_BLOCK_SIZE=2 COMPRESSION='lz4';
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+CREATE TABLE test.t1 (x INTEGER) KEY_BLOCK_SIZE=1 ROW_FORMAT=COMPRESSED COMPRESSION='zlib';
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SET SESSION innodb_strict_mode=0;
+CREATE TABLE test.tk1 (x LONGTEXT) KEY_BLOCK_SIZE=1 ROW_FORMAT=COMPRESSED COMPRESSION='none';
+SET SESSION innodb_strict_mode=1;
+DROP TABLE IF EXISTS test.tk1;
+CREATE TABLE test.ttbs1 (x LONGTEXT) TABLESPACE=tbs1;
+CREATE TABLE test.t1 (x LONGTEXT) TABLESPACE=innodb_file_per_table;
+SET SESSION autocommit=1;
+INSERT INTO test.tc_lz4 VALUES (REPEAT('4',142857));
+INSERT INTO test.tc_zlib VALUES (REPEAT('z',142857));
+INSERT INTO test.t1 VALUES (REPEAT('1',142857));
+INSERT INTO test.ttbs1 VALUES (REPEAT('s',142857));
+DELETE FROM test.tc_lz4;
+DELETE FROM test.ttbs1;
+ROLLBACK;
+INSERT INTO test.tc_lz4 VALUES (REPEAT('4',142857));
+INSERT INTO test.tc_zlib VALUES (REPEAT('z',142857));
+INSERT INTO test.ttbs1 VALUES (REPEAT('s',142857));
+INSERT INTO test.t1 VALUES (REPEAT('11',142857));
+COMMIT;
+FLUSH TABLES test.t1, test.tc_lz4, test.tc_zlib WITH READ LOCK;
+UNLOCK TABLES;
+FLUSH ENGINE LOGS;
+FLUSH TABLES;
+test/tc_lz4 is compressed
+test/tc_zlib is compressed
+DROP TABLE IF EXISTS test.tc_zlib;
+DROP TABLE IF EXISTS test.tc_lz4;
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.ttbs1;
+DROP TABLESPACE tbs1;
+DROP TABLESPACE tbs2k;
+SET GLOBAL innodb_file_per_table=1;
