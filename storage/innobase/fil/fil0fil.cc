@@ -6572,16 +6572,10 @@ fil_set_compression(
 			srv_debug_compress);
 
 		switch (compression.m_type) {
+		case Compression::LZ4:
 		case Compression::NONE:
 		case Compression::ZLIB:
 			break;
-
-		case Compression::LZ4:
-#ifndef HAVE_LZ4
-			ib::fatal() << "LZ4 support not available";
-#else
-			break;
-#endif /* HAVE_LZ4 */
 
 		default:
 			ut_error;

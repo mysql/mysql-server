@@ -69,11 +69,8 @@ Created 10/21/1995 Heikki Tuuri
 # include <linux/falloc.h>
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
 
-#include <zlib.h>
-
-#ifdef HAVE_LZ4
 #include <lz4.h>
-#endif /* HAVE_LZ4 */
+#include <zlib.h>
 
 #ifdef UNIV_DEBUG
 /** Set when InnoDB has invoked exit(). */
@@ -266,11 +263,6 @@ struct Slot {
 
 	/** true if the fil_page_compress() was successful */
 	bool			compress_ok;
-#ifdef HAVE_LZO1X
-	byte			mem[LZO1X_1_15_MEM_COMPRESS];
-#else
-	byte*			mem;
-#endif /* HAVE_LZO1X */
 };
 
 /** The asynchronous i/o array structure */
@@ -311,7 +303,8 @@ public:
 		const char*	name,
 		void*		buf,
 		os_offset_t	offset,
-		ulint		len);
+		ulint		len)
+		__attribute__((warn_unused_result));
 
 	/** @return number of reserved slots */
 	ulint pending_io_count() const;
@@ -320,6 +313,7 @@ public:
 	@param[in]	index	Index of the slot in the array
 	@return pointer to slot */
 	const Slot* at(ulint i) const
+		__attribute__((warn_unused_result))
 	{
 		ut_a(i < m_slots.size());
 
@@ -328,6 +322,7 @@ public:
 
 	/** Non const version */
 	Slot* at(ulint i)
+		__attribute__((warn_unused_result))
 	{
 		ut_a(i < m_slots.size());
 
@@ -348,12 +343,14 @@ public:
 
 	/** @return the number of slots per segment */
 	ulint slots_per_segment() const
+		__attribute__((warn_unused_result))
 	{
 		return(m_slots.size() / m_n_segments);
 	}
 
 	/** @return accessor for n_segments */
 	ulint get_n_segments() const
+		__attribute__((warn_unused_result))
 	{
 		return(m_n_segments);
 	}
@@ -361,6 +358,7 @@ public:
 #ifdef UNIV_DEBUG
 	/** @return true if the thread owns the mutex */
 	bool is_mutex_owned() const
+		__attribute__((warn_unused_result))
 	{
 		return(mutex_own(&m_mutex));
 	}
@@ -386,12 +384,14 @@ public:
 	/** Dispatch an AIO request to the kernel.
 	@param[in,out]	slot	an already reserved slot
 	@return true on success. */
-	bool linux_dispatch(Slot* slot);
+	bool linux_dispatch(Slot* slot)
+		__attribute__((warn_unused_result));
 
 	/** Accessor for an AIO event
 	@param[in]	index	Index into the array
 	@return the event at the index */
 	io_event* io_events(ulint index)
+		__attribute__((warn_unused_result))
 	{
 		ut_a(index < m_events.size());
 
@@ -402,6 +402,7 @@ public:
 	@param[in]	segment	Segment for which to get the context
 	@return the AIO context for the segment */
 	io_context* io_ctx(ulint segment)
+		__attribute__((warn_unused_result))
 	{
 		ut_ad(segment < get_n_segments());
 
@@ -412,14 +413,16 @@ public:
 	@param[in]	max_events	number of events
 	@param[out]	io_ctx		io_ctx to initialize.
 	@return true on success. */
-	static bool linux_create_io_ctx(ulint max_events, io_context_t* io_ctx);
+	static bool linux_create_io_ctx(ulint max_events, io_context_t* io_ctx)
+		__attribute__((warn_unused_result));
 
 	/** Checks if the system supports native linux aio. On some kernel
 	versions where native aio is supported it won't work on tmpfs. In such
 	cases we can't use native aio as it is not possible to mix simulated
 	and native aio.
 	@return true if supported, false otherwise. */
-	static bool is_linux_native_aio_supported();
+	static bool is_linux_native_aio_supported()
+		__attribute__((warn_unused_result));
 #endif /* LINUX_NATIVE_AIO */
 
 #ifdef WIN_ASYNC_IO
@@ -461,6 +464,7 @@ public:
 	/** The non asynchronous IO array.
 	@return the synchronous AIO array instance. */
 	static AIO* sync_array()
+		__attribute__((warn_unused_result));
 	{
 		return(s_sync);
 	}
@@ -470,6 +474,7 @@ public:
 	@param[in]	segment		The local segment.
 	@return the handles for the segment. */
 	HANDLE* handles(ulint segment)
+		__attribute__((warn_unused_result))
 	{
 		ut_ad(segment < m_handles->size() / slots_per_segment());
 
@@ -478,6 +483,7 @@ public:
 
 	/** @return true if no slots are reserved */
 	bool is_empty() const
+		__attribute__((warn_unused_result))
 	{
 		ut_ad(is_mutex_owned());
 		return(m_n_reserved == 0);
@@ -488,7 +494,8 @@ public:
 	@param[in]	n_slots		The number of AIO request slots
 	@param[in]	segments	The number of segments
 	@return a new AIO instance */
-	static AIO* create(ulint n_slots, ulint segments);
+	static AIO* create(ulint n_slots, ulint segments)
+		__attribute__((warn_unused_result));
 
 	/** Initializes the asynchronous io system. Creates one array each
 	for ibuf and log I/O. Also creates one array each for read and write
@@ -506,7 +513,8 @@ public:
 		ulint		n_per_seg,
 		ulint		n_readers,
 		ulint		n_writers,
-		ulint		n_slots_sync);
+		ulint		n_slots_sync)
+		__attribute__((warn_unused_result));
 
 	/** Free the AIO arrays */
 	static void shutdown();
@@ -522,7 +530,8 @@ public:
 	@return local segment number within the aio array */
 	static ulint get_array_and_local_segment(
 		AIO**		array,
-		ulint		segment);
+		ulint		segment)
+		__attribute__((warn_unused_result));
 
 	/** Select the IO slot array
 	@param[in]	type		Type of IO, READ or WRITE
@@ -532,7 +541,8 @@ public:
 	static AIO* select_slot_array(
 		IORequest&	type,
 		bool		read_only,
-		ulint		mode);
+		ulint		mode)
+		__attribute__((warn_unused_result));
 
 	/** Calculates segment number for a slot.
 	@param[in]	array		AIO wait array
@@ -541,7 +551,8 @@ public:
 		I/O handler threads) */
 	static ulint get_segment_no_from_slot(
 		const AIO*	array,
-		const Slot*	slot);
+		const Slot*	slot)
+		__attribute__((warn_unused_result));
 
 	/** Wakes up a simulated AIO I/O-handler thread if it has something
 	to do.
@@ -553,6 +564,7 @@ public:
 	@param[in]	aio		The AIO instance to check
 	@return true if the AIO instance is for reading. */
 	static bool is_read(const AIO* aio)
+		__attribute__((warn_unused_result))
 	{
 		return(s_reads == aio);
 	}
@@ -567,14 +579,16 @@ public:
 	@param[in]	file		File to write to */
 	static void print_to_file(FILE* file);
 
-	/** Check for pending IO.
+	/** Check for pending IO. Gets the count and also validates the
+	data structures.
 	@return count of pending IO requests */
 	static ulint total_pending_io_count();
 
 private:
 	/** Initialise the slots
 	@return DB_SUCCESS or error code */
-	dberr_t init_slots();
+	dberr_t init_slots()
+		__attribute__((warn_unused_result));
 
 	/** Wakes up a simulated AIO I/O-handler thread if it has something
 	to do for a local segment in the AIO array.
@@ -596,7 +610,8 @@ private:
 #ifdef LINUX_NATIVE_AIO
 	/** Initialise the Linux native AIO data structures
 	@return DB_SUCCESS or error code */
-	dberr_t init_linux_native_aio();
+	dberr_t init_linux_native_aio()
+		__attribute__((warn_unused_result));
 #endif /* LINUX_NATIVE_AIO */
 
 private:
@@ -1146,7 +1161,6 @@ AIO::pending_io_count() const
 @param[in]	src_len		Length in bytes of the source
 @param[out]	dst		Compressed page contents
 @param[out]	dst_len		Length in bytes of dst contents
-@param[in,out]	mem		Only used if HAVE_LZO1X is defined
 @return buffer data, dst_len will have the length of the data */
 static
 byte*
@@ -1156,8 +1170,7 @@ os_file_compress_page(
 	byte*		src,
 	ulint		src_len,
 	byte*		dst,
-	ulint*		dst_len,
-	byte*		mem)
+	ulint*		dst_len)
 {
 	ulint		len = 0;
 	ulint		compression_level = page_zip_level;
@@ -1224,7 +1237,6 @@ os_file_compress_page(
 		break;
 	}
 
-#ifdef HAVE_LZ4
 	case Compression::LZ4:
 		len = LZ4_compress_limitedOutput(
 			reinterpret_cast<char*>(src) + FIL_PAGE_DATA,
@@ -1242,7 +1254,6 @@ os_file_compress_page(
 		}
 
 		break;
-#endif /* HAVE_LZ4 */
 
 	default:
 		*dst_len = src_len;
@@ -1802,10 +1813,10 @@ os_file_create_subdirs_if_needed(
 static
 byte*
 os_file_compress_page(
-	IORequest&	type,
-	void*&		buf,
-	ulint*		n,
-	dberr_t*	err)
+	const IORequest&	type,
+	void*&			buf,
+	ulint*			n,
+	dberr_t*		err)
 {
 	ut_ad(!type.is_log());
 	ut_ad(type.is_write());
@@ -1815,9 +1826,8 @@ os_file_compress_page(
 
 	ulint	n_alloc = *n * 2;
 
-#ifdef HAVE_LZ4
-	ut_a((ulint) LZ4_COMPRESSBOUND(*n) < n_alloc);
-#endif /* HAVE_LZ4 */
+	ut_a(type.compression_algorithm().m_type != Compression::LZ4
+	     || static_cast<ulint>(LZ4_COMPRESSBOUND(*n)) < n_alloc);
 
 	byte*	ptr = reinterpret_cast<byte*>(ut_malloc_nokey(n_alloc));
 
@@ -1840,12 +1850,6 @@ os_file_compress_page(
 			old_compressed_len + FIL_PAGE_DATA,
 			type.block_size());
 
-#ifdef HAVE_LZO1X
-		byte	mem[LZO1X_1_15_MEM_COMPRESS];
-#else
-		byte*	mem = NULL;
-#endif /* HAVE_LZO1X */
-
 		byte*	compressed_page;
 
 		compressed_page = static_cast<byte*>(
@@ -1859,8 +1863,7 @@ os_file_compress_page(
 			reinterpret_cast<byte*>(buf),
 			*n,
 			compressed_page,
-			&compressed_len,
-			mem);
+			&compressed_len);
 
 		bool	compressed = buf_ptr != buf;
 
@@ -5252,7 +5255,7 @@ os_file_pwrite(
 @param[in]	offset		file offset from the start where to read
 @param[in]	n		number of bytes to read, starting from offset
 @return DB_SUCCESS if request was successful, false if fail */
-static
+static __attribute__((warn_unused_result))
 dberr_t
 os_file_write_page(
 	IORequest&	type,
@@ -5337,7 +5340,7 @@ os_file_pread(
 @param[out]	o		number of bytes actually read
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS or error code */
-static
+static __attribute__((warn_unused_result))
 dberr_t
 os_file_read_page(
 	IORequest&	type,
@@ -5438,7 +5441,7 @@ and the error type, if should_exit is true then on_error_silent is ignored.
 @param[in]	on_error_silent	if true then don't print any message to the log
 				iff it is an unknown non-fatal error
 @return true if we should retry the operation */
-static
+static __attribute__((warn_unused_result))
 bool
 os_file_handle_error_cond_exit(
 	const char*	name,
@@ -5525,7 +5528,7 @@ os_file_handle_error_cond_exit(
 @param[in]	name		name of a file or NULL
 @param[in]	operation	operation name that failed
 @return true if we should retry the operation */
-static
+static __attribute__((warn_unused_result))
 bool
 os_file_handle_error(
 	const char*	name,
@@ -5540,7 +5543,7 @@ os_file_handle_error(
 @param[in]	operation	operation name that failed
 @param[in]	on_error_silent	if true then don't print any message to the log.
 @return true if we should retry the operation */
-static
+static __attribute__((warn_unused_result))
 bool
 os_file_handle_error_no_exit(
 	const char*	name,
@@ -6578,7 +6581,7 @@ AIO::reserve_slot(
 			reinterpret_cast<byte*>(buf),
 			slot->len,
 			slot->compressed_page,
-			&compressed_len, slot->mem);
+			&compressed_len);
 
 		if (ptr != buf) {
 			len = compressed_len;
@@ -7224,6 +7227,7 @@ public:
 	all data, and perform the I/O
 	@return the length of the buffer */
 	ulint allocate_buffer()
+		__attribute__((warn_unused_result))
 	{
 		ulint	len;
 		Slot*	slot = first_slot();
@@ -7313,6 +7317,7 @@ public:
 
 	/** @return the first slot in the consecutive array */
 	Slot* first_slot()
+		__attribute__((warn_unused_result))
 	{
 		ut_a(m_n_elems > 0);
 
@@ -7325,7 +7330,8 @@ public:
 	@return the number of slots */
 	ulint check_pending(
 		ulint		global_segment,
-		os_event_t	event);
+		os_event_t	event)
+		__attribute__((warn_unused_result));
 private:
 
 	/** Do the file read
@@ -7704,6 +7710,7 @@ static
 bool
 os_aio_validate()
 {
+	/* The methods countds and validates, we ignore the count. */
 	AIO::total_pending_io_count();
 
 	return(true);
@@ -7990,11 +7997,8 @@ os_file_set_umask(ulint umask)
 #include "fil0fil.h"
 #include "os0file.h"
 
-#include <zlib.h>
-
-#ifdef HAVE_LZ4
 #include <lz4.h>
-#endif /* HAVE_LZ4 */
+#include <zlib.h>
 
 #endif /* !UNIV_INNOCHECKSUM */
 
@@ -8155,7 +8159,6 @@ Compression::deserialize(
 		break;
 	}
 
-#ifdef HAVE_LZ4
 	case Compression::LZ4:
 		if (LZ4_decompress_fast(
 			reinterpret_cast<char*>(ptr),
@@ -8167,7 +8170,6 @@ Compression::deserialize(
 
 			return(DB_IO_DECOMPRESS_FAIL);
 		}
-#endif /* HAVE_LZ4 */
 		break;
 
 	default:
@@ -8210,7 +8212,6 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 @param[in,out]	dst		Scratch area to use for decompression
 @param[in]	dst_len		Size of the scratch area in bytes
 @return DB_SUCCESS or error code */
-
 dberr_t
 os_file_decompress_page(
 	byte*		src,

@@ -1419,12 +1419,6 @@ innobase_start_or_create_for_mysql(void)
 	}
 #endif /* HAVE_LZO1X */
 
-#ifdef HAVE_LZ4
-	ib::info() << "LZ4 support available";
-#else
-	ib::info() << "LZ4 support not available";
-#endif /* HAVE_LZ4 */
-
 #ifdef UNIV_LINUX
 # ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
 	ib::info() << "PUNCH HOLE support available";

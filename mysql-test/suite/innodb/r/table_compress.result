@@ -149,6 +149,8 @@ WHERE NAME LIKE '%t1';
 NAME	COMPRESSION
 test/t1	None
 DROP TABLE t1;
+CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='NONE';
+DROP TABLE t1;
 SET GLOBAL INNODB_FILE_PER_TABLE = 0;
 CREATE TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="zlib";
 ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
@@ -182,4 +184,10 @@ Warning	138	InnoDB: Compression not supported for temporary tables
 Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
 SHOW CREATE TABLE t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
+CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='ZLIB';
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='LZ4';
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='BLAH';
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
 SET GLOBAL INNODB_FILE_PER_TABLE=1;
