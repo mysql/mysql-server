@@ -106,7 +106,7 @@ F	-1	Beijing-Signed-BIGINT
 H	4	Norderstedt
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY c2 SMALLINT;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 4

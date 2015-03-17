@@ -1,0 +1,25 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY,
+msg_prefix VARCHAR(255),
+msg longtext,
+msg_length int,
+msg_checksum varchar(128),
+KEY msg_i(msg_prefix))
+ENGINE=INNODB;
+call mtr.add_suppression(".*");
+Wait for reconnect
+Checksum master
+stop slave;
+start slave;
+Checksum slave
+DROP TABLE t1;
+stop slave;
+start slave;
+include/stop_slave.inc
+include/start_slave.inc
+include/stop_slave.inc

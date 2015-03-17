@@ -1355,7 +1355,7 @@ a
 delete from t2;
 255 inserts;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 select count(*) from t2;
