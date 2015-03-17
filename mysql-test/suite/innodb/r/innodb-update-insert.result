@@ -25,7 +25,7 @@ drop table t1;
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (f1 char(1), f2 longblob, f3 blob, primary key(f1))
 charset=utf8 engine=innodb;
 replace into t1 set f1=0xa3;

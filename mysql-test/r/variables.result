@@ -1540,7 +1540,7 @@ SET @kcbs=@@global.key_cache_block_size;
 throw errors in STRICT mode
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@global.max_binlog_cache_size=-1;
 ERROR 42000: Variable 'max_binlog_cache_size' can't be set to the value of '-1'
 SET @@global.max_join_size=0;

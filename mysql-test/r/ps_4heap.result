@@ -1179,7 +1179,7 @@ c29= 'longblob', c30= 'longtext', c31='two', c32= 'tuesday';
 commit ;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 prepare stmt1 from 'delete from t1 where a=2' ;
 execute stmt1;
 select a,b from t1 where a=2;
@@ -1710,7 +1710,7 @@ a	b
 drop table t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t5 ;
 set @arg01= 8;
 set @arg02= 8.0;

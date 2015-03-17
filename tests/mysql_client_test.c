@@ -14120,7 +14120,7 @@ static void test_bug21246()
 
   len = mysql_real_escape_string_quote(mysql, out, "`a'b\\c`", 7, '`');
   DIE_UNLESS(len == 9);
-  DIE_UNLESS(memcmp(out, "`a\\'b\\\\c`", len) == 0);
+  DIE_UNLESS(memcmp(out, "``a'b\\c``", len) == 0);
 
   len = mysql_real_escape_string_quote(mysql, out, "`a'b\\c\"", 7, '"');
   DIE_UNLESS(len == 10);
@@ -19960,6 +19960,224 @@ static void test_wl8016()
   mysql_free_result(result);
 }
 
+struct execute_test_query
+{
+  const char *create;
+  const char *select;
+  const char *drop;
+};
+
+/**
+  test_bug20645725 helper function
+*/
+static void execute_and_test(struct execute_test_query *query, char quote,
+                             int result, const char* string,
+                             const char* expected, my_bool recursive)
+{
+  MYSQL_STMT *stmt;
+  const char *stmt_text;
+  int rc;
+  MYSQL_BIND my_bind[1];
+  char query_buffer[100];
+  char param_buffer[50];
+  char buff[50];
+  ulong length;
+
+  sprintf(param_buffer, "%c%s%c", quote, string, quote);
+  sprintf(query_buffer, query->create, param_buffer);
+
+  rc = mysql_real_query(mysql, query_buffer, (ulong)strlen(query_buffer));
+  DIE_UNLESS(rc == result);
+  if (result != 0) return;
+  myquery(rc);
+
+  stmt = mysql_stmt_init(mysql);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer = buff;
+  my_bind[0].length = &length;
+  my_bind[0].buffer_length = (ulong)sizeof(buff);
+  my_bind[0].buffer_type = MYSQL_TYPE_STRING;
+
+  mysql_stmt_bind_param(stmt, my_bind);
+
+  stmt_text = query->select;
+  rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
+  check_execute(stmt, rc);
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  mysql_stmt_bind_result(stmt, my_bind);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+  DIE_UNLESS(length == (ulong)strlen(expected));
+  DIE_UNLESS(strcmp(buff, expected) == 0);
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+
+  sprintf(query_buffer, query->drop, param_buffer);
+
+  rc = mysql_real_query(mysql, query_buffer, (ulong)strlen(query_buffer));
+  myquery(rc);
+
+  if (recursive != 0)
+  {
+    length = mysql_real_escape_string_quote(mysql, param_buffer, expected,
+                                            (ulong)strlen(expected), quote);
+    DIE_UNLESS(length != (ulong)-1);
+
+    execute_and_test(query, quote, result, param_buffer, expected, 0);
+  }
+}
+
+/**
+  BUG#20645725 GRAVE ACCENT CHARACTER (`) IS NOT FOLLOWED WITH BACKSLASH
+               WHEN ESCAPING IT
+*/
+static void test_bug20645725()
+{
+  const char *stmt_text;
+  const char *modes[2];
+  struct execute_test_query query;
+  int rc;
+  int i;
+
+  myheader("test_bug20645725");
+
+  stmt_text = "DROP DATABASE IF EXISTS supertest";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "CREATE DATABASE supertest";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "USE supertest";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "DROP TABLE IF EXISTS t1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+  stmt_text = "CREATE TABLE t1 (a TEXT)";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  modes[0]= "SET sql_mode=''";
+  modes[1]= "SET sql_mode='ANSI_QUOTES'";
+
+  query.create= "INSERT INTO t1 VALUES(%s)";
+  query.drop= "DELETE FROM t1; -- %s";
+  query.select= "SELECT a FROM t1";
+
+  for (i = 0; i < (int)(sizeof(modes)/sizeof(modes[0])); i++)
+  {
+    rc = mysql_real_query(mysql, modes[i], (ulong)strlen(modes[i]));
+    myquery(rc);
+
+    execute_and_test(&query, '\'', 0, "aaa",       "aaa",   1);
+    execute_and_test(&query, '\'', 0, "a\\'",      "a'",    1);
+    execute_and_test(&query, '\'', 0, "''",        "'",     1);
+    execute_and_test(&query, '\'', 0, "a''",       "a'",    1);
+    execute_and_test(&query, '\'', 0, "a''b",      "a'b",   1);
+    execute_and_test(&query, '\'', 0, "a\\'''\\'", "a'''",  1);
+    execute_and_test(&query, '\'', 0, "a\\`",      "a`",    1);
+    execute_and_test(&query, '\'', 0, "a\\n",      "a\n",   1);
+    execute_and_test(&query, '\'', 0, "a``",       "a``",   1);
+    execute_and_test(&query, '\'', 0, "a\\``\\`",  "a```",  1);
+    execute_and_test(&query, '\'', 0, "b\"",       "b\"",   1);
+    execute_and_test(&query, '\'', 0, "b\"\"",     "b\"\"", 1);
+    execute_and_test(&query, '\'', 0, "b\"\"",     "b\"\"", 1);
+    execute_and_test(&query, '\'', 0, "b\\$",      "b$",    1);
+    execute_and_test(&query, '\'', 0, "b\\\\\"",   "b\\\"", 1);
+    execute_and_test(&query, '\'', 0, "b\\\"\"",   "b\"\"", 1);
+    execute_and_test(&query, '"',  i, "b\\\"\"\"", "b\"\"", 1);
+    execute_and_test(&query, '"',  i, "d\\'e",     "d'e",   1);
+    execute_and_test(&query, '`',  1, "",          "",      0);
+  }
+
+  modes[0]= "SET sql_mode='NO_BACKSLASH_ESCAPES'";
+  modes[1]= "SET sql_mode='NO_BACKSLASH_ESCAPES,ANSI_QUOTES'";
+
+  for (i = 0; i < (int)(sizeof(modes)/sizeof(modes[0])); i++)
+  {
+    rc = mysql_real_query(mysql, modes[i], (ulong)strlen(modes[i]));
+    myquery(rc);
+
+    execute_and_test(&query, '\'', 0, "aaa",       "aaa",      1);
+    execute_and_test(&query, '\'', 1, "a\\'",      "",         0);
+    execute_and_test(&query, '\'', 0, "''",        "'",        1);
+    execute_and_test(&query, '\'', 0, "a''",       "a'",       1);
+    execute_and_test(&query, '\'', 0, "a''b",      "a'b",      1);
+    execute_and_test(&query, '\'', 1, "a\\'''\\'", "",         0);
+    execute_and_test(&query, '\'', 0, "a\\`",      "a\\`",     1);
+    execute_and_test(&query, '\'', 0, "a\\n",      "a\\n",     1);
+    execute_and_test(&query, '\'', 0, "a``",       "a``",      1);
+    execute_and_test(&query, '\'', 0, "a\\``\\`",  "a\\``\\`", 1);
+    execute_and_test(&query, '\'', 0, "b\"",       "b\"",      1);
+    execute_and_test(&query, '\'', 0, "b\"\"",     "b\"\"",    1);
+    execute_and_test(&query, '\'', 0, "b\\$",      "b\\$",     1);
+    execute_and_test(&query, '\'', 0, "b\\\\\"",   "b\\\\\"",  1);
+    execute_and_test(&query, '\'', 0, "b\\\"\"",   "b\\\"\"",  1);
+    execute_and_test(&query, '"',  1, "b\\\"\"\"", "",         0);
+    execute_and_test(&query, '"',  i, "d\\'e",     "d\\'e",    1);
+    execute_and_test(&query, '`',  1, "",          "",         1);
+  }
+
+  stmt_text = "DROP TABLE t1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "SET sql_mode=''";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  query.create= "CREATE TABLE %s (a INT)";
+  query.drop= "DROP TABLE %s";
+  query.select= "SHOW TABLES";
+
+  execute_and_test(&query, '`', 0, "ccc",     "ccc",     1);
+  execute_and_test(&query, '`', 0, "c``cc",   "c`cc",    1);
+  execute_and_test(&query, '`', 0, "c'cc",    "c'cc",    1);
+  execute_and_test(&query, '`', 0, "c''cc",   "c''cc",   1);
+  execute_and_test(&query, '`', 1, "c\\`cc",  "",        0);
+  execute_and_test(&query, '`', 0, "c\"cc",   "c\"cc",   1);
+  execute_and_test(&query, '`', 0, "c\\\"cc", "c\\\"cc", 1);
+  execute_and_test(&query, '`', 0, "c\"\"cc", "c\"\"cc", 1);
+
+  stmt_text = "SET sql_mode='ANSI_QUOTES'";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  execute_and_test(&query, '"', 0, "a\"\"a", "a\"a",   0);
+  execute_and_test(&query, '"', 1, "a\\\"b", "",       0);
+  execute_and_test(&query, '"', 0, "c\\'cc", "c\\'cc", 0);
+
+  modes[0]= "SET sql_mode='NO_BACKSLASH_ESCAPES'";
+  modes[1]= "SET sql_mode='NO_BACKSLASH_ESCAPES,ANSI_QUOTES'";
+
+  for (i = 0; i < (int)(sizeof(modes)/sizeof(modes[0])); i++)
+  {
+    rc = mysql_real_query(mysql, modes[i], (ulong)strlen(modes[i]));
+    myquery(rc);
+
+    execute_and_test(&query, '`', 0, "ccc",     "ccc",     1);
+    execute_and_test(&query, '`', 0, "c``cc",   "c`cc",    1);
+    execute_and_test(&query, '`', 0, "c'cc",    "c'cc",    1);
+    execute_and_test(&query, '`', 0, "c''cc",   "c''cc",   1);
+    execute_and_test(&query, '`', 1, "c\\`cc",  "",        0);
+    execute_and_test(&query, '`', 0, "c\"cc",   "c\"cc",   1);
+    execute_and_test(&query, '`', 0, "c\\\"cc", "c\\\"cc", 1);
+    execute_and_test(&query, '`', 0, "c\"\"cc", "c\"\"cc", 1);
+  }
+
+  stmt_text = "DROP DATABASE supertest";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+}
 
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
@@ -20240,6 +20458,7 @@ static struct my_tests_st my_tests[]= {
 #endif
   { "test_bug17512527", test_bug17512527},
   { "test_wl8016", test_wl8016},
+  { "test_bug20645725", test_bug20645725 },
   { 0, 0 }
 };
 

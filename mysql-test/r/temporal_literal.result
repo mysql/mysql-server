@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS t1, t2;
 SET NAMES latin1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Testing DATE literals
 #
@@ -284,7 +284,7 @@ Note	1003	/* select#1 */ select TIMESTAMP'2010-01-01 10:10:10' AS `TIMESTAMP'201
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT TIMESTAMP'2001-00-00 00:00:00.999999';
 TIMESTAMP'2001-00-00 00:00:00.999999'
 2001-00-00 00:00:00.999999

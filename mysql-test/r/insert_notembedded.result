@@ -15,13 +15,13 @@ INSERT INTO  table_source VALUES ('XXXX','2006-07-12 07:50:00');
 SET @orig_sql_mode= @@sql_mode;
 SET sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT  SELECT                ON table_source    TO   user20989@localhost;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET sql_mode= @orig_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT  SELECT                ON table_countries TO   user20989@localhost;
 GRANT  SELECT                ON table_stations  TO   user20989@localhost;
 GRANT  SELECT                ON view_stations   TO   user20989@localhost;

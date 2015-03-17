@@ -1,7 +1,7 @@
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 set sql_mode=no_engine_substitution;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set default_storage_engine = InnoDB;
 set autocommit=1;
 drop table if exists t1;
@@ -337,7 +337,7 @@ drop procedure if exists p_verify_status_increment;
 set @binlog_format=@@global.binlog_format;
 set sql_mode=no_engine_substitution;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a int unique);
 create table t2 (a int) engine=myisam;
 set sql_mode=default;
@@ -632,7 +632,7 @@ SUCCESS
 drop table t2;
 set sql_mode=no_engine_substitution;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create temporary table t2 (a int);
 call p_verify_status_increment(1, 0, 0, 0);
 SUCCESS

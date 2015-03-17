@@ -13,7 +13,7 @@ create table t3(a varchar(100));
 insert into t3 values("first");
 SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure p1() sql security definer
 begin
 declare b int;
@@ -753,7 +753,7 @@ user1@localhost
 set optimizer_trace="enabled=on";
 SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure p1() sql security definer
 begin
 declare b int;
@@ -1124,7 +1124,7 @@ show create view v1;
 ERROR 42000: SHOW VIEW command denied to user 'user1'@'localhost' for table 'v1'
 SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 user1 creates a procedure
 create procedure proc() sql security definer
 begin

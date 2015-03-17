@@ -655,11 +655,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   execute_ddl_log_recovery();
 
-  /* Signal successful initialization */
-  mysql_mutex_lock(&LOCK_server_started);
-  mysqld_server_started= true;
-  mysql_cond_broadcast(&COND_server_started);
-  mysql_mutex_unlock(&LOCK_server_started);
+  start_processing_signals();
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* engine specific hook, to be made generic */
