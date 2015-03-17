@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,9 +36,10 @@ Created 12/13/1995 Heikki Tuuri
 @param[in]	space		space id
 @param[in]	page_size	page size
 @param[in]	addr		file address
-@param[in]	rw_latch	RW_S_LATCH, RW_X_LATCH
+@param[in]	rw_latch	RW_S_LATCH, RW_X_LATCH, RW_SX_LATCH
+@param[out]	ptr_block	file page
 @param[in,out]	mtr		mini-transaction
-@return pointer to a byte in a frame; the file page in the frame is
+@return pointer to a byte in (*ptr_block)->frame; the *ptr_block is
 bufferfixed and latched */
 UNIV_INLINE
 byte*
@@ -46,8 +47,10 @@ fut_get_ptr(
 	ulint			space,
 	const page_size_t&	page_size,
 	fil_addr_t		addr,
-	ulint			rw_latch,
-	mtr_t*			mtr);
+	rw_lock_type_t		rw_latch,
+	mtr_t*			mtr,
+	buf_block_t**		ptr_block = NULL)
+	__attribute__((warn_unused_result));
 
 #ifndef UNIV_NONINL
 #include "fut0fut.ic"
