@@ -4298,15 +4298,20 @@ static Sys_var_mybool Sys_enforce_gtid_consistency(
 
 static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
        "binlog_gtid_simple_recovery",
-       "If this option is enabled, the server does not scan more than one "
-       "binary log for every iteration when initializing GTID sets on server "
-       "restart. Enabling this option is very useful when restarting a server "
-       "which has already generated lots of binary logs without GTID events. "
-       "Note: If this option is enabled, GLOBAL.GTID_EXECUTED and "
-       "GLOBAL.GTID_PURGED cannot be initialized correctly if binary log(s) "
-       "with GTID events were generated before binary log(s) without GTID "
-       "events, for example if gtid_mode is disabled when the server has "
-       "already generated binary log(s) with GTID events and not purged them.",
+       "If this option is enabled, the server does not open more than "
+       "two binary logs when initializing GTID_PURGED and "
+       "GTID_EXECUTED, either during server restart or when binary "
+       "logs are being purged. Enabling this option is useful when "
+       "the server has already generated many binary logs without "
+       "GTID events (e.g., having GTID_MODE = OFF). Note: If this "
+       "option is enabled, GLOBAL.GTID_EXECUTED and "
+       "GLOBAL.GTID_PURGED may be initialized wrongly in two cases: "
+       "(1) GTID_MODE was ON for some binary logs but OFF for the "
+       "newest binary log. (2) SET GTID_PURGED was issued after the "
+       "oldest existing binary log was generated. If a wrong set is "
+       "computed in one of case (1) or case (2), it will remain "
+       "wrong even if the server is later restarted with this option "
+       "disabled.",
        READ_ONLY GLOBAL_VAR(binlog_gtid_simple_recovery),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
