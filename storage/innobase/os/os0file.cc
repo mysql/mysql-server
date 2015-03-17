@@ -1549,6 +1549,7 @@ os_file_io_complete(
 
 	} else if (type.punch_hole()) {
 
+		ut_ad(len < src_len);
 		ut_ad(!type.is_log());
 		ut_ad(type.is_write());
 		ut_ad(type.is_compressed());
@@ -1562,6 +1563,10 @@ os_file_io_complete(
 		const ulint	block_size = type.block_size();
 #endif /* UNIV_DEBUG */
 
+		/* We don't support multiple page sizes in the server
+		at the moment. */
+		ut_ad(src_len == srv_page_size);
+
 		/* Must be a multiple of the compression unit size. */
 		ut_ad((len % block_size) == 0);
 		ut_ad((offset % block_size) == 0);
@@ -1570,7 +1575,7 @@ os_file_io_complete(
 
 		offset += len;
 
-		return(os_file_punch_hole(fh, offset, len));
+		return(os_file_punch_hole(fh, offset, src_len - len));
 	}
 
 	ut_ad(!type.is_log());
