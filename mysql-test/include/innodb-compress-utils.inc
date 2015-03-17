@@ -65,7 +65,7 @@ sub table_compression_verify {
       }
 
 ### check allocated file size
-      if ($plt->[1] != (my $alloc = file_allocated_size($file,$plt->[1]))) {
+      if ($plt->[1] != (my $alloc = file_allocated_size($file))) {
           printf(
  "ERROR: %s: incorrect allocated file size %s reported by ".
  "I_S.innodb_sys_tablespaces.allocated_size, actual allocated size %s\n",
@@ -79,9 +79,16 @@ sub table_compression_verify {
 ###     2: suggested size, this is what is returned on Win for now
 ### out: file allocated size in bytes
 sub file_allocated_size {
-  my ($file,$alloc) = @_;
+  my ($file) = @_;
   if ($OSNAME eq 'MSWin32') {
-      return($alloc);
+      eval('use Win32::API');
+      my $GetCompressedFileSize = Win32::API->new(
+        "kernel32","GetCompressedFileSize",['P', 'P'], 'N')
+        or die('failed to create GetCompressedFileSize object');
+      my $hiword = pack("L", 0);
+      my $alloc =  $GetCompressedFileSize->Call($file, $hiword);
+      my $gb = unpack('L',$hiword);
+      return($alloc+$gb*4*1024**3);
   }
   my @ls = stat($file);
   return($ls[12]*512);
