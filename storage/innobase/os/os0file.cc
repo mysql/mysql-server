@@ -1560,7 +1560,7 @@ os_file_io_complete(
 
 	} else if (type.punch_hole()) {
 
-		ut_ad(len < src_len);
+		ut_ad(len <= src_len);
 		ut_ad(!type.is_log());
 		ut_ad(type.is_write());
 		ut_ad(type.is_compressed());
