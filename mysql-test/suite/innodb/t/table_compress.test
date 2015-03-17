@@ -134,7 +134,9 @@ WHERE NAME LIKE '%t1';
 DROP TABLE t1;
 
 # This should work because we have said we don't want transparent compression
+--disable_warnings
 CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='NONE';
+--enable_warnings
 DROP TABLE t1;
 
 SET GLOBAL INNODB_FILE_PER_TABLE = 0;

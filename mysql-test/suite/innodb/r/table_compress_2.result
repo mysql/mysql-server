@@ -8,11 +8,9 @@ CREATE TABLE test.tc_lz4 (t LONGTEXT) COMPRESSION='lz4';
 INSERT INTO test.tc_zlib VALUES (REPEAT('z',142857));
 INSERT INTO test.tc_lz4 VALUES (REPEAT('4',142857));
 COMMIT;
-FLUSH TABLES test.tc_zlib WITH READ LOCK;
+FLUSH TABLES test.tc_zlib, test.tc_lz4 WITH READ LOCK;
 UNLOCK TABLES;
-FLUSH TABLES test.tc_lz4 WITH READ LOCK;
-UNLOCK TABLES;
-test/tc_lz4 is compressed, or does not exist
+test/tc_lz4 is compressed
 test/tc_zlib is compressed
 DROP TABLE IF EXISTS test.tc_zlib;
 DROP TABLE IF EXISTS test.tc_lz4;
