@@ -5887,23 +5887,25 @@ static KEY* find_key_cs(const char *key_name, KEY *key_start, KEY *key_end)
 
 /**
   Check if index has changed in a new version of table (ignore
-  possible rename of index).
+  possible rename of index). Also changes to the comment field
+  of the key is marked with a flag in the ha_alter_info.
 
-  @param  alter_info  Alter_info describing the changes to table
-                      (is necessary to find correspondence between
-                      fields in old and new version of table).
-  @param  table_key   Description of key in old version of table.
-  @param  new_key     Description of key in new version of table.
+  @param[in/out]  ha_alter_info  Structure describing changes to be done
+                                 by ALTER TABLE and holding data used
+                                 during in-place alter.
+  @param          table_key      Description of key in old version of table.
+  @param          new_key        Description of key in new version of table.
 
   @returns True - if index has changed, false -otherwise.
 */
 
-static bool has_index_def_changed(Alter_info *alter_info,
+static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
                                   const KEY *table_key,
                                   const KEY *new_key)
 {
   const KEY_PART_INFO *key_part, *new_part, *end;
   const Create_field *new_field;
+  Alter_info *alter_info= ha_alter_info->alter_info;
 
   /* Check that the key types are compatible between old and new tables. */
   if ((table_key->algorithm != new_key->algorithm) ||
@@ -5913,15 +5915,13 @@ static bool has_index_def_changed(Alter_info *alter_info,
     return true;
 
   /*
-    The key definition has changed, if an index comment is
-    added/dropped/changed.
+    If an index comment is added/dropped/changed, then mark it for a
+    fast/INPLACE alteration.
   */
-  if (table_key->comment.length != new_key->comment.length)
-    return true;
-
-  if (table_key->comment.length &&
-      strcmp(table_key->comment.str, new_key->comment.str))
-    return true;
+  if ((table_key->comment.length != new_key->comment.length) ||
+      (table_key->comment.length && strcmp(table_key->comment.str,
+                                           new_key->comment.str)))
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_INDEX_COMMENT;
 
   /*
     Check that the key parts remain compatible between the old and
@@ -6291,7 +6291,7 @@ static bool fill_alter_inplace_info(THD *thd,
     table_key->flags|= HA_KEY_RENAMED;
     new_key->flags|= HA_KEY_RENAMED;
 
-    if (! has_index_def_changed(alter_info, table_key, new_key))
+    if (! has_index_def_changed(ha_alter_info, table_key, new_key))
     {
       /* Key was not modified but still was renamed. */
       ha_alter_info->handler_flags|= Alter_inplace_info::RENAME_INDEX;
@@ -6321,7 +6321,7 @@ static bool fill_alter_inplace_info(THD *thd,
       /* Matching new key not found. This means the key should be dropped. */
       ha_alter_info->add_dropped_key(table_key);
     }
-    else if (has_index_def_changed(alter_info, table_key, new_key))
+    else if (has_index_def_changed(ha_alter_info, table_key, new_key))
     {
       /* Key was modified. */
       ha_alter_info->add_modified_key(table_key, new_key);

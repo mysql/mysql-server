@@ -16277,7 +16277,8 @@ enum_alter_inplace_result
     Alter_inplace_info::ALTER_TABLE_REORG |
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ADD_FOREIGN_KEY |
-    Alter_inplace_info::DROP_FOREIGN_KEY;
+    Alter_inplace_info::DROP_FOREIGN_KEY |
+    Alter_inplace_info::ALTER_INDEX_COMMENT;
 
   const Alter_inplace_info::HA_ALTER_FLAGS not_supported= ~supported;
 
