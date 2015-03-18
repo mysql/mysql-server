@@ -10327,7 +10327,7 @@ end:
   {
     /* we need to unpack the AI so that positions get updated */
     m_curr_row= m_curr_row_end;
-    unpack_current_row(rli, &m_cols);
+    unpack_current_row(rli, &m_cols_ai);
   }
   m_table->default_column_bitmaps();
   DBUG_RETURN(error);
