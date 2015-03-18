@@ -41,14 +41,14 @@ static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
 
 {
-  Protocol *protocol= thd->protocol;
-  protocol->prepare_for_resend();
+  Protocol *protocol= thd->get_protocol();
+  protocol->start_row();
   protocol->store(table->alias, system_charset_info);
   protocol->store((char*) operator_name, system_charset_info);
   protocol->store(STRING_WITH_LEN("error"), system_charset_info);
   protocol->store(errmsg, system_charset_info);
   thd->clear_error();
-  if (protocol->write())
+  if (protocol->end_row())
     return -1;
   return 1;
 }
@@ -284,7 +284,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   SELECT_LEX *select= thd->lex->select_lex;
   List<Item> field_list;
   Item *item;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   LEX *lex= thd->lex;
   int result_code;
   bool gtid_rollback_must_be_skipped=
@@ -302,8 +302,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   field_list.push_back(item = new Item_empty_string("Msg_text",
                                                     SQL_ADMIN_MSG_TEXT_SIZE));
   item->maybe_null = 1;
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
   /*
@@ -467,7 +467,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
             char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
             size_t length;
             DBUG_PRINT("admin", ("sending non existent partition error"));
-            protocol->prepare_for_resend();
+            protocol->start_row();
             protocol->store(table_name, system_charset_info);
             protocol->store(operator_name, system_charset_info);
             protocol->store(STRING_WITH_LEN("error"), system_charset_info);
@@ -475,7 +475,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                 ER_THD(thd, ER_DROP_PARTITION_NON_EXISTENT),
                                 table_name);
             protocol->store(buff, length, system_charset_info);
-            if(protocol->write())
+            if(protocol->end_row())
               goto err;
             my_eof(thd);
             goto err;
@@ -560,7 +560,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       size_t length;
       enum_sql_command save_sql_command= lex->sql_command;
       DBUG_PRINT("admin", ("sending error message"));
-      protocol->prepare_for_resend();
+      protocol->start_row();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
@@ -581,7 +581,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       */
       lex->sql_command= save_sql_command;
       table->table=0;				// For query cache
-      if (protocol->write())
+      if (protocol->end_row())
 	goto err;
       thd->get_stmt_da()->reset_diagnostics_area();
       continue;
@@ -620,13 +620,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     {
       /* purecov: begin inspected */
       DBUG_PRINT("admin", ("sending crashed warning"));
-      protocol->prepare_for_resend();
+      protocol->start_row();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
       protocol->store(STRING_WITH_LEN("warning"), system_charset_info);
       protocol->store(STRING_WITH_LEN("Table is marked as crashed"),
                       system_charset_info);
-      if (protocol->write())
+      if (protocol->end_row())
         goto err;
       /* purecov: end */
     }
@@ -704,19 +704,19 @@ send_result:
       const Sql_condition *err;
       while ((err= it++))
       {
-        protocol->prepare_for_resend();
+        protocol->start_row();
         protocol->store(table_name, system_charset_info);
         protocol->store((char*) operator_name, system_charset_info);
         protocol->store(warning_level_names[err->severity()].str,
                         warning_level_names[err->severity()].length,
                         system_charset_info);
         protocol->store(err->message_text(), system_charset_info);
-        if (protocol->write())
+        if (protocol->end_row())
           goto err;
       }
       thd->get_stmt_da()->reset_condition_info(thd);
     }
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);
 
@@ -828,7 +828,7 @@ send_result_message:
         "Table does not support optimize, doing recreate + analyze instead"),
         system_charset_info);
       }
-      if (protocol->write())
+      if (protocol->end_row())
         goto err;
       DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
       TABLE_LIST *save_next_local= table->next_local,
@@ -878,7 +878,7 @@ send_result_message:
           result_code= -1; // open failed
       }
       /* Start a new row for the final status row */
-      protocol->prepare_for_resend();
+      protocol->start_row();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
       if (result_code) // either mysql_recreate_table or analyze failed
@@ -896,10 +896,10 @@ send_result_message:
             /* Hijack the row already in-progress. */
             protocol->store(STRING_WITH_LEN("error"), system_charset_info);
             protocol->store(err_msg, system_charset_info);
-            if (protocol->write())
+            if (protocol->end_row())
               goto err;
             /* Start off another row for HA_ADMIN_FAILED */
-            protocol->prepare_for_resend();
+            protocol->start_row();
             protocol->store(table_name, system_charset_info);
             protocol->store(operator_name, system_charset_info);
           }
@@ -1025,7 +1025,7 @@ send_result_message:
          rt; rt= rt->next)
       rt->mdl_request.ticket= NULL;
 
-    if (protocol->write())
+    if (protocol->end_row())
       goto err;
   }
 

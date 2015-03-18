@@ -5931,7 +5931,8 @@ static int show_queries(THD *thd, SHOW_VAR *var, char *buff)
 static int show_net_compression(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
-  var->value= (char *)&thd->net.compress;
+  var->value= buff;
+  *((bool *)buff)= thd->get_protocol()->get_compression();
   return 0;
 }
 
@@ -6425,8 +6426,9 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    var->value= const_cast<char*>(SSL_get_version((SSL*) thd->net.vio->ssl_arg));
+  if (thd->get_protocol()->get_ssl())
+    var->value=
+      const_cast<char*>(SSL_get_version(thd->get_protocol()->get_ssl()));
   else
     var->value= (char *)"";
   return 0;
@@ -6436,8 +6438,9 @@ static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_session_reused((SSL*) thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+        (long)SSL_session_reused(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6447,8 +6450,9 @@ static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+      (long)SSL_get_default_timeout(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6458,8 +6462,9 @@ static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->net.vio && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+      (long)SSL_get_verify_mode(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6469,8 +6474,9 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+        (long)SSL_get_verify_depth(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6479,8 +6485,9 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    var->value= const_cast<char*>(SSL_get_cipher((SSL*) thd->net.vio->ssl_arg));
+  if (thd->get_protocol()->get_ssl())
+    var->value=
+      const_cast<char*>(SSL_get_cipher(thd->get_protocol()->get_ssl()));
   else
     var->value= (char *)"";
   return 0;
@@ -6490,12 +6497,12 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   var->value= buff;
-  if (thd->vio_ok() && thd->net.vio->ssl_arg)
+  if (thd->get_protocol()->get_ssl())
   {
     int i;
     const char *p;
     char *end= buff + SHOW_VAR_FUNC_BUFF_SIZE;
-    for (i=0; (p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i)) &&
+    for (i=0; (p= SSL_get_cipher_list(thd->get_protocol()->get_ssl(),i)) &&
                buff < end; i++)
     {
       buff= my_stpnmov(buff, p, end-buff-1);
@@ -6563,9 +6570,9 @@ static int
 show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if(thd->vio_ok() && thd->net.vio->ssl_arg)
+  if(thd->get_protocol()->get_ssl())
   {
-    SSL *ssl= (SSL*) thd->net.vio->ssl_arg;
+    SSL *ssl= thd->get_protocol()->get_ssl();
     X509 *cert= SSL_get_certificate(ssl);
     ASN1_TIME *not_before= X509_get_notBefore(cert);
 
@@ -6596,9 +6603,9 @@ static int
 show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if(thd->vio_ok() && thd->net.vio->ssl_arg)
+  if(thd->get_protocol()->get_ssl())
   {
-    SSL *ssl= (SSL*) thd->net.vio->ssl_arg;
+    SSL *ssl= thd->get_protocol()->get_ssl();
     X509 *cert= SSL_get_certificate(ssl);
     ASN1_TIME *not_after= X509_get_notAfter(cert);
 

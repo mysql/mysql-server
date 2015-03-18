@@ -1778,7 +1778,6 @@ bool mysql_show_relaylog_events(THD* thd)
 {
 
   Master_info *mi =0;
-  Protocol *protocol= thd->protocol;
   List<Item> field_list;
   bool res;
   DBUG_ENTER("mysql_show_relaylog_events");
@@ -1792,8 +1791,8 @@ bool mysql_show_relaylog_events(THD* thd)
   }
 
   Log_event::init_show_field_list(&field_list);
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
   mysql_mutex_lock(&LOCK_msr_map);

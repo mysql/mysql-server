@@ -138,7 +138,7 @@ SET(SQL_SHARED_SOURCES
   partition_info.cc
   partitioning/partition_handler.cc
   procedure.cc 
-  protocol.cc
+  protocol_classic.cc
   psi_memory_key.cc
   query_result.cc
   records.cc

@@ -70,7 +70,8 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   }
 
   mysql_thread_set_psi_id(thd->thread_id());
-  mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
+  mysql_socket_set_thread_owner(
+    thd->get_protocol_classic()->get_vio()->mysql_socket);
 
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);

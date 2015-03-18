@@ -30,7 +30,7 @@
 #include "error_handler.h"                // Internal_error_handler
 #include "handler.h"                      // KEY_CREATE_INFO
 #include "opt_trace_context.h"            // Opt_trace_context
-#include "protocol.h"                     // Protocol_text
+#include "protocol_classic.h"             // Protocol_text
 #include "rpl_context.h"                  // Rpl_thd_context
 #include "rpl_gtid.h"                     // Gtid_specification
 #include "session_tracker.h"              // Session_tracker
@@ -1107,12 +1107,8 @@ public:
   struct st_mysql_stmt *current_stmt;
 #endif
   Query_cache_tls query_cache_tls;
-  NET	  net;				// client connection descriptor
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
-  Protocol *protocol;			// Current protocol
-  Protocol_text   protocol_text;	// Normal protocol
-  Protocol_binary protocol_binary;	// Binary protocol
   /**
     Hash for user variables.
     User variables are per session,
@@ -1121,7 +1117,6 @@ public:
     Protected by @c LOCK_thd_data.
   */
   HASH    user_vars;			// hash for user variables
-  String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
   struct  rand_struct rand;		// used for authentication
   struct  System_variables variables;	// Changeable local variables
@@ -1211,6 +1206,36 @@ public:
   */
   const char *proc_info;
 
+  Protocol_text   protocol_text;    // Normal protocol
+  Protocol_binary protocol_binary;  // Binary protocol
+
+  Protocol *get_protocol()
+  {
+    return m_protocol;
+  }
+
+  /**
+    Asserts that the protocol is of type text or binary and then
+    returns the m_protocol casted to Protocol_classic. This method
+    is needed to prevent misuse of pluggable protocols by legacy code
+  */
+  Protocol_classic *get_protocol_classic() const
+  {
+    DBUG_ASSERT(m_protocol->type() == Protocol::PROTOCOL_TEXT ||
+                m_protocol->type() == Protocol::PROTOCOL_BINARY);
+
+    return (Protocol_classic *) m_protocol;
+  }
+
+  void set_protocol(Protocol * protocol)
+  {
+    m_protocol= protocol;
+  }
+
+private:
+  Protocol *m_protocol;           // Current protocol
+
+public:
   /**
      Query plan for EXPLAINable commands, should be locked with
      LOCK_query_plan before using.
@@ -1307,7 +1332,6 @@ public:
   */
   const char *where;
 
-  ulong client_capabilities;		/* What the client supports */
   ulong max_client_packet_length;
 
   HASH		handler_tables_hash;
@@ -1567,7 +1591,10 @@ private:
   char *m_trans_fixed_log_file;
   my_off_t m_trans_end_pos;
   /**@}*/
-
+  // NOTE: Ideally those two should be in Protocol,
+  // but currently its design doesn't allow that.
+  NET     net;                          // client connection descriptor
+  String  packet;                       // dynamic buffer for network I/O
 public:
   void issue_unsafe_warnings();
 
@@ -2651,7 +2678,10 @@ public:
     DBUG_VOID_RETURN;
   }
 #ifndef EMBEDDED_LIBRARY
-  inline bool vio_ok() const { return net.vio != 0; }
+  inline bool vio_ok() const
+  {
+    return get_protocol_classic()->vio_ok();
+  }
   /** Return FALSE if connection to client is broken. */
   virtual bool is_connected()
   {
@@ -2660,7 +2690,8 @@ public:
       not using vio. So this function always returns true for all
       system threads.
     */
-    return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
+    return system_thread ||
+      (vio_ok() ? vio_is_connected(get_protocol_classic()->get_vio()) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
@@ -3678,6 +3709,7 @@ private:
    */
   LEX_CSTRING m_invoker_user;
   LEX_CSTRING m_invoker_host;
+  friend class Protocol_classic;
 
 private:
   /**
@@ -3702,6 +3734,93 @@ public:
   Session_sysvar_resource_manager session_sysvar_res_mgr;
 
   void parse_error_at(const YYLTYPE &location, const char *s= NULL);
+
+  /**
+    Send name and type of result to client.
+
+    Sum fields has table name empty and field_name.
+
+    @param list         List of items to send to client
+    @param flag         Bit mask with the following functions:
+                          - 1 send number of rows
+                          - 2 send default values
+                          - 4 don't write eof packet
+
+    @retval
+      false ok
+    @retval
+      true Error  (Note that in this case the error is not sent to the client)
+  */
+
+  bool send_result_metadata(List<Item> *list, uint flags);
+
+  /**
+    Send one result set row.
+
+    @param row_items a collection of column values for that row
+
+    @return Error status.
+    @retval true  Error.
+    @retval false Success.
+  */
+
+  bool send_result_set_row(List<Item> *row_items);
+
+
+  /*
+    Send the status of the current statement execution over network.
+
+    In MySQL, there are two types of SQL statements: those that return
+    a result set and those that return status information only.
+
+    If a statement returns a result set, it consists of 3 parts:
+    - result set meta-data
+    - variable number of result set rows (can be 0)
+    - followed and terminated by EOF or ERROR packet
+
+    Once the  client has seen the meta-data information, it always
+    expects an EOF or ERROR to terminate the result set. If ERROR is
+    received, the result set rows are normally discarded (this is up
+    to the client implementation, libmysql at least does discard them).
+    EOF, on the contrary, means "successfully evaluated the entire
+    result set". Since we don't know how many rows belong to a result
+    set until it's evaluated, EOF/ERROR is the indicator of the end
+    of the row stream. Note, that we can not buffer result set rows
+    on the server -- there may be an arbitrary number of rows. But
+    we do buffer the last packet (EOF/ERROR) in the Diagnostics_area and
+    delay sending it till the very end of execution (here), to be able to
+    change EOF to an ERROR if commit failed or some other error occurred
+    during the last cleanup steps taken after execution.
+
+    A statement that does not return a result set doesn't send result
+    set meta-data either. Instead it returns one of:
+    - OK packet
+    - ERROR packet.
+    Similarly to the EOF/ERROR of the previous statement type, OK/ERROR
+    packet is "buffered" in the Diagnostics Area and sent to the client
+    in the end of statement.
+
+    @note This method defines a template, but delegates actual
+    sending of data to virtual Protocol::send_{ok,eof,error}. This
+    allows for implementation of protocols that "intercept" ok/eof/error
+    messages, and store them in memory, etc, instead of sending to
+    the client.
+
+    @pre  The Diagnostics Area is assigned or disabled. It can not be empty
+          -- we assume that every SQL statement or COM_* command
+          generates OK, ERROR, or EOF status.
+
+    @post The status information is encoded to protocol format and sent to the
+          client.
+
+    @return We conventionally return void, since the only type of error
+            that can happen here is a NET (transport) error, and that one
+            will become visible when we attempt to read from the NET the
+            next command.
+            Diagnostics_area::is_sent is set for debugging purposes only.
+  */
+
+  void send_statement_status();
 };
 
 
@@ -3994,7 +4113,7 @@ public:
 		     bool force)
     :table(table_arg), sel(NULL)
   {
-    if (!force && (thd->client_capabilities & CLIENT_NO_SCHEMA))
+    if (!force && thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
       db= NULL_CSTR;
     else
       db= db_arg;

@@ -6319,7 +6319,14 @@ bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg)
   {
     check(1);
     update();
-    return protocol->store(result_field);
+    /*
+      Workaround for metadata check in Protocol_text. Legacy Protocol_text
+      is so well designed that it sends fields in text format, and functions'
+      results in binary format. When this func tries to send its data as a
+      field it breaks metadata asserts in the P_text.
+      TODO This func have to be changed to avoid sending data as a field.
+    */
+    return result_field->send_binary(protocol);
   }
   return Item::send(protocol, str_arg);
 }

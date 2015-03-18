@@ -454,7 +454,7 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   TABLE         *table, *backup_open_tables;
   MYSQL_LOCK    *lock;
   List<Item>	list;
-  Protocol	*protocol= thd->protocol;
+  Protocol	*protocol= thd->get_protocol();
   char		buff[MAX_FIELD_WIDTH];
   String	buffer(buff, sizeof(buff), system_charset_info);
   int           error, keyno= -1;
@@ -663,7 +663,8 @@ retry:
                     tables->db, tables->alias, &it, 0))
     goto err;
 
-  protocol->send_result_set_metadata(&list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+  thd->send_result_metadata(&list,
+                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that
@@ -809,12 +810,10 @@ retry:
     }
     if (num_rows >= offset_limit_cnt)
     {
-      protocol->prepare_for_resend();
-
-      if (protocol->send_result_set_row(&list))
+      protocol->start_row();
+      if (thd->send_result_set_row(&list))
         goto err;
-
-      protocol->write();
+      protocol->end_row();
     }
     num_rows++;
     thd->inc_sent_row_count(1);

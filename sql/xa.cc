@@ -734,7 +734,7 @@ bool Sql_cmd_xa_prepare::execute(THD *thd)
 bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd)
 {
   List<Item> field_list;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   int i= 0;
   Transaction_ctx *transaction;
 
@@ -748,8 +748,8 @@ bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd)
                                     MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data", XIDDATASIZE*2+2));
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(true);
 
   mysql_mutex_lock(&LOCK_transaction_cache);
@@ -760,10 +760,10 @@ bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd)
     XID_STATE *xs= transaction->xid_state();
     if (xs->has_state(XID_STATE::XA_PREPARED))
     {
-      protocol->prepare_for_resend();
+      protocol->start_row();
       xs->store_xid_info(protocol, m_print_xid_as_hex);
 
-      if (protocol->write())
+      if (protocol->end_row())
       {
         mysql_mutex_unlock(&LOCK_transaction_cache);
         DBUG_RETURN(true);

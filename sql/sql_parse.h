@@ -30,6 +30,7 @@ struct LEX;
 struct Parse_context;
 struct TABLE_LIST;
 class THD;
+union COM_DATA;
 typedef struct st_lex_user LEX_USER;
 typedef struct st_order ORDER;
 typedef class st_select_lex SELECT_LEX;
@@ -81,8 +82,8 @@ void mysql_init_multi_delete(LEX *lex);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
-bool dispatch_command(enum enum_server_command command, THD *thd,
-		      char* packet, size_t packet_length);
+bool dispatch_command(THD *thd,COM_DATA *com_data,
+                      enum enum_server_command command);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
@@ -245,5 +246,10 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
   sent by the user (ie: stored procedure).
 */
 #define CF_SKIP_QUESTIONS       (1U << 1)
+
+/**
+  Used to mark commands that can be used with Protocol Plugin
+*/
+#define CF_ALLOW_PROTOCOL_PLUGIN (1U << 2)
 
 #endif /* SQL_PARSE_INCLUDED */
