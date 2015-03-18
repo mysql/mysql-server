@@ -104,13 +104,8 @@ private:
   */
   bool test_all_ref_keys;
 
-  /**
-     If DuplicateWeedout strategy is disabled, this variable will be set to
-     true if a plan that uses only enabled strategies has been found.  
-     If DuplicateWeedout is enabled, it will be set to true when first complete
-     plan has been found (regardless of whether DuplicateWeedout is used in
-     this plan).
-   */
+
+  /// True if we found a complete plan using only allowed semijoin strategies.
   bool found_plan_with_allowed_sj;
 
   inline Key_use* find_best_ref(const JOIN_TAB  *tab,
