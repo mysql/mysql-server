@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1408,12 +1408,6 @@ fts_query_union(
 
 	if (token->f_len == 0) {
 		return(query->error);
-	}
-
-	if (query->index->parser != NULL
-	    && *token->f_str == '%') {
-		/* A parser plugin may not filter '%' out. */
-		return(DB_SUCCESS);
 	}
 
 	fts_query_cache(query, token);
