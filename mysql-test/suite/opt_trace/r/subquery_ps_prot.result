@@ -2526,7 +2526,7 @@ show_json_object('"considered_execution_plans": [', TRACE)
                           }
                         ] /* semijoin_strategy_choice */,
                         "chosen": true,
-                        "cause": "previous_plan_used_duplicate_weedout"
+                        "cause": "previous_plan_used_disabled_strategy"
                       }
                     ] /* rest_of_plan */
                   }
@@ -2615,7 +2615,8 @@ show_json_object('"considered_execution_plans": [', TRACE)
                             "chosen": true
                           }
                         ] /* semijoin_strategy_choice */,
-                        "chosen": false
+                        "chosen": false,
+                        "cause": "plan_uses_disabled_strategy"
                       }
                     ] /* rest_of_plan */
                   },
@@ -2720,7 +2721,8 @@ show_json_object('"considered_execution_plans": [', TRACE)
                             "chosen": true
                           }
                         ] /* semijoin_strategy_choice */,
-                        "chosen": false
+                        "chosen": false,
+                        "cause": "plan_uses_disabled_strategy"
                       }
                     ] /* rest_of_plan */
                   }
@@ -2943,7 +2945,8 @@ show_json_object('"considered_execution_plans": [', TRACE)
                             "chosen": true
                           }
                         ] /* semijoin_strategy_choice */,
-                        "chosen": false
+                        "chosen": false,
+                        "cause": "plan_uses_disabled_strategy"
                       }
                     ] /* rest_of_plan */
                   }

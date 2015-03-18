@@ -29,7 +29,7 @@
 #include "sql_string.h"
 #include "sql_bitmap.h"
 #include "sql_show.h"
-
+#include "item_subselect.h"
 
 struct LEX;
 struct TABLE;
@@ -49,6 +49,8 @@ enum opt_hints_enum
   NO_RANGE_HINT_ENUM,
   MAX_EXEC_TIME_HINT_ENUM,
   QB_NAME_HINT_ENUM,
+  SEMIJOIN_HINT_ENUM,
+  SUBQUERY_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -77,9 +79,8 @@ public:
      Check if hint is specified.
 
      @param type_arg   hint type
-     
-     @return true if hint is specified,
-             false otherwise
+
+     @return true if hint is specified
   */
   my_bool is_specified(opt_hints_enum type_arg) const
   {
@@ -224,13 +225,16 @@ public:
   }
 
   /**
-    Returns pointer to complex hint for a given type
+    Returns pointer to complex hint for a given type.
+
+    A complex hint is a hint that has arguments.
+    (It is not just an on/off switch.)
 
     @param type  hint type
 
     @return  pointer to complex hint for a given type.
   */
-  virtual PT_hint *get_complex_hints(uint type)
+  virtual PT_hint *get_complex_hints(opt_hints_enum type)
   {
     DBUG_ASSERT(0);
     return NULL; /* error C4716: must return a value */
@@ -240,7 +244,7 @@ public:
     Find hint among lower-level hint objects.
 
     @param name_arg        hint name
-  
+
     @return  hint if found,
              NULL otherwise
   */
@@ -287,7 +291,7 @@ class Opt_hints_global : public Opt_hints
 
 public:
   PT_hint_max_execution_time *max_exec_time;
- 
+
   Opt_hints_global(MEM_ROOT *mem_root_arg)
     : Opt_hints(NULL, NULL, mem_root_arg)
   {
@@ -295,9 +299,11 @@ public:
   }
 
   virtual void append_name(THD *thd, String *str) {}
-  virtual PT_hint *get_complex_hints(uint type);
+  virtual PT_hint *get_complex_hints(opt_hints_enum type);
 };
 
+
+class PT_qb_level_hint;
 
 /**
   Query block level hints.
@@ -308,6 +314,10 @@ class Opt_hints_qb : public Opt_hints
   uint select_number;     // SELECT_LEX number
   LEX_CSTRING sys_name;   // System QB name
   char buff[32];          // Buffer to hold sys name
+
+  PT_qb_level_hint *subquery_hint, *semijoin_hint;
+  // PT_qb_level_hint::contextualize sets subquery/semijoin_hint during parsing.
+  friend class PT_qb_level_hint;
 
 public:
 
@@ -348,6 +358,8 @@ public:
     append_identifier(thd, str, get_print_name()->str, get_print_name()->length);
   }
 
+  virtual PT_hint *get_complex_hints(opt_hints_enum type);
+
   /**
     Function finds Opt_hints_table object corresponding to
     table alias in the query block and attaches corresponding
@@ -360,6 +372,43 @@ public:
              NULL otherwise.
   */
   Opt_hints_table *adjust_table_hints(TABLE *table, const char *alias);
+
+  /**
+    Returns whether semi-join is enabled for this query block
+
+    A SEMIJOIN hint will force semi-join regardless of optimizer_switch settings.
+    A NO_SEMIJOIN hint will only turn off semi-join if the variant with no
+    strategies is used.
+    A SUBQUERY hint will turn off semi-join.
+    If there is no SEMIJOIN/SUBQUERY hint, optimizer_switch setting determines
+    whether SEMIJOIN is used.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+
+    @return true if semijoin is enabled
+  */
+  bool semijoin_enabled(THD *thd) const;
+
+  /**
+    Returns bit mask of which semi-join strategies are enabled for this query
+    block.
+
+    @param opt_switches Bit map of strategies enabled by optimizer_switch
+
+    @return Bit mask of strategies that are enabled
+  */
+  uint sj_enabled_strategies(uint opt_switches) const;
+
+  /**
+    Returns which subquery execution strategy has been specified by hints
+    for this query block.
+
+    @retval EXEC_MATERIALIZATION  Subquery Materialization should be used
+    @retval EXEC_EXISTS In-to-exists execution should be used
+    @retval EXEC_UNSPECIFIED No SUBQUERY hint for this query block
+  */
+  Item_exists_subselect::enum_exec_method subquery_strategy() const;
 };
 
 
@@ -380,7 +429,7 @@ public:
   { }
 
   /**
-    Append table name. 
+    Append table name.
 
     @param thd   pointer to THD object
     @param str   pointer to String object
