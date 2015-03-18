@@ -3846,11 +3846,11 @@ ha_innopart::repair(
 
 	/* Only repair partitions for MEDIUM or EXTENDED options. */
 	if ((repair_opt->flags & (T_MEDIUM | T_EXTEND)) == 0) {
-		return(HA_ADMIN_OK);
+		DBUG_RETURN(HA_ADMIN_OK);
 	}
 	if (set_altered_partitions()) {
 		ut_ad(0);   // Already checked by set_part_state()!
-		return(HA_ADMIN_INVALID);
+		DBUG_RETURN(HA_ADMIN_INVALID);
 	}
 	for (uint i = m_part_info->get_first_used_partition();
 	     i < m_tot_parts;
