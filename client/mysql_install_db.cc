@@ -25,6 +25,8 @@
 #include <signal.h>
 #include <spawn.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 // MySQL headers
 #include "my_global.h"
@@ -1235,6 +1237,11 @@ bool process_execute(const string &exec, Fwd_iterator begin,
   }
   ::close(write_pipe[1]);
   ::close(read_pipe[0]);
+
+  /* Wait for the child to die */
+  int signal= 0;
+  waitpid(child, &signal, 0);
+
   posix_spawn_file_actions_destroy(&spawn_action);
   free(local_filename);
   return retval;
