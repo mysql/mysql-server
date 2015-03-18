@@ -1514,10 +1514,39 @@ void Field::copy_data(my_ptrdiff_t src_record_offset)
 }
 
 
+bool Field::send_text(Protocol *protocol)
+{
+  if (is_null())
+    return protocol->store_null();
+#ifndef DBUG_OFF
+  if(protocol->type() == Protocol::PROTOCOL_TEXT ||
+     protocol->type() == Protocol::PROTOCOL_BINARY)
+    ((Protocol_classic *) protocol)->increment_field_count();
+#endif
+  char buff[MAX_FIELD_WIDTH];
+  String str(buff, sizeof(buff), &my_charset_bin);
+#ifndef DBUG_OFF
+  my_bitmap_map *old_map= 0;
+  if (table->file)
+    old_map= dbug_tmp_use_all_columns(table, table->read_set);
+#endif
+
+  val_str(&str);
+#ifndef DBUG_OFF
+  if (old_map)
+    dbug_tmp_restore_column_map(table->read_set, old_map);
+#endif
+
+  return protocol->store(str.ptr(), str.length(), str.charset());
+}
+
+
 bool Field::send_binary(Protocol *protocol)
 {
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),charset());
+  if (is_null())
+    return protocol->store_null();
   val_str(&tmp);
   return protocol->store(tmp.ptr(), tmp.length(), tmp.charset());
 }
@@ -1731,6 +1760,7 @@ void Field::make_field(Send_field *field)
   field->type=type();
   field->flags=table->is_nullable() ? (flags & ~NOT_NULL_FLAG) : flags;
   field->decimals= decimals();
+  field->field= false;
 }
 
 
@@ -3293,6 +3323,8 @@ String *Field_tiny::val_str(String *val_buffer,
 
 bool Field_tiny::send_binary(Protocol *protocol)
 {
+  if (is_null())
+    return protocol->store_null();
   return protocol->store_tiny((longlong) (int8) ptr[0]);
 }
 
@@ -3514,6 +3546,8 @@ String *Field_short::val_str(String *val_buffer,
 
 bool Field_short::send_binary(Protocol *protocol)
 {
+  if (is_null())
+    return protocol->store_null();
   return protocol->store_short(Field_short::val_int());
 }
 
@@ -3725,6 +3759,8 @@ String *Field_medium::val_str(String *val_buffer,
 bool Field_medium::send_binary(Protocol *protocol)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  if (is_null())
+    return protocol->store_null();
   return protocol->store_long(Field_medium::val_int());
 }
 
@@ -3968,6 +4004,8 @@ String *Field_long::val_str(String *val_buffer,
 bool Field_long::send_binary(Protocol *protocol)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  if (is_null())
+    return protocol->store_null();
   return protocol->store_long(Field_long::val_int());
 }
 
@@ -4214,6 +4252,8 @@ String *Field_longlong::val_str(String *val_buffer,
 bool Field_longlong::send_binary(Protocol *protocol)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  if (is_null())
+    return protocol->store_null();
   return protocol->store_longlong(Field_longlong::val_int(), unsigned_flag);
 }
 
@@ -4506,6 +4546,8 @@ void Field_float::make_sort_key(uchar *to, size_t length)
 bool Field_float::send_binary(Protocol *protocol)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  if (is_null())
+    return protocol->store_null();
   return protocol->store((float) Field_float::val_real(), dec, (String*) 0);
 }
 
@@ -4769,7 +4811,10 @@ String *Field_double::val_str(String *val_buffer,
 
 bool Field_double::send_binary(Protocol *protocol)
 {
-  return protocol->store((double) Field_double::val_real(), dec, (String*) 0);
+  if (is_null())
+    return protocol->store_null();
+  String buf;
+  return protocol->store((double) Field_double::val_real(), dec, &buf);
 }
 
 
@@ -5257,6 +5302,8 @@ Field_temporal_with_date::convert_str_to_TIME(const char *str, size_t len,
 bool Field_temporal_with_date::send_binary(Protocol *protocol)
 {
   MYSQL_TIME ltime;
+  if (is_null())
+    return protocol->store_null();
   if (get_date_internal(&ltime))
   {
     // Only MYSQL_TYPE_TIMESTAMP can return an error in get_date_internal()
@@ -5893,6 +5940,8 @@ longlong Field_time_common::val_date_temporal()
 bool Field_time_common::send_binary(Protocol *protocol)
 {
   MYSQL_TIME ltime;
+  if (is_null())
+    return protocol->store_null();
   if (get_time(&ltime))
   {
     DBUG_ASSERT(0);
@@ -6193,6 +6242,8 @@ type_conversion_status Field_year::store(longlong nr, bool unsigned_val)
 bool Field_year::send_binary(Protocol *protocol)
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
+  if (is_null())
+    return protocol->store_null();
   ulonglong tmp= Field_year::val_int();
   return protocol->store_short(tmp);
 }
@@ -6293,6 +6344,8 @@ type_conversion_status Field_newdate::store_packed(longlong nr)
 bool Field_newdate::send_binary(Protocol *protocol)
 {
   MYSQL_TIME ltime;
+  if (is_null())
+    return protocol->store_null();
   get_date(&ltime, 0);
   return protocol->store_date(&ltime);
 }

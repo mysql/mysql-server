@@ -128,7 +128,7 @@ bool Ack_receiver::add_slave(THD *thd)
   function_enter(kWho);
 
   slave.thd= thd;
-  slave.vio= *thd->net.vio;
+  slave.vio= *thd->get_protocol_classic()->get_vio();
   slave.vio.mysql_socket.m_psi= NULL;
   slave.vio.read_timeout= 1;
 

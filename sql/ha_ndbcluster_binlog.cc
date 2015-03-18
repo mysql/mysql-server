@@ -590,7 +590,7 @@ ndb_create_thd(char * stackptr)
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;
 #endif
-  thd->client_capabilities= 0;
+  thd->get_protocol_classic()->set_client_capabilities(0);
   thd->lex->start_transaction_opt= 0;
   thd->security_context()->skip_grants();
 
@@ -6831,10 +6831,10 @@ Ndb_binlog_thread::do_run()
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;
 #endif
-  thd->client_capabilities= 0;
+  thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
   // Create thd->net vithout vio
-  my_net_init(&thd->net, 0);
+  thd->get_protocol_classic()->init_net((st_vio *) 0);
 
   // Ndb binlog thread always use row format
   thd->set_current_stmt_binlog_format_row();
@@ -7766,7 +7766,7 @@ restart_cluster_failure:
   }
 
   // Release the thd->net created without vio
-  net_end(&thd->net);
+  thd->get_protocol_classic()->end_net();
   thd->release_resources();
   thd_manager->remove_thd(thd);
   delete thd;
