@@ -72,7 +72,7 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM --write=InnoDB $MYSQLD_DATADIR/ibdata1
 perl;
-foreach (glob("$ENV{MYSQLD_DATADIR}/mysql/*.ibd")) {
+foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=InnoDB $_")
 }
 EOF
@@ -112,7 +112,7 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM  --write=CRC32 $MYSQLD_DATADIR/ibdata1
 perl;
-foreach (glob("$ENV{MYSQLD_DATADIR}/mysql/*.ibd")) {
+foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=crc32 $_")
 }
 EOF
@@ -158,7 +158,7 @@ perl;
 foreach (glob("$ENV{MYSQLD_DATADIR}/undo*")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")
 }
-foreach (glob("$ENV{MYSQLD_DATADIR}/mysql/*.ibd")) {
+foreach (glob("$ENV{MYSQLD_DATADIR}/*/*.ibd")) {
 	system("$ENV{INNOCHECKSUM} --no-check --write=NONE $_")
 }
 EOF
