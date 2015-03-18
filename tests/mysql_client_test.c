@@ -18332,7 +18332,7 @@ static void test_bug45010()
 
 /**
   Bug#44495: Prepared Statement:
-             CALL p(<x>) - `thd->protocol == &thd->protocol_text' failed
+             CALL p(<x>) - `thd->get_protocol() == &thd->protocol_text' failed
 */
 
 static void test_bug44495()

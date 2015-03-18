@@ -1265,7 +1265,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     complete query result in this case, it does not make sense to
     register the query in the first place.
   */
-  if (thd->net.vio == NULL)
+  if (!thd->get_protocol_classic()->vio_ok())
     DBUG_VOID_RETURN;
 #endif
 
@@ -1273,26 +1273,26 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
   if ((local_tables= is_cacheable(thd, thd->lex, tables_used, &tables_type)))
   {
-    NET *net= &thd->net;
     Query_cache_query_flags flags;
     // fill all gaps between fields with 0 to get repeatable key
     memset(&flags, 0, QUERY_CACHE_FLAGS_SIZE);
-    flags.client_long_flag= MY_TEST(thd->client_capabilities & CLIENT_LONG_FLAG);
-    flags.client_protocol_41= MY_TEST(thd->client_capabilities &
-                                      CLIENT_PROTOCOL_41);
+    flags.client_long_flag=
+      thd->get_protocol()->has_client_capability(CLIENT_LONG_FLAG);
+    flags.client_protocol_41=
+      thd->get_protocol()->has_client_capability(CLIENT_PROTOCOL_41);
     /*
       Protocol influences result format, so statement results in the binary
       protocol (COM_EXECUTE) cannot be served to statements asking for results
       in the text protocol (COM_QUERY) and vice-versa.
     */
-    flags.protocol_type= (unsigned int) thd->protocol->type();
+    flags.protocol_type= (unsigned int) thd->get_protocol()->type();
     /* PROTOCOL_LOCAL results are not cached. */
     DBUG_ASSERT(flags.protocol_type != (unsigned int) Protocol::PROTOCOL_LOCAL);
     flags.more_results_exists= MY_TEST(thd->server_status &
                                        SERVER_MORE_RESULTS_EXISTS);
     flags.in_trans= thd->in_active_multi_stmt_transaction();
     flags.autocommit= MY_TEST(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
-    flags.pkt_nr= net->pkt_nr;
+    flags.pkt_nr= thd->get_protocol_classic()->get_pkt_nr();
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
     flags.character_set_results_num=
@@ -1618,15 +1618,16 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
 
   // fill all gaps between fields with 0 to get repeatable key
   memset(&flags, 0, QUERY_CACHE_FLAGS_SIZE);
-  flags.client_long_flag= MY_TEST(thd->client_capabilities & CLIENT_LONG_FLAG);
-  flags.client_protocol_41= MY_TEST(thd->client_capabilities &
-                                    CLIENT_PROTOCOL_41);
-  flags.protocol_type= (unsigned int) thd->protocol->type();
+  flags.client_long_flag= MY_TEST(
+    thd->get_protocol()->has_client_capability(CLIENT_LONG_FLAG));
+  flags.client_protocol_41= MY_TEST(
+    thd->get_protocol()->has_client_capability(CLIENT_PROTOCOL_41));
+  flags.protocol_type= (unsigned int) thd->get_protocol()->type();
   flags.more_results_exists= MY_TEST(thd->server_status &
                                      SERVER_MORE_RESULTS_EXISTS);
   flags.in_trans= thd->in_active_multi_stmt_transaction();
   flags.autocommit= MY_TEST(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
-  flags.pkt_nr= thd->net.pkt_nr;
+  flags.pkt_nr= thd->get_protocol_classic()->get_pkt_nr();
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
     (thd->variables.character_set_results ?
@@ -1855,13 +1856,15 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                                    ALIGN_SIZE(sizeof(Query_cache_result)))));
     
     Query_cache_result *result = result_block->result();
-    if (send_data_in_chunks(&thd->net, result->data(),
+    if (send_data_in_chunks(thd->get_protocol_classic()->get_net(),
+                            result->data(),
                             result_block->used -
                             result_block->headers_len() -
                             ALIGN_SIZE(sizeof(Query_cache_result))))
       break;                                    // Client aborted
     result_block = result_block->next;
-    thd->net.pkt_nr= query->last_pkt_nr; // Keep packet number updated
+    // Keep packet number updated
+    thd->get_protocol_classic()->set_pkt_nr(query->last_pkt_nr);
   } while (result_block != first_result_block);
 #else
   {

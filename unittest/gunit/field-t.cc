@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ private:
   MYSQL_TIME t;
   uint p;
 public:
-  Mock_protocol(THD *thd) : Protocol(thd) {}
+  Mock_protocol(THD *thd) {}
 
   virtual bool store_time(MYSQL_TIME *time, uint precision)
   {
@@ -91,27 +91,53 @@ public:
   }
 
   // Lots of functions that require implementation
-  virtual void prepare_for_resend() {}
+  int read_packet() { return 0; }
+  ulong get_client_capabilities() { return 0; }
+  bool has_client_capability(unsigned long client_capability) {return false;}
+  void end_partial_result_set() {}
+  int shutdown() { return 0; }
+  void *get_ssl() { return 0; }
+  void start_row() {}
+  bool end_row() { return false; }
+  void abort_row() {}
+  uint get_rw_status() { return 0; }
+  bool get_compression() { return false; }
+  bool start_result_metadata(uint num_cols, uint flags,
+                             const CHARSET_INFO *resultcs)
+  { return false; }
+  void send_num_fields(uint) {}
+  void send_num_rows(uint) {}
+  bool send_field_metadata(Send_field *field,
+                           const CHARSET_INFO *charset) { return false; }
+  virtual bool send_ok(uint server_status, uint statement_warn_count,
+                       ulonglong affected_rows, ulonglong last_insert_id,
+                       const char *message) { return false; }
+
+  virtual bool send_eof(uint server_status,
+                        uint statement_warn_count) { return false; }
+  virtual bool send_error(uint sql_errno, const char *err_msg,
+                          const char *sql_state) { return false; }
+  bool end_result_metadata() { return false; }
 
   virtual bool store_null() { return false; }
   virtual bool store_tiny(longlong from) { return false; }
   virtual bool store_short(longlong from) { return false; }
   virtual bool store_long(longlong from) { return false; }
-  virtual bool store_longlong(longlong from, bool unsigned_flag) { return false; }
+  virtual bool store_longlong(longlong from, bool unsigned_flag)
+  { return false; }
   virtual bool store_decimal(const my_decimal *) { return false; }
   virtual bool store(const char *from, size_t length,
-                     const CHARSET_INFO *cs) { return false; }
-  virtual bool store(const char *from, size_t length,
-                     const CHARSET_INFO *fromcs,
-                     const CHARSET_INFO *tocs) { return false; }
-  virtual bool store(float from, uint32 decimals, String *buffer) { return false; }
-  virtual bool store(double from, uint32 decimals, String *buffer) { return false; }
+                     const CHARSET_INFO *fromcs) { return false; }
+  virtual bool store(float from, uint32 decimals, String *buffer)
+  { return false; }
+  virtual bool store(double from, uint32 decimals, String *buffer)
+  { return false; }
   virtual bool store(MYSQL_TIME *time, uint precision) { return false; }
   virtual bool store_date(MYSQL_TIME *time) { return false; }
-  virtual bool store(Field *field) { return false; }
-
-  virtual bool send_out_parameters(List<Item_param> *sp_params) { return false; }
+  virtual bool store(Proto_field *field) { return false; }
   virtual enum enum_protocol_type type() { return PROTOCOL_LOCAL; };
+  virtual int get_command(COM_DATA *com_data, enum_server_command *cmd)
+  { return -1; }
 };
 
 

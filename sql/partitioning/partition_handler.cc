@@ -1673,7 +1673,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
                                        ...)
 {
   va_list args;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   uint length;
   size_t msg_length;
   char name[NAME_LEN*2+2];
@@ -1707,12 +1707,12 @@ bool Partition_helper::print_admin_msg(THD* thd,
   */
   DBUG_PRINT("info",("print_admin_msg:  %s, %s, %s, %s", name, op_name,
                      msg_type, msgbuf));
-  protocol->prepare_for_resend();
+  protocol->start_row();
   protocol->store(name, length, system_charset_info);
   protocol->store(op_name, system_charset_info);
   protocol->store(msg_type, system_charset_info);
   protocol->store(msgbuf, msg_length, system_charset_info);
-  if (protocol->write())
+  if (protocol->end_row())
   {
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
                     msgbuf);
