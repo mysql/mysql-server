@@ -464,7 +464,7 @@ public:
 	/** The non asynchronous IO array.
 	@return the synchronous AIO array instance. */
 	static AIO* sync_array()
-		__attribute__((warn_unused_result));
+		__attribute__((warn_unused_result))
 	{
 		return(s_sync);
 	}
