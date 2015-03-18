@@ -9612,7 +9612,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   TABLE_LIST *table;
   List<Item> field_list;
   Item *item;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("mysql_checksum_table");
 
   /*
@@ -9627,8 +9627,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                                           (longlong) 1,
                                           MY_INT64_NUM_DECIMAL_DIGITS));
   item->maybe_null= 1;
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
   /*
@@ -9665,7 +9665,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
     table->next_global= save_next_global;
 
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store(table_name, system_charset_info);
 
     if (!t)
@@ -9702,7 +9702,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                  partial current row from the recordset (embedded lib) 
               */
               t->file->ha_rnd_end();
-              thd->protocol->remove_last_row();
+              protocol->abort_row();
               goto err;
             }
 	    ha_checksum row_crc= 0;
@@ -9767,14 +9767,14 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
         abort statement and return error as not only CHECKSUM TABLE is
         rolled back but the whole transaction in which it was used.
       */
-      thd->protocol->remove_last_row();
+      protocol->abort_row();
       goto err;
     }
 
     /* Hide errors from client. Return NULL for problematic tables instead. */
     thd->clear_error();
 
-    if (protocol->write())
+    if (protocol->end_row())
       goto err;
   }
 

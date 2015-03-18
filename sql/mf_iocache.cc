@@ -52,7 +52,7 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
 		   size_t Count __attribute__((unused)))
 {
   ulong read_length;
-  NET *net= &(current_thd)->net;
+  NET *net= current_thd->get_protocol_classic()->get_net();
   DBUG_ENTER("_my_b_net_read");
 
   if (!info->end_of_file)

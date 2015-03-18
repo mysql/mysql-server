@@ -264,14 +264,14 @@ static void set_slave_max_allowed_packet(THD *thd, MYSQL *mysql)
   DBUG_ASSERT(thd && mysql);
 
   thd->variables.max_allowed_packet= slave_max_allowed_packet;
-  thd->net.max_packet_size= slave_max_allowed_packet;
   /*
     Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
     thread and the mysql->option max_allowed_packet, since a
     replication event can become this much  larger than
     the corresponding packet (query) sent from client to master.
   */
-  thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
+  thd->get_protocol_classic()->set_max_packet_size(
+    slave_max_allowed_packet + MAX_LOG_EVENT_HEADER);
   /*
     Skipping the setting of mysql->net.max_packet size to slave
     max_allowed_packet since this is done during mysql_real_connect.
@@ -3281,7 +3281,7 @@ void show_slave_status_metadata(List<Item> &field_list,
 /**
     Send the data to the client of a Master_info during show_slave_status()
     This function has to be called after calling show_slave_status_metadata().
-    Just before sending the data, thd->protocol is prepared to (re)send;
+    Just before sending the data, thd->get_protocol() is prepared to (re)send;
 
     @param[in]     thd         client thread
     @param[in]     mi          the master info. In the case of multisource
@@ -3303,12 +3303,12 @@ bool show_slave_status_send_data(THD *thd, Master_info *mi,
 {
   DBUG_ENTER("show_slave_status_send_data");
 
-  Protocol *protocol = thd->protocol;
+  Protocol *protocol = thd->get_protocol();
   char* slave_sql_running_state= NULL;
 
   DBUG_PRINT("info",("host is set: '%s'", mi->host));
 
-  protocol->prepare_for_resend();
+  protocol->start_row();
 
   /*
     slave_running can be accessed without run_lock but not other
@@ -3345,8 +3345,8 @@ bool show_slave_status_send_data(THD *thd, Master_info *mi,
                   "Yes" : (mi->slave_running == MYSQL_SLAVE_RUN_NOT_CONNECT ?
                            "Connecting" : "No"), &my_charset_bin);
   protocol->store(mi->rli->slave_running ? "Yes":"No", &my_charset_bin);
-  protocol->store(rpl_filter->get_do_db());
-  protocol->store(rpl_filter->get_ignore_db());
+  store(protocol, rpl_filter->get_do_db());
+  store(protocol, rpl_filter->get_ignore_db());
 
   char buf[256];
   String tmp(buf, sizeof(buf), &my_charset_bin);
@@ -3573,7 +3573,7 @@ bool show_slave_status_send_data(THD *thd, Master_info *mi,
 bool show_slave_status(THD *thd)
 {
   List<Item> field_list;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   int sql_gtid_set_size= 0, io_gtid_set_size= 0;
   Master_info *mi= NULL;
   char* sql_gtid_set_buffer= NULL;
@@ -3656,9 +3656,8 @@ bool show_slave_status(THD *thd)
   show_slave_status_metadata(field_list, max_io_gtid_set_size,
                              sql_gtid_set_size);
 
-  if (protocol->send_result_set_metadata(&field_list,
-                                         Protocol::SEND_NUM_ROWS
-                                         | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     goto err;
   }
@@ -3676,7 +3675,7 @@ bool show_slave_status(THD *thd)
                                  sql_gtid_set_buffer))
         goto err;
 
-      if (protocol->write())
+      if (protocol->end_row())
         goto err;
     }
     idx++;
@@ -3715,7 +3714,7 @@ err:
 bool show_slave_status(THD* thd, Master_info* mi)
 {
   List<Item> field_list;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   char *sql_gtid_set_buffer= NULL, *io_gtid_set_buffer= NULL;
   int sql_gtid_set_size= 0, io_gtid_set_size= 0;
   DBUG_ENTER("show_slave_status(THD, Master_info)");
@@ -3741,8 +3740,8 @@ bool show_slave_status(THD* thd, Master_info* mi)
 
   show_slave_status_metadata(field_list, io_gtid_set_size, sql_gtid_set_size);
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     my_free(sql_gtid_set_buffer);
     my_free(io_gtid_set_buffer);
@@ -3756,7 +3755,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
                                     io_gtid_set_buffer, sql_gtid_set_buffer))
       DBUG_RETURN(true);
 
-    if (protocol->write())
+    if (protocol->end_row())
     {
       my_free(sql_gtid_set_buffer);
       my_free(io_gtid_set_buffer);
@@ -3890,11 +3889,12 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     SYSTEM_THREAD_SLAVE_WORKER : (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO;
   thd->security_context()->skip_grants();
-  my_net_init(&thd->net, 0);
+  thd->get_protocol_classic()->init_net(0);
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
-  thd->client_capabilities = CLIENT_LOCAL_FILES;
+  thd->get_protocol_classic()->set_client_capabilities(
+      CLIENT_LOCAL_FILES);
 
   /*
     Replication threads are:
@@ -5572,8 +5572,8 @@ err:
   mi->set_mi_description_event(NULL);
   mysql_mutex_unlock(&mi->data_lock);
 
-  DBUG_ASSERT(thd->net.buff != 0);
-  net_end(&thd->net); // destructor will not free it, because net.vio is 0
+  // destructor will not free it, because net.vio is 0
+  thd->get_protocol_classic()->end_net();
 
   thd->release_resources();
   THD_CHECK_SENTRY(thd);
@@ -5822,8 +5822,7 @@ err:
  
        /Alfranio
     */
-    DBUG_ASSERT(thd->net.buff != 0);
-    net_end(&thd->net);
+    thd->get_protocol_classic()->end_net();
 
     /*
       to avoid close_temporary_tables() closing temp tables as those
@@ -7070,8 +7069,8 @@ llstr(rli->get_group_master_log_pos(), llbuff));
     to avoid unneeded position re-init
   */
   thd->temporary_tables = 0; // remove tempation from destructor to close them
-  DBUG_ASSERT(thd->net.buff != 0);
-  net_end(&thd->net); // destructor will not free it, because we are weird
+  // destructor will not free it, because we are weird
+  thd->get_protocol_classic()->end_net();
   DBUG_ASSERT(rli->info_thd == thd);
   THD_CHECK_SENTRY(thd);
   mysql_mutex_lock(&rli->info_thd_lock);
@@ -9301,7 +9300,7 @@ int start_slave(THD* thd,
       connection_param->password)
   {
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    if (thd->vio_ok() && !thd->net.vio->ssl_arg)
+    if (!thd->get_protocol()->get_ssl())
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
@@ -10045,7 +10044,7 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
   if (lex_mi->user || lex_mi->password)
   {
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    if (thd->vio_ok() && !thd->net.vio->ssl_arg)
+    if (!thd->get_protocol()->get_ssl())
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER_THD(thd, ER_INSECURE_PLAIN_TEXT));

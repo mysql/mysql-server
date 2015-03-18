@@ -5245,6 +5245,12 @@ public:
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
   Field::geometry_type get_geometry_type() const { return geometry_type; };
+  virtual void make_field(Send_field *field)
+  {
+    Item::make_field(field);
+    // Item_type_holder is used for unions and effectively sends Fields
+    field->field= true;
+  }
 };
 
 

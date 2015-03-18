@@ -682,6 +682,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     too early in the calling query.
   */
   thd->change_list.move_elements_to(&old_change_list);
+
   /*
     Cursors will use thd->packet, so they may corrupt data which was prepared
     for sending by upper level. OTOH cursors in the same routine can share this
@@ -690,7 +691,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
     It is probably safe to use same thd->convert_buff everywhere.
   */
-  old_packet.swap(thd->packet);
+  old_packet.swap(*thd->get_protocol_classic()->get_packet());
 
   /*
     Switch to per-instruction arena here. We can do it since we cleanup
@@ -839,7 +840,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->sp_runtime_ctx->pop_all_cursors(); // To avoid memory leaks after an error
 
   /* Restore all saved */
-  old_packet.swap(thd->packet);
+  old_packet.swap(*thd->get_protocol_classic()->get_packet());
   DBUG_ASSERT(thd->change_list.is_empty());
   old_change_list.move_elements_to(&thd->change_list);
   thd->lex= old_lex;
@@ -1728,7 +1729,7 @@ bool sp_head::show_create_routine(THD *thd, enum_sp_type type)
 
   bool err_status;
 
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   List<Item> fields;
 
   LEX_STRING sql_mode;
@@ -1771,15 +1772,15 @@ bool sp_head::show_create_routine(THD *thd, enum_sp_type type)
   fields.push_back(new Item_empty_string("Database Collation",
                                          MY_CS_NAME_SIZE));
 
-  if (protocol->send_result_set_metadata(&fields,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&fields,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     return true;
   }
 
   /* Send data. */
 
-  protocol->prepare_for_resend();
+  protocol->start_row();
 
   protocol->store(m_name.str, m_name.length, system_charset_info);
   protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
@@ -1795,7 +1796,7 @@ bool sp_head::show_create_routine(THD *thd, enum_sp_type type)
   protocol->store(m_creation_ctx->get_connection_cl()->name, system_charset_info);
   protocol->store(m_creation_ctx->get_db_cl()->name, system_charset_info);
 
-  err_status= protocol->write();
+  err_status= protocol->end_row();
 
   if (!err_status)
     my_eof(thd);
@@ -1928,7 +1929,7 @@ void sp_head::opt_mark()
 #ifndef DBUG_OFF
 bool sp_head::show_routine_code(THD *thd)
 {
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
   List<Item> field_list;
@@ -1944,8 +1945,8 @@ bool sp_head::show_routine_code(THD *thd)
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
                                              std::max<size_t>(buffer.length(), 1024U)));
-  if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
-                                         Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
   for (ip= 0; (i = get_instr(ip)) ; ip++)
@@ -1966,13 +1967,13 @@ bool sp_head::show_routine_code(THD *thd)
       */
       push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR, tmp);
     }
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store((longlong)ip);
 
     buffer.set("", 0, system_charset_info);
     i->print(&buffer);
     protocol->store(buffer.ptr(), buffer.length(), system_charset_info);
-    if ((res= protocol->write()))
+    if ((res= protocol->end_row()))
       break;
   }
 

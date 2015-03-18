@@ -530,7 +530,7 @@ int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length);
 void acl_log_connect(const char *user, const char *host, const char *auth_as,
 	const char *db, THD *thd,
 enum enum_server_command command);
-int acl_authenticate(THD *thd, size_t com_change_user_pkt_len);
+int acl_authenticate(THD *thd, enum_server_command command);
 bool acl_check_host(const char *host, const char *ip);
 
 /*

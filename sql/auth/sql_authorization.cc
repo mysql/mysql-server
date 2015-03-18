@@ -2596,7 +2596,7 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
 {
   uint counter, index;
   int error= 0;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   /* Add routine access */
   for (index=0 ; index < hash->records ; index++)
   {
@@ -2663,9 +2663,9 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
         global.append('\'');
         if (proc_access & GRANT_ACL)
           global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
-        protocol->prepare_for_resend();
+        protocol->start_row();
         protocol->store(global.ptr(),global.length(),global.charset());
-        if (protocol->write())
+        if (protocol->end_row())
         {
           error= -1;
           break;
@@ -2680,7 +2680,7 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
 static bool
 show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
 {
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   int error= 0;
   Read_lock rlk_guard(&proxy_users_rwlock);
   for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
@@ -2691,9 +2691,9 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
       String global(buff, buffsize, system_charset_info);
       global.length(0);
       proxy->print_grant(&global);
-      protocol->prepare_for_resend();
+      protocol->start_row();
       protocol->store(global.ptr(), global.length(), global.charset());
-      if (protocol->write())
+      if (protocol->end_row())
       {
         error= -1;
         break;
@@ -2749,7 +2749,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   ACL_USER *acl_user= NULL;
   ACL_DB *acl_db;
   char buff[1024];
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("mysql_show_grants");
 
   if (!initialized)
@@ -2779,8 +2779,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
           lex_user->host.str,NullS);
   field->item_name.set(buff);
   field_list.push_back(field);
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     mysql_mutex_unlock(&acl_cache->lock);
 
@@ -2822,9 +2822,9 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append ('\'');
     if (want_access & GRANT_ACL)
       global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store(global.ptr(),global.length(),global.charset());
-    if (protocol->write())
+    if (protocol->end_row())
     {
       error= -1;
       goto end;
@@ -2888,9 +2888,9 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         db.append ('\'');
         if (want_access & GRANT_ACL)
           db.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
-        protocol->prepare_for_resend();
+        protocol->start_row();
         protocol->store(db.ptr(),db.length(),db.charset());
-        if (protocol->write())
+        if (protocol->end_row())
         {
           error= -1;
           goto end;
@@ -3003,9 +3003,9 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         global.append('\'');
         if (table_access & GRANT_ACL)
           global.append(STRING_WITH_LEN(" WITH GRANT OPTION"));
-        protocol->prepare_for_resend();
+        protocol->start_row();
         protocol->store(global.ptr(),global.length(),global.charset());
-        if (protocol->write())
+        if (protocol->end_row())
         {
           error= -1;
           break;

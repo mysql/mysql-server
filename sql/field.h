@@ -517,7 +517,14 @@ private:
                                     phisically stored in the database*/
 };
 
-class Field
+class Proto_field
+{
+public:
+  virtual bool send_binary(Protocol *protocol)= 0;
+  virtual bool send_text(Protocol *protocol)= 0;
+};
+
+class Field: public Proto_field
 {
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
@@ -1300,6 +1307,7 @@ public:
     return str;
   }
   virtual bool send_binary(Protocol *protocol);
+  virtual bool send_text(Protocol *protocol);
 
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -4156,6 +4164,12 @@ class Send_field :public Sql_alloc {
   ulong length;
   uint charsetnr, flags, decimals;
   enum_field_types type;
+  /*
+    TRUE <=> source item is an Item_field. Needed to workaround lack of
+    architecture in legacy Protocol_text implementation. Needed only for
+    Protocol_classic and descendants.
+  */
+  bool field;
   Send_field() {}
 };
 

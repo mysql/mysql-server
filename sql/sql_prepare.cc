@@ -145,14 +145,33 @@ class Ed_connection;
   of the data written to the network. 
 */
 
-class Protocol_local :public Protocol
+class Protocol_local : public Protocol
 {
 public:
   Protocol_local(THD *thd, Ed_connection *ed_connection);
   ~Protocol_local() { free_root(&m_rset_root, MYF(0)); }
+
+  virtual int read_packet();
+
+  virtual int get_command(COM_DATA *com_data, enum_server_command *cmd);
+  virtual ulong get_client_capabilities();
+  virtual bool has_client_capability(unsigned long client_capability);
+  virtual void end_partial_result_set();
+  virtual int shutdown();
+  virtual SSL_handle get_ssl();
+  virtual void start_row();
+  virtual bool end_row();
+  virtual void abort_row(){};
+  virtual void free();
+  virtual uint get_rw_status();
+  virtual bool get_compression();
+
+  virtual bool start_result_metadata(uint num_cols, uint flags,
+                                     const CHARSET_INFO *resultcs);
+  virtual bool end_result_metadata();
+  virtual bool send_field_metadata(Send_field *field, const CHARSET_INFO *charset);
 protected:
-  virtual void prepare_for_resend();
-  virtual bool write();
+  String *convert;
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
   virtual bool store_short(longlong from);
@@ -167,14 +186,9 @@ protected:
   virtual bool store_time(MYSQL_TIME *time, uint precision);
   virtual bool store(float value, uint32 decimals, String *buffer);
   virtual bool store(double value, uint32 decimals, String *buffer);
-  virtual bool store(Field *field);
+  virtual bool store(Proto_field *field);
 
-  virtual bool send_result_set_metadata(List<Item> *list, uint flags);
-  virtual bool send_out_parameters(List<Item_param> *sp_params);
-#ifdef EMBEDDED_LIBRARY
-  void remove_last_row();
-#endif
-  virtual enum enum_protocol_type type() { return PROTOCOL_LOCAL; };
+  virtual enum enum_protocol_type type() { return PROTOCOL_LOCAL; }
 
   virtual bool send_ok(uint server_status, uint statement_warn_count,
                        ulonglong affected_rows, ulonglong last_insert_id,
@@ -195,6 +209,8 @@ private:
   size_t m_column_count;
   Ed_column *m_current_row;
   Ed_column *m_current_column;
+  bool m_send_metadata;
+  THD *m_thd;
 };
 
 /******************************************************************************
@@ -319,12 +335,12 @@ public:
 #ifndef EMBEDDED_LIBRARY
 static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 {
-  NET *net= &stmt->thd->net;
+  THD *thd= stmt->thd;
+  DBUG_ENTER("send_prep_stmt");
+  NET *net= thd->get_protocol_classic()->get_net();
   uchar buff[12];
   uint tmp;
   int error;
-  THD *thd= stmt->thd;
-  DBUG_ENTER("send_prep_stmt");
 
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff+1, stmt->id);
@@ -341,9 +357,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   error= my_net_write(net, buff, sizeof(buff));
   if (stmt->param_count && ! error)
   {
-    error= thd->protocol_text.send_result_set_metadata((List<Item> *)
-                                          &stmt->lex->param_list,
-                                          Protocol::SEND_EOF);
+    error= thd->send_result_metadata((List<Item> *) &stmt->lex->param_list,
+                                     Protocol::SEND_EOF);
   }
 
   if (!error)
@@ -1391,7 +1406,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     bool rc= (send_prep_stmt(stmt, result->field_count(unit->types)) ||
               result->send_result_set_metadata(unit->types,
                                                Protocol::SEND_EOF) ||
-              thd->protocol->flush());
+              thd->get_protocol_classic()->flush());
     delete analyse_result;
     if (rc)
       goto error;
@@ -2027,8 +2042,10 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     break;
   }
   if (res == 0)
-    DBUG_RETURN(stmt->is_sql_prepare() ?
-                FALSE : (send_prep_stmt(stmt, 0) || thd->protocol->flush()));
+  {
+    DBUG_RETURN(stmt->is_sql_prepare() ? FALSE : (send_prep_stmt(stmt, 0) ||
+                thd->get_protocol_classic()->flush()));
+  }
 error:
   DBUG_RETURN(TRUE);
 }
@@ -2080,8 +2097,9 @@ static bool init_param_array(Prepared_statement *stmt)
     that a fast and direct retrieval can be made without going through all
     field items.
 
-  @param packet             query to be prepared
-  @param packet_length      query string length, including ignored
+  @param thd                thread handle
+  @param query              query to be prepared
+  @param length             query string length, including ignored
                             trailing NULL or quote char.
 
   @note
@@ -2095,13 +2113,13 @@ static bool init_param_array(Prepared_statement *stmt)
     to the client, otherwise an error message is set in THD.
 */
 
-void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
+void mysqld_stmt_prepare(THD *thd, const char *query, uint length)
 {
-  Protocol *save_protocol= thd->protocol;
+  Protocol *save_protocol= thd->get_protocol();
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_prepare");
 
-  DBUG_PRINT("prep_query", ("%s", packet));
+  DBUG_PRINT("prep_query", ("%s", query));
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2118,14 +2136,17 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
     DBUG_VOID_RETURN;
   }
 
-  thd->protocol= &thd->protocol_binary;
+  // set the current client capabilities before switching the protocol
+  thd->protocol_binary.set_client_capabilities(
+      thd->get_protocol()->get_client_capabilities());
 
+  thd->set_protocol(&thd->protocol_binary);
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
                                          stmt->name().str, stmt->name().length,
-                                         packet, packet_length);
+                                         query, length);
 
-  if (stmt->prepare(packet, packet_length))
+  if (stmt->prepare(query, length))
   {
     /* Delete this stmt stats from PS table. */
     MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
@@ -2133,7 +2154,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
     thd->stmt_map.erase(stmt);
   }
 
-  thd->protocol= save_protocol;
+  thd->set_protocol(save_protocol);
 
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
@@ -2495,36 +2516,25 @@ static void reset_stmt_params(Prepared_statement *stmt)
     to the client.
 
   @param thd                current thread
-  @param packet_arg         parameter types and data, if any
-  @param packet_length      packet length, including the terminator character.
+  @param stmt_id            statement id
+  @param flags              flags mask
+  @param params             parameter types and data, if any
+  @param params_length      packet length, including the terminator character.
 
   @return
     none: in case of success OK packet or a result set is sent to the
     client, otherwise an error message is set in THD.
 */
 
-void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
+void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
+                         ulong params_length)
 {
-  uchar *packet= (uchar*)packet_arg; // GCC 4.0.1 workaround
-  ulong stmt_id;
-  ulong flags;
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
-  uchar *packet_end= packet + packet_length;
   Prepared_statement *stmt;
-  Protocol *save_protocol= thd->protocol;
+  Protocol *save_protocol= thd->get_protocol();
   bool open_cursor;
   DBUG_ENTER("mysqld_stmt_execute");
-
-  if (packet + 9 > packet_end)
-  {
-    my_error(ER_MALFORMED_PACKET, MYF(0));
-    DBUG_VOID_RETURN;
-  }
-
-  stmt_id= uint4korr(packet);
-  flags= (ulong) packet[4];
-  packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2546,18 +2556,23 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
 
   open_cursor= MY_TEST(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
-  thd->protocol= &thd->protocol_binary;
+  // set the current client capabilities before switching the protocol
+  thd->protocol_binary.set_client_capabilities(
+      thd->get_protocol()->get_client_capabilities());
+  thd->set_protocol(&thd->protocol_binary);
 
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
 
-  stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
-  thd->protocol= save_protocol;
+  stmt->execute_loop(&expanded_query, open_cursor, params,
+                    params + params_length);
+  thd->set_protocol(save_protocol);
 
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
 
   /* Close connection socket; for use with client testing (Bug#43560). */
-  DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_shutdown(thd->net.vio););
+  DBUG_EXECUTE_IF(
+      "close_conn_after_stmt_execute", thd->get_protocol()->shutdown(););
 
   DBUG_VOID_RETURN;
 }
@@ -2617,26 +2632,15 @@ void mysql_sql_stmt_execute(THD *thd)
   COM_STMT_FETCH handler: fetches requested amount of rows from cursor.
 
   @param thd                Thread handle
-  @param packet             Packet from client (with stmt_id & num_rows)
-  @param packet_length      Length of packet
+  @param stmt_id            Packet from client (with stmt_id & num_rows)
+  @param num_rows           Length of packet
 */
 
-void mysqld_stmt_fetch(THD *thd, char *packet, size_t packet_length)
+void mysqld_stmt_fetch(THD *thd, ulong stmt_id, ulong num_rows)
 {
-  /* assume there is always place for 8-16 bytes */
-  ulong stmt_id;
-  ulong num_rows;
   Prepared_statement *stmt;
   Server_side_cursor *cursor;
   DBUG_ENTER("mysqld_stmt_fetch");
-
-  if (packet_length < 8)
-  {
-    my_error(ER_MALFORMED_PACKET, MYF(0));
-    DBUG_VOID_RETURN;
-  }
-  stmt_id= uint4korr(packet);
-  num_rows= uint4korr(packet+4);
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2688,23 +2692,13 @@ void mysqld_stmt_fetch(THD *thd, char *packet, size_t packet_length)
     or 'ERROR' packet (unrecoverable error/statement not found/etc).
 
   @param thd                Thread handle
-  @param packet             Packet with stmt id
-  @param packet_length      length of data in packet
+  @param stmt_id            Stmt id
 */
 
-void mysqld_stmt_reset(THD *thd, char *packet, size_t packet_length)
+void mysqld_stmt_reset(THD *thd, ulong stmt_id)
 {
-  ulong stmt_id;
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_reset");
-
-  if (packet_length < 4)
-  {
-    my_error(ER_MALFORMED_PACKET, MYF(0));
-    DBUG_VOID_RETURN;
-  }
-
-  stmt_id= uint4korr(packet);
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
@@ -2743,20 +2737,10 @@ void mysqld_stmt_reset(THD *thd, char *packet, size_t packet_length)
     we don't send any reply to this command.
 */
 
-void mysqld_stmt_close(THD *thd, char *packet, size_t packet_length)
+void mysqld_stmt_close(THD *thd, ulong stmt_id)
 {
-  /* There is always space for 4 bytes in packet buffer */
-  ulong stmt_id;
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_close");
-
-  if (packet_length < 4)
-  {
-    my_error(ER_MALFORMED_PACKET, MYF(0));
-    DBUG_VOID_RETURN;
-  }
-
-  stmt_id= uint4korr(packet);
 
   thd->get_stmt_da()->disable_status();
 
@@ -2821,38 +2805,26 @@ void mysql_sql_stmt_close(THD *thd)
     that we get a 'end of column' in the server is performed).
 
   @param thd                Thread handle
-  @param packet             String to append
-  @param packet_length      Length of string (including end \\0)
+  @param stmt_id            Stmt id
+  @param param_number       Number of parameters
+  @param str                String to append
+  @param length             Length of string (including end \\0)
 */
 
-void mysql_stmt_get_longdata(THD *thd, char *packet, size_t packet_length)
+void mysql_stmt_get_longdata(THD *thd, ulong stmt_id, uint param_number,
+                             uchar *str, ulong length)
 {
-  ulong stmt_id;
-  uint param_number;
   Prepared_statement *stmt;
   Item_param *param;
-#ifndef EMBEDDED_LIBRARY
-  char *packet_end= packet + packet_length;
-#endif
   DBUG_ENTER("mysql_stmt_get_longdata");
 
   thd->status_var.com_stmt_send_long_data++;
 
   thd->get_stmt_da()->disable_status();
-#ifndef EMBEDDED_LIBRARY
-  /* Minimal size of long data packet is 6 bytes */
-  if (packet_length < MYSQL_LONG_DATA_HEADER)
-    DBUG_VOID_RETURN;
-#endif
-
-  stmt_id= uint4korr(packet);
-  packet+= 4;
 
   if (!(stmt=thd->stmt_map.find(stmt_id)))
     DBUG_VOID_RETURN;
 
-  param_number= uint2korr(packet);
-  packet+= 2;
 #ifndef EMBEDDED_LIBRARY
   if (param_number >= stmt->param_count)
   {
@@ -2871,7 +2843,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, size_t packet_length)
   thd->push_diagnostics_area(&new_stmt_da);
 
 #ifndef EMBEDDED_LIBRARY
-  param->set_longdata(packet, (ulong) (packet_end - packet));
+  param->set_longdata((char*)str, length);
 #else
   param->set_longdata(thd->extra_data, thd->extra_length);
 #endif
@@ -2899,17 +2871,19 @@ bool Query_fetch_protocol_binary::send_result_set_metadata(List<Item> &list,
                                                            uint flags)
 {
   bool rc;
-  Protocol *save_protocol= thd->protocol;
+  Protocol *save_protocol= thd->get_protocol();
 
+  protocol.set_client_capabilities(
+      thd->get_protocol()->get_client_capabilities());
   /*
     Protocol::send_result_set_metadata caches the information about column types:
     this information is later used to send data. Therefore, the same
     dedicated Protocol object must be used for all operations with
     a cursor.
   */
-  thd->protocol= &protocol;
+  thd->set_protocol(&protocol);
   rc= Query_result_send::send_result_set_metadata(list, flags);
-  thd->protocol= save_protocol;
+  thd->set_protocol(save_protocol);
 
   return rc;
 }
@@ -2930,12 +2904,15 @@ bool Query_fetch_protocol_binary::send_eof()
 
 bool Query_fetch_protocol_binary::send_data(List<Item> &fields)
 {
-  Protocol *save_protocol= thd->protocol;
+  Protocol *save_protocol= thd->get_protocol();
   bool rc;
 
-  thd->protocol= &protocol;
+  // set the current client capabilities before switching the protocol
+  protocol.set_client_capabilities(
+      thd->get_protocol()->get_client_capabilities());
+  thd->set_protocol(&protocol);
   rc= Query_result_send::send_data(fields);
-  thd->protocol= save_protocol;
+  thd->set_protocol(save_protocol);
   return rc;
 }
 
@@ -3198,8 +3175,8 @@ Prepared_statement::set_db(const LEX_CSTRING &db_arg)
     possible: it may be called from any context, e.g. when executing
     a COM_* command, and SQLCOM_* command, or a stored procedure.
 
-  @param packet             statement text
-  @param packet_len
+  @param query_str             statement text
+  @param query_length
 
   @note
     Precondition:
@@ -3212,7 +3189,7 @@ Prepared_statement::set_db(const LEX_CSTRING &db_arg)
     thd->mem_root contains unused memory allocated during validation.
 */
 
-bool Prepared_statement::prepare(const char *packet, size_t packet_len)
+bool Prepared_statement::prepare(const char *query_str, size_t query_length)
 {
   bool error;
   Query_arena arena_backup;
@@ -3243,7 +3220,7 @@ bool Prepared_statement::prepare(const char *packet, size_t packet_len)
   stmt_backup.set_thd_to_ps(thd, this);
   thd->set_n_backup_active_arena(this, &arena_backup);
 
-  if (alloc_query(thd, packet, packet_len))
+  if (alloc_query(thd, query_str, query_length))
   {
     stmt_backup.restore_thd(thd, this);
     thd->restore_active_arena(this, &arena_backup);
@@ -4001,7 +3978,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     if (is_sql_prepare())
       thd->protocol_text.send_out_parameters(&this->lex->param_list);
     else
-      thd->protocol->send_out_parameters(&this->lex->param_list);
+      thd->get_protocol_classic()->send_out_parameters(&this->lex->param_list);
   }
 
   flags&= ~ (uint) IS_IN_USE;
@@ -4138,19 +4115,19 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable)
   bool rc= FALSE;
   Protocol_local protocol_local(m_thd, this);
   Prepared_statement stmt(m_thd);
-  Protocol *save_protocol= m_thd->protocol;
+  Protocol *save_protocol= m_thd->get_protocol();
 
   DBUG_ENTER("Ed_connection::execute_direct");
 
   free_old_result(); /* Delete all data from previous execution, if any */
 
-  m_thd->protocol= &protocol_local;
+  m_thd->set_protocol(&protocol_local);
   m_thd->push_diagnostics_area(&m_diagnostics_area);
 
   rc= stmt.execute_server_runnable(server_runnable);
-  m_thd->protocol->end_statement();
+  m_thd->send_statement_status();
 
-  m_thd->protocol= save_protocol;
+  m_thd->set_protocol(save_protocol);
   m_thd->pop_diagnostics_area();
   /*
     Protocol_local makes use of m_current_rset to keep
@@ -4235,51 +4212,21 @@ Ed_connection::store_result_set()
 * Protocol_local
 **************************************************************************/
 
-Protocol_local::Protocol_local(THD *thd, Ed_connection *ed_connection)
-  :Protocol(thd),
+Protocol_local::Protocol_local(THD *thd, Ed_connection *ed_connection):
   m_connection(ed_connection),
   m_rset(NULL),
   m_column_count(0),
   m_current_row(NULL),
-  m_current_column(NULL)
+  m_current_column(NULL),
+  m_send_metadata(false),
+  m_thd(thd)
 {
   clear_alloc_root(&m_rset_root);
 }
 
 /**
-  Called between two result set rows.
-
-  Prepare structures to fill result set rows.
-  Unfortunately, we can't return an error here. If memory allocation
-  fails, we'll have to return an error later. And so is done
-  in methods such as @sa store_column().
-*/
-
-void Protocol_local::prepare_for_resend()
-{
-  DBUG_ASSERT(alloc_root_inited(&m_rset_root));
-
-  opt_add_row_to_rset();
-  /* Start a new row. */
-  m_current_row= (Ed_column *) alloc_root(&m_rset_root,
-                                          sizeof(Ed_column) * m_column_count);
-  m_current_column= m_current_row;
-}
-
-
-/**
-  In "real" protocols this is called to finish a result set row.
-  Unused in the local implementation.
-*/
-
-bool Protocol_local::write()
-{
-  return FALSE;
-}
-
-/**
   A helper function to add the current row to the current result
-  set. Called in @sa prepare_for_resend(), when a new row is started,
+  set. Called in @sa start_row(), when a new row is started,
   and in send_eof(), when the result set is finished.
 */
 
@@ -4302,7 +4249,7 @@ void Protocol_local::opt_add_row_to_rset()
 bool Protocol_local::store_null()
 {
   if (m_current_column == NULL)
-    return TRUE; /* prepare_for_resend() failed to allocate memory. */
+    return TRUE; /* start_row() failed to allocate memory. */
 
   memset(m_current_column, 0, sizeof(*m_current_column));
   ++m_current_column;
@@ -4320,7 +4267,7 @@ bool Protocol_local::store_null()
 bool Protocol_local::store_column(const void *data, size_t length)
 {
   if (m_current_column == NULL)
-    return TRUE; /* prepare_for_resend() failed to allocate memory. */
+    return TRUE; /* start_row() failed to allocate memory. */
   /*
     alloc_root() automatically aligns memory, so we don't need to
     do any extra alignment if we're pointing to, say, an integer.
@@ -4482,42 +4429,11 @@ bool Protocol_local::store(double value, uint32 decimals, String *buffer)
 
 /* Store a Field. */
 
-bool Protocol_local::store(Field *field)
+bool Protocol_local::store(Proto_field *field)
 {
-  if (field->is_null())
-    return store_null();
   return field->send_binary(this);
 }
 
-
-/** Called to start a new result set. */
-
-bool Protocol_local::send_result_set_metadata(List<Item> *columns, uint)
-{
-  DBUG_ASSERT(m_rset == 0 && !alloc_root_inited(&m_rset_root));
-
-  init_sql_alloc(key_memory_protocol_rset_root,
-                 &m_rset_root, MEM_ROOT_BLOCK_SIZE, 0);
-
-  if (! (m_rset= new (&m_rset_root) List<Ed_row>))
-    return TRUE;
-
-  m_column_count= columns->elements;
-
-  return FALSE;
-}
-
-
-/**
-  Normally this is a separate result set with OUT parameters
-  of stored procedures. Currently unsupported for the local
-  version.
-*/
-
-bool Protocol_local::send_out_parameters(List<Item_param> *sp_params)
-{
-  return FALSE;
-}
 
 
 /** Called for statements that don't have a result set, at statement end. */
@@ -4585,7 +4501,94 @@ Protocol_local::send_error(uint sql_errno, const char *err_msg, const char*)
 }
 
 
-#ifdef EMBEDDED_LIBRARY
-void Protocol_local::remove_last_row()
-{ }
-#endif
+int
+Protocol_local::read_packet()
+{
+  return 0;
+}
+
+ulong
+Protocol_local::get_client_capabilities()
+{
+  return 0;
+}
+
+bool
+Protocol_local::has_client_capability(unsigned long client_capability)
+{
+  return false;
+}
+
+void Protocol_local::end_partial_result_set() {}
+
+int
+Protocol_local::shutdown()
+{
+  return 0;
+}
+
+SSL_handle Protocol_local::get_ssl()
+{
+  return NULL;
+}
+
+/**
+  Called between two result set rows.
+
+  Prepare structures to fill result set rows.
+  Unfortunately, we can't return an error here. If memory allocation
+  fails, we'll have to return an error later. And so is done
+  in methods such as @sa store_column().
+*/
+void
+Protocol_local::start_row()
+{
+  DBUG_ENTER("Protocol_local::start_row");
+  DBUG_ASSERT(alloc_root_inited(&m_rset_root));
+
+  opt_add_row_to_rset();
+  /* Start a new row. */
+  m_current_row=
+    (Ed_column *) alloc_root(&m_rset_root, sizeof(Ed_column) * m_column_count);
+  m_current_column= m_current_row;
+  DBUG_VOID_RETURN;
+}
+
+/**
+In "real" protocols this is called to finish a result set row.
+Unused in the local implementation.
+*/
+bool Protocol_local::end_row()
+{
+  DBUG_ENTER("Protocol_local::end_row");
+  DBUG_RETURN(FALSE);
+}
+
+void Protocol_local::free() {}
+
+uint Protocol_local::get_rw_status()
+{
+  return 0;
+}
+
+bool Protocol_local::start_result_metadata(uint num_cols, uint flags,
+                                           const CHARSET_INFO *charset)
+{
+  return 0;
+}
+
+bool Protocol_local::end_result_metadata() { return false; }
+
+bool
+Protocol_local::send_field_metadata(Send_field *field,
+                                    const CHARSET_INFO *charset)
+{
+  return false;
+}
+
+bool Protocol_local::get_compression() { return false; }
+
+int Protocol_local::get_command(COM_DATA *com_data, enum_server_command *cmd)
+{
+  return -1;
+}

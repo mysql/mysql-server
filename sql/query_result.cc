@@ -30,7 +30,7 @@ using std::min;
 bool Query_result_send::send_result_set_metadata(List<Item> &list, uint flags)
 {
   bool res;
-  if (!(res= thd->protocol->send_result_set_metadata(&list, flags)))
+  if (!(res= thd->send_result_metadata(&list, flags)))
     is_result_set_started= true;
   return res;
 }
@@ -50,7 +50,7 @@ void Query_result_send::abort_result_set()
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->sp_runtime_ctx->end_partial_result_set= true;
+    thd->sp_runtime_ctx->end_partial_result_set= TRUE;
   }
   DBUG_VOID_RETURN;
 }
@@ -60,7 +60,7 @@ void Query_result_send::abort_result_set()
 
 bool Query_result_send::send_data(List<Item> &items)
 {
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("Query_result_send::send_data");
 
   if (unit->offset_limit_cnt)
@@ -76,22 +76,15 @@ bool Query_result_send::send_data(List<Item> &items)
   */
   ha_release_temporary_latches(thd);
 
-  protocol->prepare_for_resend();
-  if (protocol->send_result_set_row(&items))
+  protocol->start_row();
+  if (thd->send_result_set_row(&items))
   {
-    protocol->remove_last_row();
-    DBUG_RETURN(true);
+    protocol->abort_row();
+    DBUG_RETURN(TRUE);
   }
 
   thd->inc_sent_row_count(1);
-
-  if (thd->vio_ok())
-  {
-    bool res= protocol->write();
-    DBUG_RETURN(res);
-  }
-
-  DBUG_RETURN(false);
+  DBUG_RETURN(protocol->end_row());
 }
 
 bool Query_result_send::send_eof()

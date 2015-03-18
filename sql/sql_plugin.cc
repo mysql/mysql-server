@@ -1572,7 +1572,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
   new_thd->store_globals();
   LEX_CSTRING db_lex_cstr= { STRING_WITH_LEN("mysql") };
   new_thd->set_db(db_lex_cstr);
-  memset(&thd.net, 0, sizeof(thd.net));
+  thd.get_protocol_classic()->wipe_net();
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_READ);
 
 #ifdef EMBEDDED_LIBRARY

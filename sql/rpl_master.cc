@@ -212,7 +212,7 @@ void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list)
 bool show_slave_hosts(THD* thd)
 {
   List<Item> field_list;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("show_slave_hosts");
 
   field_list.push_back(new Item_return_int("Server_id", 10,
@@ -228,8 +228,8 @@ bool show_slave_hosts(THD* thd)
 					   MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Slave_UUID", UUID_LENGTH));
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
   mysql_mutex_lock(&LOCK_slave_list);
@@ -237,7 +237,7 @@ bool show_slave_hosts(THD* thd)
   for (uint i = 0; i < slave_list.records; ++i)
   {
     SLAVE_INFO* si = (SLAVE_INFO*) my_hash_element(&slave_list, i);
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store((uint32) si->server_id);
     protocol->store(si->host, &my_charset_bin);
     if (opt_show_slave_auth_info)
@@ -252,7 +252,7 @@ bool show_slave_hosts(THD* thd)
     String slave_uuid;
     if (get_slave_uuid(si->thd, &slave_uuid))
       protocol->store(slave_uuid.c_ptr_safe(), &my_charset_bin);
-    if (protocol->write())
+    if (protocol->end_row())
     {
       mysql_mutex_unlock(&LOCK_slave_list);
       DBUG_RETURN(TRUE);
@@ -559,7 +559,7 @@ int reset_master(THD* thd)
 */
 bool show_master_status(THD* thd)
 {
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   char* gtid_set_buffer= NULL;
   int gtid_set_size= 0;
   List<Item> field_list;
@@ -585,13 +585,13 @@ bool show_master_status(THD* thd)
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
                                              gtid_set_size));
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     my_free(gtid_set_buffer);
     DBUG_RETURN(true);
   }
-  protocol->prepare_for_resend();
+  protocol->start_row();
 
   if (mysql_bin_log.is_open())
   {
@@ -600,10 +600,10 @@ bool show_master_status(THD* thd)
     size_t dir_len = dirname_length(li.log_file_name);
     protocol->store(li.log_file_name + dir_len, &my_charset_bin);
     protocol->store((ulonglong) li.pos);
-    protocol->store(binlog_filter->get_do_db());
-    protocol->store(binlog_filter->get_ignore_db());
+    store(protocol, binlog_filter->get_do_db());
+    store(protocol, binlog_filter->get_ignore_db());
     protocol->store(gtid_set_buffer, &my_charset_bin);
-    if (protocol->write())
+    if (protocol->end_row())
     {
       my_free(gtid_set_buffer);
       DBUG_RETURN(true);
@@ -633,7 +633,7 @@ bool show_binlogs(THD* thd)
   List<Item> field_list;
   size_t length;
   size_t cur_dir_len;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("show_binlogs");
 
   if (!mysql_bin_log.is_open())
@@ -645,8 +645,8 @@ bool show_binlogs(THD* thd)
   field_list.push_back(new Item_empty_string("Log_name", 255));
   field_list.push_back(new Item_return_int("File_size", 20,
                                            MYSQL_TYPE_LONGLONG));
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+    if (thd->send_result_metadata(&field_list, Protocol::SEND_NUM_ROWS |
+                                    Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
   
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
@@ -668,7 +668,7 @@ bool show_binlogs(THD* thd)
     ulonglong file_length= 0;                   // Length if open fails
     fname[--length] = '\0';                     // remove the newline
 
-    protocol->prepare_for_resend();
+    protocol->start_row();
     dir_len= dirname_length(fname);
     length-= dir_len;
     protocol->store(fname + dir_len, length, &my_charset_bin);
@@ -687,7 +687,7 @@ bool show_binlogs(THD* thd)
       }
     }
     protocol->store(file_length);
-    if (protocol->write())
+    if (protocol->end_row())
     {
       DBUG_PRINT("info", ("stopping dump thread because protocol->write failed at line %d", __LINE__));
       goto err;

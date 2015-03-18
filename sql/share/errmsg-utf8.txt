@@ -7467,6 +7467,9 @@ ER_UNRESOLVED_HINT_NAME
 ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE
   eng "Please do not modify the %s table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state."
 
+ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
+  eng "Command not supported by pluggable protocols"
+
 #
 #  End of 5.7 error messages.
 #

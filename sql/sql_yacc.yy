@@ -1590,7 +1590,7 @@ query:
           {
             Lex_input_stream *lip = YYLIP;
 
-            if ((YYTHD->client_capabilities & CLIENT_MULTI_QUERIES) &&
+            if (YYTHD->get_protocol()->has_client_capability(CLIENT_MULTI_QUERIES) &&
                 lip->multi_statements &&
                 ! lip->eof())
             {
@@ -12838,7 +12838,7 @@ table_ident:
           }
         | ident '.' ident
           {
-            if (YYTHD->client_capabilities & CLIENT_NO_SCHEMA)
+            if (YYTHD->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
               $$= NEW_PTN Table_ident(to_lex_cstring($3));
             else {
               $$= NEW_PTN Table_ident(to_lex_cstring($1), to_lex_cstring($3));

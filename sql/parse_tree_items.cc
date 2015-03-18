@@ -100,7 +100,8 @@ bool PTI_table_wild::itemize(Parse_context *pc, Item **item)
   if (super::itemize(pc, item))
     return true;
 
-  schema= pc->thd->client_capabilities & CLIENT_NO_SCHEMA ?  NullS : schema;
+  schema=
+    pc->thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA) ? NullS : schema;
   *item= new (pc->mem_root) Item_field(POS(), schema, table, "*");
   if (*item == NULL || (*item)->itemize(pc, item))
     return true;

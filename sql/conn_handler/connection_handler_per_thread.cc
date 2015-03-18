@@ -285,7 +285,8 @@ extern "C" void *handle_connection(void *arg)
 
     mysql_thread_set_psi_id(thd->thread_id());
     mysql_thread_set_psi_THD(thd);
-    mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
+    mysql_socket_set_thread_owner(
+      thd->get_protocol_classic()->get_vio()->mysql_socket);
 
     thd_manager->add_thd(thd);
 
