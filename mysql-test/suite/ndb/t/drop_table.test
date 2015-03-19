@@ -1,0 +1,16 @@
+--source include/have_ndb.inc
+
+#
+# Bug#20728189 DROP TABLE SEGFAULTS IF FIRST STATEMENT ON A NEW CONNECTION
+#
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY) ENGINE NDB;
+
+--connect (con1, localhost, root)
+--connection con1
+
+DROP TABLE t1;
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection default
+
