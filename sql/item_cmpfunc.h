@@ -538,15 +538,21 @@ public:
   enum enum_trig_type
   {
     /**
-       In t1 LEFT JOIN t2, ON can be tested on t2's row only if that row is
-       not NULL-complemented
+      This trigger type deactivates join conditions when a row has been
+      NULL-complemented. For example, in t1 LEFT JOIN t2, the join condition
+      can be tested on t2's row only if that row is not NULL-complemented.
     */
     IS_NOT_NULL_COMPL,
+
     /**
-       In t1 LEFT JOIN t2, the WHERE pushed to t2 can be tested only after at
-       least one t2's row has been found
+      This trigger type deactivates predicated from WHERE condition when no
+      row satisfying the join condition has been found. For Example, in t1
+      LEFT JOIN t2, the where condition pushed to t2 can be tested only after
+      at least one t2 row has been produced, which may be a NULL-complemented
+      row.
     */
     FOUND_MATCH,
+
     /**
        In IN->EXISTS subquery transformation, new predicates are added:
        WHERE inner_field=outer_field OR inner_field IS NULL,
