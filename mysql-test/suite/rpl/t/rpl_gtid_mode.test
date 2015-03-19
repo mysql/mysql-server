@@ -48,6 +48,20 @@
 
 call mtr.add_suppression("Slave I/O for channel '': The replication receiver thread cannot start");
 call mtr.add_suppression("Slave I/O for channel '': The slave IO thread stops");
+call mtr.add_suppression("Slave I/O for channel '': Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
+call mtr.add_suppression("Slave I/O for channel '': Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
+call mtr.add_suppression("GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT.");
+call mtr.add_suppression("An unexpected event sequence was detected by the IO thread while queuing the event received from master");
+call mtr.add_suppression("Detected misconfiguration: replication channel '' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off.");
+call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: could not queue event from master");
+call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
+call mtr.add_suppression("Slave I/O for channel '': Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
+call mtr.add_suppression("Slave I/O for channel '': Cannot replicate anonymous transaction when AUTO_POSITION = 1");
+call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate anonymous transaction when AUTO_POSITION = 1,");
+call mtr.add_suppression("Slave I/O for channel '': The master uses an unknown GTID_MODE 'on_something'. Treating it as 'ON'.");
+call mtr.add_suppression("Slave I/O for channel '': The master uses an unknown GTID_MODE 'off_something'. Treating it as 'OFF'.");
+call mtr.add_suppression("Could not open .* for logging.*. Turning logging off for the whole duration of the MySQL server process.");
+
 --let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
 
 --source include/sync_slave_sql_with_master.inc
@@ -57,9 +71,9 @@ call mtr.add_suppression("Slave I/O for channel '': The slave IO thread stops");
 --connection master
 --let $saved_innodb_page_size_server1=`SELECT @@innodb_page_size`
 
---let $server1_cmd= $MYSQLD --defaults-group-suffix=.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server1
+--let $server1_cmd= $MYSQLD --defaults-group-suffix=.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server1
 
---let $server2_cmd= $MYSQLD --defaults-group-suffix=.2 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server2
+--let $server2_cmd= $MYSQLD --defaults-group-suffix=.2 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server2
 
 --echo ==== Checks performed at server start ====
 
@@ -225,6 +239,13 @@ START SLAVE IO_THREAD;
 --let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE LAST_ERROR_MESSAGE LIKE "%Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF%";
 --source include/assert.inc
 
+--let $assert_text= Receiver thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF
+--let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_count= 2
+--source include/assert_grep.inc
+
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 
@@ -262,9 +283,10 @@ CREATE TABLE t2(a int);
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= Receiver thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.
---let $assert_file= $MYSQLTEST_VARDIR/tmp/slave-rpl-gtid-mode.err
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF
---let $assert_count= 3
+--let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_count= 1
 --source include/assert_grep.inc
 
 --source include/rpl_connection_master.inc
@@ -298,7 +320,7 @@ CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 
 --let $assert_text= While AUTO_POSITION is set, attempt to restart the slave with gtid-mode= off to get ER_STARTING_WITH_GTID_MODE_OFF_AND_AUTO_POSITION.
---let $assert_file= $MYSQLTEST_VARDIR/tmp/slave-rpl-gtid-mode.err
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Detected misconfiguration: replication channel '' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off
 --let $assert_count= 1
 --source include/assert_grep.inc
@@ -345,6 +367,13 @@ START SLAVE IO_THREAD;
 --let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE LAST_ERROR_MESSAGE LIKE "%Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON%";
 --source include/assert.inc
 
+--let $assert_text= While gtid-mode=on, slave expects an anonymous event to get ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON
+--let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_count= 2
+--source include/assert_grep.inc
+
 --source include/rpl_connection_master.inc
 DROP TABLE t3;
 
@@ -367,9 +396,10 @@ CREATE TABLE t4(a int);
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= While gtid-mode=on, slave expects an anonymous event to get ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON.
---let $assert_file= $MYSQLTEST_VARDIR/tmp/slave-rpl-gtid-mode.err
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON
---let $assert_count= 3
+--let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_count= 1
 --source include/assert_grep.inc
 
 --source include/stop_slave_sql.inc
@@ -442,6 +472,12 @@ START SLAVE IO_THREAD;
 --let $assert_text= sender thread should report - Cannot replicate anonymous transaction when AUTO_POSITION = 1.
 --let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE LAST_ERROR_MESSAGE LIKE "%Cannot replicate anonymous transaction when AUTO_POSITION = 1%";
 --source include/assert.inc
+
+--let $assert_text= While AUTO_POSITION is enabled, Master sends an anonymous transaction resulting into ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION.
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= Cannot replicate anonymous transaction when AUTO_POSITION = 1
+--let $assert_count= 1
+--source include/assert_grep.inc
 
 --let $rpl_server_number=1
 --let $rpl_start_with_gtids= 0
@@ -523,9 +559,9 @@ START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= While AUTO_POSITION is enabled, Master sends an anonymous transaction resulting into ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION.
---let $assert_file= $MYSQLTEST_VARDIR/tmp/slave-rpl-gtid-mode.err
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate anonymous transaction when AUTO_POSITION = 1
---let $assert_count= 2
+--let $assert_count= 1
 --source include/assert_grep.inc
 
 --source include/rpl_connection_slave.inc
@@ -603,15 +639,16 @@ INSERT INTO t7 values (1);
 
 SET GTID_NEXT='AUTOMATIC';
 DROP TABLE t7;
-RESET MASTER;
 
+RESET MASTER;
 --let $rpl_server_numbers= 1
 --let $rpl_skip_sync= 1
 --let $rpl_gtid_mode= OFF
 --source include/rpl_set_gtid_mode.inc
 
+
 # Get rid of the manually generated slave error log file.
---remove_file $MYSQLTEST_VARDIR/tmp/slave-rpl-gtid-mode.err
+#--remove_file $MYSQLTEST_VARDIR/tmp/slave-rpl-gtid-mode.err
 
 --echo #
 --echo # Error generated if master has an unknown gtid_mode
@@ -619,6 +656,7 @@ RESET MASTER;
 
 --connection slave
 --source include/stop_slave.inc
+RESET SLAVE;
 SET @@GLOBAL.DEBUG= 'd,simulate_master_has_unknown_gtid_mode';
 START SLAVE IO_THREAD;
 --let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
@@ -626,13 +664,35 @@ START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_error.inc
 SET @@GLOBAL.DEBUG= @debug_saved;
 
+--echo #
+--echo # Warning generated if master has unknown gtid_mode that begins
+--echo # with ON or OFF.
+--echo #
+
+SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
+
+SET @@GLOBAL.DEBUG = 'd,simulate_master_has_gtid_mode_on_something';
+--source include/start_slave.inc
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count= 1
+--let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_text= Receiver thread should report that on_something is unknown
+--let $assert_select= Slave I/O for channel '': The master uses an unknown GTID_MODE 'on_something'. Treating it as 'ON'.
+--source include/assert_grep.inc
+
+--source include/stop_slave.inc
+SET @@GLOBAL.DEBUG = 'd,simulate_master_has_gtid_mode_off_something';
+--source include/start_slave.inc
+--let $assert_text= Receiver thread should report that off_something is unknown
+--let $assert_select= Slave I/O for channel '': The master uses an unknown GTID_MODE 'off_something'. Treating it as 'OFF'.
+--source include/assert_grep.inc
+
+--source include/stop_slave.inc
 RESET SLAVE;
 
 --echo #
 --echo # ER_CANT_SET_GTID_MODE generated because AUTO_POSITION = 1.
 --echo #
-
-SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
 
 --let $rpl_server_numbers= 1
 --let $rpl_gtid_mode= ON
