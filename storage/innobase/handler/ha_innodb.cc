@@ -12042,6 +12042,14 @@ ha_innobase::records_in_range(
 
 	mem_heap_free(heap);
 
+	DBUG_EXECUTE_IF(
+		"print_btr_estimate_n_rows_in_range_return_value",
+		push_warning_printf(
+			ha_thd(), Sql_condition::SL_WARNING,
+			ER_NO_DEFAULT,
+			"btr_estimate_n_rows_in_range(): %" PRId64, n_rows);
+	);
+
 func_exit:
 
 	m_prebuilt->trx->op_info = (char*)"";
@@ -12774,7 +12782,18 @@ ha_innobase::info_low(
 	}
 
 	if ((flag & HA_STATUS_AUTO) && table->found_next_number_field) {
-		stats.auto_increment_value = innobase_peek_autoinc();
+
+		ulonglong auto_inc_val = innobase_peek_autoinc();
+		/* Initialize autoinc value if not set. */
+		if (auto_inc_val == 0) {
+
+			dict_table_autoinc_lock(m_prebuilt->table);
+			innobase_initialize_autoinc();
+			dict_table_autoinc_unlock(m_prebuilt->table);
+
+			auto_inc_val = innobase_peek_autoinc();
+		}
+		stats.auto_increment_value = auto_inc_val;
 	}
 
 func_exit:
@@ -17201,9 +17220,9 @@ static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
 
 static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Purge threads can be from 1 to 32. Default is 1.",
+  "Purge threads can be from 1 to 32. Default is 4.",
   NULL, NULL,
-  1,			/* Default setting */
+  4,			/* Default setting */
   1,			/* Minimum value */
   32, 0);		/* Maximum value */
 
@@ -17299,8 +17318,8 @@ static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
 
 static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Page cleaner threads can be from 1 to 64. Default is 1.",
-  NULL, NULL, 1, 1, 64, 0);
+  "Page cleaner threads can be from 1 to 64. Default is 4.",
+  NULL, NULL, 4, 1, 64, 0);
 
 static MYSQL_SYSVAR_DOUBLE(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,

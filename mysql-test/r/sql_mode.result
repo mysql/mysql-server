@@ -9,7 +9,7 @@ UNIQUE KEY `email` USING BTREE (`email`)
 ) ENGINE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
 set @@sql_mode="";
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 show variables like 'sql_mode';
 Variable_name	Value
 sql_mode	
@@ -76,7 +76,7 @@ t1	CREATE TABLE `t1` (
 ) TYPE=HEAP ROW_FORMAT=DYNAMIC
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@sql_mode;
 @@sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
@@ -97,7 +97,7 @@ c binary(10)
 ) character set latin1;
 set @@sql_mode="";
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -515,13 +515,13 @@ drop user mysqltest_32753@localhost;
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%';
 @@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%'
 1
 SET sql_mode=@org_mode;
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1,t2;
 CREATE USER 'user_PCTFL'@'localhost' identified by 'PWD';
 CREATE USER 'user_no_PCTFL'@'localhost' identified by 'PWD';

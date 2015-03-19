@@ -500,7 +500,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -1314,7 +1314,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -2154,7 +2154,7 @@ hex(c1)	hex(c2)
 3	3
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -3091,7 +3091,7 @@ hex(c1)	hex(c2)
 F	F
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -4351,7 +4351,7 @@ hex(c1)	hex(c2)
 9	FF
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -5803,7 +5803,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -7876,7 +7876,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -11056,7 +11056,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -11691,7 +11691,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -12505,7 +12505,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -13345,7 +13345,7 @@ hex(c1)	hex(c2)
 3	3
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -14282,7 +14282,7 @@ hex(c1)	hex(c2)
 F	F
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -15542,7 +15542,7 @@ hex(c1)	hex(c2)
 9	FF
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -16994,7 +16994,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -19067,7 +19067,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -22247,7 +22247,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -22888,7 +22888,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -23708,7 +23708,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -24548,7 +24548,7 @@ hex(c1)	hex(c2)
 3	3
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -25485,7 +25485,7 @@ hex(c1)	hex(c2)
 F	F
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -26745,7 +26745,7 @@ hex(c1)	hex(c2)
 9	FF
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -28197,7 +28197,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -30270,7 +30270,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -33450,7 +33450,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -34091,7 +34091,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -34911,7 +34911,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -35757,7 +35757,7 @@ hex(c1)	hex(c2)
 3	3
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -36694,7 +36694,7 @@ hex(c1)	hex(c2)
 F	F
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -37954,7 +37954,7 @@ hex(c1)	hex(c2)
 9	FF
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -39406,7 +39406,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -41479,7 +41479,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -44659,7 +44659,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -45300,7 +45300,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -46120,7 +46120,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -46966,7 +46966,7 @@ hex(c1)	hex(c2)
 3	3
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -47909,7 +47909,7 @@ hex(c1)	hex(c2)
 F	F
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -49175,7 +49175,7 @@ hex(c1)	hex(c2)
 9	FF
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -50627,7 +50627,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -52700,7 +52700,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -55880,7 +55880,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -56523,7 +56523,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -57345,7 +57345,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -58193,7 +58193,7 @@ hex(c1)	hex(c2)
 3	3
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -59138,7 +59138,7 @@ hex(c1)	hex(c2)
 F	F
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -60406,7 +60406,7 @@ hex(c1)	hex(c2)
 9	FF
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -61866,7 +61866,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -63941,7 +63941,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -67123,7 +67123,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -67763,7 +67763,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -68582,7 +68582,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -69427,7 +69427,7 @@ hex(c1)	hex(c2)
 3	3
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -70369,7 +70369,7 @@ hex(c1)	hex(c2)
 F	F
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -71634,7 +71634,7 @@ hex(c1)	hex(c2)
 9	FF
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -73091,7 +73091,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -75169,7 +75169,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -78348,7 +78348,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -78988,7 +78988,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -79807,7 +79807,7 @@ hex(c1)	hex(c2)
 1	1
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -80652,7 +80652,7 @@ hex(c1)	hex(c2)
 3	3
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -81594,7 +81594,7 @@ hex(c1)	hex(c2)
 F	F
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -82859,7 +82859,7 @@ hex(c1)	hex(c2)
 9	FF
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -84316,7 +84316,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -86394,7 +86394,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -89579,7 +89579,7 @@ hex(c1)	hex(c2)
 9	16B
 SET SQL_MODE=DEFAULT;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)

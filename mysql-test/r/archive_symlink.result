@@ -30,7 +30,7 @@ DROP TABLE t1;
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_DIR_IN_CREATE';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -45,7 +45,7 @@ INSERT INTO t1 VALUES (NULL, "yellow");
 DROP TABLE t1;
 set @@sql_mode=@org_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # 
 # MySQL engine does not allow DATA DIRECTORY to be
 # within --datadir for any engine, including Archive

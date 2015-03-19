@@ -1163,6 +1163,10 @@ public:
 
   // Alter generated column
   static const HA_ALTER_FLAGS HA_ALTER_STORED_GCOL       = 1ULL << 32;
+
+  // Alter index comment
+  static const HA_ALTER_FLAGS ALTER_INDEX_COMMENT        = 1ULL << 33;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 

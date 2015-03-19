@@ -361,7 +361,7 @@ PARTITION `pEnd` VALUES LESS THAN (UNIX_TIMESTAMP('2038-01-19 03:14:07')),
 PARTITION `pMax` VALUES LESS THAN MAXVALUE);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Test 'odd' values
 INSERT INTO t1 VALUES (NULL, 'UTC');
 INSERT INTO t1 VALUES ('0000-00-00 00:00:00', 'UTC');

@@ -167,29 +167,23 @@ int MBR::within(const MBR *mbr) const
   1   sign
   1   number before the decimal point
   1   decimal point
-  14  number of significant digits (see String::qs_append(double))
+  17  number of significant digits (see String::qs_append(double))
   1   'e' sign
   1   exponent sign
   3   exponent digits
   ==
-  22
+  25
 
   "f" notation :
   1   optional 0
   1   sign
-  14  number significant digits (see String::qs_append(double) )
+  17  number significant digits (see String::qs_append(double) )
   1   decimal point
   ==
-  17
+  20
 */
 
-/*
-  This used to be 30 but there was a test case which produces a double value
-  string of 34 chars instead of a scientific notation string.
-  A bug was filed to fix my_gcvt and before it's fixed we define this to
-  50 to be large enough.
-*/
-#define MAX_DIGITS_IN_DOUBLE 50
+#define MAX_DIGITS_IN_DOUBLE 25
 
 
 /**
@@ -878,13 +872,14 @@ void Geometry::append_points(String *txt, uint32 n_points,
     point_xy p;
     wkb->skip_unsafe(offset);
     wkb->scan_xy_unsafe(&p);
+    txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 1);
     if (p.x == -0)
       p.x= 0.0;
     if (p.y == -0)
       p.y= 0.0;
-    txt->qs_append(p.x);
+    txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(' ');
-    txt->qs_append(p.y);
+    txt->qs_append(p.y, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(',');
   }
 }
@@ -1343,9 +1338,9 @@ bool Gis_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     p.y= 0;
   if (!my_isfinite(p.x) || !my_isfinite(p.y))
     return true;
-  txt->qs_append(p.x);
+  txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
   txt->qs_append(' ');
-  txt->qs_append(p.y);
+  txt->qs_append(p.y, MAX_DIGITS_IN_DOUBLE);
   return false;
 }
 
@@ -1522,9 +1517,9 @@ bool Gis_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
       p.y= 0;
     if (!my_isfinite(p.x) || !my_isfinite(p.y))
       return true;
-    txt->qs_append(p.x);
+    txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(' ');
-    txt->qs_append(p.y);
+    txt->qs_append(p.y, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(',');
   }
   txt->length(txt->length() - 1);		// Remove end ','

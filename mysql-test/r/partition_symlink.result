@@ -135,7 +135,7 @@ data directory="MYSQLTEST_VARDIR/tmp"
 set @org_mode=@@sql_mode;
 set @@sql_mode='NO_DIR_IN_CREATE';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -160,7 +160,7 @@ t2	CREATE TABLE `t2` (
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a int)
 ENGINE = MyISAM
 partition by key (a)

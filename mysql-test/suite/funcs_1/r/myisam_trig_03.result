@@ -1,6 +1,6 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
 set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
@@ -684,5 +684,5 @@ use test;
 drop table tb3;
 set GLOBAL sql_mode= @orig_sql_mode_global;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set SESSION sql_mode= @orig_sql_mode_session;

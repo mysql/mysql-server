@@ -110,7 +110,7 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,(/* select#2 */ select co
 DROP TABLE t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a TIMESTAMP);
 INSERT INTO t1 VALUES (NOW()),(NOW()),(NOW());
 SELECT * FROM t1 WHERE a > '2008-01-01' AND a = '0000-00-00';

@@ -7,7 +7,7 @@ primary key (`a`)
 ) engine = 'MYISAM'  ;
 set @@sql_mode='strict_all_tables';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values(1000);
 ERROR 22003: Out of range value for column 'a' at row 1
 select count(*) from t1;
@@ -22,7 +22,7 @@ count(*)
 0
 set @@sql_mode=@org_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert ignore into t1 values(null);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1

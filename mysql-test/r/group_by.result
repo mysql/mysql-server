@@ -1,7 +1,7 @@
 drop table if exists t1,t2,t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT 1 FROM (SELECT 1) as a  GROUP BY SUM(1);
 ERROR HY000: Invalid use of group function
 CREATE TABLE t1 (
@@ -993,7 +993,7 @@ CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
 SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT MAX(a)-MIN(a) FROM t1 GROUP BY b;
 MAX(a)-MIN(a)
 1
@@ -1197,7 +1197,7 @@ DROP TABLE t1;
 SET @save_sql_mode=@@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INT, b INT, c INT DEFAULT 0);
 INSERT INTO t1 (a, b) VALUES (3,3), (2,2), (3,3), (2,2), (3,3), (4,4);
 CREATE TABLE t2 SELECT * FROM t1;
@@ -1352,7 +1352,7 @@ tt
 41
 SET sql_mode=@save_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1, t2;
 # 
 # BUG#38072: Wrong result: HAVING not observed in a query with aggregate
@@ -1828,7 +1828,7 @@ ERROR 42S22: Reference 'c' not supported (reference to group function)
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
 c	(SELECT a FROM t1 WHERE b = c)
@@ -1852,11 +1852,11 @@ ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (1), (10);
 SELECT COUNT(i) FROM t1;
@@ -1868,7 +1868,7 @@ COUNT(i)
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug #45640: optimizer bug produces wrong results
 #
@@ -2136,7 +2136,7 @@ SET BIG_TABLES=0;
 SET @save_sql_mode=@@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (f1 int, f2 DATE);
 INSERT INTO t1 VALUES (1,'2004-04-19'), (1,'0000-00-00'), (1,'2004-04-18'),
 (2,'2004-05-19'), (2,'0001-01-01'), (3,'2004-04-10');
@@ -2164,7 +2164,7 @@ f1	MIN(f2)	MAX(f2)
 DROP TABLE t1;
 SET sql_mode=@save_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #End of test#49771
 #
 # Bug #58782
@@ -2515,7 +2515,7 @@ DROP TABLE t1,t2;
 SET @old_sql_mode = @@sql_mode;
 SET sql_mode='';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 pk INT,
 col_int_key INT,
@@ -2620,7 +2620,7 @@ ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains
 DROP VIEW v1;
 SET @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Verify that if an alias is used in GROUP BY/ORDER BY it
 # is printed as an alias, not as the expression.
 CREATE TABLE t2(a INT);
@@ -2752,7 +2752,7 @@ DROP TABLE t1;
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(a int, b int);
 select a from t1 group by b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
@@ -2814,7 +2814,7 @@ select a from t2 group by a order by (select a from t1 order by t2.b);
 ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t2.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SET @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1,t2;
 create table t1 (branch varchar(40), id int);
 select count(*) from t1 group by branch having
@@ -2826,7 +2826,7 @@ order by id desc,branch desc limit 100;
 branch	count(*)/max(id)
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select count(*) from t1 group by branch having
 branch<>'mumbai' order by id desc,branch desc limit 100;
 ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t1.id' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
@@ -2852,7 +2852,7 @@ xyz
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # BUG#12640437: USING SQL_BUFFER_RESULT RESULTS IN A
 #               DIFFERENT QUERY OUTPUT
@@ -3062,7 +3062,7 @@ DROP TABLE r;
 SET @old_sql_mode = @@sql_mode;
 set sql_mode='';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET GLOBAL innodb_large_prefix=OFF;
 Warnings:
 Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
@@ -3126,7 +3126,7 @@ DROP TABLE AA,B;
 DROP VIEW view_AA;
 SET @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET sql_mode = default;
 SET GLOBAL innodb_large_prefix=default;
 Warnings:

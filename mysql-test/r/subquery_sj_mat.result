@@ -12023,9 +12023,7 @@ FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
 ON iir2.col_varchar_nokey = iir1.col_varchar_key)) 
 ORDER BY r1.col_date_key;
 col_date_key
-1900-01-01
 2000-04-10
-2000-09-06
 2000-09-20
 2000-12-03
 2002-10-20
@@ -12034,13 +12032,26 @@ col_date_key
 2005-09-13
 2006-06-16
 2007-01-08
-2007-04-09
 2007-06-14
 2007-11-17
 2008-05-03
 2008-06-10
 2008-09-12
 2009-02-23
+SELECT COUNT(r1.col_date_key) AS COUNT_NUM
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+(SELECT ir2.pk
+FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+ON ir2.col_varchar_nokey = ir1.col_varchar_key
+WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+AND ir2.pk IN
+(SELECT iir2.pk
+FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+ON iir2.col_varchar_nokey = iir1.col_varchar_key
+WHERE iir2.pk<3));
+COUNT_NUM
+15
 DROP TABLE t1,t2,t3;
 #
 # Bug#20554585 ASSERT JOIN()->TABLES == 0... IN JOIN_TAB::GET_SJ_STRATEGY ON SUBQUERY + VAR
