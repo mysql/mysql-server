@@ -1119,7 +1119,7 @@ void Protocol_classic::send_string_metadata(String* item_str)
 
 bool Protocol_classic::end_row()
 {
-  DBUG_ENTER("Protocol_classic::write");
+  DBUG_ENTER("Protocol_classic::end_row");
   if (!m_thd->mysql)            // bootstrap file handling
     DBUG_RETURN(FALSE);
 

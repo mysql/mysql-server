@@ -67,9 +67,6 @@ protected:
   virtual bool send_error(uint sql_errno, const char *err_msg,
                           const char *sql_state);
 public:
-#ifndef DBUG_OFF
-  void increment_field_count() { field_count++; }
-#endif
   bool bad_packet;
   Protocol_classic(): send_metadata(false), bad_packet(true) {}
   Protocol_classic(THD *thd):
