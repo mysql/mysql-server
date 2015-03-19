@@ -692,7 +692,7 @@ public:
   int dropEvent(const NdbEventImpl &);
   int dropEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
 
-  int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &, Uint32&);
+  int executeSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
   int stopSubscribeEvent(class Ndb & ndb, NdbEventOperationImpl &);
   
   int listObjects(NdbDictionary::Dictionary::List& list,
@@ -859,9 +859,6 @@ private:
   UtilBuffer m_tableNames;
 
   union {
-    struct SubStartConfData {
-      Uint32 m_buckets;
-    } m_sub_start_conf;
     struct WaitGcpData {
       Uint32 gci_hi;
       Uint32 gci_lo;
@@ -930,7 +927,7 @@ public:
   int dropBlobEvents(const NdbEventImpl &);
   int listEvents(List& list);
 
-  int executeSubscribeEvent(NdbEventOperationImpl &, Uint32 & buckets);
+  int executeSubscribeEvent(NdbEventOperationImpl &);
   int stopSubscribeEvent(NdbEventOperationImpl &);
 
   int forceGCPWait(int type);
