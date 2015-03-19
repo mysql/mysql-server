@@ -255,8 +255,6 @@ select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
 
-# The expected rows differs a bit with different page sizes
---replace_result 98 ROWS 99 ROWS
 eval EXPLAIN $query;
 eval $query;
 

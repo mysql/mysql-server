@@ -857,19 +857,29 @@ limit, merging it to a neighbor is tried */
 
 /** A slot in the path array. We store here info on a search path down the
 tree. Each slot contains data on a single level of the tree. */
+struct btr_path_t {
+	/* Assume a page like:
+	records:             (inf, a, b, c, d, sup)
+	index of the record:    0, 1, 2, 3, 4, 5
+	*/
 
-struct btr_path_t{
-	ulint	nth_rec;	/*!< index of the record
-				where the page cursor stopped on
-				this level (index in alphabetical
-				order); value ULINT_UNDEFINED
-				denotes array end */
-	ulint	n_recs;		/*!< number of records on the page */
-	ulint	page_no;	/*!< no of the page containing the record */
-	ulint	page_level;	/*!< level of the page, if later we fetch
-				the page under page_no and it is no different
-				level then we know that the tree has been
-				reorganized */
+	/** Index of the record where the page cursor stopped on this level
+	(index in alphabetical order). Value ULINT_UNDEFINED denotes array
+	end. In the above example, if the search stopped on record 'c', then
+	nth_rec will be 3. */
+	ulint	nth_rec;
+
+	/** Number of the records on the page, not counting inf and sup.
+	In the above example n_recs will be 4. */
+	ulint	n_recs;
+
+	/** Number of the page containing the record. */
+	ulint	page_no;
+
+	/** Level of the page. If later we fetch the page under page_no
+	and it is no different level then we know that the tree has been
+	reorganized. */
+	ulint	page_level;
 };
 
 #define BTR_PATH_ARRAY_N_SLOTS	250	/*!< size of path array (in slots) */

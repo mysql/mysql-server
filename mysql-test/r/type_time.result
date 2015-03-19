@@ -1,7 +1,7 @@
 drop table if exists t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (t time);
 insert into t1 values("10:22:33"),("12:34:56.78"),(10),(1234),(123456.78),(1234559.99),("1"),("1:23"),("1:23:45"), ("10.22"), ("-10  1:22:33.45"),("20 10:22:33"),("1999-02-03 20:33:34");
 Warnings:

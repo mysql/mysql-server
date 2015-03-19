@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -72,10 +72,10 @@ set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
 set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 USE db_storedproc_1;
 	
 root@localhost	db_storedproc_1
@@ -401,10 +401,10 @@ DROP USER 'user_1'@'localhost';
 DROP USER 'user_2'@'localhost';
 set GLOBAL sql_mode= @orig_sql_mode_global;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set SESSION sql_mode= @orig_sql_mode_session;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------

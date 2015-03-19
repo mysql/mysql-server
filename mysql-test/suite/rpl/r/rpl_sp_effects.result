@@ -8,7 +8,7 @@ create table t1 (a int) engine = innodb;
 SET GLOBAL log_bin_trust_function_creators = 1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure p1()
 begin
 declare spv int default 0;

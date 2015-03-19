@@ -397,7 +397,7 @@ ERROR 42S22: Unknown column 'f2' in 'order clause'
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 request_id int unsigned NOT NULL auto_increment,
 user_id varchar(12) default NULL,
@@ -554,7 +554,7 @@ DROP VIEW v1;
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1, not_exists;
 DROP FUNCTION IF EXISTS f1;
 DROP VIEW IF EXISTS v1;

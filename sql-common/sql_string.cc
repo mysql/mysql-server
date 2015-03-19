@@ -747,18 +747,10 @@ void String::qs_append(const char *str, size_t len)
   m_length += len;
 }
 
-void String::qs_append(double d)
+void String::qs_append(double d, size_t len)
 {
   char *buff = m_ptr + m_length;
-  m_length+= my_gcvt(d, MY_GCVT_ARG_DOUBLE, FLOATING_POINT_BUFFER - 1, buff,
-                     NULL);
-}
-
-void String::qs_append(double *d)
-{
-  double ld;
-  float8get(&ld, (char*) d);
-  qs_append(ld);
+  m_length+= my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, NULL);
 }
 
 void String::qs_append(int i)

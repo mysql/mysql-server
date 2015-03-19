@@ -1,7 +1,7 @@
 set @orig_sql_mode= @@sql_mode;
 set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
 DROP VIEW IF EXISTS v1;
 #
@@ -2235,4 +2235,4 @@ having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
 page_size	compress_ops	compress_ops_ok	compress_time	uncompress_ops	uncompress_time	Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
 set sql_mode= @orig_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

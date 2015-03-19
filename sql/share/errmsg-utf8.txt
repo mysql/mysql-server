@@ -7347,7 +7347,7 @@ ER_WARN_DEPRECATED_SYSVAR_UPDATE
 
 # Use this error message to deprecate SQL MODES
 ER_WARN_DEPRECATED_SQLMODE
-  eng "Setting sql mode '%s' is deprecated. It will be made read-only in a future release."
+  eng "Changing sql mode '%s' is deprecated. It will be removed in a future release."
 
 ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID
   eng "DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory %-.192s; (2) SET GTID_NEXT='%-.192s'; (3) DROP DATABASE `%-.192s`."
@@ -7463,9 +7463,6 @@ ER_WARN_UNKNOWN_QB_NAME
 
 ER_UNRESOLVED_HINT_NAME
   eng "Unresolved name %s for %s hint"
-
-ER_WARN_DEPRECATED_SQLMODE_UNSET
-  eng "Unsetting sql mode '%s' is deprecated. It will be made read-only in a future release."
 
 ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE
   eng "Please do not modify the %s table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state."

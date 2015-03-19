@@ -357,10 +357,10 @@ SET @@GLOBAL.DEBUG= 'd,simulate_master_has_unknown_gtid_mode';
 START SLAVE IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=1593]
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Last_IO_Error = 'The slave IO thread stops because the master has an unknown @@GLOBAL.GTID_MODE.'
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@GLOBAL.DEBUG= @debug_saved;
 RESET SLAVE;
 #

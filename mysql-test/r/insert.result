@@ -1,7 +1,7 @@
 drop table if exists t1,t2,t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
@@ -539,7 +539,7 @@ drop table if exists t1;
 create table t1 (data varchar(4) not null);
 set sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Demonstrate that the number of warnings matches
 # the information in mysql_info().
@@ -624,12 +624,12 @@ DROP TABLE t1;
 #
 SET sql_mode='';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
 INSERT INTO default_date VALUES();
 SET sql_mode='traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO default_date VALUES();
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
 INSERT INTO default_date VALUES('0000-00-00');

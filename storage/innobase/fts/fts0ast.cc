@@ -159,7 +159,10 @@ fts_ast_create_node_term_for_parser(
 {
 	fts_ast_node_t*		node = NULL;
 
-	if (len ==0 || len > fts_max_token_size) {
+	/* '%' as first char is forbidden for LIKE in internal SQL parser;
+	'%' as last char is reserved for wildcard search;*/
+	if (len == 0 || len > fts_max_token_size
+	    || ptr[0] == '%' || ptr[len - 1] == '%') {
 		return(NULL);
 	}
 

@@ -489,12 +489,12 @@ ERROR HY000: Cannot change column 'b': used in a foreign key constraint 't2_ibfk
 set @old_sql_mode = @@sql_mode;
 set @@sql_mode = 'STRICT_TRANS_TABLES';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=INPLACE;
 ERROR HY000: Column 'b' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
 set @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET FOREIGN_KEY_CHECKS=0;
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
 ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
@@ -513,7 +513,7 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 set @@sql_mode = 'STRICT_TRANS_TABLES';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table t2 add primary key (alpha), change a alpha int,
 change b beta int not null, change c charlie int not null;
 ERROR HY000: Column 'b' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
@@ -526,7 +526,7 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 set @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values (1,1,1);
 insert into t3 values (1,1,1);
 insert into t4 values (1,1,1);
@@ -1139,13 +1139,13 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 set @old_sql_mode = @@sql_mode;
 set @@sql_mode = 'STRICT_TRANS_TABLES';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t2i ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 set @@sql_mode = @old_sql_mode;
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t2c ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=COPY;
 affected rows: 5
 info: Records: 5  Duplicates: 0  Warnings: 0

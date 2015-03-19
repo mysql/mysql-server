@@ -2080,3 +2080,20 @@ SET GLOBAL log_output=        @old_log_output;
 
 End of 5.7 tests!
 
+
+Bug #20602525 ALTER USER DOES NOT VERIFY AUTH PLUGIN
+
+CREATE USER u1;
+ALTER USER u1 IDENTIFIED WITH 'invalid_plugin';
+ERROR HY000: Plugin 'invalid_plugin' is not loaded
+GRANT ALL ON *.* TO u1 IDENTIFIED WITH 'invalid_plugin';
+ERROR HY000: Plugin 'invalid_plugin' is not loaded
+ALTER USER u1 IDENTIFIED WITH 'invalid_plugin' BY 'secret';
+ERROR HY000: Plugin 'invalid_plugin' is not loaded
+GRANT ALL ON *.* TO u1 IDENTIFIED WITH 'invalid_plugin' BY 'secret';
+ERROR HY000: Plugin 'invalid_plugin' is not loaded
+ALTER USER u1 IDENTIFIED WITH 'invalid_plugin' AS 'secret';
+ERROR HY000: Plugin 'invalid_plugin' is not loaded
+GRANT ALL ON *.* TO u1 IDENTIFIED WITH 'invalid_plugin' AS 'secret';
+ERROR HY000: Plugin 'invalid_plugin' is not loaded
+DROP USER u1;

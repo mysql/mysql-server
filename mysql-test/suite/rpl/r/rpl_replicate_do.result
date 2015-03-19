@@ -28,10 +28,10 @@ ERROR 42S02: Table 'test.t11' doesn't exist
 drop table if exists t1,t2,t11;
 include/sync_slave_sql_with_master.inc
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_Table = 'test.t1'
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 *** master ***
 create table t1 (a int, b int);
 create trigger trg1 before insert on t1 for each row set new.b=2;

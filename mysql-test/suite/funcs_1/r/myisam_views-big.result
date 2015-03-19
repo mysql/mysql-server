@@ -1,6 +1,6 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 USE test;
 drop table if exists tb2 ;
 create table tb2 (
@@ -22668,7 +22668,7 @@ SET sql_mode = 'traditional,ansi';
 Warnings:
 Level	Warning
 Code	3090
-Message	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Message	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE OR REPLACE VIEW v1 AS
 SELECT f3 AS "pure column f3:", f1 + f3 AS "sum of columns f1 + f3 =",
 3 * (- 0.11111E+1) AS "product of constants 3 * (- 0.11111E+1):",
@@ -22690,8 +22690,8 @@ expression with '||'=CONCAT and CAST(DECIMAL column AS CHAR):	->2.20000<-
 SET sql_mode = '';
 Warnings:
 Level	Warning
-Code	3129
-Message	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Code	3090
+Message	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 Testcases 3.3.1.55 - 3.3.1.62 
 --------------------------------------------------------------------------------
@@ -24024,7 +24024,7 @@ DELETE FROM t1;
 DROP TABLE t1;
 SET sql_mode = 'traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 ( f1 BIGINT, f2 CHAR(20), f3 NUMERIC(7,4) NOT NULL,
 f4 CHAR, PRIMARY KEY(f1));
 DROP VIEW v1;
@@ -24044,7 +24044,7 @@ f1	f2	f3	f4
 DELETE FROM t1;
 SET sql_mode = '';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 Testcases 3.3.2.7 - 3.3.2.9,
 3.3.2.10 - 3.3.2.11 omitted because of missing

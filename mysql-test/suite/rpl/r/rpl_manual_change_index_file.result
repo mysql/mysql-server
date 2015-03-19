@@ -10,10 +10,10 @@ FLUSH LOGS;
 call mtr.add_suppression('Got fatal error 1236 from master when reading data from binary log: .*could not find next log');
 include/wait_for_slave_io_error.inc [errno=1236]
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'could not find next log; the first event '' at XXX, the last event read from './master-bin.000002' at XXX, the last byte read from './master-bin.000002' at XXX.''
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t2(c1 INT);
 FLUSH LOGS;
 CREATE TABLE t3(c1 INT);
@@ -59,10 +59,10 @@ START SLAVE IO_THREAD;
 # and the specific information are sent to slave.
 include/wait_for_slave_io_error.inc [errno=1236]
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Could not open log file''
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 [ on master ]
 # Restore master-bin.000001 file
 [ on slave ]

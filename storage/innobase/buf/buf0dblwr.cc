@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -732,17 +732,6 @@ buf_dblwr_check_block(
 		return;
 	}
 
-	/* On uncompressed pages, it is possible that invalid
-	FIL_PAGE_TYPE was left behind by an older version of InnoDB
-	that did not initialize FIL_PAGE_TYPE on other pages than
-	B-tree pages. Here, we will reset invalid page types to
-	FIL_PAGE_TYPE_UNKNOWN when flushing. */
-	bool	reset_invalid = block->page.zip.data == NULL;
-
-	if (reset_invalid) {
-		buf_dblwr_check_page_lsn(block->frame);
-	}
-
 	switch (fil_page_get_type(block->frame)) {
 	case FIL_PAGE_INDEX:
 	case FIL_PAGE_RTREE:
@@ -753,24 +742,21 @@ buf_dblwr_check_block(
 		} else if (page_simple_validate_old(block->frame)) {
 			return;
 		}
-		/* Do not attempt to fix the page type. While it is
-		possible that this is not an index page but just
-		happens to have this value in the uninitialized
-		FIL_PAGE_TYPE field, it is also possible that we
-		caught genuine corruption of an index page, and want
-		to prevent the corruption from reaching the file
-		system. */
-		reset_invalid = false;
+		/* While it is possible that this is not an index page
+		but just happens to have wrongly set FIL_PAGE_TYPE,
+		such pages should never be modified to without also
+		adjusting the page type during page allocation or
+		buf_flush_init_for_writing() or fil_page_reset_type(). */
 		break;
+	case FIL_PAGE_TYPE_FSP_HDR:
+	case FIL_PAGE_IBUF_BITMAP:
 	case FIL_PAGE_TYPE_UNKNOWN:
 		/* Do not complain again, we already reset this field. */
 	case FIL_PAGE_UNDO_LOG:
 	case FIL_PAGE_INODE:
 	case FIL_PAGE_IBUF_FREE_LIST:
-	case FIL_PAGE_IBUF_BITMAP:
 	case FIL_PAGE_TYPE_SYS:
 	case FIL_PAGE_TYPE_TRX_SYS:
-	case FIL_PAGE_TYPE_FSP_HDR:
 	case FIL_PAGE_TYPE_XDES:
 	case FIL_PAGE_TYPE_BLOB:
 	case FIL_PAGE_TYPE_ZBLOB:
@@ -780,33 +766,9 @@ buf_dblwr_check_block(
 	case FIL_PAGE_TYPE_ALLOCATED:
 		/* empty pages should never be flushed */
 		break;
-	default:
-		break;
 	}
 
-	if (reset_invalid
-	    && fil_space_get_flags(block->page.id.space()) == 0) {
-		ib::warn()
-			<< "Resetting unknown page "
-			<< block->page.id << " type "
-			<< fil_page_get_type(block->frame)
-			<< " to " << FIL_PAGE_TYPE_UNKNOWN
-			<< " before writing to data file.";
-		/* We are skipping redo logging here, because this is
-		a special case. Flushing is covered by previously
-		generated redo log records (write-ahead log). */
-		mach_write_to_2(block->frame
-				+ FIL_PAGE_TYPE, FIL_PAGE_TYPE_UNKNOWN);
-	} else {
-		/* Only in tablespaces that were created before MySQL
-		5.1, some pages could be created with garbage in the
-		FIL_PAGE_TYPE field. These tablespaces always carried
-		flags==0, indicating ROW_FORMAT=REDUNDANT or
-		ROW_FORMAT=COMPACT. For all other tablespaces,
-		FIL_PAGE_TYPE must always be valid, already during
-		page creation. */
-		buf_dblwr_assert_on_corrupt_block(block);
-	}
+	buf_dblwr_assert_on_corrupt_block(block);
 }
 
 /********************************************************************//**

@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ programming statements BEGIN/END, DECLARE, SET, SELECT/INTO, OPEN, FETCH, CLOSE:
 --------------------------------------------------------------------------------
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 Testcase 3.1.2.8:
 -----------------
