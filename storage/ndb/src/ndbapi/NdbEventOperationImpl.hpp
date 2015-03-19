@@ -213,6 +213,8 @@ EventBufData_list::~EventBufData_list()
   {
     DBUG_PRINT_EVENT("info", ("delete m_gci_op_list: %p", m_gci_op_list));
     delete [] m_gci_op_list;
+    m_gci_op_list = NULL;
+    m_is_not_multi_list = 0;
   }
   else
   {
