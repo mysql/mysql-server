@@ -877,6 +877,7 @@ static struct connection_info *
 
 
 #define SAFE_STRLEN(s) (s ? strlen(s) : 0)
+static char empty_str[1]= { 0 };
 
 
 static int is_space(char c)
@@ -2156,10 +2157,12 @@ static void update_file_path(MYSQL_THD thd,
               struct st_mysql_sys_var *var  __attribute__((unused)),
               void *var_ptr  __attribute__((unused)), const void *save)
 {
+  char *new_name= (*(char **) save) ? *(char **) save : empty_str;
+
   flogger_mutex_lock(&lock_operations);
   internal_stop_logging= 1;
   error_header();
-  fprintf(stderr, "Log file name was changed to '%s'.\n", *(const char **) save);
+  fprintf(stderr, "Log file name was changed to '%s'.\n", new_name);
 
   if (logging)
     log_current_query(thd);
@@ -2168,7 +2171,7 @@ static void update_file_path(MYSQL_THD thd,
   {
     char *sav_path= file_path;
 
-    file_path= *(char **) save;
+    file_path= new_name;
     internal_stop_logging= 1;
     stop_logging();
     if (start_logging())
@@ -2188,7 +2191,7 @@ static void update_file_path(MYSQL_THD thd,
     internal_stop_logging= 0;
   }
 
-  strncpy(path_buffer, *(const char **) save, sizeof(path_buffer));
+  strncpy(path_buffer, new_name, sizeof(path_buffer));
   file_path= path_buffer;
 exit_func:
   internal_stop_logging= 0;
@@ -2235,9 +2238,10 @@ static void update_incl_users(MYSQL_THD thd,
               struct st_mysql_sys_var *var  __attribute__((unused)),
               void *var_ptr  __attribute__((unused)), const void *save)
 {
+  char *new_users= (*(char **) save) ? *(char **) save : empty_str;
   flogger_mutex_lock(&lock_operations);
   mark_always_logged(thd);
-  strncpy(incl_user_buffer, *(const char **) save, sizeof(incl_user_buffer));
+  strncpy(incl_user_buffer, new_users, sizeof(incl_user_buffer));
   incl_users= incl_user_buffer;
   user_hash_fill(&incl_user_hash, incl_users, &excl_user_hash, 1);
   error_header();
@@ -2250,9 +2254,10 @@ static void update_excl_users(MYSQL_THD thd  __attribute__((unused)),
               struct st_mysql_sys_var *var  __attribute__((unused)),
               void *var_ptr  __attribute__((unused)), const void *save)
 {
+  char *new_users= (*(char **) save) ? *(char **) save : empty_str;
   flogger_mutex_lock(&lock_operations);
   mark_always_logged(thd);
-  strncpy(excl_user_buffer, *(const char **) save, sizeof(excl_user_buffer));
+  strncpy(excl_user_buffer, new_users, sizeof(excl_user_buffer));
   excl_users= excl_user_buffer;
   user_hash_fill(&excl_user_hash, excl_users, &incl_user_hash, 0);
   error_header();
@@ -2377,8 +2382,8 @@ static void update_syslog_ident(MYSQL_THD thd  __attribute__((unused)),
               struct st_mysql_sys_var *var  __attribute__((unused)),
               void *var_ptr  __attribute__((unused)), const void *save)
 {
-  strncpy(syslog_ident_buffer, *(const char **) save,
-          sizeof(syslog_ident_buffer));
+  char *new_ident= (*(char **) save) ? *(char **) save : empty_str;
+  strncpy(syslog_ident_buffer, new_ident, sizeof(syslog_ident_buffer));
   syslog_ident= syslog_ident_buffer;
   error_header();
   fprintf(stderr, "SYSYLOG ident was changed to '%s'\n", syslog_ident);

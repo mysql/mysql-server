@@ -8,6 +8,8 @@ if (!$SERVER_AUDIT_SO) {
 install plugin server_audit soname 'server_audit';
 
 show variables like 'server_audit%';
+set global server_audit_file_path=null;
+set global server_audit_incl_users=null;
 set global server_audit_file_path='server_audit.log';
 set global server_audit_output_type=file;
 set global server_audit_logging=on;

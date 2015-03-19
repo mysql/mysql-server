@@ -15,6 +15,8 @@ server_audit_syslog_facility	LOG_USER
 server_audit_syslog_ident	mysql-server_auditing
 server_audit_syslog_info	
 server_audit_syslog_priority	LOG_INFO
+set global server_audit_file_path=null;
+set global server_audit_incl_users=null;
 set global server_audit_file_path='server_audit.log';
 set global server_audit_output_type=file;
 set global server_audit_logging=on;
