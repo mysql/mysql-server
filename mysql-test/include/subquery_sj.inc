@@ -6837,3 +6837,73 @@ ORDER BY field1
 DROP TABLE t1, t2, t3, t4, t5;
 
 # New tests go here.
+
+--echo #
+--echo # Bug#18892055: MISSING DATA ON SELECT ... IN WITH JOINS AND INNODB
+--echo #               ENGINE
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT,
+  pk INT NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE = INNODB;
+INSERT INTO t1 VALUES
+( 0, 3 ),
+( 0, 4 ),
+( 3, 1 ),
+( 900000000, 2 ),
+( 1368719360, 5 ),
+( 1922236416, 6 ),
+( 8,7 );
+
+CREATE TABLE t2 (
+  pk INT NOT NULL,
+  col_int INT,
+  PRIMARY KEY (pk)
+) ENGINE = INNODB;
+INSERT INTO t2 VALUES
+( 1, 3 ),
+( 2, 2 ),
+( 3, 8 ),
+( 4, 7 );
+
+CREATE TABLE t3 (
+  col_int_key INT,
+  col_int INT,
+  KEY (col_int_key)
+) ENGINE = INNODB;
+INSERT INTO t3 VALUES
+( 5, 1 ),
+( -1, -1 ),
+( 300000000, 1 ),
+( 8, 1 );
+
+CREATE TABLE t4 ( col_int_key INT ) ENGINE = INNODB;
+INSERT INTO t4 VALUES
+(0),
+(3),
+(8),
+(900000000),
+(1368719360),
+(1922236416);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+let $query=
+SELECT *
+FROM t4
+WHERE (col_int_key) IN (
+  SELECT t1.col_int_key
+  FROM t1 LEFT JOIN ( t2 JOIN t3 ON t3.col_int_key = t2.col_int ) USING ( pk )
+  WHERE t3.col_int IS NULL
+)
+ORDER BY col_int_key
+;
+
+eval explain $query;
+
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;
