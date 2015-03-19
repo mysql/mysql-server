@@ -116,7 +116,7 @@ bool PTI_comp_op::itemize(Parse_context *pc, Item **res)
     return true;
 
   *res= (*boolfunc2creator)(0)->create(left, right);
-  return false;
+  return *res == NULL;
 }
 
 

@@ -588,6 +588,7 @@ ulong connection_errors_peer_addr= 0;
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
+Equal_creator equal_creator;
 Gt_creator gt_creator;
 Lt_creator lt_creator;
 Ge_creator ge_creator;

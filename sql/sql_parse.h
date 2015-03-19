@@ -52,6 +52,7 @@ void free_items(Item *item);
 void cleanup_items(Item *item);
 
 Comp_creator *comp_eq_creator(bool invert);
+Comp_creator *comp_equal_creator(bool invert);
 Comp_creator *comp_ge_creator(bool invert);
 Comp_creator *comp_gt_creator(bool invert);
 Comp_creator *comp_le_creator(bool invert);
