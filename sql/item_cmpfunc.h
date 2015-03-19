@@ -25,7 +25,6 @@
 #include "item_row.h"        // Item_row
 #include "template_utils.h"  // down_cast
 
-class Item_bool_func2;
 class Arg_comparator;
 class Item_sum_hybrid;
 class Item_row;
@@ -319,37 +318,72 @@ public:
   Item *transform(Item_transformer transformer, uchar *arg);
 };
 
+/// Abstract factory interface for creating comparison predicates.
 class Comp_creator
 {
 public:
-  Comp_creator() {}                           /* Remove gcc warning */
-  virtual ~Comp_creator() {}                  /* Remove gcc warning */
-  virtual Item_bool_func2* create(Item *a, Item *b) const = 0;
+  virtual ~Comp_creator() {}
+  virtual Item_bool_func* create(Item *a, Item *b) const = 0;
+
+  /// This interface is only used by Item_allany_subselect.
   virtual const char* symbol(bool invert) const = 0;
   virtual bool eqne_op() const = 0;
   virtual bool l_op() const = 0;
 };
 
-class Eq_creator :public Comp_creator
+/// Abstract base class for the comparison operators =, <> and <=>.
+class Linear_comp_creator :public Comp_creator
 {
 public:
-  Eq_creator() {}                             /* Remove gcc warning */
-  virtual ~Eq_creator() {}                    /* Remove gcc warning */
-  virtual Item_bool_func2* create(Item *a, Item *b) const;
-  virtual const char* symbol(bool invert) const { return invert? "<>" : "="; }
-  virtual bool eqne_op() const { return 1; }
-  virtual bool l_op() const { return 0; }
+  virtual Item_bool_func *create(Item *a, Item *b) const;
+  virtual bool eqne_op() const { return true; }
+  virtual bool l_op() const { return false; }
+
+protected:
+  /**
+    Creates only an item tree node, without attempting to rewrite row
+    constructors.
+    @see create()
+  */
+  virtual Item_bool_func *create_scalar_predicate(Item *a, Item *b) const = 0;
+
+  /// Combines a list of conditions <code>exp op exp</code>.
+  virtual Item_bool_func *combine(List<Item> list) const = 0;
 };
 
-class Ne_creator :public Comp_creator
+class Eq_creator :public Linear_comp_creator
 {
 public:
-  Ne_creator() {}                             /* Remove gcc warning */
-  virtual ~Ne_creator() {}                    /* Remove gcc warning */
-  virtual Item_bool_func2* create(Item *a, Item *b) const;
-  virtual const char* symbol(bool invert) const { return invert? "=" : "<>"; }
-  virtual bool eqne_op() const { return 1; }
-  virtual bool l_op() const { return 0; }
+  virtual const char* symbol(bool invert) const { return invert ? "<>" : "="; }
+
+protected:
+  virtual Item_bool_func *create_scalar_predicate(Item *a, Item *b) const;
+  virtual Item_bool_func *combine(List<Item> list) const;
+};
+
+class Equal_creator :public Linear_comp_creator
+{
+public:
+  virtual const char* symbol(bool invert) const
+  {
+    // This will never be called with true.
+    DBUG_ASSERT(!invert);
+    return "<=>";
+  }
+
+protected:
+  virtual Item_bool_func *create_scalar_predicate(Item *a, Item *b) const;
+  virtual Item_bool_func *combine(List<Item> list) const;
+};
+
+class Ne_creator :public Linear_comp_creator
+{
+public:
+  virtual const char* symbol(bool invert) const { return invert ? "=" : "<>"; }
+
+protected:
+  virtual Item_bool_func *create_scalar_predicate(Item *a, Item *b) const;
+  virtual Item_bool_func *combine(List<Item> list) const;
 };
 
 class Gt_creator :public Comp_creator
@@ -357,7 +391,7 @@ class Gt_creator :public Comp_creator
 public:
   Gt_creator() {}                             /* Remove gcc warning */
   virtual ~Gt_creator() {}                    /* Remove gcc warning */
-  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func* create(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "<=" : ">"; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 0; }
@@ -368,7 +402,7 @@ class Lt_creator :public Comp_creator
 public:
   Lt_creator() {}                             /* Remove gcc warning */
   virtual ~Lt_creator() {}                    /* Remove gcc warning */
-  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func* create(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? ">=" : "<"; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 1; }
@@ -379,7 +413,7 @@ class Ge_creator :public Comp_creator
 public:
   Ge_creator() {}                             /* Remove gcc warning */
   virtual ~Ge_creator() {}                    /* Remove gcc warning */
-  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func* create(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? "<" : ">="; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 0; }
@@ -390,7 +424,7 @@ class Le_creator :public Comp_creator
 public:
   Le_creator() {}                             /* Remove gcc warning */
   virtual ~Le_creator() {}                    /* Remove gcc warning */
-  virtual Item_bool_func2* create(Item *a, Item *b) const;
+  virtual Item_bool_func* create(Item *a, Item *b) const;
   virtual const char* symbol(bool invert) const { return invert? ">" : "<="; }
   virtual bool eqne_op() const { return 0; }
   virtual bool l_op() const { return 1; }
@@ -2245,6 +2279,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   the time being we leave them in mysqld.cc to avoid merge problems.
 */
 extern Eq_creator eq_creator;
+extern Equal_creator equal_creator;
 extern Ne_creator ne_creator;
 extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
