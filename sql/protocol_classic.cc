@@ -749,7 +749,7 @@ void Protocol_classic::set_last_errno(uint err)
 
 char *Protocol_classic::get_last_error()
 {
-  return m_thd->net.last_error ? m_thd->net.last_error : (char *) "";
+  return m_thd->net.last_error;
 }
 
 
