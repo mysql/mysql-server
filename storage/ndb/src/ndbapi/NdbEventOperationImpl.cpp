@@ -590,8 +590,18 @@ NdbEventOperationImpl::execute_nolock()
   }
 
   bool schemaTrans = false;
-  if (m_ndb->theEventBuffer->m_total_buckets == TOTAL_BUCKETS_INIT)
+  if (m_ndb->theEventBuffer->m_prevent_nodegroup_change)
   {
+    /*
+     * Since total count of sub data streams (Suma buckets)
+     * are initially set when the first subscription are setup,
+     * a dummy schema transaction are used to stop add or drop
+     * node to occur for first subscription.  Otherwise count may
+     * change before we are in a state to detect that correctly.
+     * This should not be needed since the handling of
+     * SUB_GCP_COMPLETE_REP in recevier thread(s) should handle
+     * this, but until sure this behaviour is kept.
+     */
     int res = NdbDictionaryImpl::getImpl(* myDict).beginSchemaTrans(false);
     if (res != 0)
     {
@@ -618,24 +628,15 @@ NdbEventOperationImpl::execute_nolock()
   m_magic_number= NDB_EVENT_OP_MAGIC_NUMBER;
   m_state= EO_EXECUTING;
   mi_type= m_eventImpl->mi_type;
-  m_ndb->theEventBuffer->add_op();
   // add kernel reference
   // removed on TE_STOP, TE_CLUSTER_FAILURE, or error below
   m_ref_count++;
   m_stop_gci= ~(Uint64)0;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
-  Uint32 buckets = 0;
-  int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this,
-                                                                   buckets);
+  int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this);
   if (r == 0) 
   {
-    /* Pre-7.0 kernel nodes do not return the number of buckets
-     * Assume it's == theNoOfDBnodes as was the case in 6.3
-     */
-    if (buckets == ~ (Uint32)0)
-      buckets = m_ndb->theImpl->theNoOfDBnodes;
-
-    m_ndb->theEventBuffer->set_total_buckets(buckets);
+    m_ndb->theEventBuffer->m_prevent_nodegroup_change = false;
     if (schemaTrans)
     {
       schemaTrans = false;
@@ -673,7 +674,6 @@ NdbEventOperationImpl::execute_nolock()
   mi_type= 0;
   m_magic_number= 0;
   m_error.code= myDict->getNdbError().code;
-  m_ndb->theEventBuffer->remove_op();
 
   if (schemaTrans)
   {
@@ -722,7 +722,6 @@ NdbEventOperationImpl::stop()
 
   m_ndb->theEventBuffer->add_drop_lock();
   int r= NdbDictionaryImpl::getImpl(*myDict).stopSubscribeEvent(*this);
-  m_ndb->theEventBuffer->remove_op();
   m_state= EO_DROPPED;
   mi_type= 0;
   if (r == 0) {
@@ -1325,7 +1324,9 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_ndb(ndb),
   m_latestGCI(0), m_latest_complete_GCI(0),
   m_highest_sub_gcp_complete_GCI(0),
+  m_user_latest_GCI(0),
   m_latest_poll_GCI(0),
+  m_prevent_nodegroup_change(true),
   m_total_alloc(0),
   m_max_alloc(0),
   m_free_thresh(0),
@@ -1426,6 +1427,18 @@ NdbEventBuffer::set_eventbuffer_free_percent(unsigned free)
 void
 NdbEventBuffer::add_op()
 {
+  /*
+   * When m_active_op_count is zero, SUB_GCP_COMPLETE_REP is
+   * ignored and no event data will reach application.
+   * Positive values will enable event data to reach application.
+   */
+  m_active_op_count++;
+}
+
+void
+NdbEventBuffer::remove_op()
+{
+  m_active_op_count--;
   if(m_active_op_count == 0)
   {
     // Return EventBufData to free list and release GCI ops before clearing.
@@ -1443,13 +1456,6 @@ NdbEventBuffer::add_op()
     }
     init_gci_containers();
   }
-  m_active_op_count++;
-}
-
-void
-NdbEventBuffer::remove_op()
-{
-  m_active_op_count--;
 }
 
 void
@@ -1457,7 +1463,7 @@ NdbEventBuffer::init_gci_containers()
 {
   m_startup_hack = true;
   bzero(&m_complete_data, sizeof(m_complete_data));
-  m_latest_complete_GCI = m_latestGCI = m_latest_poll_GCI = 0;
+  m_latest_complete_GCI = m_latestGCI = 0;
   m_active_gci.clear();
   m_active_gci.fill(3, g_empty_gci_container);
   m_min_gci_index = m_max_gci_index = 1;
@@ -1511,7 +1517,7 @@ NdbEventBuffer::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
     NdbCondition_WaitTimeout(p_cond, m_mutex, aMillisecondNumber);
     ev_op= move_data();
   }
-  m_latest_poll_GCI= m_latestGCI;
+  m_user_latest_GCI= m_latest_poll_GCI= m_latestGCI;
 #ifdef VM_TRACE
   if (ev_op)
   {
@@ -2018,6 +2024,7 @@ fail:
 Gci_container*
 NdbEventBuffer::find_bucket_chained(Uint64 gci)
 {
+  assert(m_total_buckets != TOTAL_BUCKETS_INIT);
   if (0)
     printf("find_bucket_chained(%u/%u) ", Uint32(gci >> 32), Uint32(gci));
   if (unlikely(gci <= m_latestGCI))
@@ -2355,6 +2362,43 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
 #ifdef VM_TRACE
   verify_known_gci(true);
 #endif
+}
+
+void
+NdbEventBuffer::execSUB_START_CONF(const SubStartConf * const rep,
+                                   Uint32 len)
+{
+  Uint32 buckets;
+  if (len >= SubStartConf::SignalLength)
+  {
+    buckets = rep->bucketCount;
+  }
+  else
+  {
+    /*
+     * Pre-7.0 kernel nodes do not return the number of buckets
+     * Assume it's == theNoOfDBnodes as was the case in 6.3
+     */
+    buckets = m_ndb->theImpl->theNoOfDBnodes;
+  }
+
+  set_total_buckets(buckets);
+
+  add_op();
+}
+
+void
+NdbEventBuffer::execSUB_STOP_CONF(const SubStopConf * const rep,
+                                   Uint32 len)
+{
+  remove_op();
+}
+
+void
+NdbEventBuffer::execSUB_STOP_REF(const SubStopRef * const rep,
+                                 Uint32 len)
+{
+  remove_op();
 }
 
 void
@@ -2967,7 +3011,21 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
 Uint64
 NdbEventBuffer::getLatestGCI()
 {
-  return m_latestGCI;
+  /*
+   * m_latestGCI is owned and changed by receiver thread.
+   * If lock is taken, m_latestGCI may be under change
+   * and update of m_user_latest_GCI will be suppressed.
+   * Since pollEvent will update m_user_latest_GCI, no
+   * data will have been seen by application for later gci
+   * then returned.
+   */
+  if (trylock())
+  {
+    // Copy m_latestGCI from receive thread
+    m_user_latest_GCI = m_latestGCI;
+    unlock();
+  }
+  return m_user_latest_GCI;
 }
 
 int
@@ -2977,6 +3035,17 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 			    LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::insertDataL");
+  // If no active subscription confirmed yet, no need to handle
+  // event data coming prior subscription confirmation.
+  // This makes sure m_total_buckets are properly initiated
+  // before calling find_bucket and other methods.
+  // TODO: add a member in NdbEventOperationImpl to keep track
+  // of active subscriptions.
+  if (unlikely(m_active_op_count == 0))
+  {
+    DBUG_RETURN_EVENT(0);
+  }
+  assert(m_total_buckets != TOTAL_BUCKETS_INIT);
   const Uint32 ri = sdata->requestInfo;
   const Uint32 operation = SubTableData::getOperation(ri);
   Uint32 gci_hi = sdata->gci_hi;
