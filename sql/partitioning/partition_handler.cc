@@ -3515,6 +3515,10 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
 
   DBUG_PRINT("info", ("next row from part %u (inx %u)",
                       part_id, m_handler->active_index));
+
+  /* Assert that buffer for fetch is not NULL */
+  DBUG_ASSERT(rec_buf);
+
   /* ICP relies on Item evaluation, which expects the row in record[0]. */
   if (m_handler->pushed_idx_cond)
     read_buf= m_table->record[0];
@@ -3542,7 +3546,16 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
       /* Return next buffered row */
       if (!m_queue->empty())
         m_queue->pop();
-      if (!m_queue->empty())
+      if (m_queue->empty())
+      {
+        /*
+          If priority queue is empty, we have finished fetching rows from all
+          partitions. Reset the value of next partition to NONE. This would
+          imply HA_ERR_END_OF_FILE for all future calls.
+        */
+        m_top_entry= NO_CURRENT_PART_ID;
+      }
+      else
       {
          return_top_record(buf);
          DBUG_PRINT("info", ("Record returned from partition %u (2)",
@@ -3629,6 +3642,9 @@ int Partition_helper::handle_ordered_prev(uchar *buf)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
 
+  /* Assert that buffer for fetch is not NULL */
+  DBUG_ASSERT(rec_buf);
+
   /* ICP relies on Item evaluation, which expects the row in record[0]. */
   if (m_handler->pushed_idx_cond)
     read_buf= m_table->record[0];
@@ -3641,7 +3657,16 @@ int Partition_helper::handle_ordered_prev(uchar *buf)
     {
       if (!m_queue->empty())
         m_queue->pop();
-      if (!m_queue->empty())
+      if (m_queue->empty())
+      {
+        /*
+          If priority queue is empty, we have finished fetching rows from all
+          partitions. Reset the value of next partition to NONE. This would
+          imply HA_ERR_END_OF_FILE for all future calls.
+        */
+        m_top_entry= NO_CURRENT_PART_ID;
+      }
+      else
       {
         return_top_record(buf);
         DBUG_PRINT("info", ("Record returned from partition %d (2)",
