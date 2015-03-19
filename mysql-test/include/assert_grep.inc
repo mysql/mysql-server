@@ -48,7 +48,7 @@ if (!$assert_text)
 }
 if (!$assert_file)
 {
-  --die !!!ERROR IN TEST: you must set $file
+  --die !!!ERROR IN TEST: you must set $assert_file
 }
 if (!$assert_select)
 {
@@ -132,8 +132,12 @@ if ($_ag_outcome != 'assert_grep.inc ok')
 {
   --source include/show_rpl_debug_info.inc
   --echo include/assert_grep.inc failed!
+  --echo assert_text: '$assert_text'
+  --echo assert_file: '$assert_file'
   --echo assert_select: '$assert_select'
   --echo assert_match: '$assert_match'
+  --echo assert_count: '$assert_count'
+  --echo assert_only_after: '$assert_only_after'
   if ($assert_match != '')
   {
     --echo matching lines: '$_ag_outcome'
