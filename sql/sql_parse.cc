@@ -6199,6 +6199,12 @@ Comp_creator *comp_eq_creator(bool invert)
   return invert?(Comp_creator *)&ne_creator:(Comp_creator *)&eq_creator;
 }
 
+Comp_creator *comp_equal_creator(bool invert)
+{
+  DBUG_ASSERT(!invert); // Function never called with true.
+  return &equal_creator;
+}
+
 
 Comp_creator *comp_ge_creator(bool invert)
 {

@@ -252,37 +252,101 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
 }
 
 
-Item_bool_func2* Eq_creator::create(Item *a, Item *b) const
+/**
+  This implementation of the factory method also implements flattening of
+  row constructors. Examples of flattening are:
+
+  - ROW(a, b) op ROW(x, y) => a op x P b op y.
+  - ROW(a, ROW(b, c) op ROW(x, ROW(y, z))) => a op x P b op y P c op z.
+
+  P is either AND or OR, depending on the comparison operation, and this
+  detail is left for combine().
+
+  The actual operator @i op is created by the concrete subclass in
+  create_scalar_predicate().
+*/
+Item_bool_func *Linear_comp_creator::create(Item *a, Item *b) const
 {
+  /*
+    Test if the arguments are row constructors and thus can be flattened into
+    a list of ANDs or ORs.
+  */
+  if (a->type() == Item::ROW_ITEM && b->type() == Item::ROW_ITEM)
+  {
+    if (a->cols() != b->cols())
+    {
+      my_error(ER_OPERAND_COLUMNS, MYF(0), a->cols());
+      return NULL;
+    }
+    DBUG_ASSERT(a->cols() > 1);
+    List<Item> list;
+    for (uint i= 0; i < a->cols(); ++i)
+      list.push_back(create(a->element_index(i), b->element_index(i)));
+    return combine(list);
+  }
+  return create_scalar_predicate(a, b);
+}
+
+
+Item_bool_func *Eq_creator::create_scalar_predicate(Item *a, Item *b) const
+{
+  DBUG_ASSERT(a->type() != Item::ROW_ITEM || b->type() != Item::ROW_ITEM);
   return new Item_func_eq(a, b);
 }
 
 
-Item_bool_func2* Ne_creator::create(Item *a, Item *b) const
+Item_bool_func *Eq_creator::combine(List<Item> list) const
 {
+  return new Item_cond_and(list);
+}
+
+
+Item_bool_func *Equal_creator::create_scalar_predicate(Item *a, Item *b)
+  const
+{
+  DBUG_ASSERT(a->type() != Item::ROW_ITEM || b->type() != Item::ROW_ITEM);
+  return new Item_func_equal(a, b);
+}
+
+
+Item_bool_func *Equal_creator::combine(List<Item> list) const
+{
+  return new Item_cond_and(list);
+}
+
+
+Item_bool_func* Ne_creator::create_scalar_predicate(Item *a, Item *b) const
+{
+  DBUG_ASSERT(a->type() != Item::ROW_ITEM || b->type() != Item::ROW_ITEM);
   return new Item_func_ne(a, b);
 }
 
 
-Item_bool_func2* Gt_creator::create(Item *a, Item *b) const
+Item_bool_func *Ne_creator::combine(List<Item> list) const
+{
+  return new Item_cond_or(list);
+}
+
+
+Item_bool_func* Gt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_gt(a, b);
 }
 
 
-Item_bool_func2* Lt_creator::create(Item *a, Item *b) const
+Item_bool_func* Lt_creator::create(Item *a, Item *b) const
 {
   return new Item_func_lt(a, b);
 }
 
 
-Item_bool_func2* Ge_creator::create(Item *a, Item *b) const
+Item_bool_func* Ge_creator::create(Item *a, Item *b) const
 {
   return new Item_func_ge(a, b);
 }
 
 
-Item_bool_func2* Le_creator::create(Item *a, Item *b) const
+Item_bool_func* Le_creator::create(Item *a, Item *b) const
 {
   return new Item_func_le(a, b);
 }
