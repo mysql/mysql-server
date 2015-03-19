@@ -2321,6 +2321,25 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   return ret;
 }
 
+
+/**
+  Determine, case-sensitively, if short_string is equal to
+  long_string, or a true prefix of long_string, or not a prefix.
+
+  @retval 0 short_string is not a prefix of long_string.
+  @retval 1 short_string is a true prefix of long_string (not equal).
+  @retval 2 short_string is equal to long_string.
+*/
+static int is_str_prefix_case(const char *short_string, const char *long_string)
+{
+  int i;
+  for (i= 0; short_string[i]; i++)
+    if (my_toupper(system_charset_info, short_string[i]) !=
+        my_toupper(system_charset_info, long_string[i]))
+      return 0;
+  return long_string[i] ? 1 : 2;
+}
+
 /*
   Note that we rely on the master's version (3.23, 4.0.14 etc) instead of
   relying on the binlog's version. This is not perfect: imagine an upgrade
@@ -2896,17 +2915,51 @@ when it try to get the value of TIME_ZONE global variable from master.";
     {
       bool error= false;
       const char *master_gtid_mode_string= master_row[0];
+      DBUG_EXECUTE_IF("simulate_master_has_gtid_mode_on_something",
+                      { master_gtid_mode_string= "on_something"; });
+      DBUG_EXECUTE_IF("simulate_master_has_gtid_mode_off_something",
+                      { master_gtid_mode_string= "off_something"; });
       DBUG_EXECUTE_IF("simulate_master_has_unknown_gtid_mode",
                       { master_gtid_mode_string= "Krakel Spektakel"; });
       master_gtid_mode= get_gtid_mode(master_gtid_mode_string, &error);
-      mysql_free_result(master_res);
+      if (error)
+      {
+        // For potential future compatibility, allow unknown
+        // GTID_MODEs that begin with ON/OFF (treating them as ON/OFF
+        // respectively).
+        enum_gtid_mode mode= GTID_MODE_OFF;
+        for (int i= 0; i < 2; i++)
+        {
+          switch (is_str_prefix_case(get_gtid_mode_string(mode),
+                                     master_gtid_mode_string))
+          {
+          case 0: // is not a prefix; continue loop
+            break;
+          case 1: // is a true prefix, i.e. not equal
+            mi->report(WARNING_LEVEL, ER_UNKNOWN_ERROR,
+                       "The master uses an unknown GTID_MODE '%s'. "
+                       "Treating it as '%s'.",
+                       master_gtid_mode_string,
+                       get_gtid_mode_string(mode));
+            // fall through
+          case 2: // is equal
+            error= false;
+            master_gtid_mode= mode;
+            break;
+          }
+          mode= GTID_MODE_ON;
+        }
+      }
       if (error)
       {
         mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                    "The slave IO thread stops because the master has "
-                   "an unknown @@GLOBAL.GTID_MODE.");
+                   "an unknown @@GLOBAL.GTID_MODE '%s'.",
+                   master_gtid_mode_string);
+        mysql_free_result(master_res);
         DBUG_RETURN(1);
       }
+      mysql_free_result(master_res);
       break;
     }
     }

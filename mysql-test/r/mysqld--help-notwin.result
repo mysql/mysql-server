@@ -105,6 +105,7 @@ The following options may be given as the first argument:
  generated. If a wrong set is computed in one of case (1)
  or case (2), it will remain wrong even if the server is
  later restarted with this option disabled.
+ (Defaults to on; use --skip-binlog-gtid-simple-recovery to disable.)
  --binlog-ignore-db=name 
  Tells the master that updates to the given database
  should not be logged to the binary log.

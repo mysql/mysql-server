@@ -583,6 +583,18 @@ ib_trx_begin(
 }
 
 /*****************************************************************//**
+Check if transaction is read_only
+@return transaction read_only status */
+ib_u32_t
+ib_trx_read_only(
+/*=============*/
+	ib_trx_t	ib_trx)		/*!< in: trx handle */
+{
+	trx_t*		trx = (trx_t*) ib_trx;
+
+	return(trx->read_only);
+}
+/*****************************************************************//**
 Get a trx start time.
 @return trx start_time */
 ib_u64_t
