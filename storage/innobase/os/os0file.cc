@@ -1212,6 +1212,8 @@ os_file_compress_page(
 	ut_ad(out_len >= block_size - FIL_PAGE_DATA);
 	ut_ad(out_len <= src_len - (block_size + FIL_PAGE_DATA));
 
+	/* Only compress the data + trailer, leave the header alone */
+
 	switch (compression.m_type) {
 	case Compression::NONE:
 		ut_error;
@@ -1220,7 +1222,6 @@ os_file_compress_page(
 
 		uLongf	zlen = out_len;
 
-		/* Only compress the data + trailer, leave the header alone */
 		if (compress2(
 			dst + FIL_PAGE_DATA,
 			&zlen,
@@ -1238,6 +1239,7 @@ os_file_compress_page(
 	}
 
 	case Compression::LZ4:
+
 		len = LZ4_compress_limitedOutput(
 			reinterpret_cast<char*>(src) + FIL_PAGE_DATA,
 			reinterpret_cast<char*>(dst) + FIL_PAGE_DATA,
@@ -1556,7 +1558,15 @@ os_file_io_complete(
 
 		ut_ad(!type.is_log());
 
-		return(os_file_decompress_page(buf, scratch, len));
+		/* If we are doing a double write buffer recovery then it
+		is safer to use the double write buffer (uncompressed) page,
+		If the compressed page was torn or corrupted during the write,
+		it could crash the decompression code causing much bigger
+		problems. */
+
+		if (!type.is_dblwr_recover()) {
+			return(os_file_decompress_page(buf, scratch, len));
+		}
 
 	} else if (type.punch_hole()) {
 
