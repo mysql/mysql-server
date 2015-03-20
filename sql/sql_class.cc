@@ -29,6 +29,7 @@
 #include "connection_handler_manager.h"      // Connection_handler_manager
 #include "current_thd.h"
 #include "debug_sync.h"                      // DEBUG_SYNC
+#include "derror.h"                          // ER_THD
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
@@ -277,31 +278,6 @@ THD::Attachable_trx::~Attachable_trx()
     m_thd->lex->restore_backup_query_tables_list(
       &m_trx_state.m_query_tables_list);
   }
-}
-
-/****************************************************************************
-** User variables
-****************************************************************************/
-// static
-user_var_entry* user_var_entry::create(THD *thd,
-                                       const Name_string &name,
-                                       const CHARSET_INFO *cs)
-{
-  if (check_column_name(name.ptr()))
-  {
-    my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
-    return NULL;
-  }
-
-  user_var_entry *entry;
-  size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
-    (name.length() + 1) + extra_size;
-  if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
-                                           size, MYF(MY_WME |
-                                                     ME_FATALERROR))))
-    return NULL;
-  entry->init(thd, name, cs);
-  return entry;
 }
 
 

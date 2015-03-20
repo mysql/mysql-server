@@ -187,6 +187,17 @@ static bool init_state_maps(CHARSET_INFO *cs)
 }
 
 
+Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
+                         const LEX_CSTRING &table_arg, bool force)
+  :table(table_arg), sel(NULL)
+{
+  if (!force && protocol->has_client_capability(CLIENT_NO_SCHEMA))
+    db= NULL_CSTR;
+  else
+    db= db_arg;
+}
+
+
 bool lex_init(void)
 {
   DBUG_ENTER("lex_init");

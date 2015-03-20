@@ -32,6 +32,7 @@
 #include "sp_head.h"
 #include "sql_show.h"                // append_definer, append_identifier
 #include "log.h"
+#include "derror.h"
 
 #include "mysql/psi/mysql_sp.h"
 

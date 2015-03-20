@@ -16,6 +16,7 @@
 #include "sql_alter.h"
 
 #include "auth_common.h"                     // check_access
+#include "derror.h"                          // ER_THD
 #include "sql_table.h"                       // mysql_alter_table,
                                              // mysql_exchange_partition
 #include "sql_base.h"                        // open_temporary_tables

@@ -19,6 +19,7 @@
 #define RPL_GTID_PERSIST_H_
 
 #include "my_global.h"
+#include "derror.h"                  // ER_THD
 #include "rpl_table_access.h"        // System_table_access
 #include "sql_class.h"               // Open_tables_backup
 

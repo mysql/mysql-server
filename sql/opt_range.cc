@@ -111,6 +111,7 @@
 #include "opt_range.h"
 
 #include "current_thd.h"
+#include "derror.h"              // ER_THD
 #include "filesort.h"            // filesort_free_buffers
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used

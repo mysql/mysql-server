@@ -22,6 +22,8 @@
 
 typedef ulonglong my_xid;
 
+#define TC_LOG_PAGE_SIZE   8192
+#define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
 /**
   Transaction Coordinator Log.

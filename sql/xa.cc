@@ -27,6 +27,7 @@
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
 #include "binlog.h"
+#include "derror.h"
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"

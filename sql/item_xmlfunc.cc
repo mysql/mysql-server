@@ -16,6 +16,7 @@
 #include "item_xmlfunc.h"
 
 #include "current_thd.h"
+#include "derror.h"             // ER_THD
 #include "my_xml.h"             // my_xml_node_type
 #include "item_cmpfunc.h"       // Item_bool_func
 #include "sp_pcontext.h"        // sp_variable

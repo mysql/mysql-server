@@ -27,6 +27,7 @@
 #include "auth_common.h"                    // check_grant_db
 #include "datadict.h"                       // dd_frm_type
 #include "debug_sync.h"                     // DEBUG_SYNC
+#include "derror.h"                         // ER_THD
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
 #include "item.h"                           // Item_empty_string
@@ -73,6 +74,34 @@ using std::max;
 using std::min;
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
+
+/**
+  @class CSET_STRING
+  @brief Character set armed LEX_CSTRING
+*/
+class CSET_STRING
+{
+private:
+  LEX_CSTRING string;
+  const CHARSET_INFO *cs;
+public:
+  CSET_STRING() : cs(&my_charset_bin)
+  {
+    string.str= NULL;
+    string.length= 0;
+  }
+  CSET_STRING(const char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
+  cs(cs_arg)
+  {
+    DBUG_ASSERT(cs_arg != NULL);
+    string.str= str_arg;
+    string.length= length_arg;
+  }
+
+  inline const char *str() const { return string.str; }
+  inline size_t length() const { return string.length; }
+  const CHARSET_INFO *charset() const { return cs; }
+};
 
 enum enum_i_s_events_fields
 {
@@ -3021,7 +3050,7 @@ static int make_table_list(THD *thd, SELECT_LEX *sel,
                            const LEX_CSTRING &table_name)
 {
   Table_ident *table_ident;
-  table_ident= new Table_ident(thd, db_name, table_name, 1);
+  table_ident= new Table_ident(thd->get_protocol(), db_name, table_name, 1);
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
@@ -7697,7 +7726,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd,
-                              new Table_ident(thd,
+                              new Table_ident(thd->get_protocol(),
                                               to_lex_cstring(db),
                                               to_lex_cstring(table),
                                               0),

@@ -50,6 +50,7 @@
 #include "current_thd.h"
 #include "hash.h"                       // HASH
 #include "debug_sync.h"                 // DEBUG_SYNC
+#include "derror.h"                     // ER_THD
 #include "item.h"                       // enum_monotoncity_info
 #include "key.h"                        // key_restore
 #include "lock.h"                       // mysql_lock_remove
@@ -923,7 +924,7 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     we're working with to the Name_resolution_context.
   */
   thd->lex= lex;
-  if ((!(table_ident= new Table_ident(thd,
+  if ((!(table_ident= new Table_ident(thd->get_protocol(),
                                       to_lex_cstring(table->s->table_name),
                                       to_lex_cstring(table->s->db), TRUE))) ||
       (!(table_list= select_lex->add_table_to_list(thd,

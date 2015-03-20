@@ -30,9 +30,20 @@ class Rows_query_log_event;
 class Incident_log_event;
 class Log_event;
 class Gtid_set;
+class user_var_entry;
 struct Gtid;
 
 typedef int64 query_id_t;
+
+struct Binlog_user_var_event
+{
+  user_var_entry *user_var_event;
+  char *value;
+  ulong length;
+  Item_result type;
+  uint charset_number;
+  bool unsigned_flag;
+};
 
 /**
   Logical timestamp generator for logical timestamping binlog transactions.

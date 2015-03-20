@@ -27,6 +27,7 @@
 #include "psi_memory_key.h"
 #include "sql_class.h"    // THD
 #include "gis_bg_traits.h"
+#include "derror.h"       // ER_THD
 
 #include "parse_tree_helpers.h"
 #include <rapidjson/document.h>

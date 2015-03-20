@@ -16,7 +16,7 @@
 #include "parse_tree_hints.h"
 #include "sql_class.h"
 #include "sql_lex.h"
-
+#include "derror.h"
 
 /**
   Information about hints. Sould be

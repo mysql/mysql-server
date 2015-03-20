@@ -30,6 +30,7 @@
 #include "abstract_query_plan.h" // Join_plan
 #include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
+#include "derror.h"              // ER_THD
 #include "item_sum.h"            // Item_sum
 #include "lock.h"                // mysql_unlock_some_tables
 #include "mysqld.h"              // stage_optimizing

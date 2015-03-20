@@ -18,6 +18,7 @@
 #include "my_stacktrace.h"                  // my_safe_print_system_time
 #include "current_thd.h"
 #include "debug_sync.h"                     // DEBUG_SYNC
+#include "derror.h"                         // ER_THD
 #include "log_event.h"                      // Rows_log_event
 #include "mysqld.h"                         // sync_binlog_period ...
 #include "mysqld_thd_manager.h"             // Global_THD_manager
@@ -6777,7 +6778,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
         {
           for (size_t i= 0; i < thd->user_var_events.size(); i++)
           {
-            BINLOG_USER_VAR_EVENT *user_var_event= thd->user_var_events[i];
+            Binlog_user_var_event *user_var_event= thd->user_var_events[i];
 
             /* setting flags for user var log event */
             uchar flags= User_var_log_event::UNDEF_F;

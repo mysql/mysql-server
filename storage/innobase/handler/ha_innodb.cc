@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include <current_thd.h>
 #include <debug_sync.h>
+#include <derror.h>
 #include <gstream.h>
 #include <log.h>
 #include <mysqld.h>

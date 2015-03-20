@@ -30,6 +30,7 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "binlog.h"
 #include "sp_head.h"                  // sp_name
+#include "derror.h"                   // ER_THD
 
 #include "mysql/psi/mysql_sp.h"
 

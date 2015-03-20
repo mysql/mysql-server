@@ -18,6 +18,7 @@
 #ifndef MYSQL_CLIENT
 
 #include "binlog_event.h"                // checksum_crv32
+#include "derror.h"                      // ER_THD
 #include "template_utils.h"              // delete_container_pointers
 #include "field.h"                       // Field
 #include "log.h"                         // sql_print_error

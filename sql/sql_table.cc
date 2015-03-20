@@ -65,6 +65,7 @@
 #include "binlog.h"
 #include "sql_tablespace.h"            // check_tablespace_name())
 #include "item_timefunc.h"             // Item_func_now_local
+#include "derror.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

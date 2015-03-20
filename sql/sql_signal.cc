@@ -19,6 +19,7 @@
 #include "sql_signal.h"
 #include "sql_error.h"
 #include "mysqld.h"                             // error_message_charset_info
+#include "derror.h"
 
 /*
   The parser accepts any error code (desired)

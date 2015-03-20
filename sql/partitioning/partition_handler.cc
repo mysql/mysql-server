@@ -25,6 +25,7 @@
 #include "sql_class.h"                       // THD
 #include "myisam.h"                          // MI_MAX_MSG_BUF
 #include "current_thd.h"
+#include "derror.h"
 
 // In sql_class.cc:
 int thd_binlog_format(const MYSQL_THD thd);

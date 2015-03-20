@@ -129,6 +129,7 @@
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
 #include "sql_class.h"
+#include "derror.h"
 
 /**
   @addtogroup Performance_schema_engine

@@ -42,7 +42,7 @@
 #include "rpl_slave.h"      // Silent retry definition
 #include "log_event.h"      // my_strmov_quoted_identifier
 #include "log.h"            // sql_print_error
-
+#include "derror.h"         // ER_THD
 #include "sql_show.h"       // init_fill_schema_files_row,
                             // schema_table_store_record
 

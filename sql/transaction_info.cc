@@ -20,6 +20,7 @@
 #include "psi_memory_key.h"
 #include "sql_class.h"
 #include "mysqld.h"                             // global_system_variables
+#include "derror.h"
 
 Transaction_ctx::Transaction_ctx()
   : m_savepoints(NULL), m_xid_state(), m_changed_tables(NULL),

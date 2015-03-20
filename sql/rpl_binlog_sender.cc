@@ -17,6 +17,7 @@
 #include "rpl_binlog_sender.h"
 
 #include "debug_sync.h"              // debug_sync_set_action
+#include "derror.h"                  // ER_THD
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "mysqld.h"                  // global_system_variables ...
 #include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK

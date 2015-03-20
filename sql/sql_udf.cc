@@ -36,6 +36,7 @@
 #include "mysqld.h"                             // opt_allow_suspicious_udfs
 #include "sql_plugin.h"                         // check_valid_path
 #include "sql_class.h"                          // THD
+#include "derror.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>

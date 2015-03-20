@@ -19,9 +19,10 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include <mysqld_error.h>
-#include <sql_class.h>
-#include <sql_table.h>
+#include "mysqld_error.h"
+#include "sql_class.h"
+#include "sql_locale.h"
+#include "sql_table.h"
 
 namespace explain_filename_unittest {
 

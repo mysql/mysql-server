@@ -21,7 +21,6 @@
 #include "sql_lex.h"            // SELECT_LEX_UNIT
 
 class JOIN;
-class sql_exchange;
 class THD;
 
 
@@ -162,6 +161,28 @@ public:
   {
     is_result_set_started= false;
   }
+};
+
+
+/*
+  Used to hold information about file and file structure in exchange
+  via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
+  XXX: We never call destructor for objects of this class.
+*/
+
+class sql_exchange :public Sql_alloc
+{
+public:
+  Field_separators field;
+  Line_separators line;
+  enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
+  const char *file_name;
+  bool dumpfile;
+  ulong skip_lines;
+  const CHARSET_INFO *cs;
+  sql_exchange(const char *name, bool dumpfile_flag,
+               enum_filetype filetype_arg= FILETYPE_CSV);
+  bool escaped_given(void);
 };
 
 

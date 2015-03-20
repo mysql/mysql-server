@@ -19,6 +19,7 @@
 #ifndef MYSQL_CLIENT
 #include "sql_class.h"                          // THD
 #include "current_thd.h"
+#include "derror.h"
 #endif
 
 #ifndef MYSQL_CLIENT

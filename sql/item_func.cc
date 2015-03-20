@@ -27,12 +27,14 @@
 #include "binlog.h"              // mysql_bin_log
 #include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
+#include "derror.h"              // ER_THD
 #include "item_cmpfunc.h"        // get_datetime_value
 #include "item_strfunc.h"        // Item_func_geohash
 #include <mysql/service_thd_wait.h>
 #include "mysqld.h"              // log_10 stage_user_sleep
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "psi_memory_key.h"
+#include "query_result.h"        // sql_exchange
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // msr_map
 #include "rpl_rli.h"             // Relay_log_info
@@ -5778,6 +5780,29 @@ Item_func_set_user_var::fix_length_and_dec()
 }
 
 
+// static
+user_var_entry* user_var_entry::create(THD *thd,
+                                       const Name_string &name,
+                                       const CHARSET_INFO *cs)
+{
+  if (check_column_name(name.ptr()))
+  {
+    my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
+    return NULL;
+  }
+
+  user_var_entry *entry;
+  size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
+    (name.length() + 1) + extra_size;
+  if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
+                                           size, MYF(MY_WME |
+                                                     ME_FATALERROR))))
+    return NULL;
+  entry->init(thd, name, cs);
+  return entry;
+}
+
+
 bool user_var_entry::mem_realloc(size_t length)
 {
   if (length <= extra_size)
@@ -5801,6 +5826,31 @@ bool user_var_entry::mem_realloc(size_t length)
     }
   }
   return false;
+}
+
+
+void user_var_entry::init(THD *thd, const Simple_cstring &name,
+                          const CHARSET_INFO *cs)
+{
+  DBUG_ASSERT(thd != NULL);
+  m_owner= thd;
+  copy_name(name);
+  reset_value();
+  update_query_id= 0;
+  collation.set(cs, DERIVATION_IMPLICIT, 0);
+  unsigned_flag= 0;
+  /*
+    If we are here, we were called from a SET or a query which sets a
+    variable. Imagine it is this:
+    INSERT INTO t SELECT @a:=10, @a:=@a+1.
+    Then when we have a Item_func_get_user_var (because of the @a+1) so we
+    think we have to write the value of @a to the binlog. But before that,
+    we have a Item_func_set_user_var to create @a (@a:=10), in this we mark
+    the variable as "already logged" (line below) so that it won't be logged
+    by Item_func_get_user_var (because that's not necessary).
+  */
+  used_query_id= thd->query_id;
+  m_type= STRING_RESULT;
 }
 
 
@@ -5839,6 +5889,12 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type)
   m_length= length;
   m_type= type;
   return false;
+}
+
+
+void user_var_entry::assert_locked() const
+{
+  mysql_mutex_assert_owner(&m_owner->LOCK_thd_data);
 }
 
 
@@ -6511,7 +6567,7 @@ static int
 get_var_with_binlog(THD *thd, enum_sql_command sql_command,
                     Name_string &name, user_var_entry **out_entry)
 {
-  BINLOG_USER_VAR_EVENT *user_var_event;
+  Binlog_user_var_event *user_var_event;
   user_var_entry *var_entry;
 
   /* Protects thd->user_vars. */
@@ -6597,13 +6653,13 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     may need to be valid after current [SP] statement execution pool is
     destroyed.
   */
-  size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length();
-  if (!(user_var_event= (BINLOG_USER_VAR_EVENT *)
+  size= ALIGN_SIZE(sizeof(Binlog_user_var_event)) + var_entry->length();
+  if (!(user_var_event= (Binlog_user_var_event *)
         alloc_root(thd->user_var_events_alloc, size)))
     goto err;
 
   user_var_event->value= (char*) user_var_event +
-    ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
+    ALIGN_SIZE(sizeof(Binlog_user_var_event));
   user_var_event->user_var_event= var_entry;
   user_var_event->type= var_entry->type();
   user_var_event->charset_number= var_entry->collation.collation->number;
