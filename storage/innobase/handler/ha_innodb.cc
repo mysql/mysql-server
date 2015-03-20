@@ -4337,8 +4337,11 @@ ha_innobase::index_flags(
 		      | HA_READ_RANGE | HA_KEYREAD_ONLY
 		      | HA_DO_INDEX_COND_PUSHDOWN;
 
+	/* For spatial index, we don't support descending scan
+	and ICP so far. */
 	if (table_share->key_info[key].flags & HA_SPATIAL) {
-		flags |= HA_KEY_SCAN_NOT_ROR;
+		flags = HA_READ_NEXT | HA_READ_ORDER| HA_READ_RANGE
+			| HA_KEYREAD_ONLY | HA_KEY_SCAN_NOT_ROR;
 	}
 
 	return(flags);
