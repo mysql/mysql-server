@@ -36,7 +36,7 @@ Assumption: basic reads and writes to uintptr_t are atomic.
 */
 class ut_lock_free_hash_t {
 public:
-	/** A constant that is returned when the searched for key is not
+	/** The value that is returned when the searched for key is not
 	found. */
 	static const uintptr_t	NOT_FOUND = UINTPTR_MAX;
 
@@ -72,6 +72,8 @@ public:
 	get(
 		uintptr_t	key)
 	{
+		ut_ad(key != UNUSED);
+
 		const size_t	pos = get_position(key);
 
 		if (pos == INVALID_POS) {
@@ -96,6 +98,9 @@ public:
 		uintptr_t	key,
 		uintptr_t	val)
 	{
+		ut_ad(key != UNUSED);
+		ut_ad(val != NOT_FOUND);
+
 		const size_t	pos = insert_or_get_position(key);
 
 		m_arr[pos].val = val;
@@ -108,6 +113,8 @@ public:
 	inc(
 		uintptr_t	key)
 	{
+		ut_ad(key != UNUSED);
+
 		const size_t	pos = insert_or_get_position(key);
 
 		/* Here m_arr[pos].val is either NOT_FOUND or some real value.
@@ -127,6 +134,8 @@ public:
 	dec(
 		uintptr_t	key)
 	{
+		ut_ad(key != UNUSED);
+
 		const size_t	pos = get_position(key);
 
 		if (pos == INVALID_POS) {
@@ -155,10 +164,10 @@ public:
 	}
 
 private:
-	/** A constant used initially for all keys. */
+	/** A key==UNUSED designates that this cell in the array is empty. */
 	static const uintptr_t	UNUSED = UINTPTR_MAX;
 
-	/** A constant used to designate an invalid position. Returned by
+	/** A position==INVALID_POS designates an invalid position. Returned by
 	methods that are supposed to find a given key when that key is not
 	present. */
 	static const size_t	INVALID_POS = SIZE_MAX;
