@@ -311,16 +311,19 @@ public:
 		READ = 1,
 		WRITE = 2,
 
+		/** Double write buffer recovery. */
+		DBLWR_RECOVER = 4,
+
 		/** Enumarations below can be ORed to READ/WRITE above*/
 
 		/** Data file */
-		DATA_FILE = 4,
+		DATA_FILE = 8,
 
 		/** Log file request*/
-		LOG = 8,
+		LOG = 16,
 
 		/** Disable partial read warnings */
-		DISABLE_PARTIAL_IO_WARNINGS = 16,
+		DISABLE_PARTIAL_IO_WARNINGS = 32,
 
 		/** Do not to wake i/o-handler threads, but the caller will do
 		the waking explicitly later, in this way the caller can post
@@ -329,10 +332,10 @@ public:
 		a simulated batch may introduce hidden chances of deadlocks,
 		because I/Os are not actually handled until all
 		have been posted: use with great caution! */
-		DO_NOT_WAKE = 32,
+		DO_NOT_WAKE = 64,
 
 		/** Ignore failed reads of non-existent pages */
-		IGNORE_MISSING = 64,
+		IGNORE_MISSING = 128,
 
 		/** Use punch hole if available, only makes sense if
 		compression algorithm != NONE. Ignored if not set */
@@ -537,6 +540,19 @@ public:
 	void disable_compression()
 	{
 		m_type |= NO_COMPRESSION;
+	}
+
+	/** Note that the IO is for double write recovery. */
+	void dblwr_recover()
+	{
+		m_type |= DBLWR_RECOVER;
+	}
+
+	/** @return true if the request is from the dblwr recovery */
+	bool is_dblwr_recover() const
+		__attribute__((warn_unused_result))
+	{
+		return((m_type & DBLWR_RECOVER) == DBLWR_RECOVER);
 	}
 
 	/** @return true if punch hole is supported */

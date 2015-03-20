@@ -575,8 +575,12 @@ buf_dblwr_process(void)
 			unread portion of the page is NUL. */
 			memset(read_buf, 0x0, page_size.physical());
 
+			IORequest	request;
+
+			request.dblwr_recover();
+
 			/* Read in the actual page from the file */
-			fil_io(IORequestRead, true,
+			fil_io(request, true,
 			       page_id, page_size,
 			       0, page_size.physical(), read_buf, NULL);
 
