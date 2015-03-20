@@ -680,6 +680,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
   uint i;
   List_iterator_fast <partition_element> part_it(m_part_info->partitions);
   partition_element *part_elem;
+  partition_element table_level_options;
   handler **file, **abort_file;
   THD *thd= ha_thd();
   TABLE_SHARE *share= table_arg->s;
@@ -708,6 +709,8 @@ int ha_partition::create(const char *name, TABLE *table_arg,
     Using the first partitions handler, since mixing handlers is not allowed.
   */
   path= get_canonical_filename(*file, name, name_lc_buff);
+  table_level_options.set_from_info(create_info);
+
   for (i= 0; i < m_part_info->num_parts; i++)
   {
     part_elem= part_it++;
@@ -725,6 +728,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
             ((error= (*file)->ha_create(name_buff, table_arg, create_info))))
           goto create_error;
 
+        table_level_options.put_to_info(create_info);
         name_buffer_ptr= strend(name_buffer_ptr) + 1;
         file++;
       }
@@ -738,6 +742,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
           ((error= (*file)->ha_create(name_buff, table_arg, create_info))))
         goto create_error;
 
+      table_level_options.put_to_info(create_info);
       name_buffer_ptr= strend(name_buffer_ptr) + 1;
       file++;
     }

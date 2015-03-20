@@ -1734,7 +1734,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       if (share->tablespace)
       {
         packet->append(STRING_WITH_LEN(" TABLESPACE "));
-        packet->append(share->tablespace, strlen(share->tablespace));
+        append_identifier(thd, packet, share->tablespace,
+                          strlen(share->tablespace));
       }
 
       if (share->default_storage_media == HA_SM_DISK)

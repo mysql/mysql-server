@@ -5773,7 +5773,7 @@ opt_part_option_list:
        ;
 
 opt_part_option:
-          TABLESPACE_SYM opt_equal ident_or_text
+          TABLESPACE_SYM opt_equal ident
           { Lex->part_info->curr_part_elem->tablespace_name= $3.str; }
         | opt_storage ENGINE_SYM opt_equal storage_engines
           {

@@ -68,6 +68,7 @@
 #include "sql_parse.h"                  // parse_sql
 #include "sql_show.h"                   // append_identifier
 #include "sql_table.h"                  // build_table_filename
+#include "sql_tablespace.h"             // check_tablespace_name
 #include "table.h"                      // TABLE_SHARE
 
 #include "pfs_file_provider.h"
@@ -224,7 +225,7 @@ Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs)
     @retval false  String not found
 */
 
-static bool is_name_in_list(char *name, List<String> list_names)
+static bool is_name_in_list(const char *name, List<String> list_names)
 {
   List_iterator<String> names_it(list_names);
   uint num_names= list_names.elements;
@@ -1964,17 +1965,23 @@ static int add_part_field_list(File fptr, List<char> field_list)
   return err;
 }
 
+static int add_ident_string(File fptr, const char *name)
+{
+  String name_string("", 0, system_charset_info);
+  THD *thd= current_thd;
+  append_identifier(thd, &name_string, name,
+                    strlen(name));
+  return add_string_object(fptr, &name_string);
+}
+
 static int add_name_string(File fptr, const char *name)
 {
   int err;
-  String name_string("", 0, system_charset_info);
   THD *thd= current_thd;
   ulonglong save_options= thd->variables.option_bits;
   thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
-  append_identifier(thd, &name_string, name,
-                    strlen(name));
+  err= add_ident_string(fptr, name);
   thd->variables.option_bits= save_options;
-  err= add_string_object(fptr, &name_string);
   return err;
 }
 
@@ -2006,31 +2013,45 @@ static int add_quoted_string(File fptr, const char *quotestr)
   return err + add_string(fptr, "'");
 }
 
-/**
-  @brief  Truncate the partition file name from a path it it exists.
 
-  @note  A partition file name will contian one or more '#' characters.
-One of the occurances of '#' will be either "#P#" or "#p#" depending
+/** Truncate the partition file name from a path if it exists.
+
+A partition file name will contain one or more '#' characters.
+One of the occurrences of '#' will be either "#P#" or "#p#" depending
 on whether the storage engine has converted the filename to lower case.
+If we need to truncate the name, we will allocate a new string and replace
+with, in case the original string was owned by something else.
+
+  @param[in]      root   MEM_ROOT to allocate from. If NULL alter the string
+                         directly.
+  @param[in,out]  path   Pointer to string to check and truncate.
 */
-void truncate_partition_filename(char *path)
+void truncate_partition_filename(MEM_ROOT *root, const char **path)
 {
-  if (path)
+  if (*path)
   {
-    char* last_slash= strrchr(path, FN_LIBCHAR);
+    const char* last_slash= strrchr(*path, FN_LIBCHAR);
 
     if (!last_slash)
-      last_slash= strrchr(path, FN_LIBCHAR2);
+      last_slash= strrchr(*path, FN_LIBCHAR2);
 
     if (last_slash)
     {
       /* Look for a partition-type filename */
-      for (char* pound= strchr(last_slash, '#');
+      for (const char* pound= strchr(last_slash, '#');
            pound; pound = strchr(pound + 1, '#'))
       {
         if ((pound[1] == 'P' || pound[1] == 'p') && pound[2] == '#')
         {
-          last_slash[0] = '\0'; /* truncate the file name */
+          if (root == NULL)
+          {
+            char *p= const_cast<char*>(last_slash);
+            *p= '\0';
+          }
+          else
+          {
+            *path= strmake_root(root, *path, last_slash - *path);
+          }
           break;
         }
       }
@@ -2060,6 +2081,8 @@ static int add_keyword_path(File fptr, const char *keyword,
   err+= add_space(fptr);
 
   char temp_path[FN_REFLEN];
+  const char *temp_path_p[1];
+  temp_path_p[0]= temp_path;
   strcpy(temp_path, path);
 #ifdef _WIN32
   /* Convert \ to / to be able to create table on unix */
@@ -2076,7 +2099,7 @@ static int add_keyword_path(File fptr, const char *keyword,
   If the partition file name with its "#P#" identifier
   is found after the last slash, truncate that filename.
   */
-  truncate_partition_filename(temp_path);
+  truncate_partition_filename(NULL, temp_path_p);
 
   err+= add_quoted_string(fptr, temp_path);
 
@@ -2124,8 +2147,11 @@ static int add_partition_options(File fptr, partition_element *p_elem)
 
   err+= add_space(fptr);
   if (p_elem->tablespace_name)
-    err+= add_keyword_string(fptr,"TABLESPACE", FALSE,
-                             p_elem->tablespace_name);
+  {
+    err+= add_string(fptr,"TABLESPACE = ");
+    err+= add_ident_string(fptr, p_elem->tablespace_name);
+    err+= add_space(fptr);
+  }
   if (p_elem->nodegroup_id != UNDEF_NODEGROUP)
     err+= add_keyword_int(fptr,"NODEGROUP",(longlong)p_elem->nodegroup_id);
   if (p_elem->part_max_rows)
@@ -2723,6 +2749,10 @@ char *generate_partition_syntax(partition_info *part_info,
     buf[*buf_length]= 0;
 
 close_file:
+  if (buf == NULL)
+  {
+    my_error(ER_INTERNAL_ERROR, MYF(0), "Failed to generate partition syntax");
+  }
   mysql_file_close(fptr, MYF(0));
   DBUG_RETURN(buf);
 }
@@ -4771,8 +4801,9 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
   const char *option_diffs[MAX_COMPARE_PARTITION_OPTION_ERRORS + 1];
   int i, errors= 0;
   DBUG_ENTER("compare_partition_options");
-  DBUG_ASSERT(!part_elem->tablespace_name &&
-              !table_create_info->tablespace);
+  // TODO: Add test for EXCHANGE PARTITION with TABLESPACES!
+  // Then if all works, simply remove the check for TABLESPACE (and eventually
+  // DATA/INDEX DIRECTORY too).
 
   /*
     Note that there are not yet any engine supporting tablespace together
@@ -4978,7 +5009,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       goto err;
     }
-    DBUG_ASSERT((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0);
     if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
     {
       /*
@@ -8309,7 +8339,7 @@ bool set_up_table_before_create(THD *thd,
   DBUG_ASSERT(part_elem);
 
   if (!part_elem)
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   share->max_rows= part_elem->part_max_rows;
   share->min_rows= part_elem->part_min_rows;
   partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
@@ -8324,7 +8354,21 @@ bool set_up_table_before_create(THD *thd,
   {
     DBUG_RETURN(error);
   }
-  info->index_file_name= part_elem->index_file_name;
-  info->data_file_name= part_elem->data_file_name;
+  if (part_elem->index_file_name != NULL)
+  {
+    info->index_file_name= part_elem->index_file_name;
+  }
+  if (part_elem->data_file_name != NULL)
+  {
+    info->data_file_name= part_elem->data_file_name;
+  }
+  if (part_elem->tablespace_name != NULL)
+  {
+    if (check_tablespace_name(part_elem->tablespace_name) != IDENT_NAME_OK)
+    {
+	    DBUG_RETURN(true);
+    }
+    info->tablespace= part_elem->tablespace_name;
+  }
   DBUG_RETURN(error);
 }

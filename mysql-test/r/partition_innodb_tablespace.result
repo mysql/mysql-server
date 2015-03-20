@@ -373,6 +373,159 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part/' ENGINE = InnoDB,
  PARTITION p1 ENGINE = InnoDB) */
+# Test TABLESPACE (and restart)
+CREATE TABLESPACE `ts_part1` ADD DATAFILE 'ts_part1.ibd';
+CREATE TABLESPACE `ts part2` ADD DATAFILE 'ts_part2.ibd';
+CREATE TABLESPACE `ts_part3` ADD DATAFILE 'ts_part3.ibd';
+CREATE TABLESPACE `ts_part4` ADD DATAFILE 'ts_part4.ibd';
+CREATE TABLE t2 (a int) ENGINE = InnoDB TABLESPACE `ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!`;
+ERROR 42000: Identifier name 'ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!' is too long
+CREATE TABLE t2 (a int) ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p1 VALUES LESS THAN (10)
+TABLESPACE `ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!`
+);
+ERROR 42000: Identifier name 'ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!' is too long
+CREATE TABLE t2
+(a int not null auto_increment primary key,
+b varchar(128))
+ENGINE = InnoDB
+TABLESPACE ts_part1
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE `ts part2`
+ (SUBPARTITION sp0 TABLESPACE ts_part3,
+SUBPARTITION sp1,
+SUBPARTITION sp2 TABLESPACE ts_part4),
+PARTITION p1 VALUES LESS THAN (100)
+(SUBPARTITION sp3,
+SUBPARTITION sp4 TABLESPACE innodb_file_per_table,
+SUBPARTITION sp5),
+PARTITION p2 VALUES LESS THAN (200)
+(SUBPARTITION sp6 TABLESPACE innodb_system,
+SUBPARTITION sp7,
+SUBPARTITION sp8),
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
+(SUBPARTITION sp9 TABLESPACE ts_part4,
+SUBPARTITION sp10,
+SUBPARTITION sp11));
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts_part1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
+  SUBPARTITION sp2 TABLESPACE = `ts_part4` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3 TABLESPACE = `ts_part1` ENGINE = InnoDB,
+  SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `ts_part1` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp7 TABLESPACE = `ts_part1` ENGINE = InnoDB,
+  SUBPARTITION sp8 TABLESPACE = `ts_part1` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (300)
+ (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
+  SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp11 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+call mtr.add_suppression("InnoDB: Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
+ALTER TABLE t2 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (400)
+TABLESPACE `ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!`);
+ERROR 42000: Identifier name 'ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!' is too long
+# Same but without table level tablespace defined
+CREATE TABLE t3
+(a int not null auto_increment primary key,
+b varchar(128))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE `ts part2`
+ (SUBPARTITION sp0 TABLESPACE ts_part3,
+SUBPARTITION sp1,
+SUBPARTITION sp2 TABLESPACE ts_part4),
+PARTITION p1 VALUES LESS THAN (100)
+(SUBPARTITION sp3,
+SUBPARTITION sp4 TABLESPACE innodb_file_per_table,
+SUBPARTITION sp5),
+PARTITION p2 VALUES LESS THAN (200)
+(SUBPARTITION sp6 TABLESPACE innodb_system,
+SUBPARTITION sp7,
+SUBPARTITION sp8),
+PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
+(SUBPARTITION sp9 TABLESPACE ts_part4,
+SUBPARTITION sp10,
+SUBPARTITION sp11));
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
+  SUBPARTITION sp2 TABLESPACE = `ts_part4` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3 ENGINE = InnoDB,
+  SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp5 ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp7 ENGINE = InnoDB,
+  SUBPARTITION sp8 ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (300)
+ (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
+  SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp11 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+SET @@global.innodb_file_per_table = ON;
+CREATE TABLE t_file_per_table_on
+(a int not null auto_increment primary key,
+b varchar(128))
+ENGINE = InnoDB;
+SET @@global.innodb_file_per_table = OFF;
+CREATE TABLE t_file_per_table_off
+(a int not null auto_increment primary key,
+b varchar(128))
+ENGINE = InnoDB;
+SHOW CREATE TABLE t_file_per_table_on;
+Table	Create Table
+t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_file_per_table_off;
+Table	Create Table
+t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SET @@global.innodb_file_per_table = ON;
+SHOW CREATE TABLE t_file_per_table_on;
+Table	Create Table
+t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_file_per_table_off;
+Table	Create Table
+t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Restart to get DATA DIRECTORY read from the engine (InnoDB dictionary)
 # restart
 ALTER TABLE t1 COALESCE PARTITION 1;
@@ -384,4 +537,199 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 (PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part' ENGINE = InnoDB) */
-DROP TABLE t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts_part1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
+  SUBPARTITION sp2 TABLESPACE = `ts_part4` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3 TABLESPACE = `ts_part1` ENGINE = InnoDB,
+  SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = `ts_part1` ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp7 TABLESPACE = `ts_part1` ENGINE = InnoDB,
+  SUBPARTITION sp8 TABLESPACE = `ts_part1` ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (300)
+ (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
+  SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp11 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = `ts_part3` ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
+  SUBPARTITION sp2 TABLESPACE = `ts_part4` ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3 ENGINE = InnoDB,
+  SUBPARTITION sp4 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp5 ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sp7 ENGINE = InnoDB,
+  SUBPARTITION sp8 ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (300)
+ (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
+  SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION sp11 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
+SET @old_sql_quote_show_create=@@sql_quote_show_create;
+SET @@sql_quote_show_create=0;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE t1 (
+  a int(11) NOT NULL,
+  PRIMARY KEY (a)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data_part' ENGINE = InnoDB) */
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE t2 (
+  a int(11) NOT NULL AUTO_INCREMENT,
+  b varchar(128) DEFAULT NULL,
+  PRIMARY KEY (a)
+) /*!50100 TABLESPACE ts_part1 */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = ts_part3 ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
+  SUBPARTITION sp2 TABLESPACE = ts_part4 ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3 TABLESPACE = ts_part1 ENGINE = InnoDB,
+  SUBPARTITION sp4 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
+  SUBPARTITION sp5 TABLESPACE = ts_part1 ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE = innodb_system ENGINE = InnoDB,
+  SUBPARTITION sp7 TABLESPACE = ts_part1 ENGINE = InnoDB,
+  SUBPARTITION sp8 TABLESPACE = ts_part1 ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (300)
+ (SUBPARTITION sp9 TABLESPACE = ts_part4 ENGINE = InnoDB,
+  SUBPARTITION sp10 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
+  SUBPARTITION sp11 TABLESPACE = innodb_file_per_table ENGINE = InnoDB)) */
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE t3 (
+  a int(11) NOT NULL AUTO_INCREMENT,
+  b varchar(128) DEFAULT NULL,
+  PRIMARY KEY (a)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (0)
+ (SUBPARTITION sp0 TABLESPACE = ts_part3 ENGINE = InnoDB,
+  SUBPARTITION sp1 TABLESPACE = `ts part2` ENGINE = InnoDB,
+  SUBPARTITION sp2 TABLESPACE = ts_part4 ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3 ENGINE = InnoDB,
+  SUBPARTITION sp4 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
+  SUBPARTITION sp5 ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE = innodb_system ENGINE = InnoDB,
+  SUBPARTITION sp7 ENGINE = InnoDB,
+  SUBPARTITION sp8 ENGINE = InnoDB),
+ PARTITION p3 VALUES LESS THAN (300)
+ (SUBPARTITION sp9 TABLESPACE = ts_part4 ENGINE = InnoDB,
+  SUBPARTITION sp10 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
+  SUBPARTITION sp11 TABLESPACE = innodb_file_per_table ENGINE = InnoDB)) */
+SET @@sql_quote_show_create=@old_sql_quote_show_create;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#p0	test/t1#p#p0	65	4	Compact	0	Single
+test/t2#p#p0#sp#sp0	ts_part3	129	5	Compact	0	General
+test/t2#p#p0#sp#sp1	ts part2	129	5	Compact	0	General
+test/t2#p#p0#sp#sp2	ts_part4	129	5	Compact	0	General
+test/t2#p#p1#sp#sp3	ts_part1	129	5	Compact	0	General
+test/t2#p#p1#sp#sp4	test/t2#p#p1#sp#sp4	1	5	Compact	0	Single
+test/t2#p#p1#sp#sp5	ts_part1	129	5	Compact	0	General
+test/t2#p#p2#sp#sp6	innodb_system	129	5	Compact	0	System
+test/t2#p#p2#sp#sp7	ts_part1	129	5	Compact	0	General
+test/t2#p#p2#sp#sp8	ts_part1	129	5	Compact	0	General
+test/t2#p#p3#sp#sp10	test/t2#p#p3#sp#sp10	1	5	Compact	0	Single
+test/t2#p#p3#sp#sp11	test/t2#p#p3#sp#sp11	1	5	Compact	0	Single
+test/t2#p#p3#sp#sp9	ts_part4	129	5	Compact	0	General
+test/t3#p#p0#sp#sp0	ts_part3	129	5	Compact	0	General
+test/t3#p#p0#sp#sp1	ts part2	129	5	Compact	0	General
+test/t3#p#p0#sp#sp2	ts_part4	129	5	Compact	0	General
+test/t3#p#p1#sp#sp3	test/t3#p#p1#sp#sp3	1	5	Compact	0	Single
+test/t3#p#p1#sp#sp4	test/t3#p#p1#sp#sp4	1	5	Compact	0	Single
+test/t3#p#p1#sp#sp5	test/t3#p#p1#sp#sp5	1	5	Compact	0	Single
+test/t3#p#p2#sp#sp6	innodb_system	129	5	Compact	0	System
+test/t3#p#p2#sp#sp7	test/t3#p#p2#sp#sp7	1	5	Compact	0	Single
+test/t3#p#p2#sp#sp8	test/t3#p#p2#sp#sp8	1	5	Compact	0	Single
+test/t3#p#p3#sp#sp10	test/t3#p#p3#sp#sp10	1	5	Compact	0	Single
+test/t3#p#p3#sp#sp11	test/t3#p#p3#sp#sp11	1	5	Compact	0	Single
+test/t3#p#p3#sp#sp9	ts_part4	129	5	Compact	0	General
+test/t_file_per_table_off	innodb_system	1	5	Compact	0	System
+test/t_file_per_table_on	test/t_file_per_table_on	1	5	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+ts_part1	MYSQLD_DATADIR/ts_part1.ibd	DEFAULT	0	Any	General
+ts part2	MYSQLD_DATADIR/ts_part2.ibd	DEFAULT	0	Any	General
+ts_part3	MYSQLD_DATADIR/ts_part3.ibd	DEFAULT	0	Any	General
+ts_part4	MYSQLD_DATADIR/ts_part4.ibd	DEFAULT	0	Any	General
+test/t2#p#p1#sp#sp4	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2#p#p3#sp#sp10	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2#p#p3#sp#sp11	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3#p#p1#sp#sp3	MYSQLD_DATADIR/test/t3#p#p1#sp#sp3.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3#p#p1#sp#sp4	MYSQLD_DATADIR/test/t3#p#p1#sp#sp4.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3#p#p1#sp#sp5	MYSQLD_DATADIR/test/t3#p#p1#sp#sp5.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3#p#p2#sp#sp7	MYSQLD_DATADIR/test/t3#p#p2#sp#sp7.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3#p#p2#sp#sp8	MYSQLD_DATADIR/test/t3#p#p2#sp#sp8.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3#p#p3#sp#sp10	MYSQLD_DATADIR/test/t3#p#p3#sp#sp10.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3#p#p3#sp#sp11	MYSQLD_DATADIR/test/t3#p#p3#sp#sp11.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t_file_per_table_on	MYSQLD_DATADIR/test/t_file_per_table_on.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#p0	MYSQL_TMP_DIR/alternate_dir/data_part/test/t1#p#p0.ibd	DEFAULT	0	Compact or Redundant	Single
+DROP TABLE t1,t2,t3;
+DROP TABLESPACE ts_part1;
+DROP TABLESPACE `ts part2`;
+DROP TABLESPACE ts_part3;
+DROP TABLESPACE ts_part4;
+SET @@global.innodb_file_per_table = ON;
+SHOW CREATE TABLE t_file_per_table_on;
+Table	Create Table
+t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_file_per_table_off;
+Table	Create Table
+t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SET @@global.innodb_file_per_table = OFF;
+SHOW CREATE TABLE t_file_per_table_on;
+Table	Create Table
+t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE t_file_per_table_off;
+Table	Create Table
+t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t_file_per_table_on;
+DROP TABLE t_file_per_table_off;

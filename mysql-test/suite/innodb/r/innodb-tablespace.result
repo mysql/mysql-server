@@ -245,18 +245,11 @@ CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQ
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
 Error	1031	Table storage engine for 't1' doesn't have this option
 SET SESSION innodb_strict_mode = OFF;
 CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 Warnings:
-Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
-Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
-Warning	1618	<DATA DIRECTORY> option ignored
-SHOW WARNINGS;
-Level	Code	Message
-Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
 Warning	1618	<DATA DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
@@ -267,6 +260,25 @@ t1	CREATE TEMPORARY TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
+# Also a warning should be issued if DATA DIR and TEMP is used without
+# innodb_file_per_table
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+Warnings:
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
+Warning	1618	<DATA DIRECTORY> option ignored
+DROP TABLE t1;
+SET SESSION innodb_strict_mode = ON;
+CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
+Error	1031	Table storage engine for 't1' doesn't have this option
+SET SESSION innodb_strict_mode = OFF;
+SET GLOBAL innodb_file_per_table=ON;
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 #
