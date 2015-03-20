@@ -339,12 +339,6 @@ my $opt_max_save_core= env_or_val(MTR_MAX_SAVE_CORE => 5);
 my $opt_max_save_datadir= env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
-# Hack mtr.pl to allow huge number of failing tests
-$opt_max_save_core = 1;
-$opt_max_save_datadir = 1;
-$opt_max_test_fail = 0;
-$opt_retry_failure = 1;
-
 my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
 select(STDOUT);
