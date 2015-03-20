@@ -17,7 +17,10 @@
 
 #include "abstract_query_plan.h"
 
+#include "sql_executor.h"     // QEP_TAB
 #include "sql_optimizer.h"    // JOIN
+#include "opt_range.h"        // QUICK_SELECT_I
+#include "sql_select.h"       // st_position
 
 namespace AQP
 {

@@ -22,6 +22,7 @@
 #include "sql_time.h"                      // interval_type_to_name
 #include "tztime.h"                             // struct Time_zone
 #include "auth_common.h" // SUPER_ACL, MYSQL_DB_FIELD_COUNT, mysql_db_table_fields
+#include "sql_user_table.h"       // mysql_db_table_def
 #include "records.h"          // init_read_record, end_read_record
 #include "sp_head.h"
 #include "event_data_objects.h"

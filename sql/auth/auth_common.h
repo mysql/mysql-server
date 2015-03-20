@@ -19,14 +19,24 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "auth_acls.h"                          /* ACL information */
 #include "sql_string.h"                         /* String */
-#include "field.h"
+#include "mysql_com.h"                          /* enum_server_command */
+#include "sql_list.h"                           /* List */
+#include "template_utils.h"
 
 /* Forward Declarations */
+class Alter_info;
+class Field_iterator_table_ref;
 class LEX_COLUMN;
 class THD;
+typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
+typedef struct st_lex_user LEX_USER;
+typedef struct st_ha_create_information HA_CREATE_INFO;
 struct GRANT_INFO;
+class Item;
 struct LEX;
 typedef struct user_conn USER_CONN;
+class Security_context;
+struct TABLE;
 struct TABLE_LIST;
 
 /* Classes */
@@ -499,20 +509,16 @@ public:
   virtual Acl_load_user_table_schema* get_user_table_schema(TABLE *table)
   {
     return is_old_user_table_schema(table) ?
-      (Acl_load_user_table_schema*) new Acl_load_user_table_old_schema():
-      (Acl_load_user_table_schema*) new Acl_load_user_table_current_schema();
+      implicit_cast<Acl_load_user_table_schema*>
+      (new Acl_load_user_table_old_schema()) :
+      implicit_cast<Acl_load_user_table_schema*>
+      (new Acl_load_user_table_current_schema());
   }
 
-  virtual bool is_old_user_table_schema(TABLE* table)
-  {
-    Field *password_field=
-      table->field[Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
-    return strncmp(password_field->field_name, "Password", 8) == 0;
-  }
+  virtual bool is_old_user_table_schema(TABLE* table);
   virtual ~Acl_load_user_table_schema_factory() {}
 };
 
-extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
 extern my_bool disconnect_on_expired_password;
 extern const char *any_db;	// Special symbol for check_access
@@ -666,11 +672,9 @@ inline bool check_single_table_access(THD *thd, ulong privilege,
 inline bool check_routine_access(THD *thd,ulong want_access,const char *db,
                                  char *name, bool is_proc, bool no_errors)
 { return false; }
-inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
-{
-  table->grant.privilege= want_access;
-  return false;
-}
+
+bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
+
 inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }

@@ -1521,11 +1521,6 @@ bool Field::send_text(Protocol *protocol)
 {
   if (is_null())
     return protocol->store_null();
-#ifndef DBUG_OFF
-  if(protocol->type() == Protocol::PROTOCOL_TEXT ||
-     protocol->type() == Protocol::PROTOCOL_BINARY)
-    ((Protocol_classic *) protocol)->increment_field_count();
-#endif
   char buff[MAX_FIELD_WIDTH];
   String str(buff, sizeof(buff), &my_charset_bin);
 #ifndef DBUG_OFF

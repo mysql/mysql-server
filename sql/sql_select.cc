@@ -37,6 +37,7 @@
 #include "sql_show.h"            // append_identifier
 #include "sql_base.h"
 #include "auth_common.h"         // *_ACL
+#include "opt_range.h"           // QUICK_SELECT_I
 #include "sql_test.h"            // misc. debug printing utilities
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers

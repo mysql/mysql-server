@@ -27,6 +27,7 @@
 #include "sql_base.h"      // lock_tables
 #include "sql_acl.h"       // check_global_access, PROCESS_ACL
 #include "debug_sync.h"    // DEBUG_SYNC
+#include "opt_range.h"     // QUICK_SELECT_I
 #include "opt_trace.h"     // Opt_trace_*
 #include "sql_parse.h"     // is_explainable_query
 #include "mysqld_thd_manager.h"  // Global_THD_manager

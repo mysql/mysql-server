@@ -63,6 +63,7 @@ ENDIF()
 
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
+  auth/auth_common.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc

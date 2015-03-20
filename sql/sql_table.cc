@@ -28,6 +28,7 @@
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"   // open_table_uncached, lock_table_names
+#include "sql_executor.h"// QEP_TAB_standalone
 #include "lock.h"       // mysql_unlock_tables
 #include "psi_memory_key.h"
 #include "strfunc.h"    // find_type2, find_set

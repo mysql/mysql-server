@@ -31,6 +31,7 @@
 #include "sql_base.h"
 #include "auth_common.h"
 #include "opt_explain_format.h"
+#include "opt_range.h"           // prune_partitions
 #include "sql_test.h"            // print_where
 #include "aggregate_check.h"
 #include "query_result.h"

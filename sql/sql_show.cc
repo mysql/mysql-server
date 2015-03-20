@@ -21,6 +21,7 @@
 #include "current_thd.h"
 #include "mutex_lock.h"                     // Mutex_lock
 #include "my_dir.h"                         // MY_DIR
+#include "keycache.h"                       // dflt_key_cache
 #include "prealloced_array.h"               // Prealloced_array
 #include "template_utils.h"                 // delete_container_pointers
 #include "auth_common.h"                    // check_grant_db

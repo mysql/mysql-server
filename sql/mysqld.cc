@@ -259,6 +259,8 @@ static PSI_mutex_key key_LOCK_start_signal_handler;
 static PSI_cond_key key_COND_start_signal_handler;
 #endif // _WIN32
 #endif // !EMBEDDED_LIBRARY
+static PSI_mutex_key key_LOCK_server_started;
+static PSI_cond_key key_COND_server_started;
 
 #if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static PSI_rwlock_key key_rwlock_openssl;
@@ -1017,7 +1019,6 @@ static bool read_init_file(char *file_name);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
 static void end_ssl();
-static void start_processing_signals();
 
 #ifndef EMBEDDED_LIBRARY
 static bool pid_file_created= false;
@@ -1026,7 +1027,10 @@ static void clean_up_mutexes(void);
 static void create_pid_file();
 static void mysqld_exit(int exit_code) __attribute__((noreturn));
 static void delete_pid_file(myf flags);
+#ifndef _WIN32
+static void start_processing_signals();
 #endif
+#endif // !EMBEDDED_LIBRARY
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -1271,6 +1275,7 @@ extern "C" void unireg_abort(int exit_code)
 #ifndef _WIN32
   if (signal_thread_id.thread != 0)
   {
+    // Make sure the signal thread isn't blocked when we are trying to exit.
     start_processing_signals();
 
     pthread_kill(signal_thread_id.thread, SIGTERM);
@@ -2300,14 +2305,13 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   return NULL;        /* purecov: deadcode */
 }
 
-#endif // !_WIN32
-#endif // !EMBEDDED_LIBRARY
 
 /**
   Starts processing signals initialized in the signal_hand function.
 
   @see signal_hand
 */
+
 static void start_processing_signals()
 {
   mysql_mutex_lock(&LOCK_server_started);
@@ -2315,6 +2319,9 @@ static void start_processing_signals()
   mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 }
+
+#endif // !_WIN32
+#endif // !EMBEDDED_LIBRARY
 
 #if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 #include <cxxabi.h>
@@ -4967,7 +4974,9 @@ int mysqld_main(int argc, char **argv)
 
   if (opt_bootstrap)
   {
+#ifndef _WIN32
     start_processing_signals();
+#endif
 
     int error= bootstrap(mysql_stdin);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
@@ -4997,9 +5006,9 @@ int mysqld_main(int argc, char **argv)
                          MYSQL_COMPILATION_COMMENT);
 #if defined(_WIN32)
   Service.SetRunning();
-#endif
-
+#else
   start_processing_signals();
+#endif
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* engine specific hook, to be made generic */
@@ -8350,7 +8359,7 @@ PSI_mutex_key
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
-  key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_status,
   key_LOCK_sql_slave_skip_counter,
   key_LOCK_slave_net_timeout,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
@@ -8522,7 +8531,6 @@ static PSI_rwlock_info all_server_rwlocks[]=
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 PSI_cond_key key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_manager,
-  key_COND_server_started,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
   key_master_info_sleep_cond,

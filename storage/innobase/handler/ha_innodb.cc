@@ -464,7 +464,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_trx_get_start_time,
 	(ib_cb_t) ib_cfg_bk_commit_interval,
 	(ib_cb_t) ib_ut_strerr,
-	(ib_cb_t) ib_cursor_stmt_begin
+	(ib_cb_t) ib_cursor_stmt_begin,
+	(ib_cb_t) ib_trx_read_only
 };
 
 /******************************************************************//**
@@ -4214,8 +4215,11 @@ ha_innobase::index_flags(
 		      | HA_READ_RANGE | HA_KEYREAD_ONLY
 		      | HA_DO_INDEX_COND_PUSHDOWN;
 
+	/* For spatial index, we don't support descending scan
+	and ICP so far. */
 	if (table_share->key_info[key].flags & HA_SPATIAL) {
-		flags |= HA_KEY_SCAN_NOT_ROR;
+		flags = HA_READ_NEXT | HA_READ_ORDER| HA_READ_RANGE
+			| HA_KEYREAD_ONLY | HA_KEY_SCAN_NOT_ROR;
 	}
 
 	return(flags);

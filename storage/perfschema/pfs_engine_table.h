@@ -17,6 +17,14 @@
 #define PFS_ENGINE_TABLE_H
 
 #include "auth_common.h"                            /* struct ACL_* */
+#include "my_thread_local.h"                        /* thread_local_key_t */
+#include "my_base.h"
+#include "handler.h"                                /* ha_stat_type */
+
+typedef struct st_thr_lock THR_LOCK;
+typedef struct st_table_field_def TABLE_FIELD_DEF;
+
+
 /**
   @file storage/perfschema/pfs_engine_table.h
   Performance schema tables (declarations).

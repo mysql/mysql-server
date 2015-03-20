@@ -656,8 +656,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   execute_ddl_log_recovery();
 
-  start_processing_signals();
-
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* engine specific hook, to be made generic */
   if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
@@ -1117,7 +1115,7 @@ void Protocol_classic::send_string_metadata(String* item_str)
 
 bool Protocol_classic::end_row()
 {
-  DBUG_ENTER("Protocol_classic::write");
+  DBUG_ENTER("Protocol_classic::end_row");
   if (!m_thd->mysql)            // bootstrap file handling
     DBUG_RETURN(FALSE);
 

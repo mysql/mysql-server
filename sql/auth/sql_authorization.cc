@@ -3666,6 +3666,12 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
 
 #else /* NO_EMBEDDED_ACCESS_CHECKS */
 
+bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
+{
+  table->grant.privilege= want_access;
+  return false;
+}
+
 /****************************************************************************
  Dummy wrappers when we don't have any access checks
 ****************************************************************************/
