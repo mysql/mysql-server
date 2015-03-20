@@ -1176,6 +1176,14 @@ private:
 	}
 	/** @} */
 
+	/** Fill in data_dir_path and tablespace name from internal data
+	dictionary.
+	@param	part_elem	Partition element to fill.
+	@param	ib_table	InnoDB table to copy from. */
+	void
+	update_part_elem(
+		partition_element*	part_elem,
+		dict_table_t*		ib_table);
 protected:
 	/* Protected handler:: functions specific for native InnoDB partitioning.
 	@see handler.h @{ */
