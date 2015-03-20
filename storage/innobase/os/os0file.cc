@@ -1564,9 +1564,15 @@ os_file_io_complete(
 		it could crash the decompression code causing much bigger
 		problems. */
 
-		if (!type.is_dblwr_recover()) {
-			return(os_file_decompress_page(buf, scratch, len));
+		if (type.is_dblwr_recover()
+		    && Compression::is_compressed_page(buf)) {
+
+			memset(buf, 0x0, len);
+
+			return(DB_SUCCESS);
 		}
+
+		return(os_file_decompress_page(buf, scratch, len));
 
 	} else if (type.punch_hole()) {
 
