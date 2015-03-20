@@ -898,10 +898,6 @@ void Geometry::append_points(String *txt, uint32 n_points,
     wkb->skip_unsafe(offset);
     wkb->scan_xy_unsafe(&p);
     txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 1);
-    if (p.x == -0)
-      p.x= 0.0;
-    if (p.y == -0)
-      p.y= 0.0;
     txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(' ');
     txt->qs_append(p.y, MAX_DIGITS_IN_DOUBLE);
@@ -1357,10 +1353,6 @@ bool Gis_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     return true;
   if (txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 1))
     return true;
-  if (p.x == -0)
-    p.x= 0;
-  if (p.y == -0)
-    p.y= 0;
   if (!my_isfinite(p.x) || !my_isfinite(p.y))
     return true;
   txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
@@ -1536,10 +1528,6 @@ bool Gis_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
   {
     point_xy p;
     wkb->scan_xy_unsafe(&p);
-    if (p.x == -0)
-      p.x= 0;
-    if (p.y == -0)
-      p.y= 0;
     if (!my_isfinite(p.x) || !my_isfinite(p.y))
       return true;
     txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
