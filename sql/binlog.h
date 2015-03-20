@@ -19,6 +19,7 @@
 #include "my_global.h"
 #include "binlog_event.h"              // enum_binlog_checksum_alg
 #include "log.h"                       // TC_LOG
+#include "atomic_class.h"
 
 class Relay_log_info;
 class Master_info;
@@ -431,7 +432,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   uint sync_counter;
 
   mysql_cond_t m_prep_xids_cond;
-  volatile int32 m_prep_xids;
+  Atomic_int32 m_prep_xids;
 
   /**
     Increment the prepared XID counter.
@@ -446,7 +447,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   void dec_prep_xids(THD *thd);
 
   int32 get_prep_xids() {
-    int32 result= my_atomic_load32(&m_prep_xids);
+    int32 result= m_prep_xids.atomic_get();
     return result;
   }
 
