@@ -20222,6 +20222,7 @@ static void test_bug19894382()
   tm_common.second= 30;
   tm_common.second_part= 5010;
   tm_common.neg= 0;
+  tm_common.time_type= MYSQL_TIMESTAMP_NONE;
 
   memset(bind_val, 0, sizeof(MYSQL_BIND) * 6);
   for (ind= 0; ind < 6; ind++)
@@ -20236,15 +20237,15 @@ static void test_bug19894382()
     case 0:
       tm[ind].year= tm[ind].month= tm[ind].day= 0;
       bind_val[ind].buffer_type= MYSQL_TYPE_TIME;
-      tm[ind].time_type= MYSQL_TYPE_TIME;
+      tm[ind].time_type= MYSQL_TIMESTAMP_TIME;
       break;
     case 1:
       bind_val[ind].buffer_type= MYSQL_TYPE_TIMESTAMP;
-      tm[ind].time_type= MYSQL_TYPE_DATETIME;
+      tm[ind].time_type= MYSQL_TIMESTAMP_DATETIME;
       break;
     case 2:
       bind_val[ind].buffer_type= MYSQL_TYPE_DATETIME;
-      tm[ind].time_type= MYSQL_TYPE_DATETIME;
+      tm[ind].time_type= MYSQL_TIMESTAMP_DATETIME;
       break;
     }
   }
