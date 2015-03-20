@@ -745,6 +745,9 @@ drop table t1;
 #
 # Partition by key specifying tablespace
 #
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -758,6 +761,8 @@ partitions 3
 
 CREATE TABLE t2 LIKE t1;
 
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
 drop table t2;
 drop table t1;
 
@@ -775,6 +780,7 @@ partitions 3
  partition x2 values in (3, 11, 5, 7) tablespace ts2,
  partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
 
+SHOW CREATE TABLE t1;
 drop table t1;
 #
 # Partition by key list, list function
@@ -790,6 +796,7 @@ partitions 3
  partition x2 values in (3, 11, 5, 7) tablespace ts2,
  partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
 
+SHOW CREATE TABLE t1;
 drop table t1;
 
 #
@@ -805,6 +812,7 @@ partition by list (b*a)
  partition x2 values in (3, 11, 5, 7) tablespace ts2,
  partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
 
+SHOW CREATE TABLE t1;
 drop table t1;
 
 #
@@ -1241,7 +1249,11 @@ insert into t1 values (12, 1, 1);
 
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
+SHOW CREATE TABLE t1;
 drop table t1;
+DROP TABLESPACE ts1 ENGINE = InnoDB;
+DROP TABLESPACE ts2 ENGINE = InnoDB;
+DROP TABLESPACE ts3 ENGINE = InnoDB;
 
 # NULL for LIST partition
 --error ER_MULTIPLE_DEF_CONST_IN_LIST_PART_ERROR

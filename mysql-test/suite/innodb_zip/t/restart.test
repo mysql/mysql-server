@@ -572,22 +572,18 @@ SHOW CREATE TABLE t77_restart;
 
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 SELECT count(*) FROM t4_restart;
---replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR ./ MYSQL_DATA_DIR/
 SHOW CREATE TABLE t4_restart;
 
 INSERT INTO t55_restart (SELECT 0, c2, c3, c4, c5 FROM t55_restart);
 SELECT count(*) FROM t55_restart;
---replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR ./ MYSQL_DATA_DIR/
 SHOW CREATE TABLE t55_restart;
 
 INSERT INTO t66_restart (SELECT 0, c2, c3, c4, c5 FROM t66_restart);
 SELECT count(*) FROM t66_restart;
---replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR ./ MYSQL_DATA_DIR/
 SHOW CREATE TABLE t66_restart;
 
 INSERT INTO t77_restart (SELECT 0, c2, c3, c4, c5 FROM t77_restart);
 SELECT count(*) FROM t77_restart;
---replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR ./ MYSQL_DATA_DIR/
 SHOW CREATE TABLE t77_restart;
 
 

@@ -222,7 +222,7 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`a`),
   KEY `d` (`d`),
   KEY `f` (`f`)
-) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM test.t order by a;
 a	b	c	d	e	f
 1	2	3	aaa1	bbb1	ccccc1

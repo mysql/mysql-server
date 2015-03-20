@@ -199,9 +199,21 @@ SHOW WARNINGS;
 SET SESSION innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
-SHOW WARNINGS;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+--echo # Also a warning should be issued if DATA DIR and TEMP is used without
+--echo # innodb_file_per_table
+SET GLOBAL innodb_file_per_table=OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
+DROP TABLE t1;
+SET SESSION innodb_strict_mode = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA
+eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
+SHOW WARNINGS;
+SET SESSION innodb_strict_mode = OFF;
+SET GLOBAL innodb_file_per_table=ON;
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
