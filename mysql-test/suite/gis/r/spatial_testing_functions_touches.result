@@ -523,14 +523,12 @@ SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_e
 MBRTOUCHES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal_3))
 0
 SELECT MBRTOUCHES(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-MBRTOUCHES(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 #====================================================================================
 # linestring,multipolygon
 #====================================================================================
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 MBRTOUCHES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 0
@@ -541,8 +539,7 @@ SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_o
 MBRTOUCHES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3))
 0
 SELECT MBRTOUCHES(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-MBRTOUCHES(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================

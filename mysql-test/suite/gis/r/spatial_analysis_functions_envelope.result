@@ -120,8 +120,7 @@ SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT(@star_lines_near_horizontal)))
 POLYGON((0 0,25 0,25 30,0 30,0 0))
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
-ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')))
-POLYGON((0 0,0 0,0 0,0 0,0 0))
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
 ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
@@ -372,17 +371,17 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_envelope.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_envelope.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_envelope.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_envelope.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5)),((10 10)))')));
-ERROR 22023: Invalid GIS data provided to function st_envelope.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5)),((1 1,1 1,1 1,1 1)))')));
-ERROR 22023: Invalid GIS data provided to function st_envelope.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_ENVELOPE(0x000000000200000000000000000000000000000000));

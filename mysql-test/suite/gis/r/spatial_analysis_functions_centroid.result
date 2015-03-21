@@ -117,8 +117,7 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_horizontal)))
 POINT(9.333108739249747 15.167565043001009)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')))
-POINT(0 0)
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
 POINT(2.5 2.5)
@@ -383,15 +382,15 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_centroid.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_centroid.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_centroid.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_centroid.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))')));
-ERROR 22023: Invalid GIS data provided to function st_centroid.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(0x000000000200000000000000000000000000000000));
