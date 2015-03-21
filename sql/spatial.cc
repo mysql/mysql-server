@@ -1415,7 +1415,8 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
     if (trs->skip_char(','))			// Didn't find ','
       break;
   }
-  if (n_points < 1)
+
+  if (n_points < 2 || (is_polygon_ring() && n_points < 3))
   {
     trs->set_error_msg("Too few points in LINESTRING");
     return true;
@@ -1438,6 +1439,9 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
     n_points++;
     lastpt= wkb->ptr() + wkb->length() - POINT_DATA_SIZE;
   }
+  else if (n_points == 3)
+    return true;
+
   DBUG_ASSERT(n_points == (lastpt - firstpt) / POINT_DATA_SIZE + 1);
 
 out:
@@ -1455,7 +1459,8 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
   Gis_point p(false);
 
   if (len < 4 ||
-      (n_points= wkb_get_uint(wkb, bo)) < 1 ||
+      (n_points= wkb_get_uint(wkb, bo)) < 2 ||
+      (is_polygon_ring() && n_points < 3) ||
       n_points > max_n_points)
     return 0;
   proper_length= 4 + n_points * POINT_DATA_SIZE;
@@ -1472,7 +1477,10 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
       proper_length+= POINT_DATA_SIZE;
       n_points++;
     }
+    else if (n_points == 3)
+      return 0;
   }
+
   if (res->reserve(proper_length, 512))
     return 0;
 
