@@ -132,8 +132,7 @@ SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_lines_near_horizontal)))
 POLYGON((0 5,25 0,15 30,0 15,0 5))
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
-ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')))
-LINESTRING(0 0,0 0)
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
@@ -400,15 +399,15 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_convex_hull.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CONVEXHULL(0x000000000200000000000000000000000000000000));

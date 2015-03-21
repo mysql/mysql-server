@@ -961,11 +961,11 @@ ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,10 10,0 0))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10))')));
-ERROR 22023: Invalid GIS data provided to function st_union.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10,0 0))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 10,0 0)))')));
-ERROR 22023: Invalid GIS data provided to function st_union.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,10 10,0 0))'),ST_GEOMFROMTEXT('POLYGON((0 0,10 10,0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_union.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_UNION(,));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),));

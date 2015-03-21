@@ -662,7 +662,7 @@ get_positions(const rapidjson::Value *coordinates, Gis_point *point)
     if (!itr->IsNumber())
     {
       my_error(ER_INVALID_GEOJSON_WRONG_TYPE, MYF(0), func_name(),
-               "array coordiante", "number");
+               "array coordinate", "number");
       return true;
     }
 
@@ -903,7 +903,7 @@ Item_func_geomfromgeojson::get_linestring(const rapidjson::Value *data_array,
   DBUG_ASSERT(data_array->IsArray());
 
   // Ensure that the linestring has at least one point.
-  if (data_array->Empty())
+  if (data_array->Size() < 2)
   {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return true;
@@ -925,6 +925,7 @@ Item_func_geomfromgeojson::get_linestring(const rapidjson::Value *data_array,
       linestring->push_back(point);
     }
   }
+
   return false;
 }
 
@@ -2645,6 +2646,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   {
     String *res= args[i]->val_str(&arg_value);
     size_t len;
+
     if (args[i]->null_value || ((len= res->length()) < WKB_HEADER_SIZE))
       goto err;
 
@@ -2704,8 +2706,11 @@ String *Item_func_spatial_collection::val_str(String *str)
         p_npts= const_cast<char *>(data);
 	data+= 4;
 
-        if (n_points < 2 || len < 4 + n_points * POINT_DATA_SIZE)
-          goto err;
+        if (n_points < 3 || len < 4 + n_points * POINT_DATA_SIZE)
+        {
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return error_str();
+        }
 
         firstpt= data;
 	float8get(&x1, data);
@@ -2722,6 +2727,11 @@ String *Item_func_spatial_collection::val_str(String *str)
         {
           n_points++;
           int4store(p_npts, n_points);
+        }
+        else if (n_points == 3)
+        {
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return error_str();
         }
 
 	if (str->append(org_data, len, 512) ||
@@ -2743,6 +2753,24 @@ String *Item_func_spatial_collection::val_str(String *str)
 			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
+  }
+
+  if (coll_type == Geometry::wkb_linestring && arg_count < 2)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  /*
+    The construct() call parses the string to make sure it's a valid
+    WKB byte string instead of some arbitrary trash bytes. Above code assumes
+    so and doesn't further completely validate the string's content.
+  */
+  Geometry_buffer geom_buff;
+  if (Geometry::construct(&geom_buff, str) == NULL)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
   }
 
   null_value= 0;

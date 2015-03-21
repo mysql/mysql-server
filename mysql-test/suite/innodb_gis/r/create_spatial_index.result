@@ -1378,6 +1378,7 @@ linestring(point(1,1),point(11,1))
 ),
 linestring(point(1,1),point(1,1))
 );
+ERROR 22023: Invalid GIS data provided to function polygon.
 select 1 from t1 where st_intersects(
 geometrycollection(point(1,-1)),b
 );
