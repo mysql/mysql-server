@@ -2765,12 +2765,18 @@ String *Item_func_spatial_collection::val_str(String *str)
     The construct() call parses the string to make sure it's a valid
     WKB byte string instead of some arbitrary trash bytes. Above code assumes
     so and doesn't further completely validate the string's content.
+
+    There are several goto statements above so we have to construct the
+    geom_buff object in a scope, this is more of C++ style than defining it at
+    start of this function.
   */
-  Geometry_buffer geom_buff;
-  if (Geometry::construct(&geom_buff, str) == NULL)
   {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_str();
+    Geometry_buffer geom_buff;
+    if (Geometry::construct(&geom_buff, str) == NULL)
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
   }
 
   null_value= 0;
