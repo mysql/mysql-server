@@ -50,12 +50,12 @@ public:
 		/* Confirm that the keys are aligned (which also means that
 		the vals are aligned). Only then the basic read/write
 		will be atomic. */
-		ut_a(reinterpret_cast<uintptr_t>(&m_arr[0].key)
+		ut_a(reinterpret_cast<uintptr_t>(&m_arr[0].m_key)
 		     % sizeof(uintptr_t) == 0);
 
 		for (size_t i = 0; i < m_arr_size; i++) {
-			m_arr[i].key = UNUSED;
-			m_arr[i].val = NOT_FOUND;
+			m_arr[i].m_key = UNUSED;
+			m_arr[i].m_val = NOT_FOUND;
 		}
 	}
 
@@ -86,7 +86,7 @@ public:
 		constructor) in which case we will return NOT_FOUND below
 		which is fine. */
 
-		return(m_arr[pos].val);
+		return(m_arr[pos].m_val);
 	}
 
 	/** Set the value for a given key, either inserting a new (key, val)
@@ -103,7 +103,7 @@ public:
 
 		const size_t	pos = insert_or_get_position(key);
 
-		m_arr[pos].val = val;
+		m_arr[pos].m_val = val;
 	}
 
 	/** Increment the value for a given key with 1 or insert a new tuple
@@ -117,13 +117,14 @@ public:
 
 		const size_t	pos = insert_or_get_position(key);
 
-		/* Here m_arr[pos].val is either NOT_FOUND or some real value.
+		/* Here m_arr[pos].m_val is either NOT_FOUND or some real value.
 		Try to replace NOT_FOUND with 1. If that fails, then this means
 		it is some real value in which case we should increment it
 		with 1. */
-		if (!os_compare_and_swap_ulint(&m_arr[pos].val, NOT_FOUND, 1)) {
+		if (!os_compare_and_swap_ulint(
+				&m_arr[pos].m_val, NOT_FOUND, 1)) {
 
-			os_atomic_increment_ulint(&m_arr[pos].val, 1);
+			os_atomic_increment_ulint(&m_arr[pos].m_val, 1);
 		}
 	}
 
@@ -150,14 +151,14 @@ public:
 		use an atomic decrement while checking for >0 at the same
 		time. */
 		for (;;) {
-			const uintptr_t	cur_val = m_arr[pos].val;
+			const uintptr_t	cur_val = m_arr[pos].m_val;
 
 			ut_a(cur_val > 0);
 
 			const uintptr_t	new_val = cur_val - 1;
 
 			if (os_compare_and_swap_ulint(
-					&m_arr[pos].val, cur_val, new_val)) {
+					&m_arr[pos].m_val, cur_val, new_val)) {
 				break;
 			}
 		}
@@ -175,10 +176,10 @@ private:
 	/** (key, val) tuple type. */
 	struct key_val_t {
 		/** Key. */
-		uintptr_t	key;
+		uintptr_t	m_key;
 
 		/** Value. */
-		uintptr_t	val;
+		uintptr_t	m_val;
 	};
 
 	/** A hash function used to map a key to its suggested position in the
@@ -210,7 +211,7 @@ private:
 
 		for (size_t i = start; i < m_arr_size + start; i++) {
 			const size_t	cur_pos = i % m_arr_size;
-			const uintptr_t	cur_key = m_arr[cur_pos].key;
+			const uintptr_t	cur_key = m_arr[cur_pos].m_key;
 			if (cur_key == key) {
 				return(cur_pos);
 			} else if (cur_key == UNUSED) {
@@ -237,15 +238,16 @@ private:
 
 		for (size_t i = start; i < m_arr_size + start; i++) {
 			const size_t	cur_pos = i % m_arr_size;
-			const uintptr_t	cur_key = m_arr[cur_pos].key;
+			const uintptr_t	cur_key = m_arr[cur_pos].m_key;
 
 			if (cur_key == key
 			    || (cur_key == UNUSED
 				&& os_compare_and_swap_ulint(
-					&m_arr[cur_pos].key, UNUSED, key))) {
-				/* Here m_arr[cur_pos].val is either NOT_FOUND
-				(as it was initialized in the constructor) or
-				some real value. */
+					&m_arr[cur_pos].m_key,
+					UNUSED, key))) {
+				/* Here m_arr[cur_pos].m_val is either
+				NOT_FOUND (as it was initialized in the
+				constructor) or some real value. */
 				return(cur_pos);
 			}
 		}
