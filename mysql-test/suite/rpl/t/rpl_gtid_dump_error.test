@@ -14,7 +14,7 @@
 # To fix it, master will check if all gtids are in the set of (gtid_executed,
 # owned_gtids).
 ################################################################################
---source included/have_debug_sync.inc
+--source include/have_debug_sync.inc
 --source include/have_gtid.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
