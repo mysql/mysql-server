@@ -4884,7 +4884,7 @@ public:
     value_cached(0)
   {
     fixed= 1; 
-    null_value= 1;
+    maybe_null= null_value= 1;
   }
   Item_cache(enum_field_types field_type_arg):
     example(0), used_table_map(0), cached_field(0),
@@ -4892,7 +4892,7 @@ public:
     value_cached(0)
   {
     fixed= 1;
-    null_value= 1;
+    maybe_null= null_value= 1;
   }
 
   void set_used_tables(table_map map) { used_table_map= map; }
