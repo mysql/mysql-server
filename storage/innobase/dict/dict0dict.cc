@@ -4422,7 +4422,6 @@ dict_create_foreign_constraints_low(
 	const CHARSET_INFO*	cs,
 	const char*		sql_string,
 	const char*		name,
-	dict_table_t*		handler,
 	ibool			reject_fks)
 {
 	dict_table_t*	table			= NULL;
@@ -4451,25 +4450,21 @@ dict_create_foreign_constraints_low(
 	dict_foreign_set	local_fk_set;
 	dict_foreign_set_free	local_fk_set_free(local_fk_set);
 
-	ut_ad(!srv_read_only_mode || handler);
-	ut_ad(mutex_own(&dict_sys->mutex) || handler);
+	ut_ad(!srv_read_only_mode);
+	ut_ad(mutex_own(&dict_sys->mutex));
 
-	if (handler == NULL) {
-		table = dict_table_get_low(name);
+	table = dict_table_get_low(name);
 
-		if (table == NULL) {
-			mutex_enter(&dict_foreign_err_mutex);
-			dict_foreign_error_report_low(ef, name);
-			fprintf(ef,
-				"Cannot find the table in the internal"
-				" data dictionary of InnoDB.\n"
-				"Create table statement:\n%s\n", sql_string);
-			mutex_exit(&dict_foreign_err_mutex);
+	if (table == NULL) {
+		mutex_enter(&dict_foreign_err_mutex);
+		dict_foreign_error_report_low(ef, name);
+		fprintf(ef,
+			"Cannot find the table in the internal"
+			" data dictionary of InnoDB.\n"
+			"Create table statement:\n%s\n", sql_string);
+		mutex_exit(&dict_foreign_err_mutex);
 
-			return(DB_ERROR);
-		}
-	} else {
-		table = handler;
+		return(DB_ERROR);
 	}
 
 	/* First check if we are actually doing an ALTER TABLE, and in that
@@ -5049,7 +5044,6 @@ fields than mentioned in the constraint.
 				database id the database of parameter name
 @param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
@@ -5060,7 +5054,6 @@ dict_create_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	dict_table_t*		handler,
 	ibool			reject_fks)
 {
 	char*		str;
@@ -5074,8 +5067,8 @@ dict_create_foreign_constraints(
 	heap = mem_heap_create(10000);
 
 	err = dict_create_foreign_constraints_low(
-		trx, heap, innobase_get_charset(trx->mysql_thd), str, name,
-		handler, reject_fks);
+		trx, heap, innobase_get_charset(trx->mysql_thd),
+		str, name, reject_fks);
 
 	mem_heap_free(heap);
 	ut_free(str);
