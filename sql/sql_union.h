@@ -18,7 +18,7 @@
 
 #include "my_global.h"          // ulong
 #include "query_result.h"       // Query_result_interceptor
-#include "sql_class.h"          // Temp_table_param
+#include "temp_table_param.h"   // Temp_table_param
 
 struct LEX;
 

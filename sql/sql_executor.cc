@@ -87,6 +87,15 @@ static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
 
+
+void Temp_table_param::cleanup(void)
+{
+  delete [] copy_field;
+  copy_field= NULL;
+  copy_field_end= NULL;
+}
+
+
 /**
   Execute select, executor entry point.
 

@@ -57,7 +57,6 @@ struct st_thd_timer;
 struct Binlog_user_var_event;
 struct Query_cache_block;
 typedef struct st_log_info LOG_INFO;
-typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct user_conn USER_CONN;
 typedef struct st_mysql_lock MYSQL_LOCK;
@@ -3810,124 +3809,6 @@ inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
 {
   return make_lex_string_root(root, dst, src, strlen(src), false);
 }
-
-
-typedef Mem_root_array<Item*, true> Func_ptr_array;
-
-/**
-  Object containing parameters used when creating and using temporary
-  tables. Temporary tables created with the help of this object are
-  used only internally by the query execution engine.
-*/
-class Temp_table_param :public Sql_alloc
-{
-public:
-  List<Item> copy_funcs;
-  Copy_field *copy_field, *copy_field_end;
-  uchar	    *group_buff;
-  Func_ptr_array *items_to_copy;             /* Fields in tmp table */
-  MI_COLUMNDEF *recinfo,*start_recinfo;
-
-  /**
-    After temporary table creation, points to an index on the table
-    created depending on the purpose of the table - grouping,
-    duplicate elimination, etc. There is at most one such index.
-  */
-  KEY *keyinfo;
-  ha_rows end_write_records;
-  /**
-    Number of normal fields in the query, including those referred to
-    from aggregate functions. Hence, "SELECT `field1`,
-    SUM(`field2`) from t1" sets this counter to 2.
-
-    @see count_field_types
-  */
-  uint	field_count; 
-  /**
-    Number of fields in the query that have functions. Includes both
-    aggregate functions (e.g., SUM) and non-aggregates (e.g., RAND).
-    Also counts functions referred to from aggregate functions, i.e.,
-    "SELECT SUM(RAND())" sets this counter to 2.
-
-    @see count_field_types
-  */
-  uint  func_count;  
-  /**
-    Number of fields in the query that have aggregate functions. Note
-    that the optimizer may choose to optimize away these fields by
-    replacing them with constants, in which case sum_func_count will
-    need to be updated.
-
-    @see opt_sum_query, count_field_types
-  */
-  uint  sum_func_count;   
-  uint  hidden_field_count;
-  uint	group_parts,group_length,group_null_parts;
-  uint	quick_group;
-  /**
-    Number of outer_sum_funcs i.e the number of set functions that are
-    aggregated in a query block outer to this subquery.
-
-    @see count_field_types
-  */
-  uint  outer_sum_func_count;
-  /**
-    Enabled when we have atleast one outer_sum_func. Needed when used
-    along with distinct.
-
-    @see create_tmp_table
-  */
-  bool  using_outer_summary_function;
-  CHARSET_INFO *table_charset; 
-  bool schema_table;
-  /*
-    True if GROUP BY and its aggregate functions are already computed
-    by a table access method (e.g. by loose index scan). In this case
-    query execution should not perform aggregation and should treat
-    aggregate functions as normal functions.
-  */
-  bool precomputed_group_by;
-  bool force_copy_fields;
-  /**
-    TRUE <=> don't actually create table handler when creating the result
-    table. This allows range optimizer to add indexes later.
-    Used for materialized derived tables/views.
-    @see TABLE_LIST::update_derived_keys.
-  */
-  bool skip_create_table;
-  /*
-    If TRUE, create_tmp_field called from create_tmp_table will convert
-    all BIT fields to 64-bit longs. This is a workaround the limitation
-    that MEMORY tables cannot index BIT columns.
-  */
-  bool bit_fields_as_long;
-
-  Temp_table_param()
-    :copy_field(NULL), copy_field_end(NULL),
-     recinfo(NULL), start_recinfo(NULL),
-     keyinfo(NULL),
-     field_count(0), func_count(0), sum_func_count(0), hidden_field_count(0),
-     group_parts(0), group_length(0), group_null_parts(0),
-     quick_group(1),
-     outer_sum_func_count(0),
-     using_outer_summary_function(false),
-     table_charset(NULL),
-     schema_table(false), precomputed_group_by(false), force_copy_fields(false),
-     skip_create_table(false), bit_fields_as_long(false)
-  {}
-  ~Temp_table_param()
-  {
-    cleanup();
-  }
-
-  void cleanup(void)
-  {
-    delete [] copy_field;
-    copy_field= NULL;
-    copy_field_end= NULL;
-  }
-};
-
 
 /* Inline functions */
 
