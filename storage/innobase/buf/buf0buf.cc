@@ -674,7 +674,7 @@ buf_page_is_corrupted(
 			return(FALSE);
 		}
 #else
-		return(i < page_size.logical() ? TRUE : FALSE);
+		return(i < page_size.logical());
 #endif /* UNIV_INNOCHECKSUM */
 	}
 

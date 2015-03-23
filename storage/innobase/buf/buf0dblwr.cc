@@ -580,9 +580,18 @@ buf_dblwr_process(void)
 			request.dblwr_recover();
 
 			/* Read in the actual page from the file */
-			fil_io(request, true,
-			       page_id, page_size,
-			       0, page_size.physical(), read_buf, NULL);
+			dberr_t	err = fil_io(
+				request, true,
+				page_id, page_size,
+				0, page_size.physical(), read_buf, NULL);
+
+			if (err != DB_SUCCESS) {
+
+				ib::warn()
+					<< "Double write buffer recovery: "
+					<< page_id << " read failed with "
+					<< "error: " << ut_strerr(err);
+			}
 
 			/* Check if the page is corrupt */
 			if (buf_page_is_corrupted(
@@ -648,10 +657,17 @@ buf_dblwr_process(void)
 				}
 			}
 
+			/* Recovered data file pages are written out
+			as uncompressed. */
+
+			IORequest	write_request(IORequest::WRITE);
+
+			write_request.disable_compression();
+
 			/* Write the good page from the doublewrite
 			buffer to the intended position. */
 
-			fil_io(IORequestWrite, true,
+			fil_io(write_request, true,
 			       page_id, page_size,
 			       0, page_size.physical(),
 			       const_cast<byte*>(page), NULL);

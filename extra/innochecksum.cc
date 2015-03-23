@@ -191,7 +191,9 @@ bool page_decompress(
 {
 	dberr_t		err;
 
-	err = os_file_decompress_page(buf, scratch, page_size.physical());
+	/* Set the dblwr recover flag to false. */
+	err = os_file_decompress_page(
+		false, buf, scratch, page_size.physical());
 
 	return(err == DB_SUCCESS);
 }

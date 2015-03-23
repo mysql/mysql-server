@@ -5371,7 +5371,10 @@ fil_io(
 		fil_no_punch_hole(node);
 	}
 
-	ut_a(err == DB_SUCCESS);
+	/* We an try to recover the page from the double write buffer if
+	the decompression fails or the page is corrupt. */
+
+	ut_a(req_type.is_dblwr_recover() || err == DB_SUCCESS);
 
 	if (sync) {
 		/* The i/o operation is already completed when we return from
@@ -5386,7 +5389,7 @@ fil_io(
 		ut_ad(fil_validate_skip());
 	}
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 #ifndef UNIV_HOTBACKUP
