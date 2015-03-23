@@ -8148,17 +8148,19 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     */
     if (nj_col_2 && (!using_fields ||is_using_column_1))
     {
-      Item *item_1=   nj_col_1->create_item(thd);
-      Item *item_2=   nj_col_2->create_item(thd);
+      Item *item_1= nj_col_1->create_item(thd);
+      if (!item_1)
+        DBUG_RETURN(true);
+      Item *item_2= nj_col_2->create_item(thd);
+      if (!item_2)
+        DBUG_RETURN(true);
+
       Field *field_1= nj_col_1->field();
       Field *field_2= nj_col_2->field();
       Item_ident *item_ident_1, *item_ident_2;
       Item_func_eq *eq_cond;
       fields.push_back(field_1);
       fields.push_back(field_2);
-
-      if (!item_1 || !item_2)
-        DBUG_RETURN(true);                      // Out of memory.
 
       /*
         The created items must be of sub-classes of Item_ident.
@@ -8206,41 +8208,30 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
                            nj_col_2->name()));
 
       // Mark fields in the read set
-      if (table_ref_1->is_view_or_derived())
-      {
-        Mark_field mf(MARK_COLUMNS_READ);
-        item_1->walk(&Item::mark_field_in_map,
-                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-                     (uchar *)&mf);
-      }
-      else if (field_1)
+      if (field_1)
       {
         nj_col_1->table_ref->table->mark_column_used(thd, field_1,
                                                      MARK_COLUMNS_READ);
       }
       else
       {
-        /*
-          Reaching here probably means that a field has been resolved in
-          a deeper join nest, and has been fully prepared there.
-          In that case, item_1::walk() above may actually attempt to update
-          bitmap, covering_keys and merge_keys twice, but no big harm done.
-          This comment applies to the following if test, too.
-          @todo Investigate if this can be simplified, or we can even avoid
-                resolving columns at this level.
-        */
+        Mark_field mf(MARK_COLUMNS_READ);
+        item_1->walk(&Item::mark_field_in_map,
+                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                     (uchar *)&mf);
       }
-      if (table_ref_2->is_view_or_derived())
+
+      if (field_2)
+      {
+        nj_col_2->table_ref->table->mark_column_used(thd, field_2,
+                                                     MARK_COLUMNS_READ);
+      }
+      else
       {
         Mark_field mf(MARK_COLUMNS_READ);
         item_2->walk(&Item::mark_field_in_map,
                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                      (uchar *)&mf);
-      }
-      else if (field_2)
-      {
-        nj_col_2->table_ref->table->mark_column_used(thd, field_2,
-                                                     MARK_COLUMNS_READ);
       }
 
       if (using_fields != NULL)
