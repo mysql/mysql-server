@@ -1201,7 +1201,7 @@ int main(int argc,char *argv[])
   default_prompt = my_strdup(PSI_NOT_INSTRUMENTED,
                              getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
-			     "\\u@\\h [\\d] > ",MYF(MY_WME));
+			     "mysql> ",MYF(MY_WME));
   current_prompt = my_strdup(PSI_NOT_INSTRUMENTED,
                              default_prompt,MYF(MY_WME));
   prompt_counter=0;
