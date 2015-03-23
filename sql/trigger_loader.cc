@@ -25,6 +25,7 @@
 #include "parse_file.h"   // File_option
 #include "trigger.h"
 #include "current_thd.h"
+#include "derror.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

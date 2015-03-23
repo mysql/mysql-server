@@ -32,6 +32,7 @@
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
 #include "item_timefunc.h"          // Item_func_now_local
+#include "derror.h"
 
 /**
   @addtogroup Event_Scheduler

@@ -293,7 +293,7 @@ Ha_innopart_share::open_table_parts(
 			/* Report an error if index_mapping continues to be
 			NULL and mysql_num_index is a non-zero value. */
 
-			ib::error() << "InnoDB: fail to allocate memory for"
+			ib::error() << "Failed to allocate memory for"
 				<< " index translation table. Number of"
 				<< " Index:" << mysql_num_index;
 			goto err;
@@ -1060,7 +1060,7 @@ share_error:
 
 			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_NO_SUCH_INDEX,
-					    "InnoDB: Table %s has a"
+					    "Table %s has a"
 					    " primary key in InnoDB data"
 					    " dictionary, but not in"
 					    " MySQL!", name);
@@ -2410,6 +2410,50 @@ ha_innopart::position_in_last_part(
 	}
 }
 
+/** Fill in data_dir_path and tablespace name from internal data
+dictionary.
+@param	part_elem	Partition element to fill.
+@param	ib_table	InnoDB table to copy from. */
+void
+ha_innopart::update_part_elem(
+	partition_element*	part_elem,
+	dict_table_t*		ib_table)
+{
+	dict_get_and_save_data_dir_path(ib_table, false);
+	if (ib_table->data_dir_path != NULL) {
+		if (part_elem->data_file_name == NULL
+		    || strcmp(ib_table->data_dir_path,
+			part_elem->data_file_name) != 0) {
+
+			/* Play safe and allocate memory from TABLE and copy
+			instead of expose the internal data dictionary. */
+			part_elem->data_file_name =
+				strdup_root(&table->mem_root,
+					ib_table->data_dir_path);
+		}
+	} else {
+		part_elem->data_file_name = NULL;
+	}
+
+	part_elem->index_file_name = NULL;
+	dict_get_and_save_space_name(ib_table, false);
+	if (ib_table->tablespace != NULL) {
+		ut_ad(part_elem->tablespace_name == NULL
+		      || 0 == strcmp(part_elem->tablespace_name,
+				ib_table->tablespace));
+		if (part_elem->tablespace_name == NULL
+		    || strcmp(ib_table->tablespace,
+			part_elem->tablespace_name) != 0) {
+
+			/* Play safe and allocate memory from TABLE and copy
+			instead of expose the internal data dictionary. */
+			part_elem->tablespace_name =
+				strdup_root(&table->mem_root,
+					ib_table->tablespace);
+		}
+	}
+}
+
 /** Update create_info.
 Used in SHOW CREATE TABLE et al.
 @param[in,out]	create_info	Create info to update. */
@@ -2473,8 +2517,8 @@ ha_innopart::update_create_info(
 		DBUG_VOID_RETURN;
 	}
 
-	/* part_elem->data_file_name should be correct from the .frm,
-	but may have been changed, so update from SYS_DATAFILES.
+	/* part_elem->data_file_name and tablespace_name should be correct from
+	the .frm, but may have been changed, so update from SYS_DATAFILES.
 	index_file_name is ignored, so remove it. */
 
 	part = 0;
@@ -2485,16 +2529,11 @@ ha_innopart::update_create_info(
 				subpart_it(part_elem->subpartitions);
 			while ((sub_elem = subpart_it++)) {
 				table = m_part_share->get_table_part(part++);
-				dict_get_and_save_data_dir_path(table, false);
-				sub_elem->data_file_name =
-					table->data_dir_path;
-				sub_elem->index_file_name = NULL;
+				update_part_elem(sub_elem, table);
 			}
 		} else {
 			table = m_part_share->get_table_part(part++);
-			dict_get_and_save_data_dir_path(table, false);
-			part_elem->data_file_name = table->data_dir_path;
-			part_elem->index_file_name = NULL;
+			update_part_elem(part_elem, table);
 		}
 	}
 	DBUG_VOID_RETURN;
@@ -2512,10 +2551,16 @@ set_create_info_dir(
 	if (part_elem->data_file_name != NULL
 	    && part_elem->data_file_name[0] != '\0') {
 		info->data_file_name = part_elem->data_file_name;
+		/* Also implies non-default tablespace. */
+		info->tablespace = NULL;
 	}
 	if (part_elem->index_file_name != NULL
 	    && part_elem->index_file_name[0] != '\0') {
 		info->index_file_name = part_elem->index_file_name;
+	}
+	if (part_elem->tablespace_name != NULL
+	    && part_elem->tablespace_name[0] != '\0') {
+		info->tablespace = part_elem->tablespace_name;
 	}
 }
 
@@ -2524,7 +2569,7 @@ void
 create_table_info_t::set_remote_path_flags()
 {
 	if (m_remote_path[0] != '\0') {
-		m_flags |= DICT_TF_MASK_DATA_DIR;
+		ut_ad(DICT_TF_HAS_DATA_DIR(m_flags) != 0);
 
 		/* os_file_make_remote_pathname will truncate
 		everything after the last '/', so append '/'
@@ -2535,8 +2580,9 @@ create_table_info_t::set_remote_path_flags()
 			m_remote_path[len] = OS_PATH_SEPARATOR;
 			m_remote_path[len + 1] = '\0';
 		}
-	} else {
-		m_flags &= ~DICT_TF_MASK_DATA_DIR;
+	}
+	else {
+		ut_ad(DICT_TF_HAS_DATA_DIR(m_flags) == 0);
 	}
 }
 
@@ -2561,19 +2607,14 @@ ha_innopart::create(
 	/** absolute path of table */
 	char		remote_path[FN_REFLEN];
 	char		partition_name[FN_REFLEN];
-	char		tablespace_name[NAME_LEN];
+	char		tablespace_name[NAME_LEN + 1];
 	char*		table_name_end;
 	size_t		table_name_len;
 	char*		partition_name_start;
 	char		table_data_file_name[FN_REFLEN];
+	char		table_level_tablespace_name[NAME_LEN + 1];
 	const char*	index_file_name;
 	size_t		len;
-
-	/* Determine if this CREATE TABLE will be making a file-per-table
-	tablespace.  Note that "srv_file_per_table" is not under
-	dict_sys mutex protection, and could be changed while creating the
-	table. So we read the current value here and make all further
-	decisions based on this. */
 
 	create_table_info_t	info(ha_thd(),
 				     form,
@@ -2581,8 +2622,7 @@ ha_innopart::create(
 				     table_name,
 				     temp_path,
 				     remote_path,
-				     tablespace_name,
-				     srv_file_per_table);
+				     tablespace_name);
 
 	DBUG_ENTER("ha_innopart::create");
 	ut_ad(create_info != NULL);
@@ -2597,7 +2637,12 @@ ha_innopart::create(
 		DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 	}
 
-	// TODO: check how m_use_data_dir is handled per partition!
+	error = info.initialize();
+	if (error != 0) {
+		DBUG_RETURN(error);
+	}
+
+	/* Setup and check table level options. */
 	error = info.prepare_create_table(name);
 	if (error != 0) {
 		DBUG_RETURN(error);
@@ -2623,6 +2668,11 @@ ha_innopart::create(
 		table_data_file_name[0] = '\0';
 	}
 	index_file_name = create_info->index_file_name;
+	if (create_info->tablespace != NULL) {
+		strcpy(table_level_tablespace_name, create_info->tablespace);
+	} else {
+		table_level_tablespace_name[0] = '\0';
+	}
 
 	info.allocate_trx();
 
@@ -2650,13 +2700,9 @@ ha_innopart::create(
 
 		/* Override table level DATA/INDEX DIRECTORY. */
 		set_create_info_dir(part_elem, create_info);
-		if (info.create_options_are_invalid() != NULL) {
-			error = HA_WRONG_CREATE_OPTION;
-			goto cleanup;
-		}
 
 		if (!form->part_info->is_sub_partitioned()) {
-			error = info.parse_table_name(partition_name);
+			error = info.prepare_create_table(partition_name);
 			if (error != 0) {
 				goto cleanup;
 			}
@@ -2692,14 +2738,10 @@ ha_innopart::create(
 				}
 				/* Override part level DATA/INDEX DIRECTORY. */
 				set_create_info_dir(sub_elem, create_info);
-				if (info.create_options_are_invalid() != NULL) {
-					error = HA_WRONG_CREATE_OPTION;
-					goto cleanup;
-				}
 
 				Ha_innopart_share::partition_name_casedn_str(
 					part_name_end + 4);
-				error = info.parse_table_name(partition_name);
+				error = info.prepare_create_table(partition_name);
 				if (error != 0) {
 					goto cleanup;
 				}
@@ -2716,12 +2758,15 @@ ha_innopart::create(
 					table_data_file_name;
 				create_info->index_file_name =
 					index_file_name;
+				create_info->tablespace =
+					table_level_tablespace_name;
 				set_create_info_dir(part_elem, create_info);
 			}
 		}
 		/* Reset table level DATA/INDEX DIRECTORY. */
 		create_info->data_file_name = table_data_file_name;
 		create_info->index_file_name = index_file_name;
+		create_info->tablespace = table_level_tablespace_name;
 	}
 
 	innobase_commit_low(info.trx());
@@ -3566,7 +3611,7 @@ ha_innopart::info_low(
 		}
 
 		if (table->s->keys != num_innodb_index) {
-			ib::error() << "InnoDB: Table "
+			ib::error() << "Table "
 				<< ib_table->name << " contains "
 				<< num_innodb_index
 				<< " indexes inside InnoDB, which"
@@ -4136,14 +4181,32 @@ ha_innopart::create_new_partition(
 	uint			new_part_id,
 	partition_element*	part_elem)
 {
-	int	error;
-	char	norm_name[FN_REFLEN];
+	int		error;
+	char		norm_name[FN_REFLEN];
+	const char*	tablespace_name_backup = create_info->tablespace;
+	const char*	data_file_name_backup = create_info->data_file_name;
 	DBUG_ENTER("ha_innopart::create_new_partition");
 	/* Delete by ddl_log on failure. */
 	normalize_table_name(norm_name, part_name);
+	set_create_info_dir(part_elem, create_info);
+
+	/* The below check is the same as for CREATE TABLE, but since we are
+	doing an alter here it will not trigger the check in
+	create_option_tablespace_is_valid(). */
+	if (target_is_shared_space(create_info)
+	    && create_info->data_file_name != NULL
+	    && create_info->data_file_name[0] != '\0') {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: DATA DIRECTORY cannot be used"
+			" with a TABLESPACE assignment.", MYF(0));
+		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+	}
+
 	error = ha_innobase::create(norm_name, table, create_info);
+	create_info->tablespace = tablespace_name_backup;
+	create_info->data_file_name = data_file_name_backup;
 	if (error == HA_ERR_FOUND_DUPP_KEY) {
-		return(HA_ERR_TABLE_EXIST);
+		DBUG_RETURN(HA_ERR_TABLE_EXIST);
 		error = HA_ERR_TABLE_EXIST;
 	}
 	if (error != 0) {
@@ -4157,7 +4220,7 @@ ha_innopart::create_new_partition(
 					       true,
 					       DICT_ERR_IGNORE_NONE);
 		if (part == NULL) {
-			return(HA_ERR_INTERNAL_ERROR);
+			DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 		}
 		m_new_partitions->set_part(new_part_id, part);
 	}

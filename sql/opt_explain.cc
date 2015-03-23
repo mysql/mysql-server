@@ -32,6 +32,7 @@
 #include "sql_parse.h"     // is_explainable_query
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "mysqld.h"        // stage_explaining
+#include "derror.h"              // ER_THD
 
 typedef qep_row::extra extra;
 

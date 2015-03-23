@@ -29,6 +29,93 @@ typedef uint32 my_thread_id;
 typedef struct st_list LIST;
 typedef struct charset_info_st CHARSET_INFO;
 
+// Values for binlog_format sysvar
+enum enum_binlog_format {
+  BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
+  BINLOG_FORMAT_STMT=  1, ///< statement-based
+  BINLOG_FORMAT_ROW=   2, ///< row-based
+  BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
+};
+
+// Values for rbr_exec_mode_options sysvar
+enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
+                          RBR_EXEC_MODE_IDEMPOTENT,
+                          RBR_EXEC_MODE_LAST_BIT };
+
+// Values for binlog_row_image sysvar
+enum enum_binlog_row_image {
+  /** PKE in the before image and changed columns in the after image */
+  BINLOG_ROW_IMAGE_MINIMAL= 0,
+  /** Whenever possible, before and after image contain all columns except blobs. */
+  BINLOG_ROW_IMAGE_NOBLOB= 1,
+  /** All columns in both before and after image. */
+  BINLOG_ROW_IMAGE_FULL= 2
+};
+
+// Values for transaction_write_set_extraction sysvar
+enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
+                                                    HASH_ALGORITHM_MURMUR32= 1 };
+
+// Values for session_track_gtids sysvar
+enum enum_session_track_gtids {
+  OFF= 0,
+  OWN_GTID= 1,
+  ALL_GTIDS= 2
+};
+
+/* Bits for different SQL modes modes (including ANSI mode) */
+#define MODE_REAL_AS_FLOAT              1
+#define MODE_PIPES_AS_CONCAT            2
+#define MODE_ANSI_QUOTES                4
+#define MODE_IGNORE_SPACE               8
+#define MODE_NOT_USED                   16
+#define MODE_ONLY_FULL_GROUP_BY         32
+#define MODE_NO_UNSIGNED_SUBTRACTION    64
+#define MODE_NO_DIR_IN_CREATE           128
+#define MODE_POSTGRESQL                 256
+#define MODE_ORACLE                     512
+#define MODE_MSSQL                      1024
+#define MODE_DB2                        2048
+#define MODE_MAXDB                      4096
+#define MODE_NO_KEY_OPTIONS             8192
+#define MODE_NO_TABLE_OPTIONS           16384
+#define MODE_NO_FIELD_OPTIONS           32768
+#define MODE_MYSQL323                   65536L
+#define MODE_MYSQL40                    (MODE_MYSQL323*2)
+#define MODE_ANSI                       (MODE_MYSQL40*2)
+#define MODE_NO_AUTO_VALUE_ON_ZERO      (MODE_ANSI*2)
+#define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
+#define MODE_STRICT_TRANS_TABLES        (MODE_NO_BACKSLASH_ESCAPES*2)
+#define MODE_STRICT_ALL_TABLES          (MODE_STRICT_TRANS_TABLES*2)
+/*
+ * NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
+ * removed in 5.7 and their functionality is merged with STRICT MODE.
+ * However, For backward compatibility during upgrade, these modes are kept
+ * but they are not used. Setting these modes in 5.7 will give warning and
+ * have no effect.
+ */
+#define MODE_NO_ZERO_IN_DATE            (MODE_STRICT_ALL_TABLES*2)
+#define MODE_NO_ZERO_DATE               (MODE_NO_ZERO_IN_DATE*2)
+#define MODE_INVALID_DATES              (MODE_NO_ZERO_DATE*2)
+#define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
+#define MODE_TRADITIONAL                (MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
+#define MODE_NO_AUTO_CREATE_USER        (MODE_TRADITIONAL*2)
+#define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
+#define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
+#define MODE_PAD_CHAR_TO_FULL_LENGTH    (1ULL << 31)
+
+/*
+  Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
+  use strictly more than 64 bits by adding one more define above, you should
+  contact the replication team because the replication code should then be
+  updated (to store more bytes on disk).
+
+  NOTE: When adding new SQL_MODE types, make sure to also add them to
+  the scripts used for creating the MySQL system tables
+  in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
+*/
+
+
 struct System_variables
 {
   /*
@@ -102,10 +189,11 @@ struct System_variables
   ulong group_concat_max_len;
 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
-  ulong rbr_exec_mode_options;
+  ulong rbr_exec_mode_options; // see enum_rbr_exec_mode
   my_bool binlog_direct_non_trans_update;
-  ulong binlog_row_image;
+  ulong binlog_row_image; // see enum_binlog_row_image
   my_bool sql_log_bin;
+  // see enum_transaction_write_set_hashing_algorithm
   ulong transaction_write_set_extraction;
   ulong completion_type;
   ulong query_cache_type;
@@ -169,7 +257,7 @@ struct System_variables
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
-  ulong session_track_gtids;
+  ulong session_track_gtids; // see enum_session_track_gtids
 
   ulong max_statement_time;
 

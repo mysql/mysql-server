@@ -23,6 +23,7 @@
 #include "item_timefunc.h"   // INTERNAL_FORMAT
 #include "current_thd.h"
 #include "psi_memory_key.h"
+#include "derror.h"
 
 
 	/* Some functions to calculate dates */

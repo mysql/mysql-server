@@ -17,6 +17,7 @@
 #include "rpl_binlog_sender.h"
 
 #include "debug_sync.h"              // debug_sync_set_action
+#include "derror.h"                  // ER_THD
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "mysqld.h"                  // global_system_variables ...
 #include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
@@ -684,9 +685,20 @@ int Binlog_sender::check_start_file()
     global_sid_lock->wrlock();
     const rpl_sid &server_sid= gtid_state->get_server_sid();
     rpl_sidno subset_sidno= slave_sid_map->sid_to_sidno(server_sid);
-    if (!m_exclude_gtid->is_subset_for_sid(gtid_state->get_executed_gtids(),
-                                                gtid_state->get_server_sidno(),
-                                                subset_sidno))
+    Gtid_set
+      gtid_executed_and_owned(gtid_state->get_executed_gtids()->get_sid_map());
+
+    // gtids = executed_gtids & owned_gtids
+    if (gtid_executed_and_owned.add_gtid_set(gtid_state->get_executed_gtids())
+        != RETURN_STATUS_OK)
+    {
+      DBUG_ASSERT(0);
+    }
+    gtid_state->get_owned_gtids()->get_gtids(gtid_executed_and_owned);
+
+    if (!m_exclude_gtid->is_subset_for_sid(&gtid_executed_and_owned,
+                                           gtid_state->get_server_sidno(),
+                                           subset_sidno))
     {
       errmsg= ER_THD(current_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
       global_sid_lock->unlock();

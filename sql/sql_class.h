@@ -22,22 +22,18 @@
 
 #include "dur_prop.h"                     // durability_properties
 #include "mysql/mysql_lex_string.h"       // LEX_STRING
-#include "mysql_com.h"                    // Item_result
 #include "mysql_com_server.h"             // NET_SERVER
 #include "auth/sql_security_ctx.h"        // Security_context
-#include "derror.h"                       // ER_THD
 #include "discrete_interval.h"            // Discrete_interval
 #include "error_handler.h"                // Internal_error_handler
 #include "handler.h"                      // KEY_CREATE_INFO
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "protocol_classic.h"             // Protocol_text
 #include "rpl_context.h"                  // Rpl_thd_context
-#include "rpl_gtid.h"                     // Gtid_specification
 #include "session_tracker.h"              // Session_tracker
 #include "sql_alloc.h"                    // Sql_alloc
 #include "sql_digest_stream.h"            // sql_digest_state
 #include "sql_lex.h"                      // keytype
-#include "sql_locale.h"                   // MY_LOCALE
 #include "sql_profile.h"                  // PROFILING
 #include "sys_vars_resource_mgr.h"        // Session_sysvar_resource_manager
 #include "system_variables.h"             // system_variables
@@ -54,11 +50,17 @@
 class Reprepare_observer;
 class sp_cache;
 class Rows_log_event;
+class Query_result;
+class Time_zone;
+class Modification_plan;
 struct st_thd_timer;
+struct Binlog_user_var_event;
+struct Query_cache_block;
 typedef struct st_log_info LOG_INFO;
 typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct user_conn USER_CONN;
+typedef struct st_mysql_lock MYSQL_LOCK;
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -76,96 +78,6 @@ const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
-enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
-			    DELAY_KEY_WRITE_ALL };
-enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
-                          RBR_EXEC_MODE_IDEMPOTENT,
-                          RBR_EXEC_MODE_LAST_BIT };
-enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
-                                                    HASH_ALGORITHM_MURMUR32= 1 };
-enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
-enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
-                                         SLAVE_ROWS_INDEX_SCAN = (1U << 1),
-                                         SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
-enum enum_binlog_row_image {
-  /** PKE in the before image and changed columns in the after image */
-  BINLOG_ROW_IMAGE_MINIMAL= 0,
-  /** Whenever possible, before and after image contain all columns except blobs. */
-  BINLOG_ROW_IMAGE_NOBLOB= 1,
-  /** All columns in both before and after image. */
-  BINLOG_ROW_IMAGE_FULL= 2
-};
-
-enum enum_session_track_gtids {
-  OFF= 0,
-  OWN_GTID= 1,
-  ALL_GTIDS= 2
-};
-
-enum enum_binlog_format {
-  BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
-  BINLOG_FORMAT_STMT=  1, ///< statement-based
-  BINLOG_FORMAT_ROW=   2, ///< row-based
-  BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
-};
-
-/* Bits for different SQL modes modes (including ANSI mode) */
-#define MODE_REAL_AS_FLOAT              1
-#define MODE_PIPES_AS_CONCAT            2
-#define MODE_ANSI_QUOTES                4
-#define MODE_IGNORE_SPACE               8
-#define MODE_NOT_USED                   16
-#define MODE_ONLY_FULL_GROUP_BY         32
-#define MODE_NO_UNSIGNED_SUBTRACTION    64
-#define MODE_NO_DIR_IN_CREATE           128
-#define MODE_POSTGRESQL                 256
-#define MODE_ORACLE                     512
-#define MODE_MSSQL                      1024
-#define MODE_DB2                        2048
-#define MODE_MAXDB                      4096
-#define MODE_NO_KEY_OPTIONS             8192
-#define MODE_NO_TABLE_OPTIONS           16384
-#define MODE_NO_FIELD_OPTIONS           32768
-#define MODE_MYSQL323                   65536L
-#define MODE_MYSQL40                    (MODE_MYSQL323*2)
-#define MODE_ANSI                       (MODE_MYSQL40*2)
-#define MODE_NO_AUTO_VALUE_ON_ZERO      (MODE_ANSI*2)
-#define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
-#define MODE_STRICT_TRANS_TABLES        (MODE_NO_BACKSLASH_ESCAPES*2)
-#define MODE_STRICT_ALL_TABLES          (MODE_STRICT_TRANS_TABLES*2)
-/*
- * NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
- * removed in 5.7 and their functionality is merged with STRICT MODE.
- * However, For backward compatibility during upgrade, these modes are kept
- * but they are not used. Setting these modes in 5.7 will give warning and
- * have no effect.
- */
-#define MODE_NO_ZERO_IN_DATE            (MODE_STRICT_ALL_TABLES*2)
-#define MODE_NO_ZERO_DATE               (MODE_NO_ZERO_IN_DATE*2)
-#define MODE_INVALID_DATES              (MODE_NO_ZERO_DATE*2)
-#define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
-#define MODE_TRADITIONAL                (MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
-#define MODE_NO_AUTO_CREATE_USER        (MODE_TRADITIONAL*2)
-#define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
-#define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
-#define MODE_PAD_CHAR_TO_FULL_LENGTH    (1ULL << 31)
-
-/*
-  Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
-  use strictly more than 64 bits by adding one more define above, you should
-  contact the replication team because the replication code should then be
-  updated (to store more bytes on disk).
-
-  NOTE: When adding new SQL_MODE types, make sure to also add them to
-  the scripts used for creating the MySQL system tables
-  in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
-
-*/
-
-extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
@@ -174,53 +86,6 @@ extern LEX_CSTRING NULL_CSTR;
 
 LEX_CSTRING thd_query_unsafe(THD *thd);
 size_t thd_query_safe(THD *thd, char *buf, size_t buflen);
-
-/**
-  @class CSET_STRING
-  @brief Character set armed LEX_CSTRING
-*/
-class CSET_STRING
-{
-private:
-  LEX_CSTRING string;
-  const CHARSET_INFO *cs;
-public:
-  CSET_STRING() : cs(&my_charset_bin)
-  {
-    string.str= NULL;
-    string.length= 0;
-  }
-  CSET_STRING(const char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
-  cs(cs_arg)
-  {
-    DBUG_ASSERT(cs_arg != NULL);
-    string.str= str_arg;
-    string.length= length_arg;
-  }
-
-  inline const char *str() const { return string.str; }
-  inline size_t length() const { return string.length; }
-  const CHARSET_INFO *charset() const { return cs; }
-};
-
-
-#define TC_LOG_PAGE_SIZE   8192
-#define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
-
-#define TC_HEURISTIC_RECOVER_COMMIT   1
-#define TC_HEURISTIC_RECOVER_ROLLBACK 2
-extern ulong tc_heuristic_recover;
-
-typedef struct st_user_var_events
-{
-  user_var_entry *user_var_event;
-  char *value;
-  ulong length;
-  Item_result type;
-  uint charset_number;
-  bool unsigned_flag;
-} BINLOG_USER_VAR_EVENT;
-
 
 class Key_part_spec :public Sql_alloc {
 public:
@@ -282,7 +147,6 @@ public:
     { return new (mem_root) Key(*this, mem_root); }
 };
 
-class Table_ident;
 
 class Foreign_key: public Key {
 public:
@@ -313,13 +177,6 @@ public:
   /* Used to validate foreign key options */
   bool validate(List<Create_field> &table_fields);
 };
-
-typedef struct st_mysql_lock
-{
-  TABLE **table;
-  uint table_count,lock_count;
-  THR_LOCK_DATA **locks;
-} MYSQL_LOCK;
 
 
 /**
@@ -369,13 +226,9 @@ typedef struct rpl_event_coordinates
 } LOG_POS_COORD;
 
 
-class MY_LOCALE;
-
 /**
   Query_cache_tls -- query cache thread local data.
 */
-
-struct Query_cache_block;
 
 struct Query_cache_tls
 {
@@ -391,9 +244,6 @@ struct Query_cache_tls
 
   Query_cache_tls() :first_query_block(NULL) {}
 };
-
-class Query_result;
-class Time_zone;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
@@ -973,7 +823,6 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   tm->tv_usec= (long) (micro_time % 1000000);
 }
 
-class Modification_plan;
 
 /**
   @class THD
@@ -2070,7 +1919,7 @@ public:
   enum_check_fields count_cuted_fields;
 
   // For user variables replication
-  Prealloced_array<BINLOG_USER_VAR_EVENT*, 2> user_var_events;
+  Prealloced_array<Binlog_user_var_event*, 2> user_var_events;
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
   /**
@@ -3962,27 +3811,6 @@ inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
   return make_lex_string_root(root, dst, src, strlen(src), false);
 }
 
-/*
-  Used to hold information about file and file structure in exchange
-  via non-DB file (...INTO OUTFILE..., ...LOAD DATA...)
-  XXX: We never call destructor for objects of this class.
-*/
-
-class sql_exchange :public Sql_alloc
-{
-public:
-  Field_separators field;
-  Line_separators line;
-  enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
-  const char *file_name;
-  bool dumpfile;
-  ulong skip_lines;
-  const CHARSET_INFO *cs;
-  sql_exchange(const char *name, bool dumpfile_flag,
-               enum_filetype filetype_arg= FILETYPE_CSV);
-  bool escaped_given(void);
-};
-
 
 typedef Mem_root_array<Item*, true> Func_ptr_array;
 
@@ -4098,260 +3926,6 @@ public:
     copy_field= NULL;
     copy_field_end= NULL;
   }
-};
-
-/* Structure for db & table in sql_yacc */
-
-class Table_ident :public Sql_alloc
-{
-public:
-  LEX_CSTRING db;
-  LEX_CSTRING table;
-  SELECT_LEX_UNIT *sel;
-  inline Table_ident(THD *thd, const LEX_CSTRING &db_arg,
-                     const LEX_CSTRING &table_arg,
-		     bool force)
-    :table(table_arg), sel(NULL)
-  {
-    if (!force && thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
-      db= NULL_CSTR;
-    else
-      db= db_arg;
-  }
-  inline Table_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &table_arg)
-    :db(db_arg), table(table_arg), sel(NULL)
-  {}
-  inline Table_ident(const LEX_CSTRING &table_arg)
-    :table(table_arg), sel(NULL)
-  {
-    db= NULL_CSTR;
-  }
-  /*
-    This constructor is used only for the case when we create a derived
-    table. A derived table has no name and doesn't belong to any database.
-    Later, if there was an alias specified for the table, it will be set
-    by add_table_to_list.
-  */
-  inline Table_ident(SELECT_LEX_UNIT *s) : sel(s)
-  {
-    /* We must have a table name here as this is used with add_table_to_list */
-    db= EMPTY_CSTR;                    /* a subject to casedn_str */
-    table.str= internal_table_name;
-    table.length=1;
-  }
-  // True if we can tell from syntax that this is an unnamed derived table.
-  bool is_derived_table() const { return MY_TEST(sel); }
-  inline void change_db(const char *db_name)
-  {
-    db.str= db_name;
-    db.length= strlen(db_name);
-  }
-};
-
-// this is needed for user_vars hash
-class user_var_entry
-{
-  static const size_t extra_size= sizeof(double);
-  char *m_ptr;          // Value
-  size_t m_length;      // Value length
-  Item_result m_type;   // Value type
-  THD *m_owner;
-
-  void reset_value()
-  { m_ptr= NULL; m_length= 0; }
-  void set_value(char *value, size_t length)
-  { m_ptr= value; m_length= length; }
-
-  /**
-    Position inside a user_var_entry where small values are stored:
-    double values, longlong values and string values with length
-    up to extra_size (should be 8 bytes on all platforms).
-    String values with length longer than 8 are stored in a separate
-    memory buffer, which is allocated when needed using the method realloc().
-  */
-  char *internal_buffer_ptr() const
-  { return (char *) this + ALIGN_SIZE(sizeof(user_var_entry)); }
-
-  /**
-    Position inside a user_var_entry where a null-terminates array
-    of characters representing the variable name is stored.
-  */
-  char *name_ptr() const
-  { return internal_buffer_ptr() + extra_size; }
-
-  /**
-    Initialize m_ptr to the internal buffer (if the value is small enough),
-    or allocate a separate buffer.
-    @param length - length of the value to be stored.
-  */
-  bool mem_realloc(size_t length);
-
-  /**
-    Check if m_ptr point to an external buffer previously alloced by realloc().
-    @retval true  - an external buffer is alloced.
-    @retval false - m_ptr is null, or points to the internal buffer.
-  */
-  bool alloced()
-  { return m_ptr && m_ptr != internal_buffer_ptr(); }
-
-  /**
-    Free the external value buffer, if it's allocated.
-  */
-  void free_value()
-  {
-    if (alloced())
-      my_free(m_ptr);
-  }
-
-  /**
-    Copy the array of characters from the given name into the internal
-    name buffer and initialize entry_name to point to it.
-  */
-  void copy_name(const Simple_cstring &name)
-  {
-    name.strcpy(name_ptr());
-    entry_name= Name_string(name_ptr(), name.length());
-  }
-
-  /**
-    Initialize all members
-    @param name - Name of the user_var_entry instance.
-    @cs         - charset information of the user_var_entry instance.
-  */
-  void init(THD *thd, const Simple_cstring &name, const CHARSET_INFO *cs)
-  {
-    DBUG_ASSERT(thd != NULL);
-    m_owner= thd;
-    copy_name(name);
-    reset_value();
-    update_query_id= 0;
-    collation.set(cs, DERIVATION_IMPLICIT, 0);
-    unsigned_flag= 0;
-    /*
-      If we are here, we were called from a SET or a query which sets a
-      variable. Imagine it is this:
-      INSERT INTO t SELECT @a:=10, @a:=@a+1.
-      Then when we have a Item_func_get_user_var (because of the @a+1) so we
-      think we have to write the value of @a to the binlog. But before that,
-      we have a Item_func_set_user_var to create @a (@a:=10), in this we mark
-      the variable as "already logged" (line below) so that it won't be logged
-      by Item_func_get_user_var (because that's not necessary).
-    */
-    used_query_id= thd->query_id;
-    m_type= STRING_RESULT;
-  }
-
-  /**
-    Store a value of the given type into a user_var_entry instance.
-    @param from    Value
-    @param length  Size of the value
-    @param type    type
-    @return
-    @retval        false on success
-    @retval        true on memory allocation error
-  */
-  bool store(const void *from, size_t length, Item_result type);
-
-  /**
-    Assert the user variable is locked.
-    This is debug code only.
-    The thread LOCK_thd_data mutex protects:
-    - the thd->user_vars hash itself
-    - the values in the user variable itself.
-    The protection is required for monitoring,
-    as a different thread can inspect this session
-    user variables, on a live session.
-  */
-  inline void assert_locked() const
-  {
-    mysql_mutex_assert_owner(&m_owner->LOCK_thd_data);
-  }
-
-
-  /**
-    Currently selected catalog.
-  */
-  LEX_CSTRING m_catalog;
-public:
-  user_var_entry() {}                         /* Remove gcc warning */
-
-  Simple_cstring entry_name;  // Variable name
-  DTCollation collation;      // Collation with attributes
-  query_id_t update_query_id, used_query_id;
-  bool unsigned_flag;         // true if unsigned, false if signed
-
-  /**
-    Store a value of the given type and attributes (collation, sign)
-    into a user_var_entry instance.
-    @param from         Value
-    @param length       Size of the value
-    @param type         type
-    @param cs           Character set and collation of the value
-    @param dv           Collationd erivation of the value
-    @param unsigned_arg Signess of the value
-    @return
-    @retval        false on success
-    @retval        true on memory allocation error
-  */
-  bool store(const void *from, size_t length, Item_result type,
-             const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
-  /**
-    Set type of to the given value.
-    @param type  Data type.
-  */
-  void set_type(Item_result type)
-  {
-    assert_locked();
-    m_type= type;
-  }
-  /**
-    Set value to NULL
-    @param type  Data type.
-  */
-
-  void set_null_value(Item_result type)
-  {
-    assert_locked();
-    free_value();
-    reset_value();
-    m_type= type;
-  }
-
-  /**
-    Allocate and initialize a user variable instance.
-    @param namec  Name of the variable.
-    @param cs     Charset of the variable.
-    @return
-    @retval  Address of the allocated and initialized user_var_entry instance.
-    @retval  NULL on allocation error.
-  */
-  static user_var_entry *create(THD *thd,
-                                const Name_string &name,
-                                const CHARSET_INFO *cs);
-
-  /**
-    Free all memory used by a user_var_entry instance
-    previously created by create().
-  */
-  void destroy()
-  {
-    assert_locked();
-    free_value();  // Free the external value buffer
-    my_free(this); // Free the instance itself
-  }
-
-  void lock();
-  void unlock();
-
-  /* Routines to access the value and its type */
-  const char *ptr() const { return m_ptr; }
-  size_t length() const { return m_length; }
-  Item_result type() const { return m_type; }
-  /* Item-alike routines to access the value */
-  double val_real(my_bool *null_value) const;
-  longlong val_int(my_bool *null_value) const;
-  String *val_str(my_bool *null_value, String *str, uint decimals) const;
-  my_decimal *val_decimal(my_bool *null_value, my_decimal *result) const;
 };
 
 

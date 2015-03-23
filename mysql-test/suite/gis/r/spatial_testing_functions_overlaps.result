@@ -529,14 +529,12 @@ SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_
 MBROVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal_3))
 0
 SELECT MBROVERLAPS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-MBROVERLAPS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 #====================================================================================
 # linestring,multipolygon
 #====================================================================================
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-MBROVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 MBROVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 0
@@ -547,8 +545,7 @@ SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_
 MBROVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3))
 0
 SELECT MBROVERLAPS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-MBROVERLAPS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================
@@ -1435,14 +1432,12 @@ SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_
 ST_OVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal_3))
 0
 SELECT ST_OVERLAPS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-ST_OVERLAPS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 #====================================================================================
 # linestring,multipolygon
 #====================================================================================
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-ST_OVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 ST_OVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 0
@@ -1453,8 +1448,7 @@ SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_
 ST_OVERLAPS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3))
 0
 SELECT ST_OVERLAPS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-ST_OVERLAPS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================

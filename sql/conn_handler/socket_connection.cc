@@ -20,6 +20,7 @@
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
+#include "derror.h"                     // ER_DEFAULT
 #include "mysqld.h"                     // key_socket_tcpip
 #include "log.h"                        // sql_print_error
 #include "sql_class.h"                  // THD

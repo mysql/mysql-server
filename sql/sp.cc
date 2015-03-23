@@ -20,6 +20,7 @@
 #include "my_user.h"      // parse_user
 #include "mysql/psi/mysql_sp.h"
 #include "binlog.h"       // mysql_bin_log
+#include "derror.h"       // ER_THD
 #include "item_timefunc.h"// Item_func_now_local
 #include "key.h"          // key_copy
 #include "lock.h"         // lock_object_name

@@ -22,6 +22,7 @@
 #include "sql_class.h"
 #include "parse_tree_hints.h"
 #include "sql_lex_hints.h"
+#include "derror.h"
 
 #define NEW_PTN new (thd->mem_root)
 %}

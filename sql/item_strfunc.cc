@@ -44,6 +44,7 @@
 #include "item_geofunc.h"            // Item_func_geomfromgeojson
 #include "password.h"                // my_make_scrambled_password
 #include "sql_class.h"               // THD
+#include "sql_locale.h"              // my_locale_by_name
 #include "strfunc.h"                 // hexchar_to_int
 
 C_MODE_START

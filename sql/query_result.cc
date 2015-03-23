@@ -15,6 +15,7 @@
 
 #include "query_result.h"
 
+#include "derror.h"            // ER_THD
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD
 #include "mysqld.h"            // key_select_to_file

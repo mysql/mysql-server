@@ -65,6 +65,7 @@
 #include "binlog.h"
 #include "sql_tablespace.h"            // check_tablespace_name())
 #include "item_timefunc.h"             // Item_func_now_local
+#include "derror.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -1871,12 +1872,16 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       partition_info *part_info= lpt->part_info;
       if (part_info)
       {
-        if (!(part_syntax_buf= generate_partition_syntax(part_info,
-                                                         &syntax_len,
-                                                         TRUE, TRUE,
-                                                         lpt->create_info,
-                                                         lpt->alter_info,
-                                                         NULL)))
+        sql_mode_t sql_mode_backup= lpt->thd->variables.sql_mode;
+        lpt->thd->variables.sql_mode&= ~(MODE_ANSI_QUOTES);
+        part_syntax_buf= generate_partition_syntax(part_info,
+                                                   &syntax_len,
+                                                   TRUE, TRUE,
+                                                   lpt->create_info,
+                                                   lpt->alter_info,
+                                                   NULL);
+        lpt->thd->variables.sql_mode= sql_mode_backup;
+        if (part_syntax_buf == NULL)
         {
           DBUG_RETURN(TRUE);
         }
@@ -1964,12 +1969,16 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     {
       TABLE_SHARE *share= lpt->table->s;
       char *tmp_part_syntax_str;
-      if (!(part_syntax_buf= generate_partition_syntax(part_info,
-                                                       &syntax_len,
-                                                       TRUE, TRUE,
-                                                       lpt->create_info,
-                                                       lpt->alter_info,
-                                                       NULL)))
+      sql_mode_t sql_mode_backup= lpt->thd->variables.sql_mode;
+      lpt->thd->variables.sql_mode&= ~(MODE_ANSI_QUOTES);
+      part_syntax_buf= generate_partition_syntax(part_info,
+                                                 &syntax_len,
+                                                 TRUE, TRUE,
+                                                 lpt->create_info,
+                                                 lpt->alter_info,
+                                                 NULL);
+      lpt->thd->variables.sql_mode= sql_mode_backup;
+      if (part_syntax_buf == NULL)
       {
         error= 1;
         goto err;
@@ -4783,17 +4792,25 @@ bool create_table_impl(THD *thd,
       goto err;
     part_info->default_engine_type= engine_type;
 
-    /*
-      We reverse the partitioning parser and generate a standard format
-      for syntax stored in frm file.
-    */
-    if (!(part_syntax_buf= generate_partition_syntax(part_info,
-                                                     &syntax_len,
-                                                     TRUE, TRUE,
-                                                     create_info,
-                                                     alter_info,
-                                                     NULL)))
-      goto err;
+    {
+      /*
+        We reverse the partitioning parser and generate a standard format
+        for syntax stored in frm file.
+      */
+      sql_mode_t sql_mode_backup= thd->variables.sql_mode;
+      thd->variables.sql_mode&= ~(MODE_ANSI_QUOTES);
+      part_syntax_buf= generate_partition_syntax(part_info,
+                                                 &syntax_len,
+                                                 TRUE, TRUE,
+                                                 create_info,
+                                                 alter_info,
+                                                 NULL);
+      thd->variables.sql_mode= sql_mode_backup;
+      if (part_syntax_buf == NULL)
+      {
+        goto err;
+      }
+    }
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
     if (!engine_type->partition_flags ||

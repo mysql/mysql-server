@@ -22,6 +22,7 @@
 #include "binlog.h"                      // mysql_bin_log
 #include "current_thd.h"
 #include "debug_sync.h"                  // DEBUG_SYNC
+#include "derror.h"                      // ER_THD
 #include "item_cmpfunc.h"                // and_conds
 #include "key.h"                         // find_ref_key
 #include "log.h"                         // sql_print_warning

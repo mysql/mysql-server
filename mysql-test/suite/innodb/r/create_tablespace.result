@@ -97,19 +97,60 @@ Error	140	Wrong create option
 CREATE TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` ADD DATAFILE 's_utf8.ibd';
 CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (a int, b text) TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. `;
 INSERT INTO `t !@#$%^&*()_+-={}[]|\?<>,.` VALUES(1,'one');
+SHOW CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.`;
+Table	Create Table
+t !@#$%^&*()_+-={}[]|\?<>,.	CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.2` (
+`a` int(11) DEFAULT NULL,
+`b` text
+) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=latin1;
+SHOW CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.`;
+Table	Create Table
+t !@#$%^&*()_+-={}[]|\?<>,.	CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE `t !@#$%^&*()_+-={}[]|\?<>,.2`;
 CREATE TABLESPACE `#sql_1` ADD DATAFILE '#sql_1.ibd';
 CREATE TABLE `#sql_1` (a int, b text) TABLESPACE `#sql_1`;
 INSERT INTO `#sql_1` VALUES(1,'one');
+SHOW CREATE TABLE `#sql_1`;
+Table	Create Table
+#sql_1	CREATE TABLE `#sql_1` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `#sql_1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 CREATE TABLESPACE `s_Cöŀumň` ADD DATAFILE 's_utf8_a.ibd';
 CREATE TABLE `t_utf8_1` (a int, b text) TABLESPACE `s_Cöŀumň`;
+SHOW CREATE TABLE `t_utf8_1`;
+Table	Create Table
+t_utf8_1	CREATE TABLE `t_utf8_1` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `s_Cöŀumň` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 CREATE TABLESPACE `s_cöĿǖmň` ADD DATAFILE 's_utf8_b.ibd';
 CREATE TABLE `t_utf8_2` (a int, b text) TABLESPACE `s_cöĿǖmň`;
+SHOW CREATE TABLE `t_utf8_2`;
+Table	Create Table
+t_utf8_2	CREATE TABLE `t_utf8_2` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `s_cöĿǖmň` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 CREATE TABLESPACE `s_😲` ADD DATAFILE 's_utf8_c.ibd';
 ERROR HY000: Invalid utf8 character string: 's_\xF0\x9F\x98\xB2'
 CREATE TABLESPACE `s_𐌀𐌁𐌂𐌃𐌄𐌅𐌆𐌇𐌈𐌉𐌊𐌋𐌌𐌍𐌎𐌏𐌐𐌑𐌒𐌓𐌔𐌕𐌖𐌗𐌘𐌙𐌚𐌛𐌜` ADD DATAFILE 's_utf8_d.ibd';
 ERROR HY000: Invalid utf8 character string: 's_\xF0\x90\x8C\x80\xF0\x90\x8C\x81\xF0\x90\x8C\x82\xF0\x90\x8C\x'
 CREATE TABLESPACE `s_வணக்கம்` ADD DATAFILE 'ஆவணம்.ibd';
 CREATE TABLE `t_utf8_3` (a int, b text) TABLESPACE `s_வணக்கம்`;
+SHOW CREATE TABLE `t_utf8_3`;
+Table	Create Table
+t_utf8_3	CREATE TABLE `t_utf8_3` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `s_வணக்கம்` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -541,6 +582,16 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
 Error	1031	Table storage engine for 't4' doesn't have this option
+CREATE TABLE t4 (a int, b text) TABLESPACE innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
+SHOW WARNINGS;
+Level	Code	Message
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
+DROP TABLE t4;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -612,6 +663,30 @@ tablespace.ibd
 t_com_as_file_per_table.ibd
 t_dyn_as_file_per_table.ibd
 t_red_as_file_per_table.ibd
+SHOW CREATE TABLE t_red_as_file_per_table;
+Table	Create Table
+t_red_as_file_per_table	CREATE TABLE `t_red_as_file_per_table` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+SHOW CREATE TABLE t_com_as_file_per_table;
+Table	Create Table
+t_com_as_file_per_table	CREATE TABLE `t_com_as_file_per_table` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+SHOW CREATE TABLE t_dyn_as_file_per_table;
+Table	Create Table
+t_dyn_as_file_per_table	CREATE TABLE `t_dyn_as_file_per_table` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t_def_as_remote;
+Table	Create Table
+t_def_as_remote	CREATE TABLE `t_def_as_remote` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
 #
 # These explicit file_per_table tables can be moved to a general tablespace.
 #
@@ -758,7 +833,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_in_def	s_def	129	5	Compact	0	General
@@ -770,7 +845,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
 ALTER TABLE t_in_def ROW_FORMAT=dynamic;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -779,7 +854,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD COLUMN (c int);
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -789,7 +864,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD INDEX c (c);
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -800,7 +875,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`),
   KEY `c` (`c`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def DROP INDEX c;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -810,7 +885,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def DROP COLUMN c;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -819,7 +894,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def AUTO_INCREMENT=100;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -828,7 +903,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 INSERT INTO t_in_def(b) VALUES("after ALTER TABLE AUTO_INCREMENT");
 SELECT a, left(b,50) FROM t_in_def;
 a	left(b,50)
@@ -844,7 +919,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def CHANGE a aa int;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -853,7 +928,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `b` text,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def CHANGE b bb varchar(1000);
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -862,7 +937,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def DROP PRIMARY KEY;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -870,7 +945,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `aa` int(11) NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `a` (`aa`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD PRIMARY KEY aa(aa), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -879,7 +954,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD INDEX ab(aa,bb(25)), ALGORITHM=COPY;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -889,7 +964,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25))
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_in_def ADD INDEX bb(bb(50));
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
@@ -900,7 +975,7 @@ t_in_def	CREATE TABLE `t_in_def` (
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 RENAME TABLE t_in_def TO t;
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -911,7 +986,7 @@ t	CREATE TABLE `t` (
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t	s_def	161	5	Dynamic	0	General
@@ -945,7 +1020,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
-) /*!50100 TABLESPACE s_alt1 */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_alt1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_alt1	161	5	Dynamic	0	General
@@ -959,7 +1034,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`,`bb`(25)),
   KEY `bb` (`bb`(50))
-) /*!50100 TABLESPACE s_alt2 */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_alt2` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_alt2	161	5	Dynamic	0	General
@@ -971,7 +1046,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_def	161	4	Dynamic	0	General
@@ -1011,7 +1086,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	s_def	129	5	Compact	0	General
@@ -1023,7 +1098,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE innodb_system */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	innodb_system	129	5	Compact	0	System
@@ -1038,7 +1113,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE innodb_system */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
 ALTER TABLE t_system ROW_FORMAT=dynamic;
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1047,7 +1122,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE innodb_system */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_system ADD COLUMN (c int);
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1057,7 +1132,7 @@ t_system	CREATE TABLE `t_system` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE innodb_system */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_system ADD INDEX c (c);
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1068,7 +1143,7 @@ t_system	CREATE TABLE `t_system` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`),
   KEY `c` (`c`)
-) /*!50100 TABLESPACE innodb_system */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_system DROP INDEX c;
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1078,7 +1153,7 @@ t_system	CREATE TABLE `t_system` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE innodb_system */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 ALTER TABLE t_system DROP COLUMN c;
 SHOW CREATE TABLE t_system;
 Table	Create Table
@@ -1087,7 +1162,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE innodb_system */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 #
 # Now try to put that table into its own Single-Table tablespace.
 # It is not allowed since the table is now marked with the system tablespace
@@ -1101,7 +1176,7 @@ t_still_system	CREATE TABLE `t_still_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE innodb_system */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_still_system	innodb_system	161	5	Dynamic	0	System
@@ -1129,7 +1204,7 @@ Table	Create Table
 t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) /*!50100 TABLESPACE innodb_temporary */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t_my_temp;
 #
 # Try to create or move a table into the redo tablespace
@@ -1186,7 +1261,7 @@ t_single	CREATE TABLE `t_single` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_single	s_def	129	5	Compact	0	General
@@ -1213,7 +1288,7 @@ t_innodb	CREATE TABLE `t_innodb` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_innodb	s_def	129	5	Compact	0	General
@@ -1231,7 +1306,7 @@ t_myisam	CREATE TABLE `t_myisam` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_def` */ ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
 ALTER TABLE t_myisam RENAME TO t_innodb, ENGINE=InnoDB;
 INSERT INTO t_innodb(b) VALUES(44);
 SHOW CREATE TABLE t_innodb;
@@ -1241,7 +1316,7 @@ t_innodb	CREATE TABLE `t_innodb` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_innodb	s_def	129	5	Compact	0	General
@@ -1260,7 +1335,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_dyn_in_s_def	s_def	161	5	Dynamic	0	General
@@ -1273,7 +1348,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 ALTER TABLE t_dyn_in_s_def ENGINE=InnoDB;
@@ -1285,7 +1360,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_dyn_in_s_def	s_def	161	5	Dynamic	0	General
@@ -1298,7 +1373,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=MEMORY AUTO_INCREMENT=5 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=MEMORY AUTO_INCREMENT=5 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 ALTER TABLE t_dyn_in_s_def ENGINE=InnoDB;
@@ -1317,7 +1392,7 @@ t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_def */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_dyn_in_s_def	s_def	161	5	Dynamic	0	General
@@ -1339,7 +1414,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_short_life */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_short_life` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_short_life	129	5	Compact	0	General
@@ -1352,7 +1427,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_short_life */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_short_life` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 DROP TABLESPACE s_short_life;
@@ -1367,7 +1442,7 @@ t_nomad	CREATE TABLE `t_nomad` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE s_shorter_life */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_shorter_life` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_shorter_life	129	5	Compact	0	General
@@ -1556,83 +1631,6 @@ Level	Code	Message
 Error	1148	InnoDB: Cannot import table `test/t1` because it is in a general tablespace. It must be file-per-table.
 Error	1148	The used command is not allowed with this MySQL version
 DROP TABLE t1;
-#
-# Put all partitions of a table into a general tablespace.
-# Show that individual partitions  and subpartitions ignore the
-# tablespace command.
-#
-CREATE TABLE t1 (a INT, b INT) TABLESPACE=`s1`
-  PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
-PARTITION tens VALUES LESS THAN (100) TABLESPACE=`innodb_file_per_table`
-      (SUBPARTITION subpart11,
-SUBPARTITION subpart12),
-PARTITION hundreds VALUES LESS THAN (1000)
-(SUBPARTITION subpart21,
-SUBPARTITION subpart22 TABLESPACE=`innodb_file_per_table`),
-PARTITION thousands VALUES LESS THAN (10000)
-(SUBPARTITION subpart31,
-SUBPARTITION subpart32));
-CREATE TABLE t2 (a INT, b INT)
-PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
-PARTITION tens VALUES LESS THAN (100) TABLESPACE=`s1`
-      (SUBPARTITION subpart11,
-SUBPARTITION subpart12),
-PARTITION hundreds VALUES LESS THAN (1000)
-(SUBPARTITION subpart21,
-SUBPARTITION subpart22 TABLESPACE=`s1`),
-PARTITION thousands VALUES LESS THAN (10000)
-(SUBPARTITION subpart31,
-SUBPARTITION subpart32));
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t1#p#hundreds#sp#subpart21	s1	129	5	Compact	0	General
-test/t1#p#hundreds#sp#subpart22	s1	129	5	Compact	0	General
-test/t1#p#tens#sp#subpart11	s1	129	5	Compact	0	General
-test/t1#p#tens#sp#subpart12	s1	129	5	Compact	0	General
-test/t1#p#thousands#sp#subpart31	s1	129	5	Compact	0	General
-test/t1#p#thousands#sp#subpart32	s1	129	5	Compact	0	General
-test/t2#p#hundreds#sp#subpart21	innodb_system	1	5	Compact	0	System
-test/t2#p#hundreds#sp#subpart22	innodb_system	1	5	Compact	0	System
-test/t2#p#tens#sp#subpart11	innodb_system	1	5	Compact	0	System
-test/t2#p#tens#sp#subpart12	innodb_system	1	5	Compact	0	System
-test/t2#p#thousands#sp#subpart31	innodb_system	1	5	Compact	0	System
-test/t2#p#thousands#sp#subpart32	innodb_system	1	5	Compact	0	System
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE s1 */ ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY KEY (b)
-(PARTITION tens VALUES LESS THAN (100)
- (SUBPARTITION subpart11 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
-  SUBPARTITION subpart12 TABLESPACE = innodb_file_per_table ENGINE = InnoDB),
- PARTITION hundreds VALUES LESS THAN (1000)
- (SUBPARTITION subpart21 ENGINE = InnoDB,
-  SUBPARTITION subpart22 TABLESPACE = innodb_file_per_table ENGINE = InnoDB),
- PARTITION thousands VALUES LESS THAN (10000)
- (SUBPARTITION subpart31 ENGINE = InnoDB,
-  SUBPARTITION subpart32 ENGINE = InnoDB)) */
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY KEY (b)
-(PARTITION tens VALUES LESS THAN (100)
- (SUBPARTITION subpart11 TABLESPACE = s1 ENGINE = InnoDB,
-  SUBPARTITION subpart12 TABLESPACE = s1 ENGINE = InnoDB),
- PARTITION hundreds VALUES LESS THAN (1000)
- (SUBPARTITION subpart21 ENGINE = InnoDB,
-  SUBPARTITION subpart22 TABLESPACE = s1 ENGINE = InnoDB),
- PARTITION thousands VALUES LESS THAN (10000)
- (SUBPARTITION subpart31 ENGINE = InnoDB,
-  SUBPARTITION subpart32 ENGINE = InnoDB)) */
-DROP TABLE t1;
-DROP TABLE t2;
 DROP TABLESPACE s1;
 #
 # Clean-up.

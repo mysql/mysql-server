@@ -76,6 +76,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "item_geofunc.h"
 #include "sql_plugin.h"                      // plugin_is_ready
 #include "parse_tree_hints.h"
+#include "derror.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -5772,7 +5773,7 @@ opt_part_option_list:
        ;
 
 opt_part_option:
-          TABLESPACE_SYM opt_equal ident_or_text
+          TABLESPACE_SYM opt_equal ident
           { Lex->part_info->curr_part_elem->tablespace_name= $3.str; }
         | opt_storage ENGINE_SYM opt_equal storage_engines
           {
@@ -12858,7 +12859,8 @@ table_ident_opt_wild:
           }
         | ident '.' ident opt_wild
           {
-            $$= NEW_PTN Table_ident(YYTHD, to_lex_cstring($1),
+            $$= NEW_PTN Table_ident(YYTHD->get_protocol(),
+                                    to_lex_cstring($1),
                                     to_lex_cstring($3), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
@@ -12869,7 +12871,8 @@ table_ident_nodb:
           ident
           {
             LEX_CSTRING db= { any_db, strlen(any_db) };
-            $$= new Table_ident(YYTHD, db, to_lex_cstring($1), 0);
+            $$= new Table_ident(YYTHD->get_protocol(),
+                                db, to_lex_cstring($1), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }

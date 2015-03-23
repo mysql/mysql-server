@@ -27,6 +27,7 @@
 
 #include "current_thd.h"
 #include "decimal.h"
+#include "derror.h"                      // ER_THD
 #include "filesort.h"                    // change_double_for_sort
 #include "item_timefunc.h"               // Item_func_now_local
 #include "log_event.h"                   // class Table_map_log_event

@@ -38,6 +38,7 @@
 #include "sql_class.h"
 #include "field.h"
 #include "mysqld.h"             // opt_log_syslog_enable
+#include "derror.h"
 
 #include <my_dir.h>
 #include <stdarg.h>

@@ -22,6 +22,7 @@
 #include "sql_tmp_table.h"                     // create_virtual_tmp_table
 #include "sp_instr.h"
 #include "template_utils.h"
+#include "derror.h"
 
 extern "C" void sql_alloc_error_handler(void);
 

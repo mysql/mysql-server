@@ -31,6 +31,7 @@
 #include "sys_vars.h"
 #include "current_thd.h"
 #include "psi_memory_key.h"
+#include "derror.h"
 
 #include <fstream>                      /* std::fstream */
 #include <string>                       /* std::string */

@@ -33,6 +33,7 @@
 #include "log.h"
 #include "myisam.h"                          // TT_USEFRM
 #include "mysqld.h"                          // key_file_misc
+#include "derror.h"                          // ER_THD
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

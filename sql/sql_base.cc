@@ -55,6 +55,7 @@
 #include "table_cache.h" // Table_cache_manager, Table_cache
 #include "log.h"
 #include "binlog.h"
+#include "derror.h"
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"

@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include <current_thd.h>
 #include <debug_sync.h>
+#include <derror.h>
 #include <gstream.h>
 #include <log.h>
 #include <mysqld.h>
@@ -49,6 +50,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
+#include <sql_tablespace.h>
 #include <my_check_opt.h>
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
@@ -8746,7 +8748,7 @@ create_table_info_t::create_table_def()
 	/* For single-table tablespaces, we pass 0 as the space id, and then
 	determine the actual space id when the tablespace is created. */
 	if (DICT_TF_HAS_SHARED_SPACE(m_flags)) {
-		ut_ad(m_tablespace != NULL);
+		ut_ad(m_tablespace != NULL && m_tablespace[0] != '\0');
 
 		space_id = fil_space_get_id_by_name(m_tablespace);
 	}
@@ -9263,9 +9265,7 @@ validate_tablespace_name(
 	/* This prefix is reserved by InnoDB for use in internal tablespace names. */
 	const char reserved_space_name_prefix[] = "innodb_";
 
-	/* The tablespace name cannot be a null string: "". */
-	if (0 == strlen(name)) {
-		my_error(ER_WRONG_TABLESPACE_NAME, MYF(0), name);
+	if (check_tablespace_name(name) != IDENT_NAME_OK) {
 		err = HA_WRONG_CREATE_OPTION;
 	}
 
@@ -9347,7 +9347,7 @@ create_table_info_t::create_option_tablespace_is_valid()
 	On any ALTER TABLE that contains a DATA DIRECTORY, MySQL will issue
 	a warning like "<DATA DIRECTORY> option ignored." The check below is
 	needed for CREATE TABLE only. ALTER TABLE may be moving remote
-	file-per-table table to a general tablespace, in chich case the
+	file-per-table table to a general tablespace, in which case the
 	create_info->data_file_name is not null. */
 	bool	is_create_table = (thd_sql_command(m_thd) == SQLCOM_CREATE_TABLE);
 	if (is_create_table
@@ -9758,8 +9758,6 @@ create_table_info_t::innobase_table_flags()
 	enum row_type	row_type;
 	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
 
-	ut_ad(!(m_file_per_table && m_use_shared_space));
-
 	const ulint	zip_ssize_max =
 		ut_min(static_cast<ulint>(UNIV_PAGE_SSIZE_MAX),
 		       static_cast<ulint>(PAGE_ZIP_SSIZE_MAX));
@@ -9956,12 +9954,12 @@ index_bad:
 		/* Intrinsic tables reside only in the shared temporary
 		tablespace. */
 		if ((m_create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
-		    && !m_file_per_table) {
+		    && !m_use_file_per_table) {
 			m_flags2 |= DICT_TF2_INTRINSIC;
 		}
 	}
 
-	if (m_file_per_table) {
+	if (m_use_file_per_table) {
 		ut_ad(!m_use_shared_space);
 		m_flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
 	}
@@ -10165,6 +10163,71 @@ innobase_parse_hint_from_comment(
 	}
 }
 
+/** Set m_use_* flags. */
+void
+create_table_info_t::set_tablespace_type()
+{
+	/*
+	Ignore the current innodb-file-per-table setting if we are
+	creating a temporary, non-compressed table or if the
+	TABLESPACE= phrase is using an existing shared tablespace. */
+	m_use_file_per_table =
+		(m_file_per_table || target_is_file_per_table(m_create_info))
+		&& !table_is_noncompressed_temporary(m_create_info)
+		&& !target_is_shared_space(m_create_info);
+
+	/* Note whether this table will be created using a shared,
+	general or system tablespace. */
+	m_use_shared_space = target_is_shared_space(m_create_info);
+
+	/* DATA DIRECTORY must have m_file_per_table but cannot be
+	used with TEMPORARY tables. */
+	m_use_data_dir =
+		m_use_file_per_table
+		&& !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE)
+		&& (m_create_info->data_file_name != NULL)
+		&& (m_create_info->data_file_name[0] != '\0');
+	ut_ad(!(m_use_shared_space && m_use_data_dir));
+}
+
+/** Initialize the create_table_info_t object.
+@return error number */
+int
+create_table_info_t::initialize()
+{
+	trx_t*		parent_trx;
+
+	DBUG_ENTER("create_table_info_t::initialize");
+
+	ut_ad(m_thd != NULL);
+	ut_ad(m_create_info != NULL);
+
+	if (m_form->s->fields > REC_MAX_N_USER_FIELDS) {
+		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
+	}
+
+	ut_ad(m_form->s->row_type == m_create_info->row_type);
+
+	/* Check for name conflicts (with reserved name) for
+	any user indices to be created. */
+	if (innobase_index_name_is_reserved(m_thd, m_form->key_info,
+					    m_form->s->keys)) {
+		DBUG_RETURN(HA_ERR_WRONG_INDEX);
+	}
+
+	/* Get the transaction associated with the current thd, or create one
+	if not yet created */
+
+	parent_trx = check_trx_exists(m_thd);
+
+	/* In case MySQL calls this in the middle of a SELECT query, release
+	possible adaptive hash latch to avoid deadlocks of threads */
+
+	trx_search_latch_release_if_reserved(parent_trx);
+	DBUG_RETURN(0);
+}
+
+
 /** Prepare to create a new table to an InnoDB database.
 @param[in]	name	Table name
 @return error number */
@@ -10172,19 +10235,14 @@ int
 create_table_info_t::prepare_create_table(
 	const char*		name)
 {
-	int		error;
-	trx_t*		parent_trx;
-
 	DBUG_ENTER("prepare_create_table");
 
-	DBUG_ASSERT(m_thd != NULL);
-	DBUG_ASSERT(m_create_info != NULL);
-
-	if (m_form->s->fields > REC_MAX_N_USER_FIELDS) {
-		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
-	}
+	ut_ad(m_thd != NULL);
+	ut_ad(m_create_info != NULL);
 
 	ut_ad(m_form->s->row_type == m_create_info->row_type);
+
+	set_tablespace_type();
 
 	/* Validate the create options if innodb_strict_mode is set.
 	Do not use the regular message for ER_ILLEGAL_HA_CREATE_OPTION
@@ -10204,28 +10262,7 @@ create_table_info_t::prepare_create_table(
 		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
 	}
 
-	error = parse_table_name(name);
-	if (error) {
-		DBUG_RETURN(error);
-	}
-
-	/* Check for name conflicts (with reserved name) for
-	any user indices to be created. */
-	if (innobase_index_name_is_reserved(m_thd, m_form->key_info,
-					    m_form->s->keys)) {
-		DBUG_RETURN(-1);
-	}
-
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
-
-	parent_trx = check_trx_exists(m_thd);
-
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(parent_trx);
-	DBUG_RETURN(0);
+	DBUG_RETURN(parse_table_name(name));
 }
 
 /** Create a new table to an InnoDB database.
@@ -10358,19 +10395,19 @@ create_table_info_t::create_table()
 
 	stmt = innobase_get_stmt_unsafe(m_thd, &stmt_len);
 
-	if (stmt) {
+	innodb_session_t*&	priv =
+		thd_to_innodb_session(m_trx->mysql_thd);
+	dict_table_t*		handler =
+		priv->lookup_table_handler(m_table_name);
 
-		innodb_session_t*&	priv
-				= thd_to_innodb_session(m_trx->mysql_thd);
-		dict_table_t*		handler
-				= priv->lookup_table_handler(m_table_name);
-		ut_ad(handler == NULL
-		      || (handler != NULL && is_intrinsic_temp_table()));
+	ut_ad(handler == NULL
+	      || (handler != NULL && dict_table_is_intrinsic(handler)));
+
+	/* There is no concept of foreign key for intrinsic tables. */
+	if (stmt && (handler == NULL)) {
 
 		dberr_t	err = row_table_add_foreign_constraints(
 			m_trx, stmt, stmt_len, m_table_name,
-			m_create_info->options & HA_LEX_CREATE_TMP_TABLE,
-			handler,
 			m_create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
 		switch (err) {
@@ -10527,22 +10564,8 @@ ha_innobase::create(
 	char		temp_path[FN_REFLEN];	/* Absolute path of temp frm */
 	char		remote_path[FN_REFLEN];	/* Absolute path of table */
 	char		tablespace[NAME_LEN];	/* Tablespace name identifier */
-	bool		needs_file_per_table;
 	trx_t*		trx;
 	DBUG_ENTER("ha_innobase::create");
-
-	/* Determine if this CREATE TABLE will be making a file-per-table
-	tablespace.  Note that "srv_file_per_table" is not under
-	dict_sys mutex protection, and could be changed while creating the
-	table. So we read the current value here and make all further
-	decisions based on this.
-	Ignore the current innodb-file-per-table setting if we are
-	creating a temporary, non-compressed table or if the
-	TABLESPACE= phrase is using an existing shared tablespace. */
-	needs_file_per_table =
-		(srv_file_per_table || target_is_file_per_table(create_info))
-		&& !table_is_noncompressed_temporary(create_info)
-		&& !target_is_shared_space(create_info);
 
 	create_table_info_t	info(ha_thd(),
 				     form,
@@ -10550,10 +10573,14 @@ ha_innobase::create(
 				     norm_name,
 				     temp_path,
 				     remote_path,
-				     tablespace,
-				     needs_file_per_table);
+				     tablespace);
 
-	/* Initialize the object and do some validation. */
+	/* Initialize the object. */
+	if ((error = info.initialize())) {
+		DBUG_RETURN(error);
+	}
+
+	/* Prepare for create and validate options. */
 	if ((error = info.prepare_create_table(name))) {
 		DBUG_RETURN(error);
 	}

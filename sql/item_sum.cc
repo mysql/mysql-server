@@ -31,6 +31,7 @@
 #include "aggregate_check.h"
 #include "current_thd.h"
 #include "mysqld.h"                        // my_thread_get_THR_MALLOC
+#include "derror.h"
 
 using std::min;
 using std::max;

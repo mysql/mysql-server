@@ -26,7 +26,9 @@
 #include "binlog.h"                   // mysql_bin_log
 #include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_DEFAULT
 #include "discover.h"                 // writefrm
+#include "lock.h"                     // MYSQL_LOCK
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
 #include "mysqld.h"                   // global_system_variables heap_hton ..

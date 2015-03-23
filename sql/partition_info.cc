@@ -29,6 +29,7 @@
 #include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
 #include "sql_class.h"                        // THD
 #include "current_thd.h"
+#include "derror.h"
 
 
 partition_info *partition_info::get_clone()

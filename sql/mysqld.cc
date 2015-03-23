@@ -85,7 +85,6 @@
 #include "rpl_filter.h"
 #include <sql_common.h>
 #include <my_stacktrace.h>
-#include "mysqld_suffix.h"
 #include "mysys_err.h"
 #include "events.h"
 #include "sql_audit.h"
@@ -7813,6 +7812,16 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   to the version name to make the version more descriptive.
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
+
+/*
+  The following code is quite ugly as there is no portable way to easily set a
+  string to the value of a macro
+*/
+#ifdef MYSQL_SERVER_SUFFIX
+#define MYSQL_SERVER_SUFFIX_STR STRINGIFY_ARG(MYSQL_SERVER_SUFFIX)
+#else
+#define MYSQL_SERVER_SUFFIX_STR MYSQL_SERVER_SUFFIX_DEF
+#endif
 
 static void set_server_version(void)
 {

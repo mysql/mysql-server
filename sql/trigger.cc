@@ -25,6 +25,7 @@
 #include "sql_table.h"            // check_n_cut_mysql50_prefix
 #include "sql_show.h"             // append_identifier
 #include "sql_db.h"               // get_default_db_collation
+#include "derror.h"               // ER_THD
 
 #include "mysql/psi/mysql_sp.h"
 ///////////////////////////////////////////////////////////////////////////

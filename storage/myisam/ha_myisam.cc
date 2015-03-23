@@ -32,6 +32,7 @@
 #include "current_thd.h"
 #include "system_variables.h"
 #include "mysqld.h"
+#include "derror.h"
 
 #include <algorithm>
 

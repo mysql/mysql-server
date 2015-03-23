@@ -124,9 +124,19 @@ extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern ulong slave_exec_mode_options;
+
+enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 extern ulonglong slave_type_conversions_options;
+
 extern my_bool read_only, opt_readonly;
 extern my_bool lower_case_file_system;
+
+enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
+                                         SLAVE_ROWS_INDEX_SCAN = (1U << 1),
+                                         SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
 extern ulonglong slave_rows_search_algorithms_options;
 
 #ifdef HAVE_REPLICATION
@@ -172,7 +182,11 @@ extern my_bool offline_mode;
 extern my_bool opt_log_backward_compatible_user_definitions;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
+
+enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
+			    DELAY_KEY_WRITE_ALL };
 extern ulong delay_key_write_options;
+
 extern ulong opt_log_timestamps;
 extern const char *timestamp_type_names[];
 extern char *opt_general_logname, *opt_slow_logname, *opt_bin_logname,
@@ -593,9 +607,6 @@ extern my_thread_t signal_thread;
 extern struct st_VioSSLFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
-/*
-  The following variables were under INNODB_COMPABILITY_HOOKS
- */
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
 extern char lc_messages_dir[FN_REFLEN];
@@ -604,6 +615,11 @@ extern MYSQL_PLUGIN_IMPORT char reg_ext[FN_EXTLEN];
 extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
 extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
+
+#define TC_HEURISTIC_RECOVER_COMMIT   1
+#define TC_HEURISTIC_RECOVER_ROLLBACK 2
+extern ulong tc_heuristic_recover;
+
 extern ulong specialflag;
 extern size_t mysql_data_home_len;
 extern size_t mysql_real_data_home_len;

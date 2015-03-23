@@ -29,6 +29,7 @@
 
 #include "current_thd.h"
 #include "sql_class.h"       // THD
+#include "sql_locale.h"      // my_locale_en_US
 #include "sql_time.h"        // make_truncated_value_warning
 #include "strfunc.h"         // check_word
 #include "tztime.h"          // Time_zone

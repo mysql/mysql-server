@@ -35,6 +35,7 @@
 #include "auth_common.h"                       // any_db
 #include "current_thd.h"
 #include "debug_sync.h"                        // DEBUG_SYNC
+#include "derror.h"                            // ER_THD
 #include "dynamic_ids.h"                       // Server_ids
 #include "log.h"                               // sql_print_error
 #include "log_event.h"                         // Rotate_log_event

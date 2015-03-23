@@ -17,6 +17,7 @@
 #include "table_trigger_dispatcher.h"
 
 #include "auth_common.h"            // check_global_access
+#include "derror.h"                 // ER_THD
 #include "mysqld.h"                 // table_alias_charset
 #include "psi_memory_key.h"
 #include "sp_head.h"                // sp_head

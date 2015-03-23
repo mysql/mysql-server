@@ -25,6 +25,7 @@
 #include "opt_trace.h"
 #include "sql_base.h"
 #include "sql_select.h"
+#include "derror.h"
 
 
 /**

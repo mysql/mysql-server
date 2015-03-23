@@ -24,6 +24,7 @@
 #include "sp.h"                         /* sp_exist_routines */
 #include "sql_insert.h"                 /* Sql_cmd_insert_base */
 #include "sql_class.h"
+#include "derror.h"
 
 #include "sql_update.h"
 #include "auth_internal.h"

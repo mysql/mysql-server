@@ -25,6 +25,7 @@
 #include "my_dir.h"            // my_dir
 #include "mysqld.h"            // lower_case_table_names server_uuid ...
 #include "log.h"               // Log_throttle
+#include "query_result.h"      // sql_exchange
 #include "rpl_mts_submode.h"   // Mts_submode
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_rli_pdb.h"       // Slave_job_group

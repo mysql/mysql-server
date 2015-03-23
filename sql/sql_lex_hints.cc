@@ -21,6 +21,7 @@
 #include "lex_hash.h"
 #include "parse_tree_helpers.h"
 #include "sql_class.h"
+#include "derror.h"
 
 
 Hint_scanner::Hint_scanner(THD *thd_arg,

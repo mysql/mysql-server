@@ -16,6 +16,7 @@
 #include "log.h"
 #include "sql_class.h"
 #include "current_thd.h"
+#include "derror.h"
 
 extern "C" void sql_alloc_error_handler(void)
 {

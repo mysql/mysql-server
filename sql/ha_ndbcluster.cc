@@ -16125,7 +16125,7 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
                                      NdbDictionary::Table& ndbtab) const
 {
   uint32 frag_data[MAX_PARTITIONS];
-  char *ts_names[MAX_PARTITIONS];
+  const char *ts_names[MAX_PARTITIONS];
   ulong fd_index= 0, i, j;
   NDBTAB::FragmentType ftype= NDBTAB::UserDefined;
   partition_element *part_elem;
