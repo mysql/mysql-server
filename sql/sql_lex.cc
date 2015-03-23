@@ -502,7 +502,7 @@ void LEX::reset()
   derived_tables= 0;
   safe_to_cache_query= true;
   insert_table= NULL;
-  leaf_tables_insert= NULL;
+  insert_table_leaf= NULL;
   parsing_options.reset();
   length= 0;
   part_info= NULL;
