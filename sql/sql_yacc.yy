@@ -9214,7 +9214,8 @@ udf_expr:
                parse it out. If we hijack the input stream with
                remember_name we may get quoted or escaped names.
             */
-            else if ($2->type() != Item::FIELD_ITEM)
+            else if ($2->type() != Item::FIELD_ITEM &&
+                     $2->type() != Item::REF_ITEM /* For HAVING */ )
               $2->set_name($1, (uint) ($3 - $1), thd->charset());
             $$= $2;
           }

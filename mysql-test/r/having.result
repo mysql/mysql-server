@@ -666,3 +666,34 @@ SELECT * FROM t1 WHERE f = 2 HAVING ( pk IN ( SELECT 9 ) AND f != 0 );
 pk	f
 DROP TABLE t1;
 End of 5.3 tests
+#
+# Bug MDEV-7301: Unknown column quoted with backticks in HAVING clause when using function.
+# Bug#16221433 MYSQL REJECTS QUERY DUE TO BAD RESOLUTION OF NAMES IN HAVING; VIEW UNREADABLE
+#
+CREATE TABLE `t1` (
+`id` int(11) NOT NULL,
+`title` varchar(45) DEFAULT NULL,
+PRIMARY KEY (`id`)
+) DEFAULT CHARSET=utf8;
+INSERT INTO `t1` VALUES ('1', 'Just for fun');
+INSERT INTO `t1` VALUES ('2', 'Wait until a sunhine');
+INSERT INTO `t1` VALUES ('3', 'Take a new turn');
+SELECT `id`, SHA1(`title`) AS `column_1`
+FROM `t1`
+HAVING `column_1` LIKE '8%';
+id	column_1
+1	80a12660d24a72460e5e292fe33f870276d7f40a
+expected 1 row(s) returned
+SELECT `id`, SHA1(`title`) AS `column_1`
+FROM `t1`
+HAVING UPPER(column_1) LIKE '8%';
+id	column_1
+1	80a12660d24a72460e5e292fe33f870276d7f40a
+expected -- 1 row(s) returned
+SELECT `id`, SHA1(`title`) AS `column_1`
+FROM `t1`
+HAVING UPPER(`column_1`) LIKE '8%';
+id	column_1
+1	80a12660d24a72460e5e292fe33f870276d7f40a
+expected -- 1 row(s) returned not ER_BAD_FIELD_ERROR
+drop table t1;

@@ -693,3 +693,37 @@ DROP TABLE t1;
 
 --echo End of 5.3 tests
 
+--echo #
+--echo # Bug MDEV-7301: Unknown column quoted with backticks in HAVING clause when using function.
+--echo # Bug#16221433 MYSQL REJECTS QUERY DUE TO BAD RESOLUTION OF NAMES IN HAVING; VIEW UNREADABLE
+--echo #
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `title` varchar(45) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) DEFAULT CHARSET=utf8;
+
+INSERT INTO `t1` VALUES ('1', 'Just for fun');
+INSERT INTO `t1` VALUES ('2', 'Wait until a sunhine');
+INSERT INTO `t1` VALUES ('3', 'Take a new turn');
+
+SELECT `id`, SHA1(`title`) AS `column_1`
+FROM `t1`
+HAVING `column_1` LIKE '8%';
+
+--echo expected 1 row(s) returned
+
+SELECT `id`, SHA1(`title`) AS `column_1`
+FROM `t1`
+HAVING UPPER(column_1) LIKE '8%';
+
+--echo expected -- 1 row(s) returned
+
+SELECT `id`, SHA1(`title`) AS `column_1`
+FROM `t1`
+HAVING UPPER(`column_1`) LIKE '8%';
+
+--echo expected -- 1 row(s) returned not ER_BAD_FIELD_ERROR
+
+drop table t1;
