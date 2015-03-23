@@ -424,7 +424,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
   /* End aborted result set. */
   if (end_partial_result_set)
-    thd->protocol->end_partial_result_set(thd);
+    thd->get_protocol()->end_partial_result_set();
 
   /* Reset error state. */
   thd->clear_error();

@@ -132,10 +132,12 @@ SELECT * FROM test.t1 ORDER BY a1;
 
 #### Try to ALTER from Cluster Disk Data to InnoDB
 
-ALTER TABLE test.t1 ENGINE=InnoDB;
+CREATE TABLESPACE inno_ts ADD DATAFILE 'inno_ts.ibd' ENGINE = InnoDB;
+ALTER TABLE test.t1 TABLESPACE inno_ts ENGINE=InnoDB;
 SHOW CREATE TABLE test.t1;
 SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
+DROP TABLESPACE inno_ts;
 SHOW CREATE TABLE test.t1;
 # Check column storage
 source show_attributes.inc;

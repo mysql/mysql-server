@@ -579,8 +579,7 @@ void thd_set_thread_stack(THD *thd, char *stack_start)
 */
 void thd_close_connection(THD *thd)
 {
-  if (thd->net.vio)
-    vio_shutdown(thd->net.vio);
+  thd->get_protocol_classic()->shutdown();
 }
 
 /**
@@ -636,7 +635,8 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd_manager->add_thd(thd);
 
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
-          (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
+          (ulong)thd, mysql_socket_getfd(
+            thd->get_protocol_classic()->get_vio()->mysql_socket)));
   thd_set_thread_stack(thd, stack_start);
   DBUG_VOID_RETURN;
 }
@@ -680,7 +680,7 @@ bool thd_is_transaction_active(THD *thd)
 */
 int thd_connection_has_data(THD *thd)
 {
-  Vio *vio= thd->net.vio;
+  Vio *vio= thd->get_protocol_classic()->get_vio();
   return vio->has_data(vio);
 }
 
@@ -692,7 +692,7 @@ int thd_connection_has_data(THD *thd)
 */
 void thd_set_net_read_write(THD *thd, uint val)
 {
-  thd->net.reading_or_writing= val;
+  thd->get_protocol_classic()->get_net()->reading_or_writing= val;
 }
 
 /**
@@ -703,7 +703,7 @@ void thd_set_net_read_write(THD *thd, uint val)
 */
 uint thd_get_net_read_write(THD *thd)
 {
-  return thd->net.reading_or_writing;
+  return thd->get_protocol_classic()->get_rw_status();
 }
 
 /**
@@ -726,7 +726,7 @@ void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
 */
 my_socket thd_get_fd(THD *thd)
 {
-  return mysql_socket_getfd(thd->net.vio->mysql_socket);
+  return thd->get_protocol_classic()->get_socket();
 }
 
 /**
@@ -1281,7 +1281,6 @@ THD::THD(bool enable_plugins)
   mysql_audit_init_thd(this);
   net.vio=0;
 #endif
-  client_capabilities= 0;                       // minimalistic client
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= 0;
   m_release_resources_done= false;
@@ -1320,9 +1319,10 @@ THD::THD(bool enable_plugins)
   sp_func_cache= NULL;
 
   /* Protocol */
-  protocol= &protocol_text;			// Default protocol
+  m_protocol= &protocol_text;			// Default protocol
   protocol_text.init(this);
   protocol_binary.init(this);
+  protocol_text.set_client_capabilities(0); // minimalistic client
 
   tablespace_op= false;
   substitute_null_with_insert_id = FALSE;
@@ -1887,11 +1887,10 @@ void THD::release_resources()
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
-  if (net.vio)
+  if (get_protocol_classic()->get_vio())
   {
-    vio_delete(net.vio);
-    net_end(&net);
-    net.vio= NULL;
+    vio_delete(get_protocol_classic()->get_vio());
+    get_protocol_classic()->end_net();
   }
 #endif
 
@@ -2210,9 +2209,10 @@ void THD::disconnect()
   shutdown_active_vio();
 
   /* Disconnect even if a active vio is not associated. */
-  if (net.vio != vio && net.vio != NULL)
+  if (get_protocol_classic()->get_vio() != vio &&
+      get_protocol_classic()->vio_ok())
   {
-    vio_shutdown(net.vio);
+    m_protocol->shutdown();
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -2610,8 +2610,8 @@ int THD::send_explain_fields(Query_result *result)
   item->maybe_null=1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
   item->maybe_null= 1;
-  return (result->send_result_set_metadata(field_list,
-                                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
+  return (result->send_result_set_metadata(field_list, Protocol::SEND_NUM_ROWS |
+                                           Protocol::SEND_EOF));
 }
 
 void THD::shutdown_active_vio()
@@ -2731,7 +2731,7 @@ bool sql_exchange::escaped_given(void)
 bool Query_result_send::send_result_set_metadata(List<Item> &list, uint flags)
 {
   bool res;
-  if (!(res= thd->protocol->send_result_set_metadata(&list, flags)))
+  if (!(res= thd->send_result_metadata(&list, flags)))
     is_result_set_started= 1;
   return res;
 }
@@ -2761,7 +2761,7 @@ void Query_result_send::abort_result_set()
 
 bool Query_result_send::send_data(List<Item> &items)
 {
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("Query_result_send::send_data");
 
   if (unit->offset_limit_cnt)
@@ -2777,19 +2777,15 @@ bool Query_result_send::send_data(List<Item> &items)
   */
   ha_release_temporary_latches(thd);
 
-  protocol->prepare_for_resend();
-  if (protocol->send_result_set_row(&items))
+  protocol->start_row();
+  if (thd->send_result_set_row(&items))
   {
-    protocol->remove_last_row();
+    protocol->abort_row();
     DBUG_RETURN(TRUE);
   }
 
   thd->inc_sent_row_count(1);
-
-  if (thd->vio_ok())
-    DBUG_RETURN(protocol->write());
-
-  DBUG_RETURN(0);
+  DBUG_RETURN(protocol->end_row());
 }
 
 bool Query_result_send::send_eof()
@@ -4111,7 +4107,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->examined_row_count= m_examined_row_count;
   backup->sent_row_count= m_sent_row_count;
   backup->cuted_fields=     cuted_fields;
-  backup->client_capabilities= client_capabilities;
+  backup->client_capabilities= m_protocol->get_client_capabilities();
   backup->savepoints= get_transaction()->m_savepoints;
   backup->first_successful_insert_id_in_prev_stmt= 
     first_successful_insert_id_in_prev_stmt;
@@ -4130,7 +4126,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
     mysql_bin_log.start_union_events(this, this->query_id);
 
   /* Disable result sets */
-  client_capabilities &= ~CLIENT_MULTI_RESULTS;
+  get_protocol_classic()->remove_client_capability(CLIENT_MULTI_RESULTS);
   in_sub_stmt|= new_state;
   m_examined_row_count= 0;
   m_sent_row_count= 0;
@@ -4180,7 +4176,9 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     backup->first_successful_insert_id_in_cur_stmt;
   limit_found_rows= backup->limit_found_rows;
   set_sent_row_count(backup->sent_row_count);
-  client_capabilities= backup->client_capabilities;
+  DBUG_ASSERT(m_protocol->type() == Protocol::PROTOCOL_TEXT ||
+              m_protocol->type() == Protocol::PROTOCOL_BINARY);
+  get_protocol_classic()->set_client_capabilities(backup->client_capabilities);
 
   /*
     If we've left sub-statement mode, reset the fatal error flag.
@@ -4606,4 +4604,110 @@ void THD::parse_error_at(const YYLTYPE &location, const char *s)
   ErrConvString err(pos, variables.character_set_client);
   my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0),
                   s ? s : ER(ER_SYNTAX_ERROR), err.ptr(), lineno);
+}
+
+bool THD::send_result_metadata(List<Item> *list, uint flags)
+{
+  DBUG_ENTER("send_result_metadata");
+  List_iterator_fast<Item> it(*list);
+  Item *item;
+  uchar buff[MAX_FIELD_WIDTH];
+  String tmp((char *) buff, sizeof(buff), &my_charset_bin);
+
+  if (m_protocol->start_result_metadata(list->elements, flags,
+          variables.character_set_results))
+    goto err;
+
+#ifdef EMBEDDED_LIBRARY                  // bootstrap file handling
+    if(!mysql)
+      DBUG_RETURN(false);
+#endif
+
+  while ((item= it++))
+  {
+    Send_field field;
+    item->make_field(&field);
+#ifndef EMBEDDED_LIBRARY
+    m_protocol->start_row();
+    if (m_protocol->send_field_metadata(&field,
+            item->charset_for_protocol()))
+      goto err;
+    if (flags & Protocol::SEND_DEFAULTS)
+      item->send(m_protocol, &tmp);
+    if (m_protocol->end_row())
+      DBUG_RETURN(true);
+#else
+      if(m_protocol->send_field_metadata(&field, item->charset_for_protocol()))
+        goto err;
+      if (flags & Protocol::SEND_DEFAULTS)
+        get_protocol_classic()->send_string_metadata(item->val_str(&tmp));
+#endif
+  }
+
+  DBUG_RETURN(m_protocol->end_result_metadata());
+
+  err:
+  my_error(ER_OUT_OF_RESOURCES, MYF(0));        /* purecov: inspected */
+  DBUG_RETURN(1);                               /* purecov: inspected */
+}
+
+bool THD::send_result_set_row(List<Item> *row_items)
+{
+  char buffer[MAX_FIELD_WIDTH];
+  String str_buffer(buffer, sizeof (buffer), &my_charset_bin);
+  List_iterator_fast<Item> it(*row_items);
+
+  DBUG_ENTER("send_result_set_row");
+
+  for (Item *item= it++; item; item= it++)
+  {
+    if (item->send(m_protocol, &str_buffer) || is_error())
+      DBUG_RETURN(true);
+    /*
+      Reset str_buffer to its original state, as it may have been altered in
+      Item::send().
+    */
+    str_buffer.set(buffer, sizeof(buffer), &my_charset_bin);
+  }
+  DBUG_RETURN(false);
+}
+
+void THD::send_statement_status()
+{
+  DBUG_ENTER("send_statement_status");
+  DBUG_ASSERT(!get_stmt_da()->is_sent());
+  bool error= false;
+  Diagnostics_area *da= get_stmt_da();
+
+  /* Can not be true, but do not take chances in production. */
+  if (da->is_sent())
+    DBUG_VOID_RETURN;
+
+  switch (da->status())
+  {
+    case Diagnostics_area::DA_ERROR:
+      /* The query failed, send error to log and abort bootstrap. */
+      error= m_protocol->send_error(
+              da->mysql_errno(), da->message_text(), da->returned_sqlstate());
+          break;
+    case Diagnostics_area::DA_EOF:
+      error= m_protocol->send_eof(
+              server_status, da->last_statement_cond_count());
+          break;
+    case Diagnostics_area::DA_OK:
+      error= m_protocol->send_ok(
+              server_status, da->last_statement_cond_count(),
+              da->affected_rows(), da->last_insert_id(), da->message_text());
+          break;
+    case Diagnostics_area::DA_DISABLED:
+      break;
+    case Diagnostics_area::DA_EMPTY:
+    default:
+      DBUG_ASSERT(0);
+          error= m_protocol->send_ok(server_status, 0, 0, 0, NULL);
+          break;
+  }
+  if (!error)
+    da->set_is_sent(true);
+  DBUG_VOID_RETURN;
 }

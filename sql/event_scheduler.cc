@@ -156,8 +156,7 @@ deinit_event_thread(THD *thd)
 {
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd->proc_info= "Clearing";
-  DBUG_ASSERT(thd->net.buff != 0);
-  net_end(&thd->net);
+  thd->get_protocol_classic()->end_net();
   DBUG_PRINT("exit", ("Event thread finishing"));
 
   thd->release_resources();
@@ -185,17 +184,16 @@ void
 pre_init_event_thread(THD* thd)
 {
   DBUG_ENTER("pre_init_event_thread");
-  thd->client_capabilities= 0;
   thd->security_context()->set_master_access(0);
   thd->security_context()->set_db_access(0);
   thd->security_context()->set_host_or_ip_ptr((char *) my_localhost,
                                               strlen(my_localhost));
-  my_net_init(&thd->net, NULL);
+  thd->get_protocol_classic()->init_net(NULL);
   thd->security_context()->set_user_ptr(C_STRING_WITH_LEN("event_scheduler"));
-  thd->net.read_timeout= slave_net_timeout;
+  thd->get_protocol_classic()->get_net()->read_timeout= slave_net_timeout;
   thd->slave_thread= 0;
   thd->variables.option_bits|= OPTION_AUTO_IS_NULL;
-  thd->client_capabilities|= CLIENT_MULTI_RESULTS;
+  thd->get_protocol_classic()->set_client_capabilities(CLIENT_MULTI_RESULTS);
 
   thd->set_new_thread_id();
   /*
@@ -244,7 +242,7 @@ extern "C" void *event_scheduler_thread(void *arg)
   else
   {
     thd->proc_info= "Clearing";
-    net_end(&thd->net);
+    thd->get_protocol_classic()->end_net();
     delete thd;
   }
 
@@ -464,8 +462,7 @@ Event_scheduler::start(int *err_no)
                     *err_no);
 
     new_thd->proc_info= "Clearing";
-    DBUG_ASSERT(new_thd->net.buff != 0);
-    net_end(&new_thd->net);
+    new_thd->get_protocol_classic()->end_net();
 
     state= INITIALIZED;
     scheduler_thd= NULL;
@@ -596,8 +593,7 @@ Event_scheduler::execute_top(Event_queue_element_for_exec *event_name)
                     " thread (errno=%d). Stopping event scheduler", res);
 
     new_thd->proc_info= "Clearing";
-    DBUG_ASSERT(new_thd->net.buff != 0);
-    net_end(&new_thd->net);
+    new_thd->get_protocol_classic()->end_net();
 
     goto error;
   }

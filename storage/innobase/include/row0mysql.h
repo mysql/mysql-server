@@ -436,8 +436,6 @@ row_table_add_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	bool			is_temp_table,
-	dict_table_t*		handler,
 	ibool			reject_fks)
 	__attribute__((warn_unused_result));
 
