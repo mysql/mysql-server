@@ -2994,7 +2994,7 @@ int Item_func_spatial_rel::func_touches()
     goto mem_error;
 
 #ifndef DBUG_OFF
-  func.debug_print_function_buffer();
+  func.debug_print_function_buffer(current_thd);
 #endif
 
   collector.prepare_operation();

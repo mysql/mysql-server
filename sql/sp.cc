@@ -427,7 +427,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
     goto err;
   }
 
-  if (!proc_table_intact.check(table.table, &proc_table_def))
+  if (!proc_table_intact.check(thd, table.table, &proc_table_def))
     DBUG_RETURN(table.table);
 
 err:
@@ -462,7 +462,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
   if (!(table= open_system_table_for_update(thd, &table_list)))
     DBUG_RETURN(NULL);
 
-  if (!proc_table_intact.check(table, &proc_table_def))
+  if (!proc_table_intact.check(thd, table, &proc_table_def))
     DBUG_RETURN(table);
 
   close_thread_tables(thd);

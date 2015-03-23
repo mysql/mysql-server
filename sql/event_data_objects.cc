@@ -15,7 +15,6 @@
 
 #include "event_data_objects.h"
 
-#include "current_thd.h"
 #include "psi_memory_key.h"
 #include "sql_parse.h"                          // parse_sql
 #include "strfunc.h"                           // find_string_in_array
@@ -927,7 +926,7 @@ done:
 */
 
 bool
-Event_queue_element::compute_next_execution_time()
+Event_queue_element::compute_next_execution_time(THD *thd)
 {
   my_time_t time_now;
   DBUG_ENTER("Event_queue_element::compute_next_execution_time");
@@ -957,7 +956,7 @@ Event_queue_element::compute_next_execution_time()
     goto ret;
   }
 
-  time_now= (my_time_t) current_thd->query_start();
+  time_now= (my_time_t) thd->query_start();
 
   DBUG_PRINT("info",("NOW: [%lu]", (ulong) time_now));
 

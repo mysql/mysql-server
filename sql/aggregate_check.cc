@@ -116,7 +116,7 @@ bool Distinct_check::check_query(THD *thd)
       differ due to white space....).
       Subqueries in ORDER BY are non-standard anyway.
     */
-    Item** const res= find_item_in_list(*order->item, select->item_list,
+    Item** const res= find_item_in_list(thd, *order->item, select->item_list,
                                         &counter, REPORT_EXCEPT_NOT_FOUND,
                                         &resolution);
     if (res == NULL)    // Other error than "not found", my_error() was called
@@ -238,7 +238,7 @@ bool Group_check::check_expression(THD *thd, Item *expr,
     uint counter;
     enum_resolution_type resolution;
     // Search if this expression is equal to one in the SELECT list.
-    Item** const res= find_item_in_list(expr,
+    Item** const res= find_item_in_list(thd, expr,
                                         select->item_list,
                                         &counter, REPORT_EXCEPT_NOT_FOUND,
                                         &resolution);

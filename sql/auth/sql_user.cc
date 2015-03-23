@@ -1077,7 +1077,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     < 0         Error.
 */
 
-static int handle_grant_data(TABLE_LIST *tables, bool drop,
+static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
                              LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;
@@ -1086,7 +1086,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   DBUG_ENTER("handle_grant_data");
 
   /* Handle user table. */
-  if ((found= handle_grant_table(tables, 0, drop, user_from, user_to)) < 0)
+  if ((found= handle_grant_table(thd, tables, 0, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch the in-memory array. */
     result= -1;
@@ -1110,7 +1110,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle db table. */
-  if ((found= handle_grant_table(tables, 1, drop, user_from, user_to)) < 0)
+  if ((found= handle_grant_table(thd, tables, 1, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch the in-memory array. */
     result= -1;
@@ -1134,7 +1134,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle stored routines table. */
-  if ((found= handle_grant_table(tables, 4, drop, user_from, user_to)) < 0)
+  if ((found= handle_grant_table(thd, tables, 4, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch in-memory array. */
     result= -1;
@@ -1174,7 +1174,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle tables table. */
-  if ((found= handle_grant_table(tables, 2, drop, user_from, user_to)) < 0)
+  if ((found= handle_grant_table(thd, tables, 2, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch columns and in-memory array. */
     result= -1;
@@ -1190,7 +1190,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     }
 
     /* Handle columns table. */
-    if ((found= handle_grant_table(tables, 3, drop, user_from, user_to)) < 0)
+    if ((found= handle_grant_table(thd, tables, 3, drop, user_from, user_to)) < 0)
     {
       /* Handle of table failed, don't touch the in-memory array. */
       result= -1;
@@ -1210,7 +1210,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   /* Handle proxies_priv table. */
   if (tables[5].table)
   {
-    if ((found= handle_grant_table(tables, 5, drop, user_from, user_to)) < 0)
+    if ((found= handle_grant_table(thd, tables, 5, drop, user_from, user_to)) < 0)
     {
       /* Handle of table failed, don't touch the in-memory array. */
       result= -1;
@@ -1309,7 +1309,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       Search all in-memory structures and grant tables
       for a mention of the new user name.
     */
-    if (handle_grant_data(tables, 0, user_name, NULL))
+    if (handle_grant_data(thd, tables, 0, user_name, NULL))
     {
       append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
                   false);
@@ -1425,7 +1425,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
       result= TRUE;
       continue;
     }  
-    if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
+    if (handle_grant_data(thd, tables, 1, user_name, NULL) <= 0)
     {
       append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, FALSE);
       result= TRUE;
@@ -1528,8 +1528,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       Search all in-memory structures and grant tables
       for a mention of the new user name.
     */
-    if (handle_grant_data(tables, 0, user_to, NULL) ||
-        handle_grant_data(tables, 0, user_from, user_to) <= 0)
+    if (handle_grant_data(thd, tables, 0, user_to, NULL) ||
+        handle_grant_data(thd, tables, 0, user_from, user_to) <= 0)
     {
       append_user(thd, &wrong_users, user_from, wrong_users.length() > 0, FALSE);
       result= TRUE;

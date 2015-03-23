@@ -2938,7 +2938,7 @@ Reprepare_observer::report_error(THD *thd)
     Test with rpl_sp_effects and friends.
   */
   thd->get_stmt_da()->reset_diagnostics_area();
-  thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
+  thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE);
   m_invalidated= TRUE;
 
   return TRUE;

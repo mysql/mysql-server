@@ -122,7 +122,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                           const char *db, const char *routine_name,
                           bool is_proc, ulong rights, bool revoke_grant);
 int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
-int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
+int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to);
 
 /* sql_authorization */

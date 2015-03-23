@@ -18,7 +18,6 @@
 
 #include "sql_show.h"
 
-#include "current_thd.h"
 #include "mutex_lock.h"                     // Mutex_lock
 #include "my_dir.h"                         // MY_DIR
 #include "keycache.h"                       // dflt_key_cache
@@ -800,13 +799,13 @@ private:
      failed is not available at this point. The only way for us to check is by
      reconstructing the actual error message and see if it's the same.
   */
-  const char* get_view_access_denied_message()
+  const char* get_view_access_denied_message(THD *thd)
   {
     if (!m_view_access_denied_message_ptr)
     {
       m_view_access_denied_message_ptr= m_view_access_denied_message;
       my_snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
-                  ER_THD(current_thd, ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
+                  ER_THD(thd, ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
                   m_sctx->priv_user().str,
                   m_sctx->host_or_ip().str, m_top_view->get_table_name());
     }
@@ -834,7 +833,7 @@ public:
     switch (sql_errno)
     {
     case ER_TABLEACCESS_DENIED_ERROR:
-      if (!strcmp(get_view_access_denied_message(), msg))
+      if (!strcmp(get_view_access_denied_message(thd), msg))
       {
         /* Access to top view is not granted, don't interfere. */
         is_handled= false;

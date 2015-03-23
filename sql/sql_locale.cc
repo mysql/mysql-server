@@ -24,7 +24,6 @@
 #include "sql_class.h"                          // THD
 #include "my_sys.h"                             // MY_*, NullS, NULL
 #include "log.h"
-#include "current_thd.h"
 
 
 enum err_msgs_index
@@ -3471,7 +3470,7 @@ my_locale_by_name(MY_LOCALE** locales, const char *name)
 }
 
 
-MY_LOCALE *my_locale_by_name(const char *name)
+MY_LOCALE *my_locale_by_name(THD *thd, const char *name)
 {
   MY_LOCALE *locale;
   
@@ -3483,7 +3482,6 @@ MY_LOCALE *my_locale_by_name(const char *name)
   }
   else if ((locale= my_locale_by_name(my_locales_deprecated, name)))
   {
-    THD *thd= current_thd;
     /*
       Replace the deprecated locale to the corresponding
       'fresh' locale with the same ID.

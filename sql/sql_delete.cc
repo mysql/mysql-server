@@ -423,7 +423,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     else
       will_batch= !table->file->start_bulk_delete();
 
-    table->mark_columns_needed_for_delete();
+    table->mark_columns_needed_for_delete(thd);
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !using_limit &&
@@ -879,7 +879,7 @@ bool Query_result_delete::initialize_tables(JOIN *join)
     if (thd->lex->is_ignore())
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     table->prepare_for_position();
-    table->mark_columns_needed_for_delete();
+    table->mark_columns_needed_for_delete(thd);
   }
   /*
     In some cases, rows may be deleted from the first table(s) in the join order

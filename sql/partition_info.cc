@@ -1887,12 +1887,13 @@ end:
 
   SYNOPSIS
     print_no_partition_found()
+    thd                          Thread handle
     table                        Table object
 
   RETURN VALUES
 */
 
-void partition_info::print_no_partition_found(TABLE *table_arg)
+void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg)
 {
   char buf[100];
   char *buf_ptr= (char*)&buf;
@@ -1902,11 +1903,11 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
   table_list.db= table_arg->s->db.str;
   table_list.table_name= table_arg->s->table_name.str;
 
-  if (check_single_table_access(current_thd,
+  if (check_single_table_access(thd,
                                 SELECT_ACL, &table_list, TRUE))
   {
     my_message(ER_NO_PARTITION_FOR_GIVEN_VALUE,
-               ER_THD(current_thd, ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT),
+               ER_THD(thd, ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT),
                MYF(0));
   }
   else

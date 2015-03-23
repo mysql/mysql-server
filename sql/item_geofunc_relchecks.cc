@@ -21,6 +21,7 @@
   This file defines implementations of GIS relation check functions.
 */
 #include "my_config.h"
+#include "current_thd.h"
 #include "item_geofunc_internal.h"
 #include "item_geofunc_relchecks_bgwrap.h"
 
@@ -278,7 +279,7 @@ longlong Item_func_spatial_rel::val_int()
     goto exit;
 
 #ifndef DBUG_OFF
-  func.debug_print_function_buffer();
+  func.debug_print_function_buffer(current_thd);
 #endif
 
   collector.prepare_operation();

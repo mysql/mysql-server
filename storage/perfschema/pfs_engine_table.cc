@@ -405,7 +405,7 @@ void PFS_engine_table_share::check_one_table(THD *thd)
   {
     PFS_check_intact checker;
 
-    if (!checker.check(tables.table, m_field_def))
+    if (!checker.check(thd, tables.table, m_field_def))
       m_checked= true;
     close_thread_tables(thd);
   }

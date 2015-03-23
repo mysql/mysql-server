@@ -308,7 +308,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     thd->thread_specific_used= TRUE;
   }
   else
-    rm_temporary_table(table_type, share->path.str);
+    rm_temporary_table(thd, table_type, share->path.str);
 
   free_table_share(share);
   my_free(table);

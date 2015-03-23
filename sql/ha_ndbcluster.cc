@@ -12524,7 +12524,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error: %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
-    m_part_info->print_no_partition_found(table);
+    m_part_info->print_no_partition_found(current_thd, table);
   else
   {
     if (error == HA_ERR_FOUND_DUPP_KEY &&

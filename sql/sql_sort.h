@@ -525,12 +525,12 @@ public:
 
 typedef Bounds_checked_array<uchar> Sort_buffer;
 
-int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
+int merge_many_buff(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
 		    Merge_chunk_array chunk_array,
 		    size_t *num_chunks, IO_CACHE *t_file);
 uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                     Sort_param *param);
-int merge_buffers(Sort_param *param,IO_CACHE *from_file,
+int merge_buffers(THD *thd, Sort_param *param,IO_CACHE *from_file,
                   IO_CACHE *to_file, Sort_buffer sort_buffer,
                   Merge_chunk *lastbuff,
                   Merge_chunk_array chunk_array,

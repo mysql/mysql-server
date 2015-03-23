@@ -327,9 +327,10 @@ public:
     report fatal errors (such as out-of-memory errors) when no further
     processing is possible.
 
+    @param thd              Thread handle
     @param mysql_errno      SQL-condition error number
   */
-  void set_error_status(uint mysql_errno);
+  void set_error_status(THD *thd, uint mysql_errno);
 
   /**
     Set ERROR status in the Diagnostics Area.

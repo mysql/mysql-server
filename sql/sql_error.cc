@@ -43,7 +43,6 @@ This file contains the implementation of error and warnings related
 
 #include "sql_error.h"
 
-#include "current_thd.h"
 #include "derror.h"       // ER_THD
 #include "log.h"          // sql_print_warning
 #include "sql_class.h"    // THD
@@ -427,10 +426,10 @@ void Diagnostics_area::set_eof_status(THD *thd)
 }
 
 
-void Diagnostics_area::set_error_status(uint mysql_errno)
+void Diagnostics_area::set_error_status(THD *thd, uint mysql_errno)
 {
   set_error_status(mysql_errno,
-                   ER_THD(current_thd, mysql_errno),
+                   ER_THD(thd, mysql_errno),
                    mysql_errno_to_sqlstate(mysql_errno));
 }
 

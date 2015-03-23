@@ -445,9 +445,8 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 /**
   a helper function to report an access denied error in all the proper places
 */
-static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
+static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
 {
-  THD *thd= current_thd;
   if (passwd_used == 2)
   {
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
@@ -761,7 +760,7 @@ ACL_USER *decoy_user(const LEX_STRING &username,
    @retval 0    found
    @retval 1    not found
 */
-static bool find_mpvio_user(MPVIO_EXT *mpvio)
+static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
 {
   DBUG_ENTER("find_mpvio_user");
   DBUG_PRINT("info", ("entry: %s", mpvio->auth_info.user_name));
@@ -812,7 +811,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
     DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                               native_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    query_logger.general_log_print(current_thd, COM_CONNECT,
+    query_logger.general_log_print(thd, COM_CONNECT,
                                    ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
@@ -994,7 +993,8 @@ bool rsa_auth_status()
 
 
 /* the packet format is described in send_change_user_packet() */
-static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
+static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
+                                         size_t packet_length)
 {
   Protocol_classic *protocol = mpvio->protocol;
   char *user= (char*) protocol->get_net()->read_pos;
@@ -1076,7 +1076,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (find_mpvio_user(mpvio))
+  if (find_mpvio_user(thd, mpvio))
   {
     DBUG_RETURN(1);
   }
@@ -1321,7 +1321,7 @@ char *get_41_lenc_string(char **buffer,
 
 
 /* the packet format is described in send_client_reply_packet() */
-static size_t parse_client_handshake_packet(MPVIO_EXT *mpvio,
+static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
                                             uchar **buff, size_t pkt_len)
 {
 #ifndef EMBEDDED_LIBRARY
@@ -1611,7 +1611,7 @@ skip_to_ssl:
     return packet_error;
   }
 
-  if (find_mpvio_user(mpvio))
+  if (find_mpvio_user(thd, mpvio))
     return packet_error;
 
   if (!(protocol->has_client_capability(CLIENT_PLUGIN_AUTH)))
@@ -1826,7 +1826,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
   */
   if (mpvio->packets_read == 1)
   {
-    pkt_len= parse_client_handshake_packet(mpvio, buf, pkt_len);
+    pkt_len= parse_client_handshake_packet(current_thd, mpvio, buf, pkt_len);
     if (pkt_len == packet_error)
       goto err;
   }
@@ -2100,11 +2100,11 @@ acl_authenticate(THD *thd, enum_server_command command)
     /* Clear variables that are allocated */
     thd->set_user_connect(NULL);
 
-    if (parse_com_change_user_packet(&mpvio,
+    if (parse_com_change_user_packet(thd, &mpvio,
                                      mpvio.protocol->get_packet_length()))
     {
       if (!thd->is_error())
-        login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
       DBUG_RETURN(1);
     }
@@ -2210,7 +2210,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
     }
     if (!thd->is_error())
-      login_failed_error(&mpvio, mpvio.auth_info.password_used);
+      login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
     DBUG_RETURN (1);
   }
 
@@ -2249,7 +2249,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         errors.m_proxy_user= 1;
         inc_host_errors(mpvio.ip, &errors);
         if (!thd->is_error())
-          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
         DBUG_RETURN(1);
       }
 
@@ -2269,7 +2269,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         errors.m_proxy_user_acl= 1;
         inc_host_errors(mpvio.ip, &errors);
         if (!thd->is_error())
-          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
         mysql_mutex_unlock(&acl_cache->lock);
         DBUG_RETURN(1);
       }
@@ -2312,7 +2312,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       errors.m_ssl= 1;
       inc_host_errors(mpvio.ip, &errors);
       if (!thd->is_error())
-        login_failed_error(&mpvio, thd->password);
+        login_failed_error(thd, &mpvio, thd->password);
       DBUG_RETURN(1);
     }
 

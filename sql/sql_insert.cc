@@ -295,7 +295,7 @@ bool validate_default_values_of_unset_fields(THD *thd, TABLE *table)
     cannot be done if there are BEFORE UPDATE/DELETE triggers.
 */
 
-void prepare_triggers_for_insert_stmt(TABLE *table)
+void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table)
 {
   if (table->triggers)
   {
@@ -320,7 +320,7 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
       (void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
     }
   }
-  table->mark_columns_needed_for_insert();
+  table->mark_columns_needed_for_insert(thd);
 }
 
 /**
@@ -600,7 +600,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     insert_table->file->ha_start_bulk_insert(insert_many_values.elements);
 
-  prepare_triggers_for_insert_stmt(insert_table);
+  prepare_triggers_for_insert_stmt(thd, insert_table);
 
   for (Field** next_field= insert_table->field; *next_field; ++next_field)
   {
@@ -2050,7 +2050,7 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (!res)
   {
-     prepare_triggers_for_insert_stmt(table);
+    prepare_triggers_for_insert_stmt(thd, table);
   }
 
   for (Field** next_field= table->field; *next_field; ++next_field)
@@ -2805,7 +2805,7 @@ int Query_result_create::prepare2()
 
   thd->count_cuted_fields= save_count_cuted_fields;
 
-  table->mark_columns_needed_for_insert();
+  table->mark_columns_needed_for_insert(thd);
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(0);
 }

@@ -5127,7 +5127,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     Search for a column or derived column named as 'ref' in the SELECT
     clause of the current select.
   */
-  if (!(select_ref= find_item_in_list(ref, *(select->get_item_list()),
+  if (!(select_ref= find_item_in_list(thd, ref, *(select->get_item_list()),
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &resolution)))
     return NULL; /* Some error occurred. */
@@ -5564,7 +5564,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       {
         uint counter;
         enum_resolution_type resolution;
-        Item** res= find_item_in_list(this, thd->lex->current_select()->item_list,
+        Item** res= find_item_in_list(thd, this,
+                                      thd->lex->current_select()->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &resolution);
         if (!res)
@@ -9988,7 +9989,7 @@ bool Item_ident::aggregate_check_distinct(uchar *arg)
   uint counter;
   enum_resolution_type resolution;
   Item **const res=
-    find_item_in_list(this,
+    find_item_in_list(current_thd, this,
                       sl->item_list,
                       &counter, REPORT_EXCEPT_NOT_FOUND,
                       &resolution);

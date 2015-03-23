@@ -462,7 +462,7 @@ bool mysql_update(THD *thd,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
-  table->mark_columns_needed_for_update();
+  table->mark_columns_needed_for_update(thd);
   if (table->vfield &&
       validate_gc_assignment(thd, &fields, &values, table))
     DBUG_RETURN(0);
@@ -2031,12 +2031,12 @@ bool Query_result_update::initialize_tables(JOIN *join)
       }
       if (safe_update_on_fly(thd, join->best_ref[0], table_ref, all_tables))
       {
-        table->mark_columns_needed_for_update();
+        table->mark_columns_needed_for_update(thd);
 	table_to_update= table;			// Update table on the fly
 	continue;
       }
     }
-    table->mark_columns_needed_for_update();
+    table->mark_columns_needed_for_update(thd);
 
     if (table->vfield &&
         validate_gc_assignment(thd, fields, values, table))
