@@ -817,15 +817,15 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
       (!(thd->variables.option_bits & OPTION_WARNINGS) || !thd->cuted_fields))
   {
     my_ok(thd, info.stats.copied + info.stats.deleted +
-               ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
-                info.stats.touched : info.stats.updated),
+          (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
+           info.stats.touched : info.stats.updated),
           id);
   }
   else
   {
     char buff[160];
-    ha_rows updated=((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
-                     info.stats.touched : info.stats.updated);
+    ha_rows updated= (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
+                      info.stats.touched : info.stats.updated);
     if (thd->lex->is_ignore())
       my_snprintf(buff, sizeof(buff),
                   ER(ER_INSERT_INFO), (long) info.stats.records,
@@ -2346,7 +2346,7 @@ bool Query_result_insert::send_eof()
                 (long) (info.stats.deleted+info.stats.updated),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   row_count= info.stats.copied + info.stats.deleted +
-             ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
+             (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
               info.stats.touched : info.stats.updated);
   id= (thd->first_successful_insert_id_in_cur_stmt > 0) ?
     thd->first_successful_insert_id_in_cur_stmt :

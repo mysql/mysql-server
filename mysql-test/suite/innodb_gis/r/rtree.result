@@ -93,30 +93,36 @@ SELECT name, ST_AsText(square) from t1 where MBRWithin(@p, square);
 name	ST_AsText(square)
 big	POLYGON((0 0,0 3,3 3,3 0,0 0))
 SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
 MBRoverlaps
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @horiz1) GROUP BY a1.name;
 MBRoverlaps
 SELECT MBROverlaps(@horiz1, @vert1) FROM DUAL;
 MBROverlaps(@horiz1, @vert1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @horiz2) FROM DUAL;
 MBROverlaps(@horiz1, @horiz2)
-1
+NULL
 SELECT MBROverlaps(@horiz1, @horiz3) FROM DUAL;
 MBROverlaps(@horiz1, @horiz3)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point1) FROM DUAL;
 MBROverlaps(@horiz1, @point1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point2) FROM DUAL;
 MBROverlaps(@horiz1, @point2)
-0
+NULL
 DROP TABLE t1;
 create table t1 (i int not null, g geometry not null)engine=innodb;
 insert into t1 values (1, POINT(1,1));

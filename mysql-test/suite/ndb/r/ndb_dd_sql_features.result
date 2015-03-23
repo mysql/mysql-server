@@ -31,7 +31,7 @@ t1	CREATE TABLE `t1` (
   `a2` varchar(256) DEFAULT NULL,
   `a3` blob,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -39,7 +39,7 @@ t2	CREATE TABLE `t2` (
   `a2` varchar(256) DEFAULT NULL,
   `a3` blob,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts2 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts2` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 INSERT INTO test.t1 VALUES (1,'111111','aaaaaaaa');
 INSERT INTO test.t1 VALUES (2,'222222','bbbbbbbb');
 SELECT * FROM test.t1 ORDER BY a1;
@@ -94,7 +94,7 @@ t1	CREATE TABLE `t1` (
   `a2` varchar(5000) DEFAULT NULL,
   `a3` blob,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -102,7 +102,7 @@ t2	CREATE TABLE `t2` (
   `a2` varchar(5000) DEFAULT NULL,
   `a3` blob,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts2 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts2` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 INSERT INTO test.t1 VALUES (1,@vc1,@d1);
 INSERT INTO test.t1 VALUES (2,@vc2,@b1);
 INSERT INTO test.t1 VALUES (3,@vc3,@d2);

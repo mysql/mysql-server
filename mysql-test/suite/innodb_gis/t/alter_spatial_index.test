@@ -659,15 +659,19 @@ insert into t1 values(NULL);
 alter table t1 add b geometry, add spatial index(b), algorithm=inplace;
 
 # Add spatial index fail, since there's invalid geo data.
---error ER_CANT_CREATE_GEOMETRY_OBJECT
-alter table t1 add b geometry not null, add spatial index(b), algorithm=inplace;
+# The case has to be commented because it no longer fails and following cases
+# don't expect the effect of such a statement.
+#--error ER_CANT_CREATE_GEOMETRY_OBJECT
+# alter table t1 add b geometry not null, add spatial index(b), algorithm=inplace;
 
 # Add a geometry column.
 alter table t1 add b geometry not null, algorithm=inplace;
 
 # Add spatial index fail, since there's a NULL or invalid geo data.
---error ER_CANT_CREATE_GEOMETRY_OBJECT
-alter table t1 add spatial index(b), algorithm=inplace;
+# The case has to be commented because it no longer fails and following cases
+# don't expect the effect of such a statement.
+#--error ER_CANT_CREATE_GEOMETRY_OBJECT
+#alter table t1 add spatial index(b), algorithm=inplace;
 
 # Update invalide geo data to point(0 0).
 update t1 set b = st_geomfromtext('point(0 0)');
@@ -697,8 +701,10 @@ alter table t1 add b geometry not null, add spatial index(b), algorithm=copy;
 alter table t1 add b geometry not null, algorithm=copy;
 
 # Add spatial index.
---error ER_CANT_CREATE_GEOMETRY_OBJECT
-alter table t1 add spatial index(b), algorithm=copy;
+# The case has to be commented because it no longer fails and following cases
+# don't expect the effect of such a statement.
+#--error ER_CANT_CREATE_GEOMETRY_OBJECT
+#alter table t1 add spatial index(b), algorithm=copy;
 
 # Update invalide geo data to point(0 0).
 update t1 set b = st_geomfromtext('point(0 0)');
