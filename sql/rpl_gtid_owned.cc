@@ -149,3 +149,21 @@ bool Owned_gtids::is_intersection_nonempty(const Gtid_set *other) const
   }
   DBUG_RETURN(false);
 }
+
+void Owned_gtids::get_gtids(Gtid_set &gtid_set) const
+{
+  DBUG_ENTER("Owned_gtids::get_gtids");
+
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
+
+  Gtid_iterator git(this);
+  Gtid g= git.get();
+  while (g.sidno != 0)
+  {
+    gtid_set._add_gtid(g);
+    git.next();
+    g= git.get();
+  }
+  DBUG_VOID_RETURN;
+}
