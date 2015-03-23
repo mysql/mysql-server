@@ -397,7 +397,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   if (read_file_from_client)
   {
-    (void)net_request_file(&thd->net,ex->file_name);
+    (void)net_request_file(thd->get_protocol_classic()->get_net(),
+                           ex->file_name);
     file = -1;
   }
   else

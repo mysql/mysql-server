@@ -3962,19 +3962,6 @@ ha_innobase::prepare_inplace_alter_table(
 	ut_ad(1 == in_system_space + is_file_per_table + in_general_space);
 #endif /* UNIV_DEBUG */
 
-	/* Determine the target tablespace type */
-	bool	needs_shared_space = target_is_shared_space(
-		ha_alter_info->create_info);
-	bool	needs_file_per_table =
-		/* Already file_per_table and staying that way */
-		(!needs_shared_space && is_file_per_table)
-		/* Explicitly set to file_per_table */
-		|| target_is_file_per_table(ha_alter_info->create_info)
-		/* Moving from the system tablespace to file-per-table */
-		|| (!needs_shared_space
-		    && in_system_space
-		    && srv_file_per_table);
-
 	create_table_info_t	info(m_user_thd,
 				     altered_table,
 				     ha_alter_info->create_info,
@@ -3982,7 +3969,9 @@ ha_innobase::prepare_inplace_alter_table(
 				     NULL,
 				     NULL,
 				     NULL,
-				     needs_file_per_table);
+				     is_file_per_table);
+
+	info.set_tablespace_type();
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {

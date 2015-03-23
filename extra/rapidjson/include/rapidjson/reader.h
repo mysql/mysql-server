@@ -84,7 +84,7 @@ struct BaseReaderHandler {
 	void Uint(unsigned) { Default(); }
 	void Int64(int64_t) { Default(); }
 	void Uint64(uint64_t) { Default(); }
-	void Double(double) { Default(); }
+	void Double(double, bool is_int = false) { Default(); }
 	void String(const Ch*, SizeType, bool) { Default(); }
 	void StartObject() { Default(); }
 	void EndObject(SizeType) { Default(); }
@@ -646,8 +646,12 @@ private:
 					handler.Uint64(i64);
 			}
 			else {
-				if (minus)
-					handler.Int(-(int)i);
+				if (minus) {
+					if (i == 0)
+						handler.Double(-(double)i, true);
+					else
+						handler.Int(-(int)i);
+				}
 				else
 					handler.Uint(i);
 			}

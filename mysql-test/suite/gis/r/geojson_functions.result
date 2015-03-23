@@ -2229,7 +2229,7 @@ SELECT ST_GEOMFROMGEOJSON(
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'type'
 SELECT ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, \"20\"] } ");
-ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Member 'array coordiante' must be of type 'number'
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Member 'array coordinate' must be of type 'number'
 SELECT ST_GEOMFROMGEOJSON("", -9223372036854775808);
 ERROR HY000: Incorrect option value: '-9223372036854775808' for function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("", 9223372036854775807);

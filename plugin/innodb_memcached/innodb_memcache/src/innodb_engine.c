@@ -2027,7 +2027,6 @@ innodb_flush_sync_conn(
 
 	curr_conn_data = engine->server.cookie->get_engine_specific(cookie);
 	assert(curr_conn_data);
-	assert(!engine->enable_binlog || curr_conn_data->thd);
 
 	conn_data = UT_LIST_GET_FIRST(engine->conn_data);
 

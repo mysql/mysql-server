@@ -3246,8 +3246,6 @@ fields than mentioned in the constraint.
 				database id the database of parameter name
 @param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in[	is_temp_table	true if table is temporary
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
@@ -3258,30 +3256,26 @@ row_table_add_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	bool			is_temp_table,
-	dict_table_t*		handler,
 	ibool			reject_fks)
 {
 	dberr_t	err;
 
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
-	ut_ad(mutex_own(&dict_sys->mutex) || handler);
+	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X) || handler);
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 
 	trx->op_info = "adding foreign keys";
 
-	if (!is_temp_table) {
-		trx_start_if_not_started_xa(trx, true);
-	}
+	trx_start_if_not_started_xa(trx, true);
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	err = dict_create_foreign_constraints(
-		trx, sql_string, sql_length, name, handler, reject_fks);
+		trx, sql_string, sql_length, name, reject_fks);
 
 	DBUG_EXECUTE_IF("ib_table_add_foreign_fail",
 			err = DB_DUPLICATE_KEY;);
@@ -3291,7 +3285,7 @@ row_table_add_foreign_constraints(
 	/* Check like this shouldn't be done for table that doesn't
 	have foreign keys but code still continues to run with void action.
 	Disable it for intrinsic table at-least */
-	if (err == DB_SUCCESS && handler == NULL) {
+	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
 		dict_names_t	fk_tables;
 		err = dict_load_foreigns(name, NULL, false, true,
@@ -3314,7 +3308,7 @@ row_table_add_foreign_constraints(
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
-		row_drop_table_for_mysql(name, trx, FALSE, true, handler);
+		row_drop_table_for_mysql(name, trx, FALSE, true);
 
 		if (trx_is_started(trx)) {
 

@@ -241,6 +241,7 @@ SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_cente
 
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
 
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
@@ -256,6 +257,7 @@ SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_v
 
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
 
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
@@ -421,6 +423,7 @@ SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYG
 
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
+--error ER_GIS_INVALID_DATA
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
@@ -428,10 +431,12 @@ SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYG
 --echo #====================================================================================
 --echo # linestring,multipolygon
 --echo #====================================================================================
+--error ER_GIS_INVALID_DATA
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
 
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 
+--error ER_GIS_INVALID_DATA
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================
@@ -776,6 +781,7 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_cente
 
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
 
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
@@ -791,6 +797,7 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_v
 
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
 
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
@@ -954,6 +961,7 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYG
 
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
@@ -961,10 +969,12 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYG
 --echo #====================================================================================
 --echo # linestring,multipolygon
 --echo #====================================================================================
+--error ER_GIS_INVALID_DATA
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
 
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================

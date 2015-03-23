@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -462,14 +462,14 @@ bool PROFILING::show_profiles()
                                            MYSQL_TYPE_DOUBLE));
   field_list.push_back(new Item_empty_string("Query", 40));
 
-  if (thd->protocol->send_result_set_metadata(&field_list,
-                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
   SELECT_LEX *sel= thd->lex->select_lex;
   SELECT_LEX_UNIT *unit= thd->lex->unit;
   ha_rows idx= 0;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
 
   unit->set_limit(sel);
 
@@ -489,7 +489,7 @@ bool PROFILING::show_profiles()
     if (idx > unit->select_limit_cnt)
       break;
 
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store((uint32)(prof->profiling_query_id));
     protocol->store((double)(query_time_usecs/(1000.0*1000)),
                     (uint32) TIME_FLOAT_DIGITS-1, &elapsed);
@@ -499,7 +499,7 @@ bool PROFILING::show_profiles()
     else
       protocol->store_null();
 
-    if (protocol->write())
+    if (protocol->end_row())
       DBUG_RETURN(TRUE);
   }
   my_eof(thd);

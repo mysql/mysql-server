@@ -938,7 +938,6 @@ Query_result_delete::~Query_result_delete()
     TABLE *table= tbl_ref->correspondent_table->updatable_base_table()->table;
     if (thd->lex->is_ignore())
       table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-    table->no_keyread=0;
   }
 
   for (uint counter= 0; counter < num_of_tables; counter++)

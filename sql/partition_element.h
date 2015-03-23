@@ -1,7 +1,7 @@
 #ifndef PARTITION_ELEMENT_INCLUDED
 #define PARTITION_ELEMENT_INCLUDED
 
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,12 +96,12 @@ public:
   ha_rows part_max_rows;
   ha_rows part_min_rows;
   longlong range_value;
-  char *partition_name;
-  char *tablespace_name;
+  const char *partition_name;
+  const char *tablespace_name;
   struct st_ddl_log_memory_entry *log_entry;
   char* part_comment;
-  char* data_file_name;
-  char* index_file_name;
+  const char* data_file_name;
+  const char* index_file_name;
   handlerton *engine_type;
   enum partition_state part_state;
   uint16 nodegroup_id;
@@ -132,6 +132,22 @@ public:
     nodegroup_id(part_elem->nodegroup_id),
     has_null_value(FALSE)
   {
+  }
+  inline void set_from_info(const HA_CREATE_INFO* info)
+  {
+    data_file_name= info->data_file_name;
+    index_file_name= info->index_file_name;
+    tablespace_name= info->tablespace;
+    part_max_rows= info->max_rows;
+    part_min_rows= info->min_rows;
+  }
+  inline void put_to_info(HA_CREATE_INFO* info) const
+  {
+    info->data_file_name= data_file_name;
+    info->index_file_name= index_file_name;
+    info->tablespace= tablespace_name;
+    info->max_rows= part_max_rows;
+    info->min_rows= part_min_rows;
   }
   ~partition_element() {}
 };

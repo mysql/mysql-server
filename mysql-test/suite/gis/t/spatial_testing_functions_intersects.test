@@ -467,11 +467,13 @@ SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@sta
 
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal_3));
 
+--error ER_GIS_INVALID_DATA
 SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================
 --echo # linestring,multipolygon
 --echo #====================================================================================
+--error ER_GIS_INVALID_DATA
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
 
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
@@ -480,6 +482,7 @@ SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@sta
 
 SELECT MBRINTERSECTS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3));
 
+--error ER_GIS_INVALID_DATA
 SELECT MBRINTERSECTS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 
 --echo #====================================================================================
