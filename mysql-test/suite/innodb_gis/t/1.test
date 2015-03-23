@@ -619,11 +619,17 @@ SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRwithin       FROM t1 a1 JOIN
 
 # MBROverlaps needs a few more tests, with point and line dimensions
 
+--error ER_GIS_INVALID_DATA
 SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+--error ER_GIS_INVALID_DATA
 SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+--error ER_GIS_INVALID_DATA
 SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+--error ER_GIS_INVALID_DATA
 SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+--error ER_GIS_INVALID_DATA
 SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
+--error ER_GIS_INVALID_DATA
 SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
 
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;

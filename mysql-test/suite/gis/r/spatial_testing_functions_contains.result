@@ -205,8 +205,7 @@ SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycoll
 MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 MBRCONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
@@ -226,8 +225,7 @@ SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geomet
 MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-MBRCONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 MBRCONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
 0
@@ -451,8 +449,7 @@ SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal))
 0
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-MBRCONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
-1
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
 0
@@ -460,14 +457,12 @@ MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 
 # linestring,multipolygon
 #====================================================================================
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-MBRCONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================
@@ -931,8 +926,7 @@ SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycoll
 ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_top_to_center))
 0
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'))
 0
@@ -952,8 +946,7 @@ SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geomet
 ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-ST_CONTAINS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 ST_CONTAINS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'))
 0
@@ -1174,8 +1167,7 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal))
 0
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
-ST_CONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
 0
@@ -1183,14 +1175,12 @@ ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 
 # linestring,multipolygon
 #====================================================================================
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
-ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
-ST_CONTAINS(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 #====================================================================================
 # linestring,geometrycollection
 #====================================================================================

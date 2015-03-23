@@ -144,7 +144,8 @@ public:
       return true;
 
     THD *thd= pc->thd;
-    const char* schema= thd->client_capabilities & CLIENT_NO_SCHEMA ? NULL : db;
+    const char* schema=
+      thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA) ? NULL : db;
     if (pc->select->no_table_names_allowed)
     {
       my_error(ER_TABLENAME_NOT_ALLOWED_HERE,

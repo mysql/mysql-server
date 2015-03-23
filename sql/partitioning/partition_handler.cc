@@ -1080,6 +1080,9 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
   List_iterator<partition_element> part_it(m_part_info->partitions);
   List_iterator <partition_element> t_it(m_part_info->temp_partitions);
   char part_name_buff[FN_REFLEN];
+  const char *table_level_data_file_name= create_info->data_file_name;
+  const char *table_level_index_file_name= create_info->index_file_name;
+  const char *table_level_tablespace_name= create_info->tablespace;
   uint num_parts= m_part_info->partitions.elements;
   uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
@@ -1247,8 +1250,11 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
             '#P#<part_name>[#SP#<subpart_name>] suffix. Remove that suffix
             if it exists.
           */
-          truncate_partition_filename(sub_elem->data_file_name);
-          truncate_partition_filename(sub_elem->index_file_name);
+          truncate_partition_filename(&m_table->mem_root,
+                                      &sub_elem->data_file_name);
+          truncate_partition_filename(&m_table->mem_root,
+                                      &sub_elem->index_file_name);
+          /* Notice that sub_elem is already based on part_elem's defaults. */
           error= set_up_table_before_create(thd,
                                             m_table->s,
                                             part_name_buff,
@@ -1266,6 +1272,10 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
           {
             goto err;
           }
+          /* Reset create_info to table level values. */
+          create_info->data_file_name= table_level_data_file_name;
+          create_info->index_file_name= table_level_index_file_name;
+          create_info->tablespace= table_level_tablespace_name;
         } while (++j < num_subparts);
       }
       else
@@ -1275,8 +1285,10 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
                               true);
         DBUG_PRINT("info", ("Add partition %s", part_name_buff));
         /* See comment in subpartition branch above! */
-        truncate_partition_filename(part_elem->data_file_name);
-        truncate_partition_filename(part_elem->index_file_name);
+        truncate_partition_filename(&m_table->mem_root,
+                                    &part_elem->data_file_name);
+        truncate_partition_filename(&m_table->mem_root,
+                                    &part_elem->index_file_name);
         error= set_up_table_before_create(thd,
                                           m_table->s,
                                           part_name_buff,
@@ -1294,6 +1306,10 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
         {
           goto err;
         }
+        /* Reset create_info to table level values. */
+        create_info->data_file_name= table_level_data_file_name;
+        create_info->index_file_name= table_level_index_file_name;
+        create_info->tablespace= table_level_tablespace_name;
       }
     }
   } while (++i < num_parts);
@@ -1673,7 +1689,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
                                        ...)
 {
   va_list args;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   uint length;
   size_t msg_length;
   char name[NAME_LEN*2+2];
@@ -1707,12 +1723,12 @@ bool Partition_helper::print_admin_msg(THD* thd,
   */
   DBUG_PRINT("info",("print_admin_msg:  %s, %s, %s, %s", name, op_name,
                      msg_type, msgbuf));
-  protocol->prepare_for_resend();
+  protocol->start_row();
   protocol->store(name, length, system_charset_info);
   protocol->store(op_name, system_charset_info);
   protocol->store(msg_type, system_charset_info);
   protocol->store(msgbuf, msg_length, system_charset_info);
-  if (protocol->write())
+  if (protocol->end_row())
   {
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
                     msgbuf);

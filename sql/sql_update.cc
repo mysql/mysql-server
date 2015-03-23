@@ -1066,8 +1066,8 @@ bool mysql_update(THD *thd,
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
                 (ulong) thd->get_stmt_da()->current_statement_cond_count());
-    my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
-          id, buff);
+    my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
+          found : updated, id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -2172,7 +2172,7 @@ Query_result_update::~Query_result_update()
   TABLE_LIST *table;
   for (table= update_tables ; table; table= table->next_local)
   {
-    table->table->no_keyread= table->table->no_cache= 0;
+    table->table->no_cache= 0;
     if (thd->lex->is_ignore())
       table->table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   }
@@ -2729,8 +2729,8 @@ bool Query_result_update::send_eof()
   my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
               (ulong) found, (ulong) updated,
               (ulong) thd->get_stmt_da()->current_statement_cond_count());
-  ::my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
-          id, buff);
+  ::my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
+          found : updated, id, buff);
   DBUG_RETURN(FALSE);
 }
 

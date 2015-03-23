@@ -2544,6 +2544,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
   tmp_field->flags= field->table->is_nullable() ? 
     (field->flags & ~NOT_NULL_FLAG) : field->flags;
   tmp_field->decimals= field->decimals();
+  tmp_field->field= false;
 }
 
 /**********************************************/
@@ -6001,6 +6002,7 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->decimals=decimals;
   if (unsigned_flag)
     tmp_field->flags |= UNSIGNED_FLAG;
+  tmp_field->field= false;
 }
 
 void Item::make_field(Send_field *tmp_field)
@@ -6328,6 +6330,7 @@ void Item_field::make_field(Send_field *tmp_field)
     tmp_field->table_name= table_name;
   if (db_name)
     tmp_field->db_name= db_name;
+  tmp_field->field= true;
 }
 
 

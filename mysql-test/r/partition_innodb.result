@@ -873,7 +873,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE a=3 OR b=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2	index_merge	PRIMARY,i2	PRIMARY,i2	4,4	NULL	2	100.00	Using union(PRIMARY,i2); Using where
+1	SIMPLE	t1	p0,p1,p2	index_merge	PRIMARY,i2	PRIMARY,i2	4,4	NULL	#	100.00	Using union(PRIMARY,i2); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 3) or (`test`.`t1`.`b` = 4))
 SELECT * FROM t1 WHERE a=3 OR b=4;

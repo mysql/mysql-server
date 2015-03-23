@@ -15,9 +15,9 @@ SET @@global.enforce_gtid_consistency = ON;
 select @@global.gtid_mode;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.gtid_mode;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
+--error ER_GLOBAL_VARIABLE
 set gtid_mode = @start_global_value;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
+--error ER_GLOBAL_VARIABLE
 set @@session.gtid_mode = @start_global_value;
 show global variables like 'gtid_mode';
 show session variables like 'gtid_mode';

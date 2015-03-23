@@ -7145,12 +7145,12 @@ static bool stat_print(THD *thd, const char *type, size_t type_len,
                        const char *file, size_t file_len,
                        const char *status, size_t status_len)
 {
-  Protocol *protocol= thd->protocol;
-  protocol->prepare_for_resend();
+  Protocol *protocol= thd->get_protocol();
+  protocol->start_row();
   protocol->store(type, type_len, system_charset_info);
   protocol->store(file, file_len, system_charset_info);
   protocol->store(status, status_len, system_charset_info);
-  if (protocol->write())
+  if (protocol->end_row())
     return TRUE;
   return FALSE;
 }
@@ -7170,15 +7170,14 @@ static my_bool showstat_handlerton(THD *thd, plugin_ref plugin,
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
 {
   List<Item> field_list;
-  Protocol *protocol= thd->protocol;
   bool result;
 
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Name",FN_REFLEN));
   field_list.push_back(new Item_empty_string("Status",10));
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 
   if (db_type == NULL)

@@ -528,3 +528,67 @@ eval $query;
 
 DROP VIEW v1, v2, v3;
 DROP TABLE t1, t2, t3, t4;
+
+--echo # Bug#20310257 Explain for insert into a view show wrong table for ins.
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+CREATE VIEW v AS SELECT * FROM t1 JOIN t2 ON TRUE;
+
+let $query=
+INSERT INTO v(a) VALUES(1);
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO v(b) VALUES(1);
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO v(a) SELECT 2;
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO v(b) SELECT 2;
+
+eval explain $query;
+eval $query;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP VIEW v;
+DROP TABLE t1, t2;
+
+# Check that ON DUPLICATE KEY UPDATE works too:
+
+CREATE TABLE t1(a1 INTEGER PRIMARY KEY, b1 INTEGER);
+CREATE TABLE t2(a2 INTEGER PRIMARY KEY, b2 INTEGER);
+CREATE VIEW v AS SELECT * FROM t1 JOIN t2 ON TRUE;
+
+INSERT INTO v(a1,b1) VALUES (11, 0) ON DUPLICATE KEY UPDATE b1=b1+1;
+INSERT INTO v(a1,b1) VALUES (11, 0) ON DUPLICATE KEY UPDATE b1=b1+1;
+
+INSERT INTO v(a2,b2) VALUES (21, 0) ON DUPLICATE KEY UPDATE b2=b2+1;
+INSERT INTO v(a2,b2) VALUES (21, 0) ON DUPLICATE KEY UPDATE b2=b2+1;
+
+SELECT * FROM v;
+
+DELETE FROM t1;
+DELETE FROM t2;
+
+INSERT INTO v(a1,b1) SELECT 11, 0 ON DUPLICATE KEY UPDATE b1=b1+1;
+INSERT INTO v(a1,b1) SELECT 11, 0 ON DUPLICATE KEY UPDATE b1=b1+1;
+
+INSERT INTO v(a2,b2) SELECT 21, 0 ON DUPLICATE KEY UPDATE b2=b2+1;
+INSERT INTO v(a2,b2) SELECT 21, 0 ON DUPLICATE KEY UPDATE b2=b2+1;
+
+SELECT * FROM v;
+
+DROP VIEW v;
+DROP TABLE t1, t2;

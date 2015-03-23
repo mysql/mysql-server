@@ -808,7 +808,7 @@ a	b
 drop table t1,t2;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
 Warnings:
-Warning	3129	Unsetting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(f1 varchar(800) binary not null, key(f1))
 character set utf8 collate utf8_general_ci;
 Warnings:

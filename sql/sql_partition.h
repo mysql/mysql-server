@@ -26,7 +26,6 @@ class Field;
 class Item;
 class String;
 class handler;
-class partition_element;
 class partition_info;
 class THD;
 struct handlerton;
@@ -142,7 +141,7 @@ Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs);
 */
 void append_row_to_str(String &str, const uchar *row, TABLE *table);
 void mem_alloc_error(size_t size);
-void truncate_partition_filename(char *path);
+void truncate_partition_filename(MEM_ROOT* root, const char **path);
 
 bool fast_alter_partition_table(THD *thd,
                                 TABLE *table,

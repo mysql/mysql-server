@@ -95,7 +95,8 @@ static void handle_bootstrap_impl(THD *thd)
     to enable stored procedures with SELECTs and Dynamic SQL
     in init-file.
   */
-  thd->client_capabilities|= CLIENT_MULTI_RESULTS;
+    thd->get_protocol_classic()->add_client_capability(
+    CLIENT_MULTI_RESULTS);
 
   thd->init_for_queries();
 
@@ -148,7 +149,7 @@ static void handle_bootstrap_impl(THD *thd)
         break;
       }
 
-      thd->protocol->end_statement();
+      thd->send_statement_status();
       bootstrap_error= 1;
       break;
     }
@@ -173,7 +174,7 @@ static void handle_bootstrap_impl(THD *thd)
     Parser_state parser_state;
     if (parser_state.init(thd, thd->query().str, thd->query().length))
     {
-      thd->protocol->end_statement();
+      thd->send_statement_status();
       bootstrap_error= 1;
       break;
     }
@@ -181,7 +182,7 @@ static void handle_bootstrap_impl(THD *thd)
     mysql_parse(thd, &parser_state);
 
     bootstrap_error= thd->is_error();
-    thd->protocol->end_statement();
+    thd->send_statement_status();
 
 #if defined(ENABLED_PROFILING)
     thd->profiling.finish_current_query();
@@ -221,7 +222,7 @@ extern "C" void *handle_bootstrap(void *arg)
 #endif
     thd->fatal_error();
     bootstrap_error= 1;
-    net_end(&thd->net);
+    thd->get_protocol_classic()->end_net();
   }
   else
   {
@@ -230,7 +231,7 @@ extern "C" void *handle_bootstrap(void *arg)
 
     handle_bootstrap_impl(thd);
 
-    net_end(&thd->net);
+    thd->get_protocol_classic()->end_net();
     thd->release_resources();
     thd_manager->remove_thd(thd);
   }
@@ -246,8 +247,7 @@ int bootstrap(MYSQL_FILE *file)
 
   THD *thd= new THD;
   thd->bootstrap= 1;
-  my_net_init(&thd->net,(st_vio*) 0);
-  thd->max_client_packet_length= thd->net.max_packet;
+  thd->get_protocol_classic()->init_net(NULL);
   thd->security_context()->set_master_access(~(ulong)0);
 
   thd->set_new_thread_id();

@@ -15495,9 +15495,9 @@ Ndb_util_thread::do_run()
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version=refresh_version;
 #endif
-  thd->client_capabilities = 0;
+  thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
-  my_net_init(&thd->net, 0);
+  thd->get_protocol_classic()->init_net((st_vio *) 0);
 
   CHARSET_INFO *charset_connection;
   charset_connection= get_charset_by_csname("utf8",
@@ -15723,7 +15723,7 @@ next:
   native_mutex_lock(&LOCK);
 
 ndb_util_thread_end:
-  net_end(&thd->net);
+  thd->get_protocol_classic()->end_net();
 ndb_util_thread_fail:
   if (share_list)
     delete [] share_list;
@@ -16124,7 +16124,7 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
                                      NdbDictionary::Table& ndbtab) const
 {
   uint32 frag_data[MAX_PARTITIONS];
-  char *ts_names[MAX_PARTITIONS];
+  const char *ts_names[MAX_PARTITIONS];
   ulong fd_index= 0, i, j;
   NDBTAB::FragmentType ftype= NDBTAB::UserDefined;
   partition_element *part_elem;

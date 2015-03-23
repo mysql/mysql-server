@@ -237,7 +237,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   int error= 0;
   ACL_USER *acl_user;
   LEX *lex= thd->lex;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   USER_RESOURCES tmp_user_resource;
   enum SSL_type ssl_type;
   char *ssl_cipher, *x509_issuer, *x509_subject, *ssl_info, *conn_attr;
@@ -388,7 +388,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
           user_name->host.str,NullS);
   field->item_name.set(buff);
   field_list.push_back(field);
-  if (protocol->send_result_set_metadata(&field_list,
+  if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     error= 1;
@@ -398,9 +398,9 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   lex->users_list.push_back(user_name);
   mysql_rewrite_create_alter_user(thd, &sql_text);
   /* send the result row to client */
-  protocol->prepare_for_resend();
+  protocol->start_row();
   protocol->store(sql_text.ptr(),sql_text.length(),sql_text.charset());
-  if (protocol->write())
+  if (protocol->end_row())
   {
     error= 1;
     goto err;

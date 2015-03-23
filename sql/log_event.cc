@@ -1000,7 +1000,7 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
   if (p)
     log_name = p + 1;
 
-  protocol->prepare_for_resend();
+  protocol->start_row();
   protocol->store(log_name, &my_charset_bin);
   protocol->store((ulonglong) pos);
   event_type = get_type_str();
@@ -1009,7 +1009,7 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
   protocol->store((ulonglong) common_header->log_pos);
   if (pack_info(protocol))
     return 1;
-  return protocol->write();
+  return protocol->end_row();
 }
 #endif /* HAVE_REPLICATION */
 
@@ -6242,9 +6242,9 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       if (net)
       {
         // mysql_load will use thd->net to read the file
-        thd->net.vio = net->vio;
+        thd->get_protocol_classic()->set_vio(net->vio);
         // Make sure the client does not get confused about the packet sequence
-        thd->net.pkt_nr = net->pkt_nr;
+        thd->get_protocol_classic()->set_pkt_nr(net->pkt_nr);
       }
       /*
         It is safe to use tmp_list twice because we are not going to
@@ -6279,7 +6279,9 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
                           print_slave_db_safe(thd->db().str));
       }
       if (net)
-        net->pkt_nr= thd->net.pkt_nr;
+      {
+        net->pkt_nr= thd->get_protocol_classic()->get_pkt_nr();
+      }
     }
   }
   else
@@ -6294,7 +6296,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   }
 
 error:
-  thd->net.vio = 0; 
+  thd->get_protocol_classic()->set_vio(NULL);
   const char *remember_db= thd->db().str;
   thd->set_catalog(NULL_CSTR);
   thd->set_db(NULL_CSTR);                   /* will free the current database */

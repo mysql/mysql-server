@@ -41,7 +41,9 @@ const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
 Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
                              my_off_t start_pos,
                              Gtid_set *exclude_gtids, uint32 flag)
-  : m_thd(thd), m_packet(thd->packet), m_start_file(start_file),
+  : m_thd(thd),
+    m_packet(*thd->get_protocol_classic()->get_packet()),
+    m_start_file(start_file),
     m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
     m_using_gtid_protocol(exclude_gtids != NULL),
     m_check_previous_gtid_event(exclude_gtids != NULL),
@@ -383,7 +385,7 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                     {
                       if (event_type == binary_log::XID_EVENT)
                       {
-                        net_flush(&thd->net);
+                        thd->get_protocol_classic()->flush_net();
                         const char act[]=
                           "now "
                           "wait_for signal.continue";
@@ -677,9 +679,20 @@ int Binlog_sender::check_start_file()
     global_sid_lock->wrlock();
     const rpl_sid &server_sid= gtid_state->get_server_sid();
     rpl_sidno subset_sidno= slave_sid_map->sid_to_sidno(server_sid);
-    if (!m_exclude_gtid->is_subset_for_sid(gtid_state->get_executed_gtids(),
-                                                gtid_state->get_server_sidno(),
-                                                subset_sidno))
+    Gtid_set
+      gtid_executed_and_owned(gtid_state->get_executed_gtids()->get_sid_map());
+
+    // gtids = executed_gtids & owned_gtids
+    if (gtid_executed_and_owned.add_gtid_set(gtid_state->get_executed_gtids())
+        != RETURN_STATUS_OK)
+    {
+      DBUG_ASSERT(0);
+    }
+    gtid_state->get_owned_gtids()->get_gtids(gtid_executed_and_owned);
+
+    if (!m_exclude_gtid->is_subset_for_sid(&gtid_executed_and_owned,
+                                           gtid_state->get_server_sidno(),
+                                           subset_sidno))
     {
       errmsg= ER(ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
       global_sid_lock->unlock();
@@ -1102,7 +1115,8 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
 
 inline int Binlog_sender::flush_net()
 {
-  if (DBUG_EVALUATE_IF("simulate_flush_error", 1, net_flush(&m_thd->net)))
+  if (DBUG_EVALUATE_IF("simulate_flush_error", 1,
+      m_thd->get_protocol_classic()->flush_net()))
   {
     set_unknow_error("failed on flush_net()");
     return 1;
@@ -1119,8 +1133,9 @@ inline int Binlog_sender::send_packet()
   // We should always use the same buffer to guarantee that the reallocation
   // logic is not broken.
   if (DBUG_EVALUATE_IF("simulate_send_error", true,
-                       my_net_write(&m_thd->net, (uchar*) m_packet.ptr(),
-                                    m_packet.length())))
+                       my_net_write(
+                         m_thd->get_protocol_classic()->get_net(),
+                         (uchar*) m_packet.ptr(), m_packet.length())))
   {
     set_unknow_error("Failed on my_net_write()");
     DBUG_RETURN(1);
@@ -1165,7 +1180,7 @@ inline int Binlog_sender::after_send_hook(const char *log_file,
     semisync after_send_event hook doesn't return and error when net error
     happens.
   */
-  if (m_thd->net.error != 0)
+  if (m_thd->get_protocol_classic()->get_net()->last_errno != 0)
   {
     set_unknow_error("Found net error");
     return 1;

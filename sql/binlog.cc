@@ -2677,7 +2677,7 @@ int log_loaded_block(IO_CACHE* file)
 /* Helper function for SHOW BINLOG/RELAYLOG EVENTS */
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
 {
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   List<Item> field_list;
   const char *errmsg = 0;
   bool ret = TRUE;
@@ -2845,15 +2845,14 @@ err:
 */
 bool mysql_show_binlog_events(THD* thd)
 {
-  Protocol *protocol= thd->protocol;
   List<Item> field_list;
   DBUG_ENTER("mysql_show_binlog_events");
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS);
 
   Log_event::init_show_field_list(&field_list);
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
   /*
@@ -3238,7 +3237,7 @@ err:
     my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
              "file system is read only while opening the binlog. Aborting the "
              "server");
-    thd->protocol->end_statement();
+    thd->send_statement_status();
     _exit(MYSQLD_FAILURE_EXIT);
   }
   else
@@ -4633,7 +4632,7 @@ err:
     my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
              "file system is read only while opening the binlog. Aborting the "
              "server");
-    thd->protocol->end_statement();
+    thd->send_statement_status();
     _exit(MYSQLD_FAILURE_EXIT);
   }
   else
@@ -6340,7 +6339,7 @@ end:
       my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
                "file system is read only while rotating the binlog. Aborting "
                "the server");
-      thd->protocol->end_statement();
+      thd->send_statement_status();
       _exit(MYSQLD_FAILURE_EXIT);
     }
     else

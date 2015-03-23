@@ -952,6 +952,7 @@ UPDATE t1 SET b=a,c=a;
 
 ANALYZE TABLE t1;
 
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE a=3 OR b=4;
 SELECT * FROM t1 WHERE a=3 OR b=4;
 DROP TABLE t1;
