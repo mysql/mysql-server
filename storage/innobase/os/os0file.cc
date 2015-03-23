@@ -1558,21 +1558,8 @@ os_file_io_complete(
 
 		ut_ad(!type.is_log());
 
-		/* If we are doing a double write buffer recovery then it
-		is safer to use the double write buffer (uncompressed) page,
-		If the compressed page was torn or corrupted during the write,
-		it could crash the decompression code causing much bigger
-		problems. */
-
-		if (type.is_dblwr_recover()
-		    && Compression::is_compressed_page(buf)) {
-
-			memset(buf, 0x0, len);
-
-			return(DB_SUCCESS);
-		}
-
-		return(os_file_decompress_page(buf, scratch, len));
+		return(os_file_decompress_page(
+			type.is_dblwr_recover(), buf, scratch, len));
 
 	} else if (type.punch_hole()) {
 
@@ -8089,6 +8076,7 @@ Compression::deserialize_header(
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
+@param[in]	dblwr_recover	true of double write recovery in progress
 @param[in,out]	src		Data read from disk, decompressed data will be
 				copied to this page
 @param[in,out]	dst		Scratch area to use for decompression
@@ -8096,6 +8084,7 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 @return DB_SUCCESS or error code */
 dberr_t
 Compression::deserialize(
+	bool		dblwr_recover,
 	byte*		src,
 	byte*		dst,
 	ulint		dst_len)
@@ -8150,6 +8139,7 @@ Compression::deserialize(
 		allocated = false;
 	}
 
+	int		ret;
 	Compression	compression;
 	ulint		len = header.m_original_size;
 
@@ -8158,7 +8148,7 @@ Compression::deserialize(
 	switch(compression.m_type) {
 	case Compression::ZLIB: {
 
-		uLongf	zlen = dst_len;
+		uLongf	zlen = header.m_original_size;
 
 		if (uncompress(dst, &zlen, ptr, header.m_compressed_size)
 		    != Z_OK) {
@@ -8176,9 +8166,31 @@ Compression::deserialize(
 	}
 
 	case Compression::LZ4:
-		if (LZ4_decompress_fast(
-			reinterpret_cast<char*>(ptr),
-			reinterpret_cast<char*>(dst), len) < 0) {
+
+		if (dblwr_recover) {
+
+			ret = LZ4_decompress_safe(
+				reinterpret_cast<char*>(ptr),
+				reinterpret_cast<char*>(dst),
+				header.m_compressed_size,
+				header.m_original_size);
+
+		} else {
+
+			/* This can potentially read beyond the input
+			buffer if the data is malformed. According to
+			the LZ4 documentation it is a little faster
+			than the above function. When recovering from
+			the double write buffer we can afford to us the
+			slower function above. */
+
+			ret = LZ4_decompress_fast(
+				reinterpret_cast<char*>(ptr),
+				reinterpret_cast<char*>(dst),
+				header.m_original_size);
+		}
+
+		if (ret < 0) {
 
 			if (allocated) {
 				ut_free(dst);
@@ -8186,6 +8198,7 @@ Compression::deserialize(
 
 			return(DB_IO_DECOMPRESS_FAIL);
 		}
+
 		break;
 
 	default:
@@ -8223,6 +8236,7 @@ Compression::deserialize(
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
+@param[in]	dblwr_recover	true of double write recovery in progress
 @param[in,out]	src		Data read from disk, decompressed data will be
 				copied to this page
 @param[in,out]	dst		Scratch area to use for decompression
@@ -8230,9 +8244,10 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 @return DB_SUCCESS or error code */
 dberr_t
 os_file_decompress_page(
+	bool		dblwr_recover,
 	byte*		src,
 	byte*		dst,
 	ulint		dst_len)
 {
-	return(Compression::deserialize(src, dst, dst_len));
+	return(Compression::deserialize(dblwr_recover, src, dst, dst_len));
 }
