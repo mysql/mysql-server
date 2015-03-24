@@ -3274,9 +3274,13 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 /**
   clear results if there are not rows found for group
   (end_send_group/end_write_group)
+  @retval
+    FALSE if OK
+  @retval
+    TRUE on error  
 */
 
-void JOIN::clear()
+bool JOIN::clear()
 {
   /* 
     must clear only the non-const tables, as const tables
@@ -3285,7 +3289,8 @@ void JOIN::clear()
   for (uint tableno= const_tables; tableno < primary_tables; tableno++)
     mark_as_null_row(qep_tab[tableno].table());  // All fields are NULL
 
-  copy_fields(&tmp_table_param);
+  if (copy_fields(&tmp_table_param, thd))
+    return true;
 
   if (sum_funcs)
   {
@@ -3293,6 +3298,7 @@ void JOIN::clear()
     while ((func= *(func_ptr++)))
       func->clear();
   }
+  return false;
 }
 
 

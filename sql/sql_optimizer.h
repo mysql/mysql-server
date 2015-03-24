@@ -601,7 +601,10 @@ public:
   void join_free();
   /** Cleanup this JOIN. Not a full cleanup. reusable? */
   void cleanup();
-  void clear();
+
+  __attribute__((warn_unused_result))
+  bool clear();
+
   bool save_join_tab();
   void restore_join_tab();
   bool init_save_join_tab();

@@ -1123,7 +1123,8 @@ bool Aggregator_distinct::add()
       sum->count= 1;
       return 0;
     }
-    copy_fields(tmp_table_param);
+    if (copy_fields(tmp_table_param, table->in_use))
+      return true;
     if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
       return TRUE;
 
@@ -3504,7 +3505,8 @@ bool Item_func_group_concat::add()
 {
   if (always_null)
     return 0;
-  copy_fields(tmp_table_param);
+  if (copy_fields(tmp_table_param, table->in_use))
+    return true;
   if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
     return TRUE;
 
