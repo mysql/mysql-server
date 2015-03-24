@@ -188,11 +188,17 @@ mecab_parse(
 	int	ret = 0;
 	bool	term_converted = false;
 
-	mecab_lattice->set_sentence(doc, len);
+	try {
+		mecab_lattice->set_sentence(doc, len);
 
-	if(!mecab_tagger->parse(mecab_lattice)) {
-		sql_print_error("Mecab: parse() failed: %s",
-				mecab_lattice->what());
+		if(!mecab_tagger->parse(mecab_lattice)) {
+			sql_print_error("Mecab: parse() failed: %s",
+					mecab_lattice->what());
+			return(1);
+		}
+	} catch (std::bad_alloc const &) {
+		sql_print_error("Mecab: parse() failed: out of memory.");
+
 		return(1);
 	}
 
