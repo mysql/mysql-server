@@ -2026,11 +2026,11 @@ whether proxy users are checked.
 */
 void
 acl_log_connect(const char *user,
-const char *host,
-const char *auth_as,
-const char *db,
-THD *thd,
-enum enum_server_command command)
+                const char *host,
+                const char *auth_as,
+                const char *db,
+                THD *thd,
+                enum enum_server_command command)
 {
   if (strcmp(auth_as, user) && (PROXY_FLAG != *auth_as))
   {
@@ -2150,8 +2150,8 @@ acl_authenticate(THD *thd, enum_server_command command)
   bool proxy_check= check_proxy_users && !*mpvio.auth_info.authenticated_as;
 
   DBUG_PRINT("info", ("proxy_check=%s", proxy_check ? "true" : "false"));
- 
-  thd->password= mpvio.auth_info.password_used;  // remember for error messages 
+
+  thd->password= mpvio.auth_info.password_used;  // remember for error messages
 
   // reset authenticated_as because flag value received, but server
   // proxy mapping is disabled:
@@ -2169,8 +2169,8 @@ acl_authenticate(THD *thd, enum_server_command command)
   */
   if (mpvio.auth_info.user_name && !proxy_check)
   {
-	  acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-		  mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
+    acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
+      mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
   }
   if (!mpvio.can_authenticate() && res == CR_OK)
   {
@@ -2199,7 +2199,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       break;
     }
     inc_host_errors(mpvio.ip, &errors);
-	if (mpvio.auth_info.user_name && proxy_check)
+    if (mpvio.auth_info.user_name && proxy_check)
     {
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
         mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
@@ -2226,7 +2226,7 @@ acl_authenticate(THD *thd, enum_server_command command)
                                        mpvio.auth_info.authenticated_as,
                                        &is_proxy_user);
     }
-	if (mpvio.auth_info.user_name && proxy_check)
+    if (mpvio.auth_info.user_name && proxy_check)
     {
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
         mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
@@ -2820,8 +2820,8 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
       Send OK signal; the authentication might still be rejected based on
       host mask.
     */
-	if (info->auth_string_length == 0)
-	{
+    if (info->auth_string_length == 0)
+    {
       if (sha256_password_proxy_users)
       {
         *info->authenticated_as = PROXY_FLAG;
@@ -2833,14 +2833,14 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     else
       DBUG_RETURN(CR_ERROR);
   }
-  else    
+  else
     info->password_used= PASSWORD_USED_YES;
 
   if (!my_vio_is_encrypted(vio))
   {
  #if !defined(HAVE_YASSL)
     /*
-      Since a password is being used it must be encrypted by RSA since no 
+      Since a password is being used it must be encrypted by RSA since no
       other encryption is being active.
     */
     private_key= g_rsa_keys.get_private_key();
