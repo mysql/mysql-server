@@ -2432,7 +2432,8 @@ ha_innobase::update_thd(
 
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	ut_ad(trx_in_innodb.is_aborted()
+	ut_ad(dict_table_is_intrinsic(m_prebuilt->table)
+	      || trx_in_innodb.is_aborted()
 	      || (trx->dict_operation_lock_mode == 0
 		  && trx->dict_operation == TRX_DICT_OP_NONE));
 
@@ -6670,7 +6671,8 @@ ha_innobase::write_row(
 	trx_t*		trx = thd_to_trx(m_user_thd);
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	if (trx_in_innodb.is_aborted()) {
+	if (!dict_table_is_intrinsic(m_prebuilt->table)
+	    && trx_in_innodb.is_aborted()) {
 
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
@@ -7284,7 +7286,8 @@ ha_innobase::update_row(
 		goto func_exit;
 	}
 
-	if (TrxInInnoDB::is_aborted(trx)) {
+	if (!dict_table_is_intrinsic(m_prebuilt->table)
+	    && TrxInInnoDB::is_aborted(trx)) {
 
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
@@ -7377,7 +7380,8 @@ ha_innobase::delete_row(
 
 	DBUG_ENTER("ha_innobase::delete_row");
 
-	if (trx_in_innodb.is_aborted()) {
+	if (!dict_table_is_intrinsic(m_prebuilt->table)
+	    && trx_in_innodb.is_aborted()) {
 
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
@@ -7431,7 +7435,8 @@ ha_innobase::delete_all_rows()
 
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
-	if (trx_in_innodb.is_aborted()) {
+	if (!dict_table_is_intrinsic(m_prebuilt->table)
+	    && trx_in_innodb.is_aborted()) {
 
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
@@ -7939,7 +7944,8 @@ ha_innobase::change_active_index(
 
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
-	if (trx_in_innodb.is_aborted()) {
+	if (!dict_table_is_intrinsic(m_prebuilt->table)
+	    && trx_in_innodb.is_aborted()) {
 
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
@@ -8234,7 +8240,8 @@ ha_innobase::rnd_init(
 {
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
-	if (trx_in_innodb.is_aborted()) {
+	if (!dict_table_is_intrinsic(m_prebuilt->table)
+	    && trx_in_innodb.is_aborted()) {
 
 		return(innobase_rollback(ht, m_user_thd, false));
 	}
