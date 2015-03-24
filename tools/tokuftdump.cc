@@ -936,6 +936,7 @@ static void run_iteractive_loop(int fd, FT ft, CACHEFILE cf) {
         } else if (strcmp(fields[0], "header") == 0) {
             toku_ft_free(ft);
             open_header(fd, &ft, cf);
+            dump_header(ft);
         } else if (strcmp(fields[0], "rn") == 0||strcmp(fields[0], "rootNode")==0||strcmp(fields[0], "rootnode") == 0) {
             printf("Root node :%d\n",root);
         } else if (strcmp(fields[0], "block") == 0 && nfields == 2) {
