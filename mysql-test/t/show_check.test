@@ -1445,5 +1445,25 @@ SHOW AUTHORS;
 SHOW CONTRIBUTORS;
 
 
+--echo #
+--echo # Bug#20709462: GENERATED COLUMNS NOT PRINTED CORRECTLY IN
+--echo #               SHOW CREATE TABLE
+--echo #
+
+CREATE TABLE t1 (i CHAR(3),
+                 n CHAR(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)));
+
+--echo # Use SHOW CREATE TABLE output below unmodified to re-create table
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+CREATE TABLE `t1` (
+  `i` char(3) DEFAULT NULL,
+  `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+DROP TABLE t1;
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

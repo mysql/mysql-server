@@ -1605,3 +1605,22 @@ SHOW AUTHORS;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTHORS' at line 1
 SHOW CONTRIBUTORS;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CONTRIBUTORS' at line 1
+#
+# Bug#20709462: GENERATED COLUMNS NOT PRINTED CORRECTLY IN
+#               SHOW CREATE TABLE
+#
+CREATE TABLE t1 (i CHAR(3),
+n CHAR(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)));
+# Use SHOW CREATE TABLE output below unmodified to re-create table
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` char(3) DEFAULT NULL,
+  `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE `t1` (
+`i` char(3) DEFAULT NULL,
+`n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+DROP TABLE t1;
