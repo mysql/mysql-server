@@ -158,10 +158,14 @@ get_ith_key_dbt (BASEMENTNODE bn, int i) {
 
 #define VERIFY_ASSERTION(predicate, i, string) ({                                                                              \
     if(!(predicate)) {                                                                                                         \
-        (void) verbose; \
-        if (true) {                                                                                                         \
-            fprintf(stderr, "%s:%d: Looking at child %d of block %" PRId64 ": %s\n", __FILE__, __LINE__, i, blocknum.b, string); \
-        }                                                                                                                      \
+        fprintf(stderr, "%s:%d: Looking at child %d of block %" PRId64 ": %s\n", __FILE__, __LINE__, i, blocknum.b, string);   \
+        result = TOKUDB_NEEDS_REPAIR;                                                                                          \
+        if (!keep_going_on_failure) goto done;                                                                                 \
+    }})
+
+#define VERIFY_ASSERTION_BASEMENT(predicate, bn, entry, string) ({           \
+    if(!(predicate)) {                                                                                                         \
+        fprintf(stderr, "%s:%d: Looking at block %" PRId64 " bn %d entry %d: %s\n", __FILE__, __LINE__, blocknum.b, bn, entry, string); \
         result = TOKUDB_NEEDS_REPAIR;                                                                                          \
         if (!keep_going_on_failure) goto done;                                                                                 \
     }})
@@ -199,7 +203,6 @@ struct verify_message_tree_extra {
 int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e) __attribute__((nonnull(3)));
 int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
 {
-    int verbose = e->verbose;
     BLOCKNUM blocknum = e->blocknum;
     int keep_going_on_failure = e->keep_going_on_failure;
     int result = 0;
@@ -234,7 +237,6 @@ int error_on_iter(const int32_t &UU(offset), const uint32_t UU(idx), void *UU(e)
 int verify_marked_messages(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e) __attribute__((nonnull(3)));
 int verify_marked_messages(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
 {
-    int verbose = e->verbose;
     BLOCKNUM blocknum = e->blocknum;
     int keep_going_on_failure = e->keep_going_on_failure;
     int result = 0;
@@ -460,16 +462,16 @@ toku_verify_ftnode_internal(FT_HANDLE ft_handle,
                 DBT kdbt = get_ith_key_dbt(bn, j);
                 if (curr_less_pivot) {
                     int compare = compare_pairs(ft_handle, curr_less_pivot, &kdbt);
-                    VERIFY_ASSERTION(compare < 0, j, "The leafentry is >= the lower-bound pivot");
+                    VERIFY_ASSERTION_BASEMENT(compare < 0, i, j, "The leafentry is >= the lower-bound pivot");
                 }
                 if (curr_geq_pivot) {
                     int compare = compare_pairs(ft_handle, curr_geq_pivot, &kdbt);
-                    VERIFY_ASSERTION(compare >= 0, j, "The leafentry is < the upper-bound pivot");
+                    VERIFY_ASSERTION_BASEMENT(compare >= 0, i, j, "The leafentry is < the upper-bound pivot");
                 }
                 if (0 < j) {
                     DBT prev_key_dbt = get_ith_key_dbt(bn, j-1);
                     int compare = compare_pairs(ft_handle, &prev_key_dbt, &kdbt);
-                    VERIFY_ASSERTION(compare < 0, j, "Adjacent leafentries are out of order");
+                    VERIFY_ASSERTION_BASEMENT(compare < 0, i, j, "Adjacent leafentries are out of order");
                 }
             }
         }
