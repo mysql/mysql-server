@@ -731,10 +731,18 @@ st_select_lex *LEX::new_query(st_select_lex *curr_select)
   @param curr_select current query specification
   @param distinct True if part of UNION DISTINCT query
 
+  @param check_syntax This function is called from both new and legacy
+  code. New code uses the actual parse tree for checking syntax before
+  creating SELECT_LEX'es (good), while legacy code checks the SELECT_LEX
+  structures later on to see what syntax they seem to be generated from
+  (bad). When all parser rules have been converted, this parameter will always
+  be false, and can be removed.
+
   @return new query specification if successful, NULL if an error occurred.
 */
 
-st_select_lex *LEX::new_union_query(st_select_lex *curr_select, bool distinct)
+st_select_lex *LEX::new_union_query(st_select_lex *curr_select, bool distinct,
+                                    bool check_syntax)
 {
   DBUG_ENTER("LEX::new_union_query");
 
@@ -758,16 +766,19 @@ st_select_lex *LEX::new_union_query(st_select_lex *curr_select, bool distinct)
     DBUG_RETURN(NULL);
   }
 
-  if (curr_select->order_list.first && !curr_select->braces)
+  if (check_syntax)
   {
-    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
-    DBUG_RETURN(NULL);
-  }
+    if (curr_select->order_list.first && !curr_select->braces)
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
+      DBUG_RETURN(NULL);
+    }
 
-  if (curr_select->explicit_limit && !curr_select->braces)
-  {
-    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "LIMIT");
-    DBUG_RETURN(NULL);
+    if (curr_select->explicit_limit && !curr_select->braces)
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), "UNION", "LIMIT");
+      DBUG_RETURN(NULL);
+    }
   }
 
   SELECT_LEX *const select= new_empty_query_block();

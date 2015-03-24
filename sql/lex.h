@@ -675,7 +675,7 @@ static const SYMBOL symbols[] = {
   { SYM("ZEROFILL",                 ZEROFILL)},
   { SYM("||",                       OR_OR_SYM)},
   /*
-    Place keywords that accept optimizer hints below the commentary.
+    Place keywords that accept optimizer hints below this comment.
   */
   { SYM_HK("DELETE",                 DELETE_SYM)},
   { SYM_HK("INSERT",                 INSERT)},

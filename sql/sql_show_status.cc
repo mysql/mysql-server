@@ -213,13 +213,23 @@ build_query(const POS &pos,
   if (select_part2 == NULL)
     return NULL;
 
-  PT_select_init2 *select_init2;
-  select_init2= new (thd->mem_root) PT_select_init2(NULL, select_part2, NULL);
-  if (select_init2 == NULL)
+  PT_query_primary *query_primary=
+    new (thd->mem_root) PT_query_primary(select_part2);
+  if (query_primary == NULL)
+    return NULL;
+
+  PT_query_term_primary *query_term_primary=
+    new (thd->mem_root) PT_query_term_primary(query_primary);
+  if (query_primary == NULL)
+    return NULL;
+
+  PT_query_expression_single *query_expression_single=
+    new (thd->mem_root) PT_query_expression_single(query_term_primary);
+  if (query_expression_single == NULL)
     return NULL;
 
   PT_select *select;
-  select= new (thd->mem_root) PT_select(select_init2);
+  select= new (thd->mem_root) PT_select(query_expression_single);
   if (select == NULL)
     return NULL;
 

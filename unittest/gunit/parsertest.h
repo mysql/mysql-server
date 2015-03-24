@@ -37,7 +37,7 @@ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
-  THD *thd() { return initializer.thd(); }
+  THD *thd() const { return initializer.thd(); }
 
   Server_initializer initializer;
 
@@ -45,7 +45,7 @@ protected:
     Parses a query and returns a parse tree. In our parser this is
     called a SELECT_LEX.
   */
-  SELECT_LEX *parse(const char *query, int expected_error_code)
+  SELECT_LEX *parse(const char *query, int expected_error_code) const
   {
     Parser_state state;
 
@@ -80,7 +80,7 @@ protected:
     return thd()->lex->current_select();
   }
 
-  SELECT_LEX *parse(const char *query) { return parse(query, 0); }
+  SELECT_LEX *parse(const char *query) const { return parse(query, 0); }
 
 };
 

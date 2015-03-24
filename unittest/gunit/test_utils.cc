@@ -123,7 +123,8 @@ Mock_error_handler::~Mock_error_handler()
   }
   else
   {
-    EXPECT_GT(m_handle_called, 0);
+    EXPECT_GT(m_handle_called, 0)
+      << "Error " << m_expected_error << " expected.";
   }
 }
 

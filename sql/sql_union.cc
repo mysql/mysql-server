@@ -829,13 +829,10 @@ bool st_select_lex_unit::execute(THD *thd)
     set_limit(sl);
     if (sl == global_parameters())
     {
-      /* purecov: begin deadcode */
-      DBUG_ASSERT(false);  // @todo: Investigate why this is not reached
       offset_limit_cnt= 0;
       // Do not use LIMIT for this block if it is ordered
       if (sl->order_list.first)
         select_limit_cnt= HA_POS_ERROR;
-      /* purecov: end */
     }
 
     rows_at_start= table->file->stats.records;
@@ -874,16 +871,13 @@ bool st_select_lex_unit::execute(THD *thd)
     if (sl->join->calc_found_rows)
     {
       /*
-        This is a union without braces. Remember the number of rows that
-        could also have been part of the result set.
-        We get this from the difference between total number of possible
-        rows and actual rows added to the temporary table.
+        This is a union without parentheses. Remember the number of rows that
+        could also have been part of the result set. We get this from the
+        difference between total number of possible rows and actual rows added
+        to the temporary table.
       */
-      /* purecov: begin deadcode */
-      DBUG_ASSERT(false);  // @todo: Investigate why this is not reached
       add_rows+= (ulonglong) (thd->limit_found_rows -
                  (ulonglong)(table->file->stats.records - rows_at_start));
-      /* purecov: end */
     }
   }
 

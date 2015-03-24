@@ -36,6 +36,28 @@ public:
 };
 
 
+/**
+  Convenience function to avoid having to write
+
+  @verbatim
+
+  if (node != NULL && node->contextualize(pc))
+    return true;
+
+  @endverbatim
+
+  With this function you only have to do
+
+  @verbatim
+
+  if (::contextualize(node, pc))
+    return true;
+
+  @endverbatim
+*/
+bool contextualize(Parse_tree_node *node, Parse_context *pc);
+
+
 class PT_select_lex : public Parse_tree_node
 {
 public:
@@ -626,7 +648,7 @@ public:
       return true;
 
     pc->select->no_table_names_allowed= 0;
-    pc->thd->where= "";
+    pc->thd->where= THD::DEFAULT_WHERE;
     return false;
   }
 };
@@ -2096,47 +2118,305 @@ public:
     opt_select_lock_type(opt_select_lock_type_arg)
   {}
 
+  PT_limit_clause *limit_clause() const { return opt_limit_clause; }
+  PT_order *order_clause() const { return opt_order_clause; }
+
+  virtual PT_order *remove_order_clause()
+  {
+    PT_order *order= opt_order_clause;
+    opt_order_clause= NULL;
+    return order;
+  }
+
+  virtual PT_limit_clause *remove_limit_clause()
+  {
+    PT_limit_clause *limit= opt_limit_clause;
+    opt_limit_clause= NULL;
+    return limit;
+  }
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
+class PT_query_expression : public Parse_tree_node
+{
+public:
+
+  PT_query_expression(PT_order *order, PT_limit_clause *limit) :
+    contextualized(false),
+    m_order(order),
+    m_limit(limit)
+  {}
+
   virtual bool contextualize(Parse_context *pc)
   {
-    if (super::contextualize(pc) ||
-        select_options_and_item_list->contextualize(pc) ||
-        (opt_into1 != NULL &&
-         opt_into1->contextualize(pc)) ||
-        (from_clause != NULL &&
-         from_clause->contextualize(pc)) ||
-        (opt_where_clause != NULL &&
-         opt_where_clause->itemize(pc, &opt_where_clause)) ||
-        (opt_group_clause != NULL &&
-         opt_group_clause->contextualize(pc)) ||
-        (opt_having_clause != NULL &&
-         opt_having_clause->itemize(pc, &opt_having_clause)))
+    if (Parse_tree_node::contextualize(pc))
       return true;
-
-    pc->select->set_where_cond(opt_where_clause);
-    pc->select->set_having_cond(opt_having_clause);
-
-    if ((opt_order_clause != NULL &&
-         opt_order_clause->contextualize(pc)) ||
-        (opt_limit_clause != NULL &&
-         opt_limit_clause->contextualize(pc)) ||
-        (opt_procedure_analyse_clause != NULL &&
-         opt_procedure_analyse_clause->contextualize(pc)) ||
-        (opt_into2 != NULL &&
-         opt_into2->contextualize(pc)))
-      return true;
-
-    DBUG_ASSERT(opt_into1 == NULL || opt_into2 == NULL);
-    DBUG_ASSERT(opt_procedure_analyse_clause == NULL ||
-                (opt_into1 == NULL && opt_into2 == NULL));
-
-    if (opt_select_lock_type.is_set)
-    {
-      pc->select->set_lock_for_tables(opt_select_lock_type.lock_type);
-      pc->thd->lex->safe_to_cache_query=
-        opt_select_lock_type.is_safe_to_cache_query;
-    }
     return false;
   }
+
+  bool contextualize_order_and_limit(Parse_context *pc)
+  {
+    contextualized= true;
+
+    pc->thd->where= "global ORDER clause";
+    if (::contextualize(m_order, pc) || ::contextualize(m_limit, pc))
+      return true;
+
+    pc->thd->where= THD::DEFAULT_WHERE;
+    return false;
+  }
+
+  /**
+    True if this query expression is a union query, i.e. contains more than
+    one query term.
+  */
+  virtual bool is_union() const = 0;
+
+  virtual bool is_nested() const = 0;
+
+  /**
+    Called by the parser when it has decided that this query expression may
+    not contain order or limit clauses because it is part of a union. For
+    historical reasons, these clauses are not allowed in non-last branches of
+    union expressions.
+  */
+  void ban_order_and_limit() const
+  {
+    if (m_order != NULL)
+      my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
+    if (m_limit != NULL)
+      my_error(ER_WRONG_USAGE, MYF(0), "UNION", "LIMIT");
+  }
+
+  ~PT_query_expression() { DBUG_ASSERT(contextualized); }
+
+private:
+  bool contextualized;
+  PT_order *m_order;
+  PT_limit_clause *m_limit;
+};
+
+
+class PT_query_term: public Parse_tree_node
+{
+public:
+  virtual PT_order *order_clause() = 0;
+  virtual PT_limit_clause *limit_clause() = 0;
+  virtual bool is_union() const = 0;
+  virtual PT_order *remove_order_clause() = 0;
+  virtual PT_limit_clause *remove_limit_clause() = 0;
+  virtual bool is_nested() const = 0;
+};
+
+
+class PT_union : public PT_query_expression
+{
+public:
+  PT_union(PT_query_expression *lhs, bool is_distinct, PT_query_term *rhs) :
+    PT_query_expression(rhs->remove_order_clause(),
+                        rhs->remove_limit_clause()),
+    m_lhs(lhs),
+    m_is_distinct(is_distinct),
+    m_rhs(rhs)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (PT_query_expression::contextualize(pc))
+      return true;
+
+    if (m_lhs->contextualize(pc))
+      return true;
+
+    pc->select=
+      pc->thd->lex->new_union_query(pc->select, m_is_distinct, false);
+
+    if (pc->select == NULL || m_rhs->contextualize(pc))
+      return true;
+
+    THD *thd= pc->thd;
+
+    SELECT_LEX_UNIT *unit= pc->select->master_unit();
+    if (unit->fake_select_lex == NULL && unit->add_fake_select_lex(thd))
+      return true;
+
+    SELECT_LEX *select_lex= pc->select;
+    pc->select= unit->fake_select_lex;
+    pc->select->no_table_names_allowed= true;
+
+    if (contextualize_order_and_limit(pc))
+      return true;
+
+    pc->select->no_table_names_allowed= false;
+    pc->select= select_lex;
+
+//    pc->thd->lex->pop_context();
+    return false;
+  }
+
+  virtual bool is_union() const { return true; }
+
+  virtual bool is_nested() const { return false; }
+
+private:
+  PT_query_expression *m_lhs;
+  bool m_is_distinct;
+  PT_query_term *m_rhs;
+};
+
+
+/// A query expression without union.
+class PT_query_expression_single : public PT_query_expression
+{
+public:
+  PT_query_expression_single(PT_query_term *term) :
+    PT_query_expression(term->remove_order_clause(),
+                        term->remove_limit_clause()),
+    m_query_term(term)
+ {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (PT_query_expression::contextualize(pc))
+      return true;
+
+    bool res= m_query_term->contextualize(pc) ||
+      contextualize_order_and_limit(pc);
+
+    return res;
+  }
+
+  virtual bool is_union() const { return m_query_term->is_union(); }
+
+  virtual bool is_nested() const { return m_query_term->is_nested(); }
+
+private:
+  PT_query_term *m_query_term;
+};
+
+class PT_query_primary : public Parse_tree_node
+{
+public:
+  PT_query_primary(PT_hint_list *opt_hint_list_arg,
+                   PT_select_part2 *select_part2_arg)
+    : m_hints(opt_hint_list_arg),
+      m_select_part2(select_part2_arg)
+  {}
+
+  PT_query_primary(PT_select_part2 *select_part2_arg)
+    : m_hints(NULL),
+      m_select_part2(select_part2_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (Parse_tree_node::contextualize(pc) ||
+        m_select_part2->contextualize(pc) ||
+        ::contextualize(m_hints, pc))
+      return true;
+    return false;
+  }
+
+  PT_order *order_clause() { return m_select_part2->order_clause(); }
+  PT_limit_clause *limit_clause() { return m_select_part2->limit_clause(); }
+  PT_order *remove_order_clause()
+  {
+    return m_select_part2->remove_order_clause();
+  }
+  PT_limit_clause *remove_limit_clause()
+  {
+    return m_select_part2->remove_limit_clause();
+  }
+
+private:
+  PT_hint_list *m_hints;
+  PT_select_part2 *m_select_part2;
+};
+
+
+class PT_query_term_primary: public PT_query_term
+{
+public:
+  PT_query_term_primary(PT_query_primary *query_primary) :
+    m_query_primary(query_primary)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (PT_query_term::contextualize(pc))
+      return true;
+
+    return m_query_primary->contextualize(pc);
+  }
+
+  virtual PT_order *order_clause() { return m_query_primary->order_clause(); }
+  virtual PT_limit_clause *limit_clause() { return m_query_primary->limit_clause(); }
+  virtual PT_order *remove_order_clause()
+  {
+    return m_query_primary->remove_order_clause();
+  }
+  virtual PT_limit_clause *remove_limit_clause()
+  {
+    return m_query_primary->remove_limit_clause();
+  }
+  virtual bool is_union() const { return false; }
+
+  virtual bool is_nested() const { return false; }
+
+private:
+  PT_query_primary *m_query_primary;
+};
+
+
+class PT_nested_query_expression: public PT_query_term
+{
+public:
+  PT_nested_query_expression(PT_query_expression *query_expression,
+                             PT_order *order,
+                             PT_limit_clause *limit) :
+    m_query_expression(query_expression),
+    m_order_clause(order),
+    m_limit_clause(limit)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (PT_query_term::contextualize(pc))
+      return true;
+
+    pc->select->set_braces(true);
+
+    return m_query_expression->contextualize(pc) ||
+      ::contextualize(m_order_clause, pc) ||
+      ::contextualize(m_limit_clause, pc);
+  }
+
+  virtual PT_order *order_clause() { return m_order_clause; }
+  virtual PT_limit_clause *limit_clause() { return m_limit_clause; }
+  virtual PT_order *remove_order_clause()
+  {
+    PT_order *order= m_order_clause;
+    m_order_clause= NULL;
+    return order;
+  }
+
+  virtual PT_limit_clause *remove_limit_clause()
+  {
+    PT_limit_clause *limit= m_limit_clause;
+    m_limit_clause= NULL;
+    return limit;
+  }
+
+  virtual bool is_union() const { return m_query_expression->is_union(); }
+
+  virtual bool is_nested() const { return true; }
+
+private:
+  PT_query_expression *m_query_expression;
+  PT_order *m_order_clause;
+  PT_limit_clause *m_limit_clause;
 };
 
 
@@ -2240,10 +2520,10 @@ class PT_select : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
-  PT_select_init *select_init;
+  PT_query_expression *select_init;
 
 public:
-  explicit PT_select(PT_select_init *select_init_arg)
+  explicit PT_select(PT_query_expression *select_init_arg)
   : select_init(select_init_arg)
   {}
 

@@ -1509,9 +1509,15 @@ END_OF_INPUT
 
 %type <select_part2> select_part2
 
+%type <query_primary> query_primary
+
 %type <select_paren> select_paren
 
 %type <select_init> select_init
+
+%type <query_expression> query_expression
+
+%type <query_term> query_term
 
 %type <select> select
 
@@ -5068,6 +5074,10 @@ create2:
           }
         ;
 
+/**
+  @todo: Make this rule produce query_expression instead of create_select and
+  union_opt.
+*/
 create2a:
           create_field_list ')' opt_create_table_options
           opt_create_partitioning
@@ -5085,6 +5095,10 @@ create2a:
            }
         ;
 
+/**
+  @todo: Make this rule produce query_expression instead of create_select and
+  opt_union_clause or union_opt.
+*/
 create3:
           /* empty */ {}
         | opt_duplicate opt_as create_select
@@ -8876,19 +8890,17 @@ opt_ignore_leaves:
         | IGNORE_SYM LEAVES { $$= TL_OPTION_IGNORE_LEAVES; }
         ;
 
-/*
-  Select : retrieve data from table
-*/
-
-
 select:
-          select_init
+          query_expression
           {
             $$= NEW_PTN PT_select($1);
           }
         ;
 
-/* Need first branch for subselects. */
+/*
+  Need first branch for subselects.
+  todo: Remove this rule and replace uses of it with query_expression.
+*/
 select_init:
           SELECT_SYM select_part2 opt_union_clause
           {
@@ -8897,6 +8909,46 @@ select_init:
         | '(' select_paren ')' union_opt
           {
             $$= NEW_PTN PT_select_init_parenthesis($2, $4);
+          }
+        ;
+
+query_expression:
+          query_term
+          {
+            $$= NEW_PTN PT_query_expression_single($1);
+          }
+        | query_expression UNION_SYM union_option query_term
+          {
+            // This is for compatibility with legacy syntax.  (SELECT UNION
+            // SELECT) UNION SELECT really means the same thing with or
+            // without parentheses.
+            if ($1->is_nested() && $1->is_union())
+              YYTHD->parse_error_at(@2, ER_DEFAULT(ER_SYNTAX_ERROR));
+            if ($4->is_union())
+              YYTHD->parse_error_at(@2, ER_DEFAULT(ER_SYNTAX_ERROR));
+            PT_union *pt_union= NEW_PTN PT_union($1, $3, $4);
+            $1->ban_order_and_limit();
+            $$= pt_union;
+          }
+        ;
+
+query_term:
+          query_primary
+          {
+            $$= NEW_PTN PT_query_term_primary($1);
+          }
+        | '(' query_expression ')' opt_order_clause opt_limit_clause
+          {
+            if ($2->is_union() && ($4 != NULL || $5 != NULL))
+              my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER");
+            $$= NEW_PTN PT_nested_query_expression($2, $4, $5);
+          }
+        ;
+
+query_primary:
+          SELECT_SYM select_part2
+          {
+            $$= NEW_PTN PT_query_primary($1, $2);
           }
         ;
 
@@ -10358,12 +10410,15 @@ use_partition:
           }
         ;
 
-/*
-   This is a flattening of the rules <table factor> and <table primary>
-   in the SQL:2003 standard, since we don't have <sample clause>
+/**
+  This is a flattening of the rules <table factor> and <table primary>
+  in the SQL:2003 standard, since we don't have <sample clause>
 
-   I.e.
-   <table factor> ::= <table primary> [ <sample clause> ]
+  I.e.
+  <table factor> ::= <table primary> [ <sample clause> ]
+
+  @todo: Make this rule produce query_expression instead of
+  select_derived_union and the rule starting with SELECT_SYM.
 */
 /* Warning - may return NULL in case of incomplete SELECT */
 table_factor:
@@ -14762,6 +14817,8 @@ view_select:
           }
         ;
 
+
+/// @todo: Make this rule produce query_expression instead.
 view_select_aux:
           create_view_select
           {

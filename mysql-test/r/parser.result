@@ -831,17 +831,17 @@ ERROR HY000: Incorrect usage of PROCEDURE and INTO
 (SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
 1
 ((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) ORDER BY 1' at line 1
+1
 ((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1) LIMIT 1' at line 1
+1
 (SELECT 1 FROM t1 ORDER BY 1) LIMIT 1;
 1
 (SELECT 1 FROM t1 LIMIT 1) ORDER BY 1;
 1
 ((SELECT 1 FROM t1 ORDER BY 1) LIMIT 1) ORDER BY 1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1) ORDER BY 1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 ((SELECT 1 FROM t1 LIMIT 1) ORDER BY 1) LIMIT 1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) LIMIT 1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1;
 1
 SELECT (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1);
@@ -1191,3 +1191,218 @@ END' at line 3
 PARSE_GCOL_EXPR (1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARSE_GCOL_EXPR (1)' at line 1
 #
+# WL#8083: Introduce <query expression> parser rule
+# Bug#14743786: PARSE ERROR WITH UNION PARENTHESES ON TOP LEVEL
+#
+#
+# Part1: Regression Testing.
+#
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES ( 1 );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES ( 2 ), ( 2 );
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES ( 3 ), ( 3 ), ( 3 );
+SELECT 1 UNION SELECT 2;
+1
+1
+2
+(SELECT 1) UNION SELECT 2;
+1
+1
+2
+SELECT 1 UNION (SELECT 2);
+1
+1
+2
+(SELECT 1) UNION (SELECT 2);
+1
+1
+2
+SELECT 2 FROM t1 UNION ((SELECT 3 FROM t1));
+2
+2
+3
+(SELECT 2 FROM t1)  UNION SELECT 3 FROM t1;
+2
+2
+3
+((SELECT 2 FROM t1)) UNION SELECT 3 FROM t1;
+2
+2
+3
+SELECT 1 FROM t1
+UNION
+SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
+PROCEDURE ANALYSE() FOR UPDATE;
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+(SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
+1
+1
+(SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
+1
+1
+SELECT a FROM t1 LIMIT 1 UNION ALL SELECT a FROM t1;
+ERROR HY000: Incorrect usage of UNION and LIMIT
+(SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a) LIMIT 2;
+a
+1
+1
+(SELECT a FROM t1 LIMIT 1) UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2;
+a
+1
+1
+SELECT 1 UNION SELECT 2 FROM t1 ORDER BY a LIMIT 1;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+SELECT 1 UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1);
+1
+1
+2
+(SELECT 1 FROM t1 LIMIT 2) UNION  SELECT 2 FROM t1 ORDER BY a LIMIT 1;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+(SELECT 1 FROM t1 LIMIT 2) UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1);
+1
+1
+2
+(SELECT a FROM t1 LIMIT 2) LIMIT 1;
+a
+1
+((SELECT a FROM t1 LIMIT 2)) LIMIT 1;
+a
+1
+(SELECT a FROM t1 LIMIT 2) ORDER BY 1;
+a
+1
+(SELECT 1 FROM t1 LIMIT 2) UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1) LIMIT 1;
+1
+1
+(SELECT 1 FROM t1 LIMIT 2) UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1)
+ORDER BY a;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+(SELECT 1 FROM t1 LIMIT 1) UNION ((SELECT 2 FROM t1 ORDER BY a LIMIT 2))
+ORDER BY a;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+(SELECT a FROM t2 LIMIT 1) UNION (SELECT a FROM t3 LIMIT 2) LIMIT 1;
+a
+2
+(SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
+1
+1
+(SELECT a FROM t1 LIMIT 1) ORDER BY t1.a;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+((SELECT a FROM t1 LIMIT 1)) ORDER BY t1.a;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+(SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT 2) ORDER BY t1.b;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+(SELECT a FROM t1 LIMIT 1) UNION ALL ((SELECT 2)) ORDER BY t1.b;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+(SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a LIMIT 2)
+ORDER BY t1.b;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION ( SELECT 1 UNION SELECT 1 )' at line 1
+( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
+SELECT a FROM t1 ORDER BY a UNION SELECT a FROM t1;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+(SELECT * FROM t1 LIMIT 1) UNION SELECT * FROM t1;
+a
+1
+(SELECT * FROM t1 ORDER BY a) UNION SELECT * FROM t1;
+a
+1
+SELECT a FROM t1
+UNION
+SELECT a FROM t1 ORDER BY a
+UNION
+SELECT a FROM t1;
+ERROR HY000: Incorrect usage of UNION and ORDER BY
+(SELECT SQL_CALC_FOUND_ROWS a FROM t1 LIMIT 2)
+UNION
+(SELECT a FROM t2 ORDER BY a) LIMIT 2;
+a
+1
+2
+DROP TABLE t1, t2, t3;
+CREATE PROCEDURE p1() BEGIN IF whatever THEN SELECT 1; END IF; END|
+CALL p1();
+ERROR 42S22: Unknown column 'whatever' in 'field list'
+DROP PROCEDURE p1;
+#
+# Part 2: Test of changed (fixed) behavior.
+#
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES ( 1 );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES ( 2 ), ( 2 );
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES ( 3 ), ( 3 ), ( 3 );
+(SELECT 1 FROM t1   UNION   SELECT 2 FROM t1);
+1
+1
+2
+((SELECT 1 FROM t1   UNION   SELECT 2 FROM t1));
+1
+1
+2
+(SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1));
+1
+1
+2
+((SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1)));
+1
+1
+2
+((SELECT 1 FROM t1   UNION ((SELECT 2 FROM t1))));
+1
+1
+2
+((SELECT 1 FROM t1)  UNION   SELECT 2 FROM t1);
+1
+1
+2
+(((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1);
+1
+1
+2
+((((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1));
+1
+1
+2
+((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1));
+1
+1
+2
+(((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1)));
+1
+1
+2
+((((SELECT 1 FROM t1)) UNION  (SELECT 2 FROM t1)));
+1
+1
+2
+(((SELECT 1 FROM t1)  UNION ((SELECT 2 FROM t1))));
+1
+1
+2
+((((SELECT 1 FROM t1)) UNION ((SELECT 2 FROM t1))));
+1
+1
+2
+(SELECT 1 UNION SELECT 2) ORDER BY 1;
+ERROR HY000: Incorrect usage of UNION and ORDER
+((SELECT 1 UNION SELECT 2)) ORDER BY 1;
+ERROR HY000: Incorrect usage of UNION and ORDER
+((SELECT 1) ORDER BY 1);
+1
+1
+((SELECT 1) LIMIT 1);
+1
+1
+(SELECT 1 UNION SELECT 2) LIMIT 1;
+ERROR HY000: Incorrect usage of UNION and ORDER
+((SELECT 1 UNION SELECT 2)) LIMIT 1;
+ERROR HY000: Incorrect usage of UNION and ORDER
+(SELECT a FROM t1) LIMIT 1 UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2;
+ERROR HY000: Incorrect usage of UNION and LIMIT
+DROP TABLE t1, t2, t3;

@@ -95,6 +95,12 @@ PT_option_value_no_option_type_names_charset:: contextualize(Parse_context *pc)
 }
 
 
+
+bool contextualize(Parse_tree_node *node, Parse_context *pc) {
+  return node == NULL ? false : node->contextualize(pc);
+}
+
+
 bool PT_group::contextualize(Parse_context *pc)
 {
   if (super::contextualize(pc))
@@ -1100,4 +1106,48 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
   }
 
   return sql_cmd;
+}
+
+
+bool PT_select_part2::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) ||
+      select_options_and_item_list->contextualize(pc) ||
+      (opt_into1 != NULL &&
+       opt_into1->contextualize(pc)) ||
+      (from_clause != NULL &&
+       from_clause->contextualize(pc)) ||
+      (opt_where_clause != NULL &&
+       opt_where_clause->itemize(pc, &opt_where_clause)) ||
+      (opt_group_clause != NULL &&
+       opt_group_clause->contextualize(pc)) ||
+      (opt_having_clause != NULL &&
+       opt_having_clause->itemize(pc, &opt_having_clause)))
+    return true;
+
+  pc->select->set_where_cond(opt_where_clause);
+  pc->select->set_having_cond(opt_having_clause);
+
+  if ((opt_order_clause != NULL &&
+       opt_order_clause->contextualize(pc)) ||
+      (opt_limit_clause != NULL &&
+       opt_limit_clause->contextualize(pc)) ||
+      (opt_procedure_analyse_clause != NULL &&
+       opt_procedure_analyse_clause->contextualize(pc)) ||
+      (opt_into2 != NULL &&
+       opt_into2->contextualize(pc)))
+    return true;
+
+  DBUG_ASSERT(opt_into1 == NULL || opt_into2 == NULL);
+  DBUG_ASSERT(opt_procedure_analyse_clause == NULL ||
+              (opt_into1 == NULL && opt_into2 == NULL));
+
+  if (opt_select_lock_type.is_set)
+  {
+    pc->select->set_lock_for_tables(opt_select_lock_type.lock_type);
+    pc->thd->lex->safe_to_cache_query=
+      opt_select_lock_type.is_safe_to_cache_query;
+  }
+
+  return false;
 }

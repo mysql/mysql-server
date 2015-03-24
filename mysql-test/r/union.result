@@ -526,7 +526,7 @@ drop temporary table t1;
 create table t1 select a from t1 union select a from t2;
 ERROR 42S01: Table 't1' already exists
 select a from t1 union select a from t2 order by t2.a;
-ERROR 42000: Table 't2' from one of the SELECTs cannot be used in field list
+ERROR 42000: Table 't2' from one of the SELECTs cannot be used in global ORDER clause
 drop table t1,t2;
 select length(version()) > 1 as `*` UNION select 2;
 *

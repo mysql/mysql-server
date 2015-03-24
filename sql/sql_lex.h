@@ -1725,6 +1725,10 @@ union YYSTYPE {
   class PT_select *select;
   class Item_param *param_marker;
   class PTI_text_literal *text_literal;
+  class PT_query_expression *query_expression;
+  class PT_query_term *query_term;
+  class PT_query_primary *query_primary;
+
   XID *xid;
   enum xa_option_words xa_option_type;
   struct {
@@ -3344,7 +3348,8 @@ public:
   st_select_lex *new_query(st_select_lex *curr_select);
 
   /// Create query block and attach it to the current query expression.
-  st_select_lex *new_union_query(st_select_lex *curr_select, bool distinct);
+  st_select_lex *new_union_query(st_select_lex *curr_select, bool distinct,
+                                 bool check_syntax= true);
 
   /// Create top-level query expression and query block.
   bool new_top_level_query();

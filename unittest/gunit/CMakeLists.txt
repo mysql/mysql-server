@@ -323,34 +323,35 @@ SET(SERVER_TESTS
   get_diagnostics
   gis_algos
   handler
+  initialize_password
   insert_delayed
   item
   item_filter
   item_func_now_local
-  item_timefunc
   item_like
+  item_timefunc
   join_tab_sort
   locking_service
   log_throttle
   make_sortkey
   mdl_sync
   my_decimal
-  opt_costmodel
   opt_costconstants
+  opt_costmodel
   opt_guessrecperkey
   opt_range
   opt_ref
   opt_trace
-  select_lex_visitor
+  security_context
   segfault
+  select_lex_visitor
   sql_table
   strings_utf8
   table_cache
   tc_log_mmap
   thd_manager
+  union_syntax
   unique
-  security_context
-  initialize_password
 )
 
 SET(SQL_GUNIT_LIB_SOURCE 
