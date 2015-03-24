@@ -69,6 +69,8 @@ struct row_threads
   PFS_thread *m_psi;
   /** Column PARENT_THREAD_ID. */
   ulonglong m_parent_thread_internal_id;
+  /** Column CONNECTION_TYPE. */
+  enum_vio_type m_connection_type;
 };
 
 /** Table PERFORMANCE_SCHEMA.THREADS. */

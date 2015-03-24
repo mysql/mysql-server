@@ -232,6 +232,11 @@ static void set_thread_command_noop(int command NNN)
   return;
 }
 
+static void set_connection_type_noop(opaque_vio_type conn_type NNN)
+{
+  return;
+}
+
 static void set_thread_start_time_noop(time_t start_time NNN)
 {
   return;
@@ -887,6 +892,7 @@ static PSI PSI_noop=
   set_thread_user_host_noop,
   set_thread_db_noop,
   set_thread_command_noop,
+  set_connection_type_noop,
   set_thread_start_time_noop,
   set_thread_state_noop,
   set_thread_info_noop,

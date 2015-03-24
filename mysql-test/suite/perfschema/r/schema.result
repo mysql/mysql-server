@@ -1372,7 +1372,8 @@ threads	CREATE TABLE `threads` (
   `PROCESSLIST_INFO` longtext,
   `PARENT_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
   `ROLE` varchar(64) DEFAULT NULL,
-  `INSTRUMENTED` enum('YES','NO') NOT NULL
+  `INSTRUMENTED` enum('YES','NO') NOT NULL,
+  `CONNECTION_TYPE` varchar(16) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table users;
 Table	Create Table

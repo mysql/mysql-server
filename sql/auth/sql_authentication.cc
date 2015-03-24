@@ -2032,20 +2032,28 @@ acl_log_connect(const char *user,
                 THD *thd,
                 enum enum_server_command command)
 {
+  enum_vio_type c_type;
+  const char *vio_name_str= NULL;
+  int len= 0;
+  c_type= vio_type(thd->get_protocol_classic()->get_vio());
+  get_vio_type_name(c_type, & vio_name_str, & len);
+
   if (strcmp(auth_as, user) && (PROXY_FLAG != *auth_as))
   {
-    query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
+    query_logger.general_log_print(thd, command, "%s@%s as %s on %s using %s",
       user,
       host,
       auth_as,
-      db ? db : (char*) "");
+      db ? db : (char*) "",
+      vio_name_str);
   }
   else
   {
-    query_logger.general_log_print(thd, command, (char*) "%s@%s on %s",
+    query_logger.general_log_print(thd, command, "%s@%s on %s using %s",
       user,
       host,
-      db ? db : (char*) "");
+      db ? db : (char*) "",
+      vio_name_str);
   }
 }
 
@@ -2144,6 +2152,10 @@ acl_authenticate(THD *thd, enum_server_command command)
   }
 
   server_mpvio_update_thd(thd, &mpvio);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  enum enum_vio_type m_type = vio_type(thd->get_protocol_classic()->get_vio());
+  PSI_THREAD_CALL(set_connection_type)(m_type);
+#endif /* HAVE_PSI_THREAD_INTERFACE */	  
 
   Security_context *sctx= thd->security_context();
   const ACL_USER *acl_user= mpvio.acl_user;

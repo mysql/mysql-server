@@ -93,12 +93,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("INSTRUMENTED") },
     { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("CONNECTION_TYPE") },
+    { C_STRING_WITH_LEN("varchar(16)") },
+    { NULL, 0 }
   }
 };
 
 TABLE_FIELD_DEF
 table_threads::m_field_def=
-{ 14, field_types };
+{ 15, field_types };
 
 PFS_engine_table_share
 table_threads::m_share=
@@ -222,6 +227,8 @@ void table_threads::make_row(PFS_thread *pfs)
   {
     m_row.m_processlist_state_length= 0;
   }
+  m_row.m_connection_type = pfs->m_connection_type;
+
 
   m_row.m_enabled= pfs->m_enabled;
   m_row.m_psi= pfs;
@@ -236,6 +243,8 @@ int table_threads::read_row_values(TABLE *table,
                                    bool read_all)
 {
   Field *f;
+  const char *str= NULL;
+  int len= 0;
 
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
@@ -340,6 +349,13 @@ int table_threads::read_row_values(TABLE *table,
       case 13: /* INSTRUMENTED */
         set_field_enum(f, m_row.m_enabled ? ENUM_YES : ENUM_NO);
         break;
+      case 14: /* CONNECTION_TYPE */
+        get_vio_type_name(m_row.m_connection_type, & str, & len);
+        if (len > 0)
+          set_field_varchar_utf8(f, str, len);
+        else
+          f->set_null();
+        break;
       default:
         DBUG_ASSERT(false);
       }
@@ -375,6 +391,7 @@ int table_threads::update_row_values(TABLE *table,
       case 10: /* PROCESSLIST_INFO */
       case 11: /* PARENT_THREAD_ID */
       case 12: /* ROLE */
+      case 14: /* CONNECTION_TYPE */
         return HA_ERR_WRONG_COMMAND;
       case 13: /* INSTRUMENTED */
         value= (enum_yes_no) get_field_enum(f);

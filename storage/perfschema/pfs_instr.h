@@ -51,6 +51,7 @@ class THD;
 #include "pfs_con_slice.h"
 #include "pfs_column_types.h"
 #include "mdl.h"
+#include "violite.h" /* enum_vio_type */
 
 extern PFS_single_stat *thread_instr_class_waits_array_start;
 extern PFS_single_stat *thread_instr_class_waits_array_end;
@@ -486,6 +487,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   uint m_dbname_length;
   /** Current command. */
   int m_command;
+  /** Connection type. */
+  enum_vio_type m_connection_type;
   /** Start time. */
   time_t m_start_time;
   /**

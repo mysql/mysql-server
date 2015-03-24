@@ -25,6 +25,7 @@ typedef struct MDL_key MDL_key;
 typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
+typedef int opaque_vio_type;
 struct TABLE_SHARE;
 struct sql_digest_storage;
   struct opaque_THD
@@ -452,6 +453,7 @@ typedef void (*set_thread_account_v1_t)(const char *user, int user_len,
                                         const char *host, int host_len);
 typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
 typedef void (*set_thread_command_v1_t)(int command);
+typedef void (*set_connection_type_v1_t)(opaque_vio_type conn_type);
 typedef void (*set_thread_start_time_v1_t)(time_t start_time);
 typedef void (*set_thread_state_v1_t)(const char* state);
 typedef void (*set_thread_info_v1_t)(const char* info, uint info_len);
@@ -716,6 +718,7 @@ struct PSI_v1
   set_thread_account_v1_t set_thread_account;
   set_thread_db_v1_t set_thread_db;
   set_thread_command_v1_t set_thread_command;
+  set_connection_type_v1_t set_connection_type;
   set_thread_start_time_v1_t set_thread_start_time;
   set_thread_state_v1_t set_thread_state;
   set_thread_info_v1_t set_thread_info;

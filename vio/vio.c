@@ -419,3 +419,42 @@ void vio_end(void)
   CRYPTO_cleanup_all_ex_data();
 #endif
 }
+
+struct vio_string
+{
+  const char * m_str;
+  int m_len;
+};
+typedef struct vio_string vio_string;
+
+/**
+  Names for each VIO TYPE.
+  Indexed by enum_vio_type.
+*/
+static const vio_string vio_type_names[] =
+{
+  { "", 0},
+  { C_STRING_WITH_LEN("TCP/IP") },
+  { C_STRING_WITH_LEN("Socket") },
+  { C_STRING_WITH_LEN("Named Pipe") },
+  { C_STRING_WITH_LEN("SSL/TLS") },
+  { C_STRING_WITH_LEN("Shared Memory") }
+};
+
+void get_vio_type_name(enum enum_vio_type vio_type, const char ** str, int * len)
+{
+  int index;
+
+  if ((vio_type >= FIRST_VIO_TYPE) && (vio_type <= LAST_VIO_TYPE))
+  {
+    index= vio_type;
+  }
+  else
+  {
+    index= 0;
+  }
+  *str= vio_type_names[index].m_str;
+  *len= vio_type_names[index].m_len;
+  return;
+}
+

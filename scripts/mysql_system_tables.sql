@@ -1105,7 +1105,8 @@ SET @cmd="CREATE TABLE performance_schema.threads("
   "PROCESSLIST_INFO LONGTEXT,"
   "PARENT_THREAD_ID BIGINT unsigned,"
   "ROLE VARCHAR(64),"
-  "INSTRUMENTED ENUM ('YES', 'NO') not null"
+  "INSTRUMENTED ENUM ('YES', 'NO') not null,"
+  "CONNECTION_TYPE VARCHAR(16)"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
