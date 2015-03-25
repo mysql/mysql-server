@@ -23,15 +23,16 @@
 #
 # create test bed.
 #
-##--disable_query_log
 let $wl6737_auto_inc = auto_increment;
 --source suite/innodb/include/create_workload_itt.inc
-##--enable_query_log
 
 #-----------------------------------------------------------------------------
 #
 # Workload in non-read-only mode.
 #
+let $restart_parameters = restart: --big-tables=1;
+--source include/restart_mysqld.inc
+
 --source suite/innodb/include/query_workload_itt.inc
 
 #-----------------------------------------------------------------------------
@@ -45,6 +46,32 @@ let $restart_parameters = restart: --innodb-read-only --big-tables=1;
 
 let $restart_parameters = restart;
 --source include/restart_mysqld.inc
+
+#-----------------------------------------------------------------------------
+#
+# Specialized used-cases.
+# Intrinsic table being used as part of trx workload.
+#
+select @@big_tables;
+let $big_tables = `select @@big_tables`;
+create table t0 (m int, n int, key(m)) engine=innodb;
+begin;
+select count(*) from t0;
+set @@session.sql_mode = MAXDB;
+set @@session.tmp_table_size = 0;
+set @@session.big_tables = 1;
+select @@big_tables;
+--disable_result_log
+select event_name, e.min_timer_wait, min(t.min_timer_wait) from
+	performance_schema.events_waits_summary_global_by_event_name as e JOIN
+	performance_schema.events_waits_summary_by_thread_by_event_name as t USING
+	(event_name) group by event_name;
+--enable_result_log
+select * from t0;
+commit;
+drop table t0;
+eval set session big_tables = $big_tables;
+select @@big_tables;
 
 #-----------------------------------------------------------------------------
 #
