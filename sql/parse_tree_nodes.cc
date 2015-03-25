@@ -230,155 +230,6 @@ bool PT_order::contextualize(Parse_context *pc)
 }
 
 
-bool PT_table_factor_select_sym::contextualize(Parse_context *pc)
-{
-  if (super::contextualize(pc))
-    return true;
-
-  LEX * const lex= pc->thd->lex;
-  SELECT_LEX *const outer_select= pc->select;
-
-  if (!outer_select->embedding || outer_select->end_nested_join(pc->thd))
-  {
-    /* we are not in parentheses */
-    error(pc, pos);
-    return true;
-  }
-  TABLE_LIST *embedding= outer_select->embedding;
-  const bool is_deeply_nested= embedding &&
-                               !embedding->nested_join->join_list.elements;
-
-  lex->derived_tables|= DERIVED_SUBQUERY;
-  if (!lex->expr_allows_subselect ||
-      lex->sql_command == (int)SQLCOM_PURGE)
-  {
-    error(pc, pos);
-    return true;
-  }
-
-  outer_select->parsing_place= CTX_DERIVED;
-  if (outer_select->linkage == GLOBAL_OPTIONS_TYPE)
-    return true; // TODO: error(pc, pos)?
-
-  SELECT_LEX * const child= lex->new_query(pc->select);
-  if (child == NULL)
-    return true;
-
-  // Note that this current select is different from the one above
-  pc->select= child;
-  pc->select->linkage= DERIVED_TABLE_TYPE;
-  pc->select->parsing_place= CTX_SELECT_LIST;
-  outer_select->parsing_place= CTX_NONE;
-
-  Yacc_state *yyps= &pc->thd->m_parser_state->m_yacc;
-
-  if (select_options.query_spec_options & SELECT_HIGH_PRIORITY)
-  {
-    yyps->m_lock_type= TL_READ_HIGH_PRIORITY;
-    yyps->m_mdl_type= MDL_SHARED_READ;
-  }
-  if (select_options.save_to(pc))
-    return true;
-
-  if (select_item_list->contextualize(pc))
-    return true;
-  DBUG_ASSERT(child == pc->select);
-
-  // Ensure we're resetting parsing place of the right select
-  DBUG_ASSERT(child->parsing_place == CTX_SELECT_LIST);
-  child->parsing_place= CTX_NONE;
-
-  if (table_expression->contextualize(pc))
-    return true;
-
-  if (is_deeply_nested)
-  {
-    if (child->set_braces(1))
-    {
-      error(pc, pos);
-      return true;
-    }
-  }
-  if (outer_select->init_nested_join(pc->thd))
-    return true;
-
-  /* incomplete derived tables return NULL, we must be
-     nested in select_derived rule to be here. */
-  value= NULL;
-
-  if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
-    return true;
-
-  return false;
-}
-
-
-bool PT_table_factor_parenthesis::contextualize(Parse_context *pc)
-{
-  if (super::contextualize(pc))
-    return true;
-
-  SELECT_LEX * const outer_select= pc->select;
-
-  if (select_derived_union->contextualize(pc))
-    return true;
-
-  /*
-    Use outer_select instead of pc->select as derived table has
-    altered value of pc->select.
-  */
-  if (!(select_derived_union->value || opt_table_alias) &&
-      outer_select->embedding &&
-      !outer_select->embedding->nested_join->join_list.elements)
-  {
-    /*
-      we have a derived table (select_derived_union->value == NULL)
-      but no alias,
-      Since we are nested in further parentheses so we
-      can pass NULL to the outer level parentheses
-      Permits parsing of "((((select ...))) as xyz)"
-    */
-    value= 0;
-  }
-  else if (!select_derived_union->value)
-  {
-    /*
-      Handle case of derived table, alias may be NULL if there
-      are no outer parentheses, add_table_to_list() will throw
-      error in this case
-    */
-    SELECT_LEX_UNIT *unit= pc->select->master_unit();
-    pc->select= outer_select;
-    Table_ident *ti= new Table_ident(unit);
-    if (ti == NULL)
-      return true;
-
-    value= pc->select->add_table_to_list(pc->thd,
-                                         ti, opt_table_alias, 0,
-                                         TL_READ, MDL_SHARED_READ);
-    if (value == NULL)
-      return true;
-    pc->select->add_joined_table(value);
-    pc->thd->lex->pop_context();
-  }
-  else if (opt_table_alias != NULL)
-  {
-    /*
-      Tables with or without joins within parentheses cannot
-      have aliases, and we ruled out derived tables above.
-    */
-    error(pc, alias_pos);
-    return true;
-  }
-  else
-  {
-    /* nested join: FROM (t1 JOIN t2 ...) */
-    value= select_derived_union->value;
-  }
-  return false;
-}
-
-
 bool PT_internal_variable_name_1d::contextualize(Parse_context *pc)
 {
   if (super::contextualize(pc))
@@ -1148,6 +999,106 @@ bool PT_select_part2::contextualize(Parse_context *pc)
     pc->thd->lex->safe_to_cache_query=
       opt_select_lock_type.is_safe_to_cache_query;
   }
+
+  return false;
+}
+
+
+bool PT_derived_table::contextualize(Parse_context *pc)
+{
+  if (Parse_tree_node::contextualize(pc))
+    return true;
+
+  SELECT_LEX *outer_select= pc->select;
+  LEX *lex= pc->thd->lex;
+/*
+  if (! lex->parsing_options.allows_derived)
+  {
+    my_error(ER_VIEW_SELECT_DERIVED, MYF(0));
+    return true;
+  }
+*/
+  lex->derived_tables|= DERIVED_SUBQUERY;
+
+  outer_select->parsing_place= CTX_DERIVED;
+  if (outer_select->linkage == GLOBAL_OPTIONS_TYPE)
+    return true; // TODO: error(pc, pos)?
+
+  SELECT_LEX *child= lex->new_query(pc->select);
+  if (child == NULL)
+    return true;
+
+  // Note that this current select is different from the one above
+  pc->select= child;
+  pc->select->linkage= DERIVED_TABLE_TYPE;
+
+  outer_select->parsing_place= CTX_NONE;
+
+  lex->parsing_options.allows_select_into= false;
+  if (m_query_expression->contextualize(pc))
+    return true;
+
+  lex->parsing_options.allows_select_into= true;
+  /*
+    Handle case of derived table, alias may be NULL if there
+    are no outer parentheses, add_table_to_list() will throw
+    error in this case
+  */
+  SELECT_LEX_UNIT *unit= pc->select->master_unit();
+  pc->select= outer_select;
+  Table_ident *ti= new Table_ident(unit);
+  if (ti == NULL)
+    return true;
+
+  value= pc->select->add_table_to_list(pc->thd,
+                                       ti, m_table_alias, 0,
+                                       TL_READ, MDL_SHARED_READ);
+  if (value == NULL)
+    return true;
+  pc->select->add_joined_table(value);
+  pc->thd->lex->pop_context();
+
+  child->parsing_place= CTX_NONE;
+
+  return false;
+}
+
+
+bool PT_table_factor_joined_table::contextualize(Parse_context *pc)
+{
+  if (Parse_tree_node::contextualize(pc))
+    return true;
+
+  SELECT_LEX *outer_select= pc->select;
+  if (outer_select->init_nested_join(pc->thd))
+    return true;
+
+  if (m_joined_table->contextualize(pc))
+    return true;
+
+  value= pc->select->nest_last_join(pc->thd);
+
+  outer_select->end_nested_join(pc->thd);
+
+  return false;
+}
+
+
+bool PT_nested_derived_table_list::contextualize(Parse_context *pc)
+{
+  if (Parse_tree_node::contextualize(pc))
+    return true;
+
+  SELECT_LEX *outer_select= pc->select;
+  if (outer_select->init_nested_join(pc->thd))
+    return true;
+
+  if (m_derived_table_list->contextualize(pc))
+    return true;
+
+  value= pc->select->nest_last_join(pc->thd);
+
+  outer_select->end_nested_join(pc->thd);
 
   return false;
 }

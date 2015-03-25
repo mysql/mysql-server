@@ -811,7 +811,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT (SELECT 1 FROM t1 INTO @var17727401);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 INTO @var17727401) a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401) a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@var17727401) a' at line 1
 SELECT EXISTS(SELECT 1 FROM t1 INTO @var17727401);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401)' at line 1
 SELECT 1 FROM t1 INTO @var17727401 UNION SELECT 1 FROM t1 INTO t1;
@@ -892,7 +892,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT (SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1 UNION SELECT 1 FROM t1)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1) a;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1 UNION SELECT 1 FROM t1) a' at line 1
 SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 ORDER BY 1;
 ERROR HY000: Incorrect usage of UNION and ORDER BY
 SELECT (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 ORDER BY 1);
@@ -1406,3 +1406,248 @@ ERROR HY000: Incorrect usage of UNION and ORDER
 (SELECT a FROM t1) LIMIT 1 UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2;
 ERROR HY000: Incorrect usage of UNION and LIMIT
 DROP TABLE t1, t2, t3;
+#
+# Part 3: The <table factor> syntax.
+#
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES ( 1 );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES ( 2 );
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES ( 3 );
+CREATE TABLE t4 ( a INT );
+INSERT INTO t4 VALUES ( 3 );
+SELECT * FROM    (SELECT 1 FROM t1   UNION   SELECT 2 FROM t1) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1   UNION   SELECT 2 FROM t1)) dt;
+1
+1
+2
+SELECT * FROM    (SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1)) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1))) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1   UNION ((SELECT 2 FROM t1)))) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION   SELECT 2 FROM t1) dt;
+1
+1
+2
+SELECT * FROM  (((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1) dt;
+1
+1
+2
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1)) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1)) dt;
+1
+1
+2
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1))) dt;
+1
+1
+2
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION  (SELECT 2 FROM t1))) dt;
+1
+1
+2
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION ((SELECT 2 FROM t1)))) dt;
+1
+1
+2
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION ((SELECT 2 FROM t1)))) dt;
+1
+1
+2
+SELECT * FROM    (SELECT 1 FROM t1   UNION   SELECT 2 FROM t1);
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1   UNION   SELECT 2 FROM t1));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM    (SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1)));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1   UNION ((SELECT 2 FROM t1))));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION   SELECT 2 FROM t1);
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM  (((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1);
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1)));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION  (SELECT 2 FROM t1)));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION ((SELECT 2 FROM t1))));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION ((SELECT 2 FROM t1))));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM  ( t1 JOIN t2 ON TRUE );
+a	a
+1	2
+SELECT * FROM (( t1 JOIN t2 ON TRUE ));
+a	a
+1	2
+SELECT * FROM ( t1 JOIN t2 ON TRUE  JOIN t3 ON TRUE );
+a	a	a
+1	2	3
+SELECT * FROM ((t1 JOIN t2 ON TRUE) JOIN t3 ON TRUE );
+a	a	a
+1	2	3
+SELECT * FROM (t1 INNER JOIN t2 ON (t1.a = t2.a));
+a	a
+SELECT 1 FROM (SELECT 1 FROM t1 INTO @v) a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@v) a' at line 1
+SELECT 1 FROM (t1);
+1
+1
+SELECT 1 FROM ((t1));
+1
+1
+SELECT 1 UNION SELECT 2 FROM (t2);
+1
+1
+2
+SELECT 1 FROM  (SELECT 2  ORDER BY 1) AS res;
+1
+1
+#
+# This syntax is no longer allowed
+#
+SELECT 1 FROM ((SELECT 2) ORDER BY 1) AS res;
+1
+1
+SELECT 1 FROM ((SELECT 2) a ORDER BY 1) AS res;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) AS res' at line 1
+SELECT 1 FROM ((SELECT 2) LIMIT 1) AS res;
+1
+1
+SELECT 1 FROM ((SELECT 2) a LIMIT 1) AS res;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1) AS res' at line 1
+SELECT * FROM ( t1 AS alias1 );
+a
+1
+SELECT * FROM   t1 AS alias1, t2 AS alias2;
+a	a
+1	2
+SELECT * FROM ( t1 AS alias1, t2 AS alias2 );
+a	a
+1	2
+SELECT * FROM ( t1 JOIN t2 ON TRUE, t1 JOIN t3 ON TRUE );
+ERROR 42000: Not unique table/alias: 't1'
+SELECT * FROM ( t1 JOIN t2 ON TRUE, t1 t11 JOIN t3 ON TRUE ) t1a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1a' at line 1
+SELECT * FROM ( t1 JOIN t2 ON TRUE, SELECT 1 FROM DUAL );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 FROM DUAL )' at line 1
+SELECT * FROM ( t1 JOIN t2 ON TRUE, (SELECT 1 FROM DUAL) t1a );
+a	a	1
+1	2	1
+SELECT * FROM t1 JOIN t2 ON TRUE, (SELECT 1 FROM DUAL) t1a;
+a	a	1
+1	2	1
+SELECT * FROM ( SELECT 1 FROM DUAL );
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM ( SELECT 1 FROM DUAL ) t1a;
+1
+1
+SELECT * FROM  ( t1, t2 );
+a	a
+1	2
+SELECT * FROM (( t1, t2 ));
+a	a
+1	2
+SELECT * FROM  ( (t1),   t2  );
+a	a
+1	2
+SELECT * FROM  (((t1)),  t2  );
+a	a
+1	2
+SELECT * FROM  ( (t1),  (t2) );
+a	a
+1	2
+SELECT * FROM  (  t1,   (t2) );
+a	a
+1	2
+# Both of these fail consistently now.
+( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 )' at line 1
+SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) a' at line 1
+SELECT * FROM (t1, t2) JOIN (t3, t4) ON TRUE;
+a	a	a	a
+1	2	3	3
+SELECT * FROM ((t1, t2) JOIN t3 ON TRUE);
+a	a	a
+1	2	3
+SELECT * FROM t1 JOIN ( t2, t3 ) USING ( a );
+ERROR 23000: Column 'a' in from clause is ambiguous
+DROP TABLE t1, t2, t3, t4;
+# Check the format in the note.
+CREATE TABLE t1 (a INT);
+EXPLAIN SELECT 1 FROM (SELECT 1 FROM t1) t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1`
+DROP TABLE t1;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+CREATE TABLE t4 ( d INT );
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (2);
+INSERT INTO t4 VALUES (2);
+SELECT * FROM t1 LEFT JOIN ( t2, t3, t4 ) ON a = c;
+a	b	c	d
+1	NULL	NULL	NULL
+SELECT * FROM t1 NATURAL JOIN ((t1 NATURAL JOIN t1), (t1 NATURAL JOIN t1));
+ERROR 42000: Not unique table/alias: 't1'
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+CREATE TABLE t4 ( d INT );
+CREATE TABLE t5 ( d INT );
+SELECT * FROM t5 NATURAL JOIN ((t1 NATURAL JOIN t2), (t3 NATURAL JOIN t4));
+d	a	b	c
+SELECT * FROM ((t1 NATURAL JOIN t2), (t3 NATURAL JOIN t4)) NATURAL JOIN t5;
+d	a	b	c
+SELECT * FROM t1 JOIN ( t2, t3 ) ON TRUE;
+a	b	c
+SELECT * FROM ( t1, t2 , t3 );
+a	b	c
+SELECT * FROM ( ( t1, t2 ), t3 );
+a	b	c
+SELECT * FROM ( ((t1, t2)), t3 );
+a	b	c
+SELECT * FROM ( t1, ( t2, t3 ) );
+a	b	c
+SELECT * FROM ( t1, ((t2, t3)) );
+a	b	c
+SELECT * FROM ((( t1, t2 ), t3));
+a	b	c
+SELECT * FROM ((((t1, t2)), t3));
+a	b	c
+SELECT * FROM ((t1, ( t2, t3 )));
+a	b	c
+SELECT * FROM ((t1, ((t2, t3))));
+a	b	c
+CREATE VIEW v1 AS SELECT 1 INTO @v;
+ERROR HY000: View's SELECT contains a 'INTO' clause
+CREATE VIEW v1 AS SELECT 1 FROM ( SELECT 1 FROM t1 ) my_table;
+DROP TABLE t1, t2, t3, t4, t5;
+DROP VIEW v1;

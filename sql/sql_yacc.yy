@@ -456,11 +456,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %parse-param { class THD *YYTHD }
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
-/*
-  Currently there are 159 shift/reduce conflicts.
-  We should not introduce new conflicts any more.
-*/
-%expect 159
+/* We should not introduce new conflicts any more. */
+%expect 135
 
 /*
    Comments for TOKENS.
@@ -1439,8 +1436,8 @@ END_OF_INPUT
 
 %type <select_options> select_option select_option_list select_options
 
-%type <node> join_table order_or_limit opt_union_order_or_limit
-        option_value union_opt
+%type <node> join_table join_table_parens order_or_limit
+        opt_union_order_or_limit option_value union_opt
 
 %type <table_reference_list> table_reference_list from_clause opt_from_clause
 
@@ -1462,8 +1459,10 @@ END_OF_INPUT
 
 %type <table_expression> table_expression
 
-%type <table_list2> select_derived_union
-        table_factor table_ref esc_table_ref derived_table_list select_derived
+%type <table_list2> table_factor table_ref esc_table_ref derived_table_list
+        named_table named_table_parens nested_table_reference_list
+
+%type <derived_table_list> derived_table_list_parens
 
 %type <join_table_list> join_table_list
 
@@ -1515,7 +1514,7 @@ END_OF_INPUT
 
 %type <select_init> select_init
 
-%type <query_expression> query_expression
+%type <query_expression> query_expression derived_table
 
 %type <query_term> query_term
 
@@ -10284,6 +10283,19 @@ join_table_list:
           {
             $$= NEW_PTN PT_join_table_list(@$, $1);
           }
+        | derived_table_list_parens
+          {
+            /*
+              Legacy compatibility: the old parser rules would make a <table
+              reference list> - that's <join_table_list> in this file -
+              'nested' if it was within parentheses. This is of couse
+              incorrect, since the parentheses have no meaning in this case,
+              but they are allowed. On the other hand it doesn't hurt either
+              since the nesting is removed in later stages anyway.
+            */
+            $1->nest();
+            $$= NEW_PTN PT_join_table_list(@$, $1);
+          }
         ;
 
 /*
@@ -10305,6 +10317,56 @@ derived_table_list:
         | derived_table_list ',' esc_table_ref
           {
             $$= NEW_PTN PT_derived_table_list(@$, $1, $3);
+          }
+        ;
+
+derived_table_list_parens:
+          '(' derived_table_list_parens ')' { $$= $2; }
+        | '(' derived_table_list ',' esc_table_ref ')'
+          {
+            $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
+          }
+        | '(' derived_table_list ',' derived_table_list_parens ')'
+          {
+            $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
+          }
+        | '(' derived_table_list_parens ',' esc_table_ref ')'
+          {
+            $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
+          }
+        ;
+
+/**
+  This syntax is a non-standard MySQL specialty that makes life hard for
+  parser designers. In standard SQL, the <from clause> is defined as FROM
+  <table reference list>. That is, a comma separated list of <table
+  reference>. A table reference may be a table name, subquery, or a join, but
+  it may not be another comma-separated list of tables. In order to explain
+  this to Bison, there are really only three options:
+
+  # Define , to simply mean JOIN.
+
+  # Create a totally ambiguous grammar that accepts a superset of SQL syntax,
+    patch it up with %prec declarations and manually thrown parse errors, and
+    live with a higly bug-prone parser with literally hundreds of shift/reduce
+    conflicts.
+
+  # Make a special rule that disambguates a <table factor> within parentheses
+    from a <table reference list> within parentheses, and handles the nesting
+    of this list after it is parsed.
+
+  Option 1 is definitely feasible but would leave us with a grammar that is
+  very alien from a standard point of view. Option 2 is how the parser was
+  originally implemented, and is likely the reason why nested <table reference
+  list>s are allowed in the first place. Hence option 3 was chosen and
+  implemented as this rule. It's here only to make the call to the (recursive)
+  function PT_table_list::nest() which recursively nests the list as a
+  left-deep tree.
+*/
+nested_table_reference_list:
+          derived_table_list_parens
+          {
+            $1->nest();
           }
         ;
 
@@ -10336,6 +10398,20 @@ join_table:
           {
             $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
           }
+        | nested_table_reference_list normal_join nested_table_reference_list
+          ON
+          expr
+          {
+            $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
+          }
+        | table_ref normal_join nested_table_reference_list ON expr
+          {
+            $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
+          }
+        | nested_table_reference_list normal_join table_factor ON expr
+          {
+            $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
+          }
         | table_ref STRAIGHT_JOIN table_factor
           ON
           expr
@@ -10348,11 +10424,23 @@ join_table:
           {
             $$= NEW_PTN PT_join_table_using<JTT_NORMAL>($1, @2, $3, $6);
           }
+        | table_ref normal_join nested_table_reference_list USING
+          '(' using_list ')'
+          {
+            $$= NEW_PTN PT_join_table_using<JTT_NORMAL>($1, @2, $3, $6);
+          }
         | table_ref NATURAL JOIN_SYM table_factor
           {
             $$= NEW_PTN PT_join_table<JTT_NATURAL>($1, @2, $4);
           }
-
+        | table_ref NATURAL JOIN_SYM nested_table_reference_list
+          {
+            $$= NEW_PTN PT_join_table<JTT_NATURAL>($1, @2, $4);
+          }
+        | nested_table_reference_list NATURAL JOIN_SYM table_factor
+          {
+            $$= NEW_PTN PT_join_table<JTT_NATURAL>($1, @2, $4);
+          }
           /* LEFT JOIN variants */
         | table_ref LEFT opt_outer JOIN_SYM table_ref
           ON
@@ -10360,7 +10448,25 @@ join_table:
           {
             $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
           }
+        | table_ref LEFT opt_outer JOIN_SYM nested_table_reference_list ON expr
+          {
+            $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
+          }
+        | nested_table_reference_list LEFT opt_outer JOIN_SYM table_ref ON expr
+          {
+            $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
+          }
+        | nested_table_reference_list LEFT opt_outer JOIN_SYM
+          nested_table_reference_list ON expr
+          {
+            $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
+          }
         | table_ref LEFT opt_outer JOIN_SYM table_factor
+          USING '(' using_list ')'
+          {
+            $$= NEW_PTN PT_join_table_using<JTT_LEFT>($1, @2, $5, $8);
+          }
+        | table_ref LEFT opt_outer JOIN_SYM nested_table_reference_list
           USING '(' using_list ')'
           {
             $$= NEW_PTN PT_join_table_using<JTT_LEFT>($1, @2, $5, $8);
@@ -10374,6 +10480,10 @@ join_table:
         | table_ref RIGHT opt_outer JOIN_SYM table_ref
           ON
           expr
+          {
+            $$= NEW_PTN PT_join_table_on<JTT_RIGHT>($1, @2, $5, $7);
+          }
+        | nested_table_reference_list RIGHT opt_outer JOIN_SYM table_ref ON expr
           {
             $$= NEW_PTN PT_join_table_on<JTT_RIGHT>($1, @2, $5, $7);
           }
@@ -10410,80 +10520,58 @@ use_partition:
           }
         ;
 
-/**
-  This is a flattening of the rules <table factor> and <table primary>
-  in the SQL:2003 standard, since we don't have <sample clause>
-
-  I.e.
-  <table factor> ::= <table primary> [ <sample clause> ]
-
-  @todo: Make this rule produce query_expression instead of
-  select_derived_union and the rule starting with SELECT_SYM.
-*/
-/* Warning - may return NULL in case of incomplete SELECT */
 table_factor:
           table_ident opt_use_partition opt_table_alias opt_key_definition
           {
             $$= NEW_PTN PT_table_factor_table_ident($1, $2, $3, $4);
           }
-        | SELECT_SYM select_options select_item_list table_expression
+        | named_table_parens
+        | derived_table opt_table_alias
           {
-            $$= NEW_PTN PT_table_factor_select_sym(@$, $1, $2, $3, $4);
+            /*
+              The alias is actually not optional at all, but being MySQL we
+              are friendly and give an informative error message instead of
+              just 'syntax error'.
+            */
+            if ($2 == NULL)
+              my_message(ER_DERIVED_MUST_HAVE_ALIAS,
+                         ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
+
+            // Legacy compatibility.
+            if (!$1->is_union())
+              $1->remove_parentheses();
+
+            $$= NEW_PTN PT_derived_table($1, $2);
+
           }
-          /*
-            Represents a flattening of the following rules from the SQL:2003
-            standard. This sub-rule corresponds to the sub-rule
-            <table primary> ::= ... | <derived table> [ AS ] <correlation name>
-
-            The following rules have been flattened into query_expression_body
-            (since we have no <with clause>).
-
-            <derived table> ::= <table subquery>
-            <table subquery> ::= <subquery>
-            <subquery> ::= <left paren> <query expression> <right paren>
-            <query expression> ::= [ <with clause> ] <query expression body>
-
-            For the time being we use the non-standard rule
-            select_derived_union which is a compromise between the standard
-            and our parser. Possibly this rule could be replaced by our
-            query_expression_body.
-          */
-        | '(' select_derived_union ')' opt_table_alias
+        | join_table_parens
           {
-            $$= NEW_PTN PT_table_factor_parenthesis($2, $4, @4);
+            $$= NEW_PTN PT_table_factor_joined_table($1);
           }
         ;
 
-/*
-  This rule accepts just about anything. The reason is that we have
-  empty-producing rules in the beginning of rules, in this case
-  subselect_start. This forces bison to take a decision which rules to
-  reduce by long before it has seen any tokens. This approach ties us
-  to a very limited class of parseable languages, and unfortunately
-  SQL is not one of them. The chosen 'solution' was this rule, which
-  produces just about anything, even complete bogus statements, for
-  instance ( table UNION SELECT 1 ).
+named_table_parens:
+          '(' named_table_parens ')' { $$= $2; }
+        | '(' named_table ')' { $$= $2; }
+        ;
 
-  Fortunately, we know that the semantic value returned by
-  select_derived->value is NULL if it contained a derived table, and a pointer to
-  the base table's TABLE_LIST if it was a base table. So in the rule
-  regarding union's, we throw a parse error manually and pretend it
-  was bison that did it.
+named_table:
+          table_ident opt_use_partition opt_table_alias opt_key_definition
 
-  Also worth noting is that this rule concerns query expressions in
-  the from clause only. Top level select statements and other types of
-  subqueries have their own union rules.
- */
-select_derived_union:
-          select_derived opt_union_order_or_limit
           {
-            $$= NEW_PTN PT_select_derived_union_select($1, $2, @2);
-          }
-        | select_derived_union UNION_SYM union_option query_specification
-          {
-            $$= NEW_PTN PT_select_derived_union_union($1, @2, $3, $4);
+            $$= NEW_PTN PT_table_factor_table_ident($1, $2, $3, $4);
           }
         ;
+
+join_table_parens:
+          '(' join_table_parens ')' { $$= $2; }
+        | '(' join_table ')' { $$= $2; }
+        ;
+
+derived_table:
+          '(' query_expression ')' { $$= $2; }
+        ;
+
 
 /* The equivalent of select_part2 for nested queries. */
 select_part2_derived:
@@ -10496,14 +10584,6 @@ select_part2_derived:
           opt_query_spec_options select_item_list
           {
             $$= NEW_PTN PT_select_part2_derived($2, $3);
-          }
-        ;
-
-/* handle contents of parentheses in join expression */
-select_derived:
-          derived_table_list
-          {
-            $$= NEW_PTN PT_select_derived(@1, $1);
           }
         ;
 
@@ -10658,7 +10738,7 @@ date_time_type:
         | DATETIME  {$$= MYSQL_TIMESTAMP_DATETIME; }
         ;
 
-table_alias:
+opt_as_or_eq:
           /* empty */
         | AS
         | EQ
@@ -10666,7 +10746,7 @@ table_alias:
 
 opt_table_alias:
           /* empty */ { $$=0; }
-        | table_alias ident
+        | opt_as_or_eq ident
           {
             $$= (LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING));
             if ($$ == NULL)
@@ -10964,7 +11044,7 @@ select_var_list:
           }
         | select_var_ident
           {
-            $$= NEW_PTN PT_select_var_list;
+            $$= NEW_PTN PT_select_var_list(@$);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -10998,11 +11078,11 @@ into_destination:
           opt_load_data_charset
           opt_field_term opt_line_term
           {
-            $$= NEW_PTN PT_into_destination_outfile($2, $3, $4, $5);
+            $$= NEW_PTN PT_into_destination_outfile(@$, $2, $3, $4, $5);
           }
         | DUMPFILE TEXT_STRING_filesystem
           {
-            $$= NEW_PTN PT_into_destination_dumpfile($2);
+            $$= NEW_PTN PT_into_destination_dumpfile(@$, $2);
           }
         | select_var_list { $$= $1; }
         ;

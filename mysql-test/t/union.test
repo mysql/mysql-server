@@ -1252,6 +1252,7 @@ SELECT c1, c2 FROM (
   ORDER BY c2 DESC, c1 DESC LIMIT 1
 ) AS res;
 
+--error ER_WRONG_USAGE
 SELECT c1, c2 FROM (
   (
    (SELECT c1, c2 FROM t1)

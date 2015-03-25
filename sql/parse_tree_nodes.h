@@ -252,6 +252,8 @@ class PT_table_list : public Parse_tree_node
 {
 public:
   TABLE_LIST *value;
+
+  virtual void nest() {}
 };
 
 
@@ -295,6 +297,34 @@ public:
   }
 };
 
+
+class PT_table_factor_joined_table : public PT_table_list
+{
+public:
+  PT_table_factor_joined_table(Parse_tree_node *joined_table) :
+  m_joined_table(joined_table)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+
+private:
+  Parse_tree_node *m_joined_table;
+};
+
+
+class PT_derived_table_list;
+class PT_nested_derived_table_list : public PT_table_list
+{
+public:
+  PT_nested_derived_table_list(PT_derived_table_list *derived_table_list) :
+  m_derived_table_list(derived_table_list)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+
+private:
+  PT_derived_table_list *m_derived_table_list;
+};
 
 enum PT_join_table_type
 {
@@ -715,33 +745,6 @@ public:
 };
 
 
-class PT_table_factor_select_sym : public PT_table_list
-{
-  typedef PT_table_list super;
-
-  POS pos;
-  PT_hint_list *opt_hint_list;
-  Query_options select_options;
-  PT_item_list *select_item_list;
-  PT_table_expression *table_expression;
-
-public:
-  PT_table_factor_select_sym(const POS &pos,
-                             PT_hint_list *opt_hint_list_arg,
-                             Query_options select_options_arg,
-                             PT_item_list *select_item_list_arg,
-                             PT_table_expression *table_expression_arg)
-  : pos(pos),
-    opt_hint_list(opt_hint_list_arg),
-    select_options(select_options_arg),
-    select_item_list(select_item_list_arg),
-    table_expression(table_expression_arg)
-  {}
-
-  virtual bool contextualize(Parse_context *pc);
-};
-
-
 class PT_select_derived_union_select : public PT_table_list
 {
   typedef PT_table_list super;
@@ -857,14 +860,35 @@ class PT_derived_table_list : public PT_table_list
   typedef PT_table_list super;
 
   POS pos;
+
+
+  /**
+    If the list has more than one element, the sub-list is found here, not in
+    'tail' as one would perhaps expect.
+  */
   PT_table_list *head;
+
+
+  /**
+    Note that the 'tail' of this list is actually found in 'head'. since Bison
+    constructs the list it is a left-deep tree. This element is always an
+    <esc_table_ref>.
+  */
   PT_table_list *tail;
+  bool m_is_nested;
 
 public:
   PT_derived_table_list(const POS &pos,
                         PT_table_list *head_arg, PT_table_list *tail_arg)
-  : pos(pos), head(head_arg), tail(tail_arg)
+  : pos(pos), head(head_arg), tail(tail_arg), m_is_nested(false)
   {}
+
+  void nest()
+  {
+    // See comment to this member.
+    head->nest();
+    m_is_nested= true;
+  }
 
   virtual bool contextualize(Parse_context *pc)
   {
@@ -877,56 +901,10 @@ public:
       error(pc, pos);
       return true;
     }
-    value= tail->value;
-    return false;
-  }
-};
-
-
-class PT_select_derived : public PT_table_list
-{
-  typedef PT_table_list super;
-
-  POS pos;
-  PT_table_list *derived_table_list;
-
-public:
-   
-  PT_select_derived(const POS &pos, PT_table_list *derived_table_list_arg)
-  : pos(pos), derived_table_list(derived_table_list_arg)
-  {}
-
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    SELECT_LEX * const outer_select= pc->select;
-
-    if (outer_select->init_nested_join(pc->thd))
-      return true;
-
-    if (derived_table_list->contextualize(pc))
-      return true;
-
-    /*
-      for normal joins, derived_table_list->value != NULL and
-      end_nested_join() != NULL, for derived tables, both must equal NULL
-    */
-
-    value= outer_select->end_nested_join(pc->thd);
-
-    if (value == NULL && derived_table_list->value != NULL)
-    {
-      error(pc, pos);
-      return true;
-    }
-
-    if (derived_table_list->value == NULL && value != NULL)
-    {
-      error(pc, pos);
-      return true;
-    }
+    if (m_is_nested)
+      value= pc->select->nest_last_join(pc->thd);
+    else
+      value= tail->value;
     return false;
   }
 };
@@ -949,11 +927,6 @@ public:
     if (super::contextualize(pc) || derived_table_list->contextualize(pc))
       return true;
 
-    if (derived_table_list->value == NULL)
-    {
-      error(pc, pos);
-      return true;
-    }
     value= derived_table_list->value;
     return false;
   }
@@ -1877,18 +1850,28 @@ class PT_into_destination : public Parse_tree_node
   typedef Parse_tree_node super;
 
 public:
+  PT_into_destination(const POS &pos) : m_pos(pos) {}
+
   virtual bool contextualize(Parse_context *pc)
   {
     if (super::contextualize(pc))
       return true;
 
+    LEX *lex= pc->thd->lex;
     if (!pc->thd->lex->parsing_options.allows_select_into)
     {
-      my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), "INTO");
+      if (lex->sql_command == SQLCOM_SHOW_CREATE ||
+          lex->sql_command == SQLCOM_CREATE_VIEW)
+        my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), "INTO");
+      else
+        error(pc, m_pos);
       return true;
     }
     return false;
   }
+
+private:
+  POS m_pos;
 };
 
 
@@ -1902,14 +1885,16 @@ class PT_into_destination_outfile : public PT_into_destination
   const Line_separators line_term;
 
 public:
-  PT_into_destination_outfile(const LEX_STRING &file_name_arg,
+  PT_into_destination_outfile(const POS &pos,
+                              const LEX_STRING &file_name_arg,
                               const CHARSET_INFO *charset_arg,
                               const Field_separators &field_term_arg,
                               const Line_separators &line_term_arg)
-  : file_name(file_name_arg.str),
-    charset(charset_arg),
-    field_term(field_term_arg),
-    line_term(line_term_arg)
+    : PT_into_destination(pos),
+      file_name(file_name_arg.str),
+      charset(charset_arg),
+      field_term(field_term_arg),
+      line_term(line_term_arg)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -1938,8 +1923,10 @@ class PT_into_destination_dumpfile : public PT_into_destination
   const char *file_name;
 
 public:
-  explicit PT_into_destination_dumpfile(const LEX_STRING &file_name_arg)
-  : file_name(file_name_arg.str)
+  explicit PT_into_destination_dumpfile(const POS &pos,
+                                        const LEX_STRING &file_name_arg)
+    : PT_into_destination(pos),
+      file_name(file_name_arg.str)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -2002,6 +1989,8 @@ class PT_select_var_list : public PT_into_destination
   typedef PT_into_destination super;
 
 public:
+  PT_select_var_list(const POS &pos) : PT_into_destination(pos) {}
+
   List<PT_select_var> value;
 
   virtual bool contextualize(Parse_context *pc)
@@ -2168,6 +2157,8 @@ public:
     return false;
   }
 
+  virtual void remove_parentheses() {}
+
   /**
     True if this query expression is a union query, i.e. contains more than
     one query term.
@@ -2208,6 +2199,23 @@ public:
   virtual PT_order *remove_order_clause() = 0;
   virtual PT_limit_clause *remove_limit_clause() = 0;
   virtual bool is_nested() const = 0;
+};
+
+
+class PT_derived_table : public PT_table_list
+{
+public:
+  PT_derived_table(PT_query_expression *query_expression,
+                   LEX_STRING *table_alias) :
+    m_query_expression(query_expression),
+    m_table_alias(table_alias)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+
+private:
+  PT_query_expression *m_query_expression;
+  LEX_STRING *m_table_alias;
 };
 
 
@@ -2252,7 +2260,7 @@ public:
     pc->select->no_table_names_allowed= false;
     pc->select= select_lex;
 
-//    pc->thd->lex->pop_context();
+    pc->thd->lex->pop_context();
     return false;
   }
 
@@ -2777,5 +2785,6 @@ public:
 private:
   bool has_select() const { return insert_query_expression != NULL; }
 };
+
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

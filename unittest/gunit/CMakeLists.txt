@@ -348,6 +348,7 @@ SET(SERVER_TESTS
   sql_table
   strings_utf8
   table_cache
+  table_factor_syntax
   tc_log_mmap
   thd_manager
   union_syntax

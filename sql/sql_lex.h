@@ -1728,6 +1728,8 @@ union YYSTYPE {
   class PT_query_expression *query_expression;
   class PT_query_term *query_term;
   class PT_query_primary *query_primary;
+  class PT_nested_derived_table_list *nested_derived_table_list;
+  class PT_derived_table_list *derived_table_list;
 
   XID *xid;
   enum xa_option_words xa_option_type;

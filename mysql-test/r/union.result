@@ -1907,8 +1907,7 @@ UNION
 )
 ORDER BY c2 DESC, c1 ASC LIMIT 1
 ) AS res;
-c1	c2
-t1a	3
+ERROR HY000: Incorrect usage of UNION and ORDER
 DROP TABLE t1, t2;
 #
 # Bug #58970 Problem Subquery (without referencing a table) 

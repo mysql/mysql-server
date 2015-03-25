@@ -567,6 +567,14 @@ public:
     empty();
   }
 
+  T *operator[] (int index) const
+  {
+    T *current= first;
+    for (int i= 0; i < index; ++i)
+      current= current->next;
+    return current->info;
+  }
+
   using base_list::sort;
 };
 
