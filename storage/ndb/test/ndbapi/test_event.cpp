@@ -2438,6 +2438,7 @@ errorInjectBufferOverflowOnly(NDBT_Context* ctx, NDBT_Step* step)
   {
     return NDBT_FAILED;
   }
+  restarter.insertErrorInAllNodes(0);
   return NDBT_OK;
 }
 
@@ -3984,6 +3985,269 @@ int runPollBCOverflowEB(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_FAILED;
 }
 
+/*************************************************************
+ * Test: pollEvents(0) returns immediately :
+ * The consumer waits max 10 secs to see an event.
+ * Then it polls with 0 wait time. If it could not see
+ * event data with the same epoch, it fails.
+ */
+int runPollBCNoWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+  ndb->set_eventbuf_max_alloc(2621440); // max event buffer size
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = NULL, *pCreate = NULL;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  // Wait max 10 sec for event data to start flowing
+  Uint32 retries = 10;
+  Uint64 poll_gci = 0;
+  while (retries-- > 0)
+  {
+    if (ndb->pollEvents(1000, &poll_gci) == 1)
+        break;
+  }
+  CHK(retries > 0, "No epoch has received in 10 secs");
+
+  // pollEvents with aMilliSeconds = 0 will poll only once (no wait),
+  // and it should see the event data seen above
+  CHK((ndb->pollEvents(0, &poll_gci) != 1),
+      "pollEvents(0) hasn't seen the event data");
+
+  CHK((ndb->dropEventOperation(pCreate) == 0), "dropEventOperation failed");
+  return NDBT_OK;
+}
+
+int runPollBCNoWait(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Insert one record, to test pollEvents(0).
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  CHK((hugoTrans.loadTable(GETNDB(step), 1, 1) == 0), "Insert failed");
+  return NDBT_OK;
+}
+
+/*************************************************************
+ * Test: pollEvents(-1) will wait long (2^32 mill secs) :
+ *    To test it within a reasonable time, this wait will be
+ *    ended after 10 secs by peroforming an insert by runPollBCLong()
+ *    and the pollEvents sees it.
+ *    If the wait will not end or it ends prematuerly (< 10 secs),
+ *    the test will fail.
+ */
+int runPollBCLongWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+  ndb->set_eventbuf_max_alloc(2621440); // max event buffer size
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = NULL, *pCreate = NULL;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  Uint64 poll_gci = 0;
+  ndb->pollEvents(-1, &poll_gci);
+
+  // poll has seen the insert event data now.
+  CHK((ndb->dropEventOperation(pCreate) == 0), "dropEventOperation failed");
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int runPollBCLongWait(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* runPollWaitLong() is blocked by pollEvent(-1).
+   * We do not want to wait 2^32 millsec, so we end it
+   * after 10 secs by sending an insert.
+   */
+  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
+  NdbSleep_SecSleep(10);
+
+  // Insert one record, to end the consumer's long wait
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  CHK((hugoTrans.loadTable(GETNDB(step), 1, 1) == 0), "Insert failed");
+
+  // Give max 10 sec for the consumer to see the insert
+  Uint32 retries = 10;
+  while (!ctx->isTestStopped() && retries-- > 0)
+  {
+    NdbSleep_SecSleep(1);
+  }
+  CHK((ctx->isTestStopped() || retries > 0),
+      "Consumer hasn't seen the insert in 10 secs");
+
+  const Uint32 duration =
+    (Uint32)NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).milliSec();
+
+  if (duration < 10000)
+  {
+    g_err << "pollEvents(-1) returned earlier (" << duration
+          << " secs) than expected minimum of 10 secs." << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+
+/*************************************************************
+ * Test backward compatibility of the pollEvents related to
+ * inconsistent epochs.
+ * An inconsistent event data can be found at the head of the
+ * event queue or after the head.
+ * It it is at the head:
+ *  - the backward compatible pollEvents will return 1 and
+ *  - the following nextEvent call will return NULL.
+ * The test writes out which case (head or after) is found.
+ *
+ * For each poll, nextEvent round will end the test when
+ * it finds an inconsistent epoch, or process the whole queue.
+ *
+ * After each poll (before nextEvent call) event queue is checked
+ * for inconsistency.
+ * Test will fail :
+ * a) if no inconsistent epoch is found after 10 poll rounds
+ * b) If the inconsistent epoch found by poll is not equal to
+ *    the one found by the nextEvent
+ * c) if the poll found an inconsistent epoch, but bot the next
+ *    or vice versa.
+ */
+int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp, *pCreate = NULL;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  Uint32 n_ins = 0, n_dels = 0, n_unknown = 0;
+  Uint32 n_inconsis_poll = 0, n_inconsis_next = 0;
+
+  Uint64 inconsis_epoch_poll = 0; // inconsistent epoch seen by pollEvents
+  Uint64 inconsis_epoch_next = 0;// inconsistent epoch seen by nextEvent
+
+  Uint64 current_gci = 0, poll_gci = 0;
+
+  // Wait max 10 sec for event data to start flowing
+  Uint32 retries = 10;
+  while (retries-- > 0)
+  {
+    if (ndb->pollEvents(1000, &poll_gci) == 1)
+        break;
+  }
+  CHK(retries > 0, "No epoch has received in 10 secs");
+
+  // if no inconsistency is found within 20 secs, fail
+  retries = 20;
+  do
+  {
+    // Check whether an inconsistent epoch is in the queue
+    if (!ndb->isConsistent(inconsis_epoch_poll))
+    {
+      n_inconsis_poll++;
+    }
+
+    pOp = ndb->nextEvent();
+    // Check whether an inconsistent epoch is at the head
+    if (pOp == NULL)
+    {
+      // pollEvents returned 1, but nextEvent returned 0,
+      // Should be an inconsistent epoch
+      CHK(!ndb->isConsistent(inconsis_epoch_next),
+          "Expected inconsistent epoch");
+      g_info << "Next event found inconsistent epoch at the"
+             << " head of the event queue" << endl;
+      CHK((inconsis_epoch_poll != 0 &&
+           inconsis_epoch_poll == inconsis_epoch_next),
+          "pollEvents and nextEvent found different inconsitent epochs");
+      n_inconsis_next++;
+      goto end_test;
+
+      g_err << "pollEvents returned 1, but nextEvent found no data"
+            << endl;
+      return NDBT_FAILED;
+    }
+
+    while (pOp)
+    {
+      current_gci = pOp->getGCI();
+
+      switch (pOp->getEventType())
+      {
+      case NdbDictionary::Event::TE_INSERT:
+        n_ins ++;
+        break;
+      case NdbDictionary::Event::TE_DELETE:
+        n_dels ++;
+        break;
+      default:
+        n_unknown ++;
+        break;
+      }
+
+      pOp = ndb->nextEvent();
+      if (pOp == NULL)
+      {
+        // pOp returned NULL, check it is an inconsistent epoch.
+        if (!ndb->isConsistent(inconsis_epoch_next))
+        {
+          g_info << "Next event found inconsistent epoch"
+                 << " in the event queue" << endl;
+          CHK((inconsis_epoch_poll != 0 &&
+               inconsis_epoch_poll == inconsis_epoch_next),
+              "pollEvents and nextEvent found different inconsistent epochs");
+          goto end_test;
+        }
+        // Check whether we have processed the entire queue
+        CHK(current_gci == poll_gci, "Expected inconsistent epoch");
+      }
+    }
+    if (retries-- == 0)
+      goto end_test;
+
+  } while (ndb->pollEvents(1000, &poll_gci));
+
+end_test:
+  if (n_inconsis_poll == 0 ||
+      n_unknown != 0 )
+  {
+    g_err << "Test failed :" << endl;
+    g_err << " #inconsistent epochs found by pollEvents "
+          << n_inconsis_poll << endl;
+    g_err << " #inconsistent epochs found by nextEvent "
+          << n_inconsis_next << endl;
+    g_err << " Inconsis epoch found by pollEvents "
+          << inconsis_epoch_poll << endl;
+    g_err << " inconsis epoch found by nextEvent "
+          << inconsis_epoch_next << endl;
+    g_err << " Inserts " << n_ins << ", deletes " << n_dels
+          << ", unknowns " << n_unknown << endl;
+    return NDBT_FAILED;
+  }
+
+  // Stop the transaction load to data nodes
+  ctx->stopTest();
+
+  CHK(ndb->dropEventOperation(pCreate) == 0, "dropEventOperation failed");
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -4258,7 +4522,35 @@ TESTCASE("Apiv2EmptyEpochs",
   INITIALIZER(runCreateEvent);
   STEP(runListenEmptyEpochs);
   FINALIZER(runDropEvent);
-};
+}
+TESTCASE("BackwardCompatiblePollNoWait",
+         "Check backward compatibility for pollEvents"
+         "when poll does not wait")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runPollBCNoWaitConsumer);
+  STEP(runPollBCNoWait);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("BackwardCompatiblePollLongWait",
+         "Check backward compatibility for pollEvents"
+         "when poll waits long")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runPollBCLongWaitConsumer);
+  STEP(runPollBCLongWait);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("BackwardCompatiblePollInconsistency",
+         "Check backward compatibility of pollEvents"
+          "when handling data node buffer overflow")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runInsertDeleteUntilStopped);
+  STEP(runPollBCInconsistency);
+  STEP(errorInjectBufferOverflowOnly);
+  FINALIZER(runDropEvent);
+}
 NDBT_TESTSUITE_END(test_event);
 
 #if 0
