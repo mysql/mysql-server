@@ -36,6 +36,8 @@ show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	ndbcluster	10	Dynamic	0	#	#	#	0	#	1	#	#	#	latin1_swedish_ci	NULL	partitioned	#
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values
 (0,4,3,5,"PENDING",1,7),(NULL,4,3,5,"PENDING",1,7),(31,4,3,5,"PENDING",1,7), (7,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7), (100,4,3,5,"PENDING",1,7), (99,4,3,5,"PENDING",1,7), (8,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7);
 show table status;
@@ -133,6 +135,8 @@ a	b
 0	1
 17	18
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table  t1 modify column a int not null auto_increment;
 SET SQL_MODE='';
 select * from t1 order by a;
