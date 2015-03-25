@@ -370,7 +370,7 @@ Obsoletes:      mariadb-embedded
 Obsoletes:      MySQL-embedded < %{version}-%{release}
 Obsoletes:      mysql-embedded < %{version}-%{release}
 Provides:       mysql-embedded = %{version}-%{release}
-Provides:       mysql-emdedded%{?_isa} = %{version}-%{release}
+Provides:       mysql-embedded%{?_isa} = %{version}-%{release}
 
 %description    embedded
 This package contains the MySQL server as an embedded library.
