@@ -224,7 +224,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) /*!50100 TABLESPACE table_space1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 ALTER TABLE test.t2 TABLESPACE table_space1 STORAGE DISK
 ENGINE=NDB;
 SHOW CREATE TABLE test.t2;
@@ -234,7 +234,7 @@ t2	CREATE TABLE `t2` (
   `b2` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`pk2`)
-) /*!50100 TABLESPACE table_space1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 ALTER TABLE test.t1 STORAGE MEMORY ENGINE=NDBCLUSTER;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
@@ -243,7 +243,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) /*!50100 TABLESPACE table_space1 STORAGE MEMORY */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `table_space1` STORAGE MEMORY */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 
 DROP TABLE test.t1;
 DROP TABLE test.t2;
@@ -342,7 +342,7 @@ t1	CREATE TABLE `t1` (
   KEY `a2` (`a2`),
   KEY `a3` (`a3`),
   KEY `a8` (`a8`)
-) /*!50100 TABLESPACE table_space1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (

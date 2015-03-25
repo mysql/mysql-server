@@ -25,7 +25,7 @@ t1	CREATE TABLE `t1` (
   `a9` varchar(255) DEFAULT NULL,
   `a10` blob,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 Attributes:
 a1 Smallint PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 a2 Int NOT NULL AT=FIXED ST=DISK
@@ -62,7 +62,7 @@ t1	CREATE TABLE `t1` (
   `a10` blob,
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 FLUSH TABLES;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -79,7 +79,7 @@ t1	CREATE TABLE `t1` (
   `a10` blob,
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a1`)
-) /*!50100 TABLESPACE ts */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table t1;
 ALTER TABLESPACE ts
 DROP DATAFILE 'datafile.dat'
