@@ -273,10 +273,10 @@ SET @x=0;
 CREATE or REPLACE VIEW v1 AS Select 1 INTO @x;
 Select @x;
 
-# Subquery in the FROM clause is illegal
---error ER_VIEW_SELECT_DERIVED
+# Subquery in the FROM clause is legal
 CREATE or REPLACE VIEW v1 AS Select 1
 FROM (SELECT 1 FROM t1) my_table;
+DROP VIEW v1;
 
 # Triggers cannot be associated with VIEWs
 CREATE VIEW v1 AS SELECT f1 FROM t1;
@@ -1556,18 +1556,15 @@ let $message= Testcase 3.3.1.39 ;
 # Testcase 3.3.1.39: Ensure that a view definition that includes a subquery in
 #                    a FROM clause is rejected with an appropriate error
 #                    message at create time.
+#                    Restriction lifted with bug#11865600
 ###############################################################################
 --disable_warnings
 Drop view if exists test.v1 ;
 --enable_warnings
---error ER_VIEW_SELECT_DERIVED
 CREATE VIEW test.v1
 AS Select f59 from (Select * FROM tb2 limit 20) tx ;
---error ER_NO_SUCH_TABLE
 SELECT * FROM test.v1 order by f59 ;
---disable_warnings
-Drop view if exists test.v1 ;
---enable_warnings
+DROP VIEW test.v1 ;
 
 
 let $message= Testcase 3.3.1.40 ;
@@ -1984,18 +1981,11 @@ let $message= Testcase 3.3.1.49A ;
 #    --> The WHERE qualifications of all nested VIEWs have to be fulfilled.
 #        The CHECK OPTIONS of underlying VIEWs have no effect.
 # 2. Top VIEW   WITH LOCAL CHECK OPTION
-#    --> Only the WHERE qualification of this VIEW has to be fulfilled.
-#        The CHECK OPTIONS of underlying VIEWs have no effect.
+#    --> The WHERE qualification of this VIEW has to be fulfilled.
+#        The CHECK OPTIONS of underlying VIEWs have effect.
 # 3. Top VIEW   without any CHECK OPTION
-#    --> The WHERE qualifications of all nested VIEWs need not to be fulfilled.
-#        The CHECK OPTIONS of underlying VIEWs have no effect.
-#
-# v3        | v2        | v1        | Qualifications to be checked
-# ------------------------------------------------------------------------
-# CASCADED  | <any>     | <any>     | qual_v3 + qual_v2 + qual_v3
-# <default> | <any>     | <any>     | qual_v3 + qual_v2 + qual_v3
-# LOCAL     | <any>     | <any>     | qual_v3
-# <without> | <any>     | <any>     |
+#    --> The WHERE qualification of this VIEW need not be fulfilled.
+#        The CHECK OPTIONS of underlying VIEWs have effect.
 #
 # Note: The CHECK OPTION does not influence the retrieval of rows
 #       (SELECT/DELETE/UPDATE). All WHERE qualifications will be applied
@@ -2054,8 +2044,11 @@ while ($num1)
       eval SET @v3_part= @part$num3;
       let $aux= `SELECT CONCAT('CREATE VIEW v3 (my_col1,my_col2) AS SELECT *
       FROM v2 WHERE col1 MOD 2 = 0 ', @v3_part)` ;
+      --enable_query_log
       eval $aux ;
+      --disable_query_log
       --vertical_results
+      # Present CHECK OPTION clauses from v3 to v1:
       SELECT CONCAT(IF(@v3_part = '','        <nothing>         ',
                                      @v3_part), ' - ',
                     IF(@v2_part = '','        <nothing>         ',
@@ -2265,38 +2258,36 @@ while ($num1)
 SELECT * FROM t1_results ORDER BY v3_to_v1_options, statement, v3_to_v1_violation, errno;
 
 let $message=
-Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above).
-All following SELECTs must give ROW NOT FOUND ;
+Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above). ;
 --source include/show_msg80.inc
 
 # Plausibility checks for INSERTs and UPDATEs ( 4. and 5. above):
 # 1. There must be NO denied INSERT/UPDATE, when no WHERE qualification
-#    is violated. Expect ROW NOT FUND
-SELECT * FROM t1_results
+#    is violated. Expect ROW NOT FOUND
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_violation = '  _  _  ' AND errno <> 0
 ORDER BY v3_to_v1_options;
-# 2. There must be NO denied INSERT/UPDATE, when the toplevel VIEW v3 is
-#    defined without any CHECK OPTION. Expect ROW NOT FUND
-SELECT * FROM t1_results
+# 2. There must be denied INSERT/UPDATE, if any CHECK OPTION is violated.
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_options LIKE '  %' AND errno <> 0
 ORDER BY v3_to_v1_options;
 # 3. There must be NO successful INSERT/UPDATE, when the toplevel VIEW v3 is
 #    defined with any CHECK OPTION and the WHERE qualification of this VIEW is
-#    violated. Expect ROW NOT FUND
-SELECT * FROM t1_results
+#    violated. Expect ROW NOT FOUND
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_options LIKE 'WITH %'
   AND v3_to_v1_violation LIKE 'v3_%' AND errno = 0
 ORDER BY v3_to_v1_options;
 # 4. There must be NO successful INSERT/UPDATE, when the toplevel VIEW v3 is
-#    defined with any CHECK OPTION and the CHECK OPTION does not contain LOCAL
-#    and the WHERE qualification of any VIEW is violated. Expect ROW NOT FUND
-SELECT * FROM t1_results
+#    defined with any CHECK OPTION and the CHECK OPTION of any VIEW is
+#    violated. Expect ROW NOT FOUND
+SELECT COUNT(*) FROM t1_results
 WHERE v3_to_v1_options LIKE 'WITH %' AND v3_to_v1_options NOT LIKE 'WITH LOCAL %'
   AND v3_to_v1_violation NOT LIKE '  _  _  ' AND errno = 0
 ORDER BY v3_to_v1_options;
 # 5. There must be NO failing INSERT/UPDATE getting a
 #    sql_errno <> 1369 (ER_VIEW_CHECK_FAILED).
-SELECT * FROM t1_results
+SELECT COUNT(*) FROM t1_results
 WHERE errno <> 0 AND errno <> 1369
 ORDER BY v3_to_v1_options;
 let $message= End of plausibility checks;
@@ -3816,15 +3807,16 @@ SET @variant4= 'CREATE VIEW v1 AS SELECT f61 FROM t1 GROUP BY f61';
 # For HAVING                         3.3.2.16
 SET @variant5= 'CREATE VIEW v1 AS SELECT f61 FROM t1 HAVING f61 > 0';
 # For a sub query in the select list 3.3.2.17
-SET @variant6= 'CREATE VIEW v1 AS SELECT (SELECT f60 FROM t2 WHERE f59=19) AS f61 FROM t1';
+# This restriction has been lifted
+# SET @variant6= 'CREATE VIEW v1 AS SELECT (SELECT f60 FROM t2 WHERE f59=19) AS f61 FROM t1';
 # For a WHERE clause sub query that refers to a table also referenced in a
 # FROM clause 3.3.2.18
-SET @variant7= 'CREATE VIEW v1 AS SELECT f61 FROM v2';
-SET @variant8= 'CREATE VIEW v1 AS SELECT f59 AS f61 FROM t1 WHERE f60 IN (SELECT f59 FROM t1)';
+SET @variant6= 'CREATE VIEW v1 AS SELECT f61 FROM v2';
+SET @variant7= 'CREATE VIEW v1 AS SELECT f59 AS f61 FROM t1 WHERE f60 IN (SELECT f59 FROM t1)';
 # For ALGORITHM = TEMPTABLE          3.3.2.20
-SET @variant9= 'CREATE ALGORITHM = TEMPTABLE VIEW v1 (f61) AS select f60 from t1';
+SET @variant8= 'CREATE ALGORITHM = TEMPTABLE VIEW v1 (f61) AS select f60 from t1';
 
-let $num= 9;
+let $num= 8;
 while ($num)
 {
    --disable_abort_on_error

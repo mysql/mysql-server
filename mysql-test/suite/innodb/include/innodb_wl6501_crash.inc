@@ -52,6 +52,7 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -85,6 +86,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -120,6 +122,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -151,6 +154,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -182,6 +186,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -219,6 +224,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -254,6 +260,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -285,6 +292,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -316,6 +324,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -352,6 +361,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -387,6 +397,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -417,6 +428,7 @@ drop table t;
 use test;
 eval set global innodb_file_per_table = $wl6501_file_per_table;
 eval set global innodb_file_format = $wl6501_file_format;
+SET innodb_strict_mode=OFF;
 --disable_warnings
 eval create $wl6501_temp table t (
 	i int, f float, c char,
@@ -451,4 +463,3 @@ drop table t;
 #
 eval set global innodb_file_format = $format;
 eval set global innodb_file_per_table = $per_table;
-

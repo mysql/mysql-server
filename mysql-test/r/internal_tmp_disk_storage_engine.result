@@ -1,10 +1,9 @@
 #
 # wl#6711:User can choose tmp table engine between MyISAM and InnoDB
 #
-drop table if exists t1, t2;
+SET GLOBAL innodb_large_prefix=OFF;
 Warnings:
-Note	1051	Unknown table 'test.t1'
-Note	1051	Unknown table 'test.t2'
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create table t1(a int, b varchar(20));
 create table t2(a int, b varchar(20));
 insert into t1 values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
@@ -2040,6 +2039,8 @@ drop table t2;
 SET @old_big_tables=@@big_tables;
 SET big_tables=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE N (
 col_int_key int(11) DEFAULT NULL,
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -2361,6 +2362,8 @@ DROP TABLE t1,E,H;
 #               WITH ORDER BY GIVING INCORRECT RESULTS 
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t(a BLOB, b INT);
 INSERT INTO t VALUES('1',3);
 INSERT INTO t VALUES('1',2);
@@ -3055,6 +3058,38 @@ c24, c25, c26, c27, c28, c29, c30, c31, c32, c33, c34, c35;
 sum(b)
 4
 DROP TABLE t1;
+#
+# Bug#20454833 PREFIX INDEX FIELD, ON AN INAPPROPRIATE DATA TYPE
+#
+set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create table t1 (a blob,b int) engine=innodb;
+create table t2 (b blob) engine=innodb;
+select t2.b,t1.b,t1.a
+from t2 inner join t1 on 1 cross join t2 a  on 1
+group by t1.b;
+b	b	a
+set sql_mode=default;
+drop table t1,t2;
+#
+# Bug#20506527 FAILING ASSERTION: !MBMAXLEN || !(PREFIX_LEN % MBMAXLEN)
+#
+set names utf8, sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create table t1(a date,b text charset utf8,c linestring not null);
+insert into t1 values ('2015-01-01','a',linestring(point(1,1),point(2,2)));
+select distinct nullif(a,b) as c from t1 z order by z.c;
+c
+201
+Warnings:
+Warning	1292	Incorrect date value: 'a' for column 'a' at row 1
+set names default, sql_mode=default;
+drop table t1;
+SET GLOBAL innodb_large_prefix=default;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;

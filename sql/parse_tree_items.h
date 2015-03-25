@@ -41,35 +41,6 @@ public:
   virtual bool itemize(Parse_context *pc, Item **item);
 };
 
-class PTI_expr_or : public Parse_tree_item
-{
-  typedef Parse_tree_item super;
-
-  Item *left;
-  Item *right;
-
-public:
-  PTI_expr_or(const POS &pos, Item *left_arg, Item *right_arg)
-  : super(pos), left(left_arg), right(right_arg)
-  {}
-
-  virtual bool itemize(Parse_context *pc, Item **res);
-};
-
-class PTI_expr_and : public Parse_tree_item
-{
-  typedef Parse_tree_item super;
-
-  Item *left;
-  Item *right;
-
-public:
-  PTI_expr_and(const POS &pos, Item *left_arg, Item *right_arg)
-  : super(pos), left(left_arg), right(right_arg)
-  {}
-
-  virtual bool itemize(Parse_context *pc, Item **res);
-};
 
 class PTI_negate_expression : public Parse_tree_item
 {
@@ -173,7 +144,8 @@ public:
       return true;
 
     THD *thd= pc->thd;
-    const char* schema= thd->client_capabilities & CLIENT_NO_SCHEMA ? NULL : db;
+    const char* schema=
+      thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA) ? NULL : db;
     if (pc->select->no_table_names_allowed)
     {
       my_error(ER_TABLENAME_NOT_ALLOWED_HERE,

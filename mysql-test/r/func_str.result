@@ -2367,8 +2367,6 @@ Warning	1292	Truncated incorrect DECIMAL value: '18446744073709551617'
 Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE=traditional;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SELECT CHAR(0xff,0x8f USING utf8);
 CHAR(0xff,0x8f USING utf8)
 NULL

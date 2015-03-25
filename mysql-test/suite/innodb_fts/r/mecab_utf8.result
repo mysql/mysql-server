@@ -1,6 +1,6 @@
 call mtr.add_suppression("unknown variable 'loose_mecab_rc_file");
-call mtr.add_suppression("Fulltext index charset 'eucjpms' doesn't match mecab charset");
-call mtr.add_suppression("Mecab: param.cpp");
+call mtr.add_suppression("Fulltext index charset 'big5' doesn't match mecab charset");
+call mtr.add_suppression("Mecab: createModel.* failed: param.cpp");
 call mtr.add_suppression("Plugin 'mecab' init function returned error");
 SHOW STATUS LIKE 'mecab_charset';
 Variable_name	Value
@@ -117,10 +117,10 @@ page_id	page_title	c1
 DROP TABLE page;
 CREATE TABLE page (
 page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
-page_title varchar(255) CHARACTER SET eucjpms NOT NULL DEFAULT '',
+page_title varchar(255) CHARACTER SET big5 NOT NULL DEFAULT '',
 PRIMARY KEY (page_id)
 )ENGINE=InnoDB;
-INSERT INTO page VALUES (1,'ﾚﾓﾅ');
+INSERT INTO page VALUES (1,'日本');
 CREATE FULLTEXT INDEX ft_idx ON page(page_title) WITH PARSER mecab;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -128,10 +128,55 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
-INSERT INTO page VALUES (2,'ﾚﾓﾅ');
-ERROR HY000: Fulltext index charset 'eucjpms' doesn't match mecab charset 'utf8'.
-SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ");
-ERROR HY000: Fulltext index charset 'eucjpms' doesn't match mecab charset 'utf8'.
+INSERT INTO page VALUES (2,'日本');
+ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'utf8'.
+SELECT * FROM page WHERE MATCH(page_title) AGAINST('日本');
+ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'utf8'.
+DROP TABLE page;
+SET NAMES utf8mb4;
+CREATE TABLE page (
+page_id int(8) unsigned NOT NULL AUTO_INCREMENT,
+page_title varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+PRIMARY KEY (page_id),
+FULLTEXT KEY page_title (page_title) WITH PARSER mecab
+) ENGINE=InnoDB;
+INSERT INTO page VALUES
+(1,'😃ﾚﾓﾅ'),
+(2,'鉄道😄'),
+(3,'鉄道😊100電車');
+SET GLOBAL innodb_ft_aux_table="test/page";
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+100	4	4	1	4	10
+鉄道	3	4	2	3	0
+鉄道	3	4	2	4	0
+電車	4	4	1	4	13
+ﾚﾓﾅ	2	2	1	2	4
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
+WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
+SHOW CREATE TABLE page;
+Table	Create Table
+page	CREATE TABLE `page` (
+  `page_id` int(8) unsigned NOT NULL AUTO_INCREMENT,
+  `page_title` varchar(255) CHARACTER SET utf8mb4 NOT NULL DEFAULT '',
+  PRIMARY KEY (`page_id`),
+  FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+SELECT * FROM page WHERE MATCH(page_title) AGAINST("ﾚﾓﾅ" IN BOOLEAN MODE);
+page_id	page_title
+1	😃ﾚﾓﾅ
+SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道');
+page_id	page_title
+2	鉄道😄
+3	鉄道😊100電車
+SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道😄');
+page_id	page_title
+2	鉄道😄
+3	鉄道😊100電車
+SELECT * FROM page WHERE MATCH(page_title) AGAINST('鉄道' WITH QUERY EXPANSION);
+page_id	page_title
+3	鉄道😊100電車
+2	鉄道😄
 DROP TABLE page;
 SET GLOBAL innodb_ft_aux_table=default;
 UNINSTALL PLUGIN mecab;

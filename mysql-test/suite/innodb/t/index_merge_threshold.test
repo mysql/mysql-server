@@ -13,14 +13,6 @@
 --source include/have_innodb_16k.inc
 --source include/have_debug.inc
 
---disable_query_log
-set @old_innodb_file_per_table = @@innodb_file_per_table;
-set @old_innodb_file_format = @@innodb_file_format;
---enable_query_log
-
-set global innodb_file_per_table=ON;
-set global innodb_file_format=Barracuda;
-
 # Check index merge threshold by create index on all datatypes
 
 CREATE TABLE tab(a BIGINT PRIMARY KEY,c1 TINYTEXT,c2 TEXT,c3 MEDIUMTEXT,
@@ -160,7 +152,6 @@ DROP TABLE tab1;
 
 --echo # test to confirm behavior (MERGE_THRESHOLD=50 (default))
 # not to cause page operation at primary key, row_format=dynamic and the key is blob
-SET GLOBAL innodb_file_format=Barracuda;
 CREATE TABLE tab1 (a bigint primary key, b blob) engine=InnoDB row_format=dynamic;
 CREATE INDEX index1 ON tab1(b(750));
 
@@ -195,9 +186,3 @@ CREATE INDEX index1 ON tab1(b(750)) COMMENT 'MERGE_THRESHOLD=45';
 --source suite/innodb/include/innodb_merge_threshold_secondary.inc
 
 DROP TABLE tab1;
-
-
---disable_query_log
-set global innodb_file_per_table = @old_innodb_file_per_table;
-set global innodb_file_format = @old_innodb_file_format;
---enable_query_log

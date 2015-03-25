@@ -1,6 +1,3 @@
-set global innodb_file_format="Barracuda";
-set global innodb_file_per_table=1;
-set global innodb_large_prefix=1;
 CREATE TABLE worklog5743 (
 col_1_text TEXT(4000) , col_2_text TEXT(4000) ,
 PRIMARY KEY (col_1_text(3072))

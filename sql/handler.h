@@ -858,6 +858,22 @@ struct handlerton
 
   SE_cost_constants *(*get_cost_constants)(uint storage_category);
 
+  /**
+    @param[in,out]  thd          pointer to THD
+    @param[in]      new_trx_arg  pointer to replacement transaction
+    @param[out]     ptr_trx_arg  double pointer to being replaced transaction
+
+    Associated with THD engine's native transaction is replaced
+    with @c new_trx_arg. The old value is returned through a buffer if non-null
+    pointer is provided with @c ptr_trx_arg.
+    The method is adapted by XA start and XA prepare handlers to
+    handle XA transaction that is logged as two parts by slave applier.
+
+    This interface concerns engines that are aware of XA transaction.
+  */
+  void (*replace_native_transaction_in_thd)(THD *thd, void *new_trx_arg,
+                                            void **ptr_trx_arg);
+
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 };
@@ -1150,6 +1166,10 @@ public:
 
   // Alter generated column
   static const HA_ALTER_FLAGS HA_ALTER_STORED_GCOL       = 1ULL << 32;
+
+  // Alter index comment
+  static const HA_ALTER_FLAGS ALTER_INDEX_COMMENT        = 1ULL << 33;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 

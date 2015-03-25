@@ -277,8 +277,6 @@ GEOMETRYCOLLECTION_TYPE= "GeometryCollection";
 */
 String *Item_func_geomfromgeojson::val_str(String *buf)
 {
-  DBUG_ASSERT(m_srid_found_in_document == -1);
-
   String arg_val;
   String *json_string= args[0]->val_str_ascii(&arg_val);
   if ((null_value= args[0]->null_value))
@@ -397,6 +395,8 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   String collection_buffer;
   bool rollback= false;
   Geometry *result_geometry= NULL;
+
+  m_srid_found_in_document = -1;
   if (parse_object(&m_document, &rollback, &collection_buffer, false,
                    &result_geometry))
   {
@@ -659,7 +659,7 @@ get_positions(const rapidjson::Value *coordinates, Gis_point *point)
     if (!itr->IsNumber())
     {
       my_error(ER_INVALID_GEOJSON_WRONG_TYPE, MYF(0), func_name(),
-               "array coordiante", "number");
+               "array coordinate", "number");
       return true;
     }
 
@@ -900,7 +900,7 @@ Item_func_geomfromgeojson::get_linestring(const rapidjson::Value *data_array,
   DBUG_ASSERT(data_array->IsArray());
 
   // Ensure that the linestring has at least one point.
-  if (data_array->Empty())
+  if (data_array->Size() < 2)
   {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return true;
@@ -922,6 +922,7 @@ Item_func_geomfromgeojson::get_linestring(const rapidjson::Value *data_array,
       linestring->push_back(point);
     }
   }
+
   return false;
 }
 
@@ -2642,6 +2643,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   {
     String *res= args[i]->val_str(&arg_value);
     size_t len;
+
     if (args[i]->null_value || ((len= res->length()) < WKB_HEADER_SIZE))
       goto err;
 
@@ -2701,8 +2703,11 @@ String *Item_func_spatial_collection::val_str(String *str)
         p_npts= const_cast<char *>(data);
 	data+= 4;
 
-        if (n_points < 2 || len < 4 + n_points * POINT_DATA_SIZE)
-          goto err;
+        if (n_points < 3 || len < 4 + n_points * POINT_DATA_SIZE)
+        {
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return error_str();
+        }
 
         firstpt= data;
 	float8get(&x1, data);
@@ -2719,6 +2724,11 @@ String *Item_func_spatial_collection::val_str(String *str)
         {
           n_points++;
           int4store(p_npts, n_points);
+        }
+        else if (n_points == 3)
+        {
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return error_str();
         }
 
 	if (str->append(org_data, len, 512) ||
@@ -2740,6 +2750,30 @@ String *Item_func_spatial_collection::val_str(String *str)
 			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
+  }
+
+  if (coll_type == Geometry::wkb_linestring && arg_count < 2)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  /*
+    The construct() call parses the string to make sure it's a valid
+    WKB byte string instead of some arbitrary trash bytes. Above code assumes
+    so and doesn't further completely validate the string's content.
+
+    There are several goto statements above so we have to construct the
+    geom_buff object in a scope, this is more of C++ style than defining it at
+    start of this function.
+  */
+  {
+    Geometry_buffer geom_buff;
+    if (Geometry::construct(&geom_buff, str) == NULL)
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_str();
+    }
   }
 
   null_value= 0;
@@ -2904,8 +2938,6 @@ mem_error:
   DBUG_RETURN(1);
 }
 
-
-#define GIS_ZERO 0.00000000001
 
 int Item_func_spatial_rel::func_touches()
 {
@@ -3182,487 +3214,6 @@ Geometry *BG_geometry_collection::store(const Geometry *geo)
 }
 
 
-static const int SINUSES_CALCULATED= 32;
-static double n_sinus[SINUSES_CALCULATED+1]=
-{
-  0,
-  0.04906767432741802,
-  0.0980171403295606,
-  0.1467304744553618,
-  0.1950903220161283,
-  0.2429801799032639,
-  0.2902846772544623,
-  0.3368898533922201,
-  0.3826834323650898,
-  0.4275550934302821,
-  0.4713967368259976,
-  0.5141027441932217,
-  0.5555702330196022,
-  0.5956993044924334,
-  0.6343932841636455,
-  0.6715589548470183,
-  0.7071067811865475,
-  0.7409511253549591,
-  0.773010453362737,
-  0.8032075314806448,
-  0.8314696123025452,
-  0.8577286100002721,
-  0.8819212643483549,
-  0.9039892931234433,
-  0.9238795325112867,
-  0.9415440651830208,
-  0.9569403357322089,
-  0.970031253194544,
-  0.9807852804032304,
-  0.989176509964781,
-  0.9951847266721968,
-  0.9987954562051724,
-  1
-};
-
-
-static void get_n_sincos(int n, double *sinus, double *cosinus)
-{
-  DBUG_ASSERT(n > 0 && n < SINUSES_CALCULATED*2+1);
-  if (n < (SINUSES_CALCULATED + 1))
-  {
-    *sinus= n_sinus[n];
-    *cosinus= n_sinus[SINUSES_CALCULATED - n];
-  }
-  else
-  {
-    n-= SINUSES_CALCULATED;
-    *sinus= n_sinus[SINUSES_CALCULATED - n];
-    *cosinus= -n_sinus[n];
-  }
-}
-
-
-static int fill_half_circle(Gcalc_shape_transporter *trn,
-                            Gcalc_shape_status *st,
-                            double x, double y,
-                            double ax, double ay)
-{
-  double n_sin, n_cos;
-  double x_n, y_n;
-  for (int n= 1; n < (SINUSES_CALCULATED * 2 - 1); n++)
-  {
-    get_n_sincos(n, &n_sin, &n_cos);
-    x_n= ax * n_cos - ay * n_sin;
-    y_n= ax * n_sin + ay * n_cos;
-    if (trn->add_point(st, x_n + x, y_n + y))
-      return 1;
-  }
-  return 0;
-}
-
-
-static int fill_gap(Gcalc_shape_transporter *trn,
-                    Gcalc_shape_status *st,
-                    double x, double y,
-                    double ax, double ay, double bx, double by, double d,
-                    bool *empty_gap)
-{
-  double ab= ax * bx + ay * by;
-  double cosab= ab / (d * d) + GIS_ZERO;
-  double n_sin, n_cos;
-  double x_n, y_n;
-  int n=1;
-
-  *empty_gap= true;
-  for (;;)
-  {
-    get_n_sincos(n++, &n_sin, &n_cos);
-    if (n_cos <= cosab)
-      break;
-    *empty_gap= false;
-    x_n= ax * n_cos - ay * n_sin;
-    y_n= ax * n_sin + ay * n_cos;
-    if (trn->add_point(st, x_n + x, y_n + y))
-      return 1;
-  }
-  return 0;
-}
-
-
-/*
-  Calculates the vector (p2,p1) and
-  negatively orthogonal to it with the length of d.
-  The result is (ex,ey) - the vector, (px,py) - the orthogonal.
-*/
-
-static void calculate_perpendicular(
-    double x1, double y1, double x2, double y2, double d,
-    double *ex, double *ey,
-    double *px, double *py)
-{
-  double q;
-  *ex= x1 - x2;
-  *ey= y1 - y2;
-  q= d / sqrt((*ex) * (*ex) + (*ey) * (*ey));
-  *px= (*ey) * q;
-  *py= -(*ex) * q;
-}
-
-
-int Item_func_buffer::Transporter::single_point(Gcalc_shape_status *st,
-                                                double x, double y)
-{
-  return add_point_buffer(st, x, y);
-}
-
-
-int Item_func_buffer::Transporter::add_edge_buffer(Gcalc_shape_status *st,
-  double x3, double y3, bool round_p1, bool round_p2)
-{
-  DBUG_PRINT("info", ("Item_func_buffer::Transporter::add_edge_buffer: "
-             "(%g,%g)(%g,%g)(%g,%g) p1=%d p2=%d",
-             x1, y1, x2, y2, x3, y3, (int) round_p1, (int) round_p2));
-
-  Gcalc_operation_transporter trn(m_fn, m_heap);
-  double e1_x, e1_y, e2_x, e2_y, p1_x, p1_y, p2_x, p2_y;
-  double e1e2;
-  double sin1, cos1;
-  double x_n, y_n;
-  bool empty_gap1, empty_gap2;
-
-  st->m_nshapes++;
-  Gcalc_shape_status dummy;
-  if (trn.start_simple_poly(&dummy))
-    return 1;
-
-  calculate_perpendicular(x1, y1, x2, y2, m_d, &e1_x, &e1_y, &p1_x, &p1_y);
-  calculate_perpendicular(x3, y3, x2, y2, m_d, &e2_x, &e2_y, &p2_x, &p2_y);
-
-  e1e2= e1_x * e2_y - e2_x * e1_y;
-  sin1= n_sinus[1];
-  cos1= n_sinus[31];
-  if (e1e2 < 0)
-  {
-    empty_gap2= false;
-    x_n= x2 + p2_x * cos1 - p2_y * sin1;
-    y_n= y2 + p2_y * cos1 + p2_x * sin1;
-    if (fill_gap(&trn, &dummy, x2, y2, -p1_x,-p1_y,
-                 p2_x,p2_y, m_d, &empty_gap1) ||
-        trn.add_point(&dummy, x2 + p2_x, y2 + p2_y) ||
-        trn.add_point(&dummy, x_n, y_n))
-      return 1;
-  }
-  else
-  {
-    x_n= x2 - p2_x * cos1 - p2_y * sin1;
-    y_n= y2 - p2_y * cos1 + p2_x * sin1;
-    if (trn.add_point(&dummy, x_n, y_n) ||
-        trn.add_point(&dummy, x2 - p2_x, y2 - p2_y) ||
-        fill_gap(&trn, &dummy, x2, y2, -p2_x, -p2_y,
-                 p1_x, p1_y, m_d, &empty_gap2))
-      return 1;
-    empty_gap1= false;
-  }
-  if ((!empty_gap2 && trn.add_point(&dummy, x2 + p1_x, y2 + p1_y)) ||
-      trn.add_point(&dummy, x1 + p1_x, y1 + p1_y))
-    return 1;
-
-  if (round_p1 && fill_half_circle(&trn, &dummy, x1, y1, p1_x, p1_y))
-    return 1;
-
-  if (trn.add_point(&dummy, x1 - p1_x, y1 - p1_y) ||
-      (!empty_gap1 && trn.add_point(&dummy, x2 - p1_x, y2 - p1_y)))
-    return 1;
-  return trn.complete_simple_poly(&dummy);
-}
-
-
-int Item_func_buffer::Transporter::add_last_edge_buffer(Gcalc_shape_status *st)
-{
-  Gcalc_operation_transporter trn(m_fn, m_heap);
-  Gcalc_shape_status dummy;
-  double e1_x, e1_y, p1_x, p1_y;
-
-  st->m_nshapes++;
-  if (trn.start_simple_poly(&dummy))
-    return 1;
-
-  calculate_perpendicular(x1, y1, x2, y2, m_d, &e1_x, &e1_y, &p1_x, &p1_y);
-
-  if (trn.add_point(&dummy, x1 + p1_x, y1 + p1_y) ||
-      trn.add_point(&dummy, x1 - p1_x, y1 - p1_y) ||
-      trn.add_point(&dummy, x2 - p1_x, y2 - p1_y) ||
-      fill_half_circle(&trn, &dummy, x2, y2, -p1_x, -p1_y) ||
-      trn.add_point(&dummy, x2 + p1_x, y2 + p1_y))
-    return 1;
-  return trn.complete_simple_poly(&dummy);
-}
-
-
-int Item_func_buffer::Transporter::add_point_buffer(Gcalc_shape_status *st,
-                                                    double x, double y)
-{
-  Gcalc_operation_transporter trn(m_fn, m_heap);
-  Gcalc_shape_status dummy;
-
-  st->m_nshapes++;
-  if (trn.start_simple_poly(&dummy))
-    return 1;
-  if (trn.add_point(&dummy, x - m_d, y) ||
-      fill_half_circle(&trn, &dummy, x, y, -m_d, 0.0) ||
-      trn.add_point(&dummy, x + m_d, y) ||
-      fill_half_circle(&trn, &dummy, x, y, m_d, 0.0))
-    return 1;
-  return trn.complete_simple_poly(&dummy);
-}
-
-
-int Item_func_buffer::Transporter::start_line(Gcalc_shape_status *st)
-{
-  st->m_nshapes= 0;
-  if (m_fn->reserve_op_buffer(2))
-    return 1;
-  st->m_last_shape_pos= m_fn->get_next_operation_pos();
-  m_fn->add_operation(m_buffer_op, 0); // Will be set in complete_line()
-  m_npoints= 0;
-  int_start_line();
-  return 0;
-}
-
-
-int Item_func_buffer::Transporter::start_poly(Gcalc_shape_status *st)
-{
-  st->m_nshapes= 1;
-  if (m_fn->reserve_op_buffer(2))
-    return 1;
-  st->m_last_shape_pos= m_fn->get_next_operation_pos();
-  m_fn->add_operation(m_buffer_op, 0); // Will be set in complete_poly()
-  return Gcalc_operation_transporter::start_poly(st);
-}
-
-
-int Item_func_buffer::Transporter::complete_poly(Gcalc_shape_status *st)
-{
-  if (Gcalc_operation_transporter::complete_poly(st))
-    return 1;
-  m_fn->add_operands_to_op(st->m_last_shape_pos, st->m_nshapes);
-  return 0;
-}
-
-
-int Item_func_buffer::Transporter::start_ring(Gcalc_shape_status *st)
-{
-  m_npoints= 0;
-  return Gcalc_operation_transporter::start_ring(st);
-}
-
-
-int Item_func_buffer::Transporter::add_point(Gcalc_shape_status *st,
-                                             double x, double y)
-{
-  if (m_npoints && x == x2 && y == y2)
-    return 0;
-
-  ++m_npoints;
-
-  if (m_npoints == 1)
-  {
-    x00= x;
-    y00= y;
-  }
-  else if (m_npoints == 2)
-  {
-    x01= x;
-    y01= y;
-  }
-  else if (add_edge_buffer(st, x, y, (m_npoints == 3) && line_started(), false))
-    return 1;
-
-  x1= x2;
-  y1= y2;
-  x2= x;
-  y2= y;
-
-  return line_started() ? 0 : Gcalc_operation_transporter::add_point(st, x, y);
-}
-
-
-int Item_func_buffer::Transporter::complete(Gcalc_shape_status *st)
-{
-  if (m_npoints)
-  {
-    if (m_npoints == 1)
-    {
-      if (add_point_buffer(st, x2, y2))
-        return 1;
-    }
-    else if (m_npoints == 2)
-    {
-      if (add_edge_buffer(st, x1, y1, true, true))
-        return 1;
-    }
-    else if (line_started())
-    {
-      if (add_last_edge_buffer(st))
-        return 1;
-    }
-    else
-    {
-      /*
-        Add edge only the the most recent coordinate is not
-        the same to the very first one.
-      */
-      if (x2 != x00 || y2 != y00)
-      {
-        if (add_edge_buffer(st, x00, y00, false, false))
-          return 1;
-        x1= x2;
-        y1= y2;
-        x2= x00;
-        y2= y00;
-      }
-      if (add_edge_buffer(st, x01, y01, false, false))
-        return 1;
-    }
-  }
-
-  return 0;
-}
-
-
-int Item_func_buffer::Transporter::complete_line(Gcalc_shape_status *st)
-{
-  if (complete(st))
-    return 1;
-  int_complete_line();
-  // Set real number of operands (points) to the operation.
-  m_fn->add_operands_to_op(st->m_last_shape_pos, st->m_nshapes);
-  return 0;
-}
-
-
-int Item_func_buffer::Transporter::complete_ring(Gcalc_shape_status *st)
-{
-  return complete(st) ||
-         Gcalc_operation_transporter::complete_ring(st);
-}
-
-
-int Item_func_buffer::Transporter::start_collection(Gcalc_shape_status *st,
-                                                    int n_objects)
-{
-  st->m_nshapes= 0;
-  st->m_last_shape_pos= m_fn->get_next_operation_pos();
-  return Gcalc_operation_transporter::start_collection(st, n_objects);
-}
-
-
-int Item_func_buffer::Transporter::complete_collection(Gcalc_shape_status *st)
-{
-  Gcalc_operation_transporter::complete_collection(st);
-  m_fn->set_operands_to_op(st->m_last_shape_pos, st->m_nshapes);
-  return 0;
-}
-
-
-int Item_func_buffer::Transporter::collection_add_item(Gcalc_shape_status
-                                                       *st_collection,
-                                                       Gcalc_shape_status
-                                                       *st_item)
-{
-  /*
-    If some collection item created no shapes,
-    it means it was skipped during transformation by filters
-    skip_point(), skip_line(), skip_poly().
-    In this case nothing was added into function_buffer by the item,
-    so we don't increment shape counter of the owning collection.
-  */
-  if (st_item->m_nshapes)
-    st_collection->m_nshapes++;
-  return 0;
-}
-
-// Boost.Geometry doesn't support buffer for any type of geometry
-// defined by OGC for now.
-String *Item_func_buffer::val_str(String *str_value_arg)
-{
-  DBUG_ENTER("Item_func_buffer::val_str");
-  DBUG_ASSERT(fixed == 1);
-  String *obj= args[0]->val_str(&tmp_value);
-  double dist= args[1]->val_real();
-  Geometry_buffer buffer;
-  Geometry *g;
-  uint32 srid= 0;
-  String *str_result= NULL;
-  Transporter trn(&func, &collector, dist);
-  Gcalc_shape_status st;
-
-  null_value= 1;
-  if (!obj || args[0]->null_value || args[1]->null_value)
-    goto mem_error;
-  if (!(g= Geometry::construct(&buffer, obj)))
-  {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_str());
-  }
-
-  srid= g->get_srid();
-
-  /*
-    If distance passed to ST_Buffer is too small, then we return the
-    original geometry as its buffer. This is needed to avoid division
-    overflow in buffer calculation, as well as for performance purposes.
-  */
-  if (fabs(dist) < GIS_ZERO)
-  {
-    null_value= 0;
-    str_result= obj;
-    goto mem_error;
-  }
-
-  if (g->store_shapes(&trn, &st))
-    goto mem_error;
-
-#ifndef DBUG_OFF
-  func.debug_print_function_buffer();
-#endif
-
-  if (st.m_nshapes == 0)
-  {
-    /*
-      Buffer transformation returned empty set.
-      This is possible with negative buffer distance
-      if the original geometry consisted of only Points and lines
-      and did not have any Polygons.
-    */
-    str_value_arg->length(0);
-    goto mem_error;
-  }
-
-  collector.prepare_operation();
-  if (func.alloc_states())
-    goto mem_error;
-  operation.init(&func);
-
-  if (operation.count_all(&collector) ||
-      operation.get_result(&res_receiver))
-    goto mem_error;
-
-  str_value_arg->set_charset(&my_charset_bin);
-  if (str_value_arg->reserve(SRID_SIZE, 512))
-    goto mem_error;
-  str_value_arg->length(0);
-  str_value_arg->q_append(srid);
-
-  if (!Geometry::create_from_opresult(&buffer, str_value_arg, res_receiver))
-    goto mem_error;
-
-  null_value= 0;
-  str_result= str_value_arg;
-mem_error:
-  collector.reset();
-  func.reset();
-  res_receiver.reset();
-  DBUG_RETURN(str_result);
-}
-
-
 longlong Item_func_isempty::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -3685,56 +3236,137 @@ longlong Item_func_isempty::val_int()
 
 longlong Item_func_issimple::val_int()
 {
-  String *swkb= args[0]->val_str(&tmp);
-  Geometry_buffer buffer;
-  Gcalc_operation_transporter trn(&func, &collector);
-  Geometry *g;
-  int result= 1;
-
   DBUG_ENTER("Item_func_issimple::val_int");
   DBUG_ASSERT(fixed == 1);
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    DBUG_RETURN(0);
-  if (!(g= Geometry::construct(&buffer, swkb)))
+  tmp.length(0);
+  String *arg_wkb= args[0]->val_str(&tmp);
+  if (args[0]->null_value)
   {
+    DBUG_RETURN(error_int());
+  }
+  if (arg_wkb == NULL)
+  {
+    // Invalid geometry.
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_int());
   }
 
-  if (g->get_class_info()->m_type_id == Geometry::wkb_point)
-    DBUG_RETURN(1);
-
-  if (g->store_shapes(&trn))
-    goto mem_error;
-
-#ifndef DBUG_OFF
-  func.debug_print_function_buffer();
-#endif
-
-  collector.prepare_operation();
-  scan_it.init(&collector);
-
-  while (scan_it.more_points())
+  Geometry_buffer buffer;
+  Geometry *arg= Geometry::construct(&buffer, arg_wkb);
+  if (arg == NULL)
   {
-    if (scan_it.step())
-      goto mem_error;
+    // Invalid geometry.
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_int());
+  }
 
-    if (scan_it.get_event() == scev_intersection)
+  DBUG_RETURN(issimple(arg));
+}
+
+
+/**
+  Evaluate if a geometry object is simple according to the OGC definition.
+
+  @param g The geometry to evaluate.
+  @return True if the geometry is simple, false otherwise.
+*/
+bool Item_func_issimple::issimple(Geometry *g)
+{
+  bool res= false;
+
+  try
+  {
+    switch (g->get_type())
     {
-      result= 0;
+    case Geometry::wkb_point:
+      {
+        Gis_point arg(g->get_data_ptr(), g->get_data_size(),
+                      g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_linestring:
+      {
+        Gis_line_string arg(g->get_data_ptr(), g->get_data_size(),
+                            g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+    break;
+    case Geometry::wkb_polygon:
+      {
+        const void *arg_wkb= g->normalize_ring_order();
+        if (arg_wkb == NULL)
+        {
+          // Invalid polygon.
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return error_bool();
+        }
+        Gis_polygon arg(arg_wkb, g->get_data_size(),
+                        g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_multipoint:
+      {
+        Gis_multi_point arg(g->get_data_ptr(), g->get_data_size(),
+                            g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_multilinestring:
+      {
+        Gis_multi_line_string arg(g->get_data_ptr(), g->get_data_size(),
+                                  g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_multipolygon:
+      {
+        const void *arg_wkb= g->normalize_ring_order();
+        if (arg_wkb == NULL)
+        {
+          // Invalid multipolygon.
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return error_bool();
+        }
+        Gis_multi_polygon arg(arg_wkb, g->get_data_size(),
+                              g->get_flags(), g->get_srid());
+        res= boost::geometry::is_simple(arg);
+      }
+      break;
+    case Geometry::wkb_geometrycollection:
+      {
+        BG_geometry_collection collection;
+        collection.fill(g);
+
+        res= true;
+        for (BG_geometry_collection::Geometry_list::iterator i=
+               collection.get_geometries().begin();
+             i != collection.get_geometries().end();
+             ++i)
+        {
+          res= issimple(*i);
+          if (current_thd->is_error())
+          {
+            res= error_bool();
+            break;
+          }
+          if (!res)
+          {
+            break;
+          }
+        }
+      }
+      break;
+    default:
+      DBUG_ASSERT(0);
       break;
     }
   }
+  CATCH_ALL(func_name(), res= error_bool())
 
-  collector.reset();
-  func.reset();
-  scan_it.reset();
-  DBUG_RETURN(result);
-mem_error:
-  null_value= 1;
-  DBUG_RETURN(0);
-  return 0;
+  return res;
 }
 
 
@@ -4089,11 +3721,10 @@ double Item_func_y::val_real()
 
 
 template <typename Coordsys>
-double Item_func_area::bg_area(const Geometry *geom, bool *isdone)
+double Item_func_area::bg_area(const Geometry *geom)
 {
   double res= 0;
 
-  *isdone= false;
   try
   {
     switch (geom->get_type())
@@ -4102,7 +3733,6 @@ double Item_func_area::bg_area(const Geometry *geom, bool *isdone)
     case Geometry::wkb_multipoint:
     case Geometry::wkb_linestring:
     case Geometry::wkb_multilinestring:
-      *isdone= true;
       res= 0;
       break;
     case Geometry::wkb_polygon:
@@ -4112,7 +3742,6 @@ double Item_func_area::bg_area(const Geometry *geom, bool *isdone)
                geom->get_flags(), geom->get_srid());
 
         res= boost::geometry::area(plgn);
-        *isdone= true;
       }
       break;
     case Geometry::wkb_multipolygon:
@@ -4122,13 +3751,11 @@ double Item_func_area::bg_area(const Geometry *geom, bool *isdone)
                 geom->get_flags(), geom->get_srid());
 
         res= boost::geometry::area(mplgn);
-        *isdone= true;
       }
       break;
     case Geometry::wkb_geometrycollection:
       {
         BG_geometry_collection bggc;
-        bool isdone2= false;
 
         bggc.fill(geom);
 
@@ -4136,7 +3763,6 @@ double Item_func_area::bg_area(const Geometry *geom, bool *isdone)
              i= bggc.get_geometries().begin();
              i != bggc.get_geometries().end(); ++i)
         {
-          isdone2= false;
           if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
               (*i)->normalize_ring_order() == NULL)
           {
@@ -4145,15 +3771,15 @@ double Item_func_area::bg_area(const Geometry *geom, bool *isdone)
             return 0;
           }
 
-          res+= bg_area<Coordsys>(*i, &isdone2);
-          if (!isdone2 || null_value)
+          res+= bg_area<Coordsys>(*i);
+          if (null_value)
             return res;
         }
 
-        *isdone= true;
       }
       break;
     default:
+      DBUG_ASSERT(false);
       break;
     }
   }
@@ -4180,7 +3806,6 @@ double Item_func_area::val_real()
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
   Geometry *geom;
-  bool isdone= false;
 
   if ((null_value= (!swkb || args[0]->null_value)))
     return res;
@@ -4198,14 +3823,11 @@ double Item_func_area::val_real()
     return error_real();
   }
 
-  res= bg_area<bgcs::cartesian>(geom, &isdone);
+  res= bg_area<bgcs::cartesian>(geom);
 
   // Had error in bg_area.
   if (null_value)
     return error_real();
-
-  if (!isdone)
-    null_value= geom->area(&res);
 
   if (!my_isfinite(res))
   {
@@ -4443,11 +4065,10 @@ struct BG_distance
 template <>
 struct BG_distance<bg::cs::cartesian>
 {
-  static double apply(Item_func_distance *item, Geometry *g1,
-                      Geometry *g2, bool *isdone)
+  static double apply(Item_func_distance *item, Geometry *g1, Geometry *g2)
   {
     // Do the actual computation here for the cartesian CS.
-    return item->bg_distance<bgcs::cartesian>(g1, g2, isdone);
+    return item->bg_distance<bgcs::cartesian>(g1, g2);
   }
 };
 
@@ -4455,8 +4076,7 @@ struct BG_distance<bg::cs::cartesian>
 template <>
 struct BG_distance<bg::cs::spherical_equatorial<bg::degree> >
 {
-  static double apply(Item_func_distance *item, Geometry *g1,
-                      Geometry *g2, bool * /* isdone */)
+  static double apply(Item_func_distance *item, Geometry *g1, Geometry *g2)
   {
     // Do the actual computation here for the spherical equatorial CS
     // with degree units.
@@ -4468,14 +4088,7 @@ struct BG_distance<bg::cs::spherical_equatorial<bg::degree> >
 double Item_func_distance::val_real()
 {
   typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  bool cur_point_edge, isdone= false;
-  const Gcalc_scan_iterator::point *evpos;
-  const Gcalc_heap::Info *cur_point, *dist_point;
-  Gcalc_scan_events ev;
-  double t, distance= 0, cur_distance= 0;
-  double ex, ey, vx, vy, e_sqrlen;
-  uint obj2_si;
-  Gcalc_operation_transporter trn(&func, &collector);
+  double distance= 0;
 
   DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
@@ -4568,252 +4181,108 @@ double Item_func_distance::val_real()
       g2->get_type() != Geometry::wkb_geometrycollection)
   {
     if (is_spherical_equatorial)
-    {
-      isdone= true;
-      distance= BG_distance<bgcssed>::apply(this, g1, g2, &isdone);
-    }
+      distance= BG_distance<bgcssed>::apply(this, g1, g2);
     else
-      distance= BG_distance<bgcs::cartesian>::apply(this, g1, g2, &isdone);
+      distance= BG_distance<bgcs::cartesian>::apply(this, g1, g2);
   }
   else
-  {
-    /*
-      Calculate the distance of two geometry collections. BG has optimized
-      algorithm to calculate distance among multipoints, multilinestrings
-      and polygons, so we compact the collection to make a single multipoint,
-      a single multilinestring, and the rest are all polygons and multipolygons,
-      and do a nested loop to calculate the minimum distances among such
-      compacted components as the final result.
-     */
-    BG_geometry_collection bggc1, bggc2;
-    bool initialized= false, isdone2= false, all_normalized= false;
-    double min_distance= DBL_MAX, dist= 0.0;
-    String gcstr1, gcstr2;
-    Geometry_buffer buf1, buf2;
-    const Geometry *g11, *g22;
+    distance= geometry_collection_distance(g1, g2);
 
-    g11= compact_collection(g1, &buf1, &gcstr1);
-    g22= compact_collection(g2, &buf2, &gcstr2);
-
-    bggc1.fill(g11);
-    bggc2.fill(g22);
-    for (BG_geometry_collection::Geometry_list::iterator
-         i= bggc1.get_geometries().begin();
-         i != bggc1.get_geometries().end(); ++i)
-    {
-      /* Normalize polygon rings, do only once for each component. */
-      if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
-          (*i)->normalize_ring_order() == NULL)
-      {
-        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-        DBUG_RETURN(error_real());
-      }
-
-      for (BG_geometry_collection::Geometry_list::iterator
-           j= bggc2.get_geometries().begin();
-           j != bggc2.get_geometries().end(); ++j)
-      {
-        /* Normalize polygon rings, do only once for each component. */
-        if (!all_normalized &&
-            (*j)->get_geotype() != Geometry::wkb_geometrycollection &&
-            (*j)->normalize_ring_order() == NULL)
-        {
-          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-          DBUG_RETURN(error_real());
-        }
-
-        if (is_spherical_equatorial)
-        {
-          // For now this is never reached because we only support
-          // distance([multi]point, [multi]point) for spherical.
-          DBUG_ASSERT(false);
-        }
-        else
-          dist= BG_distance<bgcs::cartesian>::apply(this, *i, *j, &isdone2);
-        if (!isdone2 && !null_value)
-          goto old_algo;
-        if (null_value)
-          goto error;
-        if (dist < 0 || boost::math::isnan(dist))
-        {
-          isdone= true;
-          distance= dist;
-          goto error;
-        }
-        if (!initialized)
-        {
-          min_distance= dist;
-          initialized= true;
-        }
-        else if (min_distance > dist)
-          min_distance= dist;
-
-        isdone= true;
-      }
-
-      all_normalized= true;
-      if (!initialized)
-        break;                                  // bggc2 is empty.
-    }
-
-    /*
-      If at least one of the collections is empty, we have NULL result.
-    */
-    if (!initialized)
-    {
-      null_value= true;
-      isdone= true;
-    }
-    else
-      distance= min_distance;
-  }
-
-error:
   if (null_value)
     DBUG_RETURN(error_real());
-
-  if (isdone && !null_value)
-    goto exit;
-
-old_algo:
-
-  if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
-      (g2->get_class_info()->m_type_id == Geometry::wkb_point))
-  {
-    point_xy p1, p2;
-    if (((Gis_point *) g1)->get_xy(&p1) ||
-        ((Gis_point *) g2)->get_xy(&p2))
-      goto mem_error;
-    ex= p2.x - p1.x;
-    ey= p2.y - p1.y;
-    DBUG_RETURN(sqrt(ex * ex + ey * ey));
-  }
-
-  if (func.reserve_op_buffer(1))
-    goto mem_error;
-  func.add_operation(Gcalc_function::op_intersection, 2);
-
-  if (g1->store_shapes(&trn))
-    goto mem_error;
-  obj2_si= func.get_nshapes();
-  if (g2->store_shapes(&trn) || func.alloc_states())
-    goto mem_error;
-
-#ifndef DBUG_OFF
-  func.debug_print_function_buffer();
-#endif
-
-  collector.prepare_operation();
-  scan_it.init(&collector);
-
-  distance= DBL_MAX;
-  while (scan_it.more_points())
-  {
-    if (scan_it.step())
-      goto mem_error;
-    evpos= scan_it.get_event_position();
-    ev= scan_it.get_event();
-    cur_point= evpos->pi;
-
-    /*
-       handling intersection we only need to check if it's the intersecion
-       of objects 1 and 2. In this case distance is 0
-    */
-    if (ev == scev_intersection)
-    {
-      if ((evpos->get_next()->pi->shape >= obj2_si) !=
-            (cur_point->shape >= obj2_si))
-      {
-        distance= 0;
-        goto exit;
-      }
-      continue;
-    }
-
-    /*
-       if we get 'scev_point | scev_end | scev_two_ends' we don't need
-       to check for intersection of objects.
-       Though we need to calculate distances.
-    */
-    if (ev & (scev_point | scev_end | scev_two_ends))
-      goto count_distance;
-
-    /*
-       having these events we need to check for possible intersection
-       of objects
-       scev_thread | scev_two_threads | scev_single_point
-    */
-    DBUG_ASSERT(ev & (scev_thread | scev_two_threads | scev_single_point));
-
-    func.clear_state();
-    for (Gcalc_point_iterator pit(&scan_it); pit.point() != evpos; ++pit)
-    {
-      gcalc_shape_info si= pit.point()->get_shape();
-      if ((func.get_shape_kind(si) == Gcalc_function::shape_polygon))
-        func.invert_state(si);
-    }
-    func.invert_state(evpos->get_shape());
-    if (func.count())
-    {
-      /* Point of one object is inside the other - intersection found */
-      distance= 0;
-      goto exit;
-    }
-
-
-count_distance:
-    if (cur_point->shape >= obj2_si)
-      continue;
-    cur_point_edge= !cur_point->is_bottom();
-
-    for (dist_point= collector.get_first(); dist_point;
-         dist_point= dist_point->get_next())
-    {
-      /* We only check vertices of object 2 */
-      if (dist_point->shape < obj2_si)
-        continue;
-
-      /* if we have an edge to check */
-      if (dist_point->left)
-      {
-        t= count_edge_t(dist_point, dist_point->left, cur_point,
-                        ex, ey, vx, vy, e_sqrlen);
-        if ((t>0.0) && (t<1.0))
-        {
-          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
-          if (distance > cur_distance)
-            distance= cur_distance;
-        }
-      }
-      if (cur_point_edge)
-      {
-        t= count_edge_t(cur_point, cur_point->left, dist_point,
-                        ex, ey, vx, vy, e_sqrlen);
-        if ((t>0.0) && (t<1.0))
-        {
-          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
-          if (distance > cur_distance)
-            distance= cur_distance;
-        }
-      }
-      cur_distance= distance_points(cur_point, dist_point);
-      if (distance > cur_distance)
-        distance= cur_distance;
-    }
-  }
-exit:
 
   if (!my_isfinite(distance) || distance < 0)
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_real());
   }
-  collector.reset();
-  func.reset();
-  scan_it.reset();
   DBUG_RETURN(distance);
-mem_error:
-  DBUG_RETURN(0.0);
+}
+
+
+/*
+  Calculate the distance of two geometry collections. BG has optimized
+  algorithm to calculate distance among multipoints, multilinestrings
+  and polygons, so we compact the collection to make a single multipoint,
+  a single multilinestring, and the rest are all polygons and multipolygons,
+  and do a nested loop to calculate the minimum distances among such
+  compacted components as the final result.
+ */
+double Item_func_distance::
+geometry_collection_distance(const Geometry *g1, const Geometry *g2)
+{
+  BG_geometry_collection bggc1, bggc2;
+  bool initialized= false, all_normalized= false;
+  double min_distance= DBL_MAX, dist= DBL_MAX;
+  String gcstr1, gcstr2;
+  Geometry_buffer buf1, buf2;
+  const Geometry *g11, *g22;
+
+  g11= compact_collection(g1, &buf1, &gcstr1);
+  g22= compact_collection(g2, &buf2, &gcstr2);
+
+  bggc1.fill(g11);
+  bggc2.fill(g22);
+  for (BG_geometry_collection::Geometry_list::iterator
+       i= bggc1.get_geometries().begin();
+       i != bggc1.get_geometries().end(); ++i)
+  {
+    /* Normalize polygon rings, do only once for each component. */
+    if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
+        (*i)->normalize_ring_order() == NULL)
+    {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return error_real();
+    }
+
+    for (BG_geometry_collection::Geometry_list::iterator
+         j= bggc2.get_geometries().begin();
+         j != bggc2.get_geometries().end(); ++j)
+    {
+      /* Normalize polygon rings, do only once for each component. */
+      if (!all_normalized &&
+          (*j)->get_geotype() != Geometry::wkb_geometrycollection &&
+          (*j)->normalize_ring_order() == NULL)
+      {
+        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+        return error_real();
+      }
+
+      if (is_spherical_equatorial)
+      {
+        // For now this is never reached because we only support
+        // distance([multi]point, [multi]point) for spherical.
+        DBUG_ASSERT(false);
+      }
+      else
+        dist= BG_distance<bgcs::cartesian>::apply(this, *i, *j);
+      if (null_value)
+        return error_real();
+      if (dist < 0 || boost::math::isnan(dist))
+        return dist;
+
+      if (!initialized)
+      {
+        min_distance= dist;
+        initialized= true;
+      }
+      else if (min_distance > dist)
+        min_distance= dist;
+
+    }
+
+    all_normalized= true;
+    if (!initialized)
+      break;                                  // bggc2 is empty.
+  }
+
+  /*
+    If at least one of the collections is empty, we have NULL result.
+  */
+  if (!initialized)
+    return error_real();
+
+  return min_distance;
 }
 
 
@@ -4921,17 +4390,11 @@ bg_distance_spherical(const Geometry *g1, const Geometry *g2)
 }
 
 
-template <typename Coordsys>
+template <typename Coordsys, typename BG_geometry>
 double Item_func_distance::
-distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
+distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
 {
   double res= 0;
-  *isdone= false;
-
-  typename BG_models<double, Coordsys>::Point
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
   switch (g2->get_type())
   {
   case Geometry::wkb_point:
@@ -4986,189 +4449,6 @@ distance_point_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
     DBUG_ASSERT(false);
     break;
   }
-  *isdone= true;
-  return res;
-}
-
-
-template <typename Coordsys>
-double Item_func_distance::
-distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
-                             bool *isdone)
-{
-  double res= 0;
-  *isdone= false;
-
-  typename BG_models<double, Coordsys>::Multipoint
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    res= bg_distance<Coordsys>(g2, g1, isdone);
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      typename BG_models<double, Coordsys>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_linestring:
-    {
-      typename BG_models<double, Coordsys>::Linestring
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_multilinestring:
-    {
-      typename BG_models<double, Coordsys>::Multilinestring
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_polygon:
-    {
-      typename BG_models<double, Coordsys>::Polygon
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  case Geometry::wkb_multipolygon:
-    {
-      typename BG_models<double, Coordsys>::Multipolygon
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-  *isdone= true;
-
-  return res;
-}
-
-
-template <typename Coordsys>
-double Item_func_distance::
-distance_linestring_geometry(const Geometry *g1, const Geometry *g2,
-                             bool *isdone)
-{
-  double res= 0;
-  *isdone= false;
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-  case Geometry::wkb_multipoint:
-    res= bg_distance<Coordsys>(g2, g1, isdone);
-    break;
-  case Geometry::wkb_linestring:
-  case Geometry::wkb_multilinestring:
-  case Geometry::wkb_polygon:
-  case Geometry::wkb_multipolygon:
-    // Not supported yet by BG, call BG function when supported.
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  return res;
-}
-
-
-template <typename Coordsys>
-double Item_func_distance::
-distance_multilinestring_geometry(const Geometry *g1, const Geometry *g2,
-                                  bool *isdone)
-{
-  double res= 0;
-  *isdone= false;
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-  case Geometry::wkb_multipoint:
-  case Geometry::wkb_linestring:
-    res= bg_distance<Coordsys>(g2, g1, isdone);
-    break;
-  case Geometry::wkb_multilinestring:
-  case Geometry::wkb_polygon:
-  case Geometry::wkb_multipolygon:
-    // Not supported yet by BG, call BG function when supported.
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  return res;
-}
-
-
-template <typename Coordsys>
-double Item_func_distance::
-distance_polygon_geometry(const Geometry *g1, const Geometry *g2, bool *isdone)
-{
-  double res= 0;
-  *isdone= false;
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-  case Geometry::wkb_multipoint:
-  case Geometry::wkb_linestring:
-  case Geometry::wkb_multilinestring:
-    res= bg_distance<Coordsys>(g2, g1, isdone);
-    break;
-  case Geometry::wkb_polygon:
-  case Geometry::wkb_multipolygon:
-    // Not supported yet by BG, call BG function when supported.
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  return res;
-}
-
-
-template <typename Coordsys>
-double Item_func_distance::
-distance_multipolygon_geometry(const Geometry *g1, const Geometry *g2,
-                               bool *isdone)
-{
-  double res= 0;
-  *isdone= false;
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-  case Geometry::wkb_multipoint:
-  case Geometry::wkb_linestring:
-  case Geometry::wkb_multilinestring:
-  case Geometry::wkb_polygon:
-    res= bg_distance<Coordsys>(g2, g1, isdone);
-    break;
-  case Geometry::wkb_multipolygon:
-    // Not supported yet by BG, call BG function when supported.
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
   return res;
 }
 
@@ -5180,54 +4460,74 @@ distance_multipolygon_geometry(const Geometry *g1, const Geometry *g2,
   parameters if the swapped type combination is already implemented.
  */
 template <typename Coordsys>
-double Item_func_distance::bg_distance(const Geometry *g1,
-                                       const Geometry *g2, bool *isdone)
+double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
 {
   double res= 0;
-  *isdone= false;
+  bool had_except= false;
 
   try
   {
-
     switch (g1->get_type())
     {
     case Geometry::wkb_point:
-      res= distance_point_geometry<Coordsys>(g1, g2, isdone);
+      {
+        typename BG_models<double, Coordsys>::Point
+          bg1(g1->get_data_ptr(), g1->get_data_size(),
+              g1->get_flags(), g1->get_srid());
+        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
+      }
       break;
     case Geometry::wkb_multipoint:
-      res= distance_multipoint_geometry<Coordsys>(g1, g2, isdone);
+      {
+        typename BG_models<double, Coordsys>::Multipoint
+          bg1(g1->get_data_ptr(), g1->get_data_size(),
+              g1->get_flags(), g1->get_srid());
+        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
+      }
       break;
     case Geometry::wkb_linestring:
-      res= distance_linestring_geometry<Coordsys>(g1, g2, isdone);
+      {
+        typename BG_models<double, Coordsys>::Linestring
+          bg1(g1->get_data_ptr(), g1->get_data_size(),
+              g1->get_flags(), g1->get_srid());
+        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
+      }
       break;
     case Geometry::wkb_multilinestring:
-      res= distance_multilinestring_geometry<Coordsys>(g1, g2, isdone);
+      {
+        typename BG_models<double, Coordsys>::Multilinestring
+          bg1(g1->get_data_ptr(), g1->get_data_size(),
+              g1->get_flags(), g1->get_srid());
+        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
+      }
       break;
     case Geometry::wkb_polygon:
-      res= distance_polygon_geometry<Coordsys>(g1, g2, isdone);
+      {
+        typename BG_models<double, Coordsys>::Polygon
+          bg1(g1->get_data_ptr(), g1->get_data_size(),
+              g1->get_flags(), g1->get_srid());
+        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
+      }
       break;
     case Geometry::wkb_multipolygon:
-      res= distance_multipolygon_geometry<Coordsys>(g1, g2, isdone);
+      {
+        typename BG_models<double, Coordsys>::Multipolygon
+          bg1(g1->get_data_ptr(), g1->get_data_size(),
+              g1->get_flags(), g1->get_srid());
+        res= distance_dispatch_second_geometry<Coordsys>(bg1, g2);
+      }
       break;
     default:
       DBUG_ASSERT(false);
       break;
     }
   }
-  CATCH_ALL(func_name(), null_value= true)
+  CATCH_ALL("st_distance", had_except= true)
+
+  if (had_except)
+    return error_real();
 
   return res;
 }
-
-
-#ifndef DBUG_OFF
-longlong Item_func_gis_debug::val_int()
-{
-  longlong val= args[0]->val_int();
-  if (!args[0]->null_value)
-    current_thd->set_gis_debug(static_cast<int>(val));
-  return current_thd->get_gis_debug();
-}
-#endif
 
 

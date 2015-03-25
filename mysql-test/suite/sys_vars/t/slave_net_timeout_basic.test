@@ -4,7 +4,7 @@
 # Scope: GLOBAL                                                               #
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
-# Default Value: 3600                                                         #
+# Default Value: 60                                                         #
 # Range:                                                                      #
 #                                                                             #
 #                                                                             #
@@ -20,6 +20,8 @@
 #                                                                             #
 # Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
 #  server-system-variables.html                                               #
+#
+# Note: The default value was 3600 before WL#8320
 #                                                                             #
 ###############################################################################
 
@@ -52,7 +54,7 @@ SELECT @@global.slave_net_timeout;
 ############################################################
 
 SET @@global.slave_net_timeout = DEFAULT;
-SELECT @@global.slave_net_timeout = 3600;
+SELECT @@global.slave_net_timeout = 60;
 
 --echo '#--------------------FN_DYNVARS_146_03-------------------------#'
 ###########################################################################

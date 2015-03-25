@@ -2,12 +2,11 @@
 -- source include/have_innodb_zip.inc
 
 let $per_table=`select @@innodb_file_per_table`;
-let $format=`select @@innodb_file_format`;
 let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 SET @save_innodb_stats_on_metadata=@@global.innodb_stats_on_metadata;
 
 
---let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql'
+--let $query_i_s = SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys'
 
 set session innodb_strict_mode=0;
 set global innodb_file_per_table=off;
@@ -291,7 +290,6 @@ create table t9 (id int primary key) engine = innodb row_format = redundant;
 drop table t8, t9;
 
 eval set global innodb_file_per_table=$per_table;
-eval set global innodb_file_format=$format;
 #
 # Testing of tablespace tagging
 #
@@ -321,7 +319,6 @@ drop table normal_table, zip_table;
 #
 
 -- disable_query_log
-eval set global innodb_file_format=$format;
 eval set global innodb_file_per_table=$per_table;
 eval set session innodb_strict_mode=$innodb_strict_mode_orig;
 SET @@global.innodb_stats_on_metadata=@save_innodb_stats_on_metadata;

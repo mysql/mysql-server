@@ -1,15 +1,8 @@
 --source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 
-let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $innodb_file_format = `SELECT @@innodb_file_format`;
-let $innodb_large_prefix_orig = `select @@innodb_large_prefix`;
 let $ps16 = `SELECT truncate(@@innodb_page_size / 16, 0)`;
 let $ps316 = `SELECT truncate(3 * @@innodb_page_size / 16, 0)`;
-
-SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = Barracuda;
-SET GLOBAL innodb_large_prefix = 1;
 
 # Test creating too big undo log record for a table.
 --disable_query_log
@@ -49,9 +42,3 @@ SELECT LENGTH(a) FROM t0;
 ROLLBACK;
 SELECT * FROM t0;
 DROP TABLE t0;
-
---disable_query_log
-eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
-eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
-eval SET GLOBAL innodb_large_prefix = $innodb_large_prefix_orig;
---enable_query_log

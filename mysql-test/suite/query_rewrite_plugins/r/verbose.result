@@ -2,6 +2,8 @@
 # Test of the various values of the verbose variable.
 #
 SET sql_mode = 'PIPES_AS_CONCAT';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Query rewrite plugin was installed.
 SHOW VARIABLES LIKE 'Rewriter_verbose';
 Variable_name	Value

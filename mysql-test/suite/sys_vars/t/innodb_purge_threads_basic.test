@@ -47,7 +47,7 @@ SELECT COUNT(@@SESSION.innodb_purge_threads);
 # Check the default value
 --disable_warnings
 SELECT VARIABLE_NAME, VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME = 'innodb_purge_threads';
 --enable_warnings
 

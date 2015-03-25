@@ -32,6 +32,7 @@
 #include "table.h"                              // TABLE
 #include "thr_lock.h"                           // TL_READ
 #include "transaction.h"
+#include "sql_tmp_table.h"                // init_cache_tmp_engine_properties
 
 Cost_constant_cache *cost_constant_cache= NULL;
 
@@ -473,11 +474,17 @@ static void read_cost_constants(Cost_model_constants* cost_constants)
 }
 
 
-void init_optimizer_cost_module()
+void init_optimizer_cost_module(bool enable_plugins)
 {
   DBUG_ASSERT(cost_constant_cache == NULL);
   cost_constant_cache= new Cost_constant_cache();
   cost_constant_cache->init();
+  /*
+    Initialize max_key_length and max_key_part_length for internal temporary
+    table engines.
+  */
+  if (enable_plugins)
+    init_cache_tmp_engine_properties();
 }
 
 

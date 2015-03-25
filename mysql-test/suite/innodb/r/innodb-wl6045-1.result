@@ -2,7 +2,6 @@
 call mtr.add_suppression("\\[ERROR\\] \\[FATAL\\] InnoDB: Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Database page corruption on disk or a failed");
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 [1]: Test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool
 # Create and populate the table to be corrupted
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
@@ -73,7 +72,7 @@ count                             FALSE
 start-page                        0
 end-page                          0
 page                              0
-strict-check                      innodb
+strict-check                      crc32
 no-check                          FALSE
 allow-mismatches                  0
 write                             crc32
@@ -94,4 +93,3 @@ Fail: page 4 invalid
 # restart
 DROP TABLE tab1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;

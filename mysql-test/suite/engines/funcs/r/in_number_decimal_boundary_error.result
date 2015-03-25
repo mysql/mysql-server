@@ -1,6 +1,4 @@
 SET SQL_MODE="TRADITIONAL,ANSI";
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 DROP TABLE IF EXISTS t5;
 CREATE TABLE t5(c1 DECIMAL(5,4) UNSIGNED NOT NULL);
 INSERT INTO t5 (c1) VALUES(NULL);

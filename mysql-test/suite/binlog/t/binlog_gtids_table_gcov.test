@@ -26,6 +26,7 @@ call mtr.add_suppression("Failed to save the set of Global Transaction "
                          "another attempt to save Global Transaction "
                          "Identifiers into the table.");
 SET @debug_save= @@GLOBAL.DEBUG;
+--let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 
@@ -43,6 +44,7 @@ SET @@GLOBAL.DEBUG= "+d,simulate_err_on_write_gtid_into_table";
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
 SET GLOBAL DEBUG= @debug_save;
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 call mtr.add_suppression(".* Turning logging off for the whole duration of the "
                          "MySQL server process. To turn it on again: fix the "
@@ -61,6 +63,7 @@ SELECT * FROM mysql.gtid_executed;
 --let $assert_text= committed gtid set is MASTER_UUID:1-4
 --let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$master_uuid:1-4"
 --source include/assert.inc
+--eval SET GLOBAL binlog_error_action= $saved_binlog_error_action
 
 DROP TABLE t1;
 

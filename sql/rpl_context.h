@@ -184,6 +184,12 @@ public:
    */
   virtual bool notify_after_transaction_commit(const THD* thd);
 
+  virtual bool notify_after_xa_prepare(const THD* thd)
+  {
+    return notify_after_transaction_commit(thd);
+  }
+
+
 private:
   // not implemented
   Session_consistency_gtids_ctx(const Session_consistency_gtids_ctx& rsc);

@@ -649,6 +649,8 @@ DROP TABLE t1, t2;
 #              ON DELETE (ER_SUBQUERY..)
 #
 SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 col_int_key int,
 pk integer auto_increment,
@@ -731,3 +733,12 @@ ORDER BY INNR1 . col_datetime_key
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1, t2, t3, t4, t5;
 SET sql_mode=default;
+# Bug#20450013 assertion 'select_lex::having_cond() == __null ...
+CREATE TABLE t1(a TEXT, FULLTEXT (a));
+CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+explain DELETE FROM t1 USING v1,t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+DELETE FROM t1 USING v1,t1;
+DROP VIEW v1;
+DROP TABLE t1;

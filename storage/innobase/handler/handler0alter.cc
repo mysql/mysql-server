@@ -103,7 +103,8 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_NOREBUILD
 	| Alter_inplace_info::DROP_UNIQUE_INDEX
 	| Alter_inplace_info::RENAME_INDEX
 	| Alter_inplace_info::ALTER_COLUMN_NAME
-	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH;
+	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
+	| Alter_inplace_info::ALTER_INDEX_COMMENT;
 
 struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 {
@@ -287,6 +288,9 @@ my_error_innodb(
 	case DB_INVALID_NULL:
 		/* TODO: report the row, as we do for DB_DUPLICATE_KEY */
 		my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+		break;
+	case DB_CANT_CREATE_GEOMETRY_OBJECT:
+		my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
 		break;
 #ifdef UNIV_DEBUG
 	case DB_SUCCESS:
@@ -3958,19 +3962,6 @@ ha_innobase::prepare_inplace_alter_table(
 	ut_ad(1 == in_system_space + is_file_per_table + in_general_space);
 #endif /* UNIV_DEBUG */
 
-	/* Determine the target tablespace type */
-	bool	needs_shared_space = target_is_shared_space(
-		ha_alter_info->create_info);
-	bool	needs_file_per_table =
-		/* Already file_per_table and staying that way */
-		(!needs_shared_space && is_file_per_table)
-		/* Explicitly set to file_per_table */
-		|| target_is_file_per_table(ha_alter_info->create_info)
-		/* Moving from the system tablespace to file-per-table */
-		|| (!needs_shared_space
-		    && in_system_space
-		    && srv_file_per_table);
-
 	create_table_info_t	info(m_user_thd,
 				     altered_table,
 				     ha_alter_info->create_info,
@@ -3978,7 +3969,9 @@ ha_innobase::prepare_inplace_alter_table(
 				     NULL,
 				     NULL,
 				     NULL,
-				     needs_file_per_table);
+				     is_file_per_table);
+
+	info.set_tablespace_type();
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
@@ -6976,6 +6969,29 @@ ha_innopart::check_if_supported_inplace_alter(
 				&ha_alter_info->alter_info->create_list)) {
 
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	/* Cannot allow INPLACE for drop and create PRIMARY KEY if partition is
+	on Primary Key - PARTITION BY KEY() */
+	if ((ha_alter_info->handler_flags
+	     & (Alter_inplace_info::ADD_PK_INDEX
+		| Alter_inplace_info::DROP_PK_INDEX))) {
+
+		/* Check partition by key(). */
+		if ((m_part_info->part_type == HASH_PARTITION)
+		    && m_part_info->list_of_part_fields
+		    && m_part_info->part_field_list.is_empty()) {
+
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
+
+		/* Check sub-partition by key(). */
+		if ((m_part_info->subpart_type == HASH_PARTITION)
+		    && m_part_info->list_of_subpart_fields
+		    && m_part_info->subpart_field_list.is_empty()) {
+
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
 	}
 
 	/* Check for PK and UNIQUE should already be done when creating the

@@ -85,6 +85,11 @@
     expr;\
     my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), (funcname));\
   }\
+  catch (const boost::geometry::inconsistent_turns_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION, MYF(0)); \
+  }\
   catch (const boost::geometry::exception &)\
   {\
     expr;\
@@ -151,6 +156,10 @@
     my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
   }
 
+
+#define GIS_ZERO 0.00000000001
+
+extern bool simplify_multi_geometry(String *str);
 
 using std::auto_ptr;
 
@@ -508,7 +517,8 @@ inline bool is_areal(const Geometry *g)
   function before using the result object's data.
 
   @param resbuf_mgr tracks the result buffer
-  @return true if got error; false if no error occured.
+  @return true if an error occurred or if the geometry is an empty
+          collection; false if no error occured.
 */
 template <typename BG_geotype>
 bool post_fix_result(BG_result_buf_mgr *resbuf_mgr,
@@ -727,6 +737,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
       {
         // Free before using it, wkbres may have WKB data from last execution.
         wkbres.mem_free();
+        wkbres.length(0);
 
         bool opdone= false;
         gres= ifso->bg_geo_set_op<Coord_type, Coordsys>(*i, geom2,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -292,12 +292,16 @@ break;
       user_len= *pos++;
       CHECK_SPACE(pos, end, user_len);
       user= (const char*)pos;
+      if (user_len == 0)
+        user= (const char *)"";
       pos+= user_len;
 
       CHECK_SPACE(pos, end, 1);
       host_len= *pos++;
       CHECK_SPACE(pos, end, host_len);
       host= (const char*)pos;
+      if (host_len == 0)
+        host= (const char *)"";
       pos+= host_len;
       break;
     }

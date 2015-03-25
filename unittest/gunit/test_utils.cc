@@ -60,7 +60,7 @@ void setup_server_for_unit_tests()
   error_handler_hook= test_error_handler_hook;
   // Initialize Query_logger last, to avoid spurious warnings to stderr.
   query_logger.init();
-  init_optimizer_cost_module();
+  init_optimizer_cost_module(false);
 }
 
 void teardown_server_for_unit_tests()

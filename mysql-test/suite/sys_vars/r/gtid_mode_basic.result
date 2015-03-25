@@ -9,6 +9,10 @@ select @@global.gtid_mode;
 OFF
 select @@session.gtid_mode;
 ERROR HY000: Variable 'gtid_mode' is a GLOBAL variable
+set gtid_mode = @start_global_value;
+ERROR HY000: Variable 'gtid_mode' is a GLOBAL variable and should be set with SET GLOBAL
+set @@session.gtid_mode = @start_global_value;
+ERROR HY000: Variable 'gtid_mode' is a GLOBAL variable and should be set with SET GLOBAL
 show global variables like 'gtid_mode';
 Variable_name	Value
 gtid_mode	OFF

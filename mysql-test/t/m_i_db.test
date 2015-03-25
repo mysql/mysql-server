@@ -18,10 +18,6 @@ let rndpwdfile=$MYSQL_TMP_DIR/.mysql_secret;
 let sslstate=;
 --mkdir $DDIR
 
-# Suppress the innodb lock warning.
-# TODO: remove it once bug 20436821 is fixed.
-call mtr.add_suppression('InnoDB: Unable to lock');
-
 --exec echo $MYSQL_TMP_DIR/.mysql_secret > $MYSQL_TMP_DIR/readpwdfilepath.txt
 --echo # Execute m_i_db without any options where the file MYSQL_TMP_DIR/.mysql_secret is not there. Start server and try to login with root credentials.
 let midparam="--random-password-file=$rndpwdfile";

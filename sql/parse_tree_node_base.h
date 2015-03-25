@@ -72,8 +72,8 @@ enum enum_parsing_context
 /*
   Note: YYLTYPE doesn't overload a default constructor (as well an underlying
   Symbol_location).
-  OTOH if we need a zero-initialized POS, YYLTYPE or Symbol_location object, we
-  can simply call POS(), YYLTYPE() or Symbol_location(): C++ does
+  OTOH if we need a zero-initialized POS, YYLTYPE or Symbol_location object,
+  we can simply call POS(), YYLTYPE() or Symbol_location(): C++ does
   value-initialization in that case.
 */
 typedef YYLTYPE POS;

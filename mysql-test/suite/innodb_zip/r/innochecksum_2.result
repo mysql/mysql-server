@@ -1,5 +1,3 @@
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_compression_level=0;
 SELECT @@innodb_compression_level;
 @@innodb_compression_level
@@ -74,66 +72,69 @@ DROP TABLE t1;
 [5]:# Check the innochecksum for compressed table t1 with different key_block_size
 # Test for KEY_BLOCK_SIZE=1
 ===> Testing  size=1
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 insert into t1 values(1,"I");
 insert into t1 values(2,"AM");
 insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
+# restart
 select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
 drop table t1;
 # Test for KEY_BLOCK_SIZE=2
 ===> Testing  size=2
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 insert into t1 values(1,"I");
 insert into t1 values(2,"AM");
 insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
+# restart
 select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
 drop table t1;
 # Test for for KEY_BLOCK_SIZE=4
 ===> Testing  size=4
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 insert into t1 values(1,"I");
 insert into t1 values(2,"AM");
 insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
+# restart
 select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
 drop table t1;
+set innodb_strict_mode=off;
 # Test for for KEY_BLOCK_SIZE=8
 ===> Testing  size=8
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 insert into t1 values(1,"I");
 insert into t1 values(2,"AM");
 insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
+# restart
 select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
 drop table t1;
+set innodb_strict_mode=off;
 # Test for KEY_BLOCK_SIZE=16
 ===> Testing  size=16
-SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 insert into t1 values(1,"I");
 insert into t1 values(2,"AM");
 insert into t1 values(3,"COMPRESSED");
-# Shutdown the Server
-# Restart the DB server
+# restart
 select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
 drop table t1;
 # Test[5] completed
-# Restart the server
-# restart
-SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;

@@ -1,0 +1,20 @@
+DESC sys.memory_global_by_current_bytes;
+Field	Type	Null	Key	Default	Extra
+event_name	varchar(128)	NO		NULL	
+current_count	bigint(20)	NO		NULL	
+current_alloc	text	YES		NULL	
+current_avg_alloc	text	YES		NULL	
+high_count	bigint(20)	NO		NULL	
+high_alloc	text	YES		NULL	
+high_avg_alloc	text	YES		NULL	
+SELECT * FROM sys.memory_global_by_current_bytes;
+DESC sys.x$memory_global_by_current_bytes;
+Field	Type	Null	Key	Default	Extra
+event_name	varchar(128)	NO		NULL	
+current_count	bigint(20)	NO		NULL	
+current_alloc	bigint(20)	NO		NULL	
+current_avg_alloc	decimal(23,4)	NO		0.0000	
+high_count	bigint(20)	NO		NULL	
+high_alloc	bigint(20)	NO		NULL	
+high_avg_alloc	decimal(23,4)	NO		0.0000	
+SELECT * FROM sys.x$memory_global_by_current_bytes;

@@ -1,0 +1,160 @@
+--source include/big_test.inc
+--source include/not_embedded.inc
+--source include/have_no_undo_tablespaces.inc
+
+
+let BASEDIR= `select @@basedir`;
+let DDIR=$MYSQL_TMP_DIR/installdb_test;
+let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
+let extra_args=--no-defaults --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
+let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
+
+--echo # We don't care about innodb warnings at this point
+CALL mtr.add_suppression("InnoDB:");
+
+--echo # Save the count of columns in mysql
+--let $mysql_cnt=`SELECT COUNT(COLUMN_NAME) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='mysql'`
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+
+--echo #
+--echo # Start of test for Bug #20504142
+--echo #   MYSQLD OPTION --INITIALIZE SHOULD WORK WITH EMPTY DATADIR
+--echo #
+
+--echo #
+--echo # Try --initialize-insecure with an existing empty data dir
+--echo #
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+CREATE TABLE mysql.t1(a INT) ENGINE=innodb;
+INSERT INTO mysql.t1 VALUES (1);
+INSERT INTO mysql.t1 VALUES (2);
+EOF
+
+--echo # make the data dir
+mkdir $DDIR;
+
+--echo # Run the server with --initialize-insecure
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
+
+
+--echo # Restart the server against DDIR
+--exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # connect as root
+connect(root_con,localhost,root,,mysql);
+
+--echo # must pass: no password expiration
+SELECT 1;
+
+--echo # shut server down
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo # Server is down
+
+--echo # close the test connection
+connection default;
+disconnect root_con;
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete bootstrap file
+remove_file $BOOTSTRAP_SQL;
+
+--echo # delete datadir
+--perl
+use File::Path 'rmtree';
+$DDIR=$ENV{"DDIR"};
+rmtree([ "$DDIR" ]);
+EOF
+
+
+--echo #
+--echo # Try --initialize-insecure with an exising non-empty data dir
+--echo #
+
+--echo # make the data dir
+mkdir $DDIR;
+
+let $AFILE=$DDIR/afile;
+
+--echo # add afile to the data dir
+write_file $AFILE;
+some text
+EOF
+
+--echo # Run the server with --initialize-insecure
+--error 1
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR > $MYSQLD_LOG 2>&1
+
+--echo # look for the mysql directory. should not be there
+perl;
+   use strict;
+   my $mysqldir="$ENV{'DDIR'}/mysql";
+   if (opendir(my $dh, $mysqldir))
+   {
+     print "Data directory $mysqldir not empty\n";
+     closedir($dh);
+   }
+EOF
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--perl
+use File::Path 'rmtree';
+$DDIR=$ENV{"DDIR"};
+rmtree([ "$DDIR" ]);
+EOF
+
+
+--echo #
+--echo # Try --initialize-insecure with an exising file as datadir
+--echo #
+
+--echo # add a file as the data dir
+write_file $DDIR;
+some text
+EOF
+
+--echo # Run the server with --initialize-insecure
+--error 1
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR > $MYSQLD_LOG 2>&1
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--perl
+use File::Path 'rmtree';
+$DDIR=$ENV{"DDIR"};
+rmtree([ "$DDIR" ]);
+EOF
+
+--echo #
+--echo # End of test for Bug #20504142
+--echo #   MYSQLD OPTION --INITIALIZE SHOULD WORK WITH EMPTY DATADIR
+--echo #
+
+
+--echo #
+--echo # Cleanup
+--echo #
+--echo # Restarting the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

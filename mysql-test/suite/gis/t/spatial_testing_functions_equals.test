@@ -224,12 +224,13 @@ SELECT count(ST_ASTEXT(g2) != 'NULL') FROM gis_geometrycollection_2;
 # Checking the spatial testing functions                                                   #
 ############################################################################################
 
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # MBREQUALS(g1,g2)
---echo #=======================================================================================
+--echo #####################################################################################
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,point
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
@@ -246,8 +247,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipoint
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
@@ -264,14 +266,16 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,linestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
@@ -280,14 +284,16 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multilinestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
@@ -296,14 +302,16 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING(
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,polygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=404;
 
+--error ER_GIS_INVALID_DATA
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((0 0))'));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
@@ -312,12 +320,14 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipolygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0)))'));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
@@ -326,8 +336,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,geometrycollection
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
@@ -344,8 +355,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTI
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,point
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
@@ -356,8 +368,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_cent
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipoint
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points_1),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
@@ -366,22 +379,25 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollectio
 
 SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=108 and fid2=208;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,linestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=212;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multilinestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=209;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,polygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'),ST_GEOMFROMTEXT(@star));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star));
@@ -390,8 +406,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_ho
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipolygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems));
@@ -400,8 +417,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elem
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,geometrycollection
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -412,24 +430,27 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycol
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,point
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
 
 SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipoint
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_all_points_1)) FROM gis_geometrycollection WHERE fid=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,linestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_line_vertical_1));
@@ -442,32 +463,36 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center_3)) FROM gis_geometrycoll
 
 SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=210;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multilinestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_horizontal_1),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal_3)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,polygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical_1)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipolygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_of_elems_1)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,geometrycollection
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -476,16 +501,18 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems_1)) FROM gis_geometryc
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,point
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipoint
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points));
@@ -494,16 +521,18 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_bottom_points_1)) FROM gis_geometrycoll
 
 SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,linestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multilinestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_near_vertical_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
@@ -512,24 +541,27 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometry
 
 SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=214;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,polygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_verticali_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipolygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elems_vertical_1),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_of_elems_1)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,geometrycollection
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elems_vertical_1),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -538,16 +570,18 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems_1)) FROM gis_geometryc
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elems_vertical_1),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,point
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipoint
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points_1));
@@ -556,8 +590,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOIN
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,linestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
@@ -566,16 +601,18 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollec
 
 SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multilinestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elem_hporizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=200;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,polygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star));
@@ -586,16 +623,18 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_1)) FROM gis_geometrycollection WHERE f
 
 SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=200;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipolygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,geometrycollection
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -604,16 +643,18 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycol
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,point
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_1));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_top_1)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipoint
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_all_points_1));
@@ -622,24 +663,27 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_po
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,linestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multilinestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,polygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_1));
@@ -648,8 +692,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,1
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=203;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipolygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
@@ -660,8 +705,9 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection 
 
 SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=203;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,geometrycollection
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -674,16 +720,18 @@ SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHER
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,point
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_1));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_top_1)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipoint
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_all_points_1));
@@ -692,24 +740,27 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_b
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,linestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multilinestring
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,polygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_1));
@@ -718,8 +769,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGO
 
 SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=215;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipolygon
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
@@ -730,8 +782,9 @@ SELECT MBREQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycol
 
 SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=203;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,geometrycollection
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_1));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -744,12 +797,13 @@ SELECT MBREQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHER
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # ST_EQUALS(g1,g2)
---echo #=======================================================================================
+--echo #####################################################################################
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,point
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
@@ -766,8 +820,9 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipoint
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
@@ -784,14 +839,16 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,linestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
@@ -800,14 +857,16 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multilinestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
@@ -816,14 +875,16 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING(
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,polygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=404;
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((0 0))'));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
@@ -832,12 +893,14 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipolygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0)))'));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
@@ -846,8 +909,9 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,geometrycollection
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
@@ -864,16 +928,18 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTI
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,point
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipoint
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points_1),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
@@ -882,22 +948,25 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollectio
 
 SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=108 and fid2=208;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,linestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multilinestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=209;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,polygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'),ST_GEOMFROMTEXT(@star));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star));
@@ -906,8 +975,9 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_ho
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipolygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems));
@@ -916,8 +986,9 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elem
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,geometrycollection
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -928,24 +999,27 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycol
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,point
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipoint
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_all_points_1)) FROM gis_geometrycollection WHERE fid=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,linestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_line_vertical_1));
@@ -958,32 +1032,36 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center_3)) FROM gis_geometrycoll
 
 SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=210;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multilinestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal_1),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal_3)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,polygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical_1)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipolygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems_1)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,geometrycollection
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -992,16 +1070,18 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems_1)) FROM gis_geometryc
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,point
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipoint
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points));
@@ -1010,16 +1090,18 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_bottom_points_1)) FROM gis_geometrycoll
 
 SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,linestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multilinestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_near_vertical_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
@@ -1028,24 +1110,27 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometry
 
 SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=214;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,polygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_verticali_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipolygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elems_vertical_1),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems_1)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,geometrycollection
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elems_vertical_1),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -1054,16 +1139,18 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems_1)) FROM gis_geometryc
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,point
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipoint
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points_1));
@@ -1072,8 +1159,9 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOIN
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,linestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
@@ -1082,16 +1170,18 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollec
 
 SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multilinestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_hporizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=200;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,polygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star));
@@ -1102,16 +1192,18 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_1)) FROM gis_geometrycollection WHERE f
 
 SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=200;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipolygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,geometrycollection
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -1120,16 +1212,18 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycol
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,point
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_1));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_1)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipoint
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_all_points_1));
@@ -1138,24 +1232,27 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_po
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,linestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multilinestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,polygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_1));
@@ -1164,8 +1261,9 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,1
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=203;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipolygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
@@ -1176,8 +1274,9 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection 
 
 SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=203;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,geometrycollection
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -1190,16 +1289,18 @@ SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHER
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,point
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_1));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_1)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipoint
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_all_points_1));
@@ -1208,24 +1309,27 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_b
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,linestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multilinestring
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,polygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_1));
@@ -1234,8 +1338,9 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGO
 
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=215;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipolygon
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
@@ -1246,8 +1351,9 @@ SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycol
 
 SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=203;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,geometrycollection
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_1));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -1260,529 +1366,13 @@ SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHER
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
---echo #=======================================================================================
---echo # ST_EQUALS(g1,g2)
---echo #=======================================================================================
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,point
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=204;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=104 and fid2=204;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,multipoint
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=108;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,linestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_line_vertical));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,20 0)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,multilinestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0,10 0))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,5 0),(5 0,10 0))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,polygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top_3),ST_GEOMFROMTEXT(@star));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=404;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POLYGON((0 0))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,multipolygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0)))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0)),((10 10,10 20,20 20,20 10,10 10)))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # point,geometrycollection
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,point
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,multipoint
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points_1),ST_GEOMFROMTEXT(@star_all_points));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=108 and fid2=208;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,linestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,multilinestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=209;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,polygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'),ST_GEOMFROMTEXT(@star));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,multipolygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems_2));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipoint,geometrycollection
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems_2));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,point
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,multipoint
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_all_points_1)) FROM gis_geometrycollection WHERE fid=111;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,linestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_line_vertical_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_line_vertical));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center_3)) FROM gis_geometrycollection WHERE fid=111;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=210;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,multilinestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal_1),ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal_3)) FROM gis_geometrycollection WHERE fid=110;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,polygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_vertical_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical_1)) FROM gis_geometrycollection WHERE fid=110;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,multipolygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems_1)) FROM gis_geometrycollection WHERE fid=110;
-
---echo #-------------------------------------------------------------------------------------------
---echo # linestring,geometrycollection
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems_1)) FROM gis_geometrycollection WHERE fid=110;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,point
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,multipoint
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_bottom_points_1)) FROM gis_geometrycollection WHERE fid=114;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,linestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,multilinestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_near_vertical_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=114;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=214;
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_line_vertical_1)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,polygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_verticali_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,multipolygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elems_vertical_1),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems_1)) FROM gis_geometrycollection WHERE fid=114;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multilinestring,geometrycollection
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elems_vertical_1),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems_1)) FROM gis_geometrycollection WHERE fid=114;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,point
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,multipoint
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,linestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=200;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,multilinestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_hporizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=200;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,polygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 0 1, 0 0))'),ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 0 0,0 1, 0 0))'));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_1)) FROM gis_geometrycollection WHERE fid=100;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=200;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,multipolygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
-
---echo #-------------------------------------------------------------------------------------------
---echo # polygon,geometrycollection
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,point
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_1));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_1)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,multipoint
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_all_points_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,linestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,multilinestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,polygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0))'));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=203;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,multipolygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems_2));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=203;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=203;
-
---echo #-------------------------------------------------------------------------------------------
---echo # multipolygon,geometrycollection
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_2));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=203;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=215;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,point
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_1));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_1)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,multipoint
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOINT(5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5)'));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_all_points_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,linestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,multilinestring
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,polygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=215;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,multipolygon
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_2));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=215;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=203;
-
---echo #-------------------------------------------------------------------------------------------
---echo # geometrycollection,geometrycollection
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_2));
-
-SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=215;
-
-SELECT ST_EQUALS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=215;
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
---echo #=======================================================================================
---echo # Testing ST_EQUALS() with 2 geometries of same SRID
---echo #=======================================================================================
-
---echo #-------------------------------------------------------------------------------------------
+--echo #####################################################################################
+--echo # Testing with 2 geometries of same SRID
+--echo #####################################################################################
+
+--echo #====================================================================================
 --echo # MBREQUALS(g1,g2)
+--echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
@@ -1801,8 +1391,9 @@ SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-
 
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # ST_EQUALS(g1,g2)
+--echo #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
@@ -1821,32 +1412,13 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-
 
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
---echo #-------------------------------------------------------------------------------------------
---echo # ST_EQUALS(g1,g2)
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # Invalid function calls
---echo #=======================================================================================
+--echo #####################################################################################
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # ST_EQUALS(g1,g2)
+--echo #====================================================================================
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
@@ -1917,80 +1489,9 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),);
 --error ER_PARSE_ERROR
 SELECT ST_EQUALS(,ST_GEOMFROMTEXT(@star_top));
 
---echo #-------------------------------------------------------------------------------------------
---echo # ST_EQUALS(g1,g2)
---error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
-
---error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-
-SELECT ST_EQUALS(NULL,ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),NULL);
-
-SELECT ST_EQUALS(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
-SELECT ST_EQUALS(NULL,NULL);
-
-SELECT ST_EQUALS(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(fid,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(a 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(! 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT('!' 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(12,34 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(a 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(0 0,! 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING('!' 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(12,34 0,10 10)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((a 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((0 0,! 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON(('!' 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_EQUALS(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0)'),ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
-
---error ER_PARSE_ERROR
-SELECT ST_EQUALS(,);
-
---error ER_PARSE_ERROR
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_of_elems),);
-
---error ER_PARSE_ERROR
-SELECT ST_EQUALS(,ST_GEOMFROMTEXT(@star_top));
-
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # MBREQUALS(g1,g2)
+--echo #====================================================================================
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 

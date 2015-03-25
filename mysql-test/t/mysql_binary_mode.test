@@ -1,5 +1,5 @@
 
-source include/have_binlog_format_mixed_or_statement.inc;
+source include/force_binlog_format_statement.inc;
 RESET MASTER;
 
 --echo # Bug#33048 Not able to recover binary/blob data correctly using mysqlbinlog
@@ -168,3 +168,5 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 
 RESET MASTER;
 --remove_file $binlog_uuid_filename
+
+--source include/restore_default_binlog_format.inc

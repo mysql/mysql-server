@@ -265,7 +265,7 @@ ulong	srv_io_capacity         = 200;
 ulong	srv_max_io_capacity     = 400;
 
 /* The number of page cleaner threads to use.*/
-ulong	srv_n_page_cleaners = 1;
+ulong	srv_n_page_cleaners = 4;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -283,7 +283,7 @@ ulong	srv_adaptive_flushing_lwm	= 10;
 ulong	srv_flushing_avg_loops		= 30;
 
 /* The number of purge threads to use.*/
-ulong	srv_n_purge_threads = 1;
+ulong	srv_n_purge_threads = 4;
 
 /* the number of pages to purge in one batch */
 ulong	srv_purge_batch_size = 20;
@@ -561,8 +561,8 @@ char*	srv_buf_dump_filename;
 
 /** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
 and/or load it during startup. */
-char	srv_buffer_pool_dump_at_shutdown = FALSE;
-char	srv_buffer_pool_load_at_startup = FALSE;
+char	srv_buffer_pool_dump_at_shutdown = TRUE;
+char	srv_buffer_pool_load_at_startup = TRUE;
 
 /** Slot index in the srv_sys->sys_threads array for the purge thread. */
 static const ulint	SRV_PURGE_SLOT	= 1;

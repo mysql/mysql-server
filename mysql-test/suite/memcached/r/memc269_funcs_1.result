@@ -1,0 +1,140 @@
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+"c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c21 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+SELECT SLEEP(2);
+SLEEP(2)
+0
+Here the memcached results with D,B,H,C:
+Darmstadt|City
+Berlin|Mitte
+Hamburg|Norderstedt
+Cottbus|West
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+c1	c2	c21	c22	c23
+B	Berlin	Mitte	6	BERLIN
+C	Cottbus	West	7	COTTBUS
+D	Darmstadt	City	9	DARMSTADT
+H	Hamburg	Norderstedt	7	HAMBURG
+Here the memcached results after set:
+Essen|Ost
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+c1	c2	c21	c22	c23
+B	Berlin	Mitte	6	BERLIN
+C	Cottbus	West	7	COTTBUS
+D	Darmstadt	City	9	DARMSTADT
+E	Essen	Ost	5	ESSEN
+H	Hamburg	Norderstedt	7	HAMBURG
+Here the memcached results after add:
+Frankfurt|Sachsenhause
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+c1	c2	c21	c22	c23
+B	Berlin	Mitte	6	BERLIN
+C	Cottbus	West	7	COTTBUS
+D	Darmstadt	City	9	DARMSTADT
+E	Essen	Ost	5	ESSEN
+F	Frankfurt	Sachsenhause	9	FRANKFURT
+H	Hamburg	Norderstedt	7	HAMBURG
+Here the memcached results after replace:
+Frankfurt a. M.|Sachsenhausen
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+c1	c2	c21	c22	c23
+B	Berlin	Mitte	6	BERLIN
+C	Cottbus	West	7	COTTBUS
+D	Darmstadt	City	9	DARMSTADT
+E	Essen	Ost	5	ESSEN
+F	Frankfurt a. M.	Sachsenhausen	15	FRANKFURT A. M.
+H	Hamburg	Norderstedt	7	HAMBURG
+Here the memcached results after delete:
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+c1	c2	c21	c22	c23
+B	Berlin	Mitte	6	BERLIN
+C	Cottbus	West	7	COTTBUS
+D	Darmstadt	City	9	DARMSTADT
+E	Essen	Ost	5	ESSEN
+H	Hamburg	Norderstedt	7	HAMBURG
+Here the memcached results after add Frankfurt|:
+Frankfurt|
+Here the memcached results after add |Airport:
+Frankfurt|
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+c1	c2	c21	c22	c23
+B	Berlin	Mitte	6	BERLIN
+C	Cottbus	West	7	COTTBUS
+D	Darmstadt	City	9	DARMSTADT
+E	Essen	Ost	5	ESSEN
+F	Frankfurt	NULL	9	FRANKFURT
+H	Hamburg	Norderstedt	7	HAMBURG
+Here the memcached results after replace Frankfurt a.M.:
+Frankfurt a. M.|
+Here the memcached results after replace Sachsenhausen:
+|Sachsenhausen
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+c1	c2	c21	c22	c23
+B	Berlin	Mitte	6	BERLIN
+C	Cottbus	West	7	COTTBUS
+D	Darmstadt	City	9	DARMSTADT
+E	Essen	Ost	5	ESSEN
+F	NULL	Sachsenhausen	NULL	NULL
+H	Hamburg	Norderstedt	7	HAMBURG
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t1 MODIFY c2 int;
+Warnings:
+Warning	1366	Incorrect integer value: 'Berlin' for column 'c2' at row 1
+Warning	1366	Incorrect integer value: 'Cottbus' for column 'c2' at row 2
+Warning	1366	Incorrect integer value: 'Darmstadt' for column 'c2' at row 3
+Warning	1366	Incorrect integer value: 'Essen' for column 'c2' at row 4
+Warning	1366	Incorrect integer value: 'Hamburg' for column 'c2' at row 6
+SET sql_mode=default;
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	0	Mitte
+C	0	West
+D	0	City
+E	0	Ost
+F	NULL	Sachsenhausen
+H	0	Norderstedt
+Here the memcached results after add Frankfurt|:
+|Sachsenhausen
+Here the memcached results after add |Airport:
+|Sachsenhausen
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+c1	c2	c21	c22	c23
+B	0	Mitte	1	0
+C	0	West	1	0
+D	0	City	1	0
+E	0	Ost	1	0
+F	NULL	Sachsenhausen	NULL	NULL
+H	0	Norderstedt	1	0
+Here the memcached results after flush_all:
+SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
+c1	c2	c21	c22	c23
+Bug#18652854 INNODB MEMCACHED ASSERTION `!CONN_DATA->CRSR_TRX' FAILED.
+ Call flush_all after set and get.
+DROP TABLE t1;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+SET @@global.tx_isolation= @tx_isolation;

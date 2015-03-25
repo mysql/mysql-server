@@ -8,10 +8,8 @@
 
 --disable_query_log
 SET default_storage_engine=InnoDB;
-let $MYSQLD_DATADIR= `select @@datadir`;
-# These values can change during the test
-LET $innodb_file_format_orig=`select @@innodb_file_format`;
-LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --enable_query_log
 
 # The IDs of mysql.innodb_table_stats and mysql.innodb_index_stats are
@@ -26,19 +24,21 @@ LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 --let $rep_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_master_info'`
 --let $rep_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_relay_log_info'`
 --let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
+# The sys_config table may not exist on embedded tests
+--let $sys_config = `SELECT IFNULL((SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'sys/sys_config'), 0)`
 
 --disable_query_log
---eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3) ORDER BY table_id;
+--eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id;
 
---eval SELECT table_id,pos,mtype,prtype,len,name FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3) ORDER BY table_id, pos;
+--eval SELECT table_id,pos,mtype,prtype,len,name FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY table_id, pos;
 
 # The SELECT * version of the query below has been moved to innodb_4k,
 # innodb_8k & innodb_16k since the root page number changes with page size.
---eval SELECT index_id,table_id,type,n_fields,space,name FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3) ORDER BY index_id;
+--eval SELECT index_id,table_id,type,n_fields,space,name FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $sys_config) ORDER BY index_id;
 --enable_query_log
 
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
-       WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port')
+       WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
        ORDER BY index_id, pos;
 
 --sorted_result
@@ -47,38 +47,22 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 --sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 
-SET GLOBAL innodb_file_format=`Barracuda`;
-SET GLOBAL innodb_file_per_table=ON;
-
 --disable_warnings
 DROP TABLE IF EXISTS t_redundant, t_compact, t_compressed, t_dynamic;
 --enable_warnings
 
 CREATE TABLE t_redundant (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t_compact (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
-CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
+CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb KEY_BLOCK_SIZE=2;
 CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 
---sorted_result
-SELECT name, n_cols, file_format, row_format
-       FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
-       WHERE space > 0;
---sorted_result
-SELECT name, file_format, row_format
-       FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
-       WHERE name LIKE 'test%';
---replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
---sorted_result
-SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
-       WHERE path LIKE '%test%';
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
---disable_query_log
-EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
-EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
---enable_query_log
 
-SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
+ WHERE name NOT LIKE 'sys/%';
 
 # Create a foreign key constraint, and verify the information
 # in INFORMATION_SCHEMA.INNODB_SYS_FOREIGN and
@@ -108,7 +92,8 @@ FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
 WHERE name LIKE "%parent";
 
 --sorted_result
-SELECT NAME, FLAG, N_COLS FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+SELECT NAME, FLAG, N_COLS FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+ WHERE name NOT LIKE 'sys/%';
 
 --sorted_result
 SELECT name, n_fields
@@ -165,9 +150,3 @@ WHERE name LIKE "%parent";
 DROP TABLE child;
 
 DROP TABLE parent;
-
---disable_query_log
-EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
-EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
---enable_query_log
-

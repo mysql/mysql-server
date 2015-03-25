@@ -237,7 +237,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   int error= 0;
   ACL_USER *acl_user;
   LEX *lex= thd->lex;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   USER_RESOURCES tmp_user_resource;
   enum SSL_type ssl_type;
   char *ssl_cipher, *x509_issuer, *x509_subject, *ssl_info, *conn_attr;
@@ -388,7 +388,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
           user_name->host.str,NullS);
   field->item_name.set(buff);
   field_list.push_back(field);
-  if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
   {
     error= 1;
     goto err;
@@ -397,9 +398,9 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   lex->users_list.push_back(user_name);
   mysql_rewrite_create_alter_user(thd, &sql_text);
   /* send the result row to client */
-  protocol->prepare_for_resend();
+  protocol->start_row();
   protocol->store(sql_text.ptr(),sql_text.length(),sql_text.charset());
-  if (protocol->write())
+  if (protocol->end_row())
   {
     error= 1;
     goto err;
@@ -422,66 +423,6 @@ err:
 }
 
 /**
-  Update user.auth.str based on the plugin.
-
-  @param thd        Thread context
-  @param lex_user   user for which auth str needs to be generated
-
-  @retval 0 ok
-  @retval 1 ERROR;
-*/
-
-bool update_auth_str(THD *thd, LEX_USER *Str)
-{
-  plugin_ref plugin= NULL;
-  char outbuf[MAX_FIELD_WIDTH]= {0};
-  unsigned int buflen= MAX_FIELD_WIDTH, inbuflen;
-  const char *inbuf;
-  char *password= NULL;
-
-  plugin= my_plugin_lock_by_name(0, Str->plugin,
-                                 MYSQL_AUTHENTICATION_PLUGIN);
-
-  /* for authentication_string generate hash out of it */
-  if (plugin)
-  {
-    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-    {
-      inbuf= Str->auth.str;
-      inbuflen= Str->auth.length;
-      if (auth->generate_authentication_string(outbuf,
-                                               &buflen,
-                                               inbuf,
-                                               inbuflen))
-      {
-        plugin_unlock(0, plugin);
-        return(1);
-      }
-      if (buflen)
-      {
-        password= (char *) thd->alloc(buflen);
-        memcpy(password, outbuf, buflen);
-      }
-      else
-        password= const_cast<char*>("");
-      /* erase in memory copy of plain text password */
-      memset((char*)(Str->auth.str), 0, Str->auth.length);
-      /* Use the authentication_string field as password */
-      Str->auth.str= password;
-      Str->auth.length= buflen;
-      thd->lex->contains_plaintext_password= false;
-    }
-    plugin_unlock(0, plugin);
-  }
-  else
-  {
-     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), Str->plugin.str);
-     return(1);
-  }
-  return(0);
-}
-
-/**
    This function does following:
    1. Convert plain text password to hash and update the same in
       user definition.
@@ -501,6 +442,11 @@ bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_se
 {
   bool user_exists= false;
   ACL_USER *acl_user;
+  plugin_ref plugin= NULL;
+  char outbuf[MAX_FIELD_WIDTH]= {0};
+  unsigned int buflen= MAX_FIELD_WIDTH, inbuflen;
+  const char *inbuf;
+  char *password= NULL;
 
   what_to_set= 0;
   /* update plugin,auth str attributes */
@@ -539,12 +485,9 @@ bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_se
   {
     if (thd->lex->sql_command == SQLCOM_ALTER_USER)
     {
-      if (Str->uses_identified_by_clause)
-      {
-        /* If no plugin is given, get existing plugin */
-        if (!Str->uses_identified_with_clause)
-          Str->plugin= acl_user->plugin;
-      }
+      /* If no plugin is given, get existing plugin */
+      if (!Str->uses_identified_with_clause)
+        Str->plugin= acl_user->plugin;
       /*
         always check for password expire/interval attributes as there is no
         way to differentiate NEVER EXPIRE and EXPIRE DEFAULT scenario
@@ -585,50 +528,75 @@ bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_se
     if (!Str->uses_identified_with_clause)
       Str->plugin= default_auth_plugin_name;
   }
+
+  plugin= my_plugin_lock_by_name(0, Str->plugin,
+                                 MYSQL_AUTHENTICATION_PLUGIN);
+
+  /* check if plugin is loaded */
+  if (!plugin)
+  {
+    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), Str->plugin.str);
+    return(1);
+  }
   /*
     If auth string is specified, change it to hash.
     Validate empty credentials for new user ex: CREATE USER u1;
   */
   if (Str->uses_identified_by_clause ||
       (Str->auth.length == 0 && !user_exists))
-    if (update_auth_str(thd, Str))
+  {
+    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
+    inbuf= Str->auth.str;
+    inbuflen= Str->auth.length;
+    if (auth->generate_authentication_string(outbuf,
+                                             &buflen,
+                                             inbuf,
+                                             inbuflen))
+    {
+      plugin_unlock(0, plugin);
       return(1);
+    }
+    if (buflen)
+    {
+      password= (char *) thd->alloc(buflen);
+      memcpy(password, outbuf, buflen);
+    }
+    else
+      password= const_cast<char*>("");
+    /* erase in memory copy of plain text password */
+    memset((char*)(Str->auth.str), 0, Str->auth.length);
+    /* Use the authentication_string field as password */
+    Str->auth.str= password;
+    Str->auth.length= buflen;
+    thd->lex->contains_plaintext_password= false;
+  }
+
   /* Validate hash string */
   if(Str->uses_identified_by_password_clause ||
      Str->uses_authentication_string_clause)
   {
-    plugin_ref plugin= my_plugin_lock_by_name(0, Str->plugin,
-                                              MYSQL_AUTHENTICATION_PLUGIN);
-    if (plugin)
+    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
+    /*
+      Validate hash string in following cases:
+        1. IDENTIFIED BY PASSWORD.
+        2. IDENTIFIED WITH .. AS 'auth_str' for ALTER USER statement
+           and its a replication slave thread
+    */
+    if (Str->uses_identified_by_password_clause ||
+        (Str->uses_authentication_string_clause &&
+        thd->lex->sql_command == SQLCOM_ALTER_USER &&
+        thd->slave_thread))
     {
-      st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-      /*
-        Validate hash string in following cases:
-          1. IDENTIFIED BY PASSWORD.
-          2. IDENTIFIED WITH .. AS 'auth_str' for ALTER USER statement
-             and its a replication slave thread
-      */
-      if (Str->uses_identified_by_password_clause ||
-          (Str->uses_authentication_string_clause &&
-          thd->lex->sql_command == SQLCOM_ALTER_USER &&
-          thd->slave_thread))
+      if (auth->validate_authentication_string((char*)Str->auth.str,
+                                               Str->auth.length))
       {
-        if (auth->validate_authentication_string((char*)Str->auth.str,
-                                                 Str->auth.length))
-        {
-          my_error(ER_PASSWORD_FORMAT, MYF(0));
-          plugin_unlock(0, plugin);
-          return(1);
-        }
+        my_error(ER_PASSWORD_FORMAT, MYF(0));
+        plugin_unlock(0, plugin);
+        return(1);
       }
-      plugin_unlock(0, plugin);
-    }
-    else
-    {
-      my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), Str->plugin.str);
-      return(1);
     }
   }
+  plugin_unlock(0, plugin);
   return(0);
 }
 
@@ -1309,7 +1277,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     DBUG_RETURN(result != 1);
   }
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_name= user_list++))
@@ -1387,7 +1355,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
                              transactional_tables);
   }
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
@@ -1448,7 +1416,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_name= user_list++))
@@ -1479,7 +1447,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
@@ -1539,7 +1507,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     DBUG_RETURN(result != 1);
   }
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_from= user_list++))
@@ -1583,7 +1551,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 
@@ -1667,7 +1635,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_from= user_list++))
@@ -1764,7 +1732,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
                            table->file->has_transactions()) != 0);
   }
 
-  mysql_rwlock_unlock(&LOCK_grant);
+  lock.unlock();
 
   result|= acl_trans_commit_and_close_tables(thd);
 

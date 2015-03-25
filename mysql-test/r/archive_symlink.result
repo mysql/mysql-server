@@ -29,6 +29,8 @@ DROP TABLE t1;
 # 
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_DIR_IN_CREATE';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -42,6 +44,8 @@ INSERT INTO t1 VALUES (NULL, "yellow");
 # Checking if archive file exists in --datadir since DATA DIRECTORY was ignored.
 DROP TABLE t1;
 set @@sql_mode=@org_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # 
 # MySQL engine does not allow DATA DIRECTORY to be
 # within --datadir for any engine, including Archive

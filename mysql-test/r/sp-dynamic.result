@@ -221,6 +221,8 @@ call p1()|
 ERROR HY000: Unknown prepared statement handler (stmt) given to EXECUTE
 drop procedure p1|
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION'|
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure p1()
 begin
 declare a char(10);

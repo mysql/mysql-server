@@ -21,7 +21,6 @@ SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SELECT @@global.innodb_cmp_per_index_enabled;
 @@global.innodb_cmp_per_index_enabled
 0
-SET GLOBAL innodb_file_format=Barracuda;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 CREATE TABLE t (a INT) ENGINE=INNODB KEY_BLOCK_SIZE=8;
 INSERT INTO t VALUES (1);
@@ -61,5 +60,4 @@ compress_time	0
 uncompress_ops	0
 uncompress_time	0
 DROP TABLE t;
-SET GLOBAL innodb_file_format=default;
 SET GLOBAL innodb_cmp_per_index_enabled=default;

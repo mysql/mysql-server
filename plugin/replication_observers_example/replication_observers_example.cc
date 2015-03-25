@@ -532,13 +532,12 @@ int validate_plugin_server_requirements(Trans_param *param)
 
 
   /*
-    Instantiate a Transaction_context_log_event.
+    Instantiate a View_Change_log_event.
   */
   View_change_log_event *vcle= new View_change_log_event(const_cast<char*>("1421867646:1"));
 
   if (vcle->is_valid())
   {
-    vcle->do_apply_event(NULL);
     success++;
   }
   else

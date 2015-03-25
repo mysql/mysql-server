@@ -18,7 +18,7 @@ SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 --enable_warnings
 
-CREATE TABLE gis_point  (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
+CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
 CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
 CREATE TABLE gis_polygon   (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
 CREATE TABLE gis_multi_point (fid INTEGER NOT NULL PRIMARY KEY, g MULTIPOINT);
@@ -611,11 +611,17 @@ SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRwithin       FROM t1 a1 JOIN
 
 # MBROverlaps needs a few more tests, with point and line dimensions
 
+--error ER_GIS_INVALID_DATA
 SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+--error ER_GIS_INVALID_DATA
 SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+--error ER_GIS_INVALID_DATA
 SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+--error ER_GIS_INVALID_DATA
 SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+--error ER_GIS_INVALID_DATA
 SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
+--error ER_GIS_INVALID_DATA
 SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
 
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
@@ -1430,6 +1436,7 @@ WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Ashton'; 
 
 --echo # Conformance Item T51 
+--error ER_WRONG_ARGUMENTS
 SELECT count(*) 
 FROM buildings, bridges 
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1; 
@@ -1482,3 +1489,31 @@ DROP PROCEDURE p1;
 DROP TABLE t1;
 
 SET sql_mode = default;
+
+--echo #
+--echo # Bug #19504183 GIS: -0 WOULD BE TRANSLATED TO 0 AUTOMATICALLY
+--echo #
+
+SELECT HEX(Point(-1*0e0, -1*0e0));
+CREATE TABLE t1 (pk INTEGER AUTO_INCREMENT PRIMARY KEY, g GEOMETRY);
+INSERT INTO t1(g) VALUES (Point(0.0, 0.0));
+INSERT INTO t1(g) VALUES (Point(-1*0e0, -1*0e0));
+INSERT INTO t1(g) VALUES (ST_GeomFromText('POINT(-0 -0.0)'));
+INSERT INTO t1(g) VALUES
+  (UNHEX('00000000010100000000000000000000800000000000000080'));
+SELECT pk, ST_AsText(g) AS wkt, HEX(g) AS hex FROM t1 ORDER BY pk;
+INSERT INTO t1(g) SELECT ST_GeomFromText(ST_AsText(g)) FROM t1 ORDER BY pk;
+SELECT pk, ST_AsText(g) AS wkt, HEX(g) AS hex FROM t1 ORDER BY pk;
+INSERT INTO t1(g) SELECT ST_GeomFromWKB(ST_AsBinary(g)) FROM t1 ORDER BY pk;
+SELECT pk, ST_AsText(g) AS wkt, HEX(g) AS hex FROM t1 ORDER BY pk;
+DROP TABLE t1;
+
+CREATE TABLE t1(g GEOMETRY);
+INSERT INTO t1 VALUES (Point(-1*0e0, -1*0e0)), (Point(0, 0));
+SELECT ST_AsGeoJSON(g) AS GeoJSON, HEX(ST_AsBinary(g)) AS WKB FROM t1;
+SELECT ST_AsGeoJSON(g, 30) AS GeoJSON, HEX(ST_AsBinary(g)) AS WKB FROM t1;
+DROP TABLE t1;
+
+SELECT HEX(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[-0,-0.0]}')) AS g;
+SELECT HEX(
+  ST_GeomFromGeoJSON('{"type":"Point","coordinates":[-0.0,-0.0]}')) AS g;

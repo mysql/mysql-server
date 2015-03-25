@@ -50,6 +50,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8   CHARACTER SET ascii;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -59,6 +60,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -69,6 +71,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8   CHARACTER SET utf8;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -78,6 +81,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -88,6 +92,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8   CHARACTER SET binary;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -97,6 +102,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -107,6 +113,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8   CHARACTER SET swe7;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -116,6 +123,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -126,6 +134,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8   CHARACTER SET cp1251;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -135,6 +144,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -145,6 +155,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET ascii;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -154,6 +165,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -164,6 +176,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET utf8;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -173,6 +186,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -183,6 +197,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET binary;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -192,6 +207,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -202,6 +218,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET swe7;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -211,6 +228,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -221,6 +239,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET cp1251;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -230,6 +249,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -240,6 +260,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET ascii;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -249,6 +270,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -259,6 +281,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET utf8;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -268,6 +291,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -278,6 +302,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET binary;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -287,6 +312,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -297,6 +323,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET swe7;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -306,6 +333,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -316,6 +344,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET cp1251;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -325,6 +354,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -335,6 +365,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET ascii;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -344,6 +375,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -354,6 +386,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET utf8;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -363,6 +396,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -373,6 +407,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET binary;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -382,6 +417,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -392,6 +428,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET swe7;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -401,6 +438,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;
 CREATE DATABASE d8;
@@ -411,6 +449,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET cp1251;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -420,5 +459,6 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
 def	performance_schema	utf8	utf8_general_ci	NULL
+def	sys	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 DROP DATABASE d8;

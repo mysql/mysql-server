@@ -3,7 +3,11 @@ Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 SET GLOBAL old_passwords= 2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SET SESSION old_passwords= 2;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 DROP USER 'kristofer';
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
@@ -43,10 +47,11 @@ ALTER USER 'u1'@'localhost' IDENTIFIED BY 'pass';
 ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
 SELECT USER();
 ERROR HY000: You must SET PASSWORD before executing this statement
-SET @@OLD_PASSWORDS=2;
 ALTER USER 'u1'@'localhost' IDENTIFIED BY 'pass2';
 SELECT USER();
 USER()
 u1@localhost
 DROP USER 'u1'@'localhost';
 SET GLOBAL old_passwords= default;
+Warnings:
+Warning	1681	'old_passwords' is deprecated and will be removed in a future release.

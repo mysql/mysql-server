@@ -27,6 +27,7 @@
 #include "../scripts/sql_commands_system_tables.h"
 #include "../scripts/sql_commands_system_data.h"
 #include "../scripts/sql_commands_help_data.h"
+#include "../scripts/sql_commands_sys_schema.h"
 
 static const char *initialization_cmds[] =
 {
@@ -63,6 +64,7 @@ static const char** cmds[]=
   initialization_data,
   mysql_system_data,
   fill_help_tables,
+  mysql_sys_schema,
   NULL
 };
 
@@ -74,6 +76,7 @@ static const char *cmd_descs[]=
   "Filling in the system tables, part 1",
   "Filling in the system tables, part 2",
   "Filling in the mysql.help table",
+  "Creating the sys schema",
   NULL
 };
 
@@ -248,4 +251,79 @@ void Compiled_in_command_iterator::end(void)
     sql_print_information("Bootstrapping complete");
     is_active= false;
   }
+}
+
+
+/**
+  Create the data directory
+
+  Creates the data directory when --initialize is specified.
+  The directory is created when it does not exist.
+  If it exists, is empty and the process can write into it
+  no action is taken and the directory is accepted.
+  Otherwise an error is thrown.
+
+  @param  data_home  the normalized path to the data directory
+  @return status
+  @retval true   failed to create. Error printed.
+  @retval false  success
+*/
+bool initialize_create_data_directory(const char *data_home)
+{
+  MY_DIR *dir;
+  int flags=
+#ifdef _WIN32
+    0
+#else
+    S_IRWXU | S_IRGRP | S_IXGRP
+#endif
+    ;
+
+  if (NULL != (dir= my_dir(data_home, MYF(MY_DONT_SORT))))
+  {
+    bool no_files;
+    char path[FN_REFLEN];
+    File fd;
+
+    no_files= dir->number_off_files == 2; /* "." and ".." */
+    my_dirend(dir);
+
+    if (!no_files)
+    {
+      sql_print_error("--initialize specified but the data directory"
+                      " has files in it. Aborting.");
+      return true;        /* purecov: inspected */
+    }
+
+    sql_print_information("--initialize specifed on an existing data directory.");
+
+    if (NULL == fn_format(path, "is_writable", data_home, "",
+      MY_UNPACK_FILENAME | MY_SAFE_PATH))
+    {
+      sql_print_error("--initialize specified but the data directory"
+      " exists and the path is too long. Aborting.");
+      return true;        /* purecov: inspected */
+
+    }
+    if (-1 != (fd= my_create(path, 0, flags, MYF(MY_WME))))
+    {
+      my_close(fd, MYF(MY_WME));
+      my_delete(path, MYF(MY_WME));
+    }
+    else
+    {
+      sql_print_error("--initialize specified but the data directory"
+      " exists and is not writable. Aborting.");
+      return true;        /* purecov: inspected */
+    }
+
+    /* the data dir found is usable */
+    return false;
+  }
+
+  sql_print_information("Creating the data directory %s", data_home);
+  if (my_mkdir(data_home, flags, MYF(MY_WME)))
+    return true;        /* purecov: inspected */
+
+  return false;
 }

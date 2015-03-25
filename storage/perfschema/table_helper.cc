@@ -265,6 +265,11 @@ int PFS_object_row::make_row(const MDL_key *mdl)
     m_schema_name_length= 0;
     m_object_name_length= mdl->name_length();
     break;
+  case MDL_key::TABLESPACE:
+    m_object_type= OBJECT_TYPE_TABLESPACE;
+    m_schema_name_length= 0;
+    m_object_name_length= mdl->name_length();
+    break;
   case MDL_key::NAMESPACE_END:
   default:
     m_object_type= NO_OBJECT_TYPE;
@@ -542,6 +547,9 @@ void set_field_object_type(Field *f, enum_object_type object_type)
   case OBJECT_TYPE_USER_LEVEL_LOCK:
     PFS_engine_table::set_field_varchar_utf8(f, "USER LEVEL LOCK", 15);
     break;
+  case OBJECT_TYPE_TABLESPACE:
+    PFS_engine_table::set_field_varchar_utf8(f, "TABLESPACE", 10);
+    break;
   case NO_OBJECT_TYPE:
   default:
     DBUG_ASSERT(false);
@@ -780,7 +788,7 @@ void PFS_variable_name_row::make_row(const char* str, size_t length)
 {
   DBUG_ASSERT(length <= sizeof(m_str));
   DBUG_ASSERT(length <= NAME_CHAR_LEN);
-  
+
   m_length= MY_MIN(length, NAME_CHAR_LEN); /* enforce max name length */
   if (m_length > 0)
     memcpy(m_str, str, length);

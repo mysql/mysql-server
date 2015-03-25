@@ -14,6 +14,11 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+#
+# Remove NO_AUTO_CREATE_USER sql mode (default since 5.7).
+#
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 
 # Test for information_schema.schemata &
 # show databases
@@ -262,7 +267,7 @@ TABLE_SCHEMA= "test";
 connection user2;
 select table_name from information_schema.TABLES where table_schema like "test%";
 select table_name,column_name from information_schema.COLUMNS where table_schema like "test%";
-select ROUTINE_NAME from information_schema.ROUTINES;
+select ROUTINE_NAME from information_schema.ROUTINES where ROUTINE_SCHEMA != 'sys';
 disconnect user2;
 connection default;
 delete from mysql.user where user='mysqltest_1';
@@ -274,7 +279,7 @@ create table t1(a int);
 create view v1 (c) as select a from t1 with check option;
 create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
-select * from information_schema.views;
+select * from information_schema.views where table_schema != 'sys';
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
 select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES;
@@ -306,7 +311,7 @@ end;//
 call px5()//
 call px5()//
 delimiter ;//
-select sql_mode from information_schema.ROUTINES;
+select sql_mode from information_schema.ROUTINES where ROUTINE_SCHEMA != 'sys';
 drop procedure px5;
 --enable_parsing
 
@@ -663,7 +668,7 @@ drop procedure if exists p2;
 create procedure p1 () modifies sql data set @a = 5;
 create procedure p2 () set @a = 5;
 select sql_data_access from information_schema.routines
-where specific_name like 'p%';
+where specific_name like 'p%' and ROUTINE_SCHEMA != 'sys';
 drop procedure p1;
 drop procedure p2;
 
@@ -1043,7 +1048,7 @@ create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);
 create view v2 as select f1+1 as a, f2 as b from t2;
-select table_name, is_updatable from information_schema.views;
+select table_name, is_updatable from information_schema.views where table_schema != 'sys';
 #
 # Note: we can perform 'delete' for non updatable view.
 #
@@ -1640,7 +1645,7 @@ let $wait_condition=
           info = "flush tables";
 --source include/wait_condition.inc
 --vertical_results
-select * from information_schema.views;
+select * from information_schema.views where table_schema != 'sys';
 --horizontal_results
 unlock tables;
 
@@ -1920,3 +1925,5 @@ having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
 
 eval EXPLAIN $query;
 eval $query;
+
+set sql_mode= @orig_sql_mode;

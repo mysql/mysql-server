@@ -2,14 +2,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
-set global innodb_large_prefix=1;
-SELECT @@innodb_large_prefix;
-@@innodb_large_prefix
-1
 CREATE DATABASE testdb_wl6445;
 case # 1
 USE testdb_wl6445;
@@ -34,7 +26,6 @@ id
 3
 # restart: --innodb-read-only
 SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 CREATE USER 'test3'@'localhost' IDENTIFIED BY '123';
 GRANT ALL ON testdb_wl6445.* TO 'test3'@'localhost';
 USE testdb_wl6445;
@@ -122,7 +113,6 @@ DROP DATABASE testdb_wl6445;
 case # 2
 CREATE DATABASE testdb_wl6445;
 SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',4000)),(2,repeat('b',4000)),(3,repeat('c',4000));
@@ -1155,7 +1145,6 @@ i	j
 1	test1
 # restart: --innodb-read-only
 SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 USE testdb_wl6445;
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)

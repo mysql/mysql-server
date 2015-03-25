@@ -747,6 +747,11 @@ example_double_thdvar	300.000000
 example_double_thdvar	300.111100
 example_double_thdvar	300.222200
 example_double_thdvar	300.333300
+Warnings:
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 3.5 - DISCONNECT CLIENTS
@@ -879,6 +884,8 @@ SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
 WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 variable_name	variable_value
 example_double_thdvar	300.000000
+Warnings:
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 3.7 - RECONNECT 3 CLIENTS, SET SESSION VARS FOR EACH
@@ -1020,6 +1027,11 @@ example_double_thdvar	300.000000
 example_double_thdvar	311.111100
 example_double_thdvar	322.222200
 example_double_thdvar	333.333300
+Warnings:
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 3.9 - UNINSTALL PLUGIN, LEAVE CLIENTS CONNECTED
@@ -1087,6 +1099,11 @@ variable_name	variable_value
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
 WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 variable_name	variable_value
+Warnings:
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 3.11 - DISCONNECT CLIENTS
@@ -1157,6 +1174,8 @@ variable_name	variable_value
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
 WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 variable_name	variable_value
+Warnings:
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 ================================================================================
 TEST 4 - BUG#18008907: DEADLOCK WITH CHANGE_USER, SHOW VARIABLES, INSTALL PLUGIN

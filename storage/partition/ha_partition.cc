@@ -678,6 +678,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
   uint i;
   List_iterator_fast <partition_element> part_it(m_part_info->partitions);
   partition_element *part_elem;
+  partition_element table_level_options;
   handler **file, **abort_file;
   THD *thd= ha_thd();
   TABLE_SHARE *share= table_arg->s;
@@ -706,6 +707,8 @@ int ha_partition::create(const char *name, TABLE *table_arg,
     Using the first partitions handler, since mixing handlers is not allowed.
   */
   path= get_canonical_filename(*file, name, name_lc_buff);
+  table_level_options.set_from_info(create_info);
+
   for (i= 0; i < m_part_info->num_parts; i++)
   {
     part_elem= part_it++;
@@ -723,6 +726,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
             ((error= (*file)->ha_create(name_buff, table_arg, create_info))))
           goto create_error;
 
+        table_level_options.put_to_info(create_info);
         name_buffer_ptr= strend(name_buffer_ptr) + 1;
         file++;
       }
@@ -736,6 +740,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
           ((error= (*file)->ha_create(name_buff, table_arg, create_info))))
         goto create_error;
 
+      table_level_options.put_to_info(create_info);
       name_buffer_ptr= strend(name_buffer_ptr) + 1;
       file++;
     }
@@ -2046,6 +2051,7 @@ bool ha_partition::setup_engine_array(MEM_ROOT *mem_root)
   enum legacy_db_type db_type, first_db_type;
 
   DBUG_ASSERT(!m_file);
+  DBUG_ASSERT(!m_engine_array);
   DBUG_ENTER("ha_partition::setup_engine_array");
 
   buff= (uchar *) (m_file_buffer + PAR_ENGINES_OFFSET);
@@ -4262,7 +4268,7 @@ void ha_partition::get_dynamic_partition_info(ha_statistics *stat_info,
 
   HA_EXTRA_NO_CACHE:
     When performing a UNION SELECT HA_EXTRA_NO_CACHE is called from the
-    flush method in the select_union class.
+    flush method in the Query_result_union class.
     See HA_EXTRA_RESET_STATE for use in conjunction with delete_all_rows().
 
     It should be ok to call HA_EXTRA_NO_CACHE on all underlying handlers

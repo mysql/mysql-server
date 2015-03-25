@@ -25,6 +25,7 @@ mtr
 mysql
 mysqltest
 performance_schema
+sys
 test
 USE test;
 SHOW TABLES;

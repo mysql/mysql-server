@@ -66,6 +66,8 @@ UPDATE t1 SET c2=-2147483649 WHERE c1=109 ORDER BY c1;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 13
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-2147483648
@@ -84,6 +86,8 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -195,6 +199,8 @@ c1	c2
 10	11
 2147483647	4294967295
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE mt1 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt2 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt3 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -1179,6 +1185,8 @@ SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-128
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
 UPDATE t1 SET c1=NULL WHERE c2=-110;
@@ -1194,6 +1202,8 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -1266,6 +1276,8 @@ UPDATE t2 SET c1=0,c2=-128 WHERE c2=2;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT c1,c2 FROM t1 ORDER BY c1;
 c1	c2
 1	2
@@ -1673,6 +1685,8 @@ update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select * from mt1;
 a	b
 102	2
@@ -1923,6 +1937,8 @@ UPDATE t1 SET c1=-120 WHERE c2=-102;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT c1,c2 FROM t1 WHERE c2=-102;
 c1	c2
 0	-102
@@ -1963,6 +1979,8 @@ SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-32768
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
 UPDATE t1 SET c1=NULL WHERE c2=-110;
@@ -1978,6 +1996,8 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -2089,6 +2109,8 @@ c1	c2
 10	11
 32767	65535
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE mt1 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt2 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt3 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -2719,6 +2741,8 @@ SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-8388608
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
 UPDATE t1 SET c1=NULL WHERE c2=-110;
@@ -2734,6 +2758,8 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -2845,6 +2871,8 @@ c1	c2
 10	11
 8388607	16777215
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE mt1 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt2 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt3 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
@@ -3475,6 +3503,8 @@ SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-9223372036854775808
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
 UPDATE t1 SET c1=NULL WHERE c2=-110;
@@ -3490,6 +3520,8 @@ UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1=0;
 c1	c2	c3
 0	-102	5
@@ -3601,6 +3633,8 @@ c1	c2
 10	11
 9223372036854775807	18446744073709551615
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE mt1 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt2 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
 CREATE TABLE mt3 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));

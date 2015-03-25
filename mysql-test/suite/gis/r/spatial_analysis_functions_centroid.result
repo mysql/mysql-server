@@ -1,4 +1,4 @@
-#Creating the spatial Geometry object
+# Creating the spatial Geometry object
 USE test;
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
@@ -20,7 +20,7 @@ SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
 SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
 SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
 SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
-#INSERT base star
+# INSERT base star
 INSERT INTO gis_geometrycollection VALUES
 (100,ST_GEOMFROMTEXT(@star)),
 (101,ST_GEOMFROMTEXT(@star_elem_vertical)),
@@ -39,17 +39,14 @@ INSERT INTO gis_geometrycollection VALUES
 (114,ST_GEOMFROMTEXT(@star_lines_near_vertical)),
 (115,ST_GEOMFROMTEXT(@star_collection_elems)),
 (116,ST_GEOMFROMTEXT(@star_collection_multilinestr));
-#Checking the integrity of the above create/insert statements 
-#17 rows. 
+# Checking the integrity of the above create/insert statements 
+# 17 rows. 
 SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
 count(ST_ASTEXT(g) != 'NULL')
 17
-#====================================================================================
-# ST_CENTROID(geometry)
-#====================================================================================
-#------------------------------------------------------------------------------------
-# point
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_CENTROID(point)
+#####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_center)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_center)))
 POINT(15 10)
@@ -64,13 +61,13 @@ ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(1e308 -1e308)')))
 POINT(1e308 -1e308)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(-0.0000 0.000001)')));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(-0.0000 0.000001)')))
-POINT(0 0.000001)
+POINT(-0 0.000001)
 SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=105;
 ST_ASTEXT(ST_CENTROID(g))
 POINT(15 10)
-#------------------------------------------------------------------------------------
-# multipoint
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_CENTROID(multipoint)
+#####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_all_points)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_all_points)))
 POINT(15 8.75)
@@ -89,9 +86,9 @@ POINT(3.333333333333333e307 -3.333333333333333e307)
 SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=108;
 ST_ASTEXT(ST_CENTROID(g))
 POINT(15 0)
-#------------------------------------------------------------------------------------
-# linestring
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_CENTROID(linestring)
+#####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_top_to_center)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_top_to_center)))
 POINT(15 17.5)
@@ -110,9 +107,9 @@ POINT(1 -1)
 SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=110;
 ST_ASTEXT(ST_CENTROID(g))
 POINT(15 15)
-#------------------------------------------------------------------------------------
-# multilinestring
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_CENTROID(multilinestring)
+#####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical)))
 POINT(7.5 18.75)
@@ -120,8 +117,7 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_horizontal)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_horizontal)))
 POINT(9.333108739249747 15.167565043001009)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))')))
-POINT(0 0)
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))')))
 POINT(2.5 2.5)
@@ -134,9 +130,9 @@ POINT(1 -1)
 SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=114;
 ST_ASTEXT(ST_CENTROID(g))
 POINT(7.5 18.75)
-#------------------------------------------------------------------------------------
-# polygon
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_CENTROID(polygon)
+#####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star)))
 POINT(14.768115942028986 10.797101449275363)
@@ -167,9 +163,9 @@ POINT(4 4)
 SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=100;
 ST_ASTEXT(ST_CENTROID(g))
 POINT(14.768115942028986 10.797101449275363)
-#------------------------------------------------------------------------------------
-# multipolygon
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_CENTROID(multipolygon)
+#####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems)))
 POINT(15.64459161147903 10.20971302428256)
@@ -213,9 +209,9 @@ POINT(5.006802721088436 4.993197278911564)
 SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_CENTROID(g))
 POINT(15.64459161147903 10.20971302428256)
-#------------------------------------------------------------------------------------
-# geometrycollection
-#------------------------------------------------------------------------------------
+#####################################################################################
+# ST_CENTROID(geometrycollection)
+#####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems)))
 POINT(15.265664160401002 10.463659147869674)
@@ -314,9 +310,9 @@ POINT(7.145266747704307 8.648287972573897)
 SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=115;
 ST_ASTEXT(ST_CENTROID(g))
 POINT(15.265664160401002 10.463659147869674)
-#====================================================================================
+#####################################################################################
 # ST_CENTROID(geometry) with different SRID values
-#====================================================================================
+#####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_center,-1024)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_center,-1024)))
 POINT(15 10)
@@ -341,9 +337,9 @@ POINT(15.64459161147903 10.20971302428256)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)))
 POINT(15.265664160401002 10.463659147869674)
-#====================================================================================
+#####################################################################################
 # Invalid function calls
-#====================================================================================
+#####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_CENTROID'
 SELECT ST_ASTEXT(ST_CENTROID(NULL));
@@ -386,15 +382,15 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_centroid.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,5 5))')));
-ERROR 22023: Invalid GIS data provided to function st_centroid.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,5 5,10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_centroid.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POLYGON((0 0,0 5,10 10),(0 0))')));
-ERROR 22023: Invalid GIS data provided to function st_centroid.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))')));
-ERROR 22023: Invalid GIS data provided to function st_centroid.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_CENTROID(0x000000000200000000000000000000000000000000));
@@ -411,5 +407,5 @@ SELECT ST_ASTEXT(ST_CENTROID(0x010300000002000000010300000002000000050000));
 ERROR HY000: Geometry byte string must be little endian.
 SELECT ST_ASTEXT(ST_CENTROID(0x010400000002000000010100000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
-#clean up
+# Clean up
 DROP TABLE gis_geometrycollection;

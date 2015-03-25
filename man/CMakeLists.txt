@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,8 +26,15 @@ IF(MAN1_FILES)
   IF(MAN1_NDB AND NOT VERSION MATCHES "-ndb-")
     LIST(REMOVE_ITEM MAN1_FILES ${MAN1_NDB})
   ENDIF()
-  INSTALL(FILES ${MAN1_FILES} DESTINATION ${INSTALL_MANDIR}/man1
-  COMPONENT ManPages)
+  FOREACH(file ${MAN1_FILES})
+    IF(${file} MATCHES "(.*mysqltest.1$)")
+      INSTALL(FILES ${file} DESTINATION ${INSTALL_MANDIR}/man1
+      COMPONENT Test)
+    ELSE()
+      INSTALL(FILES ${file} DESTINATION ${INSTALL_MANDIR}/man1
+      COMPONENT ManPages)
+    ENDIF()
+  ENDFOREACH()
 ENDIF()
 IF(MAN8_FILES)
   IF(MAN8_NDB AND NOT VERSION MATCHES "-ndb-")

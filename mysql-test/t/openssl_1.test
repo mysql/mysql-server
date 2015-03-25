@@ -7,6 +7,8 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 
 --disable_warnings
 drop table if exists t1;
@@ -256,6 +258,8 @@ SHOW STATUS LIKE 'Ssl_cipher';
 disconnect con1;
 connection default;
 DROP USER bug42158@localhost;
+
+set sql_mode= @orig_sql_mode;
 
 --echo End of 5.1 tests
 

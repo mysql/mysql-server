@@ -9,8 +9,6 @@
 --source include/no_valgrind_without_big.inc
 # Adding big test option for this test.
 --source include/big_test.inc
-# Disabled for non-16k pages until bug #20427694 is fixed.
---source include/have_innodb_16k.inc
 
 -- source include/have_innodb.inc
 let $engine_type= InnoDB;
@@ -19,7 +17,9 @@ let $other_engine_type= MEMORY;
 let $test_foreign_keys= 1;
 set global innodb_support_xa=default;
 set session innodb_support_xa=default;
+set global innodb_large_prefix=off;
 --source include/mix1.inc
+set global innodb_large_prefix=default;
 
 --disable_warnings
 drop table if exists t1, t2, t3;

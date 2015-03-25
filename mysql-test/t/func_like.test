@@ -203,3 +203,10 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo # Bug#20035071: Out of range error in subselect lead to assertion failed
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+--error ER_DATA_OUT_OF_RANGE
+SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
+DROP TABLE t1;

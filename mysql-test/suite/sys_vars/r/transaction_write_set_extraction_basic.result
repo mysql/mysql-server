@@ -9,7 +9,7 @@ OFF
 SET @start_global_binlog_format = @@GLOBAL.binlog_format;
 SELECT @start_global_binlog_format;
 @start_global_binlog_format
-STATEMENT
+ROW
 SET @@GLOBAL.binlog_format= ROW;
 SET global transaction_write_set_extraction= DEFAULT;
 SELECT @@global.transaction_write_set_extraction;
@@ -81,7 +81,7 @@ OFF
 SET @@GLOBAL.binlog_format= @start_global_binlog_format;
 SELECT @@GLOBAL.binlog_format;
 @@GLOBAL.binlog_format
-STATEMENT
+ROW
 include/assert.inc [The value for transaction_write_set_extraction shoudl be OFF]
 CREATE TABLE t1 (i INT PRIMARY KEY);
 SET @start_session_value = @@SESSION.transaction_write_set_extraction;

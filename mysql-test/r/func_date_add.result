@@ -46,8 +46,6 @@ visitor_id	mts
 1092858576	2000-03-19 01:34:45
 drop table t1;
 set sql_mode='traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 create table t1 (d date);
 insert into t1 (d) select date_sub('2000-01-01', INTERVAL 2001 YEAR);
 ERROR 22008: Datetime function: datetime field overflow
@@ -56,6 +54,8 @@ ERROR 22008: Datetime function: datetime field overflow
 insert into t1 values (date_add(NULL, INTERVAL 1 DAY));
 insert into t1 values (date_add('2000-01-04', INTERVAL NULL DAY));
 set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 (d) select date_sub('2000-01-01', INTERVAL 2001 YEAR);
 Warnings:
 Warning	1441	Datetime function: datetime field overflow

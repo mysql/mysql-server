@@ -592,7 +592,10 @@ public:
   void join_free();
   /** Cleanup this JOIN. Not a full cleanup. reusable? */
   void cleanup();
-  void clear();
+
+  __attribute__((warn_unused_result))
+  bool clear();
+
   bool save_join_tab();
   void restore_join_tab();
   bool init_save_join_tab();
@@ -708,19 +711,6 @@ private:
     checks if FT index can be used as covered.
   */
   void optimize_fts_query();
-
-  /**
-     Replace all Item_field objects with the given field name with the
-     given item in all parts of the query.
-
-     @todo So far this function only handles SELECT list and WHERE clause,
-           For more general use, ON clause, ORDER BY list, GROUP BY list and
-	   HAVING clause also needs to be handled.
-
-     @param field_name Name of the field to search for
-     @param new_item Replacement item
-  */
-  void replace_item_field(const char* field_name, Item* new_item);
 
   bool prune_table_partitions();
 

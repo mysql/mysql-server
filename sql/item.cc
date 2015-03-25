@@ -548,7 +548,7 @@ Item::Item():
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
-  runtime_item(false), with_subselect(false),
+  runtime_item(false), derived_used(false), with_subselect(false),
   with_stored_program(false), tables_locked_cache(false),
   is_parser_item(false)
 {
@@ -571,7 +571,7 @@ Item::Item(const POS &):
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
-  runtime_item(false), with_subselect(false),
+  runtime_item(false), derived_used(false), with_subselect(false),
   with_stored_program(false), tables_locked_cache(false),
   is_parser_item(true)
 {
@@ -2544,6 +2544,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
   tmp_field->flags= field->table->is_nullable() ? 
     (field->flags & ~NOT_NULL_FLAG) : field->flags;
   tmp_field->decimals= field->decimals();
+  tmp_field->field= false;
 }
 
 /**********************************************/
@@ -4539,12 +4540,13 @@ Item_copy_string::save_in_field(Field *field, bool no_conversions)
 }
 
 
-void Item_copy_string::copy()
+bool Item_copy_string::copy(const THD *thd)
 {
   String *res=item->val_str(&str_value);
   if (res && res != &str_value)
     str_value.copy(*res);
   null_value=item->null_value;
+  return thd->is_error();
 }
 
 /* ARGSUSED */
@@ -4581,10 +4583,11 @@ bool Item_copy_string::get_time(MYSQL_TIME *ltime)
   Item_copy_int
 ****************************************************************************/
 
-void Item_copy_int::copy()
+bool Item_copy_int::copy(const THD *thd)
 {
   cached_value= item->val_int();
   null_value=item->null_value;
+  return thd->is_error();
 }
 
 static type_conversion_status
@@ -4636,6 +4639,13 @@ String *Item_copy_uint::val_str(String *str)
 /****************************************************************************
   Item_copy_float
 ****************************************************************************/
+
+bool Item_copy_float::copy(const THD *thd)
+{
+  cached_value= item->val_real();
+  null_value= item->null_value;
+  return thd->is_error();
+}
 
 String *Item_copy_float::val_str(String *str)
 {
@@ -4726,12 +4736,13 @@ longlong Item_copy_decimal::val_int()
 }
 
 
-void Item_copy_decimal::copy()
+bool Item_copy_decimal::copy(const THD *thd)
 {
   my_decimal *nr= item->val_decimal(&cached_value);
   if (nr && nr != &cached_value)
     my_decimal2decimal (nr, &cached_value);
   null_value= item->null_value;
+  return thd->is_error();
 }
 
 
@@ -5683,7 +5694,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   else if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
     TABLE *table= field->table;
-    MY_BITMAP *current_bitmap, *other_bitmap;
+    MY_BITMAP *current_bitmap;
+    MY_BITMAP *other_bitmap __attribute__((unused));
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
     {
       current_bitmap= table->read_set;
@@ -6000,6 +6012,7 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->decimals=decimals;
   if (unsigned_flag)
     tmp_field->flags |= UNSIGNED_FLAG;
+  tmp_field->field= false;
 }
 
 void Item::make_field(Send_field *tmp_field)
@@ -6327,6 +6340,7 @@ void Item_field::make_field(Send_field *tmp_field)
     tmp_field->table_name= table_name;
   if (db_name)
     tmp_field->db_name= db_name;
+  tmp_field->field= true;
 }
 
 
@@ -8134,7 +8148,7 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   DBUG_ASSERT(*ref);
   /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
   if (!(*ref)->fixed && ((*ref)->fix_fields(thd, ref)))
-    return true;
+    return true;                     /* purecov: inspected */
 
   return Item_direct_ref::fix_fields(thd, reference);
 }
@@ -9017,7 +9031,7 @@ String *Item_cache_datetime::val_str(String *str)
         return NULL;
       str_value_cached= TRUE;
     }
-    else if (!cache_value())
+    else if (!cache_value() || null_value)
       return NULL;
   }
   return &str_value;
@@ -9812,21 +9826,24 @@ void Item_type_holder::get_full_info(Item *item)
     if (item->type() == Item::SUM_FUNC_ITEM &&
         (((Item_sum*)item)->sum_func() == Item_sum::MAX_FUNC ||
          ((Item_sum*)item)->sum_func() == Item_sum::MIN_FUNC))
-      item = ((Item_sum*)item)->get_arg(0);
+      item = (down_cast<Item_sum*>(item))->get_arg(0);
     /*
       We can have enum/set type after merging only if we have one enum|set
       field (or MIN|MAX(enum|set field)) and number of NULL fields
     */
-    DBUG_ASSERT((enum_set_typelib &&
-                 get_real_type(item) == MYSQL_TYPE_NULL) ||
-                (!enum_set_typelib &&
-                 item->type() == Item::FIELD_ITEM &&
-                 (get_real_type(item) == MYSQL_TYPE_ENUM ||
-                  get_real_type(item) == MYSQL_TYPE_SET) &&
-                 ((Field_enum*)((Item_field *) item)->field)->typelib));
-    if (!enum_set_typelib)
+    if (enum_set_typelib)
     {
-      enum_set_typelib= ((Field_enum*)((Item_field *) item)->field)->typelib;
+      DBUG_ASSERT(get_real_type(item) == MYSQL_TYPE_NULL);
+    }
+    else
+    {
+      Item *real_item= item->real_item();
+      Item_field *item_field= down_cast<Item_field*>(real_item);
+      Field_enum *field_enum= down_cast<Field_enum*>(item_field->field);
+      DBUG_ASSERT((get_real_type(item) == MYSQL_TYPE_ENUM ||
+                   get_real_type(item) == MYSQL_TYPE_SET) &&
+                  field_enum->typelib);
+      enum_set_typelib= field_enum->typelib;
     }
   }
 }

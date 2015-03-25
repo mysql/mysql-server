@@ -28,9 +28,6 @@
 #include "auth_common.h" // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
                          // get_column_grant
-#include "sql_derived.h" // mysql_derived_prepare,
-                         // mysql_handle_derived,
-                         // mysql_derived_filling
 #include "sql_handler.h" // mysql_ha_flush
 #include "partition_info.h"                     // partition_info
 #include "log_event.h"                          // Query_log_event
@@ -1599,6 +1596,11 @@ void close_thread_tables(THD *thd)
     for (table= thd->derived_tables ; table ; table= next)
     {
       next= table->next;
+
+      // Restore original name of materialized table
+      if (!table->pos_in_table_list->schema_table)
+        table->pos_in_table_list->reset_name_temporary();
+
       free_tmp_table(thd, table);
     }
     thd->derived_tables= 0;
@@ -4807,19 +4809,6 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
   if (tables->is_derived())
     goto end;
 
-  if (tables->is_view())
-  {
-    /*
-      We restore view's name and database possibly wiped out by derived tables
-      processing and fall back to standard open process in order to
-      obtain proper metadata locks and do other necessary steps like
-      stored routine processing.
-    */
-    tables->db= tables->view_db.str;
-    tables->db_length= tables->view_db.length;
-    tables->table_name= tables->view_name.str;
-    tables->table_name_length= tables->view_name.length;
-  }
   /*
     If this TABLE_LIST object is a placeholder for an information_schema
     table, create a temporary table to represent the information_schema
@@ -7407,11 +7396,10 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     */
     if (fld == view_ref_found)
     {
-      Item *const it= (*ref)->real_item();
       Mark_field mf(thd->mark_used_columns);
-      it->walk(&Item::mark_field_in_map,
-               Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-               (uchar *)&mf);
+      (*ref)->walk(&Item::mark_field_in_map,
+                   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                   (uchar *)&mf);
     }
     else  // surely fld != NULL (see outer if())
       fld->table->mark_column_used(thd, fld, thd->mark_used_columns);
@@ -8012,7 +8000,7 @@ set_new_item_local_context(THD *thd, Item_ident *item, TABLE_LIST *table_ref)
 {
   Name_resolution_context *context;
   if (!(context= new (thd->mem_root) Name_resolution_context))
-    return true;
+    return true;                /* purecov: inspected */
   context->init();
   context->first_name_resolution_table=
     context->last_name_resolution_table= table_ref;
@@ -8160,17 +8148,19 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     */
     if (nj_col_2 && (!using_fields ||is_using_column_1))
     {
-      Item *item_1=   nj_col_1->create_item(thd);
-      Item *item_2=   nj_col_2->create_item(thd);
+      Item *item_1= nj_col_1->create_item(thd);
+      if (!item_1)
+        DBUG_RETURN(true);
+      Item *item_2= nj_col_2->create_item(thd);
+      if (!item_2)
+        DBUG_RETURN(true);
+
       Field *field_1= nj_col_1->field();
       Field *field_2= nj_col_2->field();
       Item_ident *item_ident_1, *item_ident_2;
       Item_func_eq *eq_cond;
       fields.push_back(field_1);
       fields.push_back(field_2);
-
-      if (!item_1 || !item_2)
-        DBUG_RETURN(true);                      // Out of memory.
 
       /*
         The created items must be of sub-classes of Item_ident.
@@ -8218,41 +8208,30 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
                            nj_col_2->name()));
 
       // Mark fields in the read set
-      if (table_ref_1->is_view_or_derived())
-      {
-        Mark_field mf(MARK_COLUMNS_READ);
-        item_1->walk(&Item::mark_field_in_map,
-                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-                     (uchar *)&mf);
-      }
-      else if (field_1)
+      if (field_1)
       {
         nj_col_1->table_ref->table->mark_column_used(thd, field_1,
                                                      MARK_COLUMNS_READ);
       }
       else
       {
-        /*
-          Reaching here probably means that a field has been resolved in
-          a deeper join nest, and has been fully prepared there.
-          In that case, item_1::walk() above may actually attempt to update
-          bitmap, covering_keys and merge_keys twice, but no big harm done.
-          This comment applies to the following if test, too.
-          @todo Investigate if this can be simplified, or we can even avoid
-                resolving columns at this level.
-        */
+        Mark_field mf(MARK_COLUMNS_READ);
+        item_1->walk(&Item::mark_field_in_map,
+                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                     (uchar *)&mf);
       }
-      if (table_ref_2->is_view_or_derived())
+
+      if (field_2)
+      {
+        nj_col_2->table_ref->table->mark_column_used(thd, field_2,
+                                                     MARK_COLUMNS_READ);
+      }
+      else
       {
         Mark_field mf(MARK_COLUMNS_READ);
         item_2->walk(&Item::mark_field_in_map,
                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                      (uchar *)&mf);
-      }
-      else if (field_2)
-      {
-        nj_col_2->table_ref->table->mark_column_used(thd, field_2,
-                                                     MARK_COLUMNS_READ);
       }
 
       if (using_fields != NULL)
@@ -8538,9 +8517,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     table_ref_1->natural_join= table_ref_2->natural_join= NULL;
 
     /* Add a TRUE condition to outer joins that have no common columns. */
-    if (table_ref_2->outer_join &&
-        !table_ref_1->join_cond() && !table_ref_2->join_cond())
-      table_ref_2->set_join_cond(new Item_int((longlong) 1,1)); // Always true.
+    if (table_ref_2->outer_join && !table_ref_2->join_cond())
+      table_ref_2->set_join_cond(new Item_int((longlong) 1,1));
 
     /* Change this table reference to become a leaf for name resolution. */
     if (left_neighbor)
@@ -8891,7 +8869,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     {
       Item *const item= field_iterator.create_item(thd);
       if (!item)
-        DBUG_RETURN(true);
+        DBUG_RETURN(true);        /* purecov: inspected */
       DBUG_ASSERT(item->fixed);
       /* cache the table for the Item_fields inserted by expanding stars */
       if (item->type() == Item::FIELD_ITEM && tables->cacheable_table)

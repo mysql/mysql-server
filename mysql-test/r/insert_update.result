@@ -243,8 +243,6 @@ INSERT INTO t1 SELECT 1, COUNT(*) FROM t2 ON DUPLICATE KEY UPDATE j= a;
 ERROR 42S22: Unknown column 'a' in 'field list'
 DROP TABLE t1,t2;
 SET SQL_MODE = 'TRADITIONAL';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT NOT NULL);
 INSERT INTO t1 (a) VALUES (1);
 ERROR HY000: Field 'b' doesn't have a default value
@@ -267,6 +265,8 @@ LAST_INSERT_ID()
 1
 DROP TABLE t1;
 SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE `t1` (
 `id` int(11) PRIMARY KEY auto_increment,
 `f1` varchar(10) NOT NULL UNIQUE

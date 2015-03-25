@@ -99,7 +99,8 @@ bool PTI_table_wild::itemize(Parse_context *pc, Item **item)
   if (super::itemize(pc, item))
     return true;
 
-  schema= pc->thd->client_capabilities & CLIENT_NO_SCHEMA ?  NullS : schema;
+  schema=
+    pc->thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA) ? NullS : schema;
   *item= new (pc->mem_root) Item_field(POS(), schema, table, "*");
   if (*item == NULL || (*item)->itemize(pc, item))
     return true;
@@ -209,100 +210,6 @@ bool PTI_expr_with_alias::itemize(Parse_context *pc, Item **res)
                          pc->thd->charset());
   }
   *res= expr;
-  return false;
-}
-
-
-bool PTI_expr_or::itemize(Parse_context *pc, Item **res)
-{
-  if (super::itemize(pc, res) ||
-      left->itemize(pc, &left) || right->itemize(pc, &right))
-    return true;
-
-  if (is_cond_or(left))
-  {
-    Item_cond_or *item1= (Item_cond_or*) left;
-    if (is_cond_or(right))
-    {
-      Item_cond_or *item3= (Item_cond_or*) right;
-      /*
-        (X1 OR X2) OR (Y1 OR Y2) ==> OR (X1, X2, Y1, Y2)
-      */
-      item3->add_at_head(item1->argument_list());
-      *res= right;
-    }
-    else
-    {
-      /*
-        (X1 OR X2) OR Y ==> OR (X1, X2, Y)
-      */
-      item1->add(right);
-      *res= left;
-    }
-  }
-  else if (is_cond_or(right))
-  {
-    Item_cond_or *item3= (Item_cond_or*) right;
-    /*
-      X OR (Y1 OR Y2) ==> OR (X, Y1, Y2)
-    */
-    item3->add_at_head(left);
-    *res= right;
-  }
-  else
-  {
-    /* X OR Y */
-    *res= new (pc->mem_root) Item_cond_or(left, right);
-    if (*res == NULL)
-      return true;
-  }
-  return false;
-}
-
-
-bool PTI_expr_and::itemize(Parse_context *pc, Item **res)
-{
-  if (super::itemize(pc, res) ||
-      left->itemize(pc, &left) || right->itemize(pc, &right))
-    return true;
-
-  if (is_cond_and(left))
-  {
-    Item_cond_and *item1= (Item_cond_and*) left;
-    if (is_cond_and(right))
-    {
-      Item_cond_and *item3= (Item_cond_and*) right;
-      /*
-        (X1 AND X2) AND (Y1 AND Y2) ==> AND (X1, X2, Y1, Y2)
-      */
-      item3->add_at_head(item1->argument_list());
-      *res= right;
-    }
-    else
-    {
-      /*
-        (X1 AND X2) AND Y ==> AND (X1, X2, Y)
-      */
-      item1->add(right);
-      *res= left;
-    }
-  }
-  else if (is_cond_and(right))
-  {
-    Item_cond_and *item3= (Item_cond_and*) right;
-    /*
-      X AND (Y1 AND Y2) ==> AND (X, Y1, Y2)
-    */
-    item3->add_at_head(left);
-    *res= right;
-  }
-  else
-  {
-    /* X AND Y */
-    *res= new (pc->mem_root) Item_cond_and(left, right);
-    if (*res == NULL)
-      return true;
-  }
   return false;
 }
 

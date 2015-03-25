@@ -123,3 +123,68 @@ SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DELETE FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20584754: CAN'T FIND RECORD IN 'TABLE100_KEY_PK_PARTS_2_DATETIME_3'
+--echo #
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+CREATE TABLE `t1` (
+  `c1` tinyint unsigned DEFAULT NULL,
+  `c2` char(1) DEFAULT NULL,
+  `pk` tinyint NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `c1` (`c1`),
+  KEY `c2` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (pk)
+PARTITIONS 2 */;
+
+--echo # Create the dataset in a separate table, so it can be loaded
+--echo # directly without update/delete which may give unstable EXPLAIN
+--echo # due to background pruning.
+CREATE TABLE t0
+(a tinyint not null auto_increment primary key,
+ b char(1) DEFAULT 'a',
+ c tinyint DEFAULT 1);
+INSERT INTO t0 (a) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t0 (a) SELECT NULL FROM t0, t0 t0_2 LIMIT 50;
+UPDATE t0 SET c = NULL WHERE a IN (2,3,6,13,18);
+INSERT INTO t1 SELECT c,b,a FROM t0;
+DROP TABLE t0;
+
+ANALYZE TABLE t1;
+
+--replace_column 10 #
+EXPLAIN SELECT
+pk
+FROM `t1`
+WHERE `c1` IS  NULL OR `c2` = '0';
+
+SELECT
+pk
+FROM `t1`
+WHERE `c1` IS  NULL OR `c2` = '0';
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#20516390: PARTITIONED TABLE, TBLSPACE MOVE, ALTER, ASSERT
+--echo # !(M_FILE_PER_TABLE && M_USE_SHAR
+--echo #
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t1
+(a int not null,
+ d int not null,
+ b varchar(198) not null,
+ c varchar(177),
+ index(d),
+ index(a),
+ PRIMARY KEY (b(10), a, d),
+ INDEX (c(95), b(95)),
+ INDEX (b(5), c(10), a))
+ENGINE=InnoDB stats_persistent=DEFAULT
+PARTITION BY LINEAR HASH(d) PARTITIONS 2;
+ALTER TABLE t1 TABLESPACE ts1;
+ALTER TABLE t1 DROP PRIMARY KEY, ALGORITHM=DEFAULT;
+DROP TABLE t1;
+DROP TABLESPACE ts1;

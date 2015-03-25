@@ -18,6 +18,7 @@ SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	2
 SET GLOBAL DEBUG= @debug_save;
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
 call mtr.add_suppression(".* Turning logging off for the whole duration of the "
                          "MySQL server process. To turn it on again: fix the "
                          "cause, shutdown the MySQL server and restart it.");
@@ -34,6 +35,7 @@ SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	2
 include/assert.inc [committed gtid set is MASTER_UUID:1-4]
+SET GLOBAL binlog_error_action= ABORT_SERVER;
 DROP TABLE t1;
 # restart
 RESET MASTER;

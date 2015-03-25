@@ -4,7 +4,7 @@
 --source include/force_myisam_default.inc
 
 # Requires statement logging
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/force_binlog_format_statement.inc
 # TODO: Create row based version once $MYSQL_BINLOG has new RB version
 
 # Check that user variables are binlogged correctly (BUG#3875)
@@ -28,3 +28,4 @@ flush logs;
 drop table t1;
 
 # End of 4.1 tests
+--source include/restore_default_binlog_format.inc

@@ -1231,6 +1231,8 @@ libmysqld/sql_view.cc
 libmysqld/sql_yacc.cc
 libmysqld/sql_yacc.cpp
 libmysqld/sql_yacc.h
+libmysqld/sql_hints.yy.cc
+libmysqld/sql_hints.yy.h
 libmysqld/stacktrace.c
 libmysqld/strfunc.cc
 libmysqld/table.cc
@@ -2111,6 +2113,8 @@ sql/sql_yacc.h
 sql/sql_yacc.h.rule
 sql/sql_yacc.output
 sql/sql_yacc.yy.orig
+sql/sql_hints.yy.cc
+sql/sql_hints.yy.h
 sql/test_time
 sql/udf_example.so
 sql_error.cc

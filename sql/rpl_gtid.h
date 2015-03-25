@@ -27,6 +27,7 @@
 
 #ifdef MYSQL_SERVER
 #include "mysqld.h"             // key_rwlock_global_sid_lock
+#include "table.h"
 #endif
 
 #include <list>
@@ -655,6 +656,11 @@ public:
     that it is held already.
 
     @param sidno The SIDNO.
+    @param need_lock If true, and sid_lock!=NULL, this function will
+    acquire sid_lock before looking up the sid, and then release
+    it. If false, and sid_lock!=NULL, this function will assert the
+    sid_lock is already held. If sid_lock==NULL, nothing is done
+    w.r.t. locking.
     @retval NULL The SIDNO does not exist in this map.
     @retval pointer Pointer to the SID.  The data is shared with this
     Sid_map, so should not be modified.  It is safe to read the data
@@ -2041,6 +2047,12 @@ public:
     0 if the group is not owned.
   */
   my_thread_id get_owner(const Gtid &gtid) const;
+
+  /*
+    Fill all gtids into the given Gtid_set object. It doesn't clear the given
+    gtid set before filling its owned gtids into it.
+  */
+  void get_gtids(Gtid_set &gtid_set) const;
   /**
     Removes the given GTID.
 
@@ -2906,6 +2918,21 @@ public:
       -1   Error
   */
   int compress(THD *thd);
+#ifdef MYSQL_SERVER
+  /**
+    Push a waring to client if user is modifying
+    the gtid_executed table explicitly.
+
+    @param  thd Thread requesting to access the table
+    @param  table the table is being accessed.
+
+    @retval
+      true    Push a warning to client.
+    @retval
+      false   Do not push a warning.
+  */
+  bool warn_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
+#endif
 private:
 #ifdef HAVE_GTID_NEXT_LIST
   /// Lock all SIDNOs owned by the given THD.
@@ -3166,8 +3193,9 @@ struct Gtid_specification
     @param sid_map Sid_map to use if the type of this
     Gtid_specification is GTID_GROUP.
     @param buf[out] The buffer
-    @param need_lock If true, will acquire global_sid_lock.rdlock when
-    reading the sid_map.
+    @param need_lock If true, this function acquires global_sid_lock
+    before looking up the sidno in sid_map, and then releases it. If
+    false, this function asserts that the lock is held by the caller.
     @retval The number of characters written.
   */
   int to_string(const Sid_map *sid_map, char *buf, bool need_lock= false) const;

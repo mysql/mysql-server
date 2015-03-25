@@ -15,8 +15,18 @@ create procedure insert_t1(IN total int)
 begin
 	declare i int default 1;
 	while (i <= total) DO
-		insert into t1 values (i, Point(i, i));
-		set i = i + 1;
+		insert into t1 values
+		(i, Point(i, i)),
+		(i + 1, Point(i + 1, i + 1)),
+		(i + 2, Point(i + 2, i + 2)),
+		(i + 3, Point(i + 3, i + 3)),
+		(i + 4, Point(i + 4, i + 4)),
+		(i + 5, Point(i + 5, i + 5)),
+		(i + 6, Point(i + 6, i + 6)),
+		(i + 7, Point(i + 7, i + 7)),
+		(i + 8, Point(i + 8, i + 8)),
+		(i + 9, Point(i + 9, i + 9));
+		set i = i + 10;
 	end while;
 end|
 delimiter ;|

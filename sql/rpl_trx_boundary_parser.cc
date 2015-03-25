@@ -141,7 +141,8 @@ Transaction_boundary_parser::get_event_boundary_type(
       /*
         BEGIN is always the begin of a DML transaction.
       */
-      if (!strncmp(query, "BEGIN", qlen))
+      if (!strncmp(query, "BEGIN", qlen) ||
+          !strncmp(query, STRING_WITH_LEN("XA START")))
         boundary_type= EVENT_BOUNDARY_TYPE_BEGIN_TRX;
       /*
         COMMIT and ROLLBACK are always the end of a transaction.
@@ -164,6 +165,12 @@ Transaction_boundary_parser::get_event_boundary_type(
       XID events are always the end of a transaction.
     */
     case binary_log::XID_EVENT:
+      boundary_type= EVENT_BOUNDARY_TYPE_END_TRX;
+      break;
+    /*
+      XA_prepare event ends XA-prepared group of events (prepared XA transaction).
+    */
+    case binary_log::XA_PREPARE_LOG_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_END_TRX;
       break;
 
@@ -194,6 +201,7 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::PRE_GA_WRITE_ROWS_EVENT:
     case binary_log::PRE_GA_DELETE_ROWS_EVENT:
     case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
+    case binary_log::VIEW_CHANGE_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_STATEMENT;
       break;
 
@@ -215,7 +223,6 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::NEW_LOAD_EVENT:
     case binary_log::EXEC_LOAD_EVENT:
     case binary_log::INCIDENT_EVENT:
-    case binary_log::VIEW_CHANGE_EVENT:
     case binary_log::TRANSACTION_CONTEXT_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_IGNORE;
       break;

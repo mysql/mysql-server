@@ -8,11 +8,13 @@
 # - RESET MASTER in order to clear @@global.gtid_executed, so
 #   that the same GTID can be executed again.
 # - truncate the performance_schema.events_transaction_* tables
+#
+# All this is done on the connection 'server_1'.
 
 --disable_query_log
---connection default
-SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+--connection server_1
 RESET MASTER;
 TRUNCATE TABLE performance_schema.events_transactions_history;
 TRUNCATE TABLE performance_schema.events_transactions_current;
 --enable_query_log
+--connection default

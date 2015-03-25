@@ -12,9 +12,9 @@ CREATE TABLE t1 (a int) ENGINE=innodb TABLESPACE=s_1;
 CREATE TABLE t2 (a int) ENGINE=innodb TABLESPACE=s_1;
 # Check tablespace on master
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t1	s_1	129	4	Antelope	Compact	0	General
-test/t2	s_1	129	4	Antelope	Compact	0	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	s_1	129	4	Compact	0	General
+test/t2	s_1	129	4	Compact	0	General
 INSERT INTO t1 VALUES ( 11);
 INSERT INTO t2 VALUES ( 22);
 SELECT * FROM t1;
@@ -27,9 +27,9 @@ include/sync_slave_sql_with_master.inc
 # connection slave
 # Check tablespace on slave
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t1	s_1	129	4	Antelope	Compact	0	General
-test/t2	s_1	129	4	Antelope	Compact	0	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1	s_1	129	4	Compact	0	General
+test/t2	s_1	129	4	Compact	0	General
 USE test;
 SHOW TABLES;
 Tables_in_test
@@ -39,12 +39,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE s_1 */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE s_1 */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `s_1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 # connection master
 USE test;
 DROP TABLE t1,t2;
@@ -52,7 +52,7 @@ DROP TABLESPACE s_1;
 include/sync_slave_sql_with_master.inc
 # connection slave
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 # connection master
 USE test;
 DROP TABLESPACE s_2;

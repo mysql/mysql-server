@@ -23,6 +23,8 @@ n
 insert into t1 values (7),(8);
 [on master]
 set sql_mode=strict_trans_tables;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values (7), (8), (9);
 [on slave]
 include/sync_slave_sql_with_master.inc

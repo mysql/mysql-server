@@ -199,7 +199,7 @@ static Sys_var_mybool Sys_pfs_consumer_events_statements_history(
        "performance_schema_consumer_events_statements_history",
        "Default startup value for the events_statements_history consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_statements_history_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_statements_history_long(
@@ -220,7 +220,7 @@ static Sys_var_mybool Sys_pfs_consumer_events_transactions_history(
        "performance_schema_consumer_events_transactions_history",
        "Default startup value for the events_transactions_history consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_events_transactions_history_enabled),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
 static Sys_var_mybool Sys_pfs_consumer_events_transactions_history_long(
@@ -796,6 +796,42 @@ static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var 
   return false;
 }
 
+#ifdef HAVE_REPLICATION
+/**
+  Check-function to @@GTID_NEXT system variable. Essentially it's a
+  wrapper to @c check_super_outside_trx_outside_sf whose task is
+  temporarily mask server_status of prepared XA transaction before to
+  call the function.
+
+  @param self   a pointer to the sys_var, i.e. gtid_next
+  @param thd    a reference to THD object
+  @param var    a pointer to the set_var created by the parser.
+
+  @return @c false if the change is allowed, otherwise @c true.
+*/
+
+static bool check_super_outside_prepared_trx_outside_sf(sys_var *self, THD *thd,
+                                                        set_var *var)
+{
+  bool is_prepared_trx=
+    thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_PREPARED);
+  bool rc=false;
+
+  if (is_prepared_trx)
+  {
+    DBUG_ASSERT(thd->in_active_multi_stmt_transaction());
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  }
+  rc= check_super_outside_trx_outside_sf(self, thd, var);
+  if (is_prepared_trx)
+  {
+    thd->server_status|= SERVER_STATUS_IN_TRANS;
+  }
+
+  return rc;
+}
+#endif
+
 static bool check_super_outside_trx_outside_sf_outside_sp(sys_var *self, THD *thd, set_var *var)
 {
   if (check_super_outside_trx_outside_sf(self, thd, var))
@@ -889,7 +925,7 @@ static Sys_var_enum Sys_binlog_format(
        "MIXED, the format switches to row-based and back implicitly per each "
        "query accessing an NDBCLUSTER table",
        SESSION_VAR(binlog_format), CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
-       binlog_format_names, DEFAULT(BINLOG_FORMAT_STMT),
+       binlog_format_names, DEFAULT(BINLOG_FORMAT_ROW),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
        ON_UPDATE(fix_binlog_format_after_update));
 
@@ -1771,7 +1807,7 @@ static Sys_var_enum Sys_binlog_error_action(
        "When statements cannot be written to the binary log due to a fatal "
        "error, the server can either ignore the error and let the master "
        "continue, or abort.", GLOBAL_VAR(binlog_error_action),
-       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(IGNORE_ERROR));
+       CMD_LINE(REQUIRED_ARG), binlog_error_action_list, DEFAULT(ABORT_SERVER));
 
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
@@ -1784,6 +1820,36 @@ static Sys_var_mybool Sys_trust_function_creators(
        "this to TRUE",
        GLOBAL_VAR(trust_function_creators),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_check_proxy_users(
+	"check_proxy_users",
+	"If set to FALSE (the default), then proxy user identity will not be "
+	"mapped for authentication plugins which support mapping from grant "
+	"tables.  When set to TRUE, users associated with authentication "
+	"plugins which signal proxy user mapping should be done according to "
+	"GRANT PROXY privilege definition.",
+	GLOBAL_VAR(check_proxy_users),
+	CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_mysql_native_password_proxy_users(
+	"mysql_native_password_proxy_users",
+	"If set to FALSE (the default), then the mysql_native_password "
+	"plugin will not signal for authenticated users to be checked for mapping "
+	"to proxy users.  When set to TRUE, the plugin will flag associated "
+	"authenticated accounts to be mapped to proxy users when the server option "
+	"check_proxy_users is enabled.",
+	GLOBAL_VAR(mysql_native_password_proxy_users),
+	CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_sha256_password_proxy_users(
+	"sha256_password_proxy_users",
+	"If set to FALSE (the default), then the sha256_password authentication "
+	"plugin will not signal for authenticated users to be checked for mapping "
+	"to proxy users.  When set to TRUE, the plugin will flag associated "
+	"authenticated accounts to be mapped to proxy users when the server option "
+	"check_proxy_users is enabled.",
+	GLOBAL_VAR(sha256_password_proxy_users),
+	CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_use_v1_row_events(
        "log_bin_use_v1_row_events",
@@ -2406,7 +2472,8 @@ static Sys_var_ulong Sys_net_buffer_length(
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    my_net_set_read_timeout(&thd->net, thd->variables.net_read_timeout);
+    my_net_set_read_timeout(thd->get_protocol_classic()->get_net(),
+                            thd->variables.net_read_timeout);
   return false;
 }
 static Sys_var_ulong Sys_net_read_timeout(
@@ -2421,7 +2488,8 @@ static Sys_var_ulong Sys_net_read_timeout(
 static bool fix_net_write_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    my_net_set_write_timeout(&thd->net, thd->variables.net_write_timeout);
+    my_net_set_write_timeout(thd->get_protocol_classic()->get_net(),
+                             thd->variables.net_write_timeout);
   return false;
 }
 static Sys_var_ulong Sys_net_write_timeout(
@@ -2436,7 +2504,8 @@ static Sys_var_ulong Sys_net_write_timeout(
 static bool fix_net_retry_count(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
-    thd->net.retry_count=thd->variables.net_retry_count;
+    thd->get_protocol_classic()->get_net()->retry_count=
+      thd->variables.net_retry_count;
   return false;
 }
 static Sys_var_ulong Sys_net_retry_count(
@@ -2471,6 +2540,7 @@ static bool old_passwords_check(sys_var *self  __attribute__((unused)),
                                 THD *thd  __attribute__((unused)),
                                 set_var *var)
 {
+  push_deprecated_warn_no_replacement(current_thd, "old_passwords");
   /* 1 used to be old passwords */
   return var->save_result.ulonglong_value == 1;
 }
@@ -2884,7 +2954,7 @@ static Sys_var_ulong Sys_trans_alloc_block_size(
        "transaction_alloc_block_size",
        "Allocation block size for transactions to be stored in binary log",
        SESSION_VAR(trans_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
+       VALID_RANGE(1024, 128 * 1024), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -2892,7 +2962,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        "transaction_prealloc_size",
        "Persistent buffer for transactions to be stored in binary log",
        SESSION_VAR(trans_prealloc_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
+       VALID_RANGE(1024, 128 * 1024), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -3332,29 +3402,27 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
                 MODE_NO_AUTO_CREATE_USER | MODE_NO_ENGINE_SUBSTITUTION);
 
-  if (sql_mode & MODE_NO_AUTO_CREATE_USER)
-  {
-    THD *thd= current_thd;
-    if (thd)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_DEPRECATED_SQLMODE,
-                          ER(ER_WARN_DEPRECATED_SQLMODE),
-                          "NO_AUTO_CREATE_USER");
-    }
-    else
-    {
-      sql_print_warning("'NO_AUTO_CREATE_USER' mode is deprecated. "
-                        "It will be made read-only in a future release.");
-    }
-  }
-
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
 {
   var->save_result.ulonglong_value=
     expand_sql_mode(var->save_result.ulonglong_value);
+
+  /* Warning displayed only if the non default sql_mode is specified. */
+  if (var->value)
+  {
+    /* Check if the NO_AUTO_CREATE_USER flag has been swapped. */
+    if ((thd->variables.sql_mode ^ var->save_result.ulonglong_value) &
+        MODE_NO_AUTO_CREATE_USER)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SQLMODE,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
+                          "NO_AUTO_CREATE_USER");
+    }
+  }
+
   return false;
 }
 static bool fix_sql_mode(sys_var *self, THD *thd, enum_var_type type)
@@ -3408,7 +3476,8 @@ static Sys_var_set Sys_sql_mode(
        sql_mode_names,
        DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
                MODE_ONLY_FULL_GROUP_BY |
-               MODE_STRICT_TRANS_TABLES),
+               MODE_STRICT_TRANS_TABLES |
+               MODE_NO_AUTO_CREATE_USER),
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
@@ -4664,10 +4733,10 @@ static Sys_var_uint Sys_checkpoint_mts_group(
 
 static Sys_var_uint Sys_sync_binlog_period(
        "sync_binlog", "Synchronously flush binary log to disk after"
-       " every #th write to the file. Use 0 (default) to disable synchronous"
+       " every #th write to the file. Use 0 to disable synchronous"
        " flushing",
        GLOBAL_VAR(sync_binlog_period), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(1), BLOCK_SIZE(1));
 
 static Sys_var_uint Sys_sync_masterinfo_period(
        "sync_master_info", "Synchronously flush master info to disk "
@@ -4818,17 +4887,24 @@ const char *fixup_enforce_gtid_consistency_command_line(char *value_arg)
 
 static Sys_var_mybool Sys_binlog_gtid_simple_recovery(
        "binlog_gtid_simple_recovery",
-       "If this option is enabled, the server does not scan more than one "
-       "binary log for every iteration when initializing GTID sets on server "
-       "restart. Enabling this option is very useful when restarting a server "
-       "which has already generated lots of binary logs without GTID events. "
-       "Note: If this option is enabled, GLOBAL.GTID_EXECUTED and "
-       "GLOBAL.GTID_PURGED cannot be initialized correctly if binary log(s) "
-       "with GTID events were generated before binary log(s) without GTID "
-       "events, for example if gtid_mode is disabled when the server has "
-       "already generated binary log(s) with GTID events and not purged them.",
+       "If this option is enabled, the server does not open more than "
+       "two binary logs when initializing GTID_PURGED and "
+       "GTID_EXECUTED, either during server restart or when binary "
+       "logs are being purged. Enabling this option is useful when "
+       "the server has already generated many binary logs without "
+       "GTID events (e.g., having GTID_MODE = OFF). Note: If this "
+       "option is enabled, GLOBAL.GTID_EXECUTED and "
+       "GLOBAL.GTID_PURGED may be initialized wrongly in two cases: "
+       "(1) All binary logs were generated by MySQL 5.7.5 or older, "
+       "and GTID_MODE was ON for some binary logs but OFF for the "
+       "newest binary log. (2) The oldest existing binary log was "
+       "generated by MySQL 5.7.5 or older, and SET GTID_PURGED was "
+       "issued after the oldest binary log was generated. If a wrong "
+       "set is computed in one of case (1) or case (2), it will "
+       "remain wrong even if the server is later restarted with this "
+       "option disabled.",
        READ_ONLY GLOBAL_VAR(binlog_gtid_simple_recovery),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
 static Sys_var_ulong Sys_sp_cache_size(
        "stored_program_cache",
@@ -4943,7 +5019,7 @@ static Sys_var_gtid_next Sys_gtid_next(
        "transaction.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_super_outside_trx_outside_sf));
+       NOT_IN_BINLOG, ON_CHECK(check_super_outside_prepared_trx_outside_sf));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
 static Sys_var_gtid_executed Sys_gtid_executed(

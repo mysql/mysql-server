@@ -29,7 +29,6 @@
 #include "partition_info.h"              // partition_info
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
-#include "sql_derived.h"                 // mysql_handle_single_derived
 #include "sql_parse.h"                   // check_stack_overrun
 #include "sql_partition.h"               // mysql_unpack_partition
 #include "sql_plugin.h"                  // plugin_unlock
@@ -4299,6 +4298,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   clear_column_bitmaps();
 
   DBUG_ASSERT(key_read == 0);
+  no_keyread= false;
 
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
@@ -4427,7 +4427,7 @@ bool TABLE_LIST::merge_underlying_tables(class st_select_lex *select)
     tl->embedding= this;
     tl->join_list= &nested_join->join_list;
     if (nested_join->join_list.push_back(tl))
-      return true;
+      return true;                  /* purecov: inspected */
   }
 
   return false;
@@ -4508,7 +4508,7 @@ bool TABLE_LIST::merge_where(THD *thd)
   */
   set_join_cond(and_conds(join_cond(), condition));
   if (!join_cond())
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   DBUG_RETURN(false);
 }
@@ -4531,23 +4531,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
 
   DBUG_ASSERT(derived->is_prepared());
 
-  if (field_translation)
-  {
-    /*
-      Update items in the field translation after view have been prepared.
-      It's needed because some items in the select list, like
-      IN subquery predicates, might be substituted for optimized ones.
-    */
-    if (is_view())
-    {
-      while ((item= it++))
-      {
-        field_translation[field_count++].item= item;
-      }
-    }
-
-    return false;
-  }
+  DBUG_ASSERT(!field_translation);
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
@@ -4556,7 +4540,7 @@ bool TABLE_LIST::create_field_translation(THD *thd)
     (Field_translator *)thd->stmt_arena->alloc(select->item_list.elements *
                                                sizeof(Field_translator));
   if (!transl)
-    return true;
+    return true;                        /* purecov: inspected */
 
   while ((item= it++))
   {
@@ -4595,7 +4579,7 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
   if (table->join_cond())
   {
     if (!(*pcond= table->join_cond()->copy_andor_structure(thd)))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                   /* purecov: inspected */
   }
   if (!table->nested_join)
     DBUG_RETURN(false);
@@ -4606,9 +4590,9 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
       continue;
     Item *cond;
     if (merge_join_conditions(thd, tbl, &cond))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                   /* purecov: inspected */
     if (cond && !(*pcond= and_conds(*pcond, cond)))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                   /* purecov: inspected */
   }
   DBUG_RETURN(false);
 }
@@ -4618,14 +4602,9 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
   Prepare check option expression of table
 
   @param thd            thread handler
-  @param check_opt_type WITH CHECK OPTION type (VIEW_CHECK_NONE,
-                        VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED).
-                        Use this parameter instead of direct check of
-                        effective_with_check to change type of underlying
-                        views to VIEW_CHECK_CASCADED if outer view have
-                        such option and prevent processing of underlying
-                        view check options if outer view have just
-                        VIEW_CHECK_LOCAL option.
+  @param is_cascaded     True if parent view requests that this view's
+  filtering condition be treated as WITH CASCADED CHECK OPTION; this is for
+  recursive calls; user code should omit this argument.
 
   @details
 
@@ -4648,39 +4627,37 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond)
   @returns false if success, true if error
 */
 
-bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
+bool TABLE_LIST::prepare_check_option(THD *thd, bool is_cascaded)
 {
-  DBUG_ENTER("TABLE_LIST::prep_check_option");
+  DBUG_ENTER("TABLE_LIST::prepare_check_option");
+  DBUG_ASSERT(is_view());
 
-  bool is_cascaded= check_opt_type == VIEW_CHECK_CASCADED;
+  /*
+    True if conditions of underlying views should be treated as WITH CASCADED
+    CHECK OPTION
+  */
+  is_cascaded|= (with_check == VIEW_CHECK_CASCADED);
 
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
-    /* see comment of check_opt_type parameter */
-    if (tbl->is_view() && tbl->prep_check_option(thd, is_cascaded ?
-                                                      VIEW_CHECK_CASCADED :
-                                                      VIEW_CHECK_NONE))
-      DBUG_RETURN(true);
+    if (tbl->is_view() && tbl->prepare_check_option(thd, is_cascaded))
+      DBUG_RETURN(true);                  /* purecov: inspected */
   }
 
-  if (check_opt_type && !check_option_processed)
+  if (!check_option_processed)
   {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
+    if ((with_check || is_cascaded) &&
+        merge_join_conditions(thd, this, &check_option))
+      DBUG_RETURN(true);                  /* purecov: inspected */
 
-    if (merge_join_conditions(thd, this, &check_option))
-      DBUG_RETURN(true);
-
-    if (is_cascaded)
+    for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
     {
-      for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-      {
-        if (tbl->check_option)
-        {
-          if (!(check_option= and_conds(check_option, tbl->check_option)))
-            DBUG_RETURN(true);
-        }
-      }
+      if (tbl->check_option &&
+          !(check_option= and_conds(check_option, tbl->check_option)))
+          DBUG_RETURN(true);            /* purecov: inspected */
     }
+
     check_option_processed= true;
   }
 
@@ -4690,7 +4667,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     thd->where= "check option";
     if (check_option->fix_fields(thd, &check_option) ||
         check_option->check_cols(1))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                  /* purecov: inspected */
     thd->where= save_where;
   }
 
@@ -4730,7 +4707,7 @@ bool TABLE_LIST::prepare_replace_filter(THD *thd)
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     if (merge_join_conditions(thd, this, &replace_filter))
-      DBUG_RETURN(true);
+      DBUG_RETURN(true);                 /* purecov: inspected */
     for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
     {
       if (tbl->replace_filter)
@@ -4849,14 +4826,14 @@ bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
     if (!table->insert_values &&
         !(table->insert_values= (uchar *)alloc_root(mem_root,
                                                     table->s->rec_buff_length)))
-      return true;
+      return true;                       /* purecov: inspected */
   }
   else
   {
     DBUG_ASSERT(view && merge_underlying_list);
     for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
       if (tbl->set_insert_values(mem_root))
-        return true;
+        return true;                     /* purecov: inspected */
   }
   return false;
 }
@@ -5343,7 +5320,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   if (!field->fixed)
   {
     if (field->fix_fields(thd, field_ref))
-      DBUG_RETURN(NULL);
+      DBUG_RETURN(NULL);               /* purecov: inspected */
     field= *field_ref;
   }
   Item *item= new Item_direct_view_ref(context, field_ref,
@@ -5736,7 +5713,7 @@ void TABLE::mark_column_used(THD *thd, Field *field,
      Moreover, in order to evaluate the value of virtual generated column,
      the base columns are also needed to be read.
     */
-    if(field->gcol_info && !field->stored_in_db)
+    if (field->gcol_info && !field->stored_in_db)
     {
       bitmap_fast_test_and_set(write_set, field->field_index);
       Mark_field mark_read_field(MARK_COLUMNS_READ);
@@ -5756,9 +5733,9 @@ void TABLE::mark_column_used(THD *thd, Field *field,
       DBUG_PRINT("warning", ("Found duplicated field"));
       thd->dup_field= field;
     }
-    if (get_fields_in_item_tree)
-      field->flags|= GET_FIXED_FIELDS_FLAG;
-    if(field->gcol_info)
+    DBUG_ASSERT(!get_fields_in_item_tree);
+
+    if (field->gcol_info)
     {
       Mark_field mark_read_field(MARK_COLUMNS_READ);
       field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
@@ -5768,7 +5745,7 @@ void TABLE::mark_column_used(THD *thd, Field *field,
 
   case MARK_COLUMNS_TEMP:
     bitmap_set_bit(read_set, field->field_index);
-    if(field->gcol_info && !field->stored_in_db)
+    if (field->gcol_info && !field->stored_in_db)
     {
       Mark_field mark_fld(MARK_COLUMNS_TEMP);
       field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
@@ -6472,17 +6449,12 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   */
   table= 0;
 
- /*
-   Reset table_name and table_name_length,if it is a anonymous derived table
-   or schema table. They are not valid as TABLEs were closed in the end of
-   previous prepare or execute call.
- */
-  if (is_derived())
-  {
-    table_name= NULL;
-    table_name_length= 0;
-  }
-  else if (schema_table_name)
+  /*
+    Reset table_name and table_name_length for schema table.
+    They are not valid as TABLEs were closed in the end of previous prepare
+    or execute call.
+  */
+  if (schema_table_name)
   {
     table_name= schema_table_name;
     table_name_length= strlen(schema_table_name);

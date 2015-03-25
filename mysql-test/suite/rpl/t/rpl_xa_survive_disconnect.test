@@ -1,0 +1,296 @@
+#   BUG #12161 Xa recovery and client disconnection
+#    the test verifies that
+#    a. disconnection does not lose a prepared transaction
+#        so it can be committed from another connection
+#    c. the prepared transaction is logged
+#    d. interleaved prepared transactions are correctly applied on the slave.
+
+#
+# Both replication format are checked through explict
+# set @@binlog_format in the test.
+#
+--source include/have_binlog_format_mixed.inc
+#
+# Prepared XA can't get available to an external connection
+# until a connection, that either leaves actively or is killed,
+# has completed a necessary part of its cleanup.
+# Selecting from P_S.threads provides a method to learn that.
+#
+--source include/have_perfschema.inc
+--source include/master-slave.inc
+
+--connection master
+call mtr.add_suppression("Found 2 prepared XA transactions");
+CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';
+
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+
+CREATE TABLE d1.t (a INT) ENGINE=innodb;
+CREATE TABLE d2.t (a INT) ENGINE=innodb;
+
+connect (master_conn1, 127.0.0.1,root,,test,$MASTER_MYPORT,);
+--let $conn_id=`SELECT connection_id()`
+SET @@session.binlog_format= statement;
+XA START '1-stmt';
+INSERT INTO d1.t VALUES (1);
+XA END '1-stmt';
+XA PREPARE '1-stmt';
+
+--disconnect master_conn1
+
+--connection master
+--let $wait_condition= SELECT count(*) = 0 FROM v_processlist WHERE PROCESSLIST_ID = $conn_id
+--source include/wait_condition.inc
+
+connect (master_conn2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
+--let $conn_id=`SELECT connection_id()`
+SET @@session.binlog_format= row;
+XA START '1-row';
+INSERT INTO d2.t VALUES (1);
+XA END '1-row';
+XA PREPARE '1-row';
+
+--disconnect master_conn2
+
+--connection master
+--let $wait_condition= SELECT count(*) = 0 FROM v_processlist WHERE PROCESSLIST_ID = $conn_id
+--source include/wait_condition.inc
+
+XA START '2';
+INSERT INTO d1.t VALUES (2);
+XA END '2';
+XA PREPARE '2';
+XA COMMIT '2';
+
+XA COMMIT '1-row';
+XA COMMIT '1-stmt';
+source include/show_binlog_events.inc;
+
+# the proof: slave is in sync with the table updated by the prepared transactions.
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+#
+# Recover with Master server restart
+#
+--connection master
+
+connect (master2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
+--connection master2
+SET @@session.binlog_format= statement;
+XA START '3-stmt';
+INSERT INTO d1.t VALUES (3);
+XA END '3-stmt';
+XA PREPARE '3-stmt';
+--disconnect master2
+
+connect (master2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
+--connection master2
+SET @@session.binlog_format= row;
+XA START '3-row';
+INSERT INTO d2.t VALUES (4);
+XA END '3-row';
+XA PREPARE '3-row';
+--disconnect master2
+
+--connection master
+
+#
+# Testing read-only
+#
+connect (master2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
+--connection master2
+XA START '4';
+SELECT * FROM d1.t;
+XA END '4';
+XA PREPARE '4';
+--disconnect master2
+
+#
+# Logging few disconnected XA:s for replication.
+#
+--let $bulk_trx_num=10
+--let $i = $bulk_trx_num
+
+while($i > 0)
+{
+  --connect (master_bulk_conn$i, 127.0.0.1,root,,test,$MASTER_MYPORT,)
+  --let $conn_id=`SELECT connection_id()`
+
+  --eval XA START 'bulk_trx_$i'
+  --eval INSERT INTO d1.t VALUES ($i)
+  --eval INSERT INTO d2.t VALUES ($i)
+  --eval XA END 'bulk_trx_$i'
+  --eval XA PREPARE 'bulk_trx_$i'
+
+  --disconnect master_bulk_conn$i
+
+  --connection master
+  --let $wait_condition= SELECT count(*) = 0 FROM v_processlist WHERE PROCESSLIST_ID = $conn_id
+   --source include/wait_condition.inc
+
+  --dec $i
+}
+
+--connection master
+--let $i = $bulk_trx_num
+while($i > 0)
+{
+  --let $command=COMMIT
+  if (`SELECT $i % 2`)
+  {
+    --let $command=ROLLBACK
+  }
+  --eval XA $command 'bulk_trx_$i'
+  --dec $i
+}
+
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+--connection slave
+--source include/start_slave.inc
+
+--connection master
+--echo *** '3-stmt','3-row' xa-transactions must be in the list ***
+XA RECOVER;
+XA COMMIT '3-stmt';
+XA ROLLBACK '3-row';
+
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Testing replication with marginal XID values and in two formats.
+#
+
+
+# Empty XID
+connect (master_conn1, 127.0.0.1,root,,test,$MASTER_MYPORT,);
+--let $conn_id=`SELECT connection_id()`
+
+XA START '';
+INSERT INTO d1.t VALUES (4);
+XA END '';
+XA PREPARE '';
+
+--disconnect master_conn1
+
+--connection master
+--let $wait_condition= SELECT count(*) = 0 FROM v_processlist WHERE PROCESSLIST_ID = $conn_id
+--source include/wait_condition.inc
+
+# Max size XID
+connect (master_conn2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
+--let $conn_id=`SELECT connection_id()`
+
+--let $gtrid=0123456789012345678901234567890123456789012345678901234567890124
+--let $bqual=0123456789012345678901234567890123456789012345678901234567890124
+--eval XA START '$gtrid','$bqual',64
+       INSERT INTO d1.t VALUES (64);
+--eval XA END '$gtrid','$bqual',64
+--eval XA PREPARE '$gtrid','$bqual',64
+
+--disconnect master_conn2
+
+--connection master
+--let $wait_condition= SELECT count(*) = 0 FROM v_processlist WHERE PROCESSLIST_ID = $conn_id
+--source include/wait_condition.inc
+
+# Max size XID with non-ascii chars
+connect (master_conn3, 127.0.0.1,root,,test,$MASTER_MYPORT,);
+--let $conn_id=`SELECT connection_id()`
+
+--let $gtrid_hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+--let $bqual_hex=00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+--eval XA START X'$gtrid_hex',X'$bqual_hex',0
+       INSERT INTO d1.t VALUES (0);
+--eval XA END X'$gtrid_hex',X'$bqual_hex',0
+--eval XA PREPARE X'$gtrid_hex',X'$bqual_hex',0
+
+--disconnect master_conn3
+
+--connection master
+--let $wait_condition= SELECT count(*) = 0 FROM v_processlist WHERE PROCESSLIST_ID = $conn_id
+--source include/wait_condition.inc
+
+# Random XID
+--disable_query_log
+
+connect (master_conn4, 127.0.0.1,root,,test,$MASTER_MYPORT,);
+--let $conn_id=`SELECT connection_id()`
+
+--let $gtridlen=`SELECT 2*(round(rand()*100) % 32)`
+--let $bquallen=`SELECT 2*(round(rand()*100) % 32)`
+--let $gtrid_rand=`SELECT substring(concat(MD5(rand()), MD5(rand())), 1, $gtridlen)`
+--let $bqual_rand=`SELECT substring(concat(MD5(rand()), MD5(rand())), 1, $bquallen)`
+# formatID max is LONG_MAX
+--let $formt_rand=`SELECT floor((rand()*10000000000) % 2147483648)`
+--eval XA START X'$gtrid_rand',X'$bqual_rand',$formt_rand
+       INSERT INTO d1.t VALUES (0);
+--eval XA END X'$gtrid_rand',X'$bqual_rand',$formt_rand
+--eval XA PREPARE X'$gtrid_rand',X'$bqual_rand',$formt_rand
+
+--enable_query_log
+
+--disconnect master_conn4
+
+--connection master
+--let $wait_condition= SELECT count(*) = 0 FROM v_processlist WHERE PROCESSLIST_ID = $conn_id
+--source include/wait_condition.inc
+
+
+       XA COMMIT '';
+--eval XA COMMIT '$gtrid','$bqual',64
+--eval XA COMMIT X'$gtrid_hex',X'$bqual_hex',0
+--disable_query_log
+--echo XA COMMIT 'RANDOM XID'
+--eval XA COMMIT X'$gtrid_rand',X'$bqual_rand',$formt_rand
+--enable_query_log
+
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Testing ONE PHASE
+#
+--let $onephase_trx_num=10
+--let $i = $onephase_trx_num
+while($i > 0)
+{
+  --connect (master_bulk_conn$i, 127.0.0.1,root,,test,$MASTER_MYPORT,)
+
+  --connection master_bulk_conn$i
+  --eval XA START 'one_phase_$i'
+  --eval INSERT INTO d1.t VALUES ($i)
+  --eval INSERT INTO d2.t VALUES ($i)
+  --eval XA END 'one_phase_$i'
+  --eval XA COMMIT 'one_phase_$i' ONE PHASE
+
+  --disconnect master_bulk_conn$i
+  --dec $i
+}
+--connection master
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Overall consistency check
+#
+--let $diff_tables= master:d1.t, slave:d1.t
+--source include/diff_tables.inc
+--let $diff_tables= master:d2.t, slave:d2.t
+--source include/diff_tables.inc
+#
+# cleanup
+#
+--connection master
+
+DELETE FROM d1.t;
+DELETE FROM d2.t;
+DROP TABLE d1.t, d2.t;
+DROP DATABASE d1;
+DROP DATABASE d2;
+DROP VIEW v_processlist;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

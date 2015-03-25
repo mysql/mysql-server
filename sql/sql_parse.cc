@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include "sp_cache.h"         // sp_cache_enforce_limit
 #include "sp_head.h"          // sp_head
 #include "sql_admin.h"        // mysql_assign_to_keycache
-#include "sql_analyse.h"      // select_analyse
+#include "sql_analyse.h"      // Query_result_analyse
 #include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql_base.h"         // find_temporary_table
 #include "sql_binlog.h"       // mysql_client_binlog_statement
@@ -45,7 +45,7 @@
 #include "sql_do.h"           // mysql_do
 #include "sql_handler.h"      // mysql_ha_rm_tables
 #include "sql_help.h"         // mysqld_help
-#include "sql_insert.h"       // select_create
+#include "sql_insert.h"       // Query_result_create
 #include "sql_load.h"         // mysql_load
 #include "sql_prepare.h"      // mysql_stmt_execute
 #include "sql_reload.h"       // reload_acl_and_cache
@@ -279,11 +279,25 @@ void init_update_queries(void)
   /* Initialize the server command flags array. */
   memset(server_command_flags, 0, sizeof(server_command_flags));
 
-  server_command_flags[COM_STATISTICS]= CF_SKIP_QUESTIONS;
-  server_command_flags[COM_PING]=       CF_SKIP_QUESTIONS;
-  server_command_flags[COM_STMT_PREPARE]= CF_SKIP_QUESTIONS;
-  server_command_flags[COM_STMT_CLOSE]=   CF_SKIP_QUESTIONS;
-  server_command_flags[COM_STMT_RESET]=   CF_SKIP_QUESTIONS;
+  server_command_flags[COM_SLEEP]=               CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_INIT_DB]=             CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_QUERY]=               CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_FIELD_LIST]=          CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_REFRESH]=             CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_SHUTDOWN]=            CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_STATISTICS]=          CF_SKIP_QUESTIONS;
+  server_command_flags[COM_PROCESS_KILL]=        CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_PING]=                CF_SKIP_QUESTIONS;
+  server_command_flags[COM_STMT_PREPARE]=        CF_SKIP_QUESTIONS |
+                                                 CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_STMT_EXECUTE]=        CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_STMT_SEND_LONG_DATA]= CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_STMT_CLOSE]=          CF_SKIP_QUESTIONS |
+                                                 CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_STMT_RESET]=          CF_SKIP_QUESTIONS |
+                                                 CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_STMT_FETCH]=          CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_END]=                 CF_ALLOW_PROTOCOL_PLUGIN;
 
   /* Initialize the sql command flags array. */
   memset(sql_command_flags, 0, sizeof(sql_command_flags));
@@ -618,8 +632,10 @@ bool is_log_table_write_query(enum enum_sql_command command)
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_lock)
 {
+  Protocol_classic *protocol= thd->get_protocol_classic();
   Vio* save_vio;
   ulong save_client_capabilities;
+  COM_DATA com_data;
 
   mysql_rwlock_rdlock(var_lock);
   if (!init_command->length)
@@ -643,17 +659,18 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
 #endif
 
   THD_STAGE_INFO(thd, stage_execution_of_init_command);
-  save_client_capabilities= thd->client_capabilities;
-  thd->client_capabilities|= CLIENT_MULTI_QUERIES;
+  save_client_capabilities= protocol->get_client_capabilities();
+  protocol->add_client_capability(CLIENT_MULTI_QUERIES);
   /*
     We don't need return result of execution to client side.
     To forbid this we should set thd->net.vio to 0.
   */
-  save_vio= thd->net.vio;
-  thd->net.vio= 0;
-  dispatch_command(COM_QUERY, thd, buf, len);
-  thd->client_capabilities= save_client_capabilities;
-  thd->net.vio= save_vio;
+  save_vio= protocol->get_vio();
+  protocol->set_vio(NULL);
+  protocol->create_command(&com_data, COM_QUERY, (uchar *) buf, len);
+  dispatch_command(thd, &com_data, COM_QUERY);
+  protocol->set_client_capabilities(save_client_capabilities);
+  protocol->set_vio(save_vio);
 
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
@@ -704,11 +721,14 @@ void cleanup_items(Item *item)
 bool do_command(THD *thd)
 {
   bool return_value;
-  char *packet= 0;
-  ulong packet_length;
-  NET *net= &thd->net;
-  enum enum_server_command command;
+  int rc;
+  const bool classic=
+    (thd->get_protocol()->type() == Protocol::PROTOCOL_TEXT ||
+     thd->get_protocol()->type() == Protocol::PROTOCOL_BINARY);
 
+  NET *net= NULL;
+  enum enum_server_command command;
+  COM_DATA com_data;
   DBUG_ENTER("do_command");
 
   /*
@@ -716,14 +736,6 @@ bool do_command(THD *thd)
     (see my_message_sql)
   */
   thd->lex->set_current_select(0);
-
-  /*
-    This thread will do a blocking read from the client which
-    will be interrupted when the next command is received from
-    the client, the connection is closed or "net_wait_timeout"
-    number of seconds has passed.
-  */
-  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
 
   /*
     XXX: this code is here only to clear possible errors of init_connect. 
@@ -734,7 +746,18 @@ bool do_command(THD *thd)
   thd->clear_error();				// Clear error message
   thd->get_stmt_da()->reset_diagnostics_area();
 
-  net_new_transaction(net);
+  if (classic)
+  {
+    /*
+      This thread will do a blocking read from the client which
+      will be interrupted when the next command is received from
+      the client, the connection is closed or "net_wait_timeout"
+      number of seconds has passed.
+    */
+    net= thd->get_protocol_classic()->get_net();
+    my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+    net_new_transaction(net);
+  }
 
   /*
     Synchronization point for testing of KILL_CONNECTION.
@@ -764,15 +787,24 @@ bool do_command(THD *thd)
     See init_net_server_extension()
   */
   thd->m_server_idle= true;
-  packet_length= my_net_read(net);
+  rc= thd->get_protocol()->get_command(&com_data, &command);
   thd->m_server_idle= false;
 
-  if (packet_length == packet_error)
+  if (rc)
   {
-    DBUG_PRINT("info",("Got error %d reading command from socket %s",
-		       net->error,
-		       vio_description(net->vio)));
-
+    if (classic)
+    {
+      DBUG_PRINT("info",("Got error %d reading command from socket %s",
+                         net->error,
+                         vio_description(net->vio)));
+    }
+    else
+    {
+      DBUG_PRINT("info",("Got error %d reading command from %s protocol",
+                         rc,
+                         (thd->get_protocol()->type() ==
+                          Protocol::PROTOCOL_LOCAL) ? "local" : "plugin"));
+    }
     /* Instrument this broken statement as "statement/com/error" */
     thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                  com_statement_info[COM_END].m_key);
@@ -781,58 +813,44 @@ bool do_command(THD *thd)
 
     /* The error must be set. */
     DBUG_ASSERT(thd->is_error());
-    thd->protocol->end_statement();
+    thd->send_statement_status();
 
     /* Mark the statement completed. */
     MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
     thd->m_statement_psi= NULL;
     thd->m_digest= NULL;
 
-    if (net->error != 3)
+    if (rc < 0)
     {
       return_value= TRUE;                       // We have to close it.
       goto out;
     }
-
-    net->error= 0;
+    if (classic)
+      net->error= 0;
     return_value= FALSE;
     goto out;
   }
-
-  packet= (char*) net->read_pos;
-  /*
-    'packet_length' contains length of data, as it was stored in packet
-    header. In case of malformed header, my_net_read returns zero.
-    If packet_length is not zero, my_net_read ensures that the returned
-    number of bytes was actually read from network.
-    There is also an extra safety measure in my_net_read:
-    it sets packet[packet_length]= 0, but only for non-zero packets.
-  */
-  if (packet_length == 0)                       /* safety */
-  {
-    /* Initialize with COM_SLEEP packet */
-    packet[0]= (uchar) COM_SLEEP;
-    packet_length= 1;
-  }
-  /* Do not rely on my_net_read, extra safety against programming errors. */
-  packet[packet_length]= '\0';                  /* safety */
-
-  command= (enum enum_server_command) (uchar) packet[0];
-
-  if (command >= COM_END)
-    command= COM_END;				// Wrong command
 
   DBUG_PRINT("info",("Command on %s = %d (%s)",
                      vio_description(net->vio), command,
                      command_name[command].str));
 
+  DBUG_PRINT("info", ("packet: '%*.s'; command: %d",
+             thd->get_protocol_classic()->get_packet_length(),
+             thd->get_protocol_classic()->get_raw_packet(), command));
+  if (thd->get_protocol_classic()->bad_packet)
+    DBUG_ASSERT(0);                // Should be caught earlier
+
+  // Reclaim some memory
+  thd->get_protocol_classic()->get_packet()->shrink(
+      thd->variables.net_buffer_length);
   /* Restore read timeout value */
-  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+  if (classic)
+    my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
-  DBUG_ASSERT(packet_length);
-
-  return_value= dispatch_command(command, thd, packet+1,
-                                 static_cast<size_t>(packet_length-1));
+  return_value= dispatch_command(thd, &com_data, command);
+  thd->get_protocol_classic()->get_packet()->shrink(
+      thd->variables.net_buffer_length);
 
 out:
   /* The statement instrumentation must be closed in all cases. */
@@ -1011,12 +1029,9 @@ void reset_statement_timer(THD *thd)
 /**
   Perform one connection-level (COM_XXXX) command.
 
-  @param command         type of command to perform
   @param thd             connection handle
-  @param packet          data for the command, packet is always null-terminated
-  @param packet_length   length of packet + 1 (to show that data is
-                         null-terminated) except for COM_SLEEP, where it
-                         can be zero.
+  @param command         type of command to perform
+  @com_data              com_data union to store the generated command
 
   @todo
     set thd->lex->sql_command to SQLCOM_END here.
@@ -1029,15 +1044,13 @@ void reset_statement_timer(THD *thd)
     1   request of thread shutdown, i. e. if command is
         COM_QUIT/COM_SHUTDOWN
 */
-bool dispatch_command(enum enum_server_command command, THD *thd,
-		      char* packet, size_t packet_length)
+bool dispatch_command(THD *thd, COM_DATA *com_data,
+                      enum enum_server_command command)
 {
-  NET *net= &thd->net;
   bool error= 0;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   DBUG_ENTER("dispatch_command");
-  DBUG_PRINT("info",("packet: '%*.s'; command: %d",
-                     static_cast<int>(packet_length), packet, command));
+  DBUG_PRINT("info", ("command: %d", command));
 
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
@@ -1087,6 +1100,15 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
 
+  if (thd->get_protocol()->type() == Protocol::PROTOCOL_PLUGIN &&
+      !(server_command_flags[command] & CF_ALLOW_PROTOCOL_PLUGIN))
+  {
+    my_error(ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED, MYF(0));
+    thd->killed= THD::KILL_CONNECTION;
+    error= true;
+    goto done;
+  }
+
   /**
     Enforce password expiration for all RPC commands, except the
     following:
@@ -1114,7 +1136,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     LEX_STRING tmp;
     thd->status_var.com_stat[SQLCOM_CHANGE_DB]++;
     thd->convert_string(&tmp, system_charset_info,
-			packet, packet_length, thd->charset());
+                        (char*) com_data->com_init_db.db_name,
+                        com_data->com_init_db.length, thd->charset());
 
     LEX_CSTRING tmp_cstr= {tmp.str, tmp.length};
     if (!mysql_change_db(thd, tmp_cstr, FALSE))
@@ -1128,7 +1151,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifdef HAVE_REPLICATION
   case COM_REGISTER_SLAVE:
   {
-    if (!register_slave(thd, (uchar*)packet, packet_length))
+    // TODO: access of protocol_classic should be removed
+    if (!register_slave(thd,
+      thd->get_protocol_classic()->get_raw_packet(),
+      thd->get_protocol_classic()->get_packet_length()))
       my_ok(thd);
     break;
   }
@@ -1146,16 +1172,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->status_var.com_other++;
 
     thd->cleanup_connection();
-
-    /* acl_authenticate() takes the data from net->read_pos */
-    net->read_pos= (uchar*)packet;
-
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
     LEX_CSTRING save_db= thd->db();
     Security_context save_security_ctx(*(thd->security_context()));
 
-    auth_rc= acl_authenticate(thd, packet_length);
+    auth_rc= acl_authenticate(thd, COM_CHANGE_USER);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
     if (auth_rc)
     {
@@ -1186,32 +1208,40 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_EXECUTE:
   {
-    mysqld_stmt_execute(thd, packet, packet_length);
+    mysqld_stmt_execute(thd, com_data->com_stmt_execute.stmt_id,
+                        com_data->com_stmt_execute.flags,
+                        com_data->com_stmt_execute.params,
+                        com_data->com_stmt_execute.params_length);
     break;
   }
   case COM_STMT_FETCH:
   {
-    mysqld_stmt_fetch(thd, packet, packet_length);
+    mysqld_stmt_fetch(thd, com_data->com_stmt_fetch.stmt_id,
+                      com_data->com_stmt_fetch.num_rows);
     break;
   }
   case COM_STMT_SEND_LONG_DATA:
   {
-    mysql_stmt_get_longdata(thd, packet, packet_length);
+    mysql_stmt_get_longdata(thd, com_data->com_stmt_send_long_data.stmt_id,
+                            com_data->com_stmt_send_long_data.param_number,
+                            com_data->com_stmt_send_long_data.longdata,
+                            com_data->com_stmt_send_long_data.length);
     break;
   }
   case COM_STMT_PREPARE:
   {
-    mysqld_stmt_prepare(thd, packet, packet_length);
+    mysqld_stmt_prepare(thd, com_data->com_stmt_prepare.query,
+                        com_data->com_stmt_prepare.length);
     break;
   }
   case COM_STMT_CLOSE:
   {
-    mysqld_stmt_close(thd, packet, packet_length);
+    mysqld_stmt_close(thd, com_data->com_stmt_close.stmt_id);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysqld_stmt_reset(thd, packet, packet_length);
+    mysqld_stmt_reset(thd, com_data->com_stmt_reset.stmt_id);
     break;
   }
   case COM_QUERY:
@@ -1220,7 +1250,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->m_digest= & thd->m_digest_state;
     thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
-    if (alloc_query(thd, packet, packet_length))
+    if (alloc_query(thd, com_data->com_query.query,
+                    com_data->com_query.length))
       break;					// fatal error is set
     MYSQL_QUERY_START(const_cast<char*>(thd->query().str), thd->thread_id(),
                       (char *) (thd->db().str ? thd->db().str : ""),
@@ -1258,7 +1289,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       /* Finalize server status flags after executing a statement. */
       thd->update_server_status();
-      thd->protocol->end_statement();
+      thd->send_statement_status();
       query_cache.end_of_result(thd);
 
       mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
@@ -1333,7 +1364,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_FIELD_LIST:				// This isn't actually needed
   {
-    char *fields, *packet_end= packet + packet_length, *arg_end;
+    char *fields;
     /* Locked closure of all tables */
     TABLE_LIST table_list;
     LEX_STRING table_name;
@@ -1347,20 +1378,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->status_var.com_stat[SQLCOM_SHOW_FIELDS]++;
     if (thd->copy_db_to(&db.str, &db.length))
       break;
-    /*
-      We have name + wildcard in packet, separated by endzero
-    */
-    arg_end= strend(packet);
-    size_t arg_length= static_cast<size_t>(arg_end - packet);
-
-    /* Check given table name length. */
-    if (arg_length >= packet_length || arg_length > NAME_LEN)
-    {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      break;
-    }
     thd->convert_string(&table_name, system_charset_info,
-			packet, arg_length, thd->charset());
+                        (char *) com_data->com_field_list.table_name,
+                        com_data->com_field_list.table_name_length,
+                        thd->charset());
     enum_ident_name_check ident_check_status=
       check_table_name(table_name.str, table_name.length, FALSE);
     if (ident_check_status == IDENT_NAME_WRONG)
@@ -1374,7 +1395,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_error(ER_TOO_LONG_IDENT, MYF(0), table_name.str);
       break;
     }
-    packet= arg_end + 1;
     mysql_reset_thd_for_next_command(thd);
     lex_start(thd);
     /* Must be before we init the table list. */
@@ -1399,11 +1419,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    size_t query_length=
-      static_cast<size_t>(packet_end - packet); // Don't count end \0
-    if (!(fields= (char *) thd->memdup(packet, query_length + 1)))
+    if (!(fields=
+        (char *) thd->memdup(com_data->com_field_list.query,
+                             com_data->com_field_list.query_length)))
       break;
-    thd->set_query(fields, query_length);
+    // Don't count end \0
+    thd->set_query(fields, com_data->com_field_list.query_length - 1);
     query_logger.general_log_print(thd, command, "%s %s",
                                    table_list.table_name, fields);
 
@@ -1449,27 +1470,31 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_QUIT:
     /* We don't calculate statistics for this command */
     query_logger.general_log_print(thd, command, NullS);
-    net->error=0;				// Don't give 'abort' message
-    thd->get_stmt_da()->disable_status();              // Don't send anything back
+    // Don't give 'abort' message
+    // TODO: access of protocol_classic should be removed
+    thd->get_protocol_classic()->get_net()->error= 0;
+    thd->get_stmt_da()->disable_status();       // Don't send anything back
     error=TRUE;					// End server
     break;
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP_GTID:
-    error= com_binlog_dump_gtid(thd, packet, packet_length);
+    // TODO: access of protocol_classic should be removed
+    error=
+      com_binlog_dump_gtid(thd,
+        (char *)thd->get_protocol_classic()->get_raw_packet(),
+        thd->get_protocol_classic()->get_packet_length());
     break;
   case COM_BINLOG_DUMP:
-    error= com_binlog_dump(thd, packet, packet_length);
+    // TODO: access of protocol_classic should be removed
+    error=
+      com_binlog_dump(thd,
+        (char*)thd->get_protocol_classic()->get_raw_packet(),
+        thd->get_protocol_classic()->get_packet_length());
     break;
 #endif
   case COM_REFRESH:
   {
     int not_used;
-
-    if (packet_length < 1)
-    {
-      my_error(ER_MALFORMED_PACKET, MYF(0));
-      break;
-    }
 
     /*
       Initialize thd->lex since it's used in many base functions, such as
@@ -1479,7 +1504,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     lex_start(thd);
     
     thd->status_var.com_stat[SQLCOM_FLUSH]++;
-    ulong options= (ulong) (uchar) packet[0];
+    ulong options= (ulong) com_data->com_refresh.options;
     if (trans_commit_implicit(thd))
       break;
     thd->mdl_context.release_transactional_locks();
@@ -1519,11 +1544,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
-    if (packet_length < 1)
-    {
-      my_error(ER_MALFORMED_PACKET, MYF(0));
-      break;
-    }
     thd->status_var.com_other++;
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
@@ -1537,7 +1557,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!thd->is_valid_time())
       level= SHUTDOWN_DEFAULT;
     else
-      level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
+      level= com_data->com_shutdown.level;
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
     else if (level != SHUTDOWN_WAIT_ALL_BUFFERS)
@@ -1586,8 +1606,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Store the buffer in permanent memory */
     my_ok(thd, 0, 0, buff);
 #else
-    (void) my_net_write(net, (uchar*) buff, length);
-    (void) net_flush(net);
+    // TODO: access of protocol_classic should be removed.
+    // should be rewritten using store functions
+    thd->get_protocol_classic()->write((uchar*) buff, length);
+    thd->get_protocol_classic()->flush_net();
     thd->get_stmt_da()->disable_status();
 #endif
     break;
@@ -1609,34 +1631,29 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    DBUG_ASSERT(sizeof(my_thread_id) == 4);
-    if (packet_length < 4)
-      my_error(ER_MALFORMED_PACKET, MYF(0));
+    if (thd_manager->get_thread_id() & (~0xfffffffful))
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
     else
     {
-      thd->status_var.com_stat[SQLCOM_KILL]++;
-      my_thread_id id= static_cast<my_thread_id>(uint4korr(packet));
-      sql_kill(thd,id,false);
+    thd->status_var.com_stat[SQLCOM_KILL]++;
+      sql_kill(thd, com_data->com_kill.id, false);
     }
     break;
   }
   case COM_SET_OPTION:
   {
-    if (packet_length < 2)
-    {
-      my_error(ER_MALFORMED_PACKET, MYF(0));
-      break;
-    }
     thd->status_var.com_stat[SQLCOM_SET_OPTION]++;
-    uint opt_command= uint2korr(packet);
 
-    switch (opt_command) {
+    switch (com_data->com_set_option.opt_command) {
     case (int) MYSQL_OPTION_MULTI_STATEMENTS_ON:
-      thd->client_capabilities|= CLIENT_MULTI_STATEMENTS;
+      //TODO: access of protocol_classic should be removed
+      thd->get_protocol_classic()->add_client_capability(
+          CLIENT_MULTI_STATEMENTS);
       my_eof(thd);
       break;
     case (int) MYSQL_OPTION_MULTI_STATEMENTS_OFF:
-      thd->client_capabilities&= ~CLIENT_MULTI_STATEMENTS;
+      thd->get_protocol_classic()->remove_client_capability(
+        CLIENT_MULTI_STATEMENTS);
       my_eof(thd);
       break;
     default:
@@ -1672,7 +1689,7 @@ done:
   thd->update_server_status();
   if (thd->killed)
     thd->send_kill_message();
-  thd->protocol->end_statement();
+  thd->send_statement_status();
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
   query_cache.end_of_result(thd);
 
@@ -1697,7 +1714,6 @@ done:
   thd->m_digest= NULL;
 
   thd_manager->dec_thread_running();
-  thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
   /* DTRACE instrumentation, end */
@@ -1868,7 +1884,9 @@ bool alloc_query(THD *thd, const char *packet, size_t packet_length)
   thd->set_query(query, packet_length);
 
   /* Reclaim some memory */
-  thd->packet.shrink(thd->variables.net_buffer_length);
+  if(thd->get_protocol()->type() == Protocol::PROTOCOL_TEXT ||
+     thd->get_protocol()->type() == Protocol::PROTOCOL_BINARY)
+
   thd->convert_buffer.shrink(thd->variables.net_buffer_length);
 
   return FALSE;
@@ -2645,7 +2663,7 @@ case SQLCOM_PREPARE:
     TABLE_LIST *select_tables= lex->create_last_non_select_table->next_global;
 
     /*
-      Code below (especially in mysql_create_table() and select_create
+      Code below (especially in mysql_create_table() and Query_result_create
       methods) may modify HA_CREATE_INFO structure in LEX, so we have to
       use a copy of this structure to make execution prepared statement-
       safe. A shallow copy is enough as this code won't modify any memory
@@ -2730,7 +2748,7 @@ case SQLCOM_PREPARE:
 
     if (select_lex->item_list.elements)		// With select
     {
-      select_result *result;
+      Query_result *result;
 
       /*
         CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
@@ -2845,15 +2863,15 @@ case SQLCOM_PREPARE:
           }
 
         /*
-          select_create is currently not re-execution friendly and
+          Query_result_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.
         */
-        if ((result= new select_create(create_table,
-                                       &create_info,
-                                       &alter_info,
-                                       select_lex->item_list,
-                                       lex->duplicates,
-                                       select_tables)))
+        if ((result= new Query_result_create(create_table,
+                                             &create_info,
+                                             &alter_info,
+                                             select_lex->item_list,
+                                             lex->duplicates,
+                                             select_tables)))
         {
           Ignore_error_handler ignore_handler;
           Strict_error_handler strict_handler;
@@ -3281,7 +3299,7 @@ end_with_restore_list:
 
     if (lex->local_file)
     {
-      if (!(thd->client_capabilities & CLIENT_LOCAL_FILES) ||
+      if (!thd->get_protocol()->has_client_capability(CLIENT_LOCAL_FILES) ||
           !opt_local_infile)
       {
 	my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND), MYF(0));
@@ -4003,6 +4021,12 @@ end_with_restore_list:
     if (sp_process_definer(thd))
       goto error;
 
+    /*
+      Record the CURRENT_USER in binlog. The CURRENT_USER is used on slave to
+      grant default privileges when sp_automatic_privileges variable is set.
+    */
+    thd->binlog_invoker();
+
     if (! (res= sp_create_routine(thd, lex->sphead)))
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4011,7 +4035,6 @@ end_with_restore_list:
       Security_context security_context;
       bool restore_backup_context= false;
       Security_context *backup= NULL;
-      LEX_USER *definer= thd->lex->definer;
       /*
         We're going to issue an implicit GRANT statement so we close all
         open tables. We have to keep metadata locks as this ensures that
@@ -4030,21 +4053,41 @@ end_with_restore_list:
       DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
       close_thread_tables(thd);
       /*
-        Check if the definer exists on slave, 
+        Check if invoker exists on slave, then use invoker privilege to
+        insert routine privileges to mysql.procs_priv. If invoker is not
+        available then consider using definer.
+
+        Check if the definer exists on slave,
         then use definer privilege to insert routine privileges to mysql.procs_priv.
 
-        For current user of SQL thread has GLOBAL_ACL privilege, 
-        which doesn't any check routine privileges, 
+        For current user of SQL thread has GLOBAL_ACL privilege,
+        which doesn't any check routine privileges,
         so no routine privilege record  will insert into mysql.procs_priv.
       */
-      if (thd->slave_thread && is_acl_user(definer->host.str, definer->user.str))
+
+      if (thd->slave_thread)
       {
-        security_context.change_security_context(thd,
-                                                 thd->lex->definer->user,
-                                                 thd->lex->definer->host,
-                                                 &thd->lex->sphead->m_db,
-                                                 &backup);
-        restore_backup_context= true;
+        LEX_CSTRING current_user;
+        LEX_CSTRING current_host;
+        if (thd->has_invoker())
+        {
+          current_host= thd->get_invoker_host();
+          current_user= thd->get_invoker_user();
+        }
+        else
+        {
+          current_host= lex->definer->host;
+          current_user= lex->definer->user;
+        }
+        if (is_acl_user(current_host.str, current_user.str))
+        {
+          security_context.change_security_context(thd,
+                                                   current_user,
+                                                   current_host,
+                                                   &thd->lex->sphead->m_db,
+                                                   &backup);
+          restore_backup_context= true;
+        }
       }
 
       if (sp_automatic_privileges && !opt_noacl &&
@@ -4122,7 +4165,7 @@ end_with_restore_list:
 
 	if (sp->m_flags & sp_head::MULTI_RESULTS)
 	{
-	  if (! (thd->client_capabilities & CLIENT_MULTI_RESULTS))
+	  if (!thd->get_protocol()->has_client_capability(CLIENT_MULTI_RESULTS))
 	  {
             /*
               The client does not support multiple result sets being sent
@@ -4462,11 +4505,15 @@ end_with_restore_list:
   case SQLCOM_ALTER_USER:
   {
     LEX_USER *user, *tmp_user;
+    bool changing_own_password= false;
+    bool own_password_expired= thd->security_context()->password_expired();
+    bool check_permission= true;
 
     List_iterator <LEX_USER> user_list(lex->users_list);
     while ((tmp_user= user_list++))
     {
       bool update_password_only= FALSE;
+      bool is_self= false;
 
       /* If it is an empty lex_user update it with current user */
       if (!tmp_user->host.str && !tmp_user->user.str)
@@ -4494,23 +4541,39 @@ end_with_restore_list:
           (thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED))
         update_password_only= TRUE;
 
+      is_self= !strcmp(thd->security_context()->user().length ?
+                       thd->security_context()->user().str : "",
+                       user->user.str) &&
+               !my_strcasecmp(&my_charset_latin1, user->host.str,
+                              thd->security_context()->priv_host().str);
       /*
         if user executes ALTER statement to change password only
         for himself then skip access check.
       */
-      if (update_password_only &&
-          !(strcmp(thd->security_context()->user().str, user->user.str) ||
-          my_strcasecmp(&my_charset_latin1, user->host.str,
-                        thd->security_context()->priv_host().str)))
+      if (update_password_only && is_self)
+      {
+        changing_own_password= true;
         continue;
-      else
+      }
+      else if (check_permission)
       {
         if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
             check_global_access(thd, CREATE_USER_ACL))
           goto error;
-        else
-          break;
+
+        check_permission= false;
       }
+
+      if (is_self &&
+          (user->uses_identified_by_clause ||
+           user->uses_identified_with_clause ||
+           user->uses_authentication_string_clause ||
+           user->uses_identified_by_password_clause))
+      {
+        changing_own_password= true;
+        break;
+      }
+
       if (update_password_only &&
           !strcmp(thd->security_context()->priv_user().str,""))
       {
@@ -4519,6 +4582,13 @@ end_with_restore_list:
         goto error;
       }
     }
+
+    if (unlikely(own_password_expired && !changing_own_password))
+    {
+      my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+      goto error;
+    }
+
     /* Conditionally writes to binlog */
     if (!(res= mysql_alter_user(thd, lex->users_list)))
       my_ok(thd);
@@ -4692,27 +4762,27 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     if (lex->is_explain())
     {
       /*
-        We always use select_send for EXPLAIN, even if it's an EXPLAIN
+        We always use Query_result_send for EXPLAIN, even if it's an EXPLAIN
         for SELECT ... INTO OUTFILE: a user application should be able
         to prepend EXPLAIN to any query and receive output for it,
         even if the query itself redirects the output.
       */
-      select_result *const result= new select_send;
+      Query_result *const result= new Query_result_send;
       if (!result)
         return true; /* purecov: inspected */
       res= handle_query(thd, lex, result, 0, 0);
     }
     else
     {
-      select_result *result= lex->result;
-      if (!result && !(result= new select_send()))
+      Query_result *result= lex->result;
+      if (!result && !(result= new Query_result_send()))
         return true;                            /* purecov: inspected */
-      select_result *save_result= result;
-      select_result *analyse_result= NULL;
+      Query_result *save_result= result;
+      Query_result *analyse_result= NULL;
       if (lex->proc_analyse)
       {
         if ((result= analyse_result=
-               new select_analyse(result, lex->proc_analyse)) == NULL)
+               new Query_result_analyse(result, lex->proc_analyse)) == NULL)
           return true;
       }
       res= handle_query(thd, lex, result, 0, 0);
@@ -5087,9 +5157,11 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (mqh_used && thd->get_user_connect() &&
-	  check_mqh(thd, lex->sql_command))
+          check_mqh(thd, lex->sql_command))
       {
-	thd->net.error = 0;
+        if (thd->get_protocol()->type() == Protocol::PROTOCOL_TEXT ||
+            thd->get_protocol()->type() == Protocol::PROTOCOL_BINARY)
+          thd->get_protocol_classic()->get_net()->error = 0;
       }
       else
 #endif
@@ -5166,6 +5238,9 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           */
           if (error == 0 &&
               (thd->lex->sql_command == SQLCOM_COMMIT ||
+               (thd->slave_thread &&
+                (thd->lex->sql_command == SQLCOM_XA_COMMIT ||
+                 thd->lex->sql_command == SQLCOM_XA_ROLLBACK)) ||
                stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
                ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
                  thd->lex->sql_command == SQLCOM_DROP_TABLE) &&
@@ -6107,8 +6182,16 @@ public:
   {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
-    /* Kill only if non super thread and non slave thread */
-    if (!(thd_to_kill->security_context()->check_access(SUPER_ACL))
+    /* Kill only if non super thread and non slave thread.
+       If an account has not yet been assigned to the security context of the
+       thread we cannot tell if the account is super user or not. In this case
+       we cannot kill that thread. In offline mode, after the account is
+       assigned to this thread and it turns out it is not super user thread,
+       the authentication for this thread will fail and the thread will be
+       terminated.
+    */
+    if (thd_to_kill->security_context()->has_account_assigned()
+  && !(thd_to_kill->security_context()->check_access(SUPER_ACL))
 	&& thd_to_kill->killed != THD::KILL_CONNECTION
 	&& !thd_to_kill->slave_thread)
       thd_to_kill->awake(THD::KILL_CONNECTION);

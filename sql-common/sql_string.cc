@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -442,6 +442,8 @@ void String::strip_sp()
 
 bool String::append(const String &s)
 {
+  DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
+  DBUG_ASSERT(!s.uses_buffer_owned_by(this));
   if (s.length())
   {
     if (mem_realloc(m_length+s.length()))
@@ -745,18 +747,10 @@ void String::qs_append(const char *str, size_t len)
   m_length += len;
 }
 
-void String::qs_append(double d)
+void String::qs_append(double d, size_t len)
 {
   char *buff = m_ptr + m_length;
-  m_length+= my_gcvt(d, MY_GCVT_ARG_DOUBLE, FLOATING_POINT_BUFFER - 1, buff,
-                     NULL);
-}
-
-void String::qs_append(double *d)
-{
-  double ld;
-  float8get(&ld, (char*) d);
-  qs_append(ld);
+  m_length+= my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, NULL);
 }
 
 void String::qs_append(int i)
@@ -860,6 +854,11 @@ String *copy_if_not_alloced(String *to,String *from, size_t from_length)
   }
   if (to->mem_realloc(from_length, true))
     return from;				// Actually an error
+
+  // from and to should not be overlapping
+  DBUG_ASSERT(!to->uses_buffer_owned_by(from));
+  DBUG_ASSERT(!from->uses_buffer_owned_by(to));
+
   if ((to->m_length= min(from->m_length, from_length)))
     memcpy(to->m_ptr, from->m_ptr, to->m_length);
   to->m_charset=from->m_charset;

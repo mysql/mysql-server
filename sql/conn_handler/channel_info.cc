@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ THD* Channel_info::create_thd()
     return NULL;
   }
 
-  my_net_init(&thd->net, vio_tmp);
+  thd->get_protocol_classic()->init_net(vio_tmp);
 
   return thd;
 }

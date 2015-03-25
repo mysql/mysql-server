@@ -2,6 +2,8 @@
 # Tests of the dedicated thread for refreshing the rules table.
 #
 SET sql_mode = 'PIPES_AS_CONCAT';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Query rewrite plugin was installed.
 #
 # We will now test shutting down the server while refreshing rules. We
@@ -24,6 +26,8 @@ Id	User	Host	db	Command	Time	State	Info
 # mutex.
 SET @@global.rewriter_enabled = OFF;
 CALL query_rewrite.flush_rewrite_rules();
+# We don't care if we time out here, as long as we manage to restart the
+# server.
 SET debug_sync = 'now WAIT_FOR parked';
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info

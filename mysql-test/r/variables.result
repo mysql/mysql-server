@@ -1442,8 +1442,6 @@ SELECT @@global.expire_logs_days;
 SET GLOBAL expire_logs_days = 11;
 SET @old_mode=@@sql_mode;
 SET SESSION sql_mode = 'TRADITIONAL';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET GLOBAL expire_logs_days = 100;
 ERROR 42000: Variable 'expire_logs_days' can't be set to the value of '100'
 needs to be unchanged (11)
@@ -1541,6 +1539,8 @@ SET @kbs=@@global.key_buffer_size;
 SET @kcbs=@@global.key_cache_block_size;
 throw errors in STRICT mode
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@global.max_binlog_cache_size=-1;
 ERROR 42000: Variable 'max_binlog_cache_size' can't be set to the value of '-1'
 SET @@global.max_join_size=0;
@@ -1828,4 +1828,4 @@ set global log_slow_slave_statements = default;
 #
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION

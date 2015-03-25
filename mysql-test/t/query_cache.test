@@ -1497,4 +1497,18 @@ DROP DATABASE `db-db`;
 --echo #
 /*!*/;
 
+--echo #
+--echo # BUG 20528928 - BUFFER OVERFLOW IN MYSQL_QUERY_CACHE_INVALIDATE4
+--echo #
+
+CREATE DATABASE `tttttttttttttttttttttttttttttttttttttttttt`;
+USE `tttttttttttttttttttttttttttttttttttttttttt`;
+CREATE TABLE parent(a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE spoiled_child(a INT PRIMARY KEY,
+     FOREIGN KEY(a) REFERENCES parent(a) ON DELETE CASCADE) ENGINE=InnoDB;
+INSERT INTO parent VALUES(1),(2),(3);
+INSERT INTO spoiled_child VALUES (1),(2);
+DELETE FROM parent WHERE a>1;
+DROP DATABASE `tttttttttttttttttttttttttttttttttttttttttt`;
+
 SET GLOBAL query_cache_size = @query_cache_size.saved;

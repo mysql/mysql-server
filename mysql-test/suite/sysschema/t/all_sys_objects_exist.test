@@ -1,0 +1,16 @@
+-- source include/not_embedded.inc
+# Ensure database exists
+USE sys;
+
+# Ensure all views are created
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' ORDER BY TABLE_NAME;
+
+# Ensure all functions and routines are created
+SELECT ROUTINE_NAME, ROUTINE_TYPE FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' ORDER BY ROUTINE_TYPE, ROUTINE_NAME;
+
+# Ensure all triggers are created
+SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys' ORDER BY TRIGGER_NAME;
+
+# Check the version of the schema (and ensure no updates slip in undetected)
+SELECT sys_version FROM sys.version;
+

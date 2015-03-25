@@ -649,3 +649,71 @@ ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
 
 #cleanup
 DROP table child,parent;
+
+# Check add spatial index when table already has rows (inplace).
+create table t1 (c1 int) engine=innodb;
+insert into t1 values(NULL);
+
+# Add spatial index fail, since geometry column can't be null.
+--error ER_SPATIAL_CANT_HAVE_NULL
+alter table t1 add b geometry, add spatial index(b), algorithm=inplace;
+
+# Add spatial index fail, since there's invalid geo data.
+# The case has to be commented because it no longer fails and following cases
+# don't expect the effect of such a statement.
+#--error ER_CANT_CREATE_GEOMETRY_OBJECT
+# alter table t1 add b geometry not null, add spatial index(b), algorithm=inplace;
+
+# Add a geometry column.
+alter table t1 add b geometry not null, algorithm=inplace;
+
+# Add spatial index fail, since there's a NULL or invalid geo data.
+# The case has to be commented because it no longer fails and following cases
+# don't expect the effect of such a statement.
+#--error ER_CANT_CREATE_GEOMETRY_OBJECT
+#alter table t1 add spatial index(b), algorithm=inplace;
+
+# Update invalide geo data to point(0 0).
+update t1 set b = st_geomfromtext('point(0 0)');
+
+# Add spatial index success.
+alter table t1 add spatial index(b), algorithm=inplace;
+
+# Delete rows.
+delete from t1;
+
+#cleanup
+DROP table t1;
+
+# Check add spatial index when table already has rows (copy).
+create table t1 (c1 int) engine=innodb;
+insert into t1 values(NULL);
+
+# Add spatial index fail, since geometry column can't be null.
+--error ER_SPATIAL_CANT_HAVE_NULL
+alter table t1 add b geometry, add spatial index(b), algorithm=copy;
+
+# Add spatial index fail, since there's a NULL or invalid geo data.
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+alter table t1 add b geometry not null, add spatial index(b), algorithm=copy;
+
+# Add a geometry column.
+alter table t1 add b geometry not null, algorithm=copy;
+
+# Add spatial index.
+# The case has to be commented because it no longer fails and following cases
+# don't expect the effect of such a statement.
+#--error ER_CANT_CREATE_GEOMETRY_OBJECT
+#alter table t1 add spatial index(b), algorithm=copy;
+
+# Update invalide geo data to point(0 0).
+update t1 set b = st_geomfromtext('point(0 0)');
+
+# Add spatial index success.
+alter table t1 add spatial index(b), algorithm=copy;
+
+# Delete rows.
+delete from t1;
+
+#cleanup
+DROP table t1;

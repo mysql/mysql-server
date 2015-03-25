@@ -8,6 +8,9 @@
 
 -- source include/testdb_only.inc
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+
 --disable_warnings
 drop table if exists t1,t2;
 drop view if exists v1,v2;
@@ -249,6 +252,7 @@ show create view testdb_1.v1;
 connection default;
 drop user mysqltest_1@localhost;
 drop database testdb_1;
+set sql_mode= @orig_sql_mode;
 connection user1;
 disconnect user1;
 --source include/wait_until_disconnected.inc

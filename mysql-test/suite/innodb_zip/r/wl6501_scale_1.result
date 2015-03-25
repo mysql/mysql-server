@@ -1,4 +1,4 @@
-set global innodb_file_per_table = on;
+set innodb_strict_mode=OFF;
 create procedure populate()
 begin
 declare i int default 1;
@@ -19,9 +19,10 @@ insert into t3 values (i, 'a', 'b');
 set i = i + 1;
 end while;
 end|
-use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create table tNUMBER
 (i int, cNUMBER char(NUMBER), cNUMBER char(NUMBER),
 index cNUMBER_idx(cNUMBER))
@@ -44,7 +45,6 @@ index c1_idx(c1))
 engine=innodb row_format=compact
 key_block_size=16;
 Warnings:
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
 select count(*) from t1;
@@ -114,9 +114,11 @@ drop table t2;
 drop table t3;
 drop procedure populate;
 drop procedure populate_small;
-set global innodb_file_format = Antelope;
+set global innodb_file_format = Barracuda;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 set global innodb_file_per_table = 1;
-set global innodb_file_per_table = on;
+set innodb_strict_mode=OFF;
 create procedure populate()
 begin
 declare i int default 1;
@@ -137,9 +139,10 @@ insert into t3 values (i, 'a', 'b');
 set i = i + 1;
 end while;
 end|
-use test;
 set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create table tNUMBER
 (i int, cNUMBER char(NUMBER), cNUMBER char(NUMBER),
 index cNUMBER_idx(cNUMBER))
@@ -222,9 +225,11 @@ drop table t2;
 drop table t3;
 drop procedure populate;
 drop procedure populate_small;
-set global innodb_file_format = Antelope;
+set global innodb_file_format = Barracuda;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 set global innodb_file_per_table = 1;
-set global innodb_file_per_table = on;
+set innodb_strict_mode=OFF;
 create procedure populate()
 begin
 declare i int default 1;
@@ -245,9 +250,10 @@ insert into t3 values (i, 'a', 'b');
 set i = i + 1;
 end while;
 end|
-use test;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create table tNUMBER
 (i int, cNUMBER char(NUMBER), cNUMBER char(NUMBER),
 index cNUMBER_idx(cNUMBER))
@@ -342,5 +348,7 @@ drop table t2;
 drop table t3;
 drop procedure populate;
 drop procedure populate_small;
-set global innodb_file_format = Antelope;
+set global innodb_file_format = Barracuda;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 set global innodb_file_per_table = 1;

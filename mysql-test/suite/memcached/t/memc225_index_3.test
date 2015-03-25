@@ -1,0 +1,306 @@
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+source include/have_innodb.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+--enable_query_log
+ 
+--enable_connect_log
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "|");
+
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+			       "c11", "c2,c21", "c3", "c4", "c5", "it1");
+
+CREATE USER mysqltest1@localhost;
+connect (mysqltest1,localhost,mysqltest1,,);
+connection mysqltest1;
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1        (c1  VARCHAR(32),
+                        c11 VARCHAR(32),
+			c2  VARCHAR(1024),
+			c21 VARCHAR(1024),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+--disable_warnings
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+CREATE TABLE t2        (c1 VARCHAR(32),
+			c2 VARCHAR(255),
+			c21 VARCHAR(255),
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+
+INSERT INTO t1 VALUES ('D','Dd', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B','Bb', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C','Cc', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H','Hh', 'Hamburg', 'Norderstedt', 0, 0, 0);
+
+INSERT INTO t2 VALUES ('Dd', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t2 VALUES ('Bb', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t2 VALUES ('Cc', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t2 VALUES ('Hh', 'Hamburg', 'Norderstedt', 0, 0, 0);
+
+CREATE UNIQUE INDEX it1 ON t1(c11);
+
+# Tables must exist before plugin can be started!
+# This shall fail due to index not qualify
+connection default;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+connection mysqltest1;
+USE test;
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+SELECT SLEEP(2);
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results with D,B,H,C:\n";
+$val = $memd->get("Dd");
+if ($val) { print "$val\n"; }
+$val = $memd->get("Bb");
+if ($val) { print "$val\n"; }
+$val = $memd->get("Hh");
+if ($val) { print "$val\n"; }
+$val = $memd->get("Cc");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after set:\n";
+$val = $memd->set("Ee","Essen|Ost");
+$val = $memd->get("Ee");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after add:\n";
+$val = $memd->add("Ff","Frankfurt|Sachsenhause");
+$val = $memd->get("Ff");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after replace:\n";
+$val = $memd->replace("Ff","Frankfurt a. M.|Sachsenhausen");
+$val = $memd->get("Ff");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after delete:\n";
+$val = $memd->delete("Ff");
+$val = $memd->get("Ff");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after add Frankfurt|Airport:\n";
+$val = $memd->add("Ff","Frankfurt|Airport");
+$val = $memd->get("Ff");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+$val = $memd->replace("Ff","Frankfurt a. M.|Sachsenhausen");
+$val = $memd->get("Ff");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+connection default;
+# Stop plugin befor innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+ALTER TABLE test.t1 DROP PRIMARY KEY;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+connection mysqltest1;
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after set:\n";
+$val = $memd->set("Ee","Essen|Ost");
+$val = $memd->get("Ee");
+if ($val) { print "$val\n"; }
+$val = $memd->get("H");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+connection default;
+# Stop plugin befor innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+ALTER TABLE test.t1 ADD CONSTRAINT PRIMARY KEY (c11);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+SHOW CREATE TABLE test.t1;
+
+connection mysqltest1;
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after set:\n";
+$val = $memd->set("Ee","Essen|Ost");
+$val = $memd->get("Ee");
+if ($val) { print "$val\n"; }
+$val = $memd->add("Ff","Frankfurt|Sachsenhause");
+$val = $memd->get("Ff");
+if ($val) { print "$val\n"; }
+$val = $memd->get("Hh");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c1,c11,c2,c21 FROM t1;
+
+connection default;
+# Stop plugin befor innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+ALTER TABLE test.t1 DROP COLUMN c1;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+connection mysqltest1;
+perl;
+use DBI;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11225" ],
+  'connect_timeout' => 20,
+  'select_timeout' => 20
+};
+print "Here the memcached results after add:\n";
+$val = $memd->set("Ee","Essen|Ost");
+$val = $memd->get("Ee");
+if ($val) { print "$val\n"; }
+$val = $memd->add("Ff","Frankfurt|Sachsenhause");
+$val = $memd->get("Ff");
+if ($val) { print "$val\n"; }
+$val = $memd->get("Hh");
+if ($val) { print "$val\n"; }
+$memd->disconnect_all;
+EOF
+
+--sorted_result
+SELECT c11,c2,c21 FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+connection default;
+disconnect mysqltest1;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+DROP USER mysqltest1@localhost;
+ 
+SET @@global.tx_isolation= @tx_isolation;

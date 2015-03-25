@@ -46,6 +46,30 @@ void item_init(void);			/* Init item functions */
 #define COND_FILTER_INEQUALITY 0.3333f
 /// Filtering effect for between: col1 BETWEEN a AND b
 #define COND_FILTER_BETWEEN 0.1111f
+/**
+   Value is out-of-date, will need recalculation.
+   This is used by post-greedy-search logic which changes the access method and thus
+   makes obsolete the filtering value calculated by best_access_path(). For
+  example, test_if_skip_sort_order().
+*/
+#define COND_FILTER_STALE -1.0f
+/**
+   A special subcase of the above:
+   - if this is table/index/range scan, and
+   - rows_fetched is how many rows we will examine, and
+   - rows_fetched is less than the number of rows in the table (as determined
+   by test_if_cheaper_ordering() and test_if_skip_sort_order()).
+   Unlike the ordinary case where rows_fetched:
+   - is set by calculate_scan_cost(), and
+   - is how many rows pass the constant condition (so, less than we will
+   examine), and
+   - the actual rows_fetched to show in EXPLAIN is the number of rows in the
+   table (== rows which we will examine), and
+   - the constant condition's effect has to be moved to filter_effect for
+   EXPLAIN.
+*/
+#define COND_FILTER_STALE_NO_CONST -2.0f
+
 
 static inline uint32
 char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
@@ -817,7 +841,15 @@ public:
     substitution in subquery transformation process
    */
   bool runtime_item;
- protected:
+
+private:
+  /**
+    True if this is an expression from the select list of a derived table
+    which is actually used by outer query.
+  */
+  bool derived_used;
+
+protected:
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
                                            subselect. Computed by fix_fields
@@ -2089,6 +2121,13 @@ public:
   virtual bool has_stored_program() const { return with_stored_program; }
   /// Whether this Item was created by the IN->EXISTS subquery transformation
   virtual bool created_by_in2exists() const { return false; }
+
+  // @return true if an expression in select list of derived table is used
+  bool is_derived_used() const { return derived_used; }
+
+  // Set an expression from select list of derived table as used
+  void set_derived_used() { derived_used= true; }
+
   void mark_subqueries_optimized_away()
   {
     if (has_subquery())
@@ -4079,6 +4118,17 @@ public:
   virtual Ref_Type ref_type() const { return VIEW_REF; }
 
   virtual bool check_column_privileges(uchar *arg);
+  virtual bool mark_field_in_map(uchar *arg)
+  {
+    /*
+      If this referenced column is marked as used, flag underlying
+      selected item from a derived table/view as used.
+    */
+    Mark_field *mark_field= (Mark_field *)arg;
+    if (mark_field->mark != MARK_COLUMNS_NONE)
+      (*ref)->set_derived_used();
+    return false;
+  }
 };
 
 
@@ -4376,8 +4426,9 @@ public:
     This is the method that updates the cached value.
     It must be explicitly called by the user of this class to store the value 
     of the orginal item in the cache.
+    @returns false if OK, true on error.
   */  
-  virtual void copy() = 0;
+  virtual bool copy(const THD *thd) = 0;
 
   Item *get_item() { return item; }
   /** All of the subclasses should have the same type tag */
@@ -4426,7 +4477,7 @@ public:
   longlong val_int();
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
-  void copy();
+  virtual bool copy(const THD *thd);
   type_conversion_status save_in_field(Field *field, bool no_conversions);
 };
 
@@ -4457,7 +4508,7 @@ public:
   {
     return get_time_from_int(ltime);
   }
-  virtual void copy();
+  virtual bool copy(const THD *thd);
 };
 
 
@@ -4503,11 +4554,7 @@ public:
   {
     return get_time_from_real(ltime);
   }
-  void copy()
-  {
-    cached_value= item->val_real();
-    null_value= item->null_value;
-  }
+  virtual bool copy(const THD *thd);
 };
 
 
@@ -4534,7 +4581,7 @@ public:
   {
     return get_time_from_decimal(ltime);
   }
-  void copy();
+  virtual bool copy(const THD *thd);
 };
 
 
@@ -5194,6 +5241,12 @@ public:
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
   Field::geometry_type get_geometry_type() const { return geometry_type; };
+  virtual void make_field(Send_field *field)
+  {
+    Item::make_field(field);
+    // Item_type_holder is used for unions and effectively sends Fields
+    field->field= true;
+  }
 };
 
 

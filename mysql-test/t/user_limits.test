@@ -9,6 +9,9 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+
 # Prepare play-ground
 --disable_warnings
 drop table if exists t1;
@@ -171,6 +174,8 @@ drop user mysqltest_1@localhost;
 
 # Final cleanup
 drop table t1;
+
+set sql_mode= @orig_sql_mode;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

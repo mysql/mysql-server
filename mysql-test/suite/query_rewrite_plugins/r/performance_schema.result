@@ -1,34 +1,39 @@
 #
 # Verifies that the original query ends up in the statements history in
-# performance_schema.
+# performance_schema, and that digests are calculated even though the
+# statements_digest consumer is disabled.
 #
+SELECT enabled INTO @original_setting
+FROM performance_schema.setup_consumers
+WHERE NAME = 'statements_digest';
+UPDATE performance_schema.setup_consumers
+SET enabled = 'NO'
+WHERE NAME = 'statements_digest';
+SELECT 'original';
+original
+original
+# The digest column is now NULL since no digest was asked for.
+SELECT sql_text, digest
+FROM performance_schema.events_statements_history
+WHERE sql_text = "SELECT 'original'";
+sql_text	digest
+SELECT 'original'	NULL
 # Query rewrite plugin was installed.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "original"', 'SELECT "rewritten"' );
-SELECT enabled INTO @original_setting
-FROM performance_schema.setup_consumers
-WHERE NAME = 'events_statements_history';
-UPDATE performance_schema.setup_consumers
-SET enabled = 'NO'
-WHERE NAME = 'events_statements_history';
 CALL query_rewrite.flush_rewrite_rules();
-UPDATE performance_schema.setup_consumers
-SET enabled = 'YES'
-WHERE NAME = 'events_statements_history';
 SELECT 'original';
 rewritten
 rewritten
 Warnings:
 Note	1105	Query 'SELECT 'original'' rewritten to 'SELECT "rewritten"' by plugin: Rewriter.
-SELECT sql_text
+SELECT sql_text, digest
 FROM performance_schema.events_statements_history
 WHERE sql_text LIKE 'SELECT %';
-sql_text
-SELECT enabled INTO @original_setting
-FROM performance_schema.setup_consumers
-WHERE NAME = 'events_statements_history'
-SELECT 'original'
+sql_text	digest
+SELECT 'original'	NULL
+SELECT load_rewrite_rules() INTO message_text	NULL
 UPDATE performance_schema.setup_consumers
 SET enabled = @original_setting
-WHERE NAME = 'events_statements_history';
+WHERE NAME = 'statements_digest';
 # Query rewrite plugin was uninstalled.

@@ -99,7 +99,7 @@ t_string_4	CREATE TABLE `t_string_4` (
   `t_text` text,
   PRIMARY KEY (`t_pk`),
   KEY `t_pk` (`t_pk`,`t_name`)
-) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t_string_5;
 Table	Create Table
 t_string_5	CREATE TABLE `t_string_5` (
@@ -261,7 +261,7 @@ t_string_4	CREATE TABLE `t_string_4` (
   `t_text` text,
   PRIMARY KEY (`t_pk`),
   KEY `t_pk` (`t_pk`,`t_name`)
-) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE t_string_5;
 Table	Create Table
 t_string_5	CREATE TABLE `t_string_5` (

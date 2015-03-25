@@ -2290,6 +2290,12 @@ public:
   }
 
 
+  bool empty() const
+  {
+    return size() == 0;
+  }
+
+
   const_reference back() const
   {
     set_bg_adapter(true);
@@ -2471,7 +2477,7 @@ Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
 
 template <typename T>
 Gis_wkb_vector<T>::
-Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v)
+Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
 {
   DBUG_ASSERT((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
               (v.get_ptr() == NULL && !v.get_ownmem() &&
@@ -2691,6 +2697,7 @@ void Gis_wkb_vector<T>::clear()
   }
 
   DBUG_ASSERT(m_geo_vect && get_geotype() != Geometry::wkb_polygon);
+
   // Keep the component vector because this object can be reused again.
   const void *ptr= get_ptr();
   set_bg_adapter(true);

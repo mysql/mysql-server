@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ extern void mysql_audit_acquire_plugins(THD *thd, uint event_class);
 #ifndef EMBEDDED_LIBRARY
 extern void mysql_audit_notify(THD *thd, uint event_class,
                                uint event_subtype, ...);
+bool is_any_audit_plugin_active(THD *thd);
 #else
 #define mysql_audit_notify(...)
 #endif
@@ -90,6 +91,7 @@ void mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
     const char *user= user_buff;
     size_t userlen= make_user_name(thd, user_buff);
     time_t time= (time_t) thd->start_time.tv_sec;
+    int error_code= 0;
 
     if (thd)
     {
@@ -126,7 +128,7 @@ void mysql_audit_general_log(THD *thd, const char *cmd, size_t cmdlen)
       : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
-                       0, time, user, userlen, cmd, cmdlen, query.str,
+                       error_code, time, user, userlen, cmd, cmdlen, query.str,
                        query.length, clientcs,
                        static_cast<ha_rows>(0), /* general_rows */
                        sql_command, host, external_user, ip);
@@ -235,7 +237,21 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
   mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_DISCONNECT,\
-  (errcode), (thd)->thread_id(), "", 0, "", 0, "", 0, "", 0, "", 0, "", 0, "", 0)
+  (errcode), (thd)->thread_id(),\
+  (thd)->security_context()->user().str,\
+  (thd)->security_context()->user().length,\
+  (thd)->security_context()->priv_user().str,\
+  (thd)->security_context()->priv_user().length,\
+  (thd)->security_context()->external_user().str,\
+  (thd)->security_context()->external_user().length,\
+  (thd)->security_context()->proxy_user().str,\
+  (thd)->security_context()->proxy_user().length,\
+  (thd)->security_context()->host().str,\
+  (thd)->security_context()->host().length,\
+  (thd)->security_context()->ip().str,\
+  (thd)->security_context()->ip().length,\
+  (thd)->db().str, (thd)->db().length)
+
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CHANGE_USER,\

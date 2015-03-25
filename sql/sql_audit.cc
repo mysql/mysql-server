@@ -485,6 +485,12 @@ static void event_class_dispatch(THD *thd, unsigned int event_class,
   }
 }
 
+/**  There's at least one active audit plugin tracking the general events */
+bool is_any_audit_plugin_active(THD *thd __attribute__((unused)))
+{
+  return (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK);
+}
+
 
 #else /* EMBEDDED_LIBRARY */
 

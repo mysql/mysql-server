@@ -1,8 +1,6 @@
 select @@innodb_buffer_pool_chunk_size;
 @@innodb_buffer_pool_chunk_size
 2097152
-set global innodb_file_format=`Barracuda`;
-set global innodb_file_per_table=ON;
 create table t1 (id int not null, val int not null default '0', primary key (id)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
 create or replace view view0 as select 1 union all select 1;
 set @`v_id` := 0;

@@ -1,5 +1,4 @@
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_file_format=Barracuda;
 create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb ROW_FORMAT=COMPRESSED;
 insert into t1 values(1, Point(1,1));
 insert into t1 values(2, Point(2,2));
@@ -46,5 +45,4 @@ SET DEBUG='-d,page_copy_rec_list_start_compress_fail';
 select count(*) from t1 where MBRWithin(t1.c2, @g1);
 count(*)
 0
-SET GLOBAL innodb_file_format=Antelope;
 drop table t1;

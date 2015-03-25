@@ -31,6 +31,7 @@
 # 6. server_1_1 continues; it holds gtid_mode_lock and tries to acquire
 #    global_sid_lock.
 
+--source include/no_valgrind_without_big.inc
 --source include/have_debug_sync.inc
 # One binlog_format is enough.
 --source include/have_binlog_format_statement.inc

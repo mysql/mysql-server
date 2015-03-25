@@ -1842,6 +1842,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   char frm_name[FN_REFLEN+1];
   char *part_syntax_buf;
   uint syntax_len;
+  partition_info *old_part_info= lpt->table->part_info;
   DBUG_ENTER("mysql_write_frm");
 
   /*
@@ -1863,20 +1864,27 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       DBUG_RETURN(TRUE);
     }
     {
-      partition_info *part_info= lpt->table->part_info;
+      partition_info *part_info= lpt->part_info;
       if (part_info)
       {
-        if (!(part_syntax_buf= generate_partition_syntax(part_info,
-                                                         &syntax_len,
-                                                         TRUE, TRUE,
-                                                         lpt->create_info,
-                                                         lpt->alter_info,
-                                                         NULL)))
+        sql_mode_t sql_mode_backup= lpt->thd->variables.sql_mode;
+        lpt->thd->variables.sql_mode&= ~(MODE_ANSI_QUOTES);
+        part_syntax_buf= generate_partition_syntax(part_info,
+                                                   &syntax_len,
+                                                   TRUE, TRUE,
+                                                   lpt->create_info,
+                                                   lpt->alter_info,
+                                                   NULL);
+        lpt->thd->variables.sql_mode= sql_mode_backup;
+        if (part_syntax_buf == NULL)
         {
           DBUG_RETURN(TRUE);
         }
         part_info->part_info_string= part_syntax_buf;
         part_info->part_info_len= syntax_len;
+        Partition_handler *part_handler;
+        part_handler= lpt->table->file->get_partition_handler();
+        part_handler->set_part_info(part_info, false);
       }
     }
     /* Write shadow frm file */
@@ -1918,6 +1926,11 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   if (flags & WFRM_INSTALL_SHADOW)
   {
     partition_info *part_info= lpt->part_info;
+    Partition_handler *part_handler= lpt->table->file->get_partition_handler();
+    if (part_handler && part_info)
+    {
+      part_handler->set_part_info(part_info, false);
+    }
     /*
       Build frm file name
     */
@@ -1951,12 +1964,16 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     {
       TABLE_SHARE *share= lpt->table->s;
       char *tmp_part_syntax_str;
-      if (!(part_syntax_buf= generate_partition_syntax(part_info,
-                                                       &syntax_len,
-                                                       TRUE, TRUE,
-                                                       lpt->create_info,
-                                                       lpt->alter_info,
-                                                       NULL)))
+      sql_mode_t sql_mode_backup= lpt->thd->variables.sql_mode;
+      lpt->thd->variables.sql_mode&= ~(MODE_ANSI_QUOTES);
+      part_syntax_buf= generate_partition_syntax(part_info,
+                                                 &syntax_len,
+                                                 TRUE, TRUE,
+                                                 lpt->create_info,
+                                                 lpt->alter_info,
+                                                 NULL);
+      lpt->thd->variables.sql_mode= sql_mode_backup;
+      if (part_syntax_buf == NULL)
       {
         error= 1;
         goto err;
@@ -1988,6 +2005,11 @@ err:
   }
 
 end:
+  if (old_part_info)
+  {
+    Partition_handler *part_handler= lpt->table->file->get_partition_handler();
+    part_handler->set_part_info(old_part_info, false);
+  }
   DBUG_RETURN(error);
 }
 
@@ -4777,17 +4799,25 @@ bool create_table_impl(THD *thd,
       goto err;
     part_info->default_engine_type= engine_type;
 
-    /*
-      We reverse the partitioning parser and generate a standard format
-      for syntax stored in frm file.
-    */
-    if (!(part_syntax_buf= generate_partition_syntax(part_info,
-                                                     &syntax_len,
-                                                     TRUE, TRUE,
-                                                     create_info,
-                                                     alter_info,
-                                                     NULL)))
-      goto err;
+    {
+      /*
+        We reverse the partitioning parser and generate a standard format
+        for syntax stored in frm file.
+      */
+      sql_mode_t sql_mode_backup= thd->variables.sql_mode;
+      thd->variables.sql_mode&= ~(MODE_ANSI_QUOTES);
+      part_syntax_buf= generate_partition_syntax(part_info,
+                                                 &syntax_len,
+                                                 TRUE, TRUE,
+                                                 create_info,
+                                                 alter_info,
+                                                 NULL);
+      thd->variables.sql_mode= sql_mode_backup;
+      if (part_syntax_buf == NULL)
+      {
+        goto err;
+      }
+    }
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
     if (!engine_type->partition_flags ||
@@ -5627,7 +5657,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
           int result __attribute__((unused))=
             store_create_info(thd, table, &query,
-                              create_info, FALSE /* show_database */);
+                              create_info, TRUE /* show_database */);
 
           DBUG_ASSERT(result == 0); // store_create_info() always return 0
           if (write_bin_log(thd, TRUE, query.ptr(), query.length()))
@@ -5694,8 +5724,10 @@ int mysql_discard_or_import_tablespace(THD *thd,
 
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
   {
+    /* purecov: begin inspected */
     thd->tablespace_op= false;
     DBUG_RETURN(-1);
+    /* purecov: end */
   }
 
   if (table_list->table->part_info)
@@ -5891,23 +5923,25 @@ static KEY* find_key_cs(const char *key_name, KEY *key_start, KEY *key_end)
 
 /**
   Check if index has changed in a new version of table (ignore
-  possible rename of index).
+  possible rename of index). Also changes to the comment field
+  of the key is marked with a flag in the ha_alter_info.
 
-  @param  alter_info  Alter_info describing the changes to table
-                      (is necessary to find correspondence between
-                      fields in old and new version of table).
-  @param  table_key   Description of key in old version of table.
-  @param  new_key     Description of key in new version of table.
+  @param[in/out]  ha_alter_info  Structure describing changes to be done
+                                 by ALTER TABLE and holding data used
+                                 during in-place alter.
+  @param          table_key      Description of key in old version of table.
+  @param          new_key        Description of key in new version of table.
 
   @returns True - if index has changed, false -otherwise.
 */
 
-static bool has_index_def_changed(Alter_info *alter_info,
+static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
                                   const KEY *table_key,
                                   const KEY *new_key)
 {
   const KEY_PART_INFO *key_part, *new_part, *end;
   const Create_field *new_field;
+  Alter_info *alter_info= ha_alter_info->alter_info;
 
   /* Check that the key types are compatible between old and new tables. */
   if ((table_key->algorithm != new_key->algorithm) ||
@@ -5917,15 +5951,13 @@ static bool has_index_def_changed(Alter_info *alter_info,
     return true;
 
   /*
-    The key definition has changed, if an index comment is
-    added/dropped/changed.
+    If an index comment is added/dropped/changed, then mark it for a
+    fast/INPLACE alteration.
   */
-  if (table_key->comment.length != new_key->comment.length)
-    return true;
-
-  if (table_key->comment.length &&
-      strcmp(table_key->comment.str, new_key->comment.str))
-    return true;
+  if ((table_key->comment.length != new_key->comment.length) ||
+      (table_key->comment.length && strcmp(table_key->comment.str,
+                                           new_key->comment.str)))
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_INDEX_COMMENT;
 
   /*
     Check that the key parts remain compatible between the old and
@@ -6295,7 +6327,7 @@ static bool fill_alter_inplace_info(THD *thd,
     table_key->flags|= HA_KEY_RENAMED;
     new_key->flags|= HA_KEY_RENAMED;
 
-    if (! has_index_def_changed(alter_info, table_key, new_key))
+    if (! has_index_def_changed(ha_alter_info, table_key, new_key))
     {
       /* Key was not modified but still was renamed. */
       ha_alter_info->handler_flags|= Alter_inplace_info::RENAME_INDEX;
@@ -6325,7 +6357,7 @@ static bool fill_alter_inplace_info(THD *thd,
       /* Matching new key not found. This means the key should be dropped. */
       ha_alter_info->add_dropped_key(table_key);
     }
-    else if (has_index_def_changed(alter_info, table_key, new_key))
+    else if (has_index_def_changed(ha_alter_info, table_key, new_key))
     {
       /* Key was modified. */
       ha_alter_info->add_modified_key(table_key, new_key);
@@ -8573,11 +8605,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   /* We have to do full alter table. */
 
   bool partition_changed= false;
-  bool fast_alter_partition= false;
+  partition_info *new_part_info= NULL;
   {
     if (prep_alter_part_table(thd, table, alter_info, create_info,
                               &alter_ctx, &partition_changed,
-                              &fast_alter_partition))
+                              &new_part_info))
     {
       DBUG_RETURN(true);
     }
@@ -8607,7 +8639,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   set_table_default_charset(thd, create_info, const_cast<char*>(alter_ctx.db));
 
-  if (fast_alter_partition)
+  if (new_part_info)
   {
     /*
       ALGORITHM and LOCK clauses are generally not allowed by the
@@ -8650,7 +8682,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
                                            const_cast<char*>(alter_ctx.db),
-                                           table_name));
+                                           table_name,
+                                           new_part_info));
   }
 
   /*
@@ -9649,7 +9682,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   TABLE_LIST *table;
   List<Item> field_list;
   Item *item;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("mysql_checksum_table");
 
   /*
@@ -9664,8 +9697,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                                           (longlong) 1,
                                           MY_INT64_NUM_DECIMAL_DIGITS));
   item->maybe_null= 1;
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
   /*
@@ -9702,7 +9735,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
     table->next_global= save_next_global;
 
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store(table_name, system_charset_info);
 
     if (!t)
@@ -9739,7 +9772,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                  partial current row from the recordset (embedded lib) 
               */
               t->file->ha_rnd_end();
-              thd->protocol->remove_last_row();
+              protocol->abort_row();
               goto err;
             }
 	    ha_checksum row_crc= 0;
@@ -9804,14 +9837,14 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
         abort statement and return error as not only CHECKSUM TABLE is
         rolled back but the whole transaction in which it was used.
       */
-      thd->protocol->remove_last_row();
+      protocol->abort_row();
       goto err;
     }
 
     /* Hide errors from client. Return NULL for problematic tables instead. */
     thd->clear_error();
 
-    if (protocol->write())
+    if (protocol->end_row())
       goto err;
   }
 

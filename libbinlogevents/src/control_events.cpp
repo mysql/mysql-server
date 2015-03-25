@@ -156,8 +156,8 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
        Gtid_event::POST_HEADER_LENGTH,         /*ANONYMOUS_GTID_EVENT*/
        IGNORABLE_HEADER_LEN,
       TRANSACTION_CONTEXT_HEADER_LEN,
-      VIEW_CHANGE_HEADER_LEN
-
+      VIEW_CHANGE_HEADER_LEN,
+      XA_PREPARE_HEADER_LEN
     };
      /*
        Allows us to sanity-check that all events initialized their
@@ -522,6 +522,36 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
   return;
 }
 
+/**
+    We create an object of Ignorable_log_event for unrecognized sub-class, while
+    decoding. So that we just update the position and continue.
+
+    @param buf                Contains the serialized event.
+    @param length             Length of the serialized event.
+    @param descr_event        An FDE event, used to get the
+                              following information
+                              -binlog_version
+                              -server_version
+                              -post_header_len
+                              -common_header_len
+                              The content of this object
+                              depends on the binlog-version currently in use.
+*/
+
+Ignorable_event::Ignorable_event(const char *buf,
+                                 const Format_description_event *descr_event)
+ : Binary_log_event(&buf, descr_event->binlog_version,
+                    descr_event->server_version)
+{}
+
+/**
+    Constructor for Xid_event at its decoding.
+
+    @param buf                Contains the serialized event.
+    @param description_event  An FDE event (see comments for
+                              Ignorable_event for fine details).
+*/
+
 Xid_event::
 Xid_event(const char* buf,
           const Format_description_event *description_event)
@@ -540,26 +570,37 @@ Xid_event(const char* buf,
 }
 
 /**
-    We create an object of Ignorable_log_event for unrecognized sub-class, while
-    decoding. So that we just update the position and continue.
+    Constructor for XA_prepare_event at its decoding.
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param description_event  An FDE event (see comments for
+                              Ignorable_event for fine details).
 */
-Ignorable_event::Ignorable_event(const char *buf,
-                                 const Format_description_event *descr_event)
- : Binary_log_event(&buf, descr_event->binlog_version,
-                    descr_event->server_version)
-{}
 
+XA_prepare_event::
+XA_prepare_event(const char* buf,
+                 const Format_description_event *description_event)
+ : Binary_log_event(&buf, description_event->binlog_version,
+                    description_event->server_version)
+{
+  uint32_t temp= 0;
+  uint8_t temp_byte;
+
+  buf+= description_event->post_header_len[XA_PREPARE_LOG_EVENT - 1];
+  memcpy(&temp_byte, buf, 1);
+  one_phase= (bool) temp_byte;
+  buf += sizeof(temp_byte);
+  memcpy(&temp, buf, sizeof(temp));
+  my_xid.formatID= le32toh(temp);
+  buf += sizeof(temp);
+  memcpy(&temp, buf, sizeof(temp));
+  my_xid.gtrid_length= le32toh(temp);
+  buf += sizeof(temp);
+  memcpy(&temp, buf, sizeof(temp));
+  my_xid.bqual_length= le32toh(temp);
+  buf += sizeof(temp);
+  memcpy(my_xid.data, buf, my_xid.gtrid_length + my_xid.bqual_length);
+}
 
 /**
   ctor to decode a Gtid_event

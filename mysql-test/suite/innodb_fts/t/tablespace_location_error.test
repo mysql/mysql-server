@@ -1,0 +1,15 @@
+--source include/have_debug.inc
+--source include/have_innodb.inc
+
+--echo # Test with file_per_table
+--source ../include/tablespace_location_error.inc
+
+CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
+--let $MYSQLD_DATADIR = `select @@datadir`
+--let $INNODB_PAGE_SIZE = `select @@innodb_page_size`
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
+--echo # Test with TABLESPACE
+--let $EXTRA_PARAMS=TABLESPACE=s_def
+--source ../include/tablespace_location_error.inc
+DROP TABLESPACE s_def;

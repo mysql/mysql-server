@@ -38,7 +38,6 @@
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_class.h"                      // THD
 #include "sql_db.h"                         // check_db_dir_existence
-#include "sql_derived.h"                    // mysql_derived_prepare
 #include "sql_optimizer.h"                  // JOIN
 #include "sql_parse.h"                      // command_name
 #include "sql_plugin.h"                     // PLUGIN_IS_DELTED
@@ -311,25 +310,25 @@ static struct show_privileges_st sys_privileges[]=
 bool mysqld_show_privileges(THD *thd)
 {
   List<Item> field_list;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("mysqld_show_privileges");
 
   field_list.push_back(new Item_empty_string("Privilege",10));
   field_list.push_back(new Item_empty_string("Context",15));
   field_list.push_back(new Item_empty_string("Comment",NAME_CHAR_LEN));
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
   show_privileges_st *privilege= sys_privileges;
   for (privilege= sys_privileges; privilege->privilege ; privilege++)
   {
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store(privilege->privilege, system_charset_info);
     protocol->store(privilege->context, system_charset_info);
     protocol->store(privilege->comment, system_charset_info);
-    if (protocol->write())
+    if (protocol->end_row())
       DBUG_RETURN(TRUE);
   }
   my_eof(thd);
@@ -842,7 +841,7 @@ public:
 bool
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
   List<Item> field_list;
@@ -928,11 +927,11 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
                                                max<size_t>(buffer.length(), 1024U)));
   }
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     goto exit;
 
-  protocol->prepare_for_resend();
+  protocol->start_row();
   if (table_list->is_view())
     protocol->store(table_list->view_name.str, system_charset_info);
   else
@@ -958,7 +957,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   else
     protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
-  if (protocol->write())
+  if (protocol->end_row())
     goto exit;
 
   error= FALSE;
@@ -982,7 +981,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 #endif
   HA_CREATE_INFO create;
   uint create_options = create_info ? create_info->options : 0;
-  Protocol *protocol=thd->protocol;
+  Protocol *protocol=thd->get_protocol();
   DBUG_ENTER("mysql_show_create_db");
 
   strcpy(orig_dbname, dbname);
@@ -1025,11 +1024,11 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   field_list.push_back(new Item_empty_string("Database",NAME_CHAR_LEN));
   field_list.push_back(new Item_empty_string("Create Database",1024));
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  protocol->prepare_for_resend();
+  protocol->start_row();
   protocol->store(orig_dbname, strlen(orig_dbname), system_charset_info);
   buffer.length(0);
   buffer.append(STRING_WITH_LEN("CREATE DATABASE "));
@@ -1051,7 +1050,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
   protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
-  if (protocol->write())
+  if (protocol->end_row())
     DBUG_RETURN(TRUE);
   my_eof(thd);
   DBUG_RETURN(FALSE);
@@ -1078,9 +1077,9 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   {
     // Setup materialized result table so that we can read the column list
     if (table_list->resolve_derived(thd, false))
-      DBUG_VOID_RETURN;
+      DBUG_VOID_RETURN;                /* purecov: inspected */
     if (table_list->setup_materialized_derived(thd))
-      DBUG_VOID_RETURN;
+      DBUG_VOID_RETURN;                /* purecov: inspected */
   }
   TABLE *table= table_list->table;
 
@@ -1102,7 +1101,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   }
   restore_record(table, s->default_values);              // Get empty record
   table->use_all_columns();
-  if (thd->protocol->send_result_set_metadata(&field_list, Protocol::SEND_DEFAULTS))
+  if (thd->send_result_metadata(&field_list, Protocol::SEND_DEFAULTS))
     DBUG_VOID_RETURN;
   my_eof(thd);
   DBUG_VOID_RETURN;
@@ -1396,6 +1395,11 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
                       to tailor the format of the statement.  Can be
                       NULL, in which case only SQL_MODE is considered
                       when building the statement.
+    show_database     If true, then print the database before the table
+                      name. The database name is only printed in the event
+                      that it is different from the current database.
+                      If false, then do not print the database before
+                      the table name.
   
   NOTE
     Currently always return 0, but might return error code in the
@@ -1696,7 +1700,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       if (share->tablespace)
       {
         packet->append(STRING_WITH_LEN(" TABLESPACE "));
-        packet->append(share->tablespace, strlen(share->tablespace));
+        append_identifier(thd, packet, share->tablespace,
+                          strlen(share->tablespace));
       }
 
       if (share->default_storage_media == HA_SM_DISK)
@@ -2096,14 +2101,14 @@ public:
 static const char *thread_state_info(THD *tmp)
 {
 #ifndef EMBEDDED_LIBRARY
-  if (tmp->net.reading_or_writing)
+  if (tmp->get_protocol()->get_rw_status())
   {
-    if (tmp->net.reading_or_writing == 2)
-      return "Writing to net";
+    if (tmp->get_protocol()->get_rw_status() == 2)
+      return "Sending to client";
     else if (tmp->get_command() == COM_SLEEP)
       return "";
     else
-      return "Reading from net";
+      return "Receiving from client";
   }
   else
 #endif
@@ -2233,7 +2238,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Thread_info_array thread_infos(thd->mem_root);
   size_t max_query_length= (verbose ? thd->variables.max_allowed_packet :
                             PROCESS_LIST_WIDTH);
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   DBUG_ENTER("mysqld_list_processes");
 
   field_list.push_back(new Item_int(NAME_STRING("Id"),
@@ -2249,9 +2254,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
-  if (protocol->
-      send_result_set_metadata(&field_list,
-                               Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
   if (!thd->killed)
@@ -2269,7 +2273,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   for (size_t ix= 0; ix < thread_infos.size(); ++ix)
   {
     thread_info *thd_info= thread_infos.at(ix);
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store((ulonglong) thd_info->thread_id);
     protocol->store(thd_info->user, system_charset_info);
     protocol->store(thd_info->host, system_charset_info);
@@ -2285,7 +2289,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     protocol->store(thd_info->state_info, system_charset_info);
     protocol->store(thd_info->query_string.str(),
                     thd_info->query_string.charset());
-    if (protocol->write())
+    if (protocol->end_row())
       break; /* purecov: inspected */
   }
   my_eof(thd);
@@ -6919,12 +6923,12 @@ void push_show_where_warning(THD *thd, enum enum_var_type option_type, bool stat
   if (option_type == OPT_GLOBAL)
   {
     old_name= (status ? "SHOW GLOBAL STATUS WHERE" : "SHOW GLOBAL VARIABLES WHERE");
-    new_name= (status ? "performance_schema.global_status" : "performance_schema.global_variables");
+    new_name= (status ? "SHOW GLOBAL STATUS [LIKE]" : "SHOW GLOBAL VARIABLES [LIKE]");
   }
   else
   {
     old_name= (status ? "SHOW SESSION STATUS WHERE" : "SHOW SESSION VARIABLES WHERE");
-    new_name= (status ? "performance_schema.session_status" : "performance_schema.session_variables");
+    new_name= (status ? "SHOW SESSION STATUS [LIKE]" : "SHOW SESSION VARIABLES [LIKE]");
   }
 
   push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -6961,7 +6965,6 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     option_type= OPT_SESSION;
   }
 
-#ifndef EMBEDDED_LIBRARY
   /* Issue deprecation warning. */
   if (lex->sql_command == SQLCOM_SHOW_VARIABLES)
   {
@@ -6970,6 +6973,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
       push_show_where_warning(thd, option_type, false);
     }
   }
+#ifndef EMBEDDED_LIBRARY
   else
   {
     push_select_warning(thd, option_type, false);
@@ -7029,7 +7033,6 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     tmp1= &thd->status_var;
   }
 
-#ifndef EMBEDDED_LIBRARY
   /* Issue deprecation warning. */
   if (lex->sql_command == SQLCOM_SHOW_STATUS)
   {
@@ -7038,6 +7041,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
       push_show_where_warning(thd, option_type, true);
     }
   }
+#ifndef EMBEDDED_LIBRARY
   else
   {
     push_select_warning(thd, option_type, true);
@@ -8738,7 +8742,7 @@ int finalize_schema_table(st_plugin_int *plugin)
 
 static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
 {
-  Protocol *p= thd->protocol;
+  Protocol *p= thd->get_protocol();
   List<Item> fields;
 
   // Construct sql_mode string.
@@ -8782,7 +8786,8 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
                                                  sizeof("created")-1),
                                      0, 0));
 
-  if (p->send_result_set_metadata(&fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&fields,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 
   // Resolve trigger client character set.
@@ -8794,7 +8799,7 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
 
   // Send data.
 
-  p->prepare_for_resend();
+  p->start_row();
 
   p->store(trigger->get_trigger_name(), system_charset_info);
   p->store(sql_mode_str, system_charset_info);
@@ -8813,7 +8818,7 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger)
   else
     p->store_null();
 
-  int rc= p->write();
+  int rc= p->end_row();
 
   if (!rc)
     my_eof(thd);

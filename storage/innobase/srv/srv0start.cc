@@ -1295,6 +1295,69 @@ srv_init_abort_low(
 	return(err);
 }
 
+/** Prepare to delete the redo log files. Flush the dirty pages from all the
+buffer pools.  Flush the redo log buffer to the redo log file.
+@param[in]	n_files		number of old redo log files
+@return lsn upto which data pages have been flushed. */
+static
+lsn_t
+srv_prepare_to_delete_redo_log_files(
+	ulint	n_files)
+{
+	lsn_t	flushed_lsn;
+	ulint	pending_io = 0;
+	ulint	count = 0;
+
+	do {
+		/* Clean the buffer pool. */
+		buf_flush_sync_all_buf_pools();
+
+		RECOVERY_CRASH(1);
+
+		log_mutex_enter();
+
+		fil_names_clear(log_sys->lsn, false);
+
+		flushed_lsn = log_sys->lsn;
+
+		ib::warn() << "Resizing redo log from " << n_files << "*"
+			<< srv_log_file_size << " to " << srv_n_log_files
+			<< "*" << srv_log_file_size_requested << " pages"
+			", LSN=" << flushed_lsn;
+
+		/* Flush the old log files. */
+		log_mutex_exit();
+
+		log_write_up_to(flushed_lsn, true);
+
+		/* If innodb_flush_method=O_DSYNC,
+		we need to explicitly flush the log buffers. */
+		fil_flush(SRV_LOG_SPACE_FIRST_ID);
+
+		ut_ad(flushed_lsn == log_get_lsn());
+
+		/* Check if the buffer pools are clean.  If not
+		retry till it is clean. */
+		pending_io = buf_pool_check_no_pending_io();
+
+		if (pending_io > 0) {
+			count++;
+			/* Print a message every 60 seconds if we
+			are waiting to clean the buffer pools */
+			if (srv_print_verbose_log && count > 600) {
+				ib::info() << "Waiting for "
+					<< pending_io << " buffer "
+					<< "page I/Os to complete";
+				count = 0;
+			}
+		}
+		os_thread_sleep(100000);
+
+	} while (buf_pool_check_no_pending_io());
+
+	return(flushed_lsn);
+}
+
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
@@ -2113,15 +2176,23 @@ files_checked:
 
 		recv_recovery_from_checkpoint_finish();
 
+		/* Fix-up truncate of tables in the system tablespace
+		if server crashed while truncate was active. The non-
+		system tables are done after tablespace discovery. Do
+		this now because this procedure assumes that no pages
+		have changed since redo recovery.  Tablespace discovery
+		can do updates to pages in the system tablespace.*/
+		err = truncate_t::fixup_tables_in_system_tablespace();
+
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
 			/* Open or Create SYS_TABLESPACES and SYS_DATAFILES
 			so that tablespace names and other metadata can be
 			found. */
+			srv_sys_tablespaces_open = true;
 			err = dict_create_or_check_sys_tablespace();
 			if (err != DB_SUCCESS) {
 				return(srv_init_abort(err));
 			}
-			srv_sys_tablespaces_open = true;
 
 			/* The following call is necessary for the insert
 			buffer to work with multiple tablespaces. We must
@@ -2153,7 +2224,7 @@ files_checked:
 
 		/* Fix-up truncate of table if server crashed while truncate
 		was active. */
-		err = truncate_t::fixup_tables();
+		err = truncate_t::fixup_tables_in_non_system_tablespace();
 
 		if (err != DB_SUCCESS) {
 			return(srv_init_abort(err));
@@ -2172,33 +2243,8 @@ files_checked:
 				return(srv_init_abort(DB_READ_ONLY));
 			}
 
-			/* Clean the buffer pool. */
-			buf_flush_sync_all_buf_pools();
-
-			RECOVERY_CRASH(1);
-
-			log_mutex_enter();
-
-			fil_names_clear(log_sys->lsn, false);
-
-			flushed_lsn = log_sys->lsn;
-
-			ib::warn() << "Resizing redo log from " << i << "*"
-				<< srv_log_file_size << " to "
-				<< srv_n_log_files << "*"
-				<< srv_log_file_size_requested << " pages"
-				", LSN=" << flushed_lsn;
-
-			/* Flush the old log files. */
-			log_mutex_exit();
-
-			log_write_up_to(flushed_lsn, true);
-
-			/* If innodb_flush_method=O_DSYNC,
-			we need to explicitly flush the log buffers. */
-			fil_flush(SRV_LOG_SPACE_FIRST_ID);
-
-			ut_ad(flushed_lsn == log_get_lsn());
+			/* Prepare to delete the old redo log files */
+			flushed_lsn = srv_prepare_to_delete_redo_log_files(i);
 
 			/* Prohibit redo log writes from any other
 			threads until creating a log checkpoint at the
@@ -2472,6 +2518,10 @@ files_checked:
 	}
 
 	if (!srv_read_only_mode) {
+		if (create_new_db) {
+			srv_buffer_pool_load_at_startup = FALSE;
+		}
+
 		/* Create the buffer pool dump/load thread */
 		os_thread_create(buf_dump_thread, NULL, NULL);
 

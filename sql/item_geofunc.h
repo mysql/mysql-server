@@ -741,6 +741,8 @@ protected:
 
   template<typename Coord_type, typename Coordsys>
   Geometry *combine_sub_results(Geometry *g1, Geometry *g2, String *result);
+  Geometry *simplify_multilinestring(Gis_multi_line_string *mls,
+                                     String *result);
 
   template<typename Coord_type, typename Coordsys>
   Geometry *geometry_collection_set_operation(Geometry *g1, Geometry *g2,
@@ -805,59 +807,85 @@ public:
 
 class Item_func_buffer: public Item_geometry_func
 {
-protected:
-  class Transporter : public Gcalc_operation_transporter
-  {
-    int m_npoints;
-    double m_d;
-    Gcalc_function::op_type m_buffer_op;
-    double x1,y1,x2,y2;
-    double x00,y00,x01,y01;
-    int add_edge_buffer(Gcalc_shape_status *st,
-                        double x3, double y3, bool round_p1, bool round_p2);
-    int add_last_edge_buffer(Gcalc_shape_status *st);
-    int add_point_buffer(Gcalc_shape_status *st, double x, double y);
-    int complete(Gcalc_shape_status *st);
-  public:
-    Transporter(Gcalc_function *fn, Gcalc_heap *heap, double d) :
-      Gcalc_operation_transporter(fn, heap), m_npoints(0), m_d(d)
-    {
-      m_buffer_op= d > 0.0 ? Gcalc_function::op_union :
-                             Gcalc_function::op_difference;
-    }
-    int single_point(Gcalc_shape_status *st, double x, double y);
-    int start_line(Gcalc_shape_status *st);
-    int complete_line(Gcalc_shape_status *st);
-    int start_poly(Gcalc_shape_status *st);
-    int complete_poly(Gcalc_shape_status *st);
-    int start_ring(Gcalc_shape_status *st);
-    int complete_ring(Gcalc_shape_status *st);
-    int add_point(Gcalc_shape_status *st, double x, double y);
-    int start_collection(Gcalc_shape_status *st, int nshapes);
-    int complete_collection(Gcalc_shape_status *st);
-    int collection_add_item(Gcalc_shape_status *st_collection,
-                            Gcalc_shape_status *st_item);
-
-    bool skip_point() const
-    { return m_buffer_op == Gcalc_function::op_difference; }
-    bool skip_line_string() const
-    { return m_buffer_op == Gcalc_function::op_difference; }
-    bool skip_poly() const
-    { return false; }
-  };
-  Gcalc_heap collector;
-  Gcalc_function func;
-
-  Gcalc_result_receiver res_receiver;
-  Gcalc_operation_reducer operation;
-  String tmp_value;
-
 public:
-  Item_func_buffer(const POS &pos, Item *obj, Item *distance):
-    Item_geometry_func(pos, obj, distance)
-  {}
+  /*
+    There are five types of buffer strategies, this is an enumeration of them.
+   */
+  enum enum_buffer_strategy_types
+  {
+    invalid_strategy_type= 0,
+    end_strategy,
+    join_strategy,
+    point_strategy,
+    // The two below are not parameterized.
+    distance_strategy,
+    side_strategy
+  };
+
+  /*
+    For each type of strategy listed above, there are several options/values
+    for it, this is an enumeration of all such options/values for all types of
+    strategies.
+   */
+  enum enum_buffer_strategies
+  {
+    invalid_strategy= 0,
+    end_round,
+    end_flat,
+    join_round,
+    join_miter,
+    point_circle,
+    point_square,
+    max_strategy= point_square
+
+    // Distance and side strategies are fixed, so no need to implement
+    // parameterization for them.
+  };
+
+  /*
+    A piece of strategy setting. User can specify 0 to 3 different strategy
+    settings in any order to ST_Buffer(), which must be of different
+    strategy types. Default strategies are used if not explicitly specified.
+   */
+  struct Strategy_setting
+  {
+    enum_buffer_strategies strategy;
+    // This field is only effective for end_round, join_round, join_mit,
+    // and point_circle.
+    double value;
+  };
+
+private:
+  BG_result_buf_mgr bg_resbuf_mgr;
+  int num_strats;
+  String *strategies[side_strategy + 1];
+  /*
+    end_xxx stored in settings[end_strategy];
+    join_xxx stored in settings[join_strategy];
+    point_xxx stored in settings[point_strategy].
+  */
+  Strategy_setting settings[side_strategy + 1];
+  String tmp_value;                             // Stores current buffer result.
+
+  void set_strategies();
+public:
+  Item_func_buffer(const POS &pos, PT_item_list *ilist);
   const char *func_name() const { return "st_buffer"; }
   String *val_str(String *);
+};
+
+
+class Item_func_buffer_strategy: public Item_str_func
+{
+private:
+  friend class Item_func_buffer;
+  String tmp_value;
+  char tmp_buffer[16];                          // The buffer for tmp_value.
+public:
+  Item_func_buffer_strategy(const POS &pos, PT_item_list *ilist);
+  const char *func_name() const { return "st_buffer_strategy"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
 };
 
 
@@ -880,6 +908,7 @@ class Item_func_issimple: public Item_bool_func
 public:
   Item_func_issimple(const POS &pos, Item *a): Item_bool_func(pos, a) {}
   longlong val_int();
+  bool issimple(Geometry *g);
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_issimple"; }
   void fix_length_and_dec() { maybe_null= 1; }
@@ -983,7 +1012,7 @@ class Item_func_area: public Item_real_func
   String value;
 
   template <typename Coordsys>
-  double bg_area(const Geometry *geom, bool *isdone);
+  double bg_area(const Geometry *geom);
 public:
   Item_func_area(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
@@ -1029,29 +1058,12 @@ class Item_func_distance: public Item_real_func
   double earth_radius;
   String tmp_value1;
   String tmp_value2;
-  Gcalc_heap collector;
-  Gcalc_function func;
-  Gcalc_scan_iterator scan_it;
 
-  template <typename Coordsys>
-  double distance_point_geometry(const Geometry *g1, const Geometry *g2,
-                                 bool *isdone);
-  template <typename Coordsys>
-  double distance_multipoint_geometry(const Geometry *g1, const Geometry *g2,
-                                      bool *isdone);
-  template <typename Coordsys>
-  double distance_linestring_geometry(const Geometry *g1, const Geometry *g2,
-                                      bool *isdone);
-  template <typename Coordsys>
-  double distance_multilinestring_geometry(const Geometry *g1,
-                                           const Geometry *g2,
-                                           bool *isdone);
-  template <typename Coordsys>
-  double distance_polygon_geometry(const Geometry *g1, const Geometry *g2,
-                                   bool *isdone);
-  template <typename Coordsys>
-  double distance_multipolygon_geometry(const Geometry *g1, const Geometry *g2,
-                                        bool *isdone);
+  double geometry_collection_distance(const Geometry *g1, const Geometry *g2);
+
+  template <typename Coordsys, typename BG_geometry>
+  double distance_dispatch_second_geometry(const BG_geometry& bg1,
+                                           const Geometry* g2);
 
   double distance_point_geometry_spherical(const Geometry *g1,
                                            const Geometry *g2);
@@ -1060,7 +1072,7 @@ class Item_func_distance: public Item_real_func
 public:
   double bg_distance_spherical(const Geometry *g1, const Geometry *g2);
   template <typename Coordsys>
-  double bg_distance(const Geometry *g1, const Geometry *g2, bool *isdone);
+  double bg_distance(const Geometry *g1, const Geometry *g2);
 
   Item_func_distance(const POS &pos, PT_item_list *ilist, bool isspherical)
     : Item_real_func(pos, ilist), is_spherical_equatorial(isspherical),
@@ -1086,16 +1098,5 @@ public:
   }
 };
 
-
-#ifndef DBUG_OFF
-class Item_func_gis_debug: public Item_int_func
-{
-public:
-  Item_func_gis_debug(const POS &pos, Item *a) :Item_int_func(pos, a)
-  { null_value= false; }
-  const char *func_name() const  { return "st_gis_debug"; }
-  longlong val_int();
-};
-#endif
 
 #endif /*ITEM_GEOFUNC_INCLUDED*/

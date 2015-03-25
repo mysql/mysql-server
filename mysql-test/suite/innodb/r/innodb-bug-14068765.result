@@ -1,8 +1,3 @@
-DROP TABLE IF EXISTS t1;
-SET GLOBAL innodb_file_per_table = 1;
-SELECT @@innodb_file_per_table;
-@@innodb_file_per_table
-1
 CREATE DATABASE testdb_wl5522;
 CREATE TABLE testdb_wl5522.t1(col1 bit(1) , col2 boolean,col3 tinyint , col4 smallint , col5 mediumint ,col6 int , col7 bigint , col8 float (14,3) ,col9 double (14,3), col10 VARCHAR(20) CHARACTER SET utf8 , col11 TEXT CHARACTER SET binary ,      col12 ENUM('a','b','c') CHARACTER SET binary  ,col13 TEXT CHARACTER SET latin1 COLLATE latin1_general_cs ,col14 CHAR(20) , col15 VARBINARY (400) , col16 BINARY(40), col17 BLOB (400) , col18 int not null primary key,col19 DATE ,col20 DATETIME , col21 TIMESTAMP ,col22 TIME , col23 YEAR ) ENGINE = Innodb;
 CREATE INDEX idx1 ON testdb_wl5522.t1(col18);
@@ -38,5 +33,3 @@ COUNT(*)
 2
 DROP TABLE testdb_wl5522.t1;
 DROP DATABASE testdb_wl5522;
-SET GLOBAL INNODB_FILE_FORMAT=Antelope;
-SET GLOBAL INNODB_FILE_PER_TABLE=1;

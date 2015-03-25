@@ -192,16 +192,17 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 
 	typedef typename OSBasicMutex<Policy>::MutexPolicy MutexPolicy;
 
-	OSTrackMutex()
+	explicit OSTrackMutex(bool destroy_mutex_at_exit = true)
 		:
 		OSBasicMutex<Policy>(true) UNIV_NOTHROW
 	{
 		ut_d(m_locked = false);
+		ut_d(m_destroy_at_exit = destroy_mutex_at_exit);
 	}
 
 	~OSTrackMutex() UNIV_NOTHROW
 	{
-		ut_ad(!m_locked);
+		ut_ad(!m_destroy_at_exit || !m_locked);
 	}
 
 	/** Initialise the mutex. */
@@ -299,6 +300,8 @@ private:
 #ifdef UNIV_DEBUG
 	/** true if the mutex has been locked. */
 	bool			m_locked;
+	/** Do/Dont destroy mutex at exit */
+	bool			m_destroy_at_exit;
 #endif /* UNIV_DEBUG */
 };
 

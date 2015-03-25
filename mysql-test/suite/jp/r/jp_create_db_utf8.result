@@ -16,6 +16,7 @@ information_schema
 ﾆﾎﾝｺﾞ
 mysql
 performance_schema
+sys
 test
 USE `ﾆﾎﾝｺﾞ`;
 USE `日本語`;

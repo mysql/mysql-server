@@ -137,6 +137,16 @@ DROP DATABASE test_grant_db;
 
 --echo ## GRANT PROXY tests
 
+# Test effect of variabled on the plugin tested here (WL#7724).
+SELECT @@global.check_proxy_users;
+SELECT @@global.mysql_native_password_proxy_users;
+SELECT @@global.sha256_password_proxy_users;
+
+SET @@global.check_proxy_users=ON;
+SET @@global.mysql_native_password_proxy_users=ON;
+SET @@global.sha256_password_proxy_users=ON;
+
+
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
   AS 'grant_plug_dest';
 CREATE USER grant_plug_dest IDENTIFIED BY 'grant_plug_dest_passwd';
@@ -277,6 +287,10 @@ connection default;
 --echo # in connection default
 disconnect plug_con;
 
+SET @@global.check_proxy_users=0;
+SET @@global.mysql_native_password_proxy_users=0;
+SET @@global.sha256_password_proxy_users=0;
+
 --echo ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
@@ -321,7 +335,10 @@ SET GLOBAL general_log= @old_general_log;
 --echo #  Bug #56798 : Wrong credentials assigned when using a proxy user.
 --echo #
 
+set @orig_sql_mode = @@sql_mode;
+set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL PRIVILEGES ON *.* TO power_user;
+set sql_mode= @orig_sql_mode;
 GRANT USAGE ON anonymous_db.* TO ''@''
   IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
 GRANT PROXY ON power_user TO ''@'';
@@ -647,3 +664,20 @@ ALTER USER employee@localhost PASSWORD EXPIRE;
 DROP USER 'empl_external'@'localhost', 'employee'@'localhost';
 
 --source include/mysql_upgrade_cleanup.inc
+
+--echo #
+--echo # Bug #20537246: SERVER CRASH WHILE CONNECTING WITH CLEARTEXT-PLUGIN
+--echo #                USER WITH BLANK PWD
+--echo #
+
+CREATE USER bug20537246@localhost
+    IDENTIFIED WITH 'cleartext_plugin_server' AS '';
+
+--echo ## test connection
+connect(cleartext_con,localhost,bug20537246,,,,,CLEARTEXT);
+select USER(),CURRENT_USER();
+
+connection default;
+disconnect cleartext_con;
+DROP USER bug20537246@localhost;
+

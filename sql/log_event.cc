@@ -41,7 +41,10 @@
 #include "mysql/psi/mysql_file.h"
 
 #include <mysql/psi/mysql_statement.h>
-
+#include "transaction_info.h"
+#include "sql_class.h"
+#include "mysql/psi/mysql_transaction.h"
+#include "sql_plugin.h" // plugin_foreach
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
 slave_ignored_err_throttle(window_size,
@@ -60,6 +63,7 @@ slave_ignored_err_throttle(window_size,
 #include "hash.h"
 #include "sql_digest.h"
 #include "rpl_gtid.h"
+#include "xa_aux.h"
 
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
@@ -798,6 +802,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case binary_log::HEARTBEAT_LOG_EVENT: return "Heartbeat";
   case binary_log::TRANSACTION_CONTEXT_EVENT: return "Transaction_context";
   case binary_log::VIEW_CHANGE_EVENT: return "View_change";
+  case binary_log::XA_PREPARE_LOG_EVENT: return "XA_prepare";
   default: return "Unknown";                            /* impossible */
   }
 }
@@ -995,7 +1000,7 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
   if (p)
     log_name = p + 1;
 
-  protocol->prepare_for_resend();
+  protocol->start_row();
   protocol->store(log_name, &my_charset_bin);
   protocol->store((ulonglong) pos);
   event_type = get_type_str();
@@ -1004,7 +1009,7 @@ int Log_event::net_send(Protocol *protocol, const char* log_name, my_off_t pos)
   protocol->store((ulonglong) common_header->log_pos);
   if (pack_info(protocol))
     return 1;
-  return protocol->write();
+  return protocol->end_row();
 }
 #endif /* HAVE_REPLICATION */
 
@@ -1802,6 +1807,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new View_change_log_event(buf, event_len, description_event);
       break;
 #endif
+    case binary_log::XA_PREPARE_LOG_EVENT:
+      ev= new XA_prepare_log_event(buf, description_event);
+      break;
     default:
       /*
         Create an object of Ignorable_log_event for unrecognized sub-class.
@@ -2818,7 +2826,7 @@ Log_event::continue_group(Relay_log_info *rli)
          where none of the events holds partitioning data
          causes the sequential applying of the group through
          assigning OVER_MAX_DBS_IN_EVENT_MTS to mts_accessed_dbs
-         of COMMIT query event.
+         of the group terminator (e.g COMMIT query) event.
 */
 bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 {
@@ -2830,19 +2838,21 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
     res= true;
 
     break;
-    
+
   case binary_log::QUERY_EVENT:
-    if (ends_group() && end_group_sets_max_dbs)
+  {
+    Query_log_event *qev= static_cast<Query_log_event*>(this);
+    if ((ends_group() && end_group_sets_max_dbs) ||
+        (qev->is_query_prefix_match(STRING_WITH_LEN("XA COMMIT")) ||
+         qev->is_query_prefix_match(STRING_WITH_LEN("XA ROLLBACK"))))
     {
       res= true;
-      static_cast<Query_log_event*>(this)->mts_accessed_dbs=
-        OVER_MAX_DBS_IN_EVENT_MTS;
+      qev->mts_accessed_dbs= OVER_MAX_DBS_IN_EVENT_MTS;
     }
     else
       res= (!ends_group() && !starts_group()) ? true : false;
-
     break;
-
+  }
   default:
     res= false;
   }
@@ -3744,26 +3754,23 @@ bool Query_log_event::write(IO_CACHE* file)
       }
     }
 
-    if (invoker_user.length > 0)
-    {
-      *start++= Q_INVOKER;
+    *start++= Q_INVOKER;
 
-      /*
-        Store user length and user. The max length of use is 16, so 1 byte is
-        enough to store the user's length.
-       */
-      *start++= (uchar)invoker_user.length;
-      memcpy(start, invoker_user.str, invoker_user.length);
-      start+= invoker_user.length;
+    /*
+      Store user length and user. The max length of use is 16, so 1 byte is
+      enough to store the user's length.
+     */
+    *start++= (uchar)invoker_user.length;
+    memcpy(start, invoker_user.str, invoker_user.length);
+    start+= invoker_user.length;
 
-      /*
-        Store host length and host. The max length of host is 60, so 1 byte is
-        enough to store the host's length.
-       */
-      *start++= (uchar)invoker_host.length;
-      memcpy(start, invoker_host.str, invoker_host.length);
-      start+= invoker_host.length;
-    }
+    /*
+      Store host length and host. The max length of host is 60, so 1 byte is
+      enough to store the host's length.
+     */
+    *start++= (uchar)invoker_host.length;
+    memcpy(start, invoker_host.str, invoker_host.length);
+    start+= invoker_host.length;
   }
 
   if (thd && thd->get_binlog_accessed_db_names() != NULL)
@@ -4079,6 +4086,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
       case SQLCOM_RELEASE_SAVEPOINT:
       case SQLCOM_ROLLBACK_TO_SAVEPOINT:
       case SQLCOM_SAVEPOINT:
+      case SQLCOM_XA_PREPARE:
         cmd_can_generate_row_events= cmd_must_go_to_trx_cache= TRUE;
         break;
       default:
@@ -4753,6 +4761,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->is_slave_error= 1;
       }
       goto end;
+    }
+
+    if (is_query_prefix_match(STRING_WITH_LEN("XA START")) && !thd->is_error())
+    {
+      // detach the "native" thd's trx in favor of dynamically created
+      plugin_foreach(thd, detach_native_trx,
+                     MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
     }
 
     /* If the query was not ignored, it is printed to the general log */
@@ -6227,9 +6242,9 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       if (net)
       {
         // mysql_load will use thd->net to read the file
-        thd->net.vio = net->vio;
+        thd->get_protocol_classic()->set_vio(net->vio);
         // Make sure the client does not get confused about the packet sequence
-        thd->net.pkt_nr = net->pkt_nr;
+        thd->get_protocol_classic()->set_pkt_nr(net->pkt_nr);
       }
       /*
         It is safe to use tmp_list twice because we are not going to
@@ -6264,7 +6279,9 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
                           print_slave_db_safe(thd->db().str));
       }
       if (net)
-        net->pkt_nr= thd->net.pkt_nr;
+      {
+        net->pkt_nr= thd->get_protocol_classic()->get_pkt_nr();
+      }
     }
   }
   else
@@ -6279,7 +6296,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   }
 
 error:
-  thd->net.vio = 0; 
+  thd->get_protocol_classic()->set_vio(NULL);
   const char *remember_db= thd->db().str;
   thd->set_catalog(NULL_CSTR);
   thd->set_db(NULL_CSTR);                   /* will free the current database */
@@ -6898,11 +6915,10 @@ Xid_log_event::
 Xid_log_event(const char* buf,
               const Format_description_event *description_event)
   : binary_log::Xid_event(buf, description_event),
-    Log_event(header(), footer())
+    Xid_apply_log_event(buf, description_event, header(), footer())
 {
   is_valid_param= true;
 }
-
 
 #ifndef MYSQL_CLIENT
 bool Xid_log_event::write(IO_CACHE* file)
@@ -6966,12 +6982,12 @@ bool Xid_log_event::do_commit(THD *thd_arg)
 
 /**
    Worker commits Xid transaction and in case of its transactional
-   info table marks the current group as done in the Coordnator's 
+   info table marks the current group as done in the Coordnator's
    Group Assigned Queue.
 
-   @return zero as success or non-zero as an error 
+   @return zero as success or non-zero as an error
 */
-int Xid_log_event::do_apply_event_worker(Slave_worker *w)
+int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w)
 {
   int error= 0;
   lex_start(thd);
@@ -7020,7 +7036,7 @@ err:
   return error;
 }
 
-int Xid_log_event::do_apply_event(Relay_log_info const *rli)
+int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Xid_log_event::do_apply_event");
   int error= 0;
@@ -7092,8 +7108,10 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
     rli repository being transactional means replication is crash safe.
     Positions are written into transactional tables ahead of commit and the
     changes are made permanent during commit.
+    XA transactional does not actually commit so has to defer its flush_info().
    */
-  if (rli_ptr->is_transactional())
+  if (!thd->get_transaction()->xid_state()->check_in_xa(false) &&
+      rli_ptr->is_transactional())
   {
     if ((error= rli_ptr->flush_info(true)))
       goto err;
@@ -7195,7 +7213,7 @@ err:
 }
 
 Log_event::enum_skip_reason
-Xid_log_event::do_shall_skip(Relay_log_info *rli)
+Xid_apply_log_event::do_shall_skip(Relay_log_info *rli)
 {
   DBUG_ENTER("Xid_log_event::do_shall_skip");
   if (rli->slave_skip_counter > 0) {
@@ -7205,6 +7223,116 @@ Xid_log_event::do_shall_skip(Relay_log_info *rli)
   DBUG_RETURN(Log_event::do_shall_skip(rli));
 }
 #endif /* !MYSQL_CLIENT */
+
+/**************************************************************************
+  XA_prepare_log_event methods
+**************************************************************************/
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+int XA_prepare_log_event::pack_info(Protocol *protocol)
+{
+  char buf[ser_buf_size];
+  char query[sizeof("XA PREPARE") + 1 + sizeof(buf)];
+
+  /* RHS of the following assert is unknown to client sources */
+  compile_time_assert(ser_buf_size == XID::ser_buf_size);
+
+  sprintf(query, "XA PREPARE %s",
+          serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
+                        my_xid.bqual_length, my_xid.data));
+  protocol->store(query, strlen(query), &my_charset_bin);
+  return 0;
+}
+#endif
+
+
+#ifndef MYSQL_CLIENT
+bool XA_prepare_log_event::write(IO_CACHE* file)
+{
+  uint8 one_byte= one_phase;
+  uchar buf_f[4];
+  uchar buf_g[4];
+  uchar buf_b[4];
+  int4store(buf_f, static_cast<XID*>(xid)->get_format_id());
+  int4store(buf_g, static_cast<XID*>(xid)->get_gtrid_length());
+  int4store(buf_b, static_cast<XID*>(xid)->get_bqual_length());
+
+  DBUG_ASSERT(xid_bufs_size == sizeof(buf_f) + sizeof(buf_g) + sizeof(buf_b));
+
+  return write_header(file, sizeof(one_byte) + xid_bufs_size +
+                      static_cast<XID*>(xid)->get_gtrid_length() +
+                      static_cast<XID*>(xid)->get_bqual_length())
+    ||
+    wrapper_my_b_safe_write(file, &one_byte, sizeof(one_byte)) ||
+    wrapper_my_b_safe_write(file, buf_f, sizeof(buf_f)) ||
+    wrapper_my_b_safe_write(file, buf_g, sizeof(buf_g)) ||
+    wrapper_my_b_safe_write(file, buf_b, sizeof(buf_b)) ||
+    wrapper_my_b_safe_write(file, (uchar*) static_cast<XID*>(xid)->get_data(),
+                            static_cast<XID*>(xid)->get_gtrid_length() +
+                            static_cast<XID*>(xid)->get_bqual_length()) ||
+    write_footer(file);
+}
+#endif
+
+
+#ifdef MYSQL_CLIENT
+void XA_prepare_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
+{
+  IO_CACHE *const head= &print_event_info->head_cache;
+  char buf[ser_buf_size];
+
+  print_header(head, print_event_info, FALSE);
+  my_b_printf(head, "\tXA PREPARE %s\n",
+              serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
+                            my_xid.bqual_length, my_xid.data));
+  my_b_printf(head, one_phase ? "XA COMMIT %s ONE PHASE%s\n" : "XA PREPARE %s%s\n",
+              buf, print_event_info->delimiter);
+}
+#endif /* MYSQL_CLIENT */
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+
+/**
+  Differs from Xid_log_event::do_commit in that it carries out
+  XA prepare (not the commit).
+  It also can commit on one phase when the event's member @c one_phase
+  set to true.
+
+  @param  thd    a pointer to THD handle
+  @return false  as success and
+          true   as an error
+*/
+
+bool XA_prepare_log_event::do_commit(THD *thd)
+{
+  bool error= false;
+  xid_t xid;
+
+  xid.set(my_xid.formatID,
+          my_xid.data, my_xid.gtrid_length,
+          my_xid.data + my_xid.gtrid_length, my_xid.bqual_length);
+  if (!one_phase)
+  {
+    /*
+      This is XA-prepare branch.
+    */
+    thd->lex->sql_command= SQLCOM_XA_PREPARE;
+    thd->lex->m_sql_cmd= new Sql_cmd_xa_prepare(&xid);
+    error= thd->lex->m_sql_cmd->execute(thd);
+    if (!error)
+      error|= applier_reset_xa_trans(thd);
+  }
+  else
+  {
+    thd->lex->sql_command= SQLCOM_XA_COMMIT;
+    thd->lex->m_sql_cmd= new Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
+    error= thd->lex->m_sql_cmd->execute(thd);
+  }
+  error|= mysql_bin_log.gtid_end_transaction(thd);
+
+  return error;
+}
+#endif
 
 
 /**************************************************************************
@@ -10177,7 +10305,7 @@ end:
   {
     /* we need to unpack the AI so that positions get updated */
     m_curr_row= m_curr_row_end;
-    unpack_current_row(rli, &m_cols);
+    unpack_current_row(rli, &m_cols_ai);
   }
   m_table->default_column_bitmaps();
   DBUG_RETURN(error);
@@ -13480,8 +13608,8 @@ void Transaction_context_log_event::add_read_set(const char *hash)
 #ifndef MYSQL_CLIENT
 View_change_log_event::View_change_log_event(char* raw_view_id)
   : binary_log::View_change_event(raw_view_id),
-    Log_event(header(), footer(),
-            Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
+    Log_event(header(), footer(), Log_event::EVENT_TRANSACTIONAL_CACHE,
+              Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(char*)");
 
@@ -13504,6 +13632,10 @@ View_change_log_event(const char *buffer,
 
   if (strlen(view_id) != 0)
     is_valid_param= true;
+
+  //Change the cache/logging types to allow writing to the binary log cache
+  event_cache_type= EVENT_TRANSACTIONAL_CACHE;
+  event_logging_type= EVENT_NORMAL_LOGGING;
 
   DBUG_VOID_RETURN;
 }
@@ -13579,11 +13711,27 @@ void View_change_log_event::print(FILE *file,
 
  int View_change_log_event::do_apply_event(Relay_log_info const *rli)
  {
-   if(written_to_binlog)
+   enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+   if (state == GTID_STATEMENT_SKIP)
      return 0;
 
+   if (state == GTID_STATEMENT_CANCEL ||
+          (state == GTID_STATEMENT_EXECUTE &&
+           gtid_pre_statement_post_implicit_commit_checks(thd)))
+   {
+      uint error= thd->get_stmt_da()->mysql_errno();
+      DBUG_ASSERT(error != 0);
+      rli->report(ERROR_LEVEL, error,
+                  "Error executing View Change event: '%s'",
+                  thd->get_stmt_da()->message_text());
+      thd->is_slave_error= 1;
+      return -1;
+   }
+
    written_to_binlog= true;
-   return mysql_bin_log.write_event_into_log_file(this);
+   //Set the event as sequencial to guarantee the correct order on MTS
+   common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
+   return mysql_bin_log.write_event(this);
  }
 
 int View_change_log_event::do_update_pos(Relay_log_info *rli)

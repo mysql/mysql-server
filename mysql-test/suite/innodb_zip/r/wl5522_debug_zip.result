@@ -2,10 +2,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
 @@SESSION.innodb_strict_mode
@@ -46,10 +42,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
 @@SESSION.innodb_strict_mode
@@ -440,7 +432,7 @@ t1	CREATE TABLE `t1` (
   KEY `idx1` (`c2`),
   KEY `idx2` (`c3`(512)),
   KEY `idx3` (`c4`(512))
-) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
@@ -574,5 +566,3 @@ set global innodb_monitor_disable = default;
 set global innodb_monitor_reset = default;
 set global innodb_monitor_reset_all = default;
 SET GLOBAL INNODB_FILE_PER_TABLE=1;
-SET GLOBAL INNODB_FILE_FORMAT=Antelope;
-SET SESSION innodb_strict_mode=0;

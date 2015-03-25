@@ -2912,9 +2912,13 @@ t1	CREATE TABLE `t1` (
   `b` varchar(1024) GENERATED ALWAYS AS (password(a)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('badpwd',default);
+Warnings:
+Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 select * from t1;
 a	b
 badpwd	*AAB3E285149C0135D51A520E1940DD3263DC008C
+Warnings:
+Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 drop table t1;
 set sql_warnings = 0;
 # SHA1()
