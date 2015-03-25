@@ -2831,7 +2831,8 @@ int test_quick_select(THD *thd, key_map keys_to_use,
           key_parts->field=        key_part_info->field;
           key_parts->null_bit=     key_part_info->null_bit;
           key_parts->image_type =
-            (key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
+            (part < key_info->user_defined_key_parts &&
+             key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
           /* Only HA_PART_KEY_SEG is used */
           key_parts->flag=         (uint8) key_part_info->key_part_flag;
           trace_keypart.add_utf8(key_parts->field->field_name);
