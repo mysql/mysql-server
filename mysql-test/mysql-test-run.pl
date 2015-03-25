@@ -164,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -303,6 +303,7 @@ my $valgrind_reports= 0;
 my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
+my $daemonize_mysqld= 0;
 
 sub testcase_timeout ($) {
   my ($tinfo)= @_;
@@ -3738,6 +3739,21 @@ sub mysql_install_db {
               "in working directory.");
   }
 
+  if ( ! $opt_embedded_server )
+  {
+    # Add the sys schema, but only in non-embedded installs
+    my $path_sys_schema= my_find_file($install_basedir,
+            ["mysql", "sql/share", "share/mysql",
+             "share", "scripts"],
+            "mysql_sys_schema.sql",
+             NOT_REQUIRED);
+
+    if (-f $path_sys_schema)
+    {
+      mtr_appendfile_to_file($path_sys_schema, $bootstrap_sql_file);
+    }
+  }
+
   # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';\n");
@@ -5535,6 +5551,13 @@ sub mysqld_start ($$) {
     strace_server_arguments($args, \$exe, $mysqld->name());
   }
 
+  foreach my $arg (@$extra_opts)
+  {
+    if ($arg eq "--daemonize")
+    {
+      $daemonize_mysqld= 1;
+    }
+  }
 
   if ( $opt_valgrind_mysqld )
   {
@@ -6627,7 +6650,14 @@ sub valgrind_arguments {
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-    mtr_add_arg($args, "--leak-check=yes");
+    if($daemonize_mysqld)
+    {
+      mtr_add_arg($args, "--leak-check=no");
+    }
+    else
+    {
+      mtr_add_arg($args, "--leak-check=yes");
+    }
     mtr_add_arg($args, "--num-callers=16");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
       if -f "$glob_mysql_test_dir/valgrind.supp";

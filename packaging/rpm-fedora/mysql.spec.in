@@ -18,7 +18,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone    m16
+%global milestone    rc
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
@@ -303,7 +303,7 @@ Obsoletes:      mariadb-embedded
 Obsoletes:      community-mysql-embedded < %{version}-%{release}
 Obsoletes:      mysql-embedded < %{version}-%{release}
 Provides:       mysql-embedded = %{version}-%{release}
-Provides:       mysql-emdedded%{?_isa} = %{version}-%{release}
+Provides:       mysql-embedded%{?_isa} = %{version}-%{release}
 
 %description    embedded
 This package contains the MySQL server as an embedded library.
@@ -464,7 +464,7 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 # Ensure that needed directories exists
 install -d -m 0755 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysqld
-install -d -m 0770 %{buildroot}/var/lib/mysql-files
+install -d -m 0750 %{buildroot}/var/lib/mysql-files
 
 # Install all binaries
 pushd $MBD/release
@@ -517,7 +517,7 @@ rm -r $(readlink var) var
 
 %post server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
-/bin/chmod 0750 "$datadir" >/dev/null 2>&1 || :
+/bin/chmod 0755 "$datadir" >/dev/null 2>&1 || :
 /bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %systemd_post mysqld.service
 /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
@@ -617,6 +617,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 
 %attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
+%attr(644, root, root) %{_datadir}/mysql/mysql_sys_schema.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_data.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_test_data_timezone.sql
@@ -635,7 +636,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(755, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysqld
-%dir %attr(770, mysql, mysql) /var/lib/mysql-files
+%dir %attr(750, mysql, mysql) /var/lib/mysql-files
 
 %files common
 %defattr(-, root, root, -)

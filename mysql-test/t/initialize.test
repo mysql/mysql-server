@@ -76,7 +76,7 @@ CREATE TABLE mysql.t1(a INT) ENGINE=innodb;
 EOF
 
 --echo # try --bootstrap --initialize
---error 3
+--error 1
 --exec $MYSQLD $extra_args --bootstrap --initialize --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
 
 --echo # delete bootstrap file
@@ -98,7 +98,7 @@ CREATE TABLE mysql.t1(a INT) ENGINE=innodb;
 EOF
 
 --echo # try --bootstrap --initialize-initialize-insecure
---error 3
+--error 1
 --exec $MYSQLD $extra_args --bootstrap --initialize-insecure --datadir=$DDIR < $BOOTSTRAP_SQL >$MYSQLD_LOG 2>&1
 
 --echo # delete bootstrap file
@@ -170,6 +170,19 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 --echo # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
   FROM mysql.user;
+
+--echo # Check the sys schema exists with the right object counts
+--echo #
+--echo # If this value differs, also update SYS_PROCEDURE_COUNT within ./client/upgrade/program.cc
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE';
+--echo # If this value differs, also update SYS_FUNCTION_COUNT within ./client/upgrade/program.cc
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION';
+--echo # If this value differs, also update SYS_TABLE_COUNT within ./client/upgrade/program.cc
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
+--echo # If this value differs, also update SYS_VIEW_COUNT within ./client/upgrade/program.cc
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'VIEW';
+--echo # If this value differs, also update SYS_TRIGGER_COUNT within ./client/upgrade/program.cc
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
 
 CREATE DATABASE test;
 

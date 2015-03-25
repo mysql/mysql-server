@@ -587,6 +587,8 @@ kvw5601	0
 kvw6000	2
 drop table t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 id int(11),
 pid int(11),

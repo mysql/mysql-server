@@ -1,5 +1,13 @@
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
+set @orig_sql_mode_session= @@SESSION.sql_mode;
+set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1;
 drop database if exists mysqltest;
 call mtr.add_suppression("Did not write failed .* ");
@@ -2739,8 +2747,6 @@ ERROR 1862 (HY000): Your password has expired. To log in you must change it usin
 # Doing something should fail
 SELECT 1;
 ERROR HY000: You must SET PASSWORD before executing this statement
-# Setting variables should work
-SET old_passwords=0;
 # Setting password should work
 ALTER USER wl7131 IDENTIFIED BY 'new_wl7131';
 # Doing something should pass
@@ -2824,3 +2830,9 @@ SELECT (SELECT password_last_changed FROM mysql.user where user='wl7131') IS NOT
 1
 DROP USER 'wl7131'@'localhost';
 # mysql.user table restored to original values.
+set GLOBAL sql_mode= @orig_sql_mode_global;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+set SESSION sql_mode= @orig_sql_mode_session;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

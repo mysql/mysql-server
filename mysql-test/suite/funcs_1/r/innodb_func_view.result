@@ -15,6 +15,8 @@ ALTER TABLE t1_values ADD my_datetime       DATETIME;
 ALTER TABLE t1_values ADD my_date           DATE;
 ALTER TABLE t1_values ADD ts_dummy          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1_values ADD my_timestamp      TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00';
 ALTER TABLE t1_values ADD my_time           TIME;
 ALTER TABLE t1_values ADD my_year           YEAR;
@@ -23,8 +25,6 @@ ALTER TABLE t1_values ADD my_double         DOUBLE;
 ALTER TABLE t1_values ADD my_decimal        DECIMAL(64,30);
 SET sql_mode = default;
 SET sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 INSERT INTO t1_values SET id = 0;
 INSERT INTO t1_values SET
 my_char_30 = '',
@@ -85,8 +85,6 @@ disable_result = 'No'" ;
 PREPARE ins_sel_no_result   FROM "INSERT INTO t1_selects SET my_select = @my_select,
 disable_result = 'Yes'" ;
 SET sql_mode = 'traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @my_select = 'SELECT sqrt(my_bigint), my_bigint, id FROM t1_values';
 INSERT INTO t1_values SET select_id = @select_id,
 my_bigint = 4;
@@ -289,6 +287,8 @@ SET @my_select = 'SELECT my_char_30, id FROM t1_values';
 INSERT INTO t1_values SET select_id = @select_id,
 my_char_30 = 'Viana do Castelo';
 SET sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 "# The basic preparations end and the main test starts here"
 --------------------------------------------------------------------------------

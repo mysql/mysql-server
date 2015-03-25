@@ -1,5 +1,4 @@
 SET GLOBAL tx_isolation='REPEATABLE-READ';
-SET GLOBAL innodb_file_format=Barracuda;
 SET GLOBAL innodb_file_per_table=on;
 CREATE TABLE bug56680(
 a INT AUTO_INCREMENT PRIMARY KEY,

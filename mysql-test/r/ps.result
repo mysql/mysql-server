@@ -782,6 +782,8 @@ count(*)
 deallocate prepare stmt;
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
 execute stmt;
 insert into t1 (a) values (repeat('a', 20));
@@ -2374,15 +2376,15 @@ create procedure a() select 42;
 create procedure proc_1(a char(2)) show create procedure a;
 call proc_1("bb");
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
 select 42	latin1	latin1_swedish_ci	latin1_swedish_ci
 call proc_1("bb");
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
 select 42	latin1	latin1_swedish_ci	latin1_swedish_ci
 call proc_1("bb");
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
 select 42	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure proc_1;
 create function func_1() returns int begin show create procedure a; return 1; end|
@@ -2394,15 +2396,15 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show create procedure a";
 execute abc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
 select 42	latin1	latin1_swedish_ci	latin1_swedish_ci
 execute abc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
 select 42	latin1	latin1_swedish_ci	latin1_swedish_ci
 execute abc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
 select 42	latin1	latin1_swedish_ci	latin1_swedish_ci
 deallocate prepare abc;
 drop procedure a;
@@ -2411,15 +2413,15 @@ create function a() returns int return 42+13;
 create procedure proc_1(a char(2)) show create function a;
 call proc_1("bb");
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
 return 42+13	latin1	latin1_swedish_ci	latin1_swedish_ci
 call proc_1("bb");
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
 return 42+13	latin1	latin1_swedish_ci	latin1_swedish_ci
 call proc_1("bb");
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
 return 42+13	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure proc_1;
 create function func_1() returns int begin show create function a; return 1; end|
@@ -2431,15 +2433,15 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show create function a";
 execute abc;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
 return 42+13	latin1	latin1_swedish_ci	latin1_swedish_ci
 execute abc;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
 return 42+13	latin1	latin1_swedish_ci	latin1_swedish_ci
 execute abc;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
 return 42+13	latin1	latin1_swedish_ci	latin1_swedish_ci
 deallocate prepare abc;
 drop function a;

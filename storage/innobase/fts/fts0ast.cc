@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -159,7 +159,10 @@ fts_ast_create_node_term_for_parser(
 {
 	fts_ast_node_t*		node = NULL;
 
-	if (len ==0 || len > fts_max_token_size) {
+	/* '%' as first char is forbidden for LIKE in internal SQL parser;
+	'%' as last char is reserved for wildcard search;*/
+	if (len == 0 || len > fts_max_token_size
+	    || ptr[0] == '%' || ptr[len - 1] == '%') {
 		return(NULL);
 	}
 
@@ -776,6 +779,7 @@ fts_ast_oper_name_get(fts_ast_oper_t	oper)
 		return("FTS_EXIST_SKIP");
 	}
 	ut_ad(0);
+	return("FTS_UNKNOWN");
 }
 
 const char*
@@ -798,5 +802,6 @@ fts_ast_node_type_get(fts_ast_type_t	type)
 		return("FTS_AST_PARSER_PHRASE_LIST");
 	}
 	ut_ad(0);
+	return("FTS_UNKNOWN");
 }
 #endif /* UNIV_DEBUG */

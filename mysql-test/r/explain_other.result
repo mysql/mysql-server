@@ -1093,9 +1093,16 @@ EXPLAIN
   }
 }
 # Check access rights checking
+set @orig_sql_mode = @@sql_mode;
+set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT USAGE ON *.* TO 'privtest'@'localhost';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT SUPER ON *.* TO 'privtest'@'localhost';
 GRANT SELECT ON mysqltest1.t2 TO 'privtest'@'localhost';
 CREATE VIEW v2 AS SELECT * FROM t2;
@@ -1144,14 +1151,14 @@ KEY col_int_key (col_int_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 EXPLAIN SELECT alias1.pk AS field1 FROM h2 AS alias1 LEFT JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3;;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	225.00	Using where; Using index
+1	SIMPLE	alias1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
 1	SIMPLE	alias2	NULL	ref	col_int_key	col_int_key	5	mysqltest1.alias1.pk	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `mysqltest1`.`alias1`.`pk` AS `field1` from `mysqltest1`.`h2` `alias1` left join `mysqltest1`.`aa3` `alias2` on((`mysqltest1`.`alias2`.`col_int_key` = `mysqltest1`.`alias1`.`pk`)) where (`mysqltest1`.`alias1`.`pk` <> 9) group by `field1` order by `field1` limit 3,1
 Should show same # of rows as above
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT alias1.pk AS field1 FROM h2 AS alias1 LEFT JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	225.00	Using where; Using index
+1	SIMPLE	alias1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
 1	SIMPLE	alias2	NULL	ref	col_int_key	col_int_key	5	mysqltest1.alias1.pk	1	100.00	Using index
 DROP TABLE h2, aa3;
 #
@@ -1422,7 +1429,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR ready_for_explain';
 SET DEBUG_SYNC= 'after_explain_other SIGNAL explained';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	11	NULL	3	100.00	Using index
-1	SIMPLE	t1	NULL	range	a	a	11	NULL	1	100.00	Range checked for each record (index map: 0x1)
+1	SIMPLE	t1	NULL	range	a	a	11	NULL	3	100.00	Range checked for each record (index map: 0x1)
 connection: cq
 1
 # Connection default

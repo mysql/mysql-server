@@ -2134,18 +2134,21 @@ unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,uint fields,
   DBUG_RETURN(result);
 }
 
+
 /**
   Read metadata resultset from server
+  Memory allocated in a given allocator root.
 
   @param[IN]    mysql           connection handle
+  @param[IN]    alloc           memory allocator root
   @param[IN]    field_count     total number of fields
   @param[IN]    field           number of columns in single field descriptor
 
   @retval an array of field rows
 
 */
-MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
-                              unsigned int field)
+MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
+                                  ulong field_count, unsigned int field)
 {
   ulong *len;
   uint  f;
@@ -2156,9 +2159,9 @@ MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
 
   DBUG_ENTER("cli_read_metadata");
 
-  len= (ulong*) alloc_root(&mysql->field_alloc, sizeof(ulong)*field);
+  len= (ulong*) alloc_root(alloc, sizeof(ulong)*field);
 
-  fields= result= (MYSQL_FIELD*) alloc_root(&mysql->field_alloc,
+  fields= result= (MYSQL_FIELD*) alloc_root(alloc,
                           (uint) sizeof(MYSQL_FIELD)*field_count);
   if (!result)
   {
@@ -2167,8 +2170,7 @@ MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
   }
   memset(fields, 0, sizeof(MYSQL_FIELD)*field_count);
 
-  data.data= (MYSQL_ROW) alloc_root(&mysql->field_alloc,
-                          sizeof(char *)*(field+1));
+  data.data= (MYSQL_ROW) alloc_root(alloc, sizeof(char *)*(field+1));
   memset(data.data, 0, sizeof(char *)*(field+1));
 
   /*
@@ -2179,8 +2181,8 @@ MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
   {
     if(read_one_row(mysql, field, data.data, len) == -1)
       DBUG_RETURN(NULL);
-    if(unpack_field(mysql, &mysql->field_alloc, 0,
-                 mysql->server_capabilities, &data, fields++))
+    if(unpack_field(mysql, alloc, 0, mysql->server_capabilities, &data,
+                    fields++))
       DBUG_RETURN(NULL);
   }
   /* Read EOF packet in case of old client */
@@ -2197,6 +2199,24 @@ MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
   }
   DBUG_RETURN(result);
 }
+
+
+/**
+  Read metadata resultset from server
+
+  @param[IN]    mysql           connection handle
+  @param[IN]    field_count     total number of fields
+  @param[IN]    field           number of columns in single field descriptor
+
+  @retval an array of field rows
+
+*/
+MYSQL_FIELD *cli_read_metadata(MYSQL *mysql, ulong field_count,
+                               unsigned int field)
+{
+  return cli_read_metadata_ex(mysql, &mysql->field_alloc, field_count, field);
+}
+
 
 /* Read all rows (data) from server */
 
@@ -4427,8 +4447,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       */
       saved_error= socket_errno;
 
-      DBUG_PRINT("info", ("No success, close socket, try next address."));
-      closesocket(sock);
+      DBUG_PRINT("info", ("No success, try next address."));
     }
     DBUG_PRINT("info",
                ("End of connect attempts, sock: %d  status: %d  error: %d",
@@ -4617,6 +4636,12 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   MYSQL_TRACE(INIT_PACKET_RECEIVED, mysql, (pkt_length, net->read_pos));
   MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
 
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+  if(mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
+  {
+    mysql->options.use_ssl= FALSE;
+  }
+#endif
   /* try and bring up SSL if possible */
   cli_calculate_client_flag(mysql, db, client_flag);
   if (cli_establish_ssl(mysql))

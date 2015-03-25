@@ -39,7 +39,7 @@ PermissionsStartOnly=true
 ExecStartPre=@bindir@/mysqld_pre_systemd
 
 # Start main service
-ExecStart=@libexecdir@/mysqld --daemonize
+ExecStart=@libexecdir@/mysqld --daemonize $MYSQLD_OPTS
 
 # Use this to switch malloc implementation
 EnvironmentFile=-/etc/sysconfig/mysql

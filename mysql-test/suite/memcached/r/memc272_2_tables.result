@@ -1,0 +1,212 @@
+SET @tx_isolation= @@global.tx_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO config_options VALUES("table_map_delimiter", ".");
+INSERT INTO containers VALUES ("desct1", "test", "t1",
+"c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+INSERT INTO containers VALUES ("desct2", "test", "t2",
+"c1", "c2", "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c21 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+CREATE TABLE t2        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+INSERT INTO t2 VALUES ('D', 'Dortmund', 0, 0, 0);
+INSERT INTO t2 VALUES ('B', 'Bremen', 0, 0, 0);
+INSERT INTO t2 VALUES ('C', 'Celle', 0, 0 ,0);
+INSERT INTO t2 VALUES ('H', 'Hannover', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+H	Hannover
+SELECT SLEEP(2);
+SLEEP(2)
+0
+Here the memcached results with D,B,H,C of default:
+Darmstadt|City
+Berlin|Mitte
+Hamburg|Norderstedt
+Cottbus|West
+Here the memcached results with D,B,H,C of t2:
+Dortmund
+Bremen
+Hannover
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+H	Hannover
+Here the memcached results after set in default:
+Essen|Ost
+Here the memcached results after set in t2:
+Essen
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+E	Essen
+H	Hannover
+Here the memcached results after add:
+Frankfurt|Sachsenhause
+Here the memcached results after add in t2:
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+F	Frankfurt	Sachsenhause
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+E	Essen
+H	Hannover
+Here the memcached results after replace:
+Frankfurt a. M.|Sachsenhausen
+Here the memcached results after replace in t2:
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+F	Frankfurt a. M.	Sachsenhausen
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+E	Essen
+H	Hannover
+Here the memcached results after delete:
+Here the memcached results after delete in t2:
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+E	Essen
+H	Hannover
+Here the memcached results after add Frankfurt|:
+Frankfurt|
+Here the memcached results after add |Airport:
+Frankfurt|
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+F	Frankfurt	NULL
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+E	Essen
+H	Hannover
+Here the memcached results after replace Frankfurt a.M.:
+Frankfurt a. M.|
+Here the memcached results after replace Sachsenhausen:
+|Sachsenhausen
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+E	Essen	Ost
+F	NULL	Sachsenhausen
+H	Hamburg	Norderstedt
+SELECT c1,c2 FROM t2;
+c1	c2
+B	Bremen
+C	Celle
+D	Dortmund
+E	Essen
+H	Hannover
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t1 MODIFY c2 int;
+Warnings:
+Warning	1366	Incorrect integer value: 'Berlin' for column 'c2' at row 1
+Warning	1366	Incorrect integer value: 'Cottbus' for column 'c2' at row 2
+Warning	1366	Incorrect integer value: 'Darmstadt' for column 'c2' at row 3
+Warning	1366	Incorrect integer value: 'Essen' for column 'c2' at row 4
+Warning	1366	Incorrect integer value: 'Hamburg' for column 'c2' at row 6
+SET sql_mode=default;
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	0	Mitte
+C	0	West
+D	0	City
+E	0	Ost
+F	NULL	Sachsenhausen
+H	0	Norderstedt
+Here the memcached results after add Frankfurt|:
+|Sachsenhausen
+Here the memcached results after add |Airport:
+|Sachsenhausen
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	0	Mitte
+C	0	West
+D	0	City
+E	0	Ost
+F	NULL	Sachsenhausen
+H	0	Norderstedt
+Here the memcached results after flush_all:
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+DROP TABLE t1,t2;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+SET @@global.tx_isolation= @tx_isolation;

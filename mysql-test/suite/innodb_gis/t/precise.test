@@ -80,11 +80,12 @@ select ST_astext(ST_symdifference(ST_geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))
 select ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 
 # Buffer() tests
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/
 select ST_astext(ST_buffer(ST_geometryfromtext('point(1 1)'), 1));
 create table t1(geom geometrycollection)engine=innodb;
 insert into t1 values (ST_geomfromtext('POLYGON((0 0, 10 10, 0 8, 0 0))'));
 insert into t1 values (ST_geomfromtext('POLYGON((1 1, 10 10, 0 8, 1 1))'));
---replace_result 101.67150840374887 101.67150840374886 108.55539589266462 108.55539589266459
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/
 select ST_astext(geom), ST_area(geom),ST_area(ST_buffer(geom,2)) from t1;
 select ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2))) from t1;
 
@@ -115,6 +116,7 @@ SELECT ST_Equals(ST_PointFromText('POINT (12 13)'),ST_PointFromText('POINT (12 1
 --echo # BUG#11759650/51979: UNION/INTERSECTION OF POLYGONS CRASHES MYSQL
 --echo #
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((525000 183300,525400
 183300,525400 18370, 525000 183700,525000 183300))'),
 ST_geomfromtext('POLYGON((525298.67 183511.53,525296.57

@@ -3,10 +3,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
 @@SESSION.innodb_strict_mode
@@ -75,10 +71,18 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 # List after t1 DISCARD
 t1.frm
 ALTER TABLE t1 IMPORT TABLESPACE;
+SET GLOBAL innodb_file_format=Antelope;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+SET innodb_strict_mode=off;
 ALTER TABLE t1 ENGINE InnoDB;
 Warnings:
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
 Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+SET GLOBAL innodb_file_format=default;
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+SET innodb_strict_mode=default;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 640
@@ -113,10 +117,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
 @@SESSION.innodb_strict_mode
@@ -461,7 +461,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -497,6 +497,4 @@ c1	c2
 42	1
 43	1
 DROP TABLE t1;
-SET GLOBAL INNODB_FILE_FORMAT=Antelope;
 SET GLOBAL INNODB_FILE_PER_TABLE=1;
-SET SESSION innodb_strict_mode=0;

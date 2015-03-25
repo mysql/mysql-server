@@ -324,7 +324,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   */
 
 #ifndef EMBEDDED_LIBRARY
-  if ((thd->client_capabilities & CLIENT_SESSION_TRACK) &&
+  if (thd->get_protocol()->has_client_capability(CLIENT_SESSION_TRACK) &&
       thd->session_tracker.enabled_any() &&
       thd->session_tracker.changed_any())
     thd->lex->safe_to_cache_query= 0;
@@ -499,7 +499,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     initiated. Also set the statement query arena to the lex mem_root.
   */
   MEM_ROOT *execution_mem_root= thd->mem_root;
-  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->state);
+  Query_arena parse_arena(&m_lex_mem_root, STMT_INITIALIZED_FOR_SP);
 
   thd->mem_root= &m_lex_mem_root;
   thd->stmt_arena->set_query_arena(&parse_arena);
@@ -838,7 +838,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
       /* Finalize server status flags after executing a statement. */
       thd->update_server_status();
 
-      thd->protocol->end_statement();
+      thd->send_statement_status();
     }
 
     query_cache.end_of_result(thd);

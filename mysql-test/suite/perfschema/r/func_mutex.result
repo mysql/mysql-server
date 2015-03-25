@@ -9,7 +9,7 @@ where NAME = 'wait/synch/mutex/sql/LOCK_open';
 NAME
 wait/synch/mutex/sql/LOCK_open
 select NAME from performance_schema.rwlock_instances
-where NAME = 'wait/synch/rwlock/sql/LOCK_grant';
+where NAME = 'wait/synch/rwlock/sql/LOCK_grant' limit 1;
 NAME
 wait/synch/rwlock/sql/LOCK_grant
 DROP TABLE IF EXISTS t1;

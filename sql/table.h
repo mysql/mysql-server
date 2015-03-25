@@ -41,12 +41,14 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Table_cache_element;
 class Table_trigger_dispatcher;
-class select_union;
+class Query_result_union;
 class Temp_table_param;
 class Index_hint;
 struct Name_resolution_context;
 struct LEX;
 typedef int8 plan_idx;
+class Opt_hints_qb;
+class Opt_hints_table;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -607,6 +609,11 @@ struct TABLE_SHARE
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
+  /**
+    TABLE_SHARE version, if changed the TABLE_SHARE must be reopened.
+    NOTE: The TABLE_SHARE will not be reopened during LOCK TABLES in
+    close_thread_tables!!!
+  */
   ulong   version;
   ulong   mysql_version;		/* 0 if .frm is created before 5.0 */
   ulong   reclength;			/* Recordlength */
@@ -1184,6 +1191,10 @@ public:
      tree only.
    */
   my_bool key_read;
+  /**
+     Certain statements which need the full row, set this to ban index-only
+     access.
+  */
   my_bool no_keyread;
   my_bool locked_by_logger;
   /**
@@ -1204,6 +1215,11 @@ public:
   my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
+  /**
+    This table must be reopened and is not to be reused.
+    NOTE: The TABLE will not be reopened during LOCK TABLES in
+    close_thread_tables!!!
+  */
   my_bool m_needs_reopen;
 private:
   bool created; /* For tmp tables. TRUE <=> tmp table has been instantiated.*/
@@ -1487,10 +1503,17 @@ enum enum_view_algorithm {
 /** The threshold size a blob field buffer before it is freed */
 #define MAX_TDC_BLOB_SIZE 65536
 
-
+/**
+  Struct that describes an expression selected from a derived table or view.
+*/
 struct Field_translator
 {
+  /**
+    Points to an item that represents the expression.
+    If the item is determined to be unused, the pointer is set to NULL.
+  */
   Item *item;
+  /// Name of selected expression
   const char *name;
 };
 
@@ -1652,6 +1675,8 @@ struct TABLE_LIST
                      mdl_type_for_dml(lock_type),
                      MDL_TRANSACTION);
     callback_func= 0;
+    opt_hints_table= NULL;
+    opt_hints_qb= NULL;
   }
 
   /// Create a TABLE_LIST object representing a nested join
@@ -1682,6 +1707,16 @@ struct TABLE_LIST
     m_join_cond_optim= cond;
   }
   Item **join_cond_optim_ref() { return &m_join_cond_optim; }
+
+  /// Get the semi-join condition for a semi-join nest, NULL otherwise
+  Item *sj_cond() const { return m_sj_cond; }
+
+  /// Set the semi-join condition for a semi-join nest
+  void set_sj_cond(Item *cond)
+  {
+    DBUG_ASSERT(m_sj_cond == NULL);
+    m_sj_cond= cond;
+  }
 
   /// Merge tables from a query block into a nested join structure
   bool merge_underlying_tables(class st_select_lex *select);
@@ -1732,14 +1767,7 @@ struct TABLE_LIST
   }
 
   /// Prepare check option for a view
-  inline bool prepare_check_option(THD *thd)
-  {
-    DBUG_ASSERT(is_view());
-    bool res= false;
-    if (effective_with_check)
-      res= prep_check_option(thd, effective_with_check);
-    return res;
-  }
+  bool prepare_check_option(THD *thd, bool is_cascaded= false);
 
   /// Merge WHERE condition of view or derived table into outer query
   bool merge_where(THD *thd);
@@ -1881,6 +1909,30 @@ struct TABLE_LIST
     return derived;
   }
 
+  /// Set temporary name from underlying temporary table:
+  void set_name_temporary()
+  {
+    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    table_name= table->s->table_name.str;
+    table_name_length= table->s->table_name.length;
+    db= (char *)"";
+    db_length= 0;
+  }
+
+  /// Reset original name for temporary table.
+  void reset_name_temporary()
+  {
+    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT(db != view_db.str && table_name != view_name.str);
+    if (is_view())
+    {
+      db= view_db.str;
+      db_length= view_db.length;
+    }
+    table_name= view_name.str;
+    table_name_length= view_name.length;
+  }
+
   /// Resolve a derived table or view reference
   bool resolve_derived(THD *thd, bool apply_semijoin);
 
@@ -1996,7 +2048,7 @@ struct TABLE_LIST
   {
     if (!embedding)
       return NULL;
-    if (embedding->sj_on_expr)
+    if (embedding->sj_cond())
       return embedding->embedding;
     return embedding;
   }
@@ -2074,6 +2126,11 @@ struct TABLE_LIST
   char *schema_table_name;
   char *option;                /* Used by cache index  */
 
+  /** Table level optimizer hints for this table.  */
+  Opt_hints_table *opt_hints_table;
+  /* Hints for query block of this table. */
+  Opt_hints_qb *opt_hints_qb;
+
 private:
   /**
     The members below must be kept aligned so that (1 << m_tableno) == m_map.
@@ -2089,8 +2146,8 @@ private:
      once for all executions of a prepared statement).
   */
   Item		*m_join_cond;
+  Item          *m_sj_cond;               ///< Synthesized semijoin condition
 public:
-  Item          *sj_on_expr;            /* Synthesized semijoin condition */
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
     semi-join (this is different from bitmap of all nest's children because
@@ -2135,10 +2192,10 @@ public:
   TABLE        *table;                          /* opened table */
   Table_id table_id; /* table id (from binlog) for opened table */
   /*
-    select_result for derived table to pass it from table creation to table
+    Query_result for derived table to pass it from table creation to table
     filling procedure
   */
-  select_union  *derived_result;
+  Query_result_union  *derived_result;
   /*
     Reference from aux_tables to local list entry of main select of
     multi-delete statement:
@@ -2175,8 +2232,10 @@ private:
   LEX *view;                    /* link on VIEW lex for merging */
 
 public:
-  Field_translator *field_translation;	/* array of VIEW fields */
-  /* pointer to element after last one in translation table above */
+  /// Array of selected expressions from a derived table or view.
+  Field_translator *field_translation;
+
+  /// pointer to element after last one in translation table above
   Field_translator *field_translation_end;
   /*
     List (based on next_local) of underlying tables of this view. I.e. it
@@ -2239,11 +2298,6 @@ public:
   ulonglong     algorithm;
   ulonglong     view_suid;              ///< view is suid (TRUE by default)
   ulonglong     with_check;             ///< WITH CHECK OPTION
-  /*
-    effective value of WITH CHECK OPTION (differ for temporary table
-    algorithm)
-  */
-  uint8         effective_with_check;
 
 private:
   /// The view algorithm that is actually used, if this is a view.
@@ -2408,7 +2462,6 @@ public:
   // End of group for optimization
 
 private:
-  bool prep_check_option(THD *thd, uint8 check_opt_type);
   /** See comments for set_metadata_id() */
   enum enum_table_ref_type m_table_ref_type;
   /** See comments for TABLE_SHARE::get_table_ref_version() */

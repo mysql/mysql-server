@@ -336,3 +336,9 @@ select f1, f2 from t1;
 --echo # ---------------------------------------------------------------
 
 drop table t1;
+
+--echo #
+--echo # BUG#20511314 - INNODB: FAILING ASSERTION: FOUND IN BUF0BUF.CC LINE 3856
+--echo #
+
+SET GLOBAL innodb_fil_make_page_dirty_debug=38098908;

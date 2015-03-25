@@ -94,6 +94,8 @@ void Item_func::set_arguments(List<Item> &list, bool context_free)
         with_sum_func|= item->with_sum_func;
     }
   }
+  else
+    arg_count= 0; // OOM
   list.empty();					// Fields are used
 }
 
@@ -3005,7 +3007,8 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
 
   if (dec_negative && my_isinf(tmp))
     tmp2= 0.0;
-  else if (!dec_negative && my_isinf(value_mul_tmp))
+  else if (!dec_negative &&
+           (my_isinf(value_mul_tmp) || my_isnan(value_mul_tmp)))
     tmp2= value;
   else if (truncate)
   {
@@ -6304,7 +6307,14 @@ bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg)
   {
     check(1);
     update();
-    return protocol->store(result_field);
+    /*
+      Workaround for metadata check in Protocol_text. Legacy Protocol_text
+      is so well designed that it sends fields in text format, and functions'
+      results in binary format. When this func tries to send its data as a
+      field it breaks metadata asserts in the P_text.
+      TODO This func have to be changed to avoid sending data as a field.
+    */
+    return result_field->send_binary(protocol);
   }
   return Item::send(protocol, str_arg);
 }
@@ -7502,10 +7512,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       is made later by JOIN::fts_index_access() function.
     */
     else
-    {
       table->no_keyread= true;
-      cleanup_table_ref= true;
-    }
   }
   else
   {

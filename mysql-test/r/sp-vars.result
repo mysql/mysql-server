@@ -6,6 +6,8 @@ DROP FUNCTION IF EXISTS sp_vars_check_ret3;
 DROP FUNCTION IF EXISTS sp_vars_check_ret4;
 DROP FUNCTION IF EXISTS sp_vars_div_zero;
 SET @@sql_mode = 'ansi';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE sp_vars_check_dflt()
 BEGIN
 DECLARE v1 TINYINT DEFAULT 1e200;
@@ -156,7 +158,7 @@ sp_vars_div_zero()
 NULL
 SET @@sql_mode = 'traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 ---------------------------------------------------------------
 Calling in TRADITIONAL mode the routines, created in ANSI mode.
@@ -335,6 +337,8 @@ Note	1265	Data truncated for column 'sp_vars_check_ret4()' at row 1
 SELECT sp_vars_div_zero();
 ERROR 22012: Division by 0
 SET @@sql_mode = 'ansi';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP PROCEDURE sp_vars_check_dflt;
 DROP PROCEDURE sp_vars_check_assignment;
 DROP FUNCTION sp_vars_check_ret1;
@@ -758,7 +762,7 @@ DROP PROCEDURE IF EXISTS p5;
 DROP PROCEDURE IF EXISTS p6;
 SET @@sql_mode = 'traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE v TINYINT DEFAULT 1e200;
@@ -805,6 +809,8 @@ ERROR 22001: Data too long for column 'var' at row 1
 CALL p6(10);
 ERROR 22003: Out of range value for column 'var' at row 1
 SET @@sql_mode = 'ansi';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;
@@ -852,7 +858,7 @@ Warnings:
 Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT f1(-2500);
 ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;
@@ -863,6 +869,8 @@ END|
 SELECT f1(-2500);
 ERROR 22003: Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'ansi';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP FUNCTION f1;
 
 ---------------------------------------------------------------
@@ -881,7 +889,7 @@ Warnings:
 Warning	1264	Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT f1(8388699);
 ERROR 22003: Out of range value for column 'arg' at row 1
 DROP FUNCTION f1;
@@ -892,6 +900,8 @@ END|
 SELECT f1(8388699);
 ERROR 22003: Out of range value for column 'arg' at row 1
 SET @@sql_mode = 'ansi';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP FUNCTION f1;
 
 ---------------------------------------------------------------

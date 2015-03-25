@@ -210,12 +210,13 @@ enum enum_object_type
   OBJECT_TYPE_GLOBAL= 7,
   OBJECT_TYPE_SCHEMA= 8,
   OBJECT_TYPE_COMMIT= 9,
-  OBJECT_TYPE_USER_LEVEL_LOCK= 10
+  OBJECT_TYPE_USER_LEVEL_LOCK= 10,
+  OBJECT_TYPE_TABLESPACE= 11
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_EVENT))
 /** Integer, last value of @sa enum_object_type. */
-#define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_USER_LEVEL_LOCK))
+#define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_TABLESPACE))
 /** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
 

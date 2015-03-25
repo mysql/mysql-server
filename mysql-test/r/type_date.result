@@ -224,8 +224,6 @@ Warnings:
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '0000-00-00' for column 'a' at row 1
 SET SQL_MODE=TRADITIONAL;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 EXPLAIN SELECT * FROM t1 WHERE a = '0000-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i	i	4	const	1	100.00	Using index
@@ -273,8 +271,6 @@ Warnings:
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 Warning	1292	Incorrect date value: '1000-00-00' for column 'a' at row 1
 SET SQL_MODE=TRADITIONAL;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 EXPLAIN SELECT * FROM t1 WHERE a = '1000-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	i	i	4	const	1	100.00	Using index
@@ -550,6 +546,8 @@ DROP TABLE IF EXISTS t1, t2, t3;
 SET @org_mode=@@sql_mode;
 #Table creation in strict mode
 SET @@sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (c1 DATE DEFAULT 0);
 ERROR 42000: Invalid default value for 'c1'
 CREATE TABLE t1 (c1 DATE DEFAULT '0000-00-00');
@@ -579,5 +577,7 @@ ALTER TABLE t1 ADD c3 DATE DEFAULT '0000-00-00';
 ALTER TABLE t1 ADD c4 DATE DEFAULT '2012-02-00';
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # END of Test for bug#11747847 - 34280
 End of 5.6 tests

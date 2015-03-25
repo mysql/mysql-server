@@ -115,7 +115,7 @@ int table_setup_actors::write_row(TABLE *table, unsigned char *buf,
       }
     }
   }
-  
+
   /* Reject illegal enum values in ENABLED */
   if ((enabled_value != ENUM_YES) && (enabled_value != ENUM_NO))
     return HA_ERR_NO_REFERENCED_ROW;

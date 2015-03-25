@@ -9,7 +9,6 @@
 -- disable_query_log
 SET @tx_isolation_orig = @@tx_isolation;
 SET @innodb_file_per_table_orig = @@innodb_file_per_table;
-SET @innodb_file_format_orig = @@innodb_file_format;
 # The flag innodb_change_buffering_debug is only available in debug builds.
 # It instructs InnoDB to try to evict pages from the buffer pool when
 # change buffering is possible, so that the change buffer will be used
@@ -20,7 +19,6 @@ SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
 SET GLOBAL innodb_change_buffering_debug = 1;
 -- enable_query_log
 SET GLOBAL tx_isolation='REPEATABLE-READ';
-SET GLOBAL innodb_file_format=Barracuda;
 SET GLOBAL innodb_file_per_table=on;
 
 CREATE TABLE bug56680(
@@ -138,6 +136,5 @@ DROP TABLE bug56680;
 -- disable_query_log
 SET GLOBAL tx_isolation = @tx_isolation_orig;
 SET GLOBAL innodb_file_per_table = @innodb_file_per_table_orig;
-SET GLOBAL innodb_file_format = @innodb_file_format_orig;
 -- error 0, ER_UNKNOWN_SYSTEM_VARIABLE
 SET GLOBAL innodb_change_buffering_debug = @innodb_change_buffering_debug_orig;

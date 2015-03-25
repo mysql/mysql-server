@@ -77,5 +77,4 @@ count(*)
 drop table t1;
 drop procedure if exists populate_t1;
 set global innodb_change_buffering = all;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;
+set global innodb_file_per_table = default;

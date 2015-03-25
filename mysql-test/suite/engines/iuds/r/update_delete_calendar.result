@@ -96,6 +96,8 @@ SELECT c1,c2,day(c1),day(c2) FROM t1 WHERE c3=19;
 c1	c2	day(c1)	day(c2)
 2009-04-31	2009-02-30	31	30
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES('2001-01-17','0000-00-00',13),('2001-01-18','2001-01-18',14);
 SET SQL_MODE=TRADITIONAL;
 SELECT * FROM t1 WHERE c2='0000-00-00';
@@ -113,6 +115,8 @@ Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
 UPDATE t1 SET c2='0000-00-00' WHERE c2='2001-01-18';
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c2='0000-00-00' WHERE c2='2001-01-18';
 UPDATE t1 SET c2='2001-01-18' WHERE c2='0000-00-00' AND c1='2001-01-17';
 SELECT * FROM t1 WHERE c1='0000-00-00' OR c2='0000-00-00';
@@ -811,6 +815,8 @@ Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at 
 UPDATE t1 SET c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 UPDATE t1 SET c2='2001-01-17 12:34:00' WHERE c2='0000-00-00 00:00:00' AND c1='2001-01-17';
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
@@ -1417,6 +1423,8 @@ Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at 
 UPDATE t1 SET c1='1972-01-01 07:35',c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1='1972-01-01 07:35',c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 UPDATE t1 SET c1='2001-01-17 12:34:00',c2='2001-01-17 12:34:00' WHERE c2='0000-00-00 00:00:00' AND c1='2001-01-17';
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';

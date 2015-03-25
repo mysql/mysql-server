@@ -24,17 +24,9 @@
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $innodb_file_format = `SELECT @@innodb_file_format`;
-let $innodb_large_prefix_orig = `select @@innodb_large_prefix`;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-
-set global innodb_large_prefix=1;
-SELECT @@innodb_large_prefix;
 
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 
@@ -54,7 +46,6 @@ CREATE DATABASE testdb_wl6445;
 --echo case # 1
 
 SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));

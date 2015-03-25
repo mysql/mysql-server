@@ -2,17 +2,11 @@
 # CREATE TABLESPACE related tests for 32k page sizes.
 #
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
-# Strict-mode has no affect on CREATE TABLESPACE. But it does affect
+# Strict-mode has no effect on CREATE TABLESPACE. But it does affect
 # whether an invalid KEY_BLOCK_SIZE is rejected or adjusted.
-SET SESSION innodb_strict_mode = ON;
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 Variable_name	Value
 innodb_strict_mode	ON
-SET GLOBAL innodb_file_format = 'barracuda';
-SHOW VARIABLES LIKE 'innodb_file_format';
-Variable_name	Value
-innodb_file_format	Barracuda
-SET GLOBAL innodb_file_per_table = ON;
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -145,10 +139,10 @@ Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_64k	MYSQLD_DATADIR/s_64k.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
-Table Name	Tablespace	Table Flags	Columns	File Format	Row Format	Zip Size	Space Type
-test/t_com_in_64k	s_64k	129	5	Antelope	Compact	0	General
-test/t_dyn_in_64k	s_64k	161	5	Barracuda	Dynamic	0	General
-test/t_red_in_64k	s_64k	128	5	Antelope	Redundant	0	General
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t_com_in_64k	s_64k	129	5	Compact	0	General
+test/t_dyn_in_64k	s_64k	161	5	Dynamic	0	General
+test/t_red_in_64k	s_64k	128	5	Redundant	0	General
 # Directory of MYSQLD_DATADIR/
 s_64k.ibd
 # Directory of MYSQLD_DATADIR/test/

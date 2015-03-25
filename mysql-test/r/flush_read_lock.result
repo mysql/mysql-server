@@ -1058,9 +1058,16 @@ Success: Was able to run FTWRL while 'replace into t1_temp select * from t1_base
 # 29) REVOKE variants.
 # 
 # 29.1) REVOKE privileges is incompatible with FTWRL. 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 grant all privileges on t1_base to mysqltest_u1;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Skip last part of testing as this statement does
 # implicit commit and releases metadata locks in
 # non-standard place.

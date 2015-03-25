@@ -93,6 +93,8 @@ call bug6807()|
 ERROR 70100: Query execution was interrupted
 drop procedure bug6807|
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION'|
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop function if exists bug10100f|
 drop procedure if exists bug10100p|
 drop procedure if exists bug10100t|
@@ -202,9 +204,16 @@ drop table t3|
 SET sql_mode = default;
 drop procedure if exists bug15298_1;
 drop procedure if exists bug15298_2;
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 grant all privileges on test.* to 'mysqltest_1'@'localhost';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure 15298_1 () sql security definer show grants for current_user;
 create procedure 15298_2 () sql security definer show grants;
 call 15298_1();
@@ -317,6 +326,8 @@ USE test;
 # Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
 #
 SET @@SQL_MODE = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE EVENT teste_bug11763507 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
 DO SELECT 1 $
 SHOW EVENTS LIKE 'teste_bug11763507';

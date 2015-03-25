@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -308,6 +308,10 @@ void vio_ssl_delete(Vio *vio)
     SSL_free((SSL*) vio->ssl_arg);
     vio->ssl_arg= 0;
   }
+
+#ifndef HAVE_YASSL
+  ERR_remove_thread_state(0);
+#endif
 
   vio_delete(vio);
 }

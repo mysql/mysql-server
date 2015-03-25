@@ -9,7 +9,6 @@
 
 --disable_query_log
 set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
-set @old_innodb_file_format = @@innodb_file_format;
 set @old_innodb_file_per_table = @@innodb_file_per_table;
 set @old_innodb_thread_concurrency = @@innodb_thread_concurrency;
 set @old_innodb_thread_sleep_delay = @@innodb_thread_sleep_delay;
@@ -22,7 +21,6 @@ set global innodb_disable_resize_buffer_pool_debug = OFF;
 
 let $wait_timeout = 180;
 
-set global innodb_file_format=`Barracuda`;
 set global innodb_file_per_table=ON;
 set global innodb_thread_concurrency=20;
 
@@ -177,7 +175,6 @@ drop table t6;
 
 --disable_query_log
 set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
-set global innodb_file_format = @old_innodb_file_format;
 set global innodb_file_per_table = @old_innodb_file_per_table;
 set global innodb_thread_concurrency = @old_innodb_thread_concurrency;
 set global innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;

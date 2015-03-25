@@ -1,5 +1,7 @@
 DROP TABLE IF EXISTS t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Test with a saved table from 5.5
 #
@@ -270,3 +272,66 @@ NULL	NULL
 DROP TABLE t1;
 SET time_zone=DEFAULT;
 SET sql_mode = default;
+#
+# BUG#18985579: "CHECK TABLE .. FOR UPGRADE" FAILS TO REPORT OLD 
+#                DATETIME FORMAT. 
+#
+#Setup.
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES ('22:22:22','2011-11-21 22:22:22','2011-11-21 22:22:22');
+#Test case with 'avoid_temporal_upgrade' disabled.
+#Reports an error to repair the table.
+CHECK TABLE t1 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t1	check	error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+#REPAIR upgrades the old temporal types.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+f_time	f_datetime	f_timestamp	HEX(WEIGHT_STRING(f_time))	HEX(WEIGHT_STRING(f_datetime))	HEX(WEIGHT_STRING(f_timestamp))
+10:10:10	2010-10-10 10:10:10	2031-11-21 17:11:01	818A92	0000124821911312	7468F975
+00:00:00	2000-01-01 01:01:01	2001-01-21 18:11:01	800000	00001230A2EA8AB5	3A6AFC05
+01:01:10	2020-01-01 01:01:01	1980-11-21 18:06:01	80277E	0000125F33D85AB5	147BF1D9
+NULL	2000-01-01 01:01:01	2015-11-21 17:11:01	NULL	00001230A2EA8AB5	56507B75
+00:00:00	NULL	2011-11-21 17:11:01	800000	NULL	4ECA5BF5
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Note	TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format.
+test.t1	repair	status	OK
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t1;
+f_time	f_datetime	f_timestamp	HEX(WEIGHT_STRING(f_time))	HEX(WEIGHT_STRING(f_datetime))	HEX(WEIGHT_STRING(f_timestamp))
+10:10:10	2010-10-10 10:10:10	2031-11-21 17:11:01	80A28A	998714A28A	7468F975
+00:00:00	2000-01-01 01:01:01	2001-01-21 18:11:01	800000	9964421041	3A6AFC05
+01:01:10	2020-01-01 01:01:01	1980-11-21 18:06:01	80104A	99A5421041	147BF1D9
+NULL	2000-01-01 01:01:01	2015-11-21 17:11:01	NULL	9964421041	56507B75
+00:00:00	NULL	2011-11-21 17:11:01	800000	NULL	4ECA5BF5
+#Cleanup.
+DROP TABLE t1;
+#Test case with 'avoid_temporal_upgrade' enabled.
+SET @save_avoid_temporal_upgrade= @@global.avoid_temporal_upgrade;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+SET GLOBAL avoid_temporal_upgrade= ON;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+#Does not report an error to repair the table.
+CHECK TABLE t2 FOR UPGRADE;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+#REPAIR TABLE does not upgrade the old temporal types.
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+f_time	f_datetime	f_timestamp	HEX(WEIGHT_STRING(f_time))	HEX(WEIGHT_STRING(f_datetime))	HEX(WEIGHT_STRING(f_timestamp))
+22:22:22	2011-11-21 22:22:22	2011-11-21 22:22:22	83640E	0000124A7C3C8A4E	4ECAA4EE
+REPAIR TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+SELECT f_time, f_datetime, f_timestamp, HEX(WEIGHT_STRING(f_time)),
+HEX(WEIGHT_STRING(f_datetime)), HEX(WEIGHT_STRING(f_timestamp)) FROM t2;
+f_time	f_datetime	f_timestamp	HEX(WEIGHT_STRING(f_time))	HEX(WEIGHT_STRING(f_datetime))	HEX(WEIGHT_STRING(f_timestamp))
+22:22:22	2011-11-21 22:22:22	2011-11-21 22:22:22	83640E	0000124A7C3C8A4E	4ECAA4EE
+#Cleanup.
+DROP TABLE t2;
+SET @@global.avoid_temporal_upgrade= @save_avoid_temporal_upgrade;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.

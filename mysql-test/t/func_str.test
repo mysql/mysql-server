@@ -1781,3 +1781,4 @@ SET @@global.max_allowed_packet:= DEFAULT;
 --echo #              EXPLOITABLE
 
 do rpad(_utf16"33",1073741826,_latin1"44");
+

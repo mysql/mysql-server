@@ -816,3 +816,17 @@ WHERE OUTR1 . pk <> (
 DROP TABLE t1, t2, t3, t4, t5;
 
 SET sql_mode=default;
+
+--echo # Bug#20450013 assertion 'select_lex::having_cond() == __null ...
+
+CREATE TABLE t1(a TEXT, FULLTEXT (a));
+CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+
+let $query=
+DELETE FROM t1 USING v1,t1;
+
+eval explain $query;
+eval $query;
+
+DROP VIEW v1;
+DROP TABLE t1;

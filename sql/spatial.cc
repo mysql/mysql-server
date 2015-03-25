@@ -167,29 +167,23 @@ int MBR::within(const MBR *mbr) const
   1   sign
   1   number before the decimal point
   1   decimal point
-  14  number of significant digits (see String::qs_append(double))
+  17  number of significant digits (see String::qs_append(double))
   1   'e' sign
   1   exponent sign
   3   exponent digits
   ==
-  22
+  25
 
   "f" notation :
   1   optional 0
   1   sign
-  14  number significant digits (see String::qs_append(double) )
+  17  number significant digits (see String::qs_append(double) )
   1   decimal point
   ==
-  17
+  20
 */
 
-/*
-  This used to be 30 but there was a test case which produces a double value
-  string of 34 chars instead of a scientific notation string.
-  A bug was filed to fix my_gcvt and before it's fixed we define this to
-  50 to be large enough.
-*/
-#define MAX_DIGITS_IN_DOUBLE 50
+#define MAX_DIGITS_IN_DOUBLE 25
 
 
 /**
@@ -878,13 +872,10 @@ void Geometry::append_points(String *txt, uint32 n_points,
     point_xy p;
     wkb->skip_unsafe(offset);
     wkb->scan_xy_unsafe(&p);
-    if (p.x == -0)
-      p.x= 0.0;
-    if (p.y == -0)
-      p.y= 0.0;
-    txt->qs_append(p.x);
+    txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 1);
+    txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(' ');
-    txt->qs_append(p.y);
+    txt->qs_append(p.y, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(',');
   }
 }
@@ -1337,15 +1328,11 @@ bool Gis_point::get_data_as_wkt(String *txt, wkb_parser *wkb) const
     return true;
   if (txt->reserve(MAX_DIGITS_IN_DOUBLE * 2 + 1))
     return true;
-  if (p.x == -0)
-    p.x= 0;
-  if (p.y == -0)
-    p.y= 0;
   if (!my_isfinite(p.x) || !my_isfinite(p.y))
     return true;
-  txt->qs_append(p.x);
+  txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
   txt->qs_append(' ');
-  txt->qs_append(p.y);
+  txt->qs_append(p.y, MAX_DIGITS_IN_DOUBLE);
   return false;
 }
 
@@ -1428,7 +1415,8 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
     if (trs->skip_char(','))			// Didn't find ','
       break;
   }
-  if (n_points < 1)
+
+  if (n_points < 2 || (is_polygon_ring() && n_points < 3))
   {
     trs->set_error_msg("Too few points in LINESTRING");
     return true;
@@ -1451,6 +1439,9 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
     n_points++;
     lastpt= wkb->ptr() + wkb->length() - POINT_DATA_SIZE;
   }
+  else if (n_points == 3)
+    return true;
+
   DBUG_ASSERT(n_points == (lastpt - firstpt) / POINT_DATA_SIZE + 1);
 
 out:
@@ -1468,7 +1459,8 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
   Gis_point p(false);
 
   if (len < 4 ||
-      (n_points= wkb_get_uint(wkb, bo)) < 1 ||
+      (n_points= wkb_get_uint(wkb, bo)) < 2 ||
+      (is_polygon_ring() && n_points < 3) ||
       n_points > max_n_points)
     return 0;
   proper_length= 4 + n_points * POINT_DATA_SIZE;
@@ -1485,7 +1477,10 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
       proper_length+= POINT_DATA_SIZE;
       n_points++;
     }
+    else if (n_points == 3)
+      return 0;
   }
+
   if (res->reserve(proper_length, 512))
     return 0;
 
@@ -1516,15 +1511,11 @@ bool Gis_line_string::get_data_as_wkt(String *txt, wkb_parser *wkb) const
   {
     point_xy p;
     wkb->scan_xy_unsafe(&p);
-    if (p.x == -0)
-      p.x= 0;
-    if (p.y == -0)
-      p.y= 0;
     if (!my_isfinite(p.x) || !my_isfinite(p.y))
       return true;
-    txt->qs_append(p.x);
+    txt->qs_append(p.x, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(' ');
-    txt->qs_append(p.y);
+    txt->qs_append(p.y, MAX_DIGITS_IN_DOUBLE);
     txt->qs_append(',');
   }
   txt->length(txt->length() - 1);		// Remove end ','
@@ -3307,6 +3298,8 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
     collection_len= GEOM_HEADER_SIZE + 4;
     extra= GEOM_HEADER_SIZE;
     write_geometry_header(ptr, geo->get_srid(), wkb_geometrycollection, 0);
+    set_srid(geo->get_srid());
+    has_geom_header_space(true);
   }
 
   // Skip GEOMETRY header.
@@ -3358,6 +3351,8 @@ bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
     collection_len= GEOM_HEADER_SIZE + 4;
     extra= GEOM_HEADER_SIZE;
     write_geometry_header(ptr, srid, wkb_geometrycollection, 0);
+    set_srid(srid);
+    has_geom_header_space(true);
   }
   else if (srid != get_srid())
     return true;

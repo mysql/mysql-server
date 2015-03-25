@@ -2501,6 +2501,8 @@ DROP TABLE t1, t2, t3, trigger_table;
 set @@SESSION.SQL_LOG_BIN = @save_log_bin;
 SET @save_sql_mode = @@SESSION.SQL_MODE;
 SET @@SESSION.SQL_MODE = STRICT_ALL_TABLES;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(i INT PRIMARY KEY);
 CREATE TABLE t2(i INT PRIMARY KEY);
 INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
@@ -2517,6 +2519,8 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 DROP TABLE t1, t2;
 SET @@SESSION.SQL_MODE = @save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @old_binlog_format = @@session.binlog_format;
 SET binlog_format = MIXED;
 CREATE TABLE t1 (a INT);

@@ -123,6 +123,11 @@ create table t8 (col1 blob, index(col1(767)))
 character set = latin1 engine = innodb;
 drop table t1, t2, t3, t4, t5, t6, t7, t8;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET GLOBAL innodb_large_prefix=OFF;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create table t1 (col1 varchar(768), index(col1))
 character set = latin1 engine = innodb;
 Warnings:
@@ -159,6 +164,9 @@ ERROR 42000: Specified key was too long; max key length is 767 bytes
 create table t4 (col1 blob, primary key(col1(768)))
 character set = latin1 engine = innodb;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
+SET GLOBAL innodb_large_prefix=default;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1
 (
 id INT PRIMARY KEY
@@ -321,6 +329,8 @@ hex(s1)
 update t1 set s1=0x12 where a=1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 update t1 set s1=0x12345678 where a=1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `c` FOREIGN KEY (`s1`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE)
 SET sql_mode = default;
@@ -656,9 +666,13 @@ INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode = 'STRICT_TRANS_TABLES';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 ERROR HY000: Column 'a' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
 SET @@sql_mode = @old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DELETE FROM t1;
 DROP TABLE t2,t1;
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)

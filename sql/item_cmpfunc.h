@@ -142,6 +142,9 @@ class Item_bool_func :public Item_int_func
 {
 public:
   Item_bool_func() : Item_int_func(), m_created_by_in2exists(false) {}
+  explicit Item_bool_func(const POS &pos)
+  : Item_int_func(pos), m_created_by_in2exists(false)
+  {}
 
   Item_bool_func(Item *a) : Item_int_func(a),
     m_created_by_in2exists(false)  {}
@@ -1917,6 +1920,8 @@ public:
 
 class Item_cond :public Item_bool_func
 {
+  typedef Item_bool_func super;
+
 protected:
   List<Item> list;
   bool abort_on_null;
@@ -1925,12 +1930,20 @@ public:
   /* Item_cond() is only used to create top level items */
   Item_cond(): Item_bool_func(), abort_on_null(1)
   { const_item_cache=0; }
+
   Item_cond(Item *i1,Item *i2)
     :Item_bool_func(), abort_on_null(0)
   {
     list.push_back(i1);
     list.push_back(i2);
   }
+  Item_cond(const POS &pos, Item *i1, Item *i2)
+    :Item_bool_func(pos), abort_on_null(0)
+  {
+    list.push_back(i1);
+    list.push_back(i2);
+  }
+
   Item_cond(THD *thd, Item_cond *item);
   Item_cond(List<Item> &nlist)
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
@@ -1949,6 +1962,9 @@ public:
     DBUG_ASSERT(nlist->elements);
     list.prepand(nlist);
   }
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+
   bool fix_fields(THD *, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
                          st_select_lex *removed_select);
@@ -2151,7 +2167,10 @@ public:
                              the current and level and reference
                              to multiple equalities of upper and levels */  
   Item_cond_and() :Item_cond() {}
+
   Item_cond_and(Item *i1,Item *i2) :Item_cond(i1,i2) {}
+  Item_cond_and(const POS &pos, Item *i1, Item *i2) :Item_cond(pos, i1, i2) {}
+
   Item_cond_and(THD *thd, Item_cond_and *item) :Item_cond(thd, item) {}
   Item_cond_and(List<Item> &list_arg): Item_cond(list_arg) {}
   enum Functype functype() const { return COND_AND_FUNC; }
@@ -2172,20 +2191,15 @@ public:
                              double rows_in_table);
 };
 
-inline bool is_cond_and(Item *item)
-{
-  if (item->type() != Item::COND_ITEM)
-    return FALSE;
-
-  Item_cond *cond_item= (Item_cond*) item;
-  return (cond_item->functype() == Item_func::COND_AND_FUNC);
-}
 
 class Item_cond_or :public Item_cond
 {
 public:
   Item_cond_or() :Item_cond() {}
+
   Item_cond_or(Item *i1,Item *i2) :Item_cond(i1,i2) {}
+  Item_cond_or(const POS &pos, Item *i1,Item *i2) :Item_cond(pos, i1, i2) {}
+
   Item_cond_or(THD *thd, Item_cond_or *item) :Item_cond(thd, item) {}
   Item_cond_or(List<Item> &list_arg): Item_cond(list_arg) {}
   enum Functype functype() const { return COND_OR_FUNC; }
@@ -2205,15 +2219,6 @@ public:
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table);
 };
-
-inline bool is_cond_or(Item *item)
-{
-  if (item->type() != Item::COND_ITEM)
-    return FALSE;
-
-  Item_cond *cond_item= (Item_cond*) item;
-  return (cond_item->functype() == Item_func::COND_OR_FUNC);
-}
 
 /* Some useful inline functions */
 

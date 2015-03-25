@@ -1,5 +1,7 @@
 SET @save_sql_mode=@@sql_mode;
 SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop procedure if exists p;
 drop procedure if exists p2;
 drop procedure if exists p3;
@@ -85,3 +87,5 @@ drop procedure p;
 drop procedure p2;
 drop procedure p3;
 SET @@sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

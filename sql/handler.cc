@@ -48,6 +48,7 @@
 
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
+#include "opt_hints.h"
 
 #include <list>
 
@@ -173,6 +174,12 @@ inline double log2(double x)
   Remove when legacy_db_type is finally gone
 */
 st_plugin_int *hton2plugin[MAX_HA];
+
+/**
+  Array allowing to check if handlerton is builtin without
+  acquiring LOCK_plugin.
+*/
+static bool builtin_htons[MAX_HA];
 
 const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
@@ -495,10 +502,29 @@ plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
   if (hton)
   {
     st_plugin_int **plugin= hton2plugin + hton->slot;
-    
+
 #ifdef DBUG_OFF
+    /*
+      Take a shortcut for builtin engines -- return pointer to plugin
+      without acquiring LOCK_plugin mutex. This is safe safe since such
+      plugins are not deleted until shutdown and we don't do reference
+      counting in non-debug builds for them.
+
+      Since we have reference to handlerton on our hands, this method
+      can't be called concurrently to non-builtin handlerton initialization/
+      deinitialization. So it is safe to access builtin_htons[] without
+      additional locking.
+     */
+    if (builtin_htons[hton->slot])
+      return *plugin;
+
     return my_plugin_lock(thd, plugin);
 #else
+    /*
+      We can't take shortcut in debug builds.
+      At least assert that builtin_htons[slot] is set correctly.
+    */
+    DBUG_ASSERT(builtin_htons[hton->slot] == (plugin[0]->plugin_dl == NULL));
     return my_plugin_lock(thd, &plugin);
 #endif
   }
@@ -719,6 +745,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
     DBUG_ASSERT(hton2plugin[hton->slot] == plugin);
     DBUG_ASSERT(hton->slot < MAX_HA);
     hton2plugin[hton->slot]= NULL;
+    builtin_htons[hton->slot]= false; /* Extra correctness. */
   }
 
   my_free(hton);
@@ -816,6 +843,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
       hton->savepoint_offset= savepoint_alloc_size;
       savepoint_alloc_size+= tmp;
       hton2plugin[hton->slot]=plugin;
+      builtin_htons[hton->slot]= (plugin->plugin_dl == NULL);
       if (hton->prepare)
         total_ha_2pc++;
       break;
@@ -1520,7 +1548,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   */
   if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
       (all || !thd->in_multi_stmt_transaction_mode()) &&
-      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table)
+      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table_implicitly)
   {
     error= gtid_state->save(thd);
     need_clear_owned_gtid= true;
@@ -1602,7 +1630,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   }
 #endif
   DBUG_EXECUTE_IF("crash_commit_after",
-                  if (!thd->is_operating_gtid_table) DBUG_SUICIDE(););
+                  if (!thd->is_operating_gtid_table_implicitly)
+                    DBUG_SUICIDE(););
 end:
   if (release_mdl && mdl_request.ticket)
   {
@@ -1665,11 +1694,25 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
   Transaction_ctx::enum_trx_scope trx_scope=
     all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope), *ha_info_next;
+  bool restore_backup_trx= false;
 
   DBUG_ENTER("ha_commit_low");
 
   if (ha_info)
   {
+    /*
+      binlog applier thread can execute XA COMMIT and it would
+      have to restore its local thread native transaction
+      context, previously saved at XA START.
+    */
+    if (thd->variables.pseudo_slave_mode &&
+        thd->lex->sql_command == SQLCOM_XA_COMMIT)
+    {
+      DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
+                  get_xa_opt() == XA_ONE_PHASE);
+      restore_backup_trx= true;
+    }
+
     for (; ha_info; ha_info= ha_info_next)
     {
       int err;
@@ -1681,6 +1724,14 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       }
       thd->status_var.ha_commit_count++;
       ha_info_next= ha_info->next();
+
+      if (restore_backup_trx && ht->replace_native_transaction_in_thd)
+      {
+        void **trx_backup= thd_ha_data_backup(thd, ht);
+
+        ht->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
+        *trx_backup= NULL;
+      }
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
@@ -1759,6 +1810,8 @@ int ha_rollback_trans(THD *thd, bool all)
 {
   int error=0;
   Transaction_ctx *trn_ctx= thd->get_transaction();
+  bool is_xa_rollback= trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED);
+
   /*
     "real" is a nick name for a transaction for which a commit will
     make persistent changes. E.g. a 'stmt' transaction inside a 'all'
@@ -1825,8 +1878,10 @@ int ha_rollback_trans(THD *thd, bool all)
   /*
     Only call gtid_rollback(THD*), which will purge thd->owned_gtid, if
     complete transaction is being rollback or autocommit=1.
+    Notice, XA rollback has just invoked update_on_commit() through
+    tc_log->*rollback* stack.
   */
-  if (is_real_trans)
+  if (is_real_trans && !is_xa_rollback)
     gtid_state->update_on_rollback(thd);
 
   /*
@@ -3935,6 +3990,19 @@ int handler::check_old_types()
     }
     if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
       return HA_ADMIN_NEEDS_ALTER; // obsolete YEAR(2) type
+
+    //Check for old temporal format if avoid_temporal_upgrade is disabled.
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    bool check_temporal_upgrade= !avoid_temporal_upgrade;
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+
+    if (check_temporal_upgrade)
+    {
+      if (((*field)->real_type() == MYSQL_TYPE_TIME) ||
+          ((*field)->real_type() == MYSQL_TYPE_DATETIME) ||
+          ((*field)->real_type() == MYSQL_TYPE_TIMESTAMP))
+        return HA_ADMIN_NEEDS_ALTER;
+    }
   }
   return 0;
 }
@@ -4410,7 +4478,8 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ALTER_RENAME |
     Alter_inplace_info::RENAME_INDEX |
-    Alter_inplace_info::HA_ALTER_STORED_GCOL;
+    Alter_inplace_info::HA_ALTER_STORED_GCOL |
+    Alter_inplace_info::ALTER_INDEX_COMMENT;
 
   /* Is there at least one operation that requires copy algorithm? */
   if (ha_alter_info->handler_flags & ~inplace_offline_operations)
@@ -6115,7 +6184,9 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     has not been called, so set the owner handler here as well.
   */
   h= h_arg;
-  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+  
+  if (!hint_key_state(thd, h->table, h->active_index,
+                      MRR_HINT_ENUM, OPTIMIZER_SWITCH_MRR) ||
       mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
   {
     use_default_impl= TRUE;
@@ -6457,13 +6528,12 @@ end:
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
                                uint *bufsz, uint *flags, Cost_estimate *cost)
 {
+  ha_rows res __attribute__((unused));
   uint def_flags= *flags;
   uint def_bufsz= *bufsz;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-#ifndef DBUG_OFF
-  ha_rows res=
-#endif
+  res=
     h->handler::multi_range_read_info(keyno, n_ranges, rows, &def_bufsz,
                                       &def_flags, cost);
   DBUG_ASSERT(!res);
@@ -6558,7 +6628,14 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
 {
   bool res;
   THD *thd= current_thd;
-  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+
+  const bool mrr_on= hint_key_state(thd, table, keyno, MRR_HINT_ENUM,
+                                    OPTIMIZER_SWITCH_MRR);
+  const bool force_dsmrr_by_hints=
+    hint_key_state(thd, table, keyno, MRR_HINT_ENUM, 0) ||
+    hint_table_state(thd, table, BKA_HINT_ENUM, 0);
+
+  if (!(mrr_on || force_dsmrr_by_hints) ||
       *flags & (HA_MRR_INDEX_ONLY | HA_MRR_SORTED) || // Unsupported by DS-MRR
       (keyno == table->s->primary_key && h->primary_key_is_clustered()) ||
        key_uses_partial_cols(table, keyno) ||
@@ -6580,7 +6657,8 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     c) Since there is an initial setup cost of DS-MRR, so it is only
        considered if at least 50 records will be read.
   */
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED))
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED) &&
+      !force_dsmrr_by_hints)
   {
     /*
       If the storage engine has a database buffer we use this as the
@@ -6603,17 +6681,18 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
     return TRUE;
   
-  bool force_dsmrr;
   /* 
     If @@optimizer_switch has "mrr" on and "mrr_cost_based" off, then set cost
     of DS-MRR to be minimum of DS-MRR and Default implementations cost. This
     allows one to force use of DS-MRR whenever it is applicable without
-    affecting other cost-based choices.
+    affecting other cost-based choices. Note that if MRR or BKA hint is
+    specified, DS-MRR will be used regardless of cost.
   */
-  if ((force_dsmrr=
-       (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) &&
-        !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED))) &&
-      dsmrr_cost.total_cost() > cost->total_cost())
+  const bool force_dsmrr=
+    (force_dsmrr_by_hints ||
+     !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED));
+
+  if (force_dsmrr && dsmrr_cost.total_cost() > cost->total_cost())
     dsmrr_cost= *cost;
 
   if (force_dsmrr || (dsmrr_cost.total_cost() <= cost->total_cost()))
@@ -7151,12 +7230,12 @@ static bool stat_print(THD *thd, const char *type, size_t type_len,
                        const char *file, size_t file_len,
                        const char *status, size_t status_len)
 {
-  Protocol *protocol= thd->protocol;
-  protocol->prepare_for_resend();
+  Protocol *protocol= thd->get_protocol();
+  protocol->start_row();
   protocol->store(type, type_len, system_charset_info);
   protocol->store(file, file_len, system_charset_info);
   protocol->store(status, status_len, system_charset_info);
-  if (protocol->write())
+  if (protocol->end_row())
     return TRUE;
   return FALSE;
 }
@@ -7176,15 +7255,14 @@ static my_bool showstat_handlerton(THD *thd, plugin_ref plugin,
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
 {
   List<Item> field_list;
-  Protocol *protocol= thd->protocol;
   bool result;
 
   field_list.push_back(new Item_empty_string("Type",10));
   field_list.push_back(new Item_empty_string("Name",FN_REFLEN));
   field_list.push_back(new Item_empty_string("Status",10));
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return TRUE;
 
   if (db_type == NULL)

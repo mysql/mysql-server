@@ -1,4 +1,3 @@
-set global innodb_file_per_table = on;
 "1. Test some basic dml action involving truncate of table."
 use test;
 set global innodb_file_per_table = 0;
@@ -862,12 +861,12 @@ select count(*) from t1;
 count(*)
 200
 drop table t1;
-set global innodb_file_per_table = 1;
-set global innodb_file_format='Barracuda';
+set innodb_strict_mode=off;
 create table t1 (a int not null, d int not null, b blob not null, c text,
 primary key (b(10), a, d),  index (d), index(a),  index (c(355),
 b(255)), index (b(5), c(10), a)
 ) engine=InnoDB row_format=compressed key_block_size=8;
+set innodb_strict_mode=default;
 call populate_t1();
 select count(*) from t1;
 count(*)
@@ -890,6 +889,8 @@ drop table t1;
 drop procedure populate_t1;
 use test;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure populate_t1()
 begin
 declare i int default 1;
@@ -900,7 +901,6 @@ set i = i + 1;
 end while;
 end|
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
 create table t1 (a int not null, d int not null, b varchar(198) not null,
 c char(185), unique key (b(10), a, d), index (d), index(a),
 index (c(120), b(120)), index (b(5), c(10), a))
@@ -931,6 +931,8 @@ count(*)
 drop table t1;
 set global innodb_file_per_table = 0;
 set global innodb_file_format = 'Antelope';
+Warnings:
+Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create table t1 (a int not null, d int not null, b varchar(198) not null,
 c char(185), unique key (b(10), a, d), index (d), index(a),
 index (c(120), b(120)), index (b(5), c(10), a))
@@ -1155,5 +1157,4 @@ i
 set DEBUG_SYNC='RESET';
 drop table t1;
 drop table t2;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 1;
+set global innodb_file_per_table = default;

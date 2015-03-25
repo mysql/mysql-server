@@ -202,7 +202,7 @@ build_query(const POS &pos,
     return NULL;
 
   PT_select_init2 *select_init2;
-  select_init2= new (thd->mem_root) PT_select_init2(select_part2, NULL);
+  select_init2= new (thd->mem_root) PT_select_init2(NULL, select_part2, NULL);
   if (select_init2 == NULL)
     return NULL;
 

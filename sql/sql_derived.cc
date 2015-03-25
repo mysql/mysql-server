@@ -28,8 +28,9 @@
 #include "sql_view.h"                         // check_duplicate_names
 #include "auth_common.h"                      // SELECT_ACL
 #include "sql_tmp_table.h"                    // Tmp tables
-#include "sql_union.h"                        // select_union
+#include "sql_union.h"                        // Query_result_union
 #include "opt_trace.h"                        // opt_trace_disable_etc
+
 
 /**
   Resolve a derived table or view reference, including recursively resolving
@@ -59,7 +60,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     DBUG_ASSERT(sl->context.outer_context == NULL);
   }
 #endif
-  if (!(derived_result= new (thd->mem_root) select_union))
+  if (!(derived_result= new (thd->mem_root) Query_result_union))
     DBUG_RETURN(true);
 
   /*
@@ -122,18 +123,13 @@ bool TABLE_LIST::setup_materialized_derived(THD *thd)
   if (derived_result->create_result_table(thd, &derived->types, false, 
                                           create_options,
                                           alias, false, false))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   table= derived_result->table;
-
-  table_name= table->s->table_name.str;
-  table_name_length= table->s->table_name.length;
-
   table->pos_in_table_list= this;
 
-  // Erasing the database name is needed for alignment with temp. table
-  db= (char *)"";
-  db_length= 0;
+  // Make table's name same as the underlying materialized table
+  set_name_temporary();
 
   table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -263,7 +259,7 @@ bool TABLE_LIST::create_derived(THD *thd)
     DBUG_RETURN(false);
   }
   /* create tmp table */
-  select_union *result= (select_union*)unit->query_result();
+  Query_result_union *result= (Query_result_union*)unit->query_result();
 
   if (instantiate_tmp_table(table, table->key_info,
                             result->tmp_table_param.start_recinfo,
@@ -272,7 +268,7 @@ bool TABLE_LIST::create_derived(THD *thd)
                             thd->lex->select_lex->active_options() |
                             TMP_TABLE_ALL_COLUMNS,
                             thd->variables.big_tables, &thd->opt_trace))
-    DBUG_RETURN(true);
+    DBUG_RETURN(true);        /* purecov: inspected */
 
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -337,7 +333,7 @@ bool TABLE_LIST::materialize_derived(THD *thd)
       there were no derived tables
     */
     if (derived_result->flush())
-      res= true;
+      res= true;                  /* purecov: inspected */
   }
 
   DBUG_RETURN(res);

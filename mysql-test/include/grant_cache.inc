@@ -75,10 +75,13 @@ show status like "Qcache_queries_in_cache";
 show status like "Qcache_hits%";
 
 # Create the test users
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 grant SELECT on mysqltest.* to mysqltest_1@localhost;
 grant SELECT on mysqltest.t1 to mysqltest_2@localhost;
 grant SELECT on test.t1 to mysqltest_2@localhost;
 grant SELECT(a) on mysqltest.t1 to mysqltest_3@localhost;
+set sql_mode= @orig_sql_mode;
 
 # The following queries should be fetched from cache
 --echo ----- establish connection user1 (user=mysqltest_1) -----

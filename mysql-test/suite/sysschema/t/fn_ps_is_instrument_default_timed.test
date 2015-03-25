@@ -1,0 +1,23 @@
+-- source include/not_embedded.inc
+# Tests for sys schema
+# Verify the sys.ps_is_instrument_default_timed() function perfoms as expected
+
+# Should all be enabled
+SELECT sys.ps_is_instrument_default_timed('wait/io/file/sql/binlog');
+SELECT sys.ps_is_instrument_default_timed('statement/sql/select');
+SELECT sys.ps_is_instrument_default_timed('statement/sp/error');
+SELECT sys.ps_is_instrument_default_timed('statement/com/Prepare');
+SELECT sys.ps_is_instrument_default_timed('wait/io/table/sql/handler');
+SELECT sys.ps_is_instrument_default_timed('wait/lock/table/sql/handler');
+SELECT sys.ps_is_instrument_default_timed('idle');
+
+# Should all be disabled
+SELECT sys.ps_is_instrument_default_timed('wait/synch/mutex/sql/LOCK_plugin');
+SELECT sys.ps_is_instrument_default_timed('wait/synch/rwlock/sql/LOCK_grant');
+SELECT sys.ps_is_instrument_default_timed('wait/synch/sxlock/innodb/btr_search_latch');
+SELECT sys.ps_is_instrument_default_timed('wait/synch/cond/sql/MYSQL_BIN_LOG::update_cond');
+SELECT sys.ps_is_instrument_default_timed('stage/sql/end');
+SELECT sys.ps_is_instrument_default_timed('transaction');
+SELECT sys.ps_is_instrument_default_timed('wait/io/socket/sql/server_tcpip_socket');
+SELECT sys.ps_is_instrument_default_timed('memory/performance_schema/internal_buffers');
+SELECT sys.ps_is_instrument_default_timed('wait/lock/metadata/sql/mdl');

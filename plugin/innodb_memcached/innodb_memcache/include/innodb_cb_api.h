@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -374,6 +374,13 @@ ib_err_t
 /*====================*/
 	ib_crsr_t	ib_crsr);
 
+typedef
+ib_u32_t
+(*cb_trx_read_only_t)(
+/*==================*/
+	ib_trx_t	ib_trx);
+
+
 cb_open_table_t			ib_cb_open_table;
 cb_read_row_t			ib_cb_read_row;
 cb_insert_row_t			ib_cb_insert_row;
@@ -423,5 +430,6 @@ cb_trx_get_start_time		ib_cb_trx_get_start_time;
 cb_bk_commit_interval		ib_cb_cfg_bk_commit_interval;
 cb_ut_strerr			ib_cb_ut_strerr;
 cb_cursor_stmt_begin		ib_cb_cursor_stmt_begin;
+cb_trx_read_only_t		ib_cb_trx_read_only;
 
 #endif /* innodb_cb_api_h */

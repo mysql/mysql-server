@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -96,6 +96,15 @@ IF(NOT COMPILATION_COMMENT)
   SET(COMPILATION_COMMENT "Source distribution")
 ENDIF()
 
+# Get the sys schema version from the mysql_sys_schema.sql file
+MACRO(GET_SYS_SCHEMA_VERSION)
+  FILE (STRINGS ${CMAKE_SOURCE_DIR}/scripts/mysql_sys_schema.sql str REGEX "SELECT \\'([0-9]+\\.[0-9]+\\.[0-9]+)\\' AS")
+  IF(str)
+    STRING(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" SYS_SCHEMA_VERSION "${str}")
+  ENDIF()
+ENDMACRO()
+
+GET_SYS_SCHEMA_VERSION()
 
 INCLUDE(package_name)
 IF(NOT CPACK_PACKAGE_FILE_NAME)

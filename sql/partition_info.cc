@@ -45,6 +45,7 @@ partition_info *partition_info::get_clone()
   memset(&(clone->lock_partitions), 0, sizeof(clone->lock_partitions));
   clone->bitmaps_are_initialized= FALSE;
   clone->partitions.empty();
+  clone->temp_partitions.empty();
 
   while ((part= (part_it++)))
   {
@@ -74,6 +75,18 @@ partition_info *partition_info::get_clone()
   DBUG_RETURN(clone);
 }
 
+partition_info *partition_info::get_full_clone()
+{
+  partition_info *clone;
+  DBUG_ENTER("partition_info::get_full_clone");
+  clone= get_clone();
+  if (!clone)
+    DBUG_RETURN(NULL);
+  memcpy(&clone->read_partitions, &read_partitions, sizeof(read_partitions));
+  memcpy(&clone->lock_partitions, &lock_partitions, sizeof(lock_partitions));
+  clone->bitmaps_are_initialized= bitmaps_are_initialized;
+  DBUG_RETURN(clone);
+}
 
 /**
   Mark named [sub]partition to be used/locked.
@@ -655,23 +668,11 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
                                                HA_CREATE_INFO *info,
                                                uint start_no)
 {
-  uint i, default_partitions;
+  uint i;
   char *default_name;
   bool result= TRUE;
   DBUG_ENTER("partition_info::set_up_default_partitions");
 
-  if (!part_handler)
-  {
-    default_partitions= 1;
-  }
-  else
-  {
-#ifndef MCP_BUG20585753
-    /* Only fetch default value when number of partitions is not known */
-    if (num_parts == 0)
-#endif
-    default_partitions= part_handler->get_default_num_partitions(info);
-  }
 
   if (part_type != HASH_PARTITION)
   {
@@ -684,11 +685,21 @@ bool partition_info::set_up_default_partitions(Partition_handler *part_handler,
     goto end;
   }
 
-  if ((num_parts == 0) &&
-      ((num_parts= default_partitions) == 0))
+  if (num_parts == 0)
   {
-    my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
-    goto end;
+    if (!part_handler)
+    {
+      num_parts= 1;
+    }
+    else
+    {
+      num_parts= part_handler->get_default_num_partitions(info);
+    }
+    if (num_parts == 0)
+    {
+      my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
+      goto end;
+    }
   }
 
   if (unlikely(num_parts > MAX_PARTITIONS))
@@ -749,23 +760,23 @@ bool
 partition_info::set_up_default_subpartitions(Partition_handler *part_handler,
                                              HA_CREATE_INFO *info)
 {
-  uint i, j, default_partitions;
+  uint i, j;
   bool result= TRUE;
   partition_element *part_elem;
   List_iterator<partition_element> part_it(partitions);
   DBUG_ENTER("partition_info::set_up_default_subpartitions");
 
-  if (!part_handler)
-  {
-    default_partitions= 1;
-  }
-  else
-  {
-    default_partitions= part_handler->get_default_num_partitions(info);
-  }
-
   if (num_subparts == 0)
-    num_subparts= default_partitions;
+  {
+    if (!part_handler)
+    {
+      num_subparts= 1;
+    }
+    else
+    {
+      num_subparts= part_handler->get_default_num_partitions(info);
+    }
+  }
   if (unlikely((num_parts * num_subparts) > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
@@ -3131,7 +3142,7 @@ static bool has_same_column_order(List<Create_field> *create_list,
 {
   Field **f_ptr;
   List_iterator_fast<Create_field> new_field_it;
-  Create_field *new_field;
+  Create_field *new_field= NULL;
   new_field_it.init(*create_list);
 
   for (f_ptr= field_array; *f_ptr; f_ptr++)

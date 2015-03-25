@@ -2,6 +2,8 @@
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -66,6 +68,14 @@ SET sql_mode = default;
 
 Section 3.1.6 - Privilege Checks:
 --------------------------------------------------------------------------------
+set @orig_sql_mode_session= @@SESSION.sql_mode;
+set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 USE db_storedproc_1;
 	
 root@localhost	db_storedproc_1
@@ -389,6 +399,12 @@ DROP PROCEDURE sp3166_ins;
 DROP TABLE t3166;
 DROP USER 'user_1'@'localhost';
 DROP USER 'user_2'@'localhost';
+set GLOBAL sql_mode= @orig_sql_mode_global;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+set SESSION sql_mode= @orig_sql_mode_session;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------

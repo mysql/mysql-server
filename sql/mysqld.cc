@@ -391,6 +391,7 @@ mysql_mutex_t LOCK_default_password_lifetime;
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+my_bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password_proxy_users= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -652,7 +653,7 @@ mysql_mutex_t LOCK_offline_mode;
 #ifdef HAVE_OPENSSL
 mysql_mutex_t LOCK_des_key_file;
 #endif
-mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
+mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 my_thread_handle signal_thread_id;
 my_thread_attr_t connection_attrib;
@@ -1014,6 +1015,7 @@ static bool read_init_file(char *file_name);
 static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
 static void end_ssl();
+static void start_processing_signals();
 
 #ifndef EMBEDDED_LIBRARY
 static bool pid_file_created= false;
@@ -1267,6 +1269,8 @@ extern "C" void unireg_abort(int exit_code)
 #ifndef _WIN32
   if (signal_thread_id.thread != 0)
   {
+    start_processing_signals();
+
     pthread_kill(signal_thread_id.thread, SIGTERM);
     my_thread_join(&signal_thread_id, NULL);
   }
@@ -1517,7 +1521,6 @@ void clean_up(bool print_message)
 
 static void clean_up_mutexes()
 {
-  mysql_rwlock_destroy(&LOCK_grant);
   mysql_mutex_destroy(&LOCK_log_throttle_qni);
   mysql_mutex_destroy(&LOCK_status);
   mysql_mutex_destroy(&LOCK_manager);
@@ -2298,6 +2301,18 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
 #endif // !_WIN32
 #endif // !EMBEDDED_LIBRARY
 
+/**
+  Starts processing signals initialized in the signal_hand function.
+
+  @see signal_hand
+*/
+static void start_processing_signals()
+{
+  mysql_mutex_lock(&LOCK_server_started);
+  mysqld_server_started= true;
+  mysql_cond_broadcast(&COND_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+}
 
 #if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 #include <cxxabi.h>
@@ -3021,7 +3036,6 @@ int init_common_variables()
     return 1;
   init_client_errs();
   mysql_client_plugin_init();
-  lex_init();
   if (item_create_init())
     return 1;
   item_init();
@@ -3107,6 +3121,12 @@ int init_common_variables()
     return 1;
   global_system_variables.character_set_filesystem= character_set_filesystem;
 
+  if (lex_init())
+  {
+    sql_print_error("Out of memory");
+    return 1;
+  }
+
   if (!(my_default_lc_time_names=
         my_locale_by_name(lc_time_names_name)))
   {
@@ -3154,27 +3174,9 @@ int init_common_variables()
     return 1;
 
   /* create the data directory if requested */
-  if (unlikely(opt_initialize))
-  {
-    MY_STAT dummy_stat;
-    int flags=
-#ifdef _WIN32
-      0
-#else
-      S_IRWXU | S_IRGRP | S_IXGRP
-#endif
-      ;
-
-    if (my_stat(mysql_real_data_home, &dummy_stat, MYF(0)))
-    {
-      sql_print_error("--initialize specified but the data directory exists. Aborting.");
-      return 1;        /* purecov: inspected */
-    }
-
-    sql_print_information("Creating the data directory %s", mysql_real_data_home);
-    if (my_mkdir(mysql_real_data_home, flags, MYF(MY_WME)))
-      return 1;        /* purecov: inspected */
-  }
+  if (unlikely(opt_initialize) &&
+      initialize_create_data_directory(mysql_real_data_home))
+      return 1;
 
 
   /*
@@ -3291,7 +3293,6 @@ static int init_thread_environment()
 #endif
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
-  mysql_rwlock_init(key_rwlock_LOCK_grant, &LOCK_grant);
   mysql_cond_init(key_COND_manager, &COND_manager);
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
@@ -4319,7 +4320,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     locked_in_memory=0;
 
   /* Initialize the optimizer cost module */
-  init_optimizer_cost_module();
+  init_optimizer_cost_module(true);
   ft_init_stopwords();
 
   init_max_user_conn();
@@ -4964,11 +4965,7 @@ int mysqld_main(int argc, char **argv)
 
   if (opt_bootstrap)
   {
-    /* Signal threads waiting for server to be started */
-    mysql_mutex_lock(&LOCK_server_started);
-    mysqld_server_started= true;
-    mysql_cond_broadcast(&COND_server_started);
-    mysql_mutex_unlock(&LOCK_server_started);
+    start_processing_signals();
 
     int error= bootstrap(mysql_stdin);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
@@ -5000,12 +4997,7 @@ int mysqld_main(int argc, char **argv)
   Service.SetRunning();
 #endif
 
-
-  /* Signal threads waiting for server to be started */
-  mysql_mutex_lock(&LOCK_server_started);
-  mysqld_server_started= true;
-  mysql_cond_broadcast(&COND_server_started);
-  mysql_mutex_unlock(&LOCK_server_started);
+  start_processing_signals();
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* engine specific hook, to be made generic */
@@ -5937,7 +5929,8 @@ static int show_queries(THD *thd, SHOW_VAR *var, char *buff)
 static int show_net_compression(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
-  var->value= (char *)&thd->net.compress;
+  var->value= buff;
+  *((bool *)buff)= thd->get_protocol()->get_compression();
   return 0;
 }
 
@@ -6431,8 +6424,9 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    var->value= const_cast<char*>(SSL_get_version((SSL*) thd->net.vio->ssl_arg));
+  if (thd->get_protocol()->get_ssl())
+    var->value=
+      const_cast<char*>(SSL_get_version(thd->get_protocol()->get_ssl()));
   else
     var->value= (char *)"";
   return 0;
@@ -6442,8 +6436,9 @@ static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_session_reused((SSL*) thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+        (long)SSL_session_reused(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6453,8 +6448,9 @@ static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+      (long)SSL_get_default_timeout(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6464,8 +6460,9 @@ static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->net.vio && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+      (long)SSL_get_verify_mode(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6475,8 +6472,9 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+        (long)SSL_get_verify_depth(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6485,8 +6483,9 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    var->value= const_cast<char*>(SSL_get_cipher((SSL*) thd->net.vio->ssl_arg));
+  if (thd->get_protocol()->get_ssl())
+    var->value=
+      const_cast<char*>(SSL_get_cipher(thd->get_protocol()->get_ssl()));
   else
     var->value= (char *)"";
   return 0;
@@ -6496,12 +6495,12 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   var->value= buff;
-  if (thd->vio_ok() && thd->net.vio->ssl_arg)
+  if (thd->get_protocol()->get_ssl())
   {
     int i;
     const char *p;
     char *end= buff + SHOW_VAR_FUNC_BUFF_SIZE;
-    for (i=0; (p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i)) &&
+    for (i=0; (p= SSL_get_cipher_list(thd->get_protocol()->get_ssl(),i)) &&
                buff < end; i++)
     {
       buff= my_stpnmov(buff, p, end-buff-1);
@@ -6569,9 +6568,9 @@ static int
 show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if(thd->vio_ok() && thd->net.vio->ssl_arg)
+  if(thd->get_protocol()->get_ssl())
   {
-    SSL *ssl= (SSL*) thd->net.vio->ssl_arg;
+    SSL *ssl= thd->get_protocol()->get_ssl();
     X509 *cert= SSL_get_certificate(ssl);
     ASN1_TIME *not_before= X509_get_notBefore(cert);
 
@@ -6602,9 +6601,9 @@ static int
 show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if(thd->vio_ok() && thd->net.vio->ssl_arg)
+  if(thd->get_protocol()->get_ssl())
   {
-    SSL *ssl= (SSL*) thd->net.vio->ssl_arg;
+    SSL *ssl= thd->get_protocol()->get_ssl();
     X509 *cert= SSL_get_certificate(ssl);
     ASN1_TIME *not_after= X509_get_notAfter(cert);
 
@@ -7732,6 +7731,11 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode);
 
+  if (!(global_system_variables.sql_mode & MODE_NO_AUTO_CREATE_USER))
+  {
+    sql_print_warning("'NO_AUTO_CREATE_USER' sql mode was not set.");
+  }
+
   if (!my_enable_symlinks)
     have_symlink= SHOW_OPTION_DISABLED;
 
@@ -8232,11 +8236,17 @@ static void delete_pid_file(myf flags)
                               O_RDONLY, flags)))
     return;
 
-  /* Make sure that the pid file was created by the same process. */    
+  if (file == -1)
+  {
+    sql_print_information("Unable to delete pid file: %s", strerror(errno));
+    return;
+  }
+
   uchar buff[MAX_BIGINT_WIDTH + 1];
+  /* Make sure that the pid file was created by the same process. */
   size_t error= mysql_file_read(file, buff, sizeof(buff), flags);
   mysql_file_close(file, flags);
-  buff[sizeof(buff) - 1]= '\0'; 
+  buff[sizeof(buff) - 1]= '\0';
   if (error != MY_FILE_ERROR &&
       atol((char *) buff) == (long) getpid())
   {
@@ -8497,7 +8507,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Binlog_transmit_delegate_lock, "Binlog_transmit_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_relay_IO_delegate_lock, "Binlog_relay_IO_delegate::lock", PSI_FLAG_GLOBAL},
 #endif
-  { &key_rwlock_LOCK_grant, "LOCK_grant", PSI_FLAG_GLOBAL},
+  { &key_rwlock_LOCK_grant, "LOCK_grant", 0},
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},

@@ -17,6 +17,7 @@ LOCK TABLES t1 READ;
 FLUSH PRIVILEGES;
 ERROR HY000: Table 'user' was not locked with LOCK TABLES
 UNLOCK TABLES;
+FLUSH PRIVILEGES;
 DROP TABLE t1;
 #
 # Bug#54812: assert in Diagnostics_area::set_ok_status during EXPLAIN
@@ -54,6 +55,8 @@ DROP USER nopriv_user@localhost;
 #
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
 CREATE USER 'user\'s_12601974'@'localhost';
 CREATE USER 'user\'s_12601974'@'localhost';
@@ -130,5 +133,7 @@ DROP USER 'user\_s_12601974'@'localhost';
 
 # END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
 SET @@sql_mode= @org_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 #End of Test for Bug#12601974 

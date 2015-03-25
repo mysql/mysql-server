@@ -1,6 +1,4 @@
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+SET innodb_strict_mode=OFF;
 mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory;
 mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999;
 mkdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory/p1999/data;

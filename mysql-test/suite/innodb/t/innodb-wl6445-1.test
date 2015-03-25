@@ -21,18 +21,10 @@
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $innodb_file_format = `SELECT @@innodb_file_format`;
-let $innodb_large_prefix_orig = `select @@innodb_large_prefix`;
 let $innodb_flush_log_at_trx_commit_orig =`select @@innodb_flush_log_at_trx_commit`;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-
-set global innodb_large_prefix=1;
-SELECT @@innodb_large_prefix;
 
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 let $data_index_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
@@ -75,7 +67,6 @@ let $restart_parameters = restart: --innodb-read-only;
 --source include/restart_mysqld.inc
 
 SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 
 # Nothing to do with wl64645.non-InnoDB issue. But need to document in QA note.
 CREATE USER 'test3'@'localhost' IDENTIFIED BY '123';
@@ -174,7 +165,6 @@ DROP DATABASE testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 
 SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 USE testdb_wl6445;
 CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',4000)),(2,repeat('b',4000)),(3,repeat('c',4000));
@@ -393,7 +383,6 @@ let $restart_parameters = restart: --innodb-read-only;
 --source include/restart_mysqld.inc
 
 SET GLOBAL innodb_file_per_table = 1;
-SET GLOBAL innodb_file_format = `Barracuda`;
 USE testdb_wl6445;
 --ERROR ER_CANT_LOCK
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
@@ -625,9 +614,7 @@ DROP DATABASE testdb_wl6445;
 --rmdir $MYSQL_TMP_DIR/alt_dir/testdb_wl6445
 --rmdir $MYSQL_TMP_DIR/alt_dir
 --disable_query_log
-eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
-eval SET GLOBAL innodb_large_prefix = $innodb_large_prefix_orig;
 eval SET GLOBAL innodb_flush_log_at_trx_commit = $innodb_flush_log_at_trx_commit_orig;
 call mtr.add_suppression("deleting orphaned .ibd file");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");

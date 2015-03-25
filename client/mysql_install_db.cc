@@ -25,6 +25,8 @@
 #include <signal.h>
 #include <spawn.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 // MySQL headers
 #include "my_global.h"
@@ -55,6 +57,7 @@ using namespace std;
 #include "../scripts/sql_commands_system_tables.h"
 #include "../scripts/sql_commands_system_data.h"
 #include "../scripts/sql_commands_help_data.h"
+#include "../scripts/sql_commands_sys_schema.h"
 
 #define PROGRAM_NAME "mysql_install_db"
 #define MYSQLD_EXECUTABLE "mysqld"
@@ -95,6 +98,7 @@ my_bool opt_no_defaults= FALSE;
 my_bool opt_insecure= FALSE;
 my_bool opt_verbose= FALSE;
 my_bool opt_ssl= FALSE;
+my_bool opt_skipsys= FALSE;
 
 /**
   Connection options.
@@ -163,6 +167,8 @@ static struct my_option my_connection_options[]=
    &opt_langpath, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lc-messages", 0, "Specifies the language to use.", &opt_lang,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_lang, 0, 0, 0, 0, 0},
+  {"skip-sys-schema", 0, "Skip installation of the sys schema.",
+   &opt_skipsys, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   /* End token */
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -979,8 +985,14 @@ public:
 
     string create_db("CREATE DATABASE mysql;\n");
     string use_db("USE mysql;\n");
-    write(fh, create_db.c_str(), create_db.length());
-    write(fh, use_db.c_str(), use_db.length());
+    // ssize_t write() may be declared with attribute warn_unused_result
+    size_t w1= write(fh, create_db.c_str(), create_db.length());
+    size_t w2= write(fh, use_db.c_str(), use_db.length());
+    if (w1 != create_db.length() || w2 != use_db.length())
+    {
+      info << "failed." << endl;
+      return false;
+    }
 
     unsigned s= 0;
     s= sizeof(mysql_system_tables)/sizeof(*mysql_system_tables);
@@ -1035,8 +1047,8 @@ public:
          << endl;
     string create_user_cmd;
     m_user->to_sql(&create_user_cmd);
-    write(fh, create_user_cmd.c_str(), create_user_cmd.length());
-    if (errno != 0)
+    w1= write(fh, create_user_cmd.c_str(), create_user_cmd.length());
+    if (w1 !=create_user_cmd.length() || errno != 0)
       return false;
     info << "Creating default proxy " << m_user->user << "@"
          << m_user->host
@@ -1044,10 +1056,28 @@ public:
     Proxy_user proxy_user(m_user->host, m_user->user);
     string create_proxy_cmd;
     proxy_user.to_str(&create_proxy_cmd);
-    write(fh, create_proxy_cmd.c_str(), create_proxy_cmd.length());
-    if (errno != 0)
+    w1= write(fh, create_proxy_cmd.c_str(), create_proxy_cmd.length());
+    if (w1 != create_proxy_cmd.length() || errno != 0)
       return false;
 
+    if (!opt_skipsys)
+    {
+      info << "Creating sys schema" << endl;
+      s= sizeof(mysql_sys_schema)/sizeof(*mysql_sys_schema);
+      for(unsigned i=0, n= 1; i< s && errno != EPIPE && n != 0 &&
+          mysql_sys_schema[i] != NULL; ++i)
+      {
+         n= write(fh, mysql_sys_schema[i],
+                  strlen(mysql_sys_schema[i]));
+      }
+      if (errno != 0)
+      {
+        info << "failed." << endl;
+        return false;
+      }
+      else
+        info << "done." << endl;
+    }
 
     /* Execute optional SQL from a file */
     if (m_opt_sqlfile.length() > 0)
@@ -1207,6 +1237,11 @@ bool process_execute(const string &exec, Fwd_iterator begin,
   }
   ::close(write_pipe[1]);
   ::close(read_pipe[0]);
+
+  /* Wait for the child to die */
+  int signal= 0;
+  waitpid(child, &signal, 0);
+
   posix_spawn_file_actions_destroy(&spawn_action);
   free(local_filename);
   return retval;

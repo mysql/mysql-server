@@ -1315,7 +1315,7 @@ int main(int argc,char *argv[])
 
   put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
 
-  if (!status.batch && !quick)
+  if (!status.batch)
   {
     init_dynamic_string(&histignore_buffer, "*IDENTIFIED*:*PASSWORD*",
                         1024, 1024);
@@ -1340,54 +1340,58 @@ int main(int argc,char *argv[])
 
     parse_histignore();
 
-#ifdef HAVE_READLINE
-  initialize_readline((char*) my_progname);
-
-    /* read-history from file, default ~/.mysql_history*/
-    if (getenv("MYSQL_HISTFILE"))
-      histfile=my_strdup(PSI_NOT_INSTRUMENTED,
-                         getenv("MYSQL_HISTFILE"),MYF(MY_WME));
-    else if (getenv("HOME"))
+  #ifdef HAVE_READLINE
+    if (!quick)
     {
-      histfile=(char*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                 (uint) strlen(getenv("HOME"))
-				 + (uint) strlen("/.mysql_history")+2,
-				 MYF(MY_WME));
-      if (histfile)
-	sprintf(histfile,"%s/.mysql_history",getenv("HOME"));
-      char link_name[FN_REFLEN];
-      if (my_readlink(link_name, histfile, 0) == 0 &&
-          strncmp(link_name, "/dev/null", 10) == 0)
-      {
-        /* The .mysql_history file is a symlink to /dev/null, don't use it */
-        my_free(histfile);
-        histfile= 0;
-      }
-    }
+      initialize_readline((char*) my_progname);
 
-    /* We used to suggest setting MYSQL_HISTFILE=/dev/null. */
-    if (histfile && strncmp(histfile, "/dev/null", 10) == 0)
-      histfile= NULL;
-
-    if (histfile && histfile[0])
-    {
-      if (verbose)
-	tee_fprintf(stdout, "Reading history-file %s\n",histfile);
-      read_history(histfile);
-      if (!(histfile_tmp= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                            (uint) strlen(histfile) + 5,
-					    MYF(MY_WME))))
+      /* read-history from file, default ~/.mysql_history*/
+      if (getenv("MYSQL_HISTFILE"))
+        histfile=my_strdup(PSI_NOT_INSTRUMENTED,
+                           getenv("MYSQL_HISTFILE"),MYF(MY_WME));
+      else if (getenv("HOME"))
       {
-	fprintf(stderr, "Couldn't allocate memory for temp histfile!\n");
-	exit(1);
+        histfile=(char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                   (uint) strlen(getenv("HOME"))
+				   + (uint) strlen("/.mysql_history")+2,
+				   MYF(MY_WME));
+        if (histfile)
+	  sprintf(histfile,"%s/.mysql_history",getenv("HOME"));
+        char link_name[FN_REFLEN];
+        if (my_readlink(link_name, histfile, 0) == 0 &&
+            strncmp(link_name, "/dev/null", 10) == 0)
+        {
+          /* The .mysql_history file is a symlink to /dev/null, don't use it */
+          my_free(histfile);
+          histfile= 0;
+        }
       }
-      sprintf(histfile_tmp, "%s.TMP", histfile);
+
+      /* We used to suggest setting MYSQL_HISTFILE=/dev/null. */
+      if (histfile && strncmp(histfile, "/dev/null", 10) == 0)
+        histfile= NULL;
+
+      if (histfile && histfile[0])
+      {
+        if (verbose)
+	  tee_fprintf(stdout, "Reading history-file %s\n",histfile);
+        read_history(histfile);
+        if (!(histfile_tmp= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                              (uint) strlen(histfile) + 5,
+					      MYF(MY_WME))))
+        {
+	  fprintf(stderr, "Couldn't allocate memory for temp histfile!\n");
+	  exit(1);
+        }
+        sprintf(histfile_tmp, "%s.TMP", histfile);
+      }
     }
 #endif
   }
 
   sprintf(buff, "%s",
-	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input statement.\n");
+	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input "
+    "statement.\n");
   put_info(buff,INFO_INFO);
   status.exit_status= read_and_execute(!status.batch);
   if (opt_outfile)
@@ -2643,8 +2647,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 
       break;
     }
-    else if (!*in_string && inchar == '/' && *(pos+1) == '*' &&
-	     *(pos+2) != '!')
+    else if (!*in_string && inchar == '/' && pos[1] == '*' &&
+	     pos[2] != '!' && pos[2] != '+')
     {
       if (preserve_comments)
       {
@@ -2681,8 +2685,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
     }      
     else
     {						// Add found char to buffer
-      if (!*in_string && inchar == '/' && *(pos + 1) == '*' &&
-          *(pos + 2) == '!')
+      if (!*in_string && inchar == '/' && pos[1] == '*' &&
+          (pos[2] == '!' || pos[2] == '+'))
         ss_comment= 1;
       else if (!*in_string && ss_comment && inchar == '*' && *(pos + 1) == '/')
         ss_comment= 0;
@@ -3114,7 +3118,7 @@ static void add_filtered_history(const char *string)
   if (!check_histignore(string))
   {
 #ifdef HAVE_READLINE
-    if (not_in_history(string))
+    if (!quick && not_in_history(string))
       add_history(string);
 #endif
     if (opt_syslog)

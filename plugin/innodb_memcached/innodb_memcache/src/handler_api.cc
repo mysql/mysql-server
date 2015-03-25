@@ -86,8 +86,8 @@ handler_create_thd(
 		return(NULL);
 	}
 
-	my_net_init(&thd->net,(st_vio*) 0);
-        thd->set_new_thread_id();
+	thd->get_protocol_classic()->init_net((st_vio *) 0);
+	thd->set_new_thread_id();
 	thd->thread_stack = reinterpret_cast<char*>(&thd);
 	thd->store_globals();
 
@@ -145,11 +145,18 @@ handler_open_table(
 	tables.init_one_table(db_name, strlen(db_name), table_name,
 			      strlen(table_name), table_name, lock_mode);
 
-	MDL_REQUEST_INIT(&tables.mdl_request,
-                         MDL_key::TABLE, db_name, table_name,
-			 (lock_mode > TL_READ)
-			 ? MDL_SHARED_WRITE
-			 : MDL_SHARED_READ, MDL_TRANSACTION);
+	/* For flush, we need to request exclusive mdl lock. */
+	if (lock_type == HDL_FLUSH) {
+		MDL_REQUEST_INIT(&tables.mdl_request,
+				 MDL_key::TABLE, db_name, table_name,
+				 MDL_EXCLUSIVE, MDL_TRANSACTION);
+	} else {
+		MDL_REQUEST_INIT(&tables.mdl_request,
+				 MDL_key::TABLE, db_name, table_name,
+				 (lock_mode > TL_READ)
+				 ? MDL_SHARED_WRITE : MDL_SHARED_READ,
+				 MDL_TRANSACTION);
+	}
 
 	if (!open_table(thd, &tables, &table_ctx)) {
 		TABLE*	table = tables.table;
@@ -362,11 +369,10 @@ handler_close_thd(
 /*==============*/
 	void*		my_thd)		/*!< in: THD */
 {
-	THD*	thd = static_cast<THD*>(my_thd);
+	THD* thd= static_cast<THD*>(my_thd);
 
 	/* destructor will not free it, because net.vio is 0. */
-	net_end(&thd->net);
-
+	thd->get_protocol_classic()->end_net();
 	thd->release_resources();
 	delete (thd);
 }

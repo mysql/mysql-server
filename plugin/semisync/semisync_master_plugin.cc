@@ -216,8 +216,9 @@ int repl_semi_after_send_event(Binlog_transmit_param *param,
         because we do not want dump thread to quit on this. Error
         messages are already reported.
       */
-      (void) repl_semisync.readSlaveReply(&thd->net,
-                                          param->server_id, event_buf);
+      (void) repl_semisync.readSlaveReply(
+        thd->get_protocol_classic()->get_net(),
+        param->server_id, event_buf);
       thd->clear_error();
     }
   }

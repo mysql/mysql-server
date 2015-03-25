@@ -1455,7 +1455,16 @@ String *Item_func_concat::val_str(String *str)
 	  str->replace(0,0,*res);
 	else
 	{
-	  str->copy(*res);
+          // If res2 is a substring of str, then clone it first.
+          char buff[STRING_BUFFER_USUAL_SIZE];
+          String res2_clone(buff, sizeof(buff), system_charset_info);
+          if (res2->uses_buffer_owned_by(str))
+          {
+            if (res2_clone.copy(*res2))
+              goto null;
+            res2= &res2_clone;
+          }
+ 	  str->copy(*res);
 	  str->append(*res2);
 	}
         res= str;
@@ -1803,6 +1812,15 @@ String *Item_func_concat_ws::val_str(String *str)
       }
       else
       {
+        // If res2 is a substring of str, then clone it first.
+        char buff[STRING_BUFFER_USUAL_SIZE];
+        String res2_clone(buff, sizeof(buff), system_charset_info);
+        if (res2->uses_buffer_owned_by(str))
+        {
+          if (res2_clone.copy(*res2))
+            goto null;
+          res2= &res2_clone;
+        }
 	str->copy(*res);
 	str->append(*sep_str);
 	str->append(*res2);
@@ -2039,15 +2057,25 @@ redo:
           if (!alloced)
           {
             alloced=1;
-            res=copy_if_not_alloced(str,res,res->length()+to_length);
+            if (res->uses_buffer_owned_by(str))
+            {
+              if (tmp_value_res.alloc(res->length() + to_length) ||
+                  tmp_value_res.copy(*res))
+                goto null;
+              res= &tmp_value_res;
+            }
+            else
+              res= copy_if_not_alloced(str, res, res->length() + to_length);
           }
           res->replace((uint) offset,from_length,*res3);
 	  offset+=(int) to_length;
           goto redo;
         }
 skip:
-        if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
-        else ++ptr;
+        if ((l= my_ismbchar(res->charset(), ptr,strend)))
+          ptr+= l;
+        else
+          ++ptr;
     }
   }
   else
@@ -2065,7 +2093,15 @@ skip:
       if (!alloced)
       {
         alloced=1;
-        res=copy_if_not_alloced(str,res,res->length()+to_length);
+        if (res->uses_buffer_owned_by(str))
+        {
+          if (tmp_value_res.alloc(res->length() + to_length) ||
+              tmp_value_res.copy(*res))
+            goto null;
+          res= &tmp_value_res;
+        }
+        else
+          res= copy_if_not_alloced(str, res, res->length() + to_length);
       }
       res->replace((uint) offset,from_length,*res3);
       offset+=(int) to_length;
@@ -2154,7 +2190,16 @@ String *Item_func_insert::val_str(String *str)
 			func_name(), current_thd->variables.max_allowed_packet);
     goto null;
   }
-  res= copy_if_not_alloced(str, res, orig_len);
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value_res.alloc(orig_len) ||
+        tmp_value_res.copy(*res))
+      goto null;
+    res= &tmp_value_res;
+  }
+  else
+    res= copy_if_not_alloced(str, res, orig_len);
+
   res->replace((uint32) start,(uint32) length,*res2);
   return res;
 null:
@@ -2189,7 +2234,15 @@ String *Item_str_conv::val_str(String *str)
   if (multiply == 1)
   {
     size_t len;
-    res= copy_if_not_alloced(str,res,res->length());
+    if (res->uses_buffer_owned_by(str))
+    {
+       if (tmp_value.copy(*res))
+         return error_str();
+       res= &tmp_value;
+    }
+    else
+      res= copy_if_not_alloced(str, res, res->length());
+
     len= converter(collation.collation, (char*) res->ptr(), res->length(),
                                         (char*) res->ptr(), res->length());
     DBUG_ASSERT(len <= res->length());
@@ -2699,6 +2752,7 @@ static size_t calculate_password(String *str, char *buffer)
   if (thd)
     old_passwords= thd->variables.old_passwords;
 
+  push_deprecated_warn_no_replacement(current_thd, "PASSWORD");
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
@@ -2895,7 +2949,15 @@ String *Item_func_encode::val_str(String *str)
   }
 
   null_value= 0;
-  res= copy_if_not_alloced(str, res, res->length());
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value_res.copy(*res))
+      return error_str();
+    res= &tmp_value_res;
+  }
+  else
+    res= copy_if_not_alloced(str, res, res->length());
+
   crypto_transform(res);
   sql_crypt.reinit();
 
@@ -5725,6 +5787,9 @@ String *Item_func_uuid::val_str(String *str)
   tohex(s+9, time_mid, 4);
   tohex(s+14, time_hi_and_version, 4);
   my_stpcpy(s+18, clock_seq_and_node_str);
+  DBUG_EXECUTE_IF("force_fake_uuid",
+                  my_stpcpy(s, "a2d00942-b69c-11e4-a696-0020ff6fcbe6");
+                  );
   return str;
 }
 

@@ -17,13 +17,9 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $innodb_file_format = `SELECT @@innodb_file_format`;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
 
 let $MYSQLD_TMPDIR = `SELECT @@tmpdir`;
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
@@ -89,9 +85,6 @@ DROP TABLE t1;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 
@@ -881,9 +874,20 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#20631305 - INNODB: PREVENT FLUSH FOR TABLES IN A GENERAL TABLESPACE
+--echo #
+CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB, TABLESPACE=s_def;
+CREATE TABLE t2(a INT PRIMARY KEY);
+FLUSH TABLE t1,t2 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE s_def;
+
 # cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.cfg
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
-eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;

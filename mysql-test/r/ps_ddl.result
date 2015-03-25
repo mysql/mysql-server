@@ -733,7 +733,7 @@ deallocate prepare stmt;
 #
 # Test 3: View referencing an Information schema table
 #
-create view t1 as select table_name from information_schema.views;
+create view t1 as select table_name from information_schema.views where table_schema != 'sys';
 prepare stmt from "select * from t1";
 execute stmt;
 table_name

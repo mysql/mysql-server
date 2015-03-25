@@ -34,12 +34,13 @@
 #include "opt_explain.h"         // join_type_str
 #include "opt_trace.h"           // Opt_trace_object
 #include "sql_base.h"            // init_ftfuncs
-#include "sql_derived.h"         // mysql_derived_optimize
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "sql_parse.h"           // check_stack_overrun
 #include "sql_planner.h"         // calculate_condition_filter
 #include "sql_resolver.h"        // subquery_allows_materialization
 #include "sql_test.h"            // print_where
+#include "sql_tmp_table.h"       // get_max_key_and_part_length
+#include "opt_hints.h"           // hint_table_state
 
 #include <algorithm>
 using std::max;
@@ -793,9 +794,9 @@ uint QEP_TAB::get_sj_strategy() const
 
 uint JOIN_TAB::get_sj_strategy() const
 {
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join());
   if (first_sj_inner() == NO_PLAN_IDX)
     return SJ_OPT_NONE;
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join());
   JOIN_TAB *tab= join()->best_ref[first_sj_inner()];
   uint s= tab->position()->sj_strategy;
   DBUG_ASSERT(s != SJ_OPT_NONE);
@@ -2022,6 +2023,9 @@ check_reverse_order:
       }
 
       DBUG_ASSERT(tab->type() != JT_REF_OR_NULL && tab->type() != JT_FT);
+
+      // Changing the key makes filter_effect obsolete
+      tab->position()->filter_effect= COND_FILTER_STALE;
     }
     else if (best_key >= 0)
     {
@@ -2062,6 +2066,7 @@ check_reverse_order:
           tab->ref().key= -1;
           tab->ref().key_parts= 0;
         }
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
       else if (tab->type() != JT_ALL)
       {
@@ -2078,9 +2083,7 @@ check_reverse_order:
         tab->ref().key_parts=0;		// Don't use ref key.
         if (tab->quick()->is_loose_index_scan())
           join->tmp_table_param.precomputed_group_by= TRUE;
-        /*
-          TODO: update the number of records in tab->position
-        */
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
     } // best_key >= 0
 
@@ -2093,7 +2096,6 @@ check_reverse_order:
         if (!tmp)
         {
           /* purecov: begin inspected */
-          tab->set_rowcount(0);
           can_skip_sorting= false;      // Reverse sort failed -> filesort
           goto fix_ICP;
           /* purecov: end */
@@ -2102,6 +2104,7 @@ check_reverse_order:
           delete tab->quick();
         tab->set_quick(tmp);
         tab->set_type(calc_join_type(tmp->get_type()));
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
       else if ((tab->type() == JT_REF || tab->type() == JT_INDEX_SCAN) &&
                tab->ref().key_parts <= used_key_parts)
@@ -2126,6 +2129,7 @@ check_reverse_order:
     }
     else if (tab->quick())
       tab->quick()->need_sorted_output();
+
   } // QEP has been modified
 
 fix_ICP:
@@ -2136,8 +2140,12 @@ fix_ICP:
   */
   if (can_skip_sorting && !no_changes)
   {
-    if (tab->type() == JT_INDEX_SCAN && select_limit < table->file->stats.records)
-      tab->set_rowcount(select_limit);
+    if (tab->type() == JT_INDEX_SCAN &&
+        select_limit < table->file->stats.records)
+    {
+      tab->position()->rows_fetched= select_limit;
+      tab->position()->filter_effect= COND_FILTER_STALE_NO_CONST;
+    }
 
     // Keep current (ordered) tab->quick()
     if (save_quick != tab->quick())
@@ -2331,6 +2339,7 @@ void JOIN::adjust_access_methods()
         if (tab->position()->sj_strategy != SJ_OPT_LOOSE_SCAN)
           tab->set_index(find_shortest_key(tab->table(), &tab->table()->covering_keys));
         tab->set_type(JT_INDEX_SCAN);      // Read with index_first / index_next
+        // From table scan to index scan, thus filter effect needs no recalc.
       }
     }
     else if (tab->type() == JT_REF)
@@ -2349,14 +2358,8 @@ void JOIN::adjust_access_methods()
           add_alnum("new_type", join_type_str[tab->type()]).
           add_alnum("cause", "uses_more_keyparts");
 
-        tab->position()->rows_fetched= rows2double(tab->quick()->records);
         tab->use_quick= QS_RANGE;
-
-        tab->position()->filter_effect=
-          calculate_condition_filter(tab, NULL,
-                                     tab->prefix_tables() & ~tl->map(),
-                                     tab->position()->rows_fetched,
-                                     false);
+        tab->position()->filter_effect= COND_FILTER_STALE;
       }
       else
       {
@@ -2566,7 +2569,6 @@ bool JOIN::get_best_combination()
 
     best_ref[target]= tab;
     tab->set_idx(target);
-    tab->set_rowcount((ha_rows) pos->rows_fetched);
     tab->set_position(pos);
     TABLE *const table= tab->table();
     if (tab->type() != JT_CONST && tab->type() != JT_SYSTEM)
@@ -2586,12 +2588,7 @@ bool JOIN::get_best_combination()
         if (tab->quick())
           tab->set_type(calc_join_type(tab->quick()->get_type()));
         else
-        {
           tab->set_type(JT_ALL);
-          // Update number of rows
-          tab->table_ref->fetch_number_of_rows();
-          tab->set_rowcount(table->file->stats.records);
-        }
       }
       else
         // REF or RANGE, clarify later when prefix tables are set for JOIN_TABs
@@ -2800,8 +2797,11 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
   ha_rows rows;
   uint bufsz= 4096;
   uint join_cache_flags= HA_MRR_NO_NULL_ENDPOINTS;
-  const bool bnl_on= join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL);
-  const bool bka_on= join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BKA);
+  const bool bnl_on= hint_table_state(join->thd, tab->table_ref->table,
+                                      BNL_HINT_ENUM, OPTIMIZER_SWITCH_BNL);
+  const bool bka_on= hint_table_state(join->thd, tab->table_ref->table,
+                                      BKA_HINT_ENUM, OPTIMIZER_SWITCH_BKA);
+
   const uint tableno= tab->idx();
   const uint tab_sj_strategy= tab->get_sj_strategy();
   bool use_bka_unique= false;
@@ -4317,7 +4317,7 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
     if ((nested_join= table->nested_join))
     {
       // We should have either a join condition or a semi-join condition
-      DBUG_ASSERT((table->join_cond() == NULL) == (table->sj_on_expr != NULL));
+      DBUG_ASSERT((table->join_cond() == NULL) == (table->sj_cond() != NULL));
 
       nested_join->nj_map= 0;
       nested_join->nj_total= 0;
@@ -4332,7 +4332,7 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
         nested_join->nj_map= (nested_join_map) 1 << first_unused++;
         nested_join->nj_total= nested_join->join_list.elements;
       }
-      else if (table->sj_on_expr)
+      else if (table->sj_cond())
       {
         NESTED_JOIN *const outer_nest=
           table->embedding ? table->embedding->nested_join : NULL;
@@ -4981,7 +4981,7 @@ bool JOIN::extract_const_tables()
       */
       extract_method= extract_no_table;
     }
-    else if (tl->embedding && tl->embedding->sj_on_expr)
+    else if (tl->embedding && tl->embedding->sj_cond())
     {
       /*
         Table belongs to a semi-join.
@@ -5182,7 +5182,7 @@ bool JOIN::extract_func_dependent_tables()
           if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !table->fulltext_searched &&                           // 1
               !tl->outer_join_nest() &&                              // 2
-              !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
+              !(tl->embedding && tl->embedding->sj_cond()) &&        // 3
               !(tab->join_cond() && tab->join_cond()->is_expensive()) &&// 4
               !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))  // 5
           {
@@ -5303,7 +5303,7 @@ bool JOIN::estimate_rowcount()
     TABLE_LIST *const tl= tab->table_ref;
     if (!tab->const_keys.is_clear_all() &&                        // (1)
         (!tl->embedding ||                                        // (2)
-         (tl->embedding && tl->embedding->sj_on_expr)))           // (3)
+         (tl->embedding && tl->embedding->sj_cond())))            // (3)
     {
       /*
         This call fills tab->quick() with the best QUICK access method
@@ -5323,7 +5323,7 @@ bool JOIN::estimate_rowcount()
       */
       if (records == 0 &&
           tab->table()->reginfo.impossible_range &&
-          (!(tl->embedding && tl->embedding->sj_on_expr)))
+          (!(tl->embedding && tl->embedding->sj_cond())))
       {
         /*
           Impossible WHERE condition or join condition
@@ -5388,7 +5388,7 @@ void JOIN::set_semijoin_embedding()
   {
     for (TABLE_LIST *tl= tab->table_ref; tl->embedding; tl= tl->embedding)
     {
-      if (tl->embedding->sj_on_expr)
+      if (tl->embedding->sj_cond())
       {
         tab->emb_sj_nest= tl->embedding;
         break;
@@ -5445,20 +5445,45 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   List_iterator<Item> it1(sj_nest->nested_join->sj_outer_exprs);
   List_iterator<Item> it2(sj_nest->nested_join->sj_inner_exprs);
 
-  sj_nest->nested_join->sjm.scan_allowed= false;
-  sj_nest->nested_join->sjm.lookup_allowed= false;
+  sj_nest->nested_join->sjm.scan_allowed= true; 
+  sj_nest->nested_join->sjm.lookup_allowed= true;
 
   bool blobs_involved= false;
   Item *outer, *inner;
+  uint total_lookup_index_length= 0;
+  uint max_key_length;
+  uint max_key_part_length;
+  /*
+    Maximum lengths for keys and key parts that are supported by
+    the temporary table storage engine(s).
+  */
+  get_max_key_and_part_length(&max_key_length,
+                              &max_key_part_length);
   while (outer= it1++, inner= it2++)
   {
     DBUG_ASSERT(outer->real_item() && inner->real_item());
     if (!types_allow_materialization(outer, inner))
+    {
+      sj_nest->nested_join->sjm.scan_allowed= false; 
+      sj_nest->nested_join->sjm.lookup_allowed= false;
       DBUG_VOID_RETURN;
+    }
     blobs_involved|= inner->is_blob_field();
+
+    // Calculate the index length of materialized table
+    const uint lookup_index_length=((inner->type() == Item::FIELD_ITEM) ?
+                            ((Item_field *)inner)->field->pack_length() :
+                            inner->max_length) +
+                            (inner->maybe_null ? HA_KEY_NULL_LENGTH : 0);
+    if (lookup_index_length > max_key_part_length)
+      sj_nest->nested_join->sjm.lookup_allowed= false;
+    total_lookup_index_length+= lookup_index_length ; 
   }
-  sj_nest->nested_join->sjm.scan_allowed=   true;
-  sj_nest->nested_join->sjm.lookup_allowed= !blobs_involved;
+  if (total_lookup_index_length > max_key_length)
+    sj_nest->nested_join->sjm.lookup_allowed= false;
+
+  if (blobs_involved)
+    sj_nest->nested_join->sjm.lookup_allowed= false;
 
   if (sj_nest->embedding)
   {
@@ -6112,7 +6137,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
               add("functionally_dependent", true);
             /*
               Pulling a table out of uncorrelated subquery in general makes
-              makes it correlated. See the NOTE to this function. 
+              it correlated. See the NOTE to this function. 
             */
             sj_nest->nested_join->sj_corr_tables|= tbl->map();
             sj_nest->nested_join->sj_depends_on|= tbl->map();
@@ -6407,7 +6432,7 @@ merge_key_fields(Key_field *start, Key_field *new_fields, Key_field *end,
 static uint get_semi_join_select_list_index(Item_field *item_field)
 {
   TABLE_LIST *emb_sj_nest= item_field->table_ref->embedding;
-  if (emb_sj_nest && emb_sj_nest->sj_on_expr)
+  if (emb_sj_nest && emb_sj_nest->sj_cond())
   {
     List<Item> &items= emb_sj_nest->nested_join->sj_inner_exprs;
     List_iterator<Item> it(items);
@@ -6533,7 +6558,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
         return; // Can't use left join optimize
       exists_optimize= KEY_OPTIMIZE_EXISTS;
     }
-    else
+    else if (tl->table->reginfo.join_tab)
     {
       JOIN_TAB *stat= tl->table->reginfo.join_tab;
       key_map possible_keys=field->key_start;
@@ -7273,6 +7298,11 @@ add_ft_keys(Key_use_array *keyuse_array,
       !(usable_tables & cond_func->table_ref->map()))
     return FALSE;
 
+  // Cannot do index lookup into outer table:
+  for (uint i= 0; i < cond_func->arg_count ; ++i)
+    if (!is_local_field(cond_func->arguments()[i]))
+      return false;
+
   cond_func->set_simple_expression(simple_match_expr);
 
   const Key_use keyuse(cond_func->table_ref,
@@ -7289,7 +7319,7 @@ add_ft_keys(Key_use_array *keyuse_array,
   return keyuse_array->push_back(keyuse);
 }
 
- 
+
 /**
   Compares two keyuse elements.
 
@@ -7803,7 +7833,17 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
     for (i=0 ; i < keyuse->size()-1 ; i++,use++)
     {
       TABLE *const table= use->table_ref->table;
-
+      if (!table->reginfo.join_tab)
+      {
+        /*
+          Due to a bug in IN-to-EXISTS (grep for real_item() in
+          item_subselect.cc for more info), an index over a field from an
+          outer query might be considered here, which is incorrect. Their
+          query has been fully optimized already so their reginfo.join_tab is
+          NULL and we reject them.
+        */
+        continue;
+      }
       if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
         table->const_key_parts[use->key]|= use->keypart_map;
       if (use->keypart != FT_KEYPART)
@@ -8473,31 +8513,6 @@ bool JOIN::cache_const_exprs()
 }
 
 
-void JOIN::replace_item_field(const char* field_name, Item* new_item)
-{
-  if (where_cond)
-  {
-    where_cond= where_cond->compile(&Item::item_field_by_name_analyzer,
-                                    (uchar **)&field_name,
-                                    &Item::item_field_by_name_transformer,
-                                    (uchar *)new_item);
-    where_cond->update_used_tables();
-  }
-
-  List_iterator<Item> it(fields_list);
-  Item *item;
-  while ((item= it++))
-  {
-    item= item->compile(&Item::item_field_by_name_analyzer,
-                        (uchar **)&field_name,
-                        &Item::item_field_by_name_transformer,
-                        (uchar *)new_item);
-    it.replace(item);
-    item->update_used_tables();
-  }
-}
-
-
 /**
   Extract a condition that can be checked after reading given table
   
@@ -8898,6 +8913,9 @@ static bool make_join_select(JOIN *join, Item *cond)
 
           DBUG_ASSERT(tab->const_keys.is_subset(tab->keys()));
 
+          const join_type orig_join_type= tab->type();
+          const QUICK_SELECT_I *const orig_quick= tab->quick();
+
           if (cond &&                                                // 1a
               (tab->keys() != tab->const_keys) &&                      // 1b
               (i > 0 ||                                              // 1c
@@ -9065,19 +9083,10 @@ static bool make_join_select(JOIN *join, Item *cond)
               Access method changed. This is after deciding join order
               and access method for all other tables so the info
               updated below will not have any effect on the execution
-              plan. However, if this is EXPLAIN, rows_fetched and
-              filter_effect need to reflect the new access method.
+              plan.
             */
-	    if (tab->quick())
-            {
+            if (tab->quick())
               tab->set_type(calc_join_type(tab->quick()->get_type()));
-              tab->position()->rows_fetched= (double)tab->quick()->records;
-              tab->position()->filter_effect=
-                calculate_condition_filter(tab, NULL,
-                                           used_tables & ~tab->table_ref->map(),
-                                           tab->position()->rows_fetched,
-                                           false);
-            }
 
           } // end of "if (recheck_reason != DONT_RECHECK)"
 
@@ -9126,6 +9135,11 @@ static bool make_join_select(JOIN *join, Item *cond)
             else
               tab->use_quick= QS_RANGE;
           }
+
+          if (tab->type() != orig_join_type ||
+              tab->quick() != orig_quick)       // Access method changed
+            tab->position()->filter_effect= COND_FILTER_STALE;
+
 	}
       }
 

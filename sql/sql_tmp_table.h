@@ -87,6 +87,16 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    const char *name, TABLE *table,
                                    Item_field *item);
 
-
+/**
+  Get the minimum of max_key_length and max_key_part_length between
+  HEAP engine and internal_tmp_disk_storage_engine.
+*/
+void get_max_key_and_part_length(uint *max_key_length,
+                                 uint *max_key_part_length);
+/**
+  Initilize the storage engine properties for the alternative temporary table
+  storage engines.
+*/
+void init_cache_tmp_engine_properties();
 #endif /* SQL_TMP_TABLE_INCLUDED */
 

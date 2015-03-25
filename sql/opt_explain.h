@@ -49,8 +49,8 @@ SELECT_LEX), by calling explain_unit() for each of them.
 #include "opt_explain_format.h"
 
 class JOIN;
-class select_result;
-class select_result_interceptor;
+class Query_result;
+class Query_result_interceptor;
 struct TABLE;
 class THD;
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -95,46 +95,49 @@ private:
 
 
 /**
-  EXPLAIN functionality for insert_select, multi_update and multi_delete
+  EXPLAIN functionality for Query_result_insert, Query_result_update and
+  Query_result_delete.
 
-  This class objects substitute insert_select, multi_update and multi_delete
-  data interceptor objects to implement EXPLAIN for INSERT, REPLACE and
-  multi-table UPDATE and DELETE queries.
-  explain_send class object initializes tables like insert_select, multi_update
-  or multi_delete data interceptor do, but it suppress table data modification
-  by the underlying interceptor object.
-  Thus, we can use explain_send object in the context of EXPLAIN INSERT/
-  REPLACE/UPDATE/DELETE query like we use select_send in the context of
+  This class objects substitute Query_result_insert, Query_result_update and
+  Query_result_delete data interceptor objects to implement EXPLAIN for INSERT,
+  REPLACE and multi-table UPDATE and DELETE queries.
+  Query_result_explain class object initializes tables like Query_result_insert,
+  Query_result_update or Query_result_delete data interceptor do, but it suppress
+  table data modification by the underlying interceptor object.
+  Thus, we can use Query_result_explain object in the context of EXPLAIN INSERT/
+  REPLACE/UPDATE/DELETE query like we use Query_result_send in the context of
   EXPLAIN SELECT command:
-    1) in presence of lex->describe flag we pass explain_send object to the
+    1) in presence of lex->describe flag we pass Query_result_explain object to the
        handle_query() function,
     2) it call prepare(), prepare2() and initialize_tables() functions to
        mark modified tables etc.
 
 */
 
-class explain_send : public select_send {
+class Query_result_explain : public Query_result_send {
 protected:
   /*
-    As far as we use explain_send object in a place of select_send, explain_send
-    have to pass multiple invocation of its prepare(), prepare2() and
-    initialize_tables() functions, since JOIN::exec() of subqueries runs
-    these functions of select_send multiple times by design.
-    insert_select, multi_update and multi_delete class functions are not intended
-    for multiple invocations, so "prepared", "prepared2" and "initialized" flags
-    guard data interceptor object from function re-invocation.
+    As far as we use Query_result_explain object in a place of Query_result_send,
+    Query_result_explain have to pass multiple invocation of its prepare(),
+    prepare2() and initialize_tables() functions, since JOIN::exec() of
+    subqueries runs these functions of Query_result_send multiple times by design.
+    Query_result_insert, Query_result_update and Query_result_delete class
+    functions are not intended for multiple invocations, so "prepared",
+    "prepared2" and "initialized" flags guard data interceptor object from
+    function re-invocation.
   */
   bool prepared;    ///< prepare() is done
   bool prepared2;   ///< prepare2() is done
   bool initialized; ///< initialize_tables() is done
-  
+
   /**
-    Pointer to underlying insert_select, multi_update or multi_delete object
+    Pointer to underlying Query_result_insert, Query_result_update or
+    Query_result_delete object.
   */
-  select_result *interceptor;
+  Query_result *interceptor;
 
 public:
-  explain_send(st_select_lex_unit *unit_arg, select_result *interceptor_arg)
+  Query_result_explain(st_select_lex_unit *unit_arg, Query_result *interceptor_arg)
   : prepared(false), prepared2(false), initialized(false),
     interceptor(interceptor_arg)
   { unit= unit_arg; }
@@ -145,7 +148,7 @@ protected:
     if (prepared)
       return false;
     prepared= true;
-    return select_send::prepare(list, u) || interceptor->prepare(list, u);
+    return Query_result_send::prepare(list, u) || interceptor->prepare(list, u);
   }
 
   virtual int prepare2(void)
@@ -153,7 +156,7 @@ protected:
     if (prepared2)
       return false;
     prepared2= true;
-    return select_send::prepare2() || interceptor->prepare2();
+    return Query_result_send::prepare2() || interceptor->prepare2();
   }
 
   virtual bool initialize_tables(JOIN *join)
@@ -161,13 +164,13 @@ protected:
     if (initialized)
       return false;
     initialized= true;
-    return select_send::initialize_tables(join) ||
+    return Query_result_send::initialize_tables(join) ||
            interceptor->initialize_tables(join);
   }
 
   virtual void cleanup()
   {
-    select_send::cleanup();
+    Query_result_send::cleanup();
     interceptor->cleanup();
   }
 };

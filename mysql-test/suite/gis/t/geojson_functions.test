@@ -368,38 +368,39 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)"), 0, abc);
 --error ER_BAD_FIELD_ERROR
 SELECT ST_ASGEOJSON("*&$%$123", abc, 0);
 
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(?, 10, 0)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(POINT(10, 10), ?, 0)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(POINT(10, 10), 10, ?)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(?, ?, 0)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(?, 10, ?)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(POINT(10, 10), ?, ?)";
-PREPARE stmt FROM "SELECT ST_AsGeoJSON(?, ?, ?)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(?, 10, 0)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(POINT(10, 10), ?, 0)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(POINT(10, 10), 10, ?)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(?, ?, 0)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(?, 10, ?)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(POINT(10, 10), ?, ?)";
+PREPARE stmt FROM "SELECT ST_ASGEOJSON(?, ?, ?)";
 
 --echo # Check that packet overflow is handled correctly.
 SET @old_max_allowed_packet= @@global.max_allowed_packet;
 
 CREATE TABLE t1 (g GEOMETRY);
-INSERT INTO t1 VALUES (ST_GeomFromText(
-"  LINESTRING(1 2, 3 4, 5 6, 7 8, 9 10, 11 12, 13 14, 15 16, 17 18, 19 20,    "
-"  21 22, 23 24, 25 26, 27 28, 29 30, 31 32, 33 34, 35 36, 37 38, 39 40,      "
-"  41 42, 43 44, 45 46, 47 48, 49 50)                                         "
+INSERT INTO t1 VALUES (ST_GEOMFROMTEXT(
+  "  LINESTRING(1 2, 3 4, 5 6, 7 8, 9 10, 11 12, 13 14, 15 16, 17 18, 19 20,    "
+  "  21 22, 23 24, 25 26, 27 28, 29 30, 31 32, 33 34, 35 36, 37 38, 39 40,      "
+  "  41 42, 43 44, 45 46, 47 48, 49 50)                                         "
 ));
-SELECT ST_AsText(g) FROM t1;
-UPDATE t1 SET g=GeometryCollection(g, g, g, g, g, g, g, g, g, g);
-UPDATE t1 SET g=GeometryCollection(g, g, g, g, g, g, g, g, g, g);
-UPDATE t1 SET g=GeometryCollection(g, g, g, g, g, g, g, g, g, g);
-UPDATE t1 SET g=GeometryCollection(g, g, g, g, g, g, g, g, g, g);
+SELECT ST_ASTEXT(g) FROM t1;
+UPDATE t1 SET g = GEOMETRYCOLLECTION(g, g, g, g, g, g, g, g, g, g);
+UPDATE t1 SET g = GEOMETRYCOLLECTION(g, g, g, g, g, g, g, g, g, g);
+UPDATE t1 SET g = GEOMETRYCOLLECTION(g, g, g, g, g, g, g, g, g, g);
+UPDATE t1 SET g = GEOMETRYCOLLECTION(g, g, g, g, g, g, g, g, g, g);
 
-SELECT Length(ST_AsText(g)) FROM t1;
-SELECT Length(ST_AsGeoJSON(g)) FROM t1;
+SELECT LENGTH(ST_ASTEXT(g)) FROM t1;
+SELECT LENGTH(ST_ASGEOJSON(g)) FROM t1;
 
 SET @@global.max_allowed_packet = 1048576;
+
 # Make a new connection where max_allowed_packet takes effect
 connect (con1, localhost, root,,);
 
-SELECT Length(ST_AsGeoJSON(g)) FROM t1;
-SELECT ST_AsGeoJSON(g) FROM t1;
+SELECT LENGTH(ST_ASGEOJSON(g)) FROM t1;
+SELECT ST_ASGEOJSON(g) FROM t1;
 
 # Cleanup
 disconnect con1;
@@ -469,7 +470,6 @@ SELECT ST_ASGEOJSON(g) FROM t1;
 DROP TABLE t1;
 
 SET @@global.max_allowed_packet = @old_max_allowed_packet; 
-
 
 #####################################################################
 # ST_GEOMFROMGEOJSON()
@@ -889,18 +889,25 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 SELECT ST_GEOMFROMGEOJSON(NULL);
 
 SELECT ST_GEOMFROMGEOJSON(NULL, 1);
+
 SELECT ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [102.0, 0.0]}",
                           NULL);
 
 SELECT ST_GEOMFROMGEOJSON(NULL, NULL, NULL);
+
 SELECT ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [102.0, 0.0]}",
                           NULL, NULL);
+
 SELECT ST_GEOMFROMGEOJSON(NULL, 1, NULL);
+
 SELECT ST_GEOMFROMGEOJSON(NULL, NULL, 4326);
+
 SELECT ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [102.0, 0.0]}",
                           1, NULL);
+
 SELECT ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [102.0, 0.0]}",
                           NULL, 4326);
+
 SELECT ST_GEOMFROMGEOJSON(NULL, 1, 4326);
 
 SELECT ST_GEOMFROMGEOJSON(
@@ -2359,13 +2366,13 @@ SELECT ST_GEOMFROMGEOJSON(
 "}                                      "
 );
 
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON(?, 0, 0)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON('', ?, 0)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON('', 0, ?)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON(?, ?, 0)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON(?, 0, ?)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON('', ?, ?)";
-PREPARE stmt FROM "SELECT ST_GeomFromGeoJSON(?, ?, ?)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, 0, 0)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', ?, 0)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', 0, ?)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, ?, 0)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, 0, ?)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', ?, ?)";
+PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, ?, ?)";
 
 --error ER_INVALID_JSON_DATA
 SELECT ST_GEOMFROMGEOJSON("{}foo");
@@ -2417,10 +2424,10 @@ SELECT ST_GEOMFROMGEOJSON("[ -9223372036854775900, 184467440737095516700] ");
 
 --error ER_INVALID_JSON_DATA
 SELECT ST_GEOMFROMGEOJSON("["
-"900000000000000000000000000000000000000000000000000000000000000000000000000000"
-"000000000000000000000000000000000000000000000000000000000000000000000000000000"
-"000000000000000000000000000000000000000000000000000000000000000000000000000000"
-"000000000000000000000000000000000000000000000000000000000000000000000000000"
+  "900000000000000000000000000000000000000000000000000000000000000000000000000000"
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  "000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  "000000000000000000000000000000000000000000000000000000000000000000000000000"
 "]");
 
 --error ER_INVALID_JSON_DATA
@@ -2451,6 +2458,7 @@ SELECT ST_GEOMFROMGEOJSON("{ \"\\u06FF\" }");
 SELECT ST_GEOMFROMGEOJSON("{ \"\\uFFFF\" }");
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }"));
+
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [18446744073709551615, 9223372036854775807] }"));
 
 #####################################################################
@@ -3718,40 +3726,75 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "}                                    "
 ));
 
-#############################
-#       Bug#19657747        #
-#############################
+#####################################################################
+# Bug#19657747
+#####################################################################
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_ASGEOJSON(POINT(1, 1), -9223372036854775808);
+
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_ASGEOJSON(POINT(1, 1), 10, -9223372036854775808);
+
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_ASGEOJSON(POINT(1, 1), 18446744073709551615);
+
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_ASGEOJSON(POINT(1, 1), 10, 18446744073709551615);
+
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, -9223372036854775808);
+
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', -9223372036854775808);
+
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, 18446744073709551615);
+
 --error ER_WRONG_VALUE_FOR_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 18446744073709551615);
 
 # These will be of incorrect type, since they are recogniced as decimals.
 --error ER_INCORRECT_TYPE
 SELECT ST_ASGEOJSON(POINT(1, 1), -9223372036854775809);
+
 --error ER_INCORRECT_TYPE
 SELECT ST_ASGEOJSON(POINT(1, 1), 10, -9223372036854775809);
+
 --error ER_INCORRECT_TYPE
 SELECT ST_ASGEOJSON(POINT(1, 1), 18446744073709551616);
+
 --error ER_INCORRECT_TYPE
 SELECT ST_ASGEOJSON(POINT(1, 1), 10, 18446744073709551616);
+
 --error ER_INCORRECT_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, -9223372036854775809);
+
 --error ER_INCORRECT_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', -9223372036854775809);
+
 --error ER_INCORRECT_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, 18446744073709551616);
+
 --error ER_INCORRECT_TYPE
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 18446744073709551616);
+
+#########################
+#     Bug#20416705      #
+#########################
+CREATE TABLE geojson(
+  gid INT NOT NULL AUTO_INCREMENT,
+  geojson_value TEXT,
+  PRIMARY KEY (`gid`)
+);
+
+INSERT INTO geojson (geojson_value) VALUES
+(ST_AsGeoJSON(ST_GeomFromText('POINT(10 11)', 4326), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(-1.324 66.231)', 5423), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(98.344 -123.001)', 1), 100, 2)),
+(ST_AsGeoJSON(ST_GeomFromText('POINT(0.0 0.0)', 200004), 100, 2));
+
+SELECT ST_AsText(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
+
+SELECT ST_SRID(ST_GeomFromGeoJSON(geojson_value)) FROM geojson;
+
+DROP TABLE geojson;

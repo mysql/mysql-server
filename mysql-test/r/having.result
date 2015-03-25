@@ -423,6 +423,8 @@ f1
 select f1 from t1 group by f1 having max(f1)=f1;
 f1
 set session sql_mode='ONLY_FULL_GROUP_BY';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select f1 from t1 having max(f1)=f1;
 ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
 select f1 from t1 group by f1 having max(f1)=f1;
@@ -707,4 +709,23 @@ order by bar+5;
 foo	bar
 1	20
 DROP TABLE t1;
+set sql_mode='';
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+SELECT a FROM (SELECT 1 FROM t1 AS From1) AS From2 
+NATURAL RIGHT OUTER JOIN t1 AS Outjoin3 
+GROUP BY 1 HAVING (
+SELECT 1 FROM t1 AS Grouphaving4 GROUP BY 1 HAVING a);
+a
+SELECT a FROM (SELECT 1 FROM t1 AS From1) AS From2
+NATURAL RIGHT OUTER JOIN t1 AS Outjoin3
+GROUP BY 1 HAVING
+sin((SELECT 1 FROM t1 AS Grouphaving4 GROUP BY 1 HAVING a));
+a
+CREATE TABLE t2 (a INT) ENGINE=INNODB;
+SELECT Outjoin3.a FROM (SELECT 1 FROM t1 AS From1) AS From2 
+NATURAL RIGHT OUTER JOIN t2 AS Outjoin3 
+GROUP BY 1 HAVING (
+SELECT 1 FROM t1 AS GroupHaving4 GROUP BY 1 HAVING a);
+a
+DROP TABLE t1, t2;
 SET @@sql_mode = @old_sql_mode;

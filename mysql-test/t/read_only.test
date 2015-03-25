@@ -17,6 +17,8 @@ DROP TABLE IF EXISTS t1,t2,t3;
 # READ_ONLY does nothing to SUPER users
 # so we use a non-SUPER one:
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 grant CREATE, SELECT, DROP on *.* to test@localhost;
 
 --echo connect (con1,localhost,test,,test);
@@ -358,6 +360,8 @@ DROP USER user1;
 
 SET GLOBAL read_only= 0;
 DROP TABLE t1;
+
+set sql_mode= @orig_sql_mode;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

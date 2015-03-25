@@ -157,12 +157,6 @@ bool PT_table_factor_select_sym::contextualize(Parse_context *pc)
   LEX * const lex= pc->thd->lex;
   SELECT_LEX *const outer_select= pc->select;
 
-  if (! lex->parsing_options.allows_derived)
-  {
-    my_error(ER_VIEW_SELECT_DERIVED, MYF(0));
-    return true;
-  }
-
   if (!outer_select->embedding || outer_select->end_nested_join(pc->thd))
   {
     /* we are not in parentheses */
@@ -230,6 +224,9 @@ bool PT_table_factor_select_sym::contextualize(Parse_context *pc)
   /* incomplete derived tables return NULL, we must be
      nested in select_derived rule to be here. */
   value= NULL;
+
+  if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
+    return true;
 
   return false;
 }
@@ -680,6 +677,10 @@ bool PT_delete::contextualize(Parse_context *pc)
 
   if (is_multitable() && multi_delete_set_locks_and_link_aux_tables(pc))
     return true;
+
+  if (opt_hints != NULL && opt_hints->contextualize(pc))
+    return true;
+
   return false;
 }
 
@@ -756,6 +757,10 @@ bool PT_update::contextualize(Parse_context *pc)
     lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
     pc->select->explicit_limit= 1;
   }
+
+  if (opt_hints != NULL && opt_hints->contextualize(pc))
+    return true;
+
   return false;
 }
 
@@ -814,6 +819,9 @@ bool PT_create_select::contextualize(Parse_context *pc)
     is created correctly in this case
   */
   pc->select->table_list.push_front(&save_list);
+
+  if (opt_hints != NULL && opt_hints->contextualize(pc))
+    return true;
 
   return false;
 }
@@ -927,6 +935,9 @@ bool PT_insert::contextualize(Parse_context *pc)
     DBUG_ASSERT(pc->select->parsing_place == CTX_UPDATE_VALUE_LIST);
     pc->select->parsing_place= CTX_NONE;
   }
+
+  if (opt_hints != NULL && opt_hints->contextualize(pc))
+    return true;
 
   return false;
 }

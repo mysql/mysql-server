@@ -864,6 +864,8 @@ DROP TRIGGER t1_bi;
 # - Conditional SET in a trigger, which is NOT executed for every row.
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
 IF (MOD(NEW.a, 2) = 0) THEN
@@ -986,6 +988,8 @@ SET @sql_mode_saved = @@sql_mode;
 ###################################################################
 
 SET sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 #------------------------------------------------------------------
 # Checking INSERT INTO ... VALUES ...
@@ -1533,7 +1537,7 @@ DELETE FROM t2;
 
 SET sql_mode = 'traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 #------------------------------------------------------------------
 # Checking INSERT INTO ... VALUES ...
@@ -2097,6 +2101,8 @@ a1	a2
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 "Test for timestamp"
 CREATE TABLE t1(a1 DATE NOT NULL, a2 TIMESTAMP NOT NULL, a3 TIMESTAMP NOT NULL);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
@@ -2195,6 +2201,8 @@ DROP TRIGGER t1_bu;
 DROP TABLE t1;
 SET @sql_mode_saved = @@sql_mode;
 SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT, b INT NOT NULL);
 INSERT INTO t1(a) VALUES (1);
 Warnings:
@@ -2210,4 +2218,6 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1364	Field 'b' doesn't have a default value
 SET sql_mode = @sql_mode_saved;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;

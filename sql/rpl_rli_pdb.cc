@@ -1565,16 +1565,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   const Gtid_specification *gtid_next= &info_thd->variables.gtid_next;
   THD *thd= info_thd;
 
-  if (gtid_next->type == GTID_GROUP)
-  {
-    global_sid_lock->rdlock();
-    gtid_next->to_string(global_sid_map, buff_gtid);
-    global_sid_lock->unlock();
-  }
-  else
-  {
-    buff_gtid[0]= 0;
-  }
+  gtid_next->to_string(global_sid_map, buff_gtid, true);
 
   if (level == ERROR_LEVEL && (!has_temporary_error(thd, err_code) ||
       thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION)))

@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 #
 # Start of 5.5 tests
 #
@@ -868,6 +867,8 @@ hex(a)
 0010FFFF
 drop table t1;
 SET sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (utf32 varchar(2) character set utf32);
 Wrong character with pad
 insert into t1 values (0x110000);
@@ -981,6 +982,8 @@ a
 1
 drop table t1;
 SET sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a varchar(17000) character set utf32);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT
@@ -1009,9 +1012,14 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
+SET GLOBAL innodb_large_prefix=OFF;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 create table t1 (a varchar(334) character set utf32 primary key);
 ERROR 42000: Specified key was too long; max key length is 767 bytes
 SET sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a varchar(333) character set utf32, key(a));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
@@ -1022,6 +1030,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 SET sql_mode = default;
+SET GLOBAL innodb_large_prefix=default;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET collation_connection=utf32_general_ci;
 CREATE TABLE t1 AS SELECT repeat('a',20) AS s1 LIMIT 0;
 SET timestamp=1216359724;

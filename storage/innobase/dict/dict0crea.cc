@@ -48,6 +48,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fts0priv.h"
 #include "fsp0space.h"
 #include "fsp0sysspace.h"
+#include "srv0start.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -464,7 +465,7 @@ dict_build_tablespace_for_table(
 			rec_format_t rec_format = table->flags == 0
 						? REC_FORMAT_REDUNDANT
 						: REC_FORMAT_COMPACT;
-			ulint flags;
+			ulint flags = 0;
 			dict_tf_set(&flags, rec_format, 0, 0, 0);
 			table->flags = static_cast<unsigned int>(flags);
 		}
@@ -2060,6 +2061,11 @@ dict_replace_tablespace_in_dictionary(
 	trx_t*		trx,
 	bool		commit)
 {
+	if (!srv_sys_tablespaces_open) {
+		/* Startup procedure is not yet ready for updates. */
+		return(DB_SUCCESS);
+	}
+
 	dberr_t		error;
 
 	pars_info_t*	info = pars_info_create();
@@ -2111,6 +2117,8 @@ dict_add_datafile_to_dictionary(
 	const char*	path,
 	trx_t*		trx)
 {
+	ut_ad(srv_sys_tablespaces_open);
+
 	dberr_t		error;
 
 	pars_info_t*	info = pars_info_create();
@@ -2156,6 +2164,7 @@ dict_delete_tablespace_and_datafiles(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(srv_sys_tablespaces_open);
 
 	trx->op_info = "delete tablespace and datafiles from dictionary";
 

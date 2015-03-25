@@ -14,8 +14,6 @@ let $wait_condition =
 
 --disable_query_log
 set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
-set @old_innodb_file_format = @@innodb_file_format;
-set @old_innodb_file_per_table = @@innodb_file_per_table;
 set @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
 if (`select (version() like '%debug%') > 0`)
 {
@@ -24,8 +22,6 @@ if (`select (version() like '%debug%') > 0`)
 }
 --enable_query_log
 
-set global innodb_file_format=`Barracuda`;
-set global innodb_file_per_table=ON;
 set global innodb_adaptive_hash_index=ON;
 
 select @@innodb_buffer_pool_size;
@@ -69,8 +65,6 @@ drop table t1;
 drop view view0;
 
 --disable_query_log
-set global innodb_file_format = @old_innodb_file_format;
-set global innodb_file_per_table = @old_innodb_file_per_table;
 set global innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
 set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
 if (`select (version() like '%debug%') > 0`)

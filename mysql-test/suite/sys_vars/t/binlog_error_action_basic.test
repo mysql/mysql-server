@@ -17,7 +17,7 @@
 
 
 SELECT @@GLOBAL.binlog_error_action;
---echo IGNORE_ERROR Expected
+--echo ABORT_SERVER Expected
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@SESSION.binlog_error_action;

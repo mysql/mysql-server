@@ -1,5 +1,7 @@
 drop table if exists t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set time_zone="+03:00";
 CREATE TABLE t1 (a int, t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 CREATE TABLE t2 (a int, t datetime);
@@ -404,7 +406,7 @@ max(t)
 drop table t1;
 set sql_mode='maxdb';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a timestamp, b timestamp);
 show create table t1;
 Table	Create Table
@@ -413,6 +415,8 @@ t1	CREATE TABLE "t1" (
   "b" datetime DEFAULT NULL
 )
 set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1;
 create table t1 (a int auto_increment primary key, b int, c timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 (a, b, c) values (1, 0, '2001-01-01 01:01:01'),
@@ -661,6 +665,8 @@ DROP TABLE IF EXISTS t1, t2, t3;
 SET @org_mode=@@sql_mode;
 #Table creation in strict mode
 SET @@sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
 ERROR 42000: Invalid default value for 'c1'
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT '0000-00-00 00:00:00');
@@ -693,6 +699,8 @@ Warnings:
 Warning	1264	Out of range value for column 'c4' at row 1
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # END of Test for bug#11747847 - 34280
 #
 # End of 5.6 tests

@@ -1,13 +1,8 @@
 SET @old_innodb_file_per_table = @@innodb_file_per_table;
-SET @old_innodb_file_format = @@innodb_file_format;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-SET GLOBAL innodb_file_format = `Barracuda`;
-SELECT @@innodb_file_format;
-@@innodb_file_format
-Barracuda
 # Following testcases are created from JET cases (where import
 # export instance are different servers)
 # Here test will be run on same import and export instance.
@@ -140,7 +135,6 @@ DROP TABLE t1;
 #
 # case 3 - with blob objects
 #
-SET GLOBAL innodb_file_format='Barracuda';
 CREATE TABLE t1 (
 col_1_varbinary VARBINARY (4000),
 col_2_varchar VARCHAR (4000),
@@ -887,5 +881,4 @@ col18	col24
 DROP VIEW VW1;
 DROP TABLE t1;
 DROP TABLE trigger_table;
-SET GLOBAL innodb_file_format = @old_innodb_file_format;
 SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;

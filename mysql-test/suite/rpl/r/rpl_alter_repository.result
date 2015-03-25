@@ -90,7 +90,11 @@ include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_io_error.inc [errno=1593]
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Last_IO_Error = 'Fatal error: Failed to flush master info.'
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 include/stop_slave_sql.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 START SLAVE SQL_THREAD;
@@ -102,7 +106,11 @@ include/start_slave.inc
 ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_io_error.inc [errno=1593]
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Last_IO_Error = 'Fatal error: Failed to flush master info.'
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 include/stop_slave_sql.inc
 START SLAVE SQL_THREAD;
 ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 24, found 23. The table is probably corrupted

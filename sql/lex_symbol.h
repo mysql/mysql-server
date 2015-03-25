@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2004, 2006, 2007 MySQL AB
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,29 +19,29 @@
 #ifndef _lex_symbol_h
 #define _lex_symbol_h
 
-struct st_sym_group;
-
-typedef struct st_symbol {
-  const char *name;
-  uint	tok;
-  uint length;
-  struct st_sym_group *group;
-} SYMBOL;
-
-typedef struct st_lex_symbol
+enum SYM_GROUP
 {
-  SYMBOL *symbol;
-  char   *str;
-  uint   length;
-} LEX_SYMBOL;
+  SG_KEYWORDS=          1 << 0, // SQL keywords and reserved words
+  SG_FUNCTIONS=         1 << 1, // very special native SQL functions
+  SG_HINTABLE_KEYWORDS= 1 << 2, // SQL keywords that accept optimizer hints
+  SG_HINTS=             1 << 3, // optimizer hint parser keywords
 
-typedef struct st_sym_group {
+  /* All tokens of the main parser: */
+  SG_MAIN_PARSER=       SG_KEYWORDS | SG_HINTABLE_KEYWORDS | SG_FUNCTIONS
+};
+
+struct SYMBOL {
   const char *name;
-  const char *needed_define;
-} SYM_GROUP;
+  const unsigned int length;
+  const unsigned int tok;
+  int group; //< group mask, see SYM_GROUP enum for bits
+};
 
-extern SYM_GROUP sym_group_common;
-extern SYM_GROUP sym_group_geom;
-extern SYM_GROUP sym_group_rtree;
+struct LEX_SYMBOL
+{
+  const SYMBOL *symbol;
+  char   *str;
+  unsigned int length;
+};
 
 #endif /* _lex_symbol_h */

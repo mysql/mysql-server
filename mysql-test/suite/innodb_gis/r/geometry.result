@@ -1,4 +1,5 @@
 SET default_storage_engine=InnoDB;
+SET innodb_strict_mode=OFF;
 SET SESSION debug="+d,row_print_geometry_data";
 SHOW VARIABLES LIKE '%engine%';
 Variable_name	Value
@@ -634,7 +635,6 @@ SELECT AVG(ST_AsText(g)) FROM gis_geometry;
 AVG(ST_AsText(g))
 0
 #check Datatypes with compression tables
-SET GLOBAL innodb_file_format=barracuda;
 CREATE TABLE tab3(c1 POINT,c2 LINESTRING,c3 POLYGON,C4 MULTIPOINT,c5 MULTILINESTRING ,
 c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) ENGINE=InnoDB
 KEY_BLOCK_SIZE=8 ROW_FORMAT=COMPRESSED;

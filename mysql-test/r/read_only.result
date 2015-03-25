@@ -1,5 +1,9 @@
 set @start_read_only= @@global.read_only;
 DROP TABLE IF EXISTS t1,t2,t3;
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 grant CREATE, SELECT, DROP on *.* to test@localhost;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
@@ -198,3 +202,6 @@ COMMIT;
 DROP USER user1;
 SET GLOBAL read_only= 0;
 DROP TABLE t1;
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

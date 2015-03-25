@@ -554,6 +554,44 @@ explain select * from t1 where (a,b) in (select a,b from t2);
 
 drop table t0, t1, t2;
 
+--echo #
+--echo # Bug#19695490: CRASH IN CREATE_REF_FOR_KEY ON SELECT + JOIN + UTF8 COLUMN
+--echo #                + DATETIME INDEX.
+--echo #
+
+CREATE TABLE t1 (
+  field1 varchar(255) CHARACTER SET utf8,
+  field2 varchar(255) CHARACTER SET utf8
+);
+
+INSERT INTO t1 VALUES
+  ('time','time'),
+  ('lpjdzvkp','lpjdzvkp'),
+  ('dzvkpai', 'dzvkpai');
+
+CREATE TABLE t2 ( col_varchar varchar(10));
+
+CREATE TABLE t3 (
+  pk int(11) NOT NULL,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t3 VALUES (22,'come','h'),
+ (23,'time','aaa'),
+ (24,'lpjdzvkp','ababa'),
+ (25,'d','GGDD');
+
+SELECT * FROM t1 WHERE (field1, field2) IN (
+  SELECT table1.col_varchar_255_utf8_key AS field1,
+         table1.col_varchar_255_utf8_key AS field2
+  FROM t3 AS table1 LEFT JOIN t2 AS table2
+       ON table1.col_varchar_10_utf8_key <=
+          table2.col_varchar
+  WHERE table1.pk >= 6);
+
+DROP TABLE t1,t2,t3;
 
 #
 # Primitive SJ-Materialization tests for DECIMAL and DATE
@@ -5384,6 +5422,8 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
 
+ANALYZE TABLE t1, t2;
+
 SET @old_depth=@@optimizer_search_depth;
 SET optimizer_search_depth=4;
 
@@ -5525,58 +5565,6 @@ eval $query;
 DROP TABLE t1;
 
 --echo # End of test for bug#13838810.
-
---echo #
---echo # BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
---echo # --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
---echo #
-
-CREATE TABLE t1 (
-  col_int_key INT(11) NOT NULL,
-  col_datetime_key DATETIME NOT NULL,
-  col_varchar_key VARCHAR(1) NOT NULL,
-  col_varchar_nokey VARCHAR(1) NOT NULL,
-  KEY col_int_key (col_int_key),
-  KEY col_datetime_key (col_datetime_key),
-  KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-
-INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
-INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
-
-CREATE TABLE t2 (
-  col_int_key INT(11) NOT NULL,
-  col_datetime_key DATETIME NOT NULL,
-  col_varchar_key VARCHAR(1) NOT NULL,
-  col_varchar_nokey VARCHAR(1) NOT NULL,
-  KEY col_int_key (col_int_key),
-  KEY col_datetime_key (col_datetime_key),
-  KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-
-INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
-
-SET @old_depth=@@optimizer_search_depth;
-SET optimizer_search_depth=4;
-
-let $query=SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-  SELECT alias1.col_datetime_key
-  FROM t1 AS alias1
-    LEFT JOIN t1 as alias3
-      STRAIGHT_JOIN ( t2 AS alias4
-        JOIN t1 AS alias5
-        ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-      ON alias5.col_int_key < alias4.col_int_key
-    ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-
-eval EXPLAIN $query;
-eval $query;
-
-DROP TABLE t1,t2;
-SET @@optimizer_search_depth=@old_depth;
 
 --echo #
 --echo # Bug#13845930: Segfault in st_join_table::and_with_condition
@@ -6688,5 +6676,164 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo #Bug#20119743 ASSERTIONQEP_TAB->USE_ORDER() IN ENUM_NESTED_LOOP_STATE
+--echo #             EVALUATE_JOIN_RECORD
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'x');
+
+CREATE TABLE t2 (
+  col_date_key date DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_date_key (col_date_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t2 VALUES ('2000-12-03', 8, 'x', 'x'),('2008-05-03', 7, 'd', 'd'),
+('2005-12-06', 1, 'r', 'r'),('2000-04-10', 7, 'f', 'f'),
+('2002-11-05', 9, 'y', 'y'),('2000-09-06', NULL, 'u', 'u'),
+(NULL, 1, 'm', 'm'),('2007-06-14', 9, NULL, NULL),
+('2007-11-17', 2, 'o', 'o'),('2009-02-23', 9, 'w', 'w'),
+('2007-01-08', 2, 'm', 'm'), ('2008-06-10', 4, 'q', 'q'),
+('2002-10-20', 0, NULL, NULL),('2008-09-12', 4, 'd', 'd'),
+('2006-06-16', 8, 'g', 'g'),('2004-09-18', NULL, 'x', 'x'),
+('1900-01-01', NULL, 'f', 'f'),('2005-09-13', 0, 'p', 'p'),
+('2007-04-09', NULL, 'j', 'j'),('2000-09-20', 8, 'c', 'c');
+
+CREATE TABLE t3 (
+  pk int(11) NOT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t3 VALUES (1, 'c'),(2, 'c'),(3, 'q'),(4, 'g'),(5, 'e'),(6, 'l'),
+(7, NULL),(8, 'v'),(9, 'c'),(10, 'u'),(11, 'x'),(12, 'x'),(13, 'x'),(14, 'l'),
+(15, 'e'),(16, 's'),(17, 'k'),(18, 'm'),(19, 'x'),(20, 's');
+
+ANALYZE TABLE t1,t2,t3;
+
+let $query1=
+SELECT r1.col_date_key
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+      (SELECT ir2.pk
+       FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+            ON ir2.col_varchar_nokey = ir1.col_varchar_key
+       WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+         AND ir2.pk IN
+             (SELECT iir2.pk
+              FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+                   ON iir2.col_varchar_nokey = iir1.col_varchar_key)) 
+ORDER BY r1.col_date_key;   
+
+--disable_warnings
+eval EXPLAIN $query1;
+--enable_warnings
+# test Bug#20119743 and Bug#20239912.
+eval $query1;
+
+# test Bug#20239912 QUERY RESULTS ARE DIFFERENT WHEN OPENING OR 
+#                   CLOSING SEMIJOIN OPTIMIZER_SWITCH
+let $query2=
+SELECT COUNT(r1.col_date_key) AS COUNT_NUM
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+      (SELECT ir2.pk
+       FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+            ON ir2.col_varchar_nokey = ir1.col_varchar_key
+       WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+         AND ir2.pk IN
+             (SELECT iir2.pk
+              FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+                   ON iir2.col_varchar_nokey = iir1.col_varchar_key
+              WHERE iir2.pk<3)); 
+
+eval $query2;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#20554585 ASSERT JOIN()->TABLES == 0... IN JOIN_TAB::GET_SJ_STRATEGY ON SUBQUERY + VAR
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_int_key int,
+  col_varchar_key varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_int_key int,
+  col_varchar_key varchar(1),
+  col_varchar varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t3 VALUES (1,4,'c','g'),(20,1,'i','p');
+
+CREATE TABLE t4 (
+  col_int int
+);
+
+CREATE TABLE t5 (
+  col_varchar_key varchar(1),
+  pk int NOT NULL,
+  col_int int,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+SELECT table1.col_varchar_key AS field1
+FROM (t3 AS table1
+  INNER JOIN (
+    SELECT SUBQUERY1_t1.*
+    FROM (t1 AS SUBQUERY1_t1
+      RIGHT JOIN (t2 AS SUBQUERY1_t2
+        INNER JOIN t3 AS SUBQUERY1_t3
+        ON (SUBQUERY1_t3.col_varchar_key = SUBQUERY1_t2.col_varchar_key)
+      ) ON (SUBQUERY1_t3.col_int_key = SUBQUERY1_t2.pk)
+    )
+    WHERE SUBQUERY1_t2.col_varchar_key >= ANY (
+      SELECT CHILD_SUBQUERY1_t2.col_varchar AS CHILD_SUBQUERY1_field1
+      FROM (t2 AS CHILD_SUBQUERY1_t1
+        LEFT OUTER JOIN t3 AS CHILD_SUBQUERY1_t2
+        ON (CHILD_SUBQUERY1_t2.col_int_key = CHILD_SUBQUERY1_t1.col_int_key)
+      )
+      WHERE CHILD_SUBQUERY1_t1.pk >= SUBQUERY1_t2.pk
+    )
+  ) AS table2
+  ON (table2.pk = table1.pk)
+)
+WHERE (EXISTS ((
+  SELECT DISTINCT SUBQUERY2_t2.col_int AS SUBQUERY2_field1
+  FROM (t4 AS SUBQUERY2_t1
+    LEFT OUTER JOIN t5 AS SUBQUERY2_t2
+    ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+   )
+   WHERE SUBQUERY2_t2.col_varchar_key != @var4
+)))
+  AND table1.col_int_key < (35 + 192)
+ORDER BY field1
+;
+
+DROP TABLE t1, t2, t3, t4, t5;
 
 # New tests go here.

@@ -35,10 +35,6 @@
 #
 # create test-bed
 #
-let $per_table = `select @@innodb_file_per_table`;
-let $format = `select @@innodb_file_format`;
-
-set global innodb_file_per_table = on;
 let $MYSQL_TMP_DIR = `select @@tmpdir`;
 let $MYSQL_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
@@ -181,14 +177,14 @@ call populate_t1();
 select count(*) from t1;
 drop table t1;
 #
-set global innodb_file_per_table = 1;
-set global innodb_file_format='Barracuda';
+set innodb_strict_mode=off;
 --disable_warnings
 create table t1 (a int not null, d int not null, b blob not null, c text,
 	primary key (b(10), a, d),  index (d), index(a),  index (c(355),
 	b(255)), index (b(5), c(10), a)
 	) engine=InnoDB row_format=compressed key_block_size=8;
 --enable_warnings
+set innodb_strict_mode=default;
 call populate_t1();
 select count(*) from t1;
 #
@@ -229,7 +225,6 @@ end|
 delimiter ;|
 #
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
 create table t1 (a int not null, d int not null, b varchar(198) not null,
 		 c char(185), unique key (b(10), a, d), index (d), index(a),
 		 index (c(120), b(120)), index (b(5), c(10), a))
@@ -478,6 +473,4 @@ drop table t2;
 #
 # remove test-bed
 #
-eval set global innodb_file_format = $format;
-eval set global innodb_file_per_table = $per_table;
-
+set global innodb_file_per_table = default;

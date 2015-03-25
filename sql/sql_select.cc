@@ -43,8 +43,11 @@
 #include "sql_tmp_table.h"       // tmp tables
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum
+#include "sql_planner.h"         // calculate_condition_filter
+#include "opt_hints.h"           // hint_key_state()
 
 #include <algorithm>
+
 using std::max;
 using std::min;
 
@@ -91,7 +94,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys);
     contains one query block and no fake_select_lex separately.
     Such queries are executed with a more direct code path.
 */
-bool handle_query(THD *thd, LEX *lex, select_result *result,
+bool handle_query(THD *thd, LEX *lex, Query_result *result,
                   ulonglong added_options, ulonglong removed_options)
 {
   DBUG_ENTER("handle_query");
@@ -889,7 +892,7 @@ bool JOIN::prepare_result()
     for (TABLE_LIST *tl= select_lex->leaf_tables; tl; tl= tl->next_leaf)
     {
       if (tl->is_view_or_derived() && tl->create_derived(thd))
-        goto err;
+        goto err;                 /* purecov: inspected */
     }
   }
 
@@ -1377,13 +1380,11 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       have a 'normal' value or a NULL value.
     */
     j->set_type(JT_CONST);
-    j->set_rowcount(1);
     j->position()->rows_fetched= 1.0;
   }
   else
   {
     j->set_type(JT_EQ_REF);
-    j->set_rowcount(1);
     j->position()->rows_fetched= 1.0;
   }
 
@@ -1696,13 +1697,13 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
        type() == JT_RANGE || type() ==  JT_INDEX_MERGE) &&
       join_tab->use_join_cache() == JOIN_CACHE::ALG_BNL);
 
-
   /*
     We will only attempt to push down an index condition when the
     following criteria are true:
     0. The table has a select condition
     1. The storage engine supports ICP.
-    2. The system variable for enabling ICP is ON.
+    2. The index_condition_pushdown switch is on and
+       the use of ICP is not disabled by the NO_ICP hint.
     3. The query is not a multi-table update or delete statement. The reason
        for this requirement is that the same handler will be used 
        both for doing the select/join and the update. The pushed index
@@ -1730,7 +1731,8 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
   if (condition() &&
       tbl->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
-      join_->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
+      hint_key_state(join_->thd, tbl, keyno, ICP_HINT_ENUM,
+                     OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       join_->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
       join_->thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
       !has_guarded_conds() &&
@@ -1864,7 +1866,8 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
 
   /* 
-    Set up the table to write to, do as select_union::create_result_table does
+    Set up the table to write to, do as
+    Query_result_union::create_result_table does
   */
   sjm_exec->table_param= Temp_table_param();
   count_field_types(select_lex, &sjm_exec->table_param,
@@ -1898,6 +1901,15 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   sj_tmp_tables.push_back(table);
   sjm_exec_list.push_back(sjm_exec);
 
+  /*
+    Hash_field is not applicable for MATERIALIZE_LOOKUP. If hash_field is
+    created for temporary table, semijoin_types_allow_materialization must
+    assure that MATERIALIZE_LOOKUP can't be chosen.
+  */
+  DBUG_ASSERT((inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP &&
+              !table->hash_field) ||
+              inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
+
   TABLE_LIST *tl;
   if (!(tl= (TABLE_LIST *) alloc_root(thd->mem_root, sizeof(TABLE_LIST))))
     DBUG_RETURN(true);            /* purecov: inspected */
@@ -1927,8 +1939,8 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   tab->set_position(sjm_pos);
 
   tab->worst_seeks= 1.0;
-  tab->set_rowcount((ha_rows)emb_sj_nest->nested_join->sjm.expected_rowcount);
-  tab->set_records(tab->rowcount());
+  tab->set_records((ha_rows)emb_sj_nest->nested_join->sjm.expected_rowcount);
+
   tab->found_records= tab->records();
   tab->read_time= (ha_rows)emb_sj_nest->nested_join->sjm.scan_cost.total_cost();
 
@@ -2080,6 +2092,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
   if (setup_semijoin_dups_elimination(join, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
+
   for (uint i= join->const_tables; i < join->tables; i++)
   {
     QEP_TAB *const qep_tab= &join->qep_tab[i];
@@ -2134,20 +2147,30 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
       join->thd->set_status_no_index_used();
       /* Fall through */
     case JT_INDEX_SCAN:
-      // Update number of rows
-      table->pos_in_table_list->fetch_number_of_rows();
+      if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST &&
+          !tab->sj_mat_exec())
       {
-        double old= qep_tab->position()->rows_fetched;
         /*
-          "old" is # of rows which will be read by the access method, minus
-          those which will not pass the constant condition. It's useful inside
-          the planner, but obscure to the reader of EXPLAIN. Update it.
+          rows_w_const_cond is # of rows which will be read by the access
+          method, minus those which will not pass the constant condition;
+          that's how calculate_scan_cost() works. Such number is useful inside
+          the planner, but obscure to the reader of EXPLAIN; so we put the
+          real count of read rows into rows_fetched, and move the constant
+          condition's filter to filter_effect.
         */
-        qep_tab->position()->rows_fetched=
+        double rows_w_const_cond= qep_tab->position()->rows_fetched;
+        table->pos_in_table_list->fetch_number_of_rows();
+        tab->position()->rows_fetched=
           static_cast<double>(table->file->stats.records);
-        // Constant condition moves to the filter effect:
-        qep_tab->position()->filter_effect*=
-          static_cast<float>(old/table->file->stats.records);
+        if (tab->position()->filter_effect != COND_FILTER_STALE)
+        {
+          // Constant condition moves to filter_effect:
+          if (tab->position()->rows_fetched == 0) // avoid division by zero
+            tab->position()->filter_effect= 0.0f;
+          else
+            tab->position()->filter_effect*=
+              static_cast<float>(rows_w_const_cond/tab->position()->rows_fetched);
+        }
       }
       if (tab->use_quick == QS_DYNAMIC_RANGE)
       {
@@ -2186,10 +2209,20 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
           qep_tab->push_index_cond(tab, qep_tab->quick()->index,
                                    &trace_refine_table);
       }
-      // Update number of rows
-      if (!tab->sj_mat_exec())
-        table->pos_in_table_list->fetch_number_of_rows();
-      tab->set_rowcount(table->file->stats.records);
+      if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST)
+      {
+        double rows_w_const_cond= qep_tab->position()->rows_fetched;
+        qep_tab->position()->rows_fetched= rows2double(tab->quick()->records);
+        if (tab->position()->filter_effect != COND_FILTER_STALE)
+        {
+          // Constant condition moves to filter_effect:
+          if (tab->position()->rows_fetched == 0) // avoid division by zero
+            tab->position()->filter_effect= 0.0f;
+          else
+            tab->position()->filter_effect*=
+              static_cast<float>(rows_w_const_cond/tab->position()->rows_fetched);
+        }
+      }
       break;
     case JT_FT:
       if (tab->join()->fts_index_access(tab))
@@ -2202,6 +2235,23 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
       DBUG_PRINT("error",("Table type %d found",qep_tab->type())); /* purecov: deadcode */
       DBUG_ASSERT(0);
       break;					/* purecov: deadcode */
+    }
+
+    if (tab->position()->filter_effect <= COND_FILTER_STALE)
+    {
+      /*
+        Give a proper value for EXPLAIN.
+        For performance reasons, we do not recalculate the filter for
+        non-EXPLAIN queries; thus, EXPLAIN CONNECTION may show 100%
+        for a query.
+      */
+      tab->position()->filter_effect=
+        join->thd->lex->describe ?
+        calculate_condition_filter(tab,
+                                   (tab->ref().key != -1) ? tab->position()->key : NULL,
+                                   tab->prefix_tables() & ~tab->table_ref->map(),
+                                   tab->position()->rows_fetched,
+                                   false) : COND_FILTER_ALLPASS;
     }
 
     qep_tab->pick_table_access_method(tab);
@@ -3221,9 +3271,13 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 /**
   clear results if there are not rows found for group
   (end_send_group/end_write_group)
+  @retval
+    FALSE if OK
+  @retval
+    TRUE on error  
 */
 
-void JOIN::clear()
+bool JOIN::clear()
 {
   /* 
     must clear only the non-const tables, as const tables
@@ -3232,7 +3286,8 @@ void JOIN::clear()
   for (uint tableno= const_tables; tableno < primary_tables; tableno++)
     mark_as_null_row(qep_tab[tableno].table());  // All fields are NULL
 
-  copy_fields(&tmp_table_param);
+  if (copy_fields(&tmp_table_param, thd))
+    return true;
 
   if (sum_funcs)
   {
@@ -3240,27 +3295,28 @@ void JOIN::clear()
     while ((func= *(func_ptr++)))
       func->clear();
   }
+  return false;
 }
 
 
 /**
-  Change the select_result object of the query block.
+  Change the Query_result object of the query block.
 
   If old_result is not used, forward the call to the current
-  select_result in case it is a wrapper around old_result.
+  Query_result in case it is a wrapper around old_result.
 
-  Call prepare() and prepare2() on the new select_result if we decide
+  Call prepare() and prepare2() on the new Query_result if we decide
   to use it.
 
-  @param new_result New select_result object
-  @param old_result Old select_result object (NULL to force change)
+  @param new_result New Query_result object
+  @param old_result Old Query_result object (NULL to force change)
 
   @retval false Success
   @retval true  Error
 */
 
-bool SELECT_LEX::change_query_result(select_result_interceptor *new_result,
-                                     select_result_interceptor *old_result)
+bool SELECT_LEX::change_query_result(Query_result_interceptor *new_result,
+                                     Query_result_interceptor *old_result)
 {
   DBUG_ENTER("SELECT_LEX::change_query_result");
   if (old_result == NULL || query_result() == old_result)
@@ -3640,19 +3696,27 @@ bool JOIN::make_tmp_tables_info()
     /* If we have already done the group, add HAVING to sorted table */
     if (having_cond && !group_list && !sort_and_group)
     {
-      /*
-        Fields in HAVING condition may have been replaced with fields in an
-        internal temporary table. This table has map=1, hence we check that
-        we have no fields from other tables (outer references are fine).
-      */
       having_cond->update_used_tables();
       QEP_TAB *const curr_table= &qep_tab[curr_tmp_table];
-      DBUG_ASSERT(curr_table->table_ref ||
-                  !(having_cond->used_tables() &
-                    ~(1 | PSEUDO_TABLE_BITS)));
-      table_map used_tables= curr_table->table_ref ?
-                               curr_table->table_ref->map() :
-                               1; // Internal temporary table
+      table_map used_tables;
+
+      if (curr_table->table_ref)
+        used_tables= curr_table->table_ref->map();
+      else
+      {
+        /*
+          Pushing parts of HAVING to an internal temporary table.
+          Fields in HAVING condition may have been replaced with fields in an
+          internal temporary table. This table has map=1, hence we check that
+          we have no fields from other tables (outer references are fine).
+          Unfortunaly, update_used_tables() is not reliable for subquery
+          items, which could thus still have other tables in their
+          used_tables() information.
+        */
+        DBUG_ASSERT(having_cond->has_subquery() ||
+                    !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS)));
+        used_tables= 1;
+      }
 
       Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
                                                  (table_map) 0, false);

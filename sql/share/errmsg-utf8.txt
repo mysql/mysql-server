@@ -5269,7 +5269,8 @@ ER_NONUPDATEABLE_COLUMN
         ger "Feld '%-.192s' ist nicht aktualisierbar"
         rus "Столбец '%-.192s' не обновляемый"
         ukr "Стовбець '%-.192s' не може бути зминений"
-ER_VIEW_SELECT_DERIVED  
+# Unused since MySQL 5.8.0
+ER_VIEW_SELECT_DERIVED_UNUSED
         eng "View's SELECT contains a subquery in the FROM clause"
         ger "SELECT der View enthält eine Subquery in der FROM-Klausel"
         rus "View SELECT содержит подзапрос в конструкции FROM"
@@ -7346,7 +7347,7 @@ ER_WARN_DEPRECATED_SYSVAR_UPDATE
 
 # Use this error message to deprecate SQL MODES
 ER_WARN_DEPRECATED_SQLMODE
-  eng "Setting sql mode '%s' is deprecated. It will be made read-only in a future release."
+  eng "Changing sql mode '%s' is deprecated. It will be removed in a future release."
 
 ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID
   eng "DROP DATABASE failed; some tables may have been dropped but the database directory remains. The GTID has not been added to GTID_EXECUTED and the statement was not written to the binary log. Fix this as follows: (1) remove all files from the database directory %-.192s; (2) SET GTID_NEXT='%-.192s'; (3) DROP DATABASE `%-.192s`."
@@ -7441,6 +7442,33 @@ ER_TABLESPACE_IS_NOT_EMPTY
 
 ER_WRONG_FILE_NAME
   eng "Incorrect File Name '%s'."
+
+ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
+  eng "Inconsistent intersection points."
+
+ER_WARN_OPTIMIZER_HINT_SYNTAX_ERROR
+  eng "Optimizer hint syntax error"
+
+ER_WARN_BAD_MAX_EXECUTION_TIME
+  eng "Unsupported MAX_EXECUTION_TIME"
+
+ER_WARN_UNSUPPORTED_MAX_EXECUTION_TIME
+  eng "MAX_EXECUTION_TIME hint is supported by SELECT statements only"
+
+ER_WARN_CONFLICTING_HINT
+  eng "Hint %s is ignored as conflicting/duplicated"
+
+ER_WARN_UNKNOWN_QB_NAME
+  eng "Query block name %s is not found for %s hint"
+
+ER_UNRESOLVED_HINT_NAME
+  eng "Unresolved name %s for %s hint"
+
+ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE
+  eng "Please do not modify the %s table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state."
+
+ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
+  eng "Command not supported by pluggable protocols"
 
 #
 #  End of 5.7 error messages.

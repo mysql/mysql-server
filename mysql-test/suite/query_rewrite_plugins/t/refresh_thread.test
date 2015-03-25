@@ -37,7 +37,11 @@ SET @@global.rewriter_enabled = OFF;
 
 --connection default
 
+--echo # We don't care if we time out here, as long as we manage to restart the
+--echo # server.
+--disable_warnings
 SET debug_sync = 'now WAIT_FOR parked';
+--enable_warnings
 
 --source suite/query_rewrite_plugins/include/show_process_list.inc
 

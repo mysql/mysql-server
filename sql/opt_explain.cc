@@ -640,7 +640,7 @@ bool Explain::prepare_columns()
   Explain class main function
 
   This function:
-    a) allocates a select_send object (if no one pre-allocated available),
+    a) allocates a Query_result_send object (if no one pre-allocated available),
     b) calculates and sends whole EXPLAIN data.
 
   @return false if success, true if error
@@ -1161,11 +1161,11 @@ bool Explain_join::explain_modify_flags()
     }
     break;
   case SQLCOM_INSERT_SELECT:
-    if (table == query_plan->get_lex()->leaf_tables_insert->table)
+    if (table == query_plan->get_lex()->insert_table_leaf->table)
       fmt->entry()->mod_type= MT_INSERT;
     break;
   case SQLCOM_REPLACE_SELECT:
-    if (table == query_plan->get_lex()->leaf_tables_insert->table)
+    if (table == query_plan->get_lex()->insert_table_leaf->table)
       fmt->entry()->mod_type= MT_REPLACE;
     break;
   default: ;
@@ -1221,10 +1221,10 @@ bool Explain_join::shallow_explain()
   join_entry->col_read_cost.set(join->best_read);
 
   LEX const*query_lex= join->thd->query_plan.get_lex();
-  if (query_lex->leaf_tables_insert &&
-      query_lex->leaf_tables_insert->select_lex == join->select_lex)
+  if (query_lex->insert_table_leaf &&
+      query_lex->insert_table_leaf->select_lex == join->select_lex)
   {
-    table= query_lex->leaf_tables_insert->table;
+    table= query_lex->insert_table_leaf->table;
     /*
       The target table for INSERT/REPLACE doesn't actually belong to join,
       thus tab is set to NULL. But in order to print it we add it to the
@@ -1481,55 +1481,12 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   POSITION *const pos= tab->position();
-  double examined_rows;
-  double access_method_fanout= pos->rows_fetched;
-  if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE ||
-      ((tab->type() == JT_REF || tab->type() == JT_REF_OR_NULL) &&
-       tab->quick_optim()))
-  {
-    /*
-      Because filesort can't handle REF it's converted into quick select,
-      but type is kept as is. This is an exception and the only case when
-      REF has quick select.
-    */
-    DBUG_ASSERT(!(tab->type() == JT_REF || tab->type() == JT_REF_OR_NULL) ||
-                tab->filesort);
-    examined_rows= rows2double(tab->quick_optim()->records);
 
-    /*
-      Unlike the "normal" range access method, dynamic range access
-      method does not set
-      tab->position()->rows_fetched=tab->quick()->records. If this is EXPLAIN
-      FOR CONNECTION of a table with dynamic range,
-      tab->position()->rows_fetched reflects that fanout of table/index scan,
-      not the fanout of the current dynamic range scan.
-    */
-    if (tab->dynamic_range())
-      access_method_fanout= examined_rows;
-  }
-  else if (tab->type() == JT_INDEX_SCAN || tab->type() == JT_ALL ||
-           tab->type() == JT_CONST || tab->type() == JT_SYSTEM)
-    // Materialization temp table is empty
-    if (tab->sj_mat_exec() &&
-        (tab->type() == JT_INDEX_SCAN || tab->type() == JT_ALL))
-      examined_rows= 0;
-    else
-      examined_rows= static_cast<double>(tab->rowcount());
-  else
-    examined_rows= pos->rows_fetched;
-
-  fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
-
-  /* Add "filtered" field */
-  {
-    float filter= 0.0;
-    if (examined_rows)
-    {
-      filter= static_cast<float>(100.0 * (access_method_fanout / examined_rows) *
-                                 tab->position()->filter_effect);
-    }
-    fmt->entry()->col_filtered.set(filter);
-  }
+  fmt->entry()->col_rows.set(static_cast<ulonglong>(pos->rows_fetched));
+  fmt->entry()->col_filtered.
+    set(pos->rows_fetched ?
+        static_cast<float>(100.0 * tab->position()->filter_effect) :
+        0.0f);
   // Print cost-related info
   double prefix_rows= pos->prefix_rowcount;
   fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
@@ -1979,7 +1936,7 @@ bool explain_single_table_modification(THD *ethd,
                                        SELECT_LEX *select)
 {
   DBUG_ENTER("explain_single_table_modification");
-  select_send result;
+  Query_result_send result;
   const THD *const query_thd= select->master_unit()->thd;
   const bool other= (query_thd != ethd);
   bool ret;
@@ -1988,12 +1945,12 @@ bool explain_single_table_modification(THD *ethd,
     Prepare the self-allocated result object
 
     For queries with top-level JOIN the caller provides pre-allocated
-    select_send object. Then that JOIN object prepares the select_send
-    object calling result->prepare() in SELECT_LEX::prepare(),
+    Query_result_send object. Then that JOIN object prepares the
+    Query_result_send object calling result->prepare() in SELECT_LEX::prepare(),
     result->initalize_tables() in JOIN::optimize() and result->prepare2()
     in JOIN::exec().
     However without the presence of the top-level JOIN we have to
-    prepare/initialize select_send object manually.
+    prepare/initialize Query_result_send object manually.
   */
   List<Item> dummy;
   if (result.prepare(dummy, ethd->lex->unit) ||
@@ -2096,12 +2053,12 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
     }
     case JOIN::NO_TABLES:
     {
-      if (query_plan->get_lex()->leaf_tables_insert &&
-          query_plan->get_lex()->leaf_tables_insert->select_lex == select_lex)
+      if (query_plan->get_lex()->insert_table_leaf &&
+          query_plan->get_lex()->insert_table_leaf->select_lex == select_lex)
       {
         // INSERT/REPLACE SELECT ... FROM dual
         ret= Explain_table(ethd, select_lex,
-                           query_plan->get_lex()->leaf_tables_insert->table,
+                           query_plan->get_lex()->insert_table_leaf->table,
                            NULL,
                            MAX_KEY,
                            HA_POS_ERROR,
@@ -2162,15 +2119,15 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
   Send to the client a QEP data set for any DML statement that has a QEP
   represented completely by JOIN object(s).
 
-  This function uses a specific select_result object for sending explain
+  This function uses a specific Query_result object for sending explain
   output to the client.
 
-  When explaining own query, the existing select_result object (found
+  When explaining own query, the existing Query_result object (found
   in outermost SELECT_LEX_UNIT or SELECT_LEX) is used. However, if the
-  select_result is unsuitable for explanation (need_explain_interceptor()
-  returns true), wrap the select_result inside an explain_send object.
+  Query_result is unsuitable for explanation (need_explain_interceptor()
+  returns true), wrap the Query_result inside an Query_result_explain object.
 
-  When explaining other query, create a select_send object and prepare it
+  When explaining other query, create a Query_result_send object and prepare it
   as if it was a regular SELECT query.
 
   @note see explain_single_table_modification() for single-table
@@ -2178,7 +2135,7 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
 
   @note Unlike handle_query(), explain_query() calls abort_result_set()
         itself in the case of failure (OOM etc.) since it may use
-        an internally created select_result object that has to be deleted
+        an internally created Query_result object that has to be deleted
         before exiting the function.
 
   @param ethd    THD of the explaining session
@@ -2194,17 +2151,17 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
   const THD *const query_thd= unit->thd; // THD of query to be explained
   const bool other= (ethd != query_thd);
 
-  select_result *explain_result= NULL;
+  Query_result *explain_result= NULL;
 
   if (!other)
     explain_result= unit->query_result() ?
                     unit->query_result() : unit->first_select()->query_result();
 
-  explain_send explain_wrapper(unit, explain_result);
+  Query_result_explain explain_wrapper(unit, explain_result);
 
   if (other)  
   {
-    if (!((explain_result= new select_send)))
+    if (!((explain_result= new Query_result_send)))
       return true; /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||

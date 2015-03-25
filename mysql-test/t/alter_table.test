@@ -2092,6 +2092,7 @@ SET @orig_sql_mode = @@sql_mode;
 SET sql_mode= '';
 
 --echo # Test with '767' as index size limit.
+SET GLOBAL innodb_large_prefix=OFF;
 CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB;
 INSERT INTO t1 VALUES('a');
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
@@ -2101,13 +2102,9 @@ SELECT COUNT(*) FROM t1 WHERE fld1= 'a';
 
 --echo # Cleanup.
 DROP TABLE t1;
+SET GLOBAL innodb_large_prefix=default;
 
 --echo # Test with innodb large prefix indexes(Upto 3072).
-SET @old_innodb_file_format= @@global.innodb_file_format;
-SET @old_innodb_large_prefix= @@global.innodb_large_prefix;
-
-SET GLOBAL innodb_file_format= 'Barracuda';
-SET GLOBAL innodb_large_prefix= 1;
 
 CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) ENGINE= INNODB
 ROW_FORMAT= DYNAMIC;
@@ -2119,8 +2116,6 @@ SELECT COUNT(*) FROM t1 WHERE fld1= 'a';
 
 --echo # Cleanup.
 DROP TABLE t1;
-SET GLOBAL innodb_file_format= @old_innodb_file_format;
-SET GLOBAL innodb_large_prefix= @old_innodb_large_prefix;
 SET sql_mode= @orig_sql_mode;
 
 --echo # BUG#17246318 - ALTER TABLE SHOULD NOT ALLOW CREATION OF TABLES
@@ -2579,3 +2574,67 @@ SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_name='t1';
 --echo #Cleanup
 SET @@session.show_old_temporals= @save_show_old_temporals;
 DROP TABLE t1, t2;
+
+--echo #
+--echo #BUG#20106553: ALTER TABLE WHICH CHANGES INDEX COMMENT IS NOT
+--echo #              LONGER INPLACE/FAST OPERATION.
+
+--echo #Without the patch, the ALTER TABLE to change the index
+--echo #comment using INPLACE algorithm reports an error.
+CREATE TABLE t1(fld1 int, key key1(fld1)) ENGINE= INNODB;
+SHOW INDEX FROM t1;
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'test',
+ALGORITHM= INPLACE;
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test') ENGINE= MyISAM;
+SHOW INDEX FROM t1;
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1), ALGORITHM=INPLACE;
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test') ENGINE= INNODB;
+SHOW INDEX FROM t1;
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'success',
+ALGORITHM= INPLACE;
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+# Alter the comment, but keep the same comment length
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment') ENGINE=MyISAM;
+SHOW INDEX FROM t1;
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment',
+ALGORITHM= INPLACE;
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+--echo #Test cases with merge threshold specified in the index comment.
+
+CREATE TABLE t1(fld1 int, key key1(fld1)) ENGINE=INNODB;
+SHOW INDEX FROM t1;
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
+'MERGE_THRESHOLD=45';
+SHOW INDEX FROM t1;
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+DROP TABLE t1;
+
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40') 
+ENGINE=INNODB;
+SHOW INDEX FROM t1;
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1);
+SHOW INDEX FROM t1;
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+DROP TABLE t1;
+
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'MERGE_THRESHOLD=40')
+ENGINE=INNODB;
+SHOW INDEX FROM t1;
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
+'MERGE_THRESHOLD=45';
+SHOW INDEX FROM t1;
+SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
+DROP TABLE t1;

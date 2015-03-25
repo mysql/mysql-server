@@ -1,4 +1,3 @@
-drop table if exists t2,t1;
 set names utf8;
 call mtr.add_suppression("\\[Warning\\] InnoDB: A new Doc ID must be supplied while updating FTS indexed columns.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
@@ -229,8 +228,6 @@ id1	a1	b1
 SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
 id2	a2	b2
 DROP TABLE t2 , t1;
-DROP TABLE IF EXISTS t2,t1;
-SET NAMES utf8;
 call mtr.add_suppression("\\[ERROR\\] InnoDB: FTS Doc ID must be larger than 3 for table `test`.`t2`");
 CREATE TABLE t1 (
 id1 INT ,
@@ -465,10 +462,7 @@ ROLLBACK;
 SELECT * FROM t2 WHERE MATCH(s2) AGAINST ('Lollipops');
 s1	s2
 DROP TABLE t2 , t1;
-set global innodb_file_format="Barracuda";
 set global innodb_file_per_table=1;
-set global innodb_large_prefix=1;
-set names utf8;
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
@@ -653,10 +647,7 @@ id	a	b
 6	MYSQL SECURITY	when configured properly, mysql ...
 7	TEST QUERY EXPANSION	for database ...
 DROP TABLE t1;
-SET GLOBAL innodb_file_format=Antelope;
 SET GLOBAL innodb_file_per_table=1;
-SET GLOBAL innodb_large_prefix=0;
-set names utf8;
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),

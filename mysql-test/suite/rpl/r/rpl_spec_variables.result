@@ -207,13 +207,13 @@ DROP TABLE IF EXISTS t1,t2,t3;
 
 * sql_mode *
 SET @@global.sql_mode=ANSI;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@session.sql_mode=ANSI;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@global.sql_mode=TRADITIONAL;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 SET @@session.sql_mode=TRADITIONAL;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c DATE);
 INSERT INTO t1 VALUES (1, 'master', '0000-00-00');
 SELECT * FROM t1 ORDER BY a;

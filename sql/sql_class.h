@@ -29,7 +29,7 @@
 #include "discrete_interval.h"            // Discrete_interval
 #include "handler.h"                      // KEY_CREATE_INFO
 #include "opt_trace_context.h"            // Opt_trace_context
-#include "protocol.h"                     // Protocol_text
+#include "protocol_classic.h"             // Protocol_text
 #include "rpl_context.h"                  // Rpl_thd_context
 #include "rpl_gtid.h"                     // Gtid_specification
 #include "session_tracker.h"              // Session_tracker
@@ -63,7 +63,7 @@ typedef struct user_conn USER_CONN;
   three calling-info parameters.
 */
 extern "C"
-const char *set_thd_proc_info(void *thd_arg, const char *info,
+const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
                               const char *calling_func,
                               const char *calling_file,
                               const unsigned int calling_line);
@@ -401,7 +401,7 @@ struct Query_cache_tls
   Query_cache_tls() :first_query_block(NULL) {}
 };
 
-class select_result;
+class Query_result;
 class Time_zone;
 
 #define THD_SENTRY_MAGIC 0xfeedd1ff
@@ -1285,7 +1285,17 @@ struct Ha_data
     Lifetime: one user connection.
   */
   void *ha_ptr;
-
+  /**
+    A memorizer to engine specific "native" transaction object to provide
+    storage engine detach-re-attach facility.
+    The server level transaction object can dissociate from storage engine
+    transactions. The released "native" transaction reference
+    can be hold in the member until it is reconciled later.
+    Lifetime: Depends on caller of @c hton::replace_native_transaction_in_thd.
+    For instance in the case of slave server applier handling XA transaction
+    it is from XA START to XA PREPARE.
+  */
+  void *ha_ptr_backup;
   /**
     0: Life time: one statement within a transaction. If @@autocommit is
     on, also represents the entire transaction.
@@ -1305,7 +1315,7 @@ struct Ha_data
   plugin_ref lock;
 
   Ha_data()
-   :ha_ptr(NULL),
+  :ha_ptr(NULL), ha_ptr_backup(NULL),
     lock(NULL)
   { }
 };
@@ -1514,12 +1524,8 @@ public:
   struct st_mysql_stmt *current_stmt;
 #endif
   Query_cache_tls query_cache_tls;
-  NET	  net;				// client connection descriptor
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
-  Protocol *protocol;			// Current protocol
-  Protocol_text   protocol_text;	// Normal protocol
-  Protocol_binary protocol_binary;	// Binary protocol
   /**
     Hash for user variables.
     User variables are per session,
@@ -1528,7 +1534,6 @@ public:
     Protected by @c LOCK_thd_data.
   */
   HASH    user_vars;			// hash for user variables
-  String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
@@ -1618,6 +1623,36 @@ public:
   */
   const char *proc_info;
 
+  Protocol_text   protocol_text;    // Normal protocol
+  Protocol_binary protocol_binary;  // Binary protocol
+
+  Protocol *get_protocol()
+  {
+    return m_protocol;
+  }
+
+  /**
+    Asserts that the protocol is of type text or binary and then
+    returns the m_protocol casted to Protocol_classic. This method
+    is needed to prevent misuse of pluggable protocols by legacy code
+  */
+  Protocol_classic *get_protocol_classic() const
+  {
+    DBUG_ASSERT(m_protocol->type() == Protocol::PROTOCOL_TEXT ||
+                m_protocol->type() == Protocol::PROTOCOL_BINARY);
+
+    return (Protocol_classic *) m_protocol;
+  }
+
+  void set_protocol(Protocol * protocol)
+  {
+    m_protocol= protocol;
+  }
+
+private:
+  Protocol *m_protocol;           // Current protocol
+
+public:
   /**
      Query plan for EXPLAINable commands, should be locked with
      LOCK_query_plan before using.
@@ -1714,7 +1749,6 @@ public:
   */
   const char *where;
 
-  ulong client_capabilities;		/* What the client supports */
   ulong max_client_packet_length;
 
   HASH		handler_tables_hash;
@@ -1866,6 +1900,11 @@ public:
                 current_stmt_binlog_format == BINLOG_FORMAT_ROW);
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
+  /** Determine if binlogging is disabled for this session */
+  inline bool is_current_stmt_binlog_disabled() const
+  {
+    return (!(variables.option_bits & OPTION_BIN_LOG));
+  }
   /** Tells whether the given optimizer_switch flag is on */
   inline bool optimizer_switch_flag(ulonglong flag) const
   {
@@ -1969,7 +2008,10 @@ private:
   char *m_trans_fixed_log_file;
   my_off_t m_trans_end_pos;
   /**@}*/
-
+  // NOTE: Ideally those two should be in Protocol,
+  // but currently its design doesn't allow that.
+  NET     net;                          // client connection descriptor
+  String  packet;                       // dynamic buffer for network I/O
 public:
   void issue_unsafe_warnings();
 
@@ -2209,10 +2251,12 @@ public:
   */
   ulonglong  limit_found_rows;
   /*
-    Indicate if the gtid_executed table is being operated
-    in current transaction.
+    Indicate if the gtid_executed table is being operated implicitly
+    within current transaction. This happens because we are inserting
+    a GTID specified through SET GTID_NEXT by user client or
+    slave SQL thread/workers.
   */
-  bool  is_operating_gtid_table;
+  bool is_operating_gtid_table_implicitly;
 
 private:
   /**
@@ -3016,12 +3060,24 @@ public:
 		      const char *from, size_t from_length,
 		      const CHARSET_INFO *from_cs);
 
+  bool convert_string(LEX_CSTRING *to, const CHARSET_INFO *to_cs,
+		      const char *from, size_t from_length,
+		      const CHARSET_INFO *from_cs)
+  {
+    LEX_STRING tmp;
+    if (convert_string(&tmp, to_cs, from, from_length, from_cs))
+      return true;
+    to->str= tmp.str;
+    to->length= tmp.length;
+    return false;
+  }
+
   bool convert_string(String *s, const CHARSET_INFO *from_cs,
                       const CHARSET_INFO *to_cs);
 
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
-  int send_explain_fields(select_result *result);
+  int send_explain_fields(Query_result *result);
 
   /**
     Clear the current error, if any.
@@ -3039,7 +3095,10 @@ public:
     DBUG_VOID_RETURN;
   }
 #ifndef EMBEDDED_LIBRARY
-  inline bool vio_ok() const { return net.vio != 0; }
+  inline bool vio_ok() const
+  {
+    return get_protocol_classic()->vio_ok();
+  }
   /** Return FALSE if connection to client is broken. */
   virtual bool is_connected()
   {
@@ -3048,7 +3107,8 @@ public:
       not using vio. So this function always returns true for all
       system threads.
     */
-    return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
+    return system_thread ||
+      (vio_ok() ? vio_is_connected(get_protocol_classic()->get_vio()) : FALSE);
   }
 #else
   inline bool vio_ok() const { return TRUE; }
@@ -4049,7 +4109,7 @@ public:
   }
   LEX_CSTRING get_invoker_user() const { return m_invoker_user; }
   LEX_CSTRING get_invoker_host() const { return m_invoker_host; }
-  bool has_invoker() { return m_invoker_user.length > 0; }
+  bool has_invoker() { return m_invoker_user.str != NULL; }
 
   void mark_transaction_to_rollback(bool all);
 
@@ -4108,6 +4168,7 @@ private:
    */
   LEX_CSTRING m_invoker_user;
   LEX_CSTRING m_invoker_host;
+  friend class Protocol_classic;
 
 private:
   /**
@@ -4132,6 +4193,93 @@ public:
   Session_sysvar_resource_manager session_sysvar_res_mgr;
 
   void parse_error_at(const YYLTYPE &location, const char *s= NULL);
+
+  /**
+    Send name and type of result to client.
+
+    Sum fields has table name empty and field_name.
+
+    @param list         List of items to send to client
+    @param flag         Bit mask with the following functions:
+                          - 1 send number of rows
+                          - 2 send default values
+                          - 4 don't write eof packet
+
+    @retval
+      false ok
+    @retval
+      true Error  (Note that in this case the error is not sent to the client)
+  */
+
+  bool send_result_metadata(List<Item> *list, uint flags);
+
+  /**
+    Send one result set row.
+
+    @param row_items a collection of column values for that row
+
+    @return Error status.
+    @retval true  Error.
+    @retval false Success.
+  */
+
+  bool send_result_set_row(List<Item> *row_items);
+
+
+  /*
+    Send the status of the current statement execution over network.
+
+    In MySQL, there are two types of SQL statements: those that return
+    a result set and those that return status information only.
+
+    If a statement returns a result set, it consists of 3 parts:
+    - result set meta-data
+    - variable number of result set rows (can be 0)
+    - followed and terminated by EOF or ERROR packet
+
+    Once the  client has seen the meta-data information, it always
+    expects an EOF or ERROR to terminate the result set. If ERROR is
+    received, the result set rows are normally discarded (this is up
+    to the client implementation, libmysql at least does discard them).
+    EOF, on the contrary, means "successfully evaluated the entire
+    result set". Since we don't know how many rows belong to a result
+    set until it's evaluated, EOF/ERROR is the indicator of the end
+    of the row stream. Note, that we can not buffer result set rows
+    on the server -- there may be an arbitrary number of rows. But
+    we do buffer the last packet (EOF/ERROR) in the Diagnostics_area and
+    delay sending it till the very end of execution (here), to be able to
+    change EOF to an ERROR if commit failed or some other error occurred
+    during the last cleanup steps taken after execution.
+
+    A statement that does not return a result set doesn't send result
+    set meta-data either. Instead it returns one of:
+    - OK packet
+    - ERROR packet.
+    Similarly to the EOF/ERROR of the previous statement type, OK/ERROR
+    packet is "buffered" in the Diagnostics Area and sent to the client
+    in the end of statement.
+
+    @note This method defines a template, but delegates actual
+    sending of data to virtual Protocol::send_{ok,eof,error}. This
+    allows for implementation of protocols that "intercept" ok/eof/error
+    messages, and store them in memory, etc, instead of sending to
+    the client.
+
+    @pre  The Diagnostics Area is assigned or disabled. It can not be empty
+          -- we assume that every SQL statement or COM_* command
+          generates OK, ERROR, or EOF status.
+
+    @post The status information is encoded to protocol format and sent to the
+          client.
+
+    @return We conventionally return void, since the only type of error
+            that can happen here is a NET (transport) error, and that one
+            will become visible when we attempt to read from the NET the
+            next command.
+            Diagnostics_area::is_sent is set for debugging purposes only.
+  */
+
+  void send_statement_status();
 };
 
 /**
@@ -4262,12 +4410,12 @@ public:
 };
 
 /*
-  This is used to get result from a select
+  This is used to get result from a query
 */
 
 class JOIN;
 
-class select_result :public Sql_alloc {
+class Query_result :public Sql_alloc {
 protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
@@ -4277,22 +4425,24 @@ public:
     Valid only for materialized derived tables/views.
   */
   ha_rows estimated_rowcount;
-  select_result();
-  virtual ~select_result() {};
+  Query_result()
+    :thd(current_thd), unit(NULL), estimated_rowcount(0)
+  { }
+  virtual ~Query_result() {};
   /**
-    Change wrapped select_result.
+    Change wrapped Query_result.
 
     Replace the wrapped query result object with new_result and call
     prepare() and prepare2() on new_result.
 
-    This base class implementation doesn't wrap other select_results.
+    This base class implementation doesn't wrap other Query_results.
 
     @param new_result The new query result object to wrap around
 
     @retval false Success
     @retval true  Error
   */
-  virtual bool change_query_result(select_result *new_result)
+  virtual bool change_query_result(Query_result *new_result)
   {
     return false;
   }
@@ -4315,7 +4465,8 @@ public:
   virtual bool send_result_set_metadata(List<Item> &list, uint flags)=0;
   virtual bool send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
-  virtual void send_error(uint errcode,const char *err);
+  virtual void send_error(uint errcode,const char *err)
+  { my_message(errcode, err, MYF(0)); }
   virtual bool send_eof()=0;
   /**
     Check if this query returns a result set and therefore is allowed in
@@ -4324,13 +4475,20 @@ public:
     @retval FALSE     success
     @retval TRUE      error, an error message is set
   */
-  virtual bool check_simple_select() const;
+  virtual bool check_simple_select() const
+  {
+    my_error(ER_SP_BAD_CURSOR_QUERY, MYF(0));
+    return TRUE;
+  }
   virtual void abort_result_set() {}
   /*
     Cleanup instance of this class for next execution of a prepared
     statement/stored procedure.
   */
-  virtual void cleanup();
+  virtual void cleanup()
+  {
+    /* do nothing */
+  }
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   /**
@@ -4349,21 +4507,21 @@ public:
 
 
 /*
-  Base class for select_result descendands which intercept and
+  Base class for Query_result descendands which intercept and
   transform result set rows. As the rows are not sent to the client,
   sending of result set metadata should be suppressed as well.
 */
 
-class select_result_interceptor: public select_result
+class Query_result_interceptor: public Query_result
 {
 public:
-  select_result_interceptor() {}  /* Remove gcc warning */
+  Query_result_interceptor() {}  /* Remove gcc warning */
   uint field_count(List<Item> &fields) const { return 0; }
   bool send_result_set_metadata(List<Item> &fields, uint flag) { return FALSE; }
 };
 
 
-class select_send :public select_result {
+class Query_result_send :public Query_result {
   /**
     True if we have sent result set metadata to the client.
     In this case the client always expects us to end the result
@@ -4371,17 +4529,25 @@ class select_send :public select_result {
   */
   bool is_result_set_started;
 public:
-  select_send() :is_result_set_started(FALSE) {}
+  Query_result_send() :is_result_set_started(false) {}
   bool send_result_set_metadata(List<Item> &list, uint flags);
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
   void abort_result_set();
-  virtual void cleanup();
+  /**
+    Cleanup an instance of this class for re-use
+    at next execution of a prepared statement/
+    stored procedure statement.
+  */
+  virtual void cleanup()
+  {
+    is_result_set_started= false;
+  }
 };
 
 
-class select_to_file :public select_result_interceptor {
+class Query_result_to_file :public Query_result_interceptor {
 protected:
   sql_exchange *exchange;
   File file;
@@ -4390,9 +4556,9 @@ protected:
   char path[FN_REFLEN];
 
 public:
-  select_to_file(sql_exchange *ex) :exchange(ex), file(-1),row_count(0L)
+  Query_result_to_file(sql_exchange *ex) :exchange(ex), file(-1),row_count(0L)
   { path[0]=0; }
-  ~select_to_file();
+  ~Query_result_to_file();
   void send_error(uint errcode,const char *err);
   bool send_eof();
   void cleanup();
@@ -4408,7 +4574,7 @@ public:
 #define NUMERIC_CHARS ".0123456789e+-"
 
 
-class select_export :public select_to_file {
+class Query_result_export :public Query_result_to_file {
   size_t field_term_length;
   int field_sep_char,escape_char,line_sep_char;
   int field_term_char; // first char of FIELDS TERMINATED BY or MAX_INT
@@ -4433,16 +4599,19 @@ class select_export :public select_to_file {
   bool fixed_row_size;
   const CHARSET_INFO *write_cs; // output charset
 public:
-  select_export(sql_exchange *ex) :select_to_file(ex) {}
-  ~select_export();
+  Query_result_export(sql_exchange *ex) : Query_result_to_file(ex) {}
+  ~Query_result_export()
+  {
+    thd->set_sent_row_count(row_count);
+  }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
 };
 
 
-class select_dump :public select_to_file {
+class Query_result_dump :public Query_result_to_file {
 public:
-  select_dump(sql_exchange *ex) :select_to_file(ex) {}
+  Query_result_dump(sql_exchange *ex) : Query_result_to_file(ex) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
 };
@@ -4564,12 +4733,13 @@ public:
 };
 
 /* Base subselect interface class */
-class select_subselect :public select_result_interceptor
+class Query_result_subquery :public Query_result_interceptor
 {
 protected:
   Item_subselect *item;
 public:
-  select_subselect(Item_subselect *item);
+  Query_result_subquery(Item_subselect *item_arg)
+    : item(item_arg) { }
   bool send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
 };
@@ -4588,7 +4758,7 @@ public:
 		     bool force)
     :table(table_arg), sel(NULL)
   {
-    if (!force && (thd->client_capabilities & CLIENT_NO_SCHEMA))
+    if (!force && thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
       db= NULL_CSTR;
     else
       db= db_arg;
@@ -4845,17 +5015,20 @@ public:
 };
 
 
-class select_dumpvar :public select_result_interceptor {
+class Query_dumpvar :public Query_result_interceptor {
   ha_rows row_count;
 public:
   List<PT_select_var> var_list;
-  select_dumpvar()  { var_list.empty(); row_count= 0;}
-  ~select_dumpvar() {}
+  Query_dumpvar()  { var_list.empty(); row_count= 0;}
+  ~Query_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const;
-  void cleanup();
+  void cleanup()
+  {
+    row_count= 0;
+  }
 };
 
 /* Bits in sql_command_flags */
@@ -4971,6 +5144,11 @@ public:
 */
 #define CF_SKIP_QUESTIONS       (1U << 1)
 
+/**
+  Used to mark commands that can be used with Protocol Plugin
+*/
+#define CF_ALLOW_PROTOCOL_PLUGIN (1U << 2)
+
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 
@@ -4992,6 +5170,19 @@ inline void add_order_to_list(THD *thd, ORDER *order)
 inline void add_group_to_list(THD *thd, ORDER *order)
 {
   thd->lex->select_lex->add_group_to_list(order);
+}
+
+
+/**
+  @param THD         thread context
+  @param hton        pointer to handlerton
+  @return address of the placeholder of handlerton's specific transaction
+          object (data)
+*/
+
+inline void **thd_ha_data_backup(const THD *thd, const struct handlerton *hton)
+{
+  return (void **) &thd->ha_data[hton->slot].ha_ptr_backup;
 }
 
 /*************************************************************************/

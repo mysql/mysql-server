@@ -137,7 +137,6 @@ AGAINST ('"xyz blob"@3' IN BOOLEAN MODE);
 count(*)
 2
 DROP TABLE t1;
-set global innodb_file_format="Barracuda";
 set global innodb_file_per_table=1;
 CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -225,5 +224,4 @@ AGAINST ('"very blob"@3' IN BOOLEAN MODE);
 count(*)
 1
 DROP TABLE t1;
-SET GLOBAL innodb_file_format=Antelope;
 SET GLOBAL innodb_file_per_table=1;

@@ -669,7 +669,7 @@ void PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
                       m_table_name, m_table_name_length,
                       &m_enabled, &m_timed);
 
-  /* 
+  /*
     If instrumentation for this table was enabled earlier and is disabled now,
     cleanup slots reserved for lock stats and index stats.
   */
@@ -1388,8 +1388,20 @@ PFS_stage_key register_stage_class(const char *name,
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
     entry->m_prefix_length= prefix_length;
     entry->m_event_name_index= index;
-    entry->m_enabled= false; /* disabled by default */
-    entry->m_timed= false;
+
+    if (flags & PSI_FLAG_STAGE_PROGRESS)
+    {
+      /* Stages with progress information are enabled and timed by default */
+      entry->m_enabled= true;
+      entry->m_timed= true;
+    }
+    else
+    {
+      /* Stages without progress information are disabled by default */
+      entry->m_enabled= false;
+      entry->m_timed= false;
+    }
+
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     PFS_atomic::add_u32(&stage_class_allocated_count, 1);

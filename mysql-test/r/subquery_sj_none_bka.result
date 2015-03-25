@@ -3945,6 +3945,40 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`))))
 drop table t0, t1, t2;
+#
+# Bug#19695490: CRASH IN CREATE_REF_FOR_KEY ON SELECT + JOIN + UTF8 COLUMN
+#                + DATETIME INDEX.
+#
+CREATE TABLE t1 (
+field1 varchar(255) CHARACTER SET utf8,
+field2 varchar(255) CHARACTER SET utf8
+);
+INSERT INTO t1 VALUES
+('time','time'),
+('lpjdzvkp','lpjdzvkp'),
+('dzvkpai', 'dzvkpai');
+CREATE TABLE t2 ( col_varchar varchar(10));
+CREATE TABLE t3 (
+pk int(11) NOT NULL,
+col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8,
+col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8,
+PRIMARY KEY (pk)
+);
+INSERT INTO t3 VALUES (22,'come','h'),
+(23,'time','aaa'),
+(24,'lpjdzvkp','ababa'),
+(25,'d','GGDD');
+SELECT * FROM t1 WHERE (field1, field2) IN (
+SELECT table1.col_varchar_255_utf8_key AS field1,
+table1.col_varchar_255_utf8_key AS field2
+FROM t3 AS table1 LEFT JOIN t2 AS table2
+ON table1.col_varchar_10_utf8_key <=
+table2.col_varchar
+WHERE table1.pk >= 6);
+field1	field2
+time	time
+lpjdzvkp	lpjdzvkp
+DROP TABLE t1,t2,t3;
 create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);
 create table t1 as select * from t0;
@@ -8827,7 +8861,7 @@ WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	alias1	NULL	index_merge	PRIMARY,col_int_key,col_varchar_key	col_varchar_key,PRIMARY	4,4	NULL	2	10.00	Using sort_union(col_varchar_key,PRIMARY); Using where
-2	DEPENDENT SUBQUERY	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	26.53	Range checked for each record (index map: 0x2)
+2	DEPENDENT SUBQUERY	alias2	NULL	ALL	col_int_key	NULL	NULL	NULL	12	19.00	Range checked for each record (index map: 0x2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`field1` AS `field1` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`field1`,<exists>(/* select#2 */ select 1 from `test`.`t1` `alias1` join `test`.`t1` `alias2` where (((`test`.`alias1`.`pk` = 58) or (`test`.`alias1`.`col_varchar_key` = 'o')) and (<cache>(`test`.`t2`.`field1`) = `test`.`alias1`.`col_varchar_nokey`) and ((`test`.`alias2`.`col_int_key` = `test`.`alias1`.`pk`) or (`test`.`alias2`.`col_int_key` = `test`.`alias1`.`col_int_key`)))))
 SELECT *
@@ -9784,6 +9818,10 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SET @old_depth=@@optimizer_search_depth;
 SET optimizer_search_depth=4;
 EXPLAIN SELECT col_datetime_key
@@ -9800,10 +9838,10 @@ ON alias5.col_varchar_key = alias4.col_varchar_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	outr	NULL	index	NULL	col_datetime_key	5	NULL	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	alias1	NULL	ref	col_datetime_key	col_datetime_key	5	func	2	100.00	Using index
-2	DEPENDENT SUBQUERY	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	alias5	NULL	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	alias1	NULL	ref	col_datetime_key	col_datetime_key	5	func	1	100.00	Using index
+2	DEPENDENT SUBQUERY	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	alias5	NULL	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`col_datetime_key`,<exists>(/* select#2 */ select 1 from `test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias4`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`))) where (<cache>(`test`.`outr`.`col_datetime_key`) = `test`.`alias1`.`col_datetime_key`)))
 SELECT col_datetime_key
@@ -9953,70 +9991,6 @@ pk	pk
 2	2
 DROP TABLE t1;
 # End of test for bug#13838810.
-#
-# BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
-# --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
-#
-CREATE TABLE t1 (
-col_int_key INT(11) NOT NULL,
-col_datetime_key DATETIME NOT NULL,
-col_varchar_key VARCHAR(1) NOT NULL,
-col_varchar_nokey VARCHAR(1) NOT NULL,
-KEY col_int_key (col_int_key),
-KEY col_datetime_key (col_datetime_key),
-KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
-INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
-CREATE TABLE t2 (
-col_int_key INT(11) NOT NULL,
-col_datetime_key DATETIME NOT NULL,
-col_varchar_key VARCHAR(1) NOT NULL,
-col_varchar_nokey VARCHAR(1) NOT NULL,
-KEY col_int_key (col_int_key),
-KEY col_datetime_key (col_datetime_key),
-KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
-SET @old_depth=@@optimizer_search_depth;
-SET optimizer_search_depth=4;
-EXPLAIN SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-SELECT alias1.col_datetime_key
-FROM t1 AS alias1
-LEFT JOIN t1 as alias3
-STRAIGHT_JOIN ( t2 AS alias4
-JOIN t1 AS alias5
-ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-ON alias5.col_int_key < alias4.col_int_key
-ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	outr	NULL	index	NULL	col_datetime_key	5	NULL	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	alias1	NULL	ref	col_datetime_key	col_datetime_key	5	func	2	100.00	Using index
-2	DEPENDENT SUBQUERY	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	alias5	NULL	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`col_datetime_key`,<exists>(/* select#2 */ select 1 from `test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias4`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`))) where (<cache>(`test`.`outr`.`col_datetime_key`) = `test`.`alias1`.`col_datetime_key`)))
-SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-SELECT alias1.col_datetime_key
-FROM t1 AS alias1
-LEFT JOIN t1 as alias3
-STRAIGHT_JOIN ( t2 AS alias4
-JOIN t1 AS alias5
-ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-ON alias5.col_int_key < alias4.col_int_key
-ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-col_datetime_key
-2002-02-13 17:30:06
-2008-09-27 00:34:58
-DROP TABLE t1,t2;
-SET @@optimizer_search_depth=@old_depth;
 #
 # Bug#13845930: Segfault in st_join_table::and_with_condition
 #
@@ -11831,5 +11805,177 @@ SELECT 1 FROM t1 WHERE
 1
 1
 DROP TABLE t1;
+#
+#Bug#20119743 ASSERTIONQEP_TAB->USE_ORDER() IN ENUM_NESTED_LOOP_STATE
+#             EVALUATE_JOIN_RECORD
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'x');
+CREATE TABLE t2 (
+col_date_key date DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t2 VALUES ('2000-12-03', 8, 'x', 'x'),('2008-05-03', 7, 'd', 'd'),
+('2005-12-06', 1, 'r', 'r'),('2000-04-10', 7, 'f', 'f'),
+('2002-11-05', 9, 'y', 'y'),('2000-09-06', NULL, 'u', 'u'),
+(NULL, 1, 'm', 'm'),('2007-06-14', 9, NULL, NULL),
+('2007-11-17', 2, 'o', 'o'),('2009-02-23', 9, 'w', 'w'),
+('2007-01-08', 2, 'm', 'm'), ('2008-06-10', 4, 'q', 'q'),
+('2002-10-20', 0, NULL, NULL),('2008-09-12', 4, 'd', 'd'),
+('2006-06-16', 8, 'g', 'g'),('2004-09-18', NULL, 'x', 'x'),
+('1900-01-01', NULL, 'f', 'f'),('2005-09-13', 0, 'p', 'p'),
+('2007-04-09', NULL, 'j', 'j'),('2000-09-20', 8, 'c', 'c');
+CREATE TABLE t3 (
+pk int(11) NOT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t3 VALUES (1, 'c'),(2, 'c'),(3, 'q'),(4, 'g'),(5, 'e'),(6, 'l'),
+(7, NULL),(8, 'v'),(9, 'c'),(10, 'u'),(11, 'x'),(12, 'x'),(13, 'x'),(14, 'l'),
+(15, 'e'),(16, 's'),(17, 'k'),(18, 'm'),(19, 'x'),(20, 's');
+ANALYZE TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN SELECT r1.col_date_key
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+(SELECT ir2.pk
+FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+ON ir2.col_varchar_nokey = ir1.col_varchar_key
+WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+AND ir2.pk IN
+(SELECT iir2.pk
+FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+ON iir2.col_varchar_nokey = iir1.col_varchar_key)) 
+ORDER BY r1.col_date_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	r1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort
+2	DEPENDENT SUBQUERY	ir1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	20	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	ir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Full scan on NULL key
+3	DEPENDENT SUBQUERY	iir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	NULL
+3	DEPENDENT SUBQUERY	iir1	NULL	ref	col_varchar_key	col_varchar_key	4	test.iir2.col_varchar_nokey	1	100.00	Using index
+SELECT r1.col_date_key
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+(SELECT ir2.pk
+FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+ON ir2.col_varchar_nokey = ir1.col_varchar_key
+WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+AND ir2.pk IN
+(SELECT iir2.pk
+FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+ON iir2.col_varchar_nokey = iir1.col_varchar_key)) 
+ORDER BY r1.col_date_key;
+col_date_key
+2000-04-10
+2000-09-20
+2000-12-03
+2002-10-20
+2002-11-05
+2004-09-18
+2005-09-13
+2006-06-16
+2007-01-08
+2007-06-14
+2007-11-17
+2008-05-03
+2008-06-10
+2008-09-12
+2009-02-23
+SELECT COUNT(r1.col_date_key) AS COUNT_NUM
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+(SELECT ir2.pk
+FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+ON ir2.col_varchar_nokey = ir1.col_varchar_key
+WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+AND ir2.pk IN
+(SELECT iir2.pk
+FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+ON iir2.col_varchar_nokey = iir1.col_varchar_key
+WHERE iir2.pk<3));
+COUNT_NUM
+15
+DROP TABLE t1,t2,t3;
+#
+# Bug#20554585 ASSERT JOIN()->TABLES == 0... IN JOIN_TAB::GET_SJ_STRATEGY ON SUBQUERY + VAR
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+PRIMARY KEY (pk)
+);
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_key int,
+col_varchar_key varchar(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+CREATE TABLE t3 (
+pk int NOT NULL,
+col_int_key int,
+col_varchar_key varchar(1),
+col_varchar varchar(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t3 VALUES (1,4,'c','g'),(20,1,'i','p');
+CREATE TABLE t4 (
+col_int int
+);
+CREATE TABLE t5 (
+col_varchar_key varchar(1),
+pk int NOT NULL,
+col_int int,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+SELECT table1.col_varchar_key AS field1
+FROM (t3 AS table1
+INNER JOIN (
+SELECT SUBQUERY1_t1.*
+FROM (t1 AS SUBQUERY1_t1
+RIGHT JOIN (t2 AS SUBQUERY1_t2
+INNER JOIN t3 AS SUBQUERY1_t3
+ON (SUBQUERY1_t3.col_varchar_key = SUBQUERY1_t2.col_varchar_key)
+) ON (SUBQUERY1_t3.col_int_key = SUBQUERY1_t2.pk)
+)
+WHERE SUBQUERY1_t2.col_varchar_key >= ANY (
+SELECT CHILD_SUBQUERY1_t2.col_varchar AS CHILD_SUBQUERY1_field1
+FROM (t2 AS CHILD_SUBQUERY1_t1
+LEFT OUTER JOIN t3 AS CHILD_SUBQUERY1_t2
+ON (CHILD_SUBQUERY1_t2.col_int_key = CHILD_SUBQUERY1_t1.col_int_key)
+)
+WHERE CHILD_SUBQUERY1_t1.pk >= SUBQUERY1_t2.pk
+)
+) AS table2
+ON (table2.pk = table1.pk)
+)
+WHERE (EXISTS ((
+SELECT DISTINCT SUBQUERY2_t2.col_int AS SUBQUERY2_field1
+FROM (t4 AS SUBQUERY2_t1
+LEFT OUTER JOIN t5 AS SUBQUERY2_t2
+ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+)
+WHERE SUBQUERY2_t2.col_varchar_key != @var4
+)))
+AND table1.col_int_key < (35 + 192)
+ORDER BY field1
+;
+field1
+DROP TABLE t1, t2, t3, t4, t5;
 set optimizer_switch=default;
 set optimizer_switch=default;

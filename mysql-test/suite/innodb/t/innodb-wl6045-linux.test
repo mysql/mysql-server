@@ -25,7 +25,6 @@ let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 
 SET GLOBAL innodb_file_per_table=on;
-SET GLOBAL innodb_file_format='barracuda';
 
 SHOW variables like '%innodb_checksum_algorithm%';
 CREATE TABLE t1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
@@ -402,4 +401,3 @@ let SEARCH_PATTERN=fcntl: Resource temporarily unavailable;
 --echo # Test[5] end
 # cleanup
 DROP TABLE t1;
-SET GLOBAL innodb_file_format=default;

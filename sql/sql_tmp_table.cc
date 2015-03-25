@@ -418,75 +418,130 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 }
 
 /**
-  Get the minimum of max_key_length and max_key_part_length.
-  If temp table engine is HEAP, the minimum of max_key_length
-  and max_key_part_length is between HEAP engine and
-  internal_tmp_disk_storage_engine. Otherwise, the minimum is the same
-  as internal_tmp_disk_storage_engine.
-
-  @param table           Table reference
-  @param max_key_length Minimum of max_key_length
-  @param max_key_part_length Minimum of max_key_part_length
+  Cache for the storage engine properties for the alternative temporary table
+  storage engines. This cache is initialized during startup of the server by
+  asking the storage engines for the values properties.
 */
 
-void get_max_key_and_part_length(TABLE *table,
-                                 uint *max_key_length,
+class Cache_temp_engine_properties
+{
+public:
+  static uint HEAP_MAX_KEY_LENGTH;
+  static uint MYISAM_MAX_KEY_LENGTH;
+  static uint INNODB_MAX_KEY_LENGTH;
+  static uint HEAP_MAX_KEY_PART_LENGTH;
+  static uint MYISAM_MAX_KEY_PART_LENGTH;
+  static uint INNODB_MAX_KEY_PART_LENGTH;
+  static uint HEAP_MAX_KEY_PARTS;
+  static uint MYISAM_MAX_KEY_PARTS;
+  static uint INNODB_MAX_KEY_PARTS;
+
+  static void init(THD *thd);
+};
+
+void Cache_temp_engine_properties::init(THD *thd)
+{
+  handler *handler;
+  plugin_ref db_plugin;
+
+  // Cache HEAP engine's
+  db_plugin= ha_lock_engine(0, heap_hton);
+  handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, heap_hton);
+  HEAP_MAX_KEY_LENGTH= handler->max_key_length();
+  HEAP_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
+  HEAP_MAX_KEY_PARTS= handler->max_key_parts();
+  delete handler;
+  plugin_unlock(0, db_plugin);
+  // Cache MYISAM engine's
+  db_plugin= ha_lock_engine(0, myisam_hton);
+  handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, myisam_hton);
+  MYISAM_MAX_KEY_LENGTH= handler->max_key_length();
+  MYISAM_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
+  MYISAM_MAX_KEY_PARTS= handler->max_key_parts();
+  delete handler;
+  plugin_unlock(0, db_plugin);
+  // Cache INNODB engine's
+  db_plugin= ha_lock_engine(0, innodb_hton);
+  handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, innodb_hton);
+  INNODB_MAX_KEY_LENGTH= handler->max_key_length();
+  /*
+    For ha_innobase::max_supported_key_part_length(), the returned value
+    relies on innodb_large_prefix. However, in innodb itself, the limitation
+    on key_part length is up to the ROW_FORMAT. In current trunk, internal
+    temp table's ROW_FORMAT is COMPACT. In order to keep the consistence
+    between server and innodb, here we hard-coded 767 as the maximum of 
+    key_part length supported by innodb until bug#20629014 is fixed.
+
+    TODO: Remove the hard-code here after bug#20629014 is fixed.
+  */
+  INNODB_MAX_KEY_PART_LENGTH= 767;
+  INNODB_MAX_KEY_PARTS= handler->max_key_parts();
+  delete handler;
+  plugin_unlock(0, db_plugin);
+}
+
+uint Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH= 0;
+uint Cache_temp_engine_properties::MYISAM_MAX_KEY_LENGTH= 0;
+uint Cache_temp_engine_properties::INNODB_MAX_KEY_LENGTH= 0;
+uint Cache_temp_engine_properties::HEAP_MAX_KEY_PART_LENGTH= 0;
+uint Cache_temp_engine_properties::MYISAM_MAX_KEY_PART_LENGTH= 0;
+uint Cache_temp_engine_properties::INNODB_MAX_KEY_PART_LENGTH= 0;
+uint Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS= 0;
+uint Cache_temp_engine_properties::MYISAM_MAX_KEY_PARTS= 0;
+uint Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS= 0;
+
+void init_cache_tmp_engine_properties()
+{
+  DBUG_ASSERT(!current_thd);
+  THD *thd= new THD();
+  thd->thread_stack= pointer_cast<char *>(&thd);
+  thd->store_globals();
+  Cache_temp_engine_properties::init(thd);
+  delete thd;
+}
+
+/**
+  Get the minimum of max_key_length and max_key_part_length.
+  The minimum is between HEAP engine and internal_tmp_disk_storage_engine.
+
+  @param[out] max_key_length Minimum of max_key_length
+  @param[out] max_key_part_length Minimum of max_key_part_length
+*/
+
+void get_max_key_and_part_length(uint *max_key_length,
                                  uint *max_key_part_length)
 {
-  TABLE_SHARE *share= table->s;
-  /*
-    If temp table engine is HEAP, the minimal max_key_length is
-    between HEAP engine and internal_tmp_disk_storage_engine.
-  */
-  if (share->db_type() == heap_hton)
+  // Make sure these cached properties are initialized.
+  DBUG_ASSERT(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH);
+
+  switch (internal_tmp_disk_storage_engine)
   {
-    handler *handler;
-    plugin_ref db_plugin;
-    uint heap_max_key_length;
-    uint tmp_se_max_key_length;
-    uint heap_max_key_part_length;
-    uint tmp_se_max_key_part_length;
-    handlerton *ht;
-
-    switch (internal_tmp_disk_storage_engine)
-    {
-    case TMP_TABLE_MYISAM:
-      db_plugin= ha_lock_engine(0, myisam_hton);
-      ht= myisam_hton;
-      break;
-    case TMP_TABLE_INNODB:
-      db_plugin= ha_lock_engine(0, innodb_hton);
-      ht= innodb_hton;
-      break;
-    default:
-      db_plugin= ha_lock_engine(0, innodb_hton);
-      ht= innodb_hton;
-    }
-
-    handler= get_new_handler(share, &table->mem_root, ht);
-    heap_max_key_length= table->file->max_key_length();
-    tmp_se_max_key_length= handler->max_key_length();
-    *max_key_length= std::min(tmp_se_max_key_length,
-                              heap_max_key_length);
-
-    heap_max_key_part_length= table->file->max_key_part_length();
-    tmp_se_max_key_part_length= handler->max_key_part_length();
-    *max_key_part_length= std::min(tmp_se_max_key_part_length,
-                                   heap_max_key_part_length);
+  case TMP_TABLE_MYISAM:
+    *max_key_length=
+      std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH,
+               Cache_temp_engine_properties::MYISAM_MAX_KEY_LENGTH);
+    *max_key_part_length=
+      std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_PART_LENGTH,
+               Cache_temp_engine_properties::MYISAM_MAX_KEY_PART_LENGTH);
     /*
-      create_tmp_table() tests tmp_se->max_key_parts(), not HEAP's;
-      it is correct as long as HEAP'S not bigger than on-disk temp
-      table engine's, which we check here:
+      create_tmp_table() tests tmp_se->max_key_parts() too, not only HEAP's.
+      It is correct as long as HEAP'S not bigger than on-disk temp table
+      engine's, which we check here.
     */
-    DBUG_ASSERT(table->file->max_key_parts() <= handler->max_key_parts());
-
-    delete handler;
-    plugin_unlock(0, db_plugin);
-  }
-  else
-  {
-    *max_key_length= table->file->max_key_length();
-    *max_key_part_length= table->file->max_key_part_length();
+    DBUG_ASSERT(Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS <=
+                Cache_temp_engine_properties::MYISAM_MAX_KEY_PARTS);
+    break;
+  case TMP_TABLE_INNODB:
+  default:
+    *max_key_length=
+      std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH,
+               Cache_temp_engine_properties::INNODB_MAX_KEY_LENGTH);
+    *max_key_part_length=
+      std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_PART_LENGTH,
+               Cache_temp_engine_properties::INNODB_MAX_KEY_PART_LENGTH);
+    DBUG_ASSERT(Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS <=
+                Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS);
+    break;
   }
 }
 
@@ -1017,7 +1072,7 @@ update_hidden:
     HEAP engine and possible on-disk engine to verify whether unique
     constraint is needed so that the convertion goes well.
    */
-  get_max_key_and_part_length(table, &max_key_length,
+  get_max_key_and_part_length(&max_key_length,
                               &max_key_part_length);
 
   if (!table->file)
@@ -1794,12 +1849,9 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     keyinfo->actual_flags= keyinfo->flags= HA_NOSAME;
     keyinfo->key_length=0;
     {
-      key_part_info->null_bit=0;
-      key_part_info->field=  field;
-      key_part_info->offset= field->offset(table->record[0]);
-      key_part_info->length= (uint16) field->key_length();
-      key_part_info->type=   (uint8) field->key_type();
-      key_part_info->key_type = FIELDFLAG_BINARY;
+      key_part_info->init_from_field(field);
+      DBUG_ASSERT(key_part_info->key_type == FIELDFLAG_BINARY);
+
       key_field= field->new_key_field(thd->mem_root, table, group_buff);
       if (!key_field)
         goto err;
@@ -2549,4 +2601,3 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
   table->mem_root= new_table.mem_root;
   DBUG_RETURN(1);
 }
-

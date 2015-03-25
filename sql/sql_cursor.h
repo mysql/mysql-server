@@ -39,9 +39,9 @@ class Server_side_cursor: protected Query_arena, public Sql_alloc
 {
 protected:
   /** Row destination used for fetch */
-  select_result *result;
+  Query_result *result;
 public:
-  Server_side_cursor(MEM_ROOT *mem_root_arg, select_result *result_arg)
+  Server_side_cursor(MEM_ROOT *mem_root_arg, Query_result *result_arg)
     :Query_arena(mem_root_arg, STMT_INITIALIZED), result(result_arg)
   {}
 
@@ -56,7 +56,7 @@ public:
 };
 
 
-bool mysql_open_cursor(THD *thd, select_result *result,
+bool mysql_open_cursor(THD *thd, Query_result *result,
                        Server_side_cursor **res);
 
 #endif /* _sql_cusor_h_ */

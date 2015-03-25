@@ -1023,7 +1023,10 @@ DROP EVENT IF EXISTS e2;
 # Check that an ordinary user can not create/update/drop events in the
 # read-only mode.
 
+set @orig_sql_mode = @@sql_mode;
+set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT EVENT ON *.* TO mysqltest_u1@localhost;
+set sql_mode= @orig_sql_mode;
 
 --echo
 
@@ -1325,6 +1328,22 @@ SHOW CREATE EVENT ev1;
 
 --echo # Clean-up
 DROP EVENT ev1;
+
+--echo #
+--echo # Bug#17435114 ASSERTION FAILED: THD->LEX->LOCK_TABLES_STATE == QUERY_TABLES_LIST::LTS_NOT_LOCK
+--echo #
+
+--error ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
+ALTER EVENT e1 ON SCHEDULE EVERY
+EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (1) MINUTE_SECOND;
+--error ER_EVENT_DOES_NOT_EXIST
+ALTER EVENT e1 ON SCHEDULE EVERY
+EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (2) MINUTE_SECOND;
+CREATE EVENT e1 ON SCHEDULE EVERY 2 HOUR DO SELECT 1;
+ALTER EVENT e1 ON SCHEDULE EVERY
+EXISTS (SELECT 1 AS x ORDER BY x LIMIT 0) NOT IN (2) MINUTE_SECOND;
+DROP EVENT e1;
+
 ###########################################################################
 #
 # End of tests

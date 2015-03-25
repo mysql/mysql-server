@@ -5720,7 +5720,7 @@ INSERT INTO t1 VALUES (1,1),(1,2),(1,0),(1,3);
 # Test trace for "access_type_changed 'ref' to 'range'"
 EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,b	PRIMARY	8	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	PRIMARY,b	PRIMARY	4	const	2	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `MAX(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` < 2)) group by `test`.`t1`.`a`
 
@@ -5826,8 +5826,8 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                         "ranges": [
                           "1 <= a <= 1 AND b < 2"
                         ] /* ranges */,
-                        "rows": 1,
-                        "cost": 1.3
+                        "rows": 2,
+                        "cost": 1.6
                       },
                       {
                         "index": "b",
@@ -5844,8 +5844,8 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                     "min_aggregate": false,
                     "max_aggregate": true,
                     "distinct_aggregate": false,
-                    "rows": 1,
-                    "cost": 1.3,
+                    "rows": 2,
+                    "cost": 1.6,
                     "key_parts_used_for_access": [
                       "a"
                     ] /* key_parts_used_for_access */,
@@ -5865,9 +5865,10 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
-                        "rows": 1,
-                        "cost": 1.21,
-                        "chosen": true
+                        "rows": 2,
+                        "cost": 2.41,
+                        "chosen": false,
+                        "cause": "cost"
                       },
                       {
                         "index": "b",
@@ -5880,8 +5881,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                         "index_only": true,
                         "rows": 2,
                         "cost": 1.4115,
-                        "chosen": false,
-                        "cause": "cost"
+                        "chosen": true
                       }
                     ] /* range_scan_alternatives */,
                     "analyzing_roworder_intersect": {
@@ -5892,14 +5892,14 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                   "chosen_range_access_summary": {
                     "range_access_plan": {
                       "type": "range_scan",
-                      "index": "PRIMARY",
-                      "rows": 1,
+                      "index": "b",
+                      "rows": 2,
                       "ranges": [
-                        "1 <= a <= 1 AND b < 2"
+                        "b < 2"
                       ] /* ranges */
                     } /* range_access_plan */,
-                    "rows_for_plan": 1,
-                    "cost_for_plan": 1.21,
+                    "rows_for_plan": 2,
+                    "cost_for_plan": 1.4115,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -5917,37 +5917,28 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                     {
                       "access_type": "ref",
                       "index": "PRIMARY",
-                      "rows": 1,
-                      "cost": 1.2,
+                      "rows": 2,
+                      "cost": 1.4019,
                       "chosen": true
                     },
                     {
-                      "rows_to_scan": 1,
+                      "rows_to_scan": 2,
                       "access_type": "range",
                       "range_details": {
-                        "used_index": "PRIMARY"
+                        "used_index": "b"
                       } /* range_details */,
-                      "resulting_rows": 1,
-                      "cost": 1.41,
+                      "resulting_rows": 0.5,
+                      "cost": 1.8115,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 50,
-                "rows_for_plan": 0.5,
-                "cost_for_plan": 1.2,
+                "rows_for_plan": 1,
+                "cost_for_plan": 1.4019,
                 "chosen": true
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "access_type_changed": {
-              "table": "`t1`",
-              "index": "PRIMARY",
-              "old_type": "ref",
-              "new_type": "range",
-              "cause": "uses_more_keyparts"
-            } /* access_type_changed */
           },
           {
             "attaching_conditions_to_tables": {
@@ -5957,7 +5948,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`a` = 1) and (`t1`.`b` < 2))"
+                  "attached": "(`t1`.`b` < 2)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */

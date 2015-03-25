@@ -55,7 +55,7 @@ SELECT @@global.sync_binlog;
 ############################################### 
 
 SET @@global.sync_binlog = @start_value;
-SELECT @@global.sync_binlog = 0;
+SELECT @@global.sync_binlog = 1;
 
 
 --echo '#--------------------FN_DYNVARS_168_03------------------------#'

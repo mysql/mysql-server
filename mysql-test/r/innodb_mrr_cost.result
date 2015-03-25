@@ -392,7 +392,7 @@ insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0
 This mustn't show "Using MRR":
 explain select * from t1 where a < 20  order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	19	100.00	Using where
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	20	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 20) order by `test`.`t1`.`a`
 drop table t0, t1;
@@ -411,7 +411,7 @@ EXPLAIN select count(length(a) + length(filler))
 from t2 force index (k1)
 where a>='a-1000-a' and a <'a-1001-a';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	ROWS	100.00	Using where
+1	SIMPLE	t2	NULL	range	k1	k1	9	NULL	100	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count((length(`test`.`t2`.`a`) + length(`test`.`t2`.`filler`))) AS `count(length(a) + length(filler))` from `test`.`t2` FORCE INDEX (`k1`) where ((`test`.`t2`.`a` >= 'a-1000-a') and (`test`.`t2`.`a` < 'a-1001-a'))
 select count(length(a) + length(filler))
@@ -511,7 +511,7 @@ id
 This must show type=index, extra=Using where
 explain SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	ind_parent_id	PRIMARY	4	NULL	1	400.00	Using where
+1	SIMPLE	t1	NULL	index	ind_parent_id	PRIMARY	4	NULL	1	57.14	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`parent_id` AS `parent_id`,`test`.`t1`.`name` AS `name` from `test`.`t1` where (`test`.`t1`.`parent_id` is not null) order by `test`.`t1`.`id` desc limit 1
 SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
@@ -731,7 +731,7 @@ WHERE d1.c1 IN ( SELECT c1 FROM t2 )
 AND d1.c1 IS NULL
 ORDER BY d1.i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	const	2	50.00	Using where; Using filesort
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	const	1	100.00	Using where; Using filesort
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	4	func	1	100.00	Using index
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:

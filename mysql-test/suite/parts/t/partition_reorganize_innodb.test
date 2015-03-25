@@ -9,15 +9,14 @@
 --source include/have_partition.inc
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 # These values can change during the test
-LET $innodb_file_format_orig=`select @@innodb_file_format`;
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
 SET SESSION innodb_strict_mode = ON;
 SET GLOBAL innodb_file_per_table=ON;
-SET GLOBAL innodb_file_format=barracuda;
 
 # Unlike MyISAM, InnoDB creates the subdirectories given to it in the
 # DATA DIRECTORY clauses.  Another difference is that InnoDB uses an extra
@@ -49,18 +48,8 @@ SELECT * FROM emp;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
@@ -99,18 +88,8 @@ eval ALTER TABLE emp REORGANIZE PARTITION southwest INTO
 SELECT * FROM emp;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY name;
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
@@ -153,7 +132,6 @@ DROP TABLE emp;
 --rmdir $MYSQL_TMP_DIR/alt_dir_south
 
 --disable_query_log
-EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
 --enable_query_log

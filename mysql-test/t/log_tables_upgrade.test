@@ -22,7 +22,6 @@ SET @saved_general_log = @@GLOBAL.general_log;
 SET GLOBAL general_log = OFF;
 USE mysql;
 FLUSH TABLES;
-REPAIR TABLE test.bug49823;
 RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1

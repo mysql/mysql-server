@@ -28,6 +28,7 @@ select "5.6", "I_S.SESSION_VARIABLES", variable_name
 from information_schema.session_variables;
 Warnings:
 Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 # STEP 1-3
 # EMPTY, NO WARNINGS (not available in 5.6 mode)
@@ -122,19 +123,21 @@ Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be re
 insert into test.sanity
 select "5.7", "P_S.GLOBAL_VARIABLES", variable_name
 from performance_schema.global_variables;
-Warnings:
-Warning	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 
 # STEP 2-4
 insert into test.sanity
 select "5.7", "P_S.VARIABLES_BY_THREAD", variable_name
 from performance_schema.variables_by_thread
 where thread_id = @my_tid;
+Warnings:
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 # STEP 2-5
 insert into test.sanity
 select "5.7", "P_S.SESSION_VARIABLES", variable_name
 from performance_schema.session_variables;
+Warnings:
+Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 
 # STEP 2-6
 # EMPTY WITH WARNINGS
@@ -278,6 +281,7 @@ where show_mode = "5.7"
     and source = "P_S.GLOBAL_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.GLOBAL_VARIABLES	SQL_LOG_BIN
 
 ================================================================================
 TEST 3
@@ -313,6 +317,9 @@ where show_mode = "5.7"
     and source = "P_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	CHECK_PROXY_USERS
+5.6	I_S.SESSION_VARIABLES	MYSQL_NATIVE_PASSWORD_PROXY_USERS
+5.6	I_S.SESSION_VARIABLES	SHA256_PASSWORD_PROXY_USERS
 
 ================================================================================
 TEST 5

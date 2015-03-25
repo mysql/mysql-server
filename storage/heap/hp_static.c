@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,16 +30,6 @@ PSI_memory_key hp_key_memory_HP_PTRS;
 PSI_memory_key hp_key_memory_HP_KEYDEF;
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_mutex_key hp_key_mutex_HP_SHARE_intern_lock;
-
-static PSI_mutex_info all_heap_mutexes[]=
-{
-  { & hp_key_mutex_HP_SHARE_intern_lock, "HP_SHARE::intern_lock", 0}
-  /*
-    Note:
-    THR_LOCK_heap is part of mysys, not storage/heap.
-  */
-};
 
 static PSI_memory_info all_heap_memory[]=
 {
@@ -54,8 +44,7 @@ void init_heap_psi_keys()
   const char* category= "memory";
   int count;
 
-  count= array_elements(all_heap_mutexes);
-  mysql_mutex_register(category, all_heap_mutexes, count);
+  /* Note: THR_LOCK_heap is part of mysys, not storage/heap. */
 
   count= array_elements(all_heap_memory);
   mysql_memory_register(category, all_heap_memory, count);

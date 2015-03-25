@@ -1,5 +1,7 @@
 SET @save_sql_mode=@@sql_mode;
 set SQL_MODE='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table ADDDATE(a int);
 drop table ADDDATE;
 create table ADDDATE (a int);
@@ -311,6 +313,8 @@ Field	Type	Null	Key	Default	Extra
 DROP TABLE table_25930_a;
 DROP TABLE table_25930_b;
 SET @@sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP PROCEDURE IF EXISTS p26030;
 select "non terminated"$$
 non terminated
@@ -579,6 +583,8 @@ select atan(10 AS p1, 20 AS p2);
 ERROR 42000: Incorrect parameters in the call to native function 'atan'
 DROP TABLE IF EXISTS t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
 22:10:00
