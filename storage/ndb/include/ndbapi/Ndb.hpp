@@ -1358,11 +1358,22 @@ public:
    * This is a backward compatibility wrapper to pollEvents2().
    * However it does not maintain the old behaviour: performing the following
    * when it encounters exceptional event data on the head of the event queue:
-   * - returns 0 for event data representing inconsistent epoch,
-   * - does not have empty epochs in the available data queue,
-   * - crashes for event data representing event-buffer-overflow epoch.
-   * Instead it returns 1  when there is an event data representing
-   * empty or error epoch is available, like pollEvents2()
+   * - returns 1 for event data representing inconsistent epoch.
+   *   In this case, the following nextEvent() call will return NULL.
+   *   The inconsistency (isConsistent(Uint64& gci)) should be checked
+   *   after the following (first) nextEvent() call returning NULL.
+   *   Even though the inconsistent event data is removed from the
+   *   event queue by this nextEvent() call, the information about
+   *   inconsistency will be removed only by the following (second)
+   *   nextEvent() call.
+   * - returns 1 for event data representing event buffer overflow epoch,
+   *   which is added to the event queue when event buffer usage
+   *   exceeds eventbuf_max_alloc.
+   *   In this case, following call to nextEvent() will process-exit.
+   * - removes empty epochs from the event queue.
+   *   It will block until aMillisecondNumber, if only empty epochs
+   *   are available in the queue, e.g., during idle time, when
+   *   no event data are sent by Ndb data nodes.
    */
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
 
@@ -1398,9 +1409,11 @@ public:
    * @return an event operations that has data, NULL if no events left with data.
    * This is a backward compatibility wrapper to nextEvent2(),
    * It maintains the old behaviour :
-   * - returns NULL for inconsistent epochs,
+   * - returns NULL for inconsistent epochs. Therefore, it is important
+   *   to call isConsistent(Uint64& gci) to check for inconsistency,
+   *   after nextEvent() returns NULL.
    * - will not have empty epochs in the event queue (i.e. remove them),
-   * - crashes the node when it encounters an event data representing
+   * - exits when it encounters an event data representing
    *   an event buffer overflow.
    */
   NdbEventOperation *nextEvent();
