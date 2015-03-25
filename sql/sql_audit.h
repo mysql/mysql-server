@@ -233,7 +233,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->security_context()->ip().str,\
   (thd)->security_context()->ip().length,\
   (thd)->db().str, (thd)->db().length,\
-  vio_type((thd)->get_protocol_classic()->get_vio()));
+  (thd)->get_vio_type());
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
   mysql_audit_notify(\
