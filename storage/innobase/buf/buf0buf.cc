@@ -3061,6 +3061,9 @@ page_found:
 		goto page_found;
 	}
 
+	/* The maximum number of purge threads should never exceed
+	BUF_POOL_WATCH_SIZE. So there is no way for purge thread
+	instance to hold a watch when setting another watch. */
 	for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
 		bpage = &buf_pool->watch[i];
 

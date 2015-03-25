@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,7 @@ Created 2012/04/12 by Sunny Bains
 #ifndef ut0counter_h
 #define ut0counter_h
 
+#include <my_rdtsc.h>
 #include "univ.i"
 #include "os0thread.h"
 
@@ -46,69 +47,40 @@ struct generic_indexer_t {
 	/** Default constructor/destructor should be OK. */
 
         /** @return offset within m_counter */
-        static size_t offset(size_t index) UNIV_NOTHROW {
+        static size_t offset(size_t index) UNIV_NOTHROW
+	{
                 return(((index % N) + 1) * (CACHE_LINE_SIZE / sizeof(Type)));
         }
 };
 
-#ifdef HAVE_SCHED_GETCPU
-#include <sched.h>
-/** Use the cpu id to index into the counter array. If it fails then
-use the thread id. */
+/** Use the result of my_timer_cycles(), which mainly uses RDTSC for cycles,
+to index into the counter array. See the comments for my_timer_cycles() */
 template <typename Type=ulint, int N=1>
-struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
+struct counter_indexer_t : public generic_indexer_t<Type, N> {
+
 	/** Default constructor/destructor should be OK. */
 
 	enum { fast = 1 };
 
-	/* @return result from sched_getcpu(), the thread id if it fails. */
-	static size_t get_rnd_index() UNIV_NOTHROW {
+	/** @return result from RDTSC or similar functions. */
+	static size_t get_rnd_index() UNIV_NOTHROW
+	{
+		size_t	c = static_cast<size_t>(my_timer_cycles());
 
-		int	cpu = sched_getcpu();
+		if (c != 0) {
+			return(c);
+		} else {
+			/* We may go here if my_timer_cycles() returns 0,
+			so we have to have the plan B for the counter. */
+#if !defined(_WIN32)
+			return(size_t(os_thread_get_curr_id()));
+#else
+			LARGE_INTEGER cnt;
+			QueryPerformanceCounter(&cnt);
 
-		if (cpu == -1) {
-			cpu = (int) os_thread_get_curr_id();
+			return(static_cast<size_t>(cnt.QuadPart));
+#endif /* !_WIN32 */
 		}
-
-		return(size_t(cpu));
-	}
-};
-#elif _WIN32
-template <typename Type=ulint, int N=1>
-struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
-	/** Default constructor/destructor should be OK. */
-
-	enum { fast = 1 };
-
-	/* @return result from GetCurrentProcessorNumber (). */
-	static size_t get_rnd_index() UNIV_NOTHROW {
-
-		/* According to the Windows documentation, it returns the
-		processor number within the Processor group if the host
-		has more than 64 logical CPUs. We ignore that here. If the
-		processor number from a different group maps to the same
-		slot that is acceptable. We want to avoid making another
-		system call to determine the processor group. If this becomes
-		an issue, the fix is to multiply the group with the processor
-		number and use that, also note that the number of slots should
-		be increased to avoid overlap. */
-		return(size_t(GetCurrentProcessorNumber()));
-	}
-};
-#endif /* HAVE_SCHED_GETCPU */
-
-/** Use the thread id to index into the counter array. */
-template <typename Type=ulint, int N=1>
-struct thread_id_indexer_t : public generic_indexer_t<Type, N> {
-	/** Default constructor/destructor should are OK. */
-
-	enum { fast = 0 };
-
-	/* @return a random number, currently we use the thread id. Where
-	thread id is represented as a pointer, it may not work as
-	effectively. */
-	static size_t get_rnd_index() UNIV_NOTHROW {
-		return((lint) os_thread_get_curr_id());
 	}
 };
 
@@ -120,23 +92,21 @@ struct single_indexer_t {
 	enum { fast = 0 };
 
         /** @return offset within m_counter */
-        static size_t offset(size_t index) UNIV_NOTHROW {
+        static size_t offset(size_t index) UNIV_NOTHROW
+	{
 		ut_ad(N == 1);
                 return((CACHE_LINE_SIZE / sizeof(Type)));
         }
 
-	/* @return 1 */
-	static size_t get_rnd_index() UNIV_NOTHROW {
+	/** @return 1 */
+	static size_t get_rnd_index() UNIV_NOTHROW
+	{
 		ut_ad(N == 1);
 		return(1);
 	}
 };
 
-#if defined(HAVE_SCHED_GETCPU) || defined(_WIN32)
-#define	default_indexer_t	get_sched_indexer_t
-#else
-#define default_indexer_t	thread_id_indexer_t
-#endif /* HAVE_SCHED_GETCPU || _WIN32 */
+#define	default_indexer_t	counter_indexer_t
 
 /** Class for using fuzzy counters. The counter is not protected by any
 mutex and the results are not guaranteed to be 100% accurate but close

@@ -1240,6 +1240,19 @@ row_truncate_fts(
 	fts_table.id = new_id;
 	fts_table.name = table->name;
 	fts_table.flags2 = table->flags2;
+	fts_table.flags = table->flags;
+	fts_table.tablespace = table->tablespace;
+	fts_table.space = table->space;
+
+	/* table->data_dir_path is used for FTS AUX table
+	creation. */
+	if (DICT_TF_HAS_DATA_DIR(table->flags)
+	    && table->data_dir_path == NULL) {
+		dict_get_and_save_data_dir_path(table, true);
+		ut_ad(table->data_dir_path != NULL);
+	}
+
+	fts_table.data_dir_path = table->data_dir_path;
 
 	dberr_t		err;
 
