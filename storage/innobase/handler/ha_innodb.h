@@ -953,17 +953,6 @@ innobase_release_temporary_latches(
 @return reference to transaction pointer */
 trx_t*& thd_to_trx(THD*	thd);
 
-/** Check if transaction is started.
-@param[in]	trx	Transaction.
-@return true if transaction is in state started */
-inline
-bool
-trx_is_started(
-	trx_t*	trx)
-{
-	return(trx->state != TRX_STATE_NOT_STARTED);
-}
-
 /** Converts an InnoDB error code to a MySQL error code.
 Also tells to MySQL about a possible transaction rollback inside InnoDB caused
 by a lock wait timeout or a deadlock.

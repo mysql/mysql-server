@@ -592,3 +592,18 @@ SELECT * FROM v;
 
 DROP VIEW v;
 DROP TABLE t1, t2;
+
+--echo # Bug#20753569: handle_fatal_signal (sig=11) in
+--echo #               st_select_lex::merge_derived
+
+CREATE TABLE t1(a INTEGER);
+CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+
+INSERT INTO v1 SELECT 3;
+REPLACE INTO v1 SELECT 3;
+
+INSERT INTO v1 VALUES(3);
+REPLACE INTO v1 VALUES(3);
+
+DROP VIEW v1;
+DROP TABLE t1;
