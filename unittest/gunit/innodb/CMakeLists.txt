@@ -30,6 +30,7 @@ SET(TESTS
   ha_innodb
   mem0mem
   ut0crc32
+  ut0lock_free_hash
   ut0mem
   ut0new
 )
