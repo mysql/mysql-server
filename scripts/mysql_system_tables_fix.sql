@@ -26,7 +26,6 @@
 set sql_mode='';
 set default_storage_engine=MyISAM;
 
-# MCP_BUG16226274 >
 # Move distributed grant tables to default engine during upgrade, remember
 # which tables was moved so they can be moved back after upgrade
 SET @had_distributed_user =
@@ -88,7 +87,6 @@ SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
-# MCP_BUG16226274 <
 
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
@@ -893,7 +891,6 @@ UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysq
 
 ALTER TABLE user ADD password_lifetime smallint unsigned NULL;
 
-# MCP_BUG16226274 >
 # Move any distributed grant tables back to NDB after upgrade
 SET @cmd="ALTER TABLE mysql.user ENGINE=NDB";
 SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
@@ -930,4 +927,3 @@ SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
-# MCP_BUG16226274 <
