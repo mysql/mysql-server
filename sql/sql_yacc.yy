@@ -1459,7 +1459,7 @@ END_OF_INPUT
 
 %type <table_expression> table_expression
 
-%type <table_list2> table_factor table_ref esc_table_ref derived_table_list
+%type <table_list2> table_factor table_factor_or_refs table_ref table_refs esc_table_ref derived_table_list
         named_table named_table_parens nested_table_reference_list
 
 %type <derived_table_list> derived_table_list_parens
@@ -10370,6 +10370,16 @@ nested_table_reference_list:
           }
         ;
 
+table_refs:
+          nested_table_reference_list
+        | table_ref
+        ;
+
+table_factor_or_refs:
+          nested_table_reference_list
+        | table_factor
+        ;
+
 /*
   Notice that JOIN is a left-associative operation, and it must be parsed
   as such, that is, the parser must process first the left join operand
@@ -10384,115 +10394,66 @@ join_table:
             so that [INNER | CROSS] JOIN is properly nested as other
             left-associative joins.
           */
-          table_ref normal_join table_ref %prec TABLE_REF_PRIORITY
+          table_refs normal_join table_refs %prec TABLE_REF_PRIORITY
           {
             $$= NEW_PTN PT_join_table<JTT_NORMAL>($1, @2, $3);
           }
-        | table_ref STRAIGHT_JOIN table_factor
+        | table_refs STRAIGHT_JOIN table_factor
           {
             $$= NEW_PTN PT_join_table<JTT_STRAIGHT>($1, @2, $3);
           }
-        | table_ref normal_join table_ref
+        | table_refs normal_join table_refs
           ON
           expr
           {
             $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
           }
-        | nested_table_reference_list normal_join nested_table_reference_list
-          ON
-          expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
-          }
-        | table_ref normal_join nested_table_reference_list ON expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
-          }
-        | nested_table_reference_list normal_join table_factor ON expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
-          }
-        | table_ref STRAIGHT_JOIN table_factor
+        | table_refs STRAIGHT_JOIN table_factor
           ON
           expr
           {
             $$= NEW_PTN PT_join_table_on<JTT_STRAIGHT>($1, @2, $3, $5);
           }
-        | table_ref normal_join table_ref
+        | table_refs normal_join table_refs
           USING
           '(' using_list ')'
           {
             $$= NEW_PTN PT_join_table_using<JTT_NORMAL>($1, @2, $3, $6);
           }
-        | table_ref normal_join nested_table_reference_list USING
-          '(' using_list ')'
-          {
-            $$= NEW_PTN PT_join_table_using<JTT_NORMAL>($1, @2, $3, $6);
-          }
-        | table_ref NATURAL JOIN_SYM table_factor
-          {
-            $$= NEW_PTN PT_join_table<JTT_NATURAL>($1, @2, $4);
-          }
-        | table_ref NATURAL JOIN_SYM nested_table_reference_list
-          {
-            $$= NEW_PTN PT_join_table<JTT_NATURAL>($1, @2, $4);
-          }
-        | nested_table_reference_list NATURAL JOIN_SYM table_factor
+        | table_refs NATURAL JOIN_SYM table_factor_or_refs
           {
             $$= NEW_PTN PT_join_table<JTT_NATURAL>($1, @2, $4);
           }
           /* LEFT JOIN variants */
-        | table_ref LEFT opt_outer JOIN_SYM table_ref
+        | table_refs LEFT opt_outer JOIN_SYM table_refs
           ON
           expr
           {
             $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
           }
-        | table_ref LEFT opt_outer JOIN_SYM nested_table_reference_list ON expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
-          }
-        | nested_table_reference_list LEFT opt_outer JOIN_SYM table_ref ON expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
-          }
-        | nested_table_reference_list LEFT opt_outer JOIN_SYM
-          nested_table_reference_list ON expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
-          }
-        | table_ref LEFT opt_outer JOIN_SYM table_factor
+        | table_refs LEFT opt_outer JOIN_SYM table_factor
           USING '(' using_list ')'
           {
             $$= NEW_PTN PT_join_table_using<JTT_LEFT>($1, @2, $5, $8);
           }
-        | table_ref LEFT opt_outer JOIN_SYM nested_table_reference_list
-          USING '(' using_list ')'
-          {
-            $$= NEW_PTN PT_join_table_using<JTT_LEFT>($1, @2, $5, $8);
-          }
-        | table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
+        | table_refs NATURAL LEFT opt_outer JOIN_SYM table_factor
           {
             $$= NEW_PTN PT_join_table<JTT_NATURAL_LEFT>($1, @2, $6);
           }
 
           /* RIGHT JOIN variants */
-        | table_ref RIGHT opt_outer JOIN_SYM table_ref
+        | table_refs RIGHT opt_outer JOIN_SYM table_refs
           ON
           expr
           {
             $$= NEW_PTN PT_join_table_on<JTT_RIGHT>($1, @2, $5, $7);
           }
-        | nested_table_reference_list RIGHT opt_outer JOIN_SYM table_ref ON expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_RIGHT>($1, @2, $5, $7);
-          }
-        | table_ref RIGHT opt_outer JOIN_SYM table_factor
+        | table_refs RIGHT opt_outer JOIN_SYM table_factor
           USING '(' using_list ')'
           {
             $$= NEW_PTN PT_join_table_using<JTT_RIGHT>($1, @2, $5, $8);
           }
-        | table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
+        | table_refs NATURAL RIGHT opt_outer JOIN_SYM table_factor
           {
             $$= NEW_PTN PT_join_table<JTT_NATURAL_RIGHT>($1, @2, $6);
           }
