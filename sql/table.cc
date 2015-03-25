@@ -1016,10 +1016,10 @@ end:
 
 
 /**
-  When reading the tablespace name from the .FRM file, the tablespace name
-  is validated. If the name is invalid, it is ignored. The function used to
-  validate the name, 'check_tablespace_name()', emits errors. In the context
-  of reading .FRM files, the errors must be ignored. This error handler makes
+  After retrieving the tablespace name, the tablespace name is validated.
+  If the name is invalid, it is ignored. The function used to validate
+  the name, 'check_tablespace_name()', emits errors. In the context of
+  reading .FRM files, the errors must be ignored. This error handler makes
   sure this is done.
 */
 
@@ -1066,7 +1066,61 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
     return NULL;
   }
 
-  // Then, check that we have an extra data segment and a proper form position.
+  // For mysql versions before 50120, NDB stored the tablespace names only
+  // in the NDB dictionary. Thus, we have to get the tablespace name from
+  // the engine in this case.
+
+  // Get the relevant db type value.
+  enum legacy_db_type db_type= static_cast<enum legacy_db_type>(*(head + 3));
+
+  // Tablespace name to be returned.
+  const char *tablespace_name= NULL;
+
+  if (db_type == DB_TYPE_NDBCLUSTER &&            // Cluster table.
+      uint4korr(head + 51) < 50120)               // Version before 50120.
+  {
+    // Lock the plugin, and get the handlerton.
+    plugin_ref se_plugin= ha_lock_engine(NULL,
+                                         ha_checktype(thd,
+                                                      db_type, false, false));
+    handlerton *se_hton= plugin_data<handlerton*>(se_plugin);
+    DBUG_ASSERT(se_hton);
+
+    // Now, assemble the parameters:
+    // 1. The tablespace name (to be retrieved).
+    LEX_CSTRING ts_name= {NULL, 0};
+
+    // 2. The schema name for the table.
+    LEX_CSTRING schema_name= {table->db, table->db_length};
+
+    // 3. The table name.
+    LEX_CSTRING table_name= {table->table_name, table->table_name_length};
+
+    // If the handlerton supports the required function, invoke it.
+    if (se_hton->get_tablespace &&
+        !se_hton->get_tablespace(thd, schema_name, table_name, &ts_name))
+    {
+      Tablespace_name_error_handler error_handler;
+      thd->push_internal_handler(&error_handler);
+      // If an empty or valid tablespace name, assign the name to the
+      // output parameter. The string is allocated in THD::mem_root,
+      // so it is safe to return it.
+      if (ts_name.length == 0 ||
+          check_tablespace_name(ts_name.str) == IDENT_NAME_OK)
+        tablespace_name= ts_name.str;
+      thd->pop_internal_handler();
+    }
+    plugin_unlock(NULL, se_plugin);
+
+    // The buffers being freed at the end of the function are not allocated
+    // yet, so it is safe to return directly, after closing the file.
+    mysql_file_close(file, MYF(MY_WME));
+    return tablespace_name;
+  }
+
+  // For other engines, and for cluster tables with version >= 50120, we
+  // continue by checking that we have an extra data segment and a proper
+  // form position.
   const ulong pos= get_form_pos(file, head);   //< Position of form info
   const uint n_length= uint4korr(head + 55);   //< Length of extra segment
   if (n_length == 0 || pos == 0)
@@ -1154,7 +1208,6 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   const uint record_offset= uint2korr(head + 6) +
           ((uint2korr(head + 14) == 0xffff ?
             uint4korr(head + 47) : uint2korr(head + 14)));
-  char *tablespace_name= NULL;        //< Tablespace name to be returned
   if (!mysql_file_read(file, forminfo, sizeof(forminfo), MYF(MY_NABP)) &&
       extra_segment_buff &&
       !mysql_file_pread(file, extra_segment_buff, n_length,
