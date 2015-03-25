@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+# Detect if this is Cluster build
+MESSAGE(STATUS "Checking if ${VERSION} is Cluster in packaging/WiX/CPackWixConfig")
+IF("${VERSION}" MATCHES "-ndb-")
+  MESSAGE(STATUS "This is Cluster build")
+ENDIF()
+
 IF(ESSENTIALS)
  SET(CPACK_COMPONENTS_USED "Server;Client;DataFiles")
  SET(CPACK_WIX_UI "WixUI_InstallDir")
@@ -23,7 +29,14 @@ IF(ESSENTIALS)
  ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries;ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
+    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries")
+
+  # Append Cluster components
+  MESSAGE(STATUS "Append additional Cluster components")
+  MESSAGE(STATUS "CPACK_COMPONENTS_USED: ${CPACK_COMPONENTS_USED}")
+  SET(CPACK_COMPONENTS_USED
+    "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
+  MESSAGE(STATUS "CPACK_COMPONENTS_USED: ${CPACK_COMPONENTS_USED}")
 ENDIF()
 
 
@@ -94,16 +107,6 @@ SET(CPACK_COMPONENT_GROUP_DEVEL_DESCRIPTION "Installs C/C++ header files and lib
  SET(CPACK_COMPONENT_EMBEDDED_DESCRIPTION "Installs embedded server library")
  SET(CPACK_COMPONENT_EMBEDDED_WIX_LEVEL 2)
 
- #Subfeature "ClusterJ"
- SET(CPACK_COMPONENT_CLUSTERJ_GROUP "Devel")
- SET(CPACK_COMPONENT_CLUSTERJ_DISPLAY_NAME "ClusterJ Java Connector for Cluster")
- SET(CPACK_COMPONENT_CLUSTERJ_DESCRIPTION "Installs ClusterJ")
-
- #Subfeature "nodejs"
- SET(CPACK_COMPONENT_NODEJS_GROUP "Devel")
- SET(CPACK_COMPONENT_NODEJS_DISPLAY_NAME "nodejs Connector for Cluster")
- SET(CPACK_COMPONENT_NODEJS_DESCRIPTION "Installs nodejs connector")
-
 #Feature Debug Symbols
 SET(CPACK_COMPONENT_GROUP_DEBUGSYMBOLS_DISPLAY_NAME "Debug Symbols")
 SET(CPACK_COMPONENT_GROUP_DEBUGSYMBOLS_DESCRIPTION "Installs Debug Symbols")
@@ -121,6 +124,7 @@ SET(CPACK_COMPONENT_TEST_DISPLAY_NAME "Tests")
 SET(CPACK_COMPONENT_TEST_DESCRIPTION "Installs unittests (requires Perl to run)")
 SET(CPACK_COMPONENT_TEST_WIX_LEVEL 2)
 
+MESSAGE(STATUS "Defining Cluster features and subfeatures")
 #Feature "Cluster"
 SET(CPACK_COMPONENT_GROUP_CLUSTER_DISPLAY_NAME "MySQL Cluster")
 SET(CPACK_COMPONENT_GROUP_CLUSTER_DESCRIPTION "Installs MySQL Cluster")
@@ -144,6 +148,16 @@ SET(CPACK_COMPONENT_GROUP_CLUSTER_DESCRIPTION "Installs MySQL Cluster")
  SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_GROUP "Cluster")
  SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_DISPLAY_NAME "Cluster Management Client")
  SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_DESCRIPTION "Installs Cluster Management Client")
+
+ #Subfeature "ClusterJ"
+ SET(CPACK_COMPONENT_CLUSTERJ_GROUP "Devel")
+ SET(CPACK_COMPONENT_CLUSTERJ_DISPLAY_NAME "ClusterJ Java Connector for Cluster")
+ SET(CPACK_COMPONENT_CLUSTERJ_DESCRIPTION "Installs ClusterJ")
+
+ #Subfeature "nodejs"
+ SET(CPACK_COMPONENT_NODEJS_GROUP "Devel")
+ SET(CPACK_COMPONENT_NODEJS_DISPLAY_NAME "nodejs Connector for Cluster")
+ SET(CPACK_COMPONENT_NODEJS_DESCRIPTION "Installs nodejs connector")
 
 #Feature Misc (hidden, installs only if everything is installed)
 SET(CPACK_COMPONENT_GROUP_MISC_HIDDEN 1)

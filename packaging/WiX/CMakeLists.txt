@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -103,6 +103,19 @@ ELSE()
   SET(WixWin64)
 ENDIF()
 
+# Detect if this is Cluster build
+MESSAGE(STATUS "Checking if ${VERSION} is Cluster in packaging/WiX/CMakeLists.txt")
+IF("${VERSION}" MATCHES "-ndb-")
+  MESSAGE(STATUS "This is Cluster build")
+ENDIF()
+
+MESSAGE(STATUS "Overwriting DISPLAY_XXX_VERSION with NDB_VERSION_XXX")
+MESSAGE(STATUS "DISPLAY_MAJOR_VERSION: ${DISPLAY_MAJOR_VERSION}")
+MESSAGE(STATUS "DISPLAY_MINOR_VERSION: ${DISPLAY_MINOR_VERSION}")
+MESSAGE(STATUS "DISPLAY_PATCH_VERSION: ${DISPLAY_PATCH_VERSION}")
+MESSAGE(STATUS "NDB_VERSION_MAJOR: ${NDB_VERSION_MAJOR}")
+MESSAGE(STATUS "NDB_VERSION_MINOR: ${NDB_VERSION_MINOR}")
+MESSAGE(STATUS "NDB_VERSION_BUILD: ${NDB_VERSION_BUILD}")
 MESSAGE(XXXSREE ${NDB_VERSION_BUILD})
 SET(DISPLAY_MAJOR_VERSION ${NDB_VERSION_MAJOR})
 SET(DISPLAY_MINOR_VERSION ${NDB_VERSION_MINOR})
