@@ -705,3 +705,64 @@ SELECT dt.pk, v2.a
 FROM (SELECT * FROM v2) AS dt JOIN v2 ON dt.pk=v2.pk;
 DROP VIEW v1, v2, v3;
 DROP TABLE t1, t2, t3, t4;
+# Bug#20310257 Explain for insert into a view show wrong table for ins.
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(b INTEGER);
+CREATE VIEW v AS SELECT * FROM t1 JOIN t2 ON TRUE;
+explain INSERT INTO v(a) VALUES(1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+INSERT INTO v(a) VALUES(1);
+explain INSERT INTO v(b) VALUES(1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+INSERT INTO v(b) VALUES(1);
+explain INSERT INTO v(a) SELECT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+INSERT INTO v(a) SELECT 2;
+explain INSERT INTO v(b) SELECT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+INSERT INTO v(b) SELECT 2;
+SELECT * FROM t1;
+a
+1
+2
+SELECT * FROM t2;
+b
+1
+2
+DROP VIEW v;
+DROP TABLE t1, t2;
+CREATE TABLE t1(a1 INTEGER PRIMARY KEY, b1 INTEGER);
+CREATE TABLE t2(a2 INTEGER PRIMARY KEY, b2 INTEGER);
+CREATE VIEW v AS SELECT * FROM t1 JOIN t2 ON TRUE;
+INSERT INTO v(a1,b1) VALUES (11, 0) ON DUPLICATE KEY UPDATE b1=b1+1;
+INSERT INTO v(a1,b1) VALUES (11, 0) ON DUPLICATE KEY UPDATE b1=b1+1;
+INSERT INTO v(a2,b2) VALUES (21, 0) ON DUPLICATE KEY UPDATE b2=b2+1;
+INSERT INTO v(a2,b2) VALUES (21, 0) ON DUPLICATE KEY UPDATE b2=b2+1;
+SELECT * FROM v;
+a1	b1	a2	b2
+11	1	21	1
+DELETE FROM t1;
+DELETE FROM t2;
+INSERT INTO v(a1,b1) SELECT 11, 0 ON DUPLICATE KEY UPDATE b1=b1+1;
+INSERT INTO v(a1,b1) SELECT 11, 0 ON DUPLICATE KEY UPDATE b1=b1+1;
+INSERT INTO v(a2,b2) SELECT 21, 0 ON DUPLICATE KEY UPDATE b2=b2+1;
+INSERT INTO v(a2,b2) SELECT 21, 0 ON DUPLICATE KEY UPDATE b2=b2+1;
+SELECT * FROM v;
+a1	b1	a2	b2
+11	1	21	1
+DROP VIEW v;
+DROP TABLE t1, t2;
+# Bug#20753569: handle_fatal_signal (sig=11) in
+#               st_select_lex::merge_derived
+CREATE TABLE t1(a INTEGER);
+CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
+INSERT INTO v1 SELECT 3;
+REPLACE INTO v1 SELECT 3;
+INSERT INTO v1 VALUES(3);
+REPLACE INTO v1 VALUES(3);
+DROP VIEW v1;
+DROP TABLE t1;

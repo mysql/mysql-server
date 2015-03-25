@@ -4,6 +4,7 @@
 # 
 
 
+no_pid=-1
 server_pid=$no_pid
 
 

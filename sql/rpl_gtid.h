@@ -2047,6 +2047,12 @@ public:
     0 if the group is not owned.
   */
   my_thread_id get_owner(const Gtid &gtid) const;
+
+  /*
+    Fill all gtids into the given Gtid_set object. It doesn't clear the given
+    gtid set before filling its owned gtids into it.
+  */
+  void get_gtids(Gtid_set &gtid_set) const;
   /**
     Removes the given GTID.
 

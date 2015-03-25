@@ -256,7 +256,6 @@ public:
 protected:
   bool mysql_prepare_insert(THD *thd,
                             TABLE_LIST *table_list,
-                            TABLE_LIST **insert_table_ref,
                             List_item *values,
                             bool select_insert);
   bool insert_precheck(THD *thd, TABLE_LIST *tables);
