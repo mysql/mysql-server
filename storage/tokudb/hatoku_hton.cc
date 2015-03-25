@@ -1711,6 +1711,8 @@ static int tokudb_fractal_tree_info(TABLE *table, THD *thd) {
         error = tmp_cursor->c_get(tmp_cursor, &curr_key, &curr_val, DB_NEXT);
         if (!error) {
             error = tokudb_report_fractal_tree_info_for_db(&curr_key, &curr_val, table, thd);
+            if (error)
+                error = 0; // ignore read uncommitted errors
         }
         if (!error && thd_killed(thd))
             error = ER_QUERY_INTERRUPTED;
