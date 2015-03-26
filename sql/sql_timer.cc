@@ -21,6 +21,17 @@
 #include "mysqld.h"             // key_thd_timer_mutex
 #include "psi_memory_key.h"
 
+/**
+  Cast a member of a structure to the structure that contains it.
+
+  @param  ptr     Pointer to the member.
+  @param  type    Type of the structure that contains the member.
+  @param  member  Name of the member within the structure.
+*/
+#define my_container_of(ptr, type, member)              \
+  ((type *)((char *)ptr - offsetof(type, member)))
+
+
 struct st_thd_timer_info
 {
   my_thread_id thread_id;

@@ -7862,15 +7862,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
           continue;
       }
 
-#if defined(__GNUC__) && !MY_GNUC_PREREQ(4,4)
-      /*
-        Old gcc used a memcpy(), which is undefined if save_pos==use:
-        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=19410
-        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39480
-      */
-      if (save_pos != use)
-#endif
-        *save_pos= *use;
+      *save_pos= *use;
       prev=use;
       found_eq_constant= !use->used_tables;
       /* Save ptr to first use */

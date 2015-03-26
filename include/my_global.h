@@ -67,6 +67,7 @@
 #endif
 
 #include "my_compiler.h"
+#include "my_dbug.h"
 
 /* Macros to make switching between C and C++ mode easier */
 #ifdef __cplusplus
@@ -124,16 +125,6 @@
 #define default_shared_memory_base_name "MYSQL"
 #endif /* _WIN32*/
 
-/**
-  Cast a member of a structure to the structure that contains it.
-
-  @param  ptr     Pointer to the member.
-  @param  type    Type of the structure that contains the member.
-  @param  member  Name of the member within the structure.
-*/
-#define my_container_of(ptr, type, member)              \
-  ((type *)((char *)ptr - offsetof(type, member)))
-
 /* an assert that works at compile-time. only for constant expression */
 #define compile_time_assert(X)                                              \
   do                                                                        \
@@ -141,16 +132,12 @@
     typedef char compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
 
+/*
+  Two levels of macros are needed to stringify the
+  result of expansion of a macro argument.
+*/
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
-
-#ifdef _WIN32
-#define SO_EXT ".dll"
-#elif defined(__APPLE__)
-#define SO_EXT ".dylib"
-#else
-#define SO_EXT ".so"
-#endif
 
 #if !defined(HAVE_UINT)
 typedef unsigned int uint;
@@ -181,9 +168,6 @@ typedef SOCKET my_socket;
 typedef int	my_socket;	/* File descriptor for sockets */
 #define INVALID_SOCKET -1
 #endif
-C_MODE_START
-typedef void	(*sig_return)();/* Returns type from signal */
-C_MODE_END
 #if defined(__GNUC__)
 typedef char	pchar;		/* Mixed prototypes can take char */
 typedef char	pbool;		/* Mixed prototypes can take char */
@@ -216,7 +200,6 @@ typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 #define FILE_BINARY	O_BINARY /* Flag to my_fopen for binary streams */
 #endif
 #ifdef HAVE_FCNTL
-#define HAVE_FCNTL_LOCK
 #define F_TO_EOF	0L	/* Param to lockf() to lock rest of file */
 #endif
 #endif /* O_SHARE */
@@ -489,9 +472,7 @@ typedef long long intptr;
 
 #if defined(_WIN32)
 typedef unsigned long long my_off_t;
-typedef unsigned long long os_off_t;
 #else
-typedef off_t os_off_t;
 #if SIZEOF_OFF_T > 4
 typedef ulonglong my_off_t;
 #else
@@ -581,8 +562,6 @@ typedef char		my_bool; /* Small bool */
 #else
 #define MYSQL_PLUGIN_IMPORT
 #endif
-
-#include <my_dbug.h>
 
 #ifdef EMBEDDED_LIBRARY
 #define NO_EMBEDDED_ACCESS_CHECKS
