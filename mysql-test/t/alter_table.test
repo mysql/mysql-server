@@ -2641,3 +2641,27 @@ ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT
 SHOW INDEX FROM t1;
 SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='key1';
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20748660 THD->MDL_CONTEXT.OWNS_EQUAL_OR_STRONGER_LOCK | CREATE_INFO->TABLESPACE
+--echo #
+--echo # A failing DISCARD/IMPORT TABLESPACE may leave the flag THD::tablespace_op
+--echo # in an incorrect state, causing a succeeding statement to fail.
+--echo
+--echo # Create a tablespace with a table.
+CREATE TABLESPACE s ADD DATAFILE 's.ibd' ENGINE InnoDB;
+CREATE TABLE t (i int) TABLESPACE s ENGINE InnoDB;
+
+--echo # The following statent will fail because the table is not partitioned.
+--echo # Without the fix, the THD::tablespace_op flag will be left set.
+--error ER_PARTITION_MGMT_ON_NONPARTITIONED
+ALTER TABLE t DISCARD PARTITION p TABLESPACE;
+
+--echo # Without the patch, this statement will inherit the tablespace_op flag
+--echo # from the previous statement, causing the statement below to fail due
+--echo # to not acquiring the required MDL lock.
+ALTER TABLE t TABLESPACE s;
+
+--echo # Drop table and tablespace.
+DROP TABLE t;
+DROP TABLESPACE s ENGINE InnoDB;
