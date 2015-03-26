@@ -1,0 +1,45 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source ../include/no_protocol.inc
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--echo
+--echo ================================================================================
+--echo SETUP
+--echo ================================================================================
+--echo # Save current SHOW_COMPATIBILITY_56 setting
+SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
+SET @@global.show_compatibility_56=OFF;
+# Create a table
+CREATE TABLE test.t1 (c1 INT);
+
+#prepare a statement
+PREPARE stmt1 FROM "SELECT c1 FROM test.t1";
+
+#execute prepared statement;
+EXECUTE stmt1;
+
+# Check status from SHOW STATUS
+SHOW STATUS LIKE "%com_stmt_%prepare%";
+#check the statistics
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "%com_stmt%";
+
+# Alter table to make server reprepare the statement
+ALTER TABLE test.t1 ADD COLUMN c2 INTEGER;
+
+#execute prepared statement;
+EXECUTE stmt1;
+
+# Check status from SHOW STATUS
+SHOW STATUS LIKE "%com_stmt_%prepare%";
+#check the statistics
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "%com_stmt%";
+
+--echo
+--echo ================================================================================
+--echo CLEANUP
+--echo ================================================================================
+DROP TABLE test.t1;
+--echo # Restore SHOW_COMPATIBILITY_56 setting
+SET @@global.show_compatibility_56 = @show_compatibility_56_save;
