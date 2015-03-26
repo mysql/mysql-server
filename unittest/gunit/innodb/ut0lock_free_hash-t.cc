@@ -140,7 +140,7 @@ ut_lock_free_hash_t*	global_hash;
 static const uintptr_t	N_COMMON = 512;
 
 /** Number of private, per-thread tuples to insert by each thread. */
-static const uintptr_t	N_PRIV_PER_THREAD = 8;
+static const uintptr_t	N_PRIV_PER_THREAD = 128;
 
 /** Number of threads to start. Overall the hash will be filled with
 N_COMMON + N_THREADS * N_PRIV_PER_THREAD tuples. */
@@ -160,7 +160,7 @@ DECLARE_THREAD(thread)(
 
 	hash_insert(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
 
-	const uintptr_t	n_iter = 4096;
+	const uintptr_t	n_iter = 64;
 
 	for (uintptr_t i = 0; i < n_iter; i++) {
 		for (uintptr_t j = 0; j < N_COMMON; j++) {
@@ -207,7 +207,9 @@ TEST(ut0lock_free_hash, multi_threaded)
 	hash_insert(global_hash, N_COMMON, 0);
 
 	for (uintptr_t i = 0; i < N_THREADS; i++) {
-		os_thread_create(thread, reinterpret_cast<void*>(i), NULL);
+		/* Avoid thread_id==0 because that will collide with the
+		shared tuples, thus use 'i + 1' instead of 'i'. */
+		os_thread_create(thread, reinterpret_cast<void*>(i + 1), NULL);
 	}
 
 	/* Wait for all threads to exit. */

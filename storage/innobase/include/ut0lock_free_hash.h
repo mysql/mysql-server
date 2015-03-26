@@ -30,6 +30,87 @@ Created Mar 16, 2015 Vasil Dimov
 
 #include "os0atomic.h" /* os_compare_and_swap_ulint() */
 
+/** A node in a linked list of arrays. The pointer to the next node is
+atomically set (CAS) when a next element is allocated. */
+template <typename T>
+class ut_lock_free_list_node_t {
+public:
+	/** Constructor.
+	@param[in]	n_elements	number of elements to create
+	@param[in]	initializer	initialize all elements to this value */
+	explicit
+	ut_lock_free_list_node_t(
+		size_t		n_elements,
+		const T&	initializer)
+		:
+		m_base_elements(n_elements)
+	{
+		m_base = UT_NEW_ARRAY(T, m_base_elements,
+				      mem_key_buf_stat_per_index_t);
+
+		for (size_t i = 0; i < m_base_elements; i++) {
+			m_base[i] = initializer;
+		}
+
+		m_initializer = initializer;
+		m_next = NULL;
+	}
+
+	/** Destructor. */
+	~ut_lock_free_list_node_t()
+	{
+		UT_DELETE(m_base);
+	}
+
+	/** Append a new array to this one and store a pointer to it
+	in 'm_next'. This is done in a way that multiple threads can attempt
+	this at the same time and only one will succeed. When this method
+	returns, the caller can be sure that the job is done (either by this
+	or another thread). */
+	void
+	grow()
+	{
+		if (m_next != NULL) {
+			/* Somebody already appended. */
+			return;
+		}
+
+		const size_t	n_next_elements = m_base_elements * 2;
+
+		ut_lock_free_list_node_t<T>*	next = UT_NEW(
+			ut_lock_free_list_node_t<T>(n_next_elements,
+						    m_initializer),
+			mem_key_buf_stat_per_index_t);
+
+		for (size_t i = 0; i < n_next_elements; i++) {
+			next->m_base[i] = m_initializer;
+		}
+
+		/* Publish the allocated entry. If somebody did this in the
+		meantime then just discard the allocated entry and do
+		nothing. */
+		if (!os_compare_and_swap_ulint(
+				reinterpret_cast<ulint*>(&m_next),
+				static_cast<ulint>(NULL),
+				reinterpret_cast<ulint>(next))) {
+			/* Somebody just did that. */
+			UT_DELETE(next);
+		}
+	}
+
+	/** Base array. */
+	T*				m_base;
+
+	/** Number of elements in 'm_base'. */
+	size_t				m_base_elements;
+
+	/** Pointer to the next node if any or NULL. */
+	ut_lock_free_list_node_t<T>*	m_next;
+
+private:
+	T				m_initializer;
+};
+
 /** Lock free hash table. It stores (key, value) pairs where both the key
 and the value are of type uintptr_t.
 Assumption: basic reads and writes to uintptr_t are atomic.
@@ -43,26 +124,26 @@ public:
 	/** Constructor. Not thread safe. */
 	ut_lock_free_hash_t()
 	{
-		m_arr_size = 1024;
-		m_arr = UT_NEW_ARRAY(key_val_t, m_arr_size,
-				     mem_key_buf_stat_per_index_t);
+		const key_val_t	initializer = {
+			UNUSED /* key */,
+			NOT_FOUND /* val */
+		};
+
+		m_data = UT_NEW(
+			ut_lock_free_list_node_t<key_val_t>(1024, initializer),
+			mem_key_buf_stat_per_index_t);
 
 		/* Confirm that the keys are aligned (which also means that
 		the vals are aligned). Only then the basic read/write
 		will be atomic. */
-		ut_a(reinterpret_cast<uintptr_t>(&m_arr[0].m_key)
+		ut_a(reinterpret_cast<uintptr_t>(&m_data->m_base[0].m_key)
 		     % sizeof(uintptr_t) == 0);
-
-		for (size_t i = 0; i < m_arr_size; i++) {
-			m_arr[i].m_key = UNUSED;
-			m_arr[i].m_val = NOT_FOUND;
-		}
 	}
 
 	/** Destructor. Not thread safe. */
 	~ut_lock_free_hash_t()
 	{
-		UT_DELETE_ARRAY(m_arr);
+		UT_DELETE(m_data);
 	}
 
 	/** Get the value mapped to a given key.
@@ -70,23 +151,22 @@ public:
 	@return the value that corresponds to key or NOT_FOUND. */
 	uintptr_t
 	get(
-		uintptr_t	key)
+		uintptr_t	key) const
 	{
 		ut_ad(key != UNUSED);
 
-		const size_t	pos = get_position(key);
+		const key_val_t*	tuple = get_tuple(key);
 
-		if (pos == INVALID_POS) {
+		if (tuple == NULL) {
 			return(NOT_FOUND);
 		}
 
 		/* Here if another thread is just setting this key for the
 		first time, then the tuple could be (key, NOT_FOUND)
-		(remember all vals are initialized to NOT_FOUND in the
-		constructor) in which case we will return NOT_FOUND below
-		which is fine. */
+		(remember all vals are initialized to NOT_FOUND initially)
+		in which case we will return NOT_FOUND below which is fine. */
 
-		return(m_arr[pos].m_val);
+		return(tuple->m_val);
 	}
 
 	/** Set the value for a given key, either inserting a new (key, val)
@@ -101,9 +181,9 @@ public:
 		ut_ad(key != UNUSED);
 		ut_ad(val != NOT_FOUND);
 
-		const size_t	pos = insert_or_get_position(key);
+		key_val_t*	tuple = insert_or_get_position(key);
 
-		m_arr[pos].m_val = val;
+		tuple->m_val = val;
 	}
 
 	/** Increment the value for a given key with 1 or insert a new tuple
@@ -115,16 +195,15 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		const size_t	pos = insert_or_get_position(key);
+		key_val_t*	tuple = insert_or_get_position(key);
 
-		/* Here m_arr[pos].m_val is either NOT_FOUND or some real value.
+		/* Here tuple->m_val is either NOT_FOUND or some real value.
 		Try to replace NOT_FOUND with 1. If that fails, then this means
 		it is some real value in which case we should increment it
 		with 1. */
-		if (!os_compare_and_swap_ulint(
-				&m_arr[pos].m_val, NOT_FOUND, 1)) {
+		if (!os_compare_and_swap_ulint(&tuple->m_val, NOT_FOUND, 1)) {
 
-			os_atomic_increment_ulint(&m_arr[pos].m_val, 1);
+			os_atomic_increment_ulint(&tuple->m_val, 1);
 		}
 	}
 
@@ -137,9 +216,9 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		const size_t	pos = get_position(key);
+		const key_val_t*	tuple = get_tuple(key);
 
-		if (pos == INVALID_POS) {
+		if (tuple == NULL) {
 			/* Nothing to decrement. We can either signal this
 			to the caller (e.g. return bool from this method) or
 			assert. For now we just return. */
@@ -151,14 +230,16 @@ public:
 		use an atomic decrement while checking for >0 at the same
 		time. */
 		for (;;) {
-			const uintptr_t	cur_val = m_arr[pos].m_val;
+			const uintptr_t	cur_val = tuple->m_val;
 
 			ut_a(cur_val > 0);
 
 			const uintptr_t	new_val = cur_val - 1;
 
 			if (os_compare_and_swap_ulint(
-					&m_arr[pos].m_val, cur_val, new_val)) {
+					&tuple->m_val,
+					cur_val,
+					new_val)) {
 				break;
 			}
 		}
@@ -167,11 +248,6 @@ public:
 private:
 	/** A key==UNUSED designates that this cell in the array is empty. */
 	static const uintptr_t	UNUSED = UINTPTR_MAX;
-
-	/** A position==INVALID_POS designates an invalid position. Returned by
-	methods that are supposed to find a given key when that key is not
-	present. */
-	static const size_t	INVALID_POS = SIZE_MAX;
 
 	/** (key, val) tuple type. */
 	struct key_val_t {
@@ -191,79 +267,159 @@ private:
 	to be */
 	size_t
 	guess_position(
-		uintptr_t	key)
+		uintptr_t	key,
+		size_t		array_size) const
 	{
 		/* Implement a better hashing function to map
-		[0, UINTPTR_MAX] -> [0, m_arr_size - 1] if this one turns
+		[0, UINTPTR_MAX] -> [0, array_size - 1] if this one turns
 		out to generate too many collisions. */
-		return(static_cast<size_t>(key) % m_arr_size);
+		return(static_cast<size_t>(key) % array_size);
 	}
 
-	/** Get the position of a key into the array.
-	@param[in]	key	key to search for
-	@return either the position (index) in the array or INVALID_POS if
-	not found */
-	size_t
-	get_position(
-		uintptr_t	key)
+	/** Get the array cell of a key from a given array.
+	@param[in]	arr		array to search into
+	@param[in]	arr_size	number of elements in the array
+	@param[in]	key		search for a tuple with this key
+	@return pointer to the array cell or NULL if not found */
+	key_val_t*
+	get_tuple_from_array(
+		key_val_t*	arr,
+		size_t		arr_size,
+		uintptr_t	key) const
 	{
-		const size_t	start = guess_position(key);
+		const size_t	start = guess_position(key, arr_size);
+		const size_t	end = start + arr_size;
 
-		for (size_t i = start; i < m_arr_size + start; i++) {
-			const size_t	cur_pos = i % m_arr_size;
-			const uintptr_t	cur_key = m_arr[cur_pos].m_key;
+		for (size_t i = start; i < end; i++) {
+
+			const size_t	cur_pos = i % arr_size;
+			key_val_t*	cur_tuple = &arr[cur_pos];
+			const uintptr_t	cur_key = cur_tuple->m_key;
+
 			if (cur_key == key) {
-				return(cur_pos);
+				return(cur_tuple);
 			} else if (cur_key == UNUSED) {
-				return(INVALID_POS);
+				return(NULL);
 			}
 		}
 
-		return(INVALID_POS);
+		return(NULL);
 	}
 
-	/** Insert the given key into the array or return its position if
+	/** Get the array cell of a key.
+	@param[in]	key	key to search for
+	@return pointer to the array cell or NULL if not found */
+	key_val_t*
+	get_tuple(
+		uintptr_t	key) const
+	{
+		for (ut_lock_free_list_node_t<key_val_t>* cur_arr = m_data;
+		     cur_arr != NULL;
+		     cur_arr = cur_arr->m_next) {
+
+			key_val_t*	t;
+
+			t = get_tuple_from_array(cur_arr->m_base,
+						 cur_arr->m_base_elements,
+						 key);
+
+			if (t != NULL) {
+				return(t);
+			}
+		}
+
+		return(NULL);
+	}
+
+	/** Insert the given key into a given array or return its cell if
 	already present.
-	@param[in]	key	key to insert or whose position to retrieve
-	@return position of the inserted or previously existent key */
-	size_t
-	insert_or_get_position(
+	@param[in]	arr		array into which to search and insert
+	@param[in]	arr_size	number of elements in the array
+	@param[in]	key		key to insert or whose cell to retrieve
+	@return a pointer to the inserted or previously existent tuple */
+	key_val_t*
+	insert_or_get_position_in_array(
+		key_val_t*	arr,
+		size_t		arr_size,
 		uintptr_t	key)
 	{
-		const size_t	start = guess_position(key);
+		const size_t	start = guess_position(key, arr_size);
+		const size_t	end = start + arr_size;
 
 		/* We do not have os_compare_and_swap_ptr(), thus we use
 		os_compare_and_swap_ulint(). */
 		ut_ad(sizeof(uintptr_t) == sizeof(ulint));
 
-		for (size_t i = start; i < m_arr_size + start; i++) {
-			const size_t	cur_pos = i % m_arr_size;
-			const uintptr_t	cur_key = m_arr[cur_pos].m_key;
+		for (size_t i = start; i < end; i++) {
 
-			if (cur_key == key
-			    || (cur_key == UNUSED
-				&& os_compare_and_swap_ulint(
-					&m_arr[cur_pos].m_key,
-					UNUSED, key))) {
-				/* Here m_arr[cur_pos].m_val is either
-				NOT_FOUND (as it was initialized in the
-				constructor) or some real value. */
-				return(cur_pos);
+			const size_t	cur_pos = i % arr_size;
+			key_val_t*	cur_tuple = &arr[cur_pos];
+			const uintptr_t	cur_key = cur_tuple->m_key;
+
+			if (cur_key == key) {
+				return(cur_tuple);
+			}
+
+			if (cur_key == UNUSED) {
+				if (os_compare_and_swap_ulint(
+						&cur_tuple->m_key,
+						UNUSED,
+						key)) {
+					/* Here cur_tuple->m_val is either
+					NOT_FOUND (as it was initialized) or
+					some real value. */
+					return(cur_tuple);
+				}
+
+				/* CAS failed, which means that some other
+				thread just changed the current key from UNUSED
+				to something else. See if the new value is
+				'key'. */
+				if (cur_tuple->m_key == key) {
+					return(cur_tuple);
+				}
+
+				/* The current key, which was UNUSED, has been
+				replaced with something else (!= key). Keep
+				searching for a free slot. */
 			}
 		}
 
-		ut_error;
+		return(NULL);
+	}
 
-		return(INVALID_POS);
+	/** Insert the given key into the storage or return its cell if
+	already present. This method will try expanding the storage (appending
+	new arrays) as long as there is no free slot to insert.
+	@param[in]	key	key to insert or whose cell to retrieve
+	@return a pointer to the inserted or previously existent tuple */
+	key_val_t*
+	insert_or_get_position(
+		uintptr_t	key)
+	{
+		for (ut_lock_free_list_node_t<key_val_t>* cur_arr = m_data;
+		     ;
+		     cur_arr = cur_arr->m_next) {
+
+			key_val_t*	t;
+
+			t = insert_or_get_position_in_array(
+				cur_arr->m_base,
+				cur_arr->m_base_elements,
+				key);
+
+			if (t != NULL) {
+				return(t);
+			}
+
+			if (cur_arr->m_next == NULL) {
+				cur_arr->grow();
+			}
+		}
 	}
 
 	/** Storage for the (key, val) tuples. */
-	key_val_t*	m_arr;
-
-	/** Number of elements in 'm_arr'. Replace all "x % m_arr_size"
-	expressions with "x & (m_arr_size - 1)" and an assert that m_arr_size
-	is a power of 2 if there is any visible performance difference. */
-	size_t		m_arr_size;
+	ut_lock_free_list_node_t<key_val_t>*	m_data;
 };
 
 #endif /* ut0lock_free_hash_h */
