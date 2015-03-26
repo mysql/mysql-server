@@ -32,7 +32,6 @@ Name:          Ndb.cpp
 #include <NdbEnv.h>
 #include <BaseString.hpp>
 #include <NdbSqlUtil.hpp>
-#include <NdbTick.h>
 
 /****************************************************************************
 void connect();
@@ -2186,67 +2185,7 @@ Ndb::printOverflowErrorAndExit()
 int
 Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 {
-  /**
-   * aMillisecondNumber = 0 : one poll call
-   * else divide aMillisecondNumber into a 1-hour time slot
-   * and call poll with this time slot until it expires.
-   * Note: This will handle aMillisecondNumber < 0, which
-   * is converted to unsigned and become large,
-   * as well as aMillisecondNumber > 0.
-   */
-  const Uint32 waitSlot = 3600*1000; // in millisecs
-  const Uint32 totalWaitTime = (Uint32)aMillisecondNumber;
-  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
-  Uint32 remaining = totalWaitTime;
-  Uint32 waited = 0;
-
-  do
-  {
-    const Uint32 pollTimeout = (remaining > waitSlot) ? waitSlot :
-      remaining;
-    const int res = pollEvents2((int)pollTimeout, latestGCI);
-    if (res < 0)
-    {
-      return res;
-    }
-
-    if (res > 0)
-    {
-      EventBufData *data = theEventBuffer->m_available_data.m_head;
-      while (data)
-      {
-        // All including exceptional event data must have an associated buffer
-        assert(data->sdata);
-
-        const Uint32 type =
-          SubTableData::getOperation(data->sdata->requestInfo);
-
-        if ((type != NdbDictionary::Event::_TE_EMPTY))
-        {
-          /* res >0  will be returned here, making the consumer
-           * to call nextEvent().
-           * nextEvent() call will handle the new types:
-           * _TE_INCONSISTENT and _TE_OUT_OF_MEMORY:
-           *
-           * Consumer handles other types as usual.
-           */
-          return res;
-	}
-
-        //Consumer cannot handle the new type TE_EMPTY, filter it.
-        (void)nextEvent2();
-        data = theEventBuffer->m_available_data.m_head;
-      }
-    }
-
-    waited =
-      (Uint32)NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).milliSec();
-
-    remaining = totalWaitTime - waited;
-
-  } while (totalWaitTime > waited);
-
-  return 0;
+  return pollEvents2(aMillisecondNumber, latestGCI);
 }
 
 int
