@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -81,7 +81,7 @@ btr_page_set_index_id(
 	page_t*		page,	/*!< in: page to be created */
 	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
 				part will be updated, or NULL */
-	index_id_t	id,	/*!< in: index id */
+	space_index_t	id,	/*!< in: index id */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	if (page_zip) {
@@ -99,7 +99,7 @@ btr_page_set_index_id(
 Gets the index id field of a page.
 @return index id */
 UNIV_INLINE
-index_id_t
+space_index_t
 btr_page_get_index_id(
 /*==================*/
 	const page_t*	page)	/*!< in: index page */

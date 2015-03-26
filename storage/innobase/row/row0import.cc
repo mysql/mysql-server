@@ -68,7 +68,7 @@ struct row_stats_t {
 
 /** Index information required by IMPORT. */
 struct row_index_t {
-	index_id_t	m_id;			/*!< Index id of the table
+	space_index_t	m_id;			/*!< Index id of the table
 						in the exporting server */
 	byte*		m_name;			/*!< Index name */
 
@@ -587,12 +587,12 @@ struct FetchIndexRootPages : public AbstractCallback {
 	/** Index information gathered from the .ibd file. */
 	struct Index {
 
-		Index(index_id_t id, ulint page_no)
+		Index(space_index_t id, ulint page_no)
 			:
 			m_id(id),
 			m_page_no(page_no) { }
 
-		index_id_t	m_id;		/*!< Index id */
+		space_index_t	m_id;		/*!< Index id */
 		ulint		m_page_no;	/*!< Root page number */
 	};
 
@@ -710,7 +710,7 @@ FetchIndexRootPages::operator() (
 		   && !is_free(block->page.id.page_no())
 		   && is_root_page(page)) {
 
-		index_id_t	id = btr_page_get_index_id(page);
+		space_index_t	id = btr_page_get_index_id(page);
 
 		m_indexes.push_back(Index(id, block->page.id.page_no()));
 
@@ -951,7 +951,7 @@ private:
 
 	/** Find an index with the matching id.
 	@return row_index_t* instance or 0 */
-	row_index_t* find_index(index_id_t id) UNIV_NOTHROW
+	row_index_t* find_index(space_index_t id) UNIV_NOTHROW
 	{
 		row_index_t*	index = &m_cfg->m_indexes[0];
 
@@ -1841,7 +1841,7 @@ dberr_t
 PageConverter::update_index_page(
 	buf_block_t*	block) UNIV_NOTHROW
 {
-	index_id_t	id;
+	space_index_t	id;
 	buf_frame_t*	page = block->frame;
 
 	if (is_free(block->page.id.page_no())) {
@@ -2586,7 +2586,7 @@ row_import_read_index_data(
 {
 	byte*		ptr;
 	row_index_t*	cfg_index;
-	byte		row[sizeof(index_id_t) + sizeof(ib_uint32_t) * 9];
+	byte		row[sizeof(space_index_t) + sizeof(ib_uint32_t) * 9];
 
 	/* FIXME: What is the max value? */
 	ut_a(cfg->m_n_indexes > 0);
@@ -2642,7 +2642,7 @@ row_import_read_index_data(
 		ptr = row;
 
 		cfg_index->m_id = mach_read_from_8(ptr);
-		ptr += sizeof(index_id_t);
+		ptr += sizeof(space_index_t);
 
 		cfg_index->m_space = mach_read_from_4(ptr);
 		ptr += sizeof(ib_uint32_t);
@@ -3215,7 +3215,7 @@ row_import_update_index_root(
 		ib_uint32_t	page;
 		ib_uint32_t	space;
 		ib_uint32_t	type;
-		index_id_t	index_id;
+		space_index_t	index_id;
 		table_id_t	table_id;
 
 		info = (graph != 0) ? graph->info : pars_info_create();

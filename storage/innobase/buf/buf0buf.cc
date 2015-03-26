@@ -934,10 +934,6 @@ buf_page_print(
 	const page_size_t&	page_size,
 	ulint			flags)
 {
-#ifndef UNIV_HOTBACKUP
-	dict_index_t*	index;
-#endif /* !UNIV_HOTBACKUP */
-
 	if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
 
 		ib::info() << "Page dump in ascii and hex ("
@@ -1043,7 +1039,7 @@ buf_page_print(
 #endif /* !UNIV_HOTBACKUP */
 
 	switch (fil_page_get_type(read_buf)) {
-		index_id_t	index_id;
+		space_index_t	index_id;
 	case FIL_PAGE_INDEX:
 	case FIL_PAGE_RTREE:
 		index_id = btr_page_get_index_id(read_buf);
@@ -1051,15 +1047,6 @@ buf_page_print(
 			"InnoDB: Page may be an index page where"
 			" index id is " IB_ID_FMT "\n",
 			index_id);
-#ifndef UNIV_HOTBACKUP
-		index = dict_index_find_on_id_low(index_id);
-		if (index) {
-			ib::info()
-				<< "Index " << index_id
-				<< " is " << index->name
-				<< " in table " << index->table->name;
-		}
-#endif /* !UNIV_HOTBACKUP */
 		break;
 	case FIL_PAGE_INODE:
 		fputs("InnoDB: Page may be an 'inode' page\n", stderr);
@@ -5298,8 +5285,8 @@ buf_page_monitor(
 		level = btr_page_get_level_low(frame);
 
 		/* Check if it is an index page for insert buffer */
-		if (btr_page_get_index_id(frame)
-		    == (index_id_t)(DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
+		if (btr_page_get_index_id(frame) == static_cast<space_index_t>(
+			    DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
 			if (level == 0) {
 				counter = MONITOR_RW_COUNTER(
 					io_type, MONITOR_INDEX_IBUF_LEAF_PAGE);
@@ -6031,10 +6018,8 @@ buf_print_instance(
 	ulint		size;
 	ulint		i;
 	ulint		j;
-	index_id_t	id;
 	ulint		n_found;
 	buf_chunk_t*	chunk;
-	dict_index_t*	index;
 
 	ut_ad(buf_pool);
 
@@ -6067,7 +6052,9 @@ buf_print_instance(
 
 			if (fil_page_index_page_check(frame)) {
 
-				id = btr_page_get_index_id(frame);
+				index_id_t	id(
+					block->page.id.space(),
+					btr_page_get_index_id(frame));
 
 				/* Look for the id in the index_ids array */
 				j = 0;
@@ -6094,18 +6081,11 @@ buf_print_instance(
 	buf_pool_mutex_exit(buf_pool);
 
 	for (i = 0; i < n_found; i++) {
-		index = dict_index_get_if_in_cache(index_ids[i]);
+		ib::info	info;
 
-		if (!index) {
-			ib::info() << "Block count for index "
-				<< index_ids[i] << " in buffer is about "
-				<< counts[i];
-		} else {
-			ib::info() << "Block count for index " << index_ids[i]
-				<< " in buffer is about " << counts[i]
-				<< ", index " << index->name
-				<< " of table " << index->table->name;
-		}
+		info << "Block count for index "
+		     << index_ids[i] << " in buffer is about "
+		     << counts[i];
 	}
 
 	ut_free(index_ids);

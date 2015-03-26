@@ -734,7 +734,7 @@ to start with. */
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
-	index_id_t	id;	/*!< id of the index */
+	space_index_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
 	id_name_t	name;	/*!< index name */
 	const char*	table_name;/*!< table name */

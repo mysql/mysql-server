@@ -1117,7 +1117,7 @@ dict_recreate_index_tree(
 
 	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__ID, &len);
 	ut_ad(len == 8);
-	index_id_t	index_id = mach_read_from_8(ptr);
+	space_index_t	index_id = mach_read_from_8(ptr);
 
 	/* We will need to commit the mini-transaction in order to avoid
 	deadlocks in the btr_create() call, because otherwise we would
@@ -1436,20 +1436,20 @@ dict_create_index_step(
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
 
-		index_id_t	index_id = node->index->id;
+		space_index_t	index_id = node->index->id;
 
 		err = dict_index_add_to_cache(
 			node->table, node->index, FIL_NULL,
 			trx_is_strict(trx)
 			|| dict_table_has_atomic_blobs(node->table));
 
-		node->index = dict_index_get_if_in_cache_low(index_id);
-		ut_a(!node->index == (err != DB_SUCCESS));
-
 		if (err != DB_SUCCESS) {
-
+			node->index = NULL;
 			goto function_exit;
 		}
+
+		node->index = UT_LIST_GET_LAST(node->table->indexes);
+		ut_a(node->index->id == index_id);
 
 		node->state = INDEX_CREATE_INDEX_TREE;
 	}

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,6 @@ Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
 
 #include "mem0mem.h"
-#include "ut0rnd.h"
 #include "btr0types.h"
 
 #ifdef UNIV_DEBUG
@@ -570,28 +569,26 @@ dtuple_set_types_binary(
 	}
 }
 
-/************************************************************//**
-Folds a prefix given as the number of fields of a tuple.
+/** Compute a hash value of a prefix of an index record.
+@param[in]	tuple		index record
+@param[in]	n_fields	number of fields to include
+@param[in]	fold		fold value of the index identifier
 @return the folded value */
 UNIV_INLINE
 ulint
 dtuple_fold(
-/*========*/
-	const dtuple_t*	tuple,	/*!< in: the tuple */
-	ulint		n_fields,/*!< in: number of complete fields to fold */
-	index_id_t	tree_id)/*!< in: index tree id */
+	const dtuple_t*	tuple,
+	ulint		n_fields,
+	ulint		fold)
 {
 	const dfield_t*	field;
 	ulint		i;
 	const byte*	data;
 	ulint		len;
-	ulint		fold;
 
 	ut_ad(tuple);
 	ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
 	ut_ad(dtuple_check_typed(tuple));
-
-	fold = ut_fold_ull(tree_id);
 
 	for (i = 0; i < n_fields; i++) {
 		field = dtuple_get_nth_field(tuple, i);

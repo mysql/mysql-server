@@ -218,7 +218,7 @@ row_merge_rename_index_to_add(
 /*==========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id);	/*!< in: index identifier */
+	space_index_t	index_id);	/*!< in: index identifier */
 /*********************************************************************//**
 Rename an index in the dictionary that is to be dropped. The data
 dictionary must have been locked exclusively by the caller, because
@@ -229,7 +229,7 @@ row_merge_rename_index_to_drop(
 /*===========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id);	/*!< in: index identifier */
+	space_index_t	index_id);	/*!< in: index identifier */
 /*********************************************************************//**
 Create the index and load in to the dictionary.
 @return index, or NULL on error */

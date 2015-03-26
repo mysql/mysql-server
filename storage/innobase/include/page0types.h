@@ -89,7 +89,7 @@ enum page_cur_mode_t {
 TRUNCATE log record during recovery */
 struct redo_page_compress_t {
 	ulint		type;		/*!< index type */
-	index_id_t	index_id;	/*!< index id */
+	space_index_t	index_id;	/*!< index id */
 	ulint		n_fields;	/*!< number of index fields */
 	ulint		field_len;	/*!< the length of index field */
 	const byte*	fields;		/*!< index field information */

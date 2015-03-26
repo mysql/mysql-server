@@ -6688,7 +6688,7 @@ static
 void
 fts_set_index_corrupt(
 	trx_t*		trx,
-	index_id_t	id,
+	space_index_t	id,
 	dict_table_t*	table)
 {
 	fts_t*	fts = table->fts;
@@ -6757,7 +6757,7 @@ fts_valid_parent_table(
 		if (aux_table->index_id == 0) {
 			valid = true;
 		} else {
-			index_id_t	id = aux_table->index_id;
+			space_index_t	id = aux_table->index_id;
 			dict_index_t*	index;
 
 			/* Search for the FT index in the table's list. */

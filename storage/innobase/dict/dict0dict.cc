@@ -1443,24 +1443,22 @@ dict_table_move_from_lru_to_non_lru(
 	table->can_be_evicted = FALSE;
 }
 
-/** Looks for an index with the given id given a table instance.
-@param[in]	table	table instance
-@param[in]	id	index id
-@return index or NULL */
-dict_index_t*
+/** Look up an index in a table.
+@param[in]	table	table
+@param[in]	id	index identifier
+@return index
+@retval NULL if not found */
+static
+const dict_index_t*
 dict_table_find_index_on_id(
 	const dict_table_t*	table,
-	index_id_t		id)
+	const index_id_t&	id)
 {
-	dict_index_t*	index;
-
-	for (index = dict_table_get_first_index(table);
+	for (const dict_index_t* index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
-
-		if (id == index->id) {
-			/* Found */
-
+		if (index->space == id.m_space_id
+		    && index->id == id.m_index_id) {
 			return(index);
 		}
 	}
@@ -1468,29 +1466,22 @@ dict_table_find_index_on_id(
 	return(NULL);
 }
 
-/**********************************************************************//**
-Looks for an index with the given id. NOTE that we do not reserve
-the dictionary mutex: this function is for emergency purposes like
-printing info of a corrupt database page!
-@return index or NULL if not found in cache */
-dict_index_t*
-dict_index_find_on_id_low(
-/*======================*/
-	index_id_t	id)	/*!< in: index id */
+/** Look up an index.
+@param[in]	id	index identifier
+@return index or NULL if not found */
+const dict_index_t*
+dict_index_find(
+	const index_id_t&	id)
 {
-	dict_table_t*	table;
+	const dict_table_t*	table;
 
-	/* This can happen if the system tablespace is the wrong page size */
-	if (dict_sys == NULL) {
-		return(NULL);
-	}
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 	     table != NULL;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
-
-		dict_index_t*	index = dict_table_find_index_on_id(table, id);
-
+		const dict_index_t* index = dict_table_find_index_on_id(
+			table, id);
 		if (index != NULL) {
 			return(index);
 		}
@@ -1499,9 +1490,8 @@ dict_index_find_on_id_low(
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
 	     table != NULL;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
-
-		dict_index_t*	index = dict_table_find_index_on_id(table, id);
-
+		const dict_index_t* index = dict_table_find_index_on_id(
+			table, id);
 		if (index != NULL) {
 			return(index);
 		}
@@ -2807,8 +2797,9 @@ dict_index_remove_from_cache_low(
 
 	/* The index is being dropped, remove any compression stats for it. */
 	if (!lru_evict && DICT_TF_GET_ZIP_SSIZE(index->table->flags)) {
+		index_id_t	id(index->space, index->id);
 		mutex_enter(&page_zip_stat_per_index_mutex);
-		page_zip_stat_per_index.erase(index->id);
+		page_zip_stat_per_index.erase(id);
 		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 
@@ -5205,45 +5196,6 @@ syntax_error:
 }
 
 /*==================== END OF FOREIGN KEY PROCESSING ====================*/
-
-/**********************************************************************//**
-Returns an index object if it is found in the dictionary cache.
-Assumes that dict_sys->mutex is already being held.
-@return index, NULL if not found */
-dict_index_t*
-dict_index_get_if_in_cache_low(
-/*===========================*/
-	index_id_t	index_id)	/*!< in: index id */
-{
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	return(dict_index_find_on_id_low(index_id));
-}
-
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/**********************************************************************//**
-Returns an index object if it is found in the dictionary cache.
-@return index, NULL if not found */
-dict_index_t*
-dict_index_get_if_in_cache(
-/*=======================*/
-	index_id_t	index_id)	/*!< in: index id */
-{
-	dict_index_t*	index;
-
-	if (dict_sys == NULL) {
-		return(NULL);
-	}
-
-	mutex_enter(&dict_sys->mutex);
-
-	index = dict_index_get_if_in_cache_low(index_id);
-
-	mutex_exit(&dict_sys->mutex);
-
-	return(index);
-}
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 #ifdef UNIV_DEBUG
 /**********************************************************************//**

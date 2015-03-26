@@ -135,14 +135,14 @@ row_quiesce_write_indexes(
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
 		byte*		ptr;
-		byte		row[sizeof(index_id_t)
+		byte		row[sizeof(space_index_t)
 				    + sizeof(ib_uint32_t) * 8];
 
 		ptr = row;
 
-		ut_ad(sizeof(index_id_t) == 8);
+		ut_ad(sizeof(space_index_t) == 8);
 		mach_write_to_8(ptr, index->id);
-		ptr += sizeof(index_id_t);
+		ptr += sizeof(space_index_t);
 
 		mach_write_to_4(ptr, index->space);
 		ptr += sizeof(ib_uint32_t);

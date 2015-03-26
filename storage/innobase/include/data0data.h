@@ -336,16 +336,17 @@ dtuple_coll_cmp(
 	const dtuple_t*	tuple1,
 	const dtuple_t*	tuple2)
 	__attribute__((warn_unused_result));
-/************************************************************//**
-Folds a prefix given as the number of fields of a tuple.
+/** Compute a hash value of a prefix of an index record.
+@param[in]	tuple		index record
+@param[in]	n_fields	number of fields to include
+@param[in]	fold		fold value of the index identifier
 @return the folded value */
 UNIV_INLINE
 ulint
 dtuple_fold(
-/*========*/
-	const dtuple_t*	tuple,	/*!< in: the tuple */
-	ulint		n_fields,/*!< in: number of complete fields to fold */
-	index_id_t	tree_id)/*!< in: index tree id */
+	const dtuple_t*	tuple,
+	ulint		n_fields,
+	ulint		fold)
 	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Sets types of fields binary in a tuple. */
