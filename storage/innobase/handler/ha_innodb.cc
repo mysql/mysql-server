@@ -9537,7 +9537,7 @@ create_table_info_t::create_option_data_directory_is_valid()
 	      && m_create_info->data_file_name[0] != '\0');
 
 	/* Use DATA DIRECTORY only with file-per-table. */
-	if (!m_use_shared_space && !m_file_per_table) {
+	if (!m_use_shared_space && !m_allow_file_per_table) {
 		push_warning(
 			m_thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9654,7 +9654,7 @@ create_table_info_t::create_option_tablespace_is_valid()
 	}
 
 	/* If TABLESPACE=innodb_file_per_table this function is not called
-	since target_is_shared_space() will return false.  Any other
+	since tablespace_is_shared_space() will return false.  Any other
 	tablespace is incompatible with the DATA DIRECTORY phrase.
 	On any ALTER TABLE that contains a DATA DIRECTORY, MySQL will issue
 	a warning like "<DATA DIRECTORY> option ignored." The check below is
@@ -9810,7 +9810,7 @@ create_table_info_t::create_options_are_invalid()
 			}
 
 			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
-			if (!m_file_per_table) {
+			if (!m_allow_file_per_table) {
 				push_warning(
 					m_thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9844,7 +9844,7 @@ create_table_info_t::create_options_are_invalid()
 	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
 		if (!m_use_shared_space) {
-			if (!m_file_per_table) {
+			if (!m_allow_file_per_table) {
 				push_warning_printf(
 					m_thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9866,7 +9866,7 @@ create_table_info_t::create_options_are_invalid()
 		break;
 	case ROW_TYPE_DYNAMIC:
 		if (!m_use_shared_space) {
-			if (!m_file_per_table && !is_temp) {
+			if (!m_allow_file_per_table && !is_temp) {
 				push_warning_printf(
 					m_thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -10051,7 +10051,7 @@ create_table_info_t::parse_table_name(
 	returns error if it is in full path format, but not creating a temp.
 	table. Currently InnoDB does not support symbolic link on Windows. */
 
-	if (m_file_per_table
+	if (m_innodb_file_per_table
 	    && !mysqld_embedded
 	    && !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
@@ -10165,7 +10165,7 @@ create_table_info_t::innobase_table_flags()
 			if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE
 			    && m_create_info->options
 			       & HA_LEX_CREATE_INTERNAL_TMP_TABLE
-			    && !m_file_per_table) {
+			    && !m_use_file_per_table) {
 				my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 				DBUG_RETURN(false);
 			}
@@ -10208,7 +10208,7 @@ index_bad:
 		}
 
 		/* Make sure compressed row format is allowed. */
-		if (!m_file_per_table && !m_use_shared_space) {
+		if (!m_allow_file_per_table && !m_use_shared_space) {
 			push_warning(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -10310,7 +10310,7 @@ index_bad:
 		ROW_FORMAT=DYNAMIC requires file_per_table and
 		file_format=Barracuda unless there is a target tablespace or
 		it is a temp file */
-		if (!m_file_per_table
+		if (!m_allow_file_per_table
 		    && !m_use_shared_space
 		    && (row_type == ROW_TYPE_COMPRESSED
 		        || (row_type == ROW_TYPE_DYNAMIC
@@ -10395,29 +10395,6 @@ index_bad:
 			m_flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
 
 	DBUG_RETURN(true);
-}
-
-/** Check if table is non-compressed temporary table.
-@param[in]	create_info	Metadata for the table to create.
-@return true if non-compressed temporary table. */
-UNIV_INLINE
-bool
-table_is_noncompressed_temporary(
-	const HA_CREATE_INFO*	create_info)
-{
-	/* If you specify ROW_FORMAT=COMPRESSED but not KEY_BLOCK_SIZE,
-	the default compressed page size of 8KB is used. Setting of 8K
-	is done in innodb at latter stage during data validation.
-	MySQL will continue to report key_block_size as 0 */
-	bool is_compressed =
-		(create_info->row_type == ROW_TYPE_COMPRESSED
-		 || create_info->key_block_size > 0)
-		&& (srv_file_format >= UNIV_FORMAT_B)
-		&& srv_file_per_table;
-
-	bool is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
-
-	return(is_temp && !is_compressed);
 }
 
 /** Parse MERGE_THRESHOLD value from the string.
@@ -10591,22 +10568,38 @@ innobase_parse_hint_from_comment(
 
 /** Set m_use_* flags. */
 void
-create_table_info_t::set_tablespace_type()
+create_table_info_t::set_tablespace_type(
+	bool	table_being_altered_is_file_per_table)
 {
-	/*
-	Ignore the current innodb-file-per-table setting if we are
+	/* Note whether this table will be created using a shared,
+	general or system tablespace. */
+	m_use_shared_space = tablespace_is_shared_space(m_create_info);
+
+	/** Allow file_per_table for this table either because:
+	1) the setting innodb_file_per_table=on,
+	2) the table being altered is currently file_per_table
+	3) explicitly requested by tablespace=innodb_file_per_table. */
+	m_allow_file_per_table =
+		m_innodb_file_per_table
+		|| table_being_altered_is_file_per_table
+		|| tablespace_is_file_per_table(m_create_info);
+
+	/* All noncompresed temporary tables will be put into the
+	system temporary tablespace.  */
+	bool is_noncompressed_temporary =
+		m_create_info->options & HA_LEX_CREATE_TMP_TABLE
+		&& !(m_create_info->row_type == ROW_TYPE_COMPRESSED
+		     || m_create_info->key_block_size > 0);
+
+	/* Ignore the current innodb-file-per-table setting if we are
 	creating a temporary, non-compressed table or if the
 	TABLESPACE= phrase is using an existing shared tablespace. */
 	m_use_file_per_table =
-		(m_file_per_table || target_is_file_per_table(m_create_info))
-		&& !table_is_noncompressed_temporary(m_create_info)
-		&& !target_is_shared_space(m_create_info);
+		m_allow_file_per_table
+		&& !is_noncompressed_temporary
+		&& !m_use_shared_space;
 
-	/* Note whether this table will be created using a shared,
-	general or system tablespace. */
-	m_use_shared_space = target_is_shared_space(m_create_info);
-
-	/* DATA DIRECTORY must have m_file_per_table but cannot be
+	/* DATA DIRECTORY must have m_use_file_per_table but cannot be
 	used with TEMPORARY tables. */
 	m_use_data_dir =
 		m_use_file_per_table
@@ -10668,7 +10661,7 @@ create_table_info_t::prepare_create_table(
 
 	ut_ad(m_form->s->row_type == m_create_info->row_type);
 
-	set_tablespace_type();
+	set_tablespace_type(false);
 
 	/* Validate the create options if innodb_strict_mode is set.
 	Do not use the regular message for ER_ILLEGAL_HA_CREATE_OPTION

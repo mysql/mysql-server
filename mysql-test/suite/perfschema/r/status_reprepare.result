@@ -1,0 +1,35 @@
+
+================================================================================
+SETUP
+================================================================================
+# Save current SHOW_COMPATIBILITY_56 setting
+SELECT @@global.show_compatibility_56 INTO @show_compatibility_56_save;
+SET @@global.show_compatibility_56=OFF;
+CREATE TABLE test.t1 (c1 INT);
+PREPARE stmt1 FROM "SELECT c1 FROM test.t1";
+EXECUTE stmt1;
+c1
+SHOW STATUS LIKE "%com_stmt_%prepare%";
+Variable_name	Value
+Com_stmt_prepare	1
+Com_stmt_reprepare	0
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "%com_stmt%";
+VARIABLE_NAME	VARIABLE_VALUE
+Com_stmt_reprepare	0
+ALTER TABLE test.t1 ADD COLUMN c2 INTEGER;
+EXECUTE stmt1;
+c1
+SHOW STATUS LIKE "%com_stmt_%prepare%";
+Variable_name	Value
+Com_stmt_prepare	2
+Com_stmt_reprepare	1
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "%com_stmt%";
+VARIABLE_NAME	VARIABLE_VALUE
+Com_stmt_reprepare	1
+
+================================================================================
+CLEANUP
+================================================================================
+DROP TABLE test.t1;
+# Restore SHOW_COMPATIBILITY_56 setting
+SET @@global.show_compatibility_56 = @show_compatibility_56_save;
