@@ -22,6 +22,7 @@
 #include "derror.h"           // ER_THD
 #include "events.h"           // Events
 #include "item_timefunc.h"    // Item_func_unix_timestamp
+#include "key_spec.h"         // Key_spec
 #include "log.h"              // query_logger
 #include "log_event.h"        // slave_execute_deferred_events
 #include "mysqld.h"           // stage_execution_of_init_command
@@ -5330,9 +5331,9 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   }
   if (type_modifier & PRI_KEY_FLAG)
   {
-    Key *key;
+    Key_spec *key;
     lex->col_list.push_back(new Key_part_spec(*field_name, 0));
-    key= new Key(KEYTYPE_PRIMARY, null_lex_str,
+    key= new Key_spec(KEYTYPE_PRIMARY, null_lex_str,
                       &default_key_create_info,
                       0, lex->col_list);
     lex->alter_info.key_list.push_back(key);
@@ -5340,11 +5341,11 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
-    Key *key;
+    Key_spec *key;
     lex->col_list.push_back(new Key_part_spec(*field_name, 0));
-    key= new Key(KEYTYPE_UNIQUE, null_lex_str,
-                 &default_key_create_info, 0,
-                 lex->col_list);
+    key= new Key_spec(KEYTYPE_UNIQUE, null_lex_str,
+                      &default_key_create_info, 0,
+                      lex->col_list);
     lex->alter_info.key_list.push_back(key);
     lex->col_list.empty();
   }

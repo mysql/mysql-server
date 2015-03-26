@@ -26,14 +26,12 @@
 #include "auth/sql_security_ctx.h"        // Security_context
 #include "discrete_interval.h"            // Discrete_interval
 #include "error_handler.h"                // Internal_error_handler
-#include "handler.h"                      // KEY_CREATE_INFO
 #include "opt_trace_context.h"            // Opt_trace_context
 #include "protocol_classic.h"             // Protocol_text
 #include "rpl_context.h"                  // Rpl_thd_context
 #include "session_tracker.h"              // Session_tracker
-#include "sql_alloc.h"                    // Sql_alloc
 #include "sql_digest_stream.h"            // sql_digest_state
-#include "sql_lex.h"                      // keytype
+#include "sql_lex.h"                      // LEX
 #include "sql_profile.h"                  // PROFILING
 #include "sys_vars_resource_mgr.h"        // Session_sysvar_resource_manager
 #include "system_variables.h"             // system_variables
@@ -85,98 +83,6 @@ extern LEX_CSTRING NULL_CSTR;
 
 LEX_CSTRING thd_query_unsafe(THD *thd);
 size_t thd_query_safe(THD *thd, char *buf, size_t buflen);
-
-class Key_part_spec :public Sql_alloc {
-public:
-  LEX_STRING field_name;
-  uint length;
-  Key_part_spec(const LEX_STRING &name, uint len)
-    : field_name(name), length(len)
-  {}
-  Key_part_spec(const char *name, const size_t name_len, uint len)
-    : length(len)
-  { field_name.str= (char *)name; field_name.length= name_len; }
-  bool operator==(const Key_part_spec& other) const;
-  /**
-    Construct a copy of this Key_part_spec. field_name is copied
-    by-pointer as it is known to never change. At the same time
-    'length' may be reset in mysql_prepare_create_table, and this
-    is why we supply it with a copy.
-
-    @return If out of memory, 0 is returned and an error is set in
-    THD.
-  */
-  Key_part_spec *clone(MEM_ROOT *mem_root) const
-  { return new (mem_root) Key_part_spec(*this); }
-};
-
-
-class Key :public Sql_alloc {
-public:
-  keytype type;
-  KEY_CREATE_INFO key_create_info;
-  List<Key_part_spec> columns;
-  LEX_STRING name;
-  bool generated;
-
-  Key(keytype type_par, const LEX_STRING &name_arg,
-      KEY_CREATE_INFO *key_info_arg,
-      bool generated_arg, List<Key_part_spec> &cols)
-    :type(type_par), key_create_info(*key_info_arg), columns(cols),
-    name(name_arg), generated(generated_arg)
-  {}
-  Key(keytype type_par, const char *name_arg, size_t name_len_arg,
-      KEY_CREATE_INFO *key_info_arg, bool generated_arg,
-      List<Key_part_spec> &cols)
-    :type(type_par), key_create_info(*key_info_arg), columns(cols),
-    generated(generated_arg)
-  {
-    name.str= (char *)name_arg;
-    name.length= name_len_arg;
-  }
-  Key(const Key &rhs, MEM_ROOT *mem_root);
-  virtual ~Key() {}
-  /* Equality comparison of keys (ignoring name) */
-  friend bool foreign_key_prefix(Key *a, Key *b);
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  virtual Key *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Key(*this, mem_root); }
-};
-
-
-class Foreign_key: public Key {
-public:
-
-  LEX_CSTRING ref_db;
-  LEX_CSTRING ref_table;
-  List<Key_part_spec> ref_columns;
-  uint delete_opt, update_opt, match_opt;
-  Foreign_key(const LEX_STRING &name_arg, List<Key_part_spec> &cols,
-	      const LEX_CSTRING &ref_db_arg, const LEX_CSTRING &ref_table_arg,
-              List<Key_part_spec> &ref_cols,
-	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(KEYTYPE_FOREIGN, name_arg, &default_key_create_info, 0, cols),
-    ref_db(ref_db_arg), ref_table(ref_table_arg), ref_columns(ref_cols),
-    delete_opt(delete_opt_arg), update_opt(update_opt_arg),
-    match_opt(match_opt_arg)
-  {
-    // We don't check for duplicate FKs.
-    key_create_info.check_for_duplicate_indexes= false;
-  }
-  Foreign_key(const Foreign_key &rhs, MEM_ROOT *mem_root);
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  virtual Key *clone(MEM_ROOT *mem_root) const
-  { return new (mem_root) Foreign_key(*this, mem_root); }
-  /* Used to validate foreign key options */
-  bool validate(List<Create_field> &table_fields);
-};
-
 
 /**
  To be used for pool-of-threads (implemeneted differently on various OSs)

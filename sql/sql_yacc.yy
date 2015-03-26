@@ -47,6 +47,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "log_event.h"
 #include "lex_symbol.h"
 #include "item_create.h"
+#include "key_spec.h"
 #include "sp_head.h"
 #include "sp_instr.h"
 #include "sp_pcontext.h"
@@ -384,9 +385,10 @@ static bool add_create_index (LEX *lex, keytype type,
                               const LEX_STRING &name,
                               KEY_CREATE_INFO *info= NULL, bool generated= 0)
 {
-  Key *key;
-  key= new Key(type, name, info ? info : &lex->key_create_info, generated,
-               lex->col_list);
+  Key_spec *key;
+  key= new Key_spec(type, name, info ? info : &lex->key_create_info,
+                    generated,
+                    lex->col_list);
   if (key == NULL)
     return TRUE;
 
@@ -6221,13 +6223,14 @@ key_def:
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
             LEX *lex=Lex;
-            Key *key= new Foreign_key($4.str ? $4 : $1, lex->col_list,
-                                      $8->db,
-                                      $8->table,
-                                      lex->ref_list,
-                                      lex->fk_delete_opt,
-                                      lex->fk_update_opt,
-                                      lex->fk_match_option);
+            Key_spec *key=
+              new Foreign_key_spec($4.str ? $4 : $1, lex->col_list,
+                                   $8->db,
+                                   $8->table,
+                                   lex->ref_list,
+                                   lex->fk_delete_opt,
+                                   lex->fk_update_opt,
+                                   lex->fk_match_option);
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
