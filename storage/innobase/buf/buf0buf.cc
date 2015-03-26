@@ -5278,31 +5278,31 @@ buf_page_monitor(
 		: ((buf_block_t*) bpage)->frame;
 
 	switch (fil_page_get_type(frame)) {
-		ulint	level;
-
 	case FIL_PAGE_INDEX:
-	case FIL_PAGE_RTREE:
-		level = btr_page_get_level_low(frame);
-
 		/* Check if it is an index page for insert buffer */
-		if (btr_page_get_index_id(frame) == static_cast<space_index_t>(
+		if (bpage->id.space() == IBUF_SPACE_ID
+		    && btr_page_get_index_id(frame)
+		    == static_cast<space_index_t>(
 			    DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
-			if (level == 0) {
+			if (page_is_leaf(frame)) {
 				counter = MONITOR_RW_COUNTER(
-					io_type, MONITOR_INDEX_IBUF_LEAF_PAGE);
+					io_type,
+					MONITOR_INDEX_IBUF_LEAF_PAGE);
 			} else {
 				counter = MONITOR_RW_COUNTER(
 					io_type,
 					MONITOR_INDEX_IBUF_NON_LEAF_PAGE);
 			}
+			break;
+		}
+		/* fall through */
+	case FIL_PAGE_RTREE:
+		if (page_is_leaf(frame)) {
+			counter = MONITOR_RW_COUNTER(
+				io_type, MONITOR_INDEX_LEAF_PAGE);
 		} else {
-			if (level == 0) {
-				counter = MONITOR_RW_COUNTER(
-					io_type, MONITOR_INDEX_LEAF_PAGE);
-			} else {
-				counter = MONITOR_RW_COUNTER(
-					io_type, MONITOR_INDEX_NON_LEAF_PAGE);
-			}
+			counter = MONITOR_RW_COUNTER(
+				io_type, MONITOR_INDEX_NON_LEAF_PAGE);
 		}
 		break;
 
