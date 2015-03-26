@@ -4248,70 +4248,6 @@ end_test:
   return NDBT_OK;
 }
 
-/*************************************************************
- * Check highestQueuedEpoch stays stable over a poll period
- * while latestGCI increases due to newer completely-received
- * epochs get buffered
- */
-int
-runCheckHQElatestGCI(NDBT_Context* ctx, NDBT_Step* step)
-{
-  Ndb* pNdb = GETNDB(step);
-  const NdbDictionary::Table* pTab = ctx->getTab();
-
-  NdbEventOperation* evOp = createEventOperation(pNdb, *pTab);
-  CHK(evOp != NULL, "Event operation creation failed");
-  CHK(evOp->execute() == 0, "execute operation execution failed");
-
-  Uint64 highestQueuedEpoch = 0;
-  int pollRetries = 10;
-  int res = 0;
-  while (res == 0 && pollRetries-- > 0)
-  {
-    res = pNdb->pollEvents2(1000, &highestQueuedEpoch);
-  }
-
-  // 10 sec waiting should be enough to get an epoch with default
-  // TimeBetweenEpochsTimeout (4 sec) and TimeBetweenEpochs (100 millsec).
-  CHK(highestQueuedEpoch != 0, "No epochs received after 10 secs");
-
-
-  // Wait for some more epochs to be buffered.
-  int retries = 10;
-  Uint64 latest = 0;
-  do
-  {
-    NdbSleep_SecSleep(1);
-    latest = pNdb->getLatestGCI();
-  } while (latest <= highestQueuedEpoch && retries-- > 0);
-
-  CHK(latest > highestQueuedEpoch, "No new epochs buffered");
-
-  const Uint64 hqe = pNdb->getHighestQueuedEpoch();
-  if (highestQueuedEpoch != hqe)
-  {
-    g_err << "Highest queued epoch " << highestQueuedEpoch
-          << " has changed before the next poll to "
-          << pNdb->getHighestQueuedEpoch() << endl;
-    return NDBT_FAILED;
-  }
-
-  pNdb->pollEvents2(1000, &highestQueuedEpoch);
-  if (highestQueuedEpoch <= hqe || highestQueuedEpoch < latest)
-  {
-    g_err << "No new epochs polled:"
-          << " highestQueuedEpoch at the last poll" << hqe
-          << " highestQueuedEpoch at the this poll " << highestQueuedEpoch
-          << " latest epoch seen " << latest << endl;
-    return NDBT_FAILED;
-  }
-
-  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
-
-  ctx->stopTest();
-  return NDBT_OK;
-}
-
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -4613,15 +4549,6 @@ TESTCASE("BackwardCompatiblePollInconsistency",
   STEP(runInsertDeleteUntilStopped);
   STEP(runPollBCInconsistency);
   STEP(errorInjectBufferOverflowOnly);
-  FINALIZER(runDropEvent);
-}
-TESTCASE("Apiv2HQE-latestGCI",
-         "Verify the behaviour of the new API w.r.t."
-         "highest queued and latest received epochs")
-{
-  INITIALIZER(runCreateEvent);
-  STEP(runCheckHQElatestGCI);
-  STEP(runInsertDeleteUntilStopped);
   FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);
