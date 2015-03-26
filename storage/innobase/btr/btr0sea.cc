@@ -100,6 +100,7 @@ btr_search_fold_index_id(
 	return(ut_fold_ulint_pair(ut_fold_ull(index_id), space_id));
 }
 
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Compute the hash value of an index identifier.
 @param[in]	id	index identifier
 @return hash value */
@@ -110,6 +111,7 @@ btr_search_fold_index_id(
 {
 	return(btr_search_fold_index_id(id.m_space_id, id.m_index_id));
 }
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 /********************************************************************//**
 Builds a hash index on a page with the given parameters. If the page already
