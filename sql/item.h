@@ -4426,8 +4426,9 @@ public:
     This is the method that updates the cached value.
     It must be explicitly called by the user of this class to store the value 
     of the orginal item in the cache.
+    @returns false if OK, true on error.
   */  
-  virtual void copy() = 0;
+  virtual bool copy(const THD *thd) = 0;
 
   Item *get_item() { return item; }
   /** All of the subclasses should have the same type tag */
@@ -4476,7 +4477,7 @@ public:
   longlong val_int();
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
-  void copy();
+  virtual bool copy(const THD *thd);
   type_conversion_status save_in_field(Field *field, bool no_conversions);
 };
 
@@ -4507,7 +4508,7 @@ public:
   {
     return get_time_from_int(ltime);
   }
-  virtual void copy();
+  virtual bool copy(const THD *thd);
 };
 
 
@@ -4553,11 +4554,7 @@ public:
   {
     return get_time_from_real(ltime);
   }
-  void copy()
-  {
-    cached_value= item->val_real();
-    null_value= item->null_value;
-  }
+  virtual bool copy(const THD *thd);
 };
 
 
@@ -4584,7 +4581,7 @@ public:
   {
     return get_time_from_decimal(ltime);
   }
-  void copy();
+  virtual bool copy(const THD *thd);
 };
 
 

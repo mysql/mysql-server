@@ -2112,7 +2112,8 @@ void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
   if ((type() != SUM_FUNC_ITEM && with_sum_func) ||
       (type() == FUNC_ITEM &&
        (((Item_func *) this)->functype() == Item_func::ISNOTNULLTEST_FUNC ||
-        ((Item_func *) this)->functype() == Item_func::TRIG_COND_FUNC)))
+        ((Item_func *) this)->functype() == Item_func::TRIG_COND_FUNC)) ||
+      type() == ROW_ITEM)
   {
     /* Will split complicated items and ignore simple ones */
     split_sum_func(thd, ref_pointer_array, fields);
@@ -4540,12 +4541,13 @@ Item_copy_string::save_in_field(Field *field, bool no_conversions)
 }
 
 
-void Item_copy_string::copy()
+bool Item_copy_string::copy(const THD *thd)
 {
   String *res=item->val_str(&str_value);
   if (res && res != &str_value)
     str_value.copy(*res);
   null_value=item->null_value;
+  return thd->is_error();
 }
 
 /* ARGSUSED */
@@ -4582,10 +4584,11 @@ bool Item_copy_string::get_time(MYSQL_TIME *ltime)
   Item_copy_int
 ****************************************************************************/
 
-void Item_copy_int::copy()
+bool Item_copy_int::copy(const THD *thd)
 {
   cached_value= item->val_int();
   null_value=item->null_value;
+  return thd->is_error();
 }
 
 static type_conversion_status
@@ -4637,6 +4640,13 @@ String *Item_copy_uint::val_str(String *str)
 /****************************************************************************
   Item_copy_float
 ****************************************************************************/
+
+bool Item_copy_float::copy(const THD *thd)
+{
+  cached_value= item->val_real();
+  null_value= item->null_value;
+  return thd->is_error();
+}
 
 String *Item_copy_float::val_str(String *str)
 {
@@ -4727,12 +4737,13 @@ longlong Item_copy_decimal::val_int()
 }
 
 
-void Item_copy_decimal::copy()
+bool Item_copy_decimal::copy(const THD *thd)
 {
   my_decimal *nr= item->val_decimal(&cached_value);
   if (nr && nr != &cached_value)
     my_decimal2decimal (nr, &cached_value);
   null_value= item->null_value;
+  return thd->is_error();
 }
 
 

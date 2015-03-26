@@ -938,6 +938,14 @@ dict_tf_get_page_size(
 	ulint	flags)
 __attribute__((const));
 
+/** Determine the extent size (in pages) for the given table
+@param[in]	table	the table whose extent size is being
+			calculated.
+@return extent size in pages (256, 128 or 64) */
+ulint
+dict_table_extent_size(
+	const dict_table_t*	table);
+
 /** Get the table page size.
 @param[in]	table	table
 @return compressed page size, or 0 if not compressed */

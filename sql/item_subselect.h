@@ -39,6 +39,8 @@ typedef class st_select_lex SELECT_LEX;
 /**
   Convenience typedef used in this file, and further used by any files
   including this file.
+
+  @retval NULL In case of semantic errors.
 */
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 
