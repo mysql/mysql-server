@@ -1488,6 +1488,15 @@ public:
     Uint16 logPartNo;
 
     /**
+     * Keep track of the first invalid log page found in our search. This
+     * enables us to print information about irregular writes of log pages
+     * at the end of the REDO log.
+     */
+    Uint16 endInvalidMByteSearch;
+    Uint16 firstInvalidateFileNo;
+    Uint16 firstInvalidatePageNo;
+    bool firstInvalidatePageFound;
+    /**
      * IO tracker...
      */
     struct IOTracker m_io_tracker;
@@ -2484,7 +2493,10 @@ private:
   void checkReadExecSr(Signal* signal);
   void checkScanTcCompleted(Signal* signal);
   void closeFile(Signal* signal, LogFileRecordPtr logFilePtr, Uint32 place);
-  void completedLogPage(Signal* signal, Uint32 clpType, Uint32 place);
+  void completedLogPage(Signal* signal,
+                        Uint32 clpType,
+                        Uint32 place,
+                        bool sync_flag = false);
 
   void commit_reorg(TablerecPtr tablePtr);
   void wait_reorg_suma_filter_enabled(Signal*);

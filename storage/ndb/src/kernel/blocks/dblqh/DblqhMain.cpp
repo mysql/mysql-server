@@ -17130,7 +17130,11 @@ void Dblqh::readSrLastFileLab(Signal* signal)
    *    MBYTE THAT WAS LAST WRITTEN BEFORE THE SYSTEM CRASH.
    * ------------------------------------------------------------------------ */
   logPartPtr.p->lastLogfile = logFilePtr.i;
-  readSinglePage(signal, 0);
+  /**
+   * We read page 1 in the first MByte since we don't invalidate page 0 in
+   * a log file, so we can't trust this page to have a correct log lap number.
+   */
+  readSinglePage(signal, 1);
   lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_LAST_MBYTE;
   logFilePtr.p->currentMbyte = 0;
   return;
@@ -19292,13 +19296,138 @@ Dblqh::invalidateLogAfterLastGCI(Signal* signal)
   }
   case LogFileOperationRecord::READ_SR_INVALIDATE_PAGES:
     jam();
-    // Check if this page must be invalidated.
-    // If the log lap number on a page after the head of the tail is the same 
-    // as the actual log lap number we must invalidate this page. Otherwise it
-    // could be impossible to find the end of the log in a later system/node 
-    // restart.
-    if (logPagePtr.p->logPageWord[ZPOS_LOG_LAP] == logPartPtr.p->logLap) 
+    /**
+     * Check if this page must be invalidated.
+     *
+     * If the log lap number on a page after the head of the log is the same 
+     * as the actual log lap number we must invalidate this page. Otherwise it
+     * could be impossible to find the end of the log in a later system/node 
+     * restart.
+     *
+     * After a restart, the log lap is used to find the old head (last written
+     * part) of the redo log. In some cases recovery may complete by applying
+     * up to some point long before the old head of the redo log, creating a
+     * new head at an earlier position.  In this case, it is important to
+     * invalidate the 'trimmed' part up to the old head, so that a future
+     * recovery does not accidentally include it based on the log lap.  This
+     * invalidation must itself be repeatable in case it fails part-way through.
+     *
+     * In addition we have the following conditions that give us an end to the
+     * search. If it were not for these conditions when we find the first log
+     * page with the wrong log lap.
+     *
+     * 1) Redo log writing can skip over pages to the next MByte start, this
+     * means that pages can contain an old log lap although they are in the
+     * part of REDO log which should be invalidated unless we search forward
+     * at least until the next MByte start. We can have at most 1 MByte minus
+     * one page of such pages with old log lap. When we skip major chunks like
+     * this we set the synch flag to ensure that we can have an upper bound of
+     * how far ahead in the REDO log we need to search until we have found the
+     * end of it.
+     *
+     * 2) We can at most have 1 MByte of log writes outstanding.
+     *    This is ensured by NDBFS through the use of the auto_sync_size
+     *    parameter when calling NDBFS to open the file.
+     *
+     * 3) In worst case scenarios we get the last of those 1 MByte of pages
+     *    written by NDBFS ending up on disk, but no other page.
+     *
+     * Given these facts we need to search onwards for a page with a current
+     * log lap for at least 1 MByte plus the maximum skip size at MByte change
+     * until we stop the search and decide we actually found the last page with
+     * the current log lap number. The maximum skip size at normal MByte change
+     * is equal to the largest size of a REDO log record. At the moment this
+     * should never be bigger than one REDO log page at the moment. But this
+     * can and will change in the future most likely.
+     *
+     * As an additional safety measure and to align the algorithm searching
+     * for the first page to start invalidate from (invalidation happens
+     * in a backward fashion) and the algorithm searching for the log end
+     * at restart, we will not stop the search until we have found an
+     * unwritten page 0 of a MByte (or page 1 for the first MByte in a file).
+     *
+     * This means that if we check one entire MByte from the first unwritten
+     * page we find then we are always safe that we have found the end of the
+     * REDO log.
+     *
+     * If we don't invalidate all REDO log pages that are invalid we can
+     * easily run into problems in later restarts by connecting new log
+     * pages to old invalid log pages which makes the finding of the start
+     * and end of log impossible.
+     */
+
+    do
     {
+      if (logPagePtr.p->logPageWord[ZPOS_LOG_LAP] < logPartPtr.p->logLap)
+      {
+        /**
+         * We have found an old page which haven't been written in this log
+         * lap. We need however to continue searching for pages to invalidate
+         * a bit further. We need to actually find a page 0 within a
+         * MByte that is old before we can quit the search and for the first
+         * MByte this is actually page 1 since we never invalidate page 0 of
+         * a log file.
+         *
+         * We will still track the old pages to provide some printouts of
+         * that this happened so that we can gain better understanding of
+         * how the REDO log writing actually works.
+         */
+        if (!logPartPtr.p->firstInvalidatePageFound)
+        {
+          Uint32 firstInvalidMByte = logPartPtr.p->invalidatePageNo /
+                                     ZPAGES_IN_MBYTE;
+          if ((firstInvalidMByte + 2) >= clogFileSize)
+          {
+            jam();
+            logPartPtr.p->endInvalidMByteSearch =
+              (firstInvalidMByte + 2) - clogFileSize;
+          }
+          else
+          {
+            jam();
+            logPartPtr.p->endInvalidMByteSearch = firstInvalidMByte + 2;
+          }
+          logPartPtr.p->firstInvalidatePageFound = true;
+          logPartPtr.p->firstInvalidatePageNo = logPartPtr.p->invalidatePageNo;
+          logPartPtr.p->firstInvalidateFileNo = logPartPtr.p->invalidateFileNo;
+        }
+        else
+        {
+          jam();
+          if (((logPartPtr.p->invalidatePageNo % ZPAGES_IN_MBYTE) == 0) ||
+               (logPartPtr.p->invalidatePageNo == 1))
+          {
+            jam();
+            Uint32 currentMByte = logPartPtr.p->invalidatePageNo /
+                                  ZPAGES_IN_MBYTE;
+            if (currentMByte == logPartPtr.p->endInvalidMByteSearch)
+            {
+              jam();
+              /* No need to search any longer */
+              break;
+            }
+          }
+        }
+      }
+      else
+      {
+        ndbrequire(logPagePtr.p->logPageWord[ZPOS_LOG_LAP] ==
+                   logPartPtr.p->logLap);
+        if (logPartPtr.p->firstInvalidatePageFound)
+        {
+          jam();
+          logPartPtr.p->firstInvalidatePageFound = false;
+          g_eventLogger->info("Found a block of unwritten log pages in part %u"
+                              ", followed by a written page, First unwritten:"
+                              " file: %u, page: %u, Written: file: %u,"
+                              " page: %u",
+                              logPartPtr.p->logPartNo,
+                              logPartPtr.p->firstInvalidateFileNo,
+                              logPartPtr.p->firstInvalidatePageNo,
+                              logPartPtr.p->invalidateFileNo,
+                              logPartPtr.p->invalidatePageNo);
+        }
+      }
       jam();
       // This page must be invalidated.
       // We search for end
@@ -19307,12 +19436,43 @@ Dblqh::invalidateLogAfterLastGCI(Signal* signal)
       releaseLogpage(signal); 
       readFileInInvalidate(signal, 1);
       return;
-    }
+    } while (0);
 
     /**
      * We found the "last" page to invalidate...
-     *   Invalidate backwards until head...
+     *
+     * We now need to start the invalidation from firstInvalidatePageNo - 1.
+     * We invalidate backwards to ensure that we make progress even in the
+     * presence of multiple restarts.
+     *
+     * We could however have already stepped into a new file, in this case
+     * we will start the invalidation writes from page 1 to ensure that
+     * integrate this stepping ahead nicely with the file change code.
+     * This is a harmless side effect since invalidating an invalid page
+     * is not a problem.
      */
+
+    if (logPartPtr.p->invalidateFileNo != logPartPtr.p->firstInvalidateFileNo)
+    {
+      jam();
+      logPartPtr.p->invalidatePageNo = 1;
+    }
+    else
+    {
+      jam();
+      logPartPtr.p->invalidatePageNo = logPartPtr.p->firstInvalidatePageNo;
+    }
+    g_eventLogger->info("Start invalidating: Part %u, Head: file: %u,"
+                        " page: %u, Invalidation start: file: %u,"
+                        " page: %u, actual start invalidate: file: %u"
+                        " page: %u",
+                        logPartPtr.p->logPartNo,
+                        logPartPtr.p->headFileNo,
+                        logPartPtr.p->headPageNo,
+                        logPartPtr.p->firstInvalidateFileNo,
+                        logPartPtr.p->firstInvalidatePageNo - 1,
+                        logPartPtr.p->invalidateFileNo,
+                        logPartPtr.p->invalidatePageNo - 1);
 
     // Fall through...
   case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES:
@@ -19408,12 +19568,40 @@ Dblqh::writeFileInInvalidate(Signal* signal, int stepPrev)
 
   seizeLogpage(signal);
 
+  bool sync = false;
+  const bool isLastPageToInvalidateInPart =
+    ((logPartPtr.p->invalidatePageNo - 1) == logPartPtr.p->headPageNo) &&
+     (logPartPtr.p->invalidateFileNo == logPartPtr.p->headFileNo);
+  const bool isLastPageToInvalidateInFile =
+    logPartPtr.p->invalidatePageNo == 1;
+  const bool isLastPageToInvalidateInMByte =
+    (logPartPtr.p->invalidatePageNo % ZPAGES_IN_MBYTE) == 0;
+  if (isLastPageToInvalidateInPart ||
+      isLastPageToInvalidateInFile ||
+      isLastPageToInvalidateInMByte)
+  {
+    /**
+     * In some cases we could end up with thousands of log pages to
+     * to invalidate, to speed up this processing, only sync at file
+     * switch, at the last page to write in a MByte. This will decrease
+     * invalidation times in those cases from minutes to seconds.
+     *
+     * We keep the maximum size of invalidation writes to 1MByte and at
+     * boundaries of MBytes to ensure that we don't allow for ways to
+     * increase the set of unwritten pages in multiple restarts.
+     */
+    jam();
+    sync = true;
+  }
   /**
    * Make page really empty
    */
   bzero(logPagePtr.p, sizeof(LogPageRecord));
-  writeSinglePage(signal, logPartPtr.p->invalidatePageNo,
-                  ZPAGE_SIZE - 1, __LINE__);
+  writeSinglePage(signal,
+                  logPartPtr.p->invalidatePageNo,
+                  ZPAGE_SIZE - 1,
+                  __LINE__,
+                  sync);
 
   lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES;
   return;
@@ -20165,6 +20353,7 @@ void Dblqh::readSrFourthZeroLab(Signal* signal)
   logPartPtr.p->invalidateFileNo = logPartPtr.p->headFileNo;
   logPartPtr.p->invalidatePageNo = logPartPtr.p->headPageNo;
   logPartPtr.p->logExecState = LogPartRecord::LES_EXEC_LOG_INVALIDATE;
+  logPartPtr.p->firstInvalidatePageFound = false;
    
   readFileInInvalidate(signal, 3);
   return;
@@ -20485,7 +20674,7 @@ void Dblqh::buildLinkedLogPageList(Signal* signal)
  * =======                      CHANGE TO NEXT MBYTE IN LOG           ======= 
  *
  * ========================================================================= */
-void Dblqh::changeMbyte(Signal* signal) 
+void Dblqh::changeMbyte(Signal* signal)
 {
   writeNextLog(signal);
   writeFileDescriptor(signal);
@@ -20602,7 +20791,10 @@ void Dblqh::closeFile(Signal* signal,
 // logPartPtr
 // Defines lfoPtr
 /* ---------------------------------------------------------------- */
-void Dblqh::completedLogPage(Signal* signal, Uint32 clpType, Uint32 place) 
+void Dblqh::completedLogPage(Signal* signal,
+                             Uint32 clpType,
+                             Uint32 place,
+                             bool sync_flag)
 {
   LogPageRecordPtr clpLogPagePtr;
   LogPageRecordPtr wlpLogPagePtr;
@@ -20662,7 +20854,7 @@ void Dblqh::completedLogPage(Signal* signal, Uint32 clpType, Uint32 place)
   signal->theData[0] = logFilePtr.p->fileRef;
   signal->theData[1] = cownref;
   signal->theData[2] = lfoPtr.i;
-  if (twlpType == ZLAST_WRITE_IN_FILE) {
+  if (twlpType == ZLAST_WRITE_IN_FILE || sync_flag) {
     jam();
     signal->theData[3] = ZLIST_OF_MEM_PAGES_SYNCH;
   } else {
@@ -21555,6 +21747,10 @@ void Dblqh::initLogpart(Signal* signal)
   logPartPtr.p->headFileNo = ZNIL;
   logPartPtr.p->headPageNo = ZNIL;
   logPartPtr.p->headPageIndex = ZNIL;
+  logPartPtr.p->firstInvalidatePageNo = ZNIL;
+  logPartPtr.p->firstInvalidateFileNo = ZNIL;
+  logPartPtr.p->endInvalidMByteSearch = ZNIL;
+  logPartPtr.p->firstInvalidatePageFound = false;
   logPartPtr.p->m_log_problems = 0;
   NdbLogPartInfo lpinfo(instance());
   ndbrequire(lpinfo.partCount == clogPartFileSize);
@@ -22880,12 +23076,17 @@ void Dblqh::writeLogWords(Signal* signal, const Uint32* data, Uint32 len)
  * -------         WRITE A NEXT LOG RECORD AND CHANGE TO NEXT MBYTE   ------- 
  *
  *       SUBROUTINE SHORT NAME:  WNL
-// Input Pointers:
-// logFilePtr(Redefines)
-// logPagePtr (Redefines)
-// logPartPtr
+ * Input Pointers:
+ * logFilePtr(Redefines)
+ * logPagePtr (Redefines)
+ * logPartPtr
+ * When changing to a new MByte we always ensure that we sync the REDO log.
+ * This more or less annuls the sync once per 1 MByte maintained by NDBFS,
+ * it does however make it easier to reason around recovery and also makes
+ * it less likely of future bugs due to changes in NDBFS. This is why we
+ * use true on completedLogPage in this function.
  * ------------------------------------------------------------------------- */
-void Dblqh::writeNextLog(Signal* signal) 
+void Dblqh::writeNextLog(Signal* signal)
 {
   LogFileRecordPtr wnlNextLogFilePtr;
   UintR twnlNextFileNo;
@@ -22926,7 +23127,7 @@ void Dblqh::writeNextLog(Signal* signal)
 /* -------------------------------------------------- */
 /*       WE HAVE TO CHANGE LOG FILE                   */
 /* -------------------------------------------------- */
-    completedLogPage(signal, ZLAST_WRITE_IN_FILE, __LINE__);
+    completedLogPage(signal, ZLAST_WRITE_IN_FILE, __LINE__, true);
     if (wnlNextLogFilePtr.p->fileNo == 0) {
       jam();
 /* -------------------------------------------------- */
@@ -22945,7 +23146,7 @@ void Dblqh::writeNextLog(Signal* signal)
 /*       INCREMENT THE CURRENT MBYTE                  */
 /*       SET PAGE INDEX TO PAGE HEADER SIZE           */
 /* -------------------------------------------------- */
-    completedLogPage(signal, ZENFORCE_WRITE, __LINE__);
+    completedLogPage(signal, ZENFORCE_WRITE, __LINE__, true);
     twnlNewMbyte = logFilePtr.p->currentMbyte + 1;
   }//if
 /* -------------------------------------------------- */
