@@ -3345,3 +3345,23 @@ SELECT MERGE_THRESHOLD from INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE NAME='ke
 MERGE_THRESHOLD
 45
 DROP TABLE t1;
+#
+# Bug#20748660 THD->MDL_CONTEXT.OWNS_EQUAL_OR_STRONGER_LOCK | CREATE_INFO->TABLESPACE
+#
+# A failing DISCARD/IMPORT TABLESPACE may leave the flag THD::tablespace_op
+# in an incorrect state, causing a succeeding statement to fail.
+
+# Create a tablespace with a table.
+CREATE TABLESPACE s ADD DATAFILE 's.ibd' ENGINE InnoDB;
+CREATE TABLE t (i int) TABLESPACE s ENGINE InnoDB;
+# The following statent will fail because the table is not partitioned.
+# Without the fix, the THD::tablespace_op flag will be left set.
+ALTER TABLE t DISCARD PARTITION p TABLESPACE;
+ERROR HY000: Partition management on a not partitioned table is not possible
+# Without the patch, this statement will inherit the tablespace_op flag
+# from the previous statement, causing the statement below to fail due
+# to not acquiring the required MDL lock.
+ALTER TABLE t TABLESPACE s;
+# Drop table and tablespace.
+DROP TABLE t;
+DROP TABLESPACE s ENGINE InnoDB;
