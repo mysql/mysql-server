@@ -2323,12 +2323,12 @@ Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
 
 Uint64 Ndb::getHighestQueuedEpoch()
 {
-  return theEventBuffer->getHighestQueuedEpoch();
+  return theEventBuffer->getLatestGCI();
 }
 
 Uint64 Ndb::getLatestGCI()
 {
-  return theEventBuffer->getLatestGCI();
+  return getHighestQueuedEpoch();
 }
 
 void Ndb::setReportThreshEventGCISlip(unsigned thresh)
