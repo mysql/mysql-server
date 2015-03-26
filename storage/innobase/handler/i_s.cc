@@ -8115,7 +8115,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_FS_BLOCK_SIZE	8
+#define SYS_TABLESPACES_FS_BLOCK_SIZE	7
 	{STRUCT_FLD(field_name,		"FS_BLOCK_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -8124,7 +8124,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_FILE_SIZE	9
+#define SYS_TABLESPACES_FILE_SIZE	8
 	{STRUCT_FLD(field_name,		"FILE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -8133,7 +8133,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_ALLOC_SIZE	10
+#define SYS_TABLESPACES_ALLOC_SIZE	9
 	{STRUCT_FLD(field_name,		"ALLOCATED_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -8142,7 +8142,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,           ""),
 	 STRUCT_FLD(open_method,        SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_COMPRESSION	11
+#define SYS_TABLESPACES_COMPRESSION	10
 	{STRUCT_FLD(field_name,		"COMPRESSION"),
 	 STRUCT_FLD(field_length,	MAX_COMPRESSION_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
