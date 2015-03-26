@@ -1790,13 +1790,13 @@ fts_create_in_mem_aux_table(
 		ut_ad(table->space == fil_space_get_id_by_name(
 			table->tablespace()));
 		new_table->tablespace = mem_heap_strdup(
-			heap, table->tablespace);
+			new_table->heap, table->tablespace);
 	}
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_ad(table->data_dir_path != NULL);
 		new_table->data_dir_path = mem_heap_strdup(
-			heap, table->data_dir_path);
+			new_table->heap, table->data_dir_path);
 	}
 
 	return(new_table);
@@ -1846,7 +1846,7 @@ fts_create_one_common_table(
 			FTS_CONFIG_TABLE_VALUE_COL_LEN);
 	}
 
-	error = row_create_table_for_mysql(new_table, trx, false);
+	error = row_create_table_for_mysql(new_table, NULL, trx, false);
 
 	if (error == DB_SUCCESS) {
 
