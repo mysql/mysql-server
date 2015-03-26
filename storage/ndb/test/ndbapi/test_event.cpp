@@ -27,13 +27,6 @@
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
 
-#define CHK(b,e) \
-  if (!(b)) { \
-    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
-          << ": " << e << endl; \
-    return NDBT_FAILED; \
-  }
-
 static int createEvent(Ndb *pNdb,
                        const NdbDictionary::Table &tab,
                        bool merge_events,
@@ -3894,96 +3887,6 @@ int runTryGetEvent(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-// Waits until the event buffer is filled upto fill_percent.
-void wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
-{
-  Ndb::EventBufferMemoryUsage mem_usage;
-  ndb->get_event_buffer_memory_usage(mem_usage);
-  Uint32 usage_before_wait = mem_usage.usage_percent;
-  Uint64 prev_gci = ndb->getLatestGCI();
-  Uint32 retries = 2;
-
-  do
-  {
-    if (fill_percent < 100 && usage_before_wait >= fill_percent)
-    {
-      return;
-    }
-
-    // Assume that latestGCI will increase in this sleep time
-    // (with default TimeBetweenEpochs 100 mill).
-    NdbSleep_SecSleep(1);
-
-    const Uint64 latest_gci = ndb->getLatestGCI();
-
-    /* fill_percent == 100 :
-     * It is not enough to test usage_after_wait >= 100 to decide
-     * whether a gap has occurred, because a gap can occur
-     * at a fill_percent < 100, eg at 99%, when there is no space
-     * for a new epoch. Therefore, we have to wait until the
-     * latest_gci (and usage) becomes stable, because epochs are
-     * discarded during a gap.
-     */
-    if (prev_gci == latest_gci && retries-- == 0)
-    {
-      /* No new epoch is buffered despite waiting with continuous
-       * load generation. A gap must have occurred. Enough waiting.
-       * Check usage is unchanged as well.
-       */
-      ndb->get_event_buffer_memory_usage(mem_usage);
-      const Uint32 usage_after_wait = mem_usage.usage_percent;
-      usage_before_wait = usage_after_wait;
-      if (usage_before_wait != usage_after_wait)
-      {
-        g_err << "prev_gci " << prev_gci << "latest_gci " << latest_gci
-              << " usage before wait " << usage_before_wait
-              << " usage after wait " <<  usage_after_wait << endl;
-      }
-      assert(usage_before_wait == usage_after_wait);
-      return;
-    }
-    prev_gci = latest_gci;
-  } while (true);
-}
-
-/*********************************************************
- * Test the backward compatible pollEvents returns 1
- * when the event buffer overflows. However, the test cannot
- * guarantee that overflow epoch data is found at the
- * head of the event queue.
- * The following nextEvent call will crash with 'out of memory' error.
- * The test will fail if there is no crash.
- */
-int runPollBCOverflowEB(NDBT_Context* ctx, NDBT_Step* step)
-{
-  const NdbDictionary::Table * table= ctx->getTab();
-  HugoTransactions hugoTrans(* table);
-  Ndb* ndb= GETNDB(step);
-  ndb->set_eventbuf_max_alloc(2621440); // max event buffer size
-
-  char buf[1024];
-  sprintf(buf, "%s_EVENT", table->getName());
-  NdbEventOperation *pOp = NULL;
-  pOp = ndb->createEventOperation(buf);
-  CHK(pOp != NULL, "Event operation creation failed");
-  CHK(pOp->execute() == 0, "execute operation execution failed");
-
-  // Wait until event buffer get filled 100%, to get a gap event
-  wait_to_fill_buffer(ndb, 100);
-
-  g_err << endl << "The test is expected to crash with"
-        << " Event buffer out of memory." << endl << endl;
-
-  Uint64 poll_gci = 0;
-  while (ndb->pollEvents(100, &poll_gci))
-  {
-    while ((pOp = ndb->nextEvent()))
-    {}
-  }
-  // The test should not come here. Expected to crash in nextEvent.
-  return NDBT_FAILED;
-}
-
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -4260,18 +4163,6 @@ TESTCASE("Apiv2EmptyEpochs",
   FINALIZER(runDropEvent);
 };
 NDBT_TESTSUITE_END(test_event);
-
-#if 0
-TESTCASE("BackwardCompatiblePollCOverflowEB",
-         "Check whether backward compatibility of pollEvents  manually"
-         "to see it causes process exit when nextEvent() processes an"
-         "event buffer overflow event data fom the queue")
-{
-  INITIALIZER(runCreateEvent);
-  STEP(runPollBCOverflowEB);
-  STEP(runInsertDeleteUntilStopped);
-  FINALIZER(runDropEvent);
-#endif
 
 int main(int argc, const char** argv){
   ndb_init();

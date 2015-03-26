@@ -1504,15 +1504,6 @@ int NdbEventBuffer::expand(unsigned sz)
 int
 NdbEventBuffer::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
-  if (aMillisecondNumber < 0)
-  {
-    g_eventLogger->error("NdbEventBuffer::pollEvents2: negative aMillisecondNumber %d 0x%x %s",
-                         aMillisecondNumber,
-                         m_ndb->getReference(),
-                         m_ndb->getNdbObjectName());
-    return -1;
-  }
-
   int ret= 1;
 #ifdef VM_TRACE
   const char *m_latest_command_save= m_latest_command;
