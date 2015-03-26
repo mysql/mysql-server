@@ -1769,15 +1769,13 @@ fts_get_table_flags2_for_aux_tables(
 @param[in]	aux_table_name	FTS Aux table name
 @param[in]	table		table object of FTS Index
 @param[in]	n_cols		number of columns for FTS Aux table
-@param[in,out]	heap		memory heap
 @return table object for FTS Aux table */
 static
 dict_table_t*
 fts_create_in_mem_aux_table(
 	const char*		aux_table_name,
 	const dict_table_t*	table,
-	ulint			n_cols,
-	mem_heap_t*		heap)
+	ulint			n_cols)
 {
 	dict_table_t*	new_table = dict_mem_table_create(
 		aux_table_name, table->space, n_cols, table->flags,
@@ -1787,13 +1785,13 @@ fts_create_in_mem_aux_table(
 		ut_ad(table->space == fil_space_get_id_by_name(
 			table->tablespace()));
 		new_table->tablespace = mem_heap_strdup(
-			heap, table->tablespace);
+			new_table->heap, table->tablespace);
 	}
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_ad(table->data_dir_path != NULL);
 		new_table->data_dir_path = mem_heap_strdup(
-			heap, table->data_dir_path);
+			new_table->heap, table->data_dir_path);
 	}
 
 	return(new_table);
@@ -1822,8 +1820,7 @@ fts_create_one_common_table(
 	if (!is_config) {
 
 		new_table = fts_create_in_mem_aux_table(
-			fts_table_name, table, FTS_DELETED_TABLE_NUM_COLS,
-			heap);
+			fts_table_name, table, FTS_DELETED_TABLE_NUM_COLS);
 
 		dict_mem_table_add_col(
 			new_table, heap, "doc_id", DATA_INT, DATA_UNSIGNED,
@@ -1831,8 +1828,7 @@ fts_create_one_common_table(
 	} else {
 		/* Config table has different schema. */
 		new_table = fts_create_in_mem_aux_table(
-			fts_table_name, table, FTS_CONFIG_TABLE_NUM_COLS,
-			heap);
+			fts_table_name, table, FTS_CONFIG_TABLE_NUM_COLS);
 
 		dict_mem_table_add_col(
 			new_table, heap, "key", DATA_VARCHAR, 0,
@@ -2024,7 +2020,7 @@ fts_create_one_index_table(
 
 	new_table = fts_create_in_mem_aux_table(
 			table_name, fts_table->table,
-			FTS_AUX_INDEX_TABLE_NUM_COLS, heap);
+			FTS_AUX_INDEX_TABLE_NUM_COLS);
 
 	field = dict_index_get_nth_field(index, 0);
 	charset = fts_get_charset(field->col->prtype);
