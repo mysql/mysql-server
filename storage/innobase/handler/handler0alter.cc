@@ -3093,7 +3093,8 @@ prepare_inplace_alter_table_dict(
 		    && (0 == strcmp(ha_alter_info->create_info->tablespace,
 				    user_table->tablespace))) {
 			space_id = user_table->space;
-		} else if (target_is_shared_space(ha_alter_info->create_info)) {
+		} else if (tablespace_is_shared_space(
+				ha_alter_info->create_info)) {
 			space_id = fil_space_get_id_by_name(
 				ha_alter_info->create_info->tablespace);
 			ut_a(space_id != ULINT_UNDEFINED);
@@ -3969,10 +3970,9 @@ ha_innobase::prepare_inplace_alter_table(
 				     NULL,
 				     NULL,
 				     NULL,
-				     NULL,
-				     is_file_per_table);
+				     NULL);
 
-	info.set_tablespace_type();
+	info.set_tablespace_type(is_file_per_table);
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
