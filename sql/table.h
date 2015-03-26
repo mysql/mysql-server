@@ -2772,10 +2772,13 @@ void free_table_share(TABLE_SHARE *share);
 
 
 /**
-  Get the tablespace name from within an .FRM file.
+  Get the tablespace name for a table.
 
   This function will open the .FRM file for the given TABLE_LIST element
-  and find the tablespace name, if present.
+  and get the tablespace name, if present. For NDB tables with version
+  before 50120, the function will ask the SE for the tablespace name,
+  because for these tables, the tablespace name is not stored in the.FRM
+  file, but only within the SE itself.
 
   @note The function does *not* consider errors. If the file is not present,
         this does not raise an error. The reason is that this function will
