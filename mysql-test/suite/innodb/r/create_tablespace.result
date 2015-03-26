@@ -592,7 +592,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
 Error	1031	Table storage engine for 't4' doesn't have this option
-# Do not allow a NULL in DATA DIRECTORY=''
+# Do not allow an empty string in DATA DIRECTORY=''
 CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
 ERROR 42000: Incorrect table name ''
 SHOW WARNINGS;
