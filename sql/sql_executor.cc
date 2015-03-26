@@ -1499,20 +1499,20 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
       */
       QEP_TAB *first_unmatched= &QEP_AT(qep_tab, first_unmatched);
       /*
-        Mark that a match for current outer table is found.
-        This activates push down conditional predicates attached
-        to the all inner tables of the outer join.
+        Mark that a match for the current row of the outer table is found.
+        This activates WHERE clause predicates attached the inner tables of
+        the outer join.
       */
       first_unmatched->found= true;
       for (QEP_TAB *tab= first_unmatched; tab <= qep_tab; tab++)
       {
-        /* Check all predicates that has just been activated. */
         /*
+          Check all predicates that have just been activated.
+
           Actually all predicates non-guarded by first_unmatched->found
           will be re-evaluated again. It could be fixed, but, probably,
           it's not worth doing now.
-        */
-        /*
+
           not_exists_optimize has been created from a
           condition containing 'is_null'. This 'is_null'
           predicate is still present on any 'tab' with
@@ -1608,8 +1608,6 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
         found= false;
     }
 
-    qep_tab->found_match= true;
-
     /*
       It was not just a return to lower loop level when one
       of the newly activated predicates is evaluated as false
@@ -1622,7 +1620,9 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
     if (found)
     {
       enum enum_nested_loop_state rc;
-      /* A match from join_tab is found for the current partial join. */
+      // A match is found for the current partial join prefix.
+      qep_tab->found_match= true;
+
       rc= (*qep_tab->next_select)(join, qep_tab+1, 0);
       join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (rc != NESTED_LOOP_OK)
