@@ -566,7 +566,6 @@ THD::THD(bool enable_plugins)
   protocol_binary.init(this);
   protocol_text.set_client_capabilities(0); // minimalistic client
 
-  tablespace_op= false;
   substitute_null_with_insert_id = FALSE;
 
   /*

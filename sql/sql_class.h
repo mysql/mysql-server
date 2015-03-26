@@ -1990,7 +1990,6 @@ public:
   bool 	     got_warning;       /* Set on call to push_warning() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
-  bool       tablespace_op;     /* This is true in DISCARD/IMPORT TABLESPACE */
 
   /** Current SP-runtime context. */
   sp_rcontext *sp_runtime_ctx;

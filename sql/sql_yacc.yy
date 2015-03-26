@@ -7735,17 +7735,17 @@ alter_commands:
           /* empty */
         | DISCARD TABLESPACE_SYM
           {
+            Lex->alter_info.flags|= Alter_info::ALTER_DISCARD_TABLESPACE;
             Lex->m_sql_cmd= new (YYTHD->mem_root)
-              Sql_cmd_discard_import_tablespace(
-                Sql_cmd_discard_import_tablespace::DISCARD_TABLESPACE);
+              Sql_cmd_discard_import_tablespace();
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         | IMPORT TABLESPACE_SYM
           {
+            Lex->alter_info.flags|= Alter_info::ALTER_IMPORT_TABLESPACE;
             Lex->m_sql_cmd= new (YYTHD->mem_root)
-              Sql_cmd_discard_import_tablespace(
-                Sql_cmd_discard_import_tablespace::IMPORT_TABLESPACE);
+              Sql_cmd_discard_import_tablespace();
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -7875,18 +7875,18 @@ alter_commands:
         | DISCARD PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE_SYM
           {
+            Lex->alter_info.flags|= Alter_info::ALTER_DISCARD_TABLESPACE;
             Lex->m_sql_cmd= new (YYTHD->mem_root)
-              Sql_cmd_discard_import_tablespace(
-                Sql_cmd_discard_import_tablespace::DISCARD_TABLESPACE);
+              Sql_cmd_discard_import_tablespace();
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         | IMPORT PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE_SYM
           {
+            Lex->alter_info.flags|= Alter_info::ALTER_IMPORT_TABLESPACE;
             Lex->m_sql_cmd= new (YYTHD->mem_root)
-              Sql_cmd_discard_import_tablespace(
-                Sql_cmd_discard_import_tablespace::IMPORT_TABLESPACE);
+              Sql_cmd_discard_import_tablespace();
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }

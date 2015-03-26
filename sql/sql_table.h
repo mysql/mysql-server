@@ -174,8 +174,7 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 uint select_field_count,
                                 bool *is_trans);
 int mysql_discard_or_import_tablespace(THD *thd,
-                                       TABLE_LIST *table_list,
-                                       bool discard);
+                                       TABLE_LIST *table_list);
 bool mysql_prepare_alter_table(THD *thd, TABLE *table,
                                HA_CREATE_INFO *create_info,
                                Alter_info *alter_info,

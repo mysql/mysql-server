@@ -5070,7 +5070,7 @@ lock_table_names(THD *thd,
   //          not lock. We also skip this phase if we are within the context
   //          of a FLUSH TABLE WITH READ LOCK or FLUSH TABLE FOR EXPORT
   //          statement, indicated by the MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK flag.
-  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !thd->tablespace_op)
+  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !thd_tablespace_op(thd))
   {
     MDL_request_list mdl_tablespace_requests;
 
