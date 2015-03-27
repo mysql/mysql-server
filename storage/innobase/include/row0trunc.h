@@ -195,7 +195,7 @@ public:
 		ulint			space_id,
 		const page_size_t&	page_size,
 		ulint			index_type,
-		space_index_t      	index_id,
+		space_index_t		index_id,
 		const btr_create_t&	btr_redo_create_info,
 		mtr_t*			mtr) const;
 
