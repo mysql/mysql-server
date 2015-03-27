@@ -914,7 +914,7 @@ btr_free_root(
 }
 
 /** PAGE_INDEX_ID value for freed index B-trees */
-static const index_id_t	BTR_FREED_INDEX_ID = 0;
+static const space_index_t	BTR_FREED_INDEX_ID = 0;
 
 /** Invalidate an index root page so that btr_free_root_check()
 will not find it.
@@ -946,7 +946,7 @@ buf_block_t*
 btr_free_root_check(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	index_id_t		index_id,
+	space_index_t		index_id,
 	mtr_t*			mtr)
 {
 	ut_ad(page_id.space() != srv_tmp_space.space_id());
@@ -985,7 +985,7 @@ btr_create(
 	ulint			type,
 	ulint			space,
 	const page_size_t&	page_size,
-	index_id_t		index_id,
+	space_index_t		index_id,
 	dict_index_t*		index,
 	const btr_create_t*	btr_redo_create_info,
 	mtr_t*			mtr)
@@ -1213,7 +1213,7 @@ void
 btr_free_if_exists(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	index_id_t		index_id,
+	space_index_t		index_id,
 	mtr_t*			mtr)
 {
 	buf_block_t* root = btr_free_root_check(

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -86,6 +86,30 @@ is then built on the page, assuming the global limit has been reached */
 /** The global limit for consecutive potentially successful hash searches,
 before hash index building is started */
 #define BTR_SEARCH_BUILD_LIMIT		100
+
+/** Compute the hash value of an index identifier.
+@param[in]	space_id	tablespace identifier
+@param[in]	index_id	index identifier
+@return hash value */
+static
+ulint
+btr_search_fold_index_id(
+	uint32_t	space_id,
+	space_index_t	index_id)
+{
+	return(ut_fold_ulint_pair(ut_fold_ull(index_id), space_id));
+}
+
+/** Compute the hash value of an index identifier.
+@param[in]	id	index identifier
+@return hash value */
+static
+ulint
+btr_search_fold_index_id(
+	const index_id_t&	id)
+{
+	return(btr_search_fold_index_id(id.m_space_id, id.m_index_id));
+}
 
 /********************************************************************//**
 Builds a hash index on a page with the given parameters. If the page already
@@ -598,7 +622,9 @@ btr_search_update_hash_ref(
 		fold = rec_fold(rec,
 				rec_get_offsets(rec, index, offsets_,
 						ULINT_UNDEFINED, &heap),
-				block->curr_n_fields, index->id);
+				block->curr_n_fields,
+				btr_search_fold_index_id(
+					index->space, index->id));
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -855,7 +881,6 @@ btr_search_guess_on_hash(
 {
 	const rec_t*	rec;
 	ulint		fold;
-	index_id_t	index_id;
 #ifdef notdefined
 	btr_cur_t	cursor2;
 	btr_pcur_t	pcur;
@@ -883,12 +908,11 @@ btr_search_guess_on_hash(
 		return(FALSE);
 	}
 
-	index_id = index->id;
-
 #ifdef UNIV_SEARCH_PERF_STAT
 	info->n_hash_succ++;
 #endif
-	fold = dtuple_fold(tuple, cursor->n_fields, index_id);
+	fold = dtuple_fold(tuple, cursor->n_fields,
+			   btr_search_fold_index_id(index->space, index->id));
 
 	cursor->fold = fold;
 	cursor->flag = BTR_CUR_HASH;
@@ -968,7 +992,8 @@ btr_search_guess_on_hash(
 	is positioned on. We cannot look at the next of the previous
 	record to determine if our guess for the cursor position is
 	right. */
-	if (index_id != btr_page_get_index_id(block->frame)
+	if (index->space != block->page.id.space()
+	    || index->id != btr_page_get_index_id(block->frame)
 	    || !btr_search_check_guess(cursor,
 				       has_search_latch,
 				       tuple, mode, mtr)) {
@@ -1064,7 +1089,6 @@ btr_search_drop_page_hash_index(
 	const rec_t*		rec;
 	ulint			fold;
 	ulint			prev_fold;
-	index_id_t		index_id;
 	ulint			n_cached;
 	ulint			n_recs;
 	ulint*			folds;
@@ -1152,9 +1176,10 @@ retry:
 	rec = page_get_infimum_rec(page);
 	rec = page_rec_get_next_low(rec, page_is_comp(page));
 
-	index_id = btr_page_get_index_id(page);
+	ut_a(index->id == btr_page_get_index_id(page));
 
-	ut_a(index_id == index->id);
+	const ulint	index_fold = btr_search_fold_index_id(
+		block->page.id.space(), index->id);
 
 	prev_fold = 0;
 
@@ -1165,7 +1190,7 @@ retry:
 		offsets = rec_get_offsets(rec, index, offsets,
 					  n_fields, &heap);
 		ut_a(rec_offs_n_fields(offsets) == n_fields);
-		fold = rec_fold(rec, offsets, n_fields, index_id);
+		fold = rec_fold(rec, offsets, n_fields, index_fold);
 
 		if (fold == prev_fold && prev_fold != 0) {
 
@@ -1380,7 +1405,10 @@ btr_search_build_page_hash_index(
 		ut_a(n_fields <= rec_offs_n_fields(offsets));
 	}
 
-	fold = rec_fold(rec, offsets, n_fields, index->id);
+	const ulint	index_fold = btr_search_fold_index_id(
+		block->page.id.space(), index->id);
+
+	fold = rec_fold(rec, offsets, n_fields, index_fold);
 
 	if (left_side) {
 
@@ -1406,7 +1434,7 @@ btr_search_build_page_hash_index(
 
 		offsets = rec_get_offsets(next_rec, index, offsets,
 					  n_fields, &heap);
-		next_fold = rec_fold(next_rec, offsets, n_fields, index->id);
+		next_fold = rec_fold(next_rec, offsets, n_fields, index_fold);
 
 		if (fold != next_fold) {
 			/* Insert an entry into the hash index */
@@ -1586,7 +1614,8 @@ btr_search_update_hash_on_delete(
 
 	fold = rec_fold(rec, rec_get_offsets(rec, index, offsets_,
 					     ULINT_UNDEFINED, &heap),
-			block->curr_n_fields, index->id);
+			block->curr_n_fields,
+			btr_search_fold_index_id(index->space, index->id));
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -1735,20 +1764,23 @@ btr_search_update_hash_on_insert(
 	ins_rec = page_rec_get_next_const(rec);
 	next_rec = page_rec_get_next_const(ins_rec);
 
+	const ulint	index_fold = btr_search_fold_index_id(
+		index->space, index->id);
+
 	offsets = rec_get_offsets(ins_rec, index, offsets,
 				  ULINT_UNDEFINED, &heap);
-	ins_fold = rec_fold(ins_rec, offsets, n_fields, index->id);
+	ins_fold = rec_fold(ins_rec, offsets, n_fields, index_fold);
 
 	if (!page_rec_is_supremum(next_rec)) {
 		offsets = rec_get_offsets(next_rec, index, offsets,
 					  n_fields, &heap);
-		next_fold = rec_fold(next_rec, offsets, n_fields, index->id);
+		next_fold = rec_fold(next_rec, offsets, n_fields, index_fold);
 	}
 
 	if (!page_rec_is_infimum(rec)) {
 		offsets = rec_get_offsets(rec, index, offsets,
 					  n_fields, &heap);
-		fold = rec_fold(rec, offsets, n_fields, index->id);
+		fold = rec_fold(rec, offsets, n_fields, index_fold);
 	} else {
 		if (left_side) {
 
@@ -1894,7 +1926,6 @@ btr_search_validate(void)
 				= buf_block_align((byte*) node->data);
 			const buf_block_t*	hash_block;
 			buf_pool_t*		buf_pool;
-			index_id_t		page_index_id;
 
 			buf_pool = buf_pool_from_bpage((buf_page_t*) block);
 
@@ -1933,7 +1964,9 @@ btr_search_validate(void)
 			ut_a(!dict_index_is_ibuf(block->index));
 			ut_ad(block->page.id.space() == block->index->space);
 
-			page_index_id = btr_page_get_index_id(block->frame);
+			index_id_t	page_index_id(
+				block->page.id.space(),
+				btr_page_get_index_id(block->frame));
 
 			offsets = rec_get_offsets(node->data,
 						  block->index, offsets,
@@ -1943,7 +1976,7 @@ btr_search_validate(void)
 			const ulint	fold = rec_fold(
 				node->data, offsets,
 				block->curr_n_fields,
-				page_index_id);
+				btr_search_fold_index_id(page_index_id));
 
 			if (node->fold != fold) {
 				const page_t*	page = block->frame;

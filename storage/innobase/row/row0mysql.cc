@@ -3152,8 +3152,9 @@ row_create_index_for_mysql(
 		que_graph_free((que_t*) que_node_get_parent(thr));
 	} else {
 		dict_build_index_def(table, index, trx);
-
-		index_id_t index_id = index->id;
+#ifdef UNIV_DEBUG
+		space_index_t index_id = index->id;
+#endif
 
 		/* add index to dictionary cache and also free index object */
 		err = dict_index_add_to_cache(
@@ -3165,13 +3166,12 @@ row_create_index_for_mysql(
 			goto error_handling;
 		}
 
+		index = UT_LIST_GET_LAST(table->indexes);
+		ut_ad(index->id == index_id);
+
 		/* as above function has freed index object re-load it
 		now from dictionary cache using index_id */
-		if (!dict_table_is_intrinsic(table)) {
-			index = dict_index_get_if_in_cache_low(index_id);
-		} else {
-			index = dict_table_find_index_on_id(table, index_id);
-
+		if (dict_table_is_intrinsic(table)) {
 			/* trx_id field is used for tracking which transaction
 			created the index. For intrinsic table this is
 			ir-relevant and so re-use it for tracking consistent

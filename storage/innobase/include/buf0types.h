@@ -151,9 +151,9 @@ public:
 	*/
 	void
 	inc(
-		index_id_t	index_id)
+		space_index_t	index_id)
 	{
-		ut_ad(sizeof(index_id_t) >= sizeof(uintptr_t));
+		ut_ad(sizeof(space_index_t) >= sizeof(uintptr_t));
 
 		m_store->inc(static_cast<uintptr_t>(index_id));
 	}
@@ -163,7 +163,7 @@ public:
 	*/
 	void
 	dec(
-		index_id_t	index_id)
+		space_index_t	index_id)
 	{
 		m_store->dec(static_cast<uintptr_t>(index_id));
 	}
@@ -173,7 +173,7 @@ public:
 	@return number of pages */
 	uintptr_t
 	get(
-		index_id_t	index_id)
+		space_index_t	index_id)
 	{
 		const uintptr_t	ret
 			= m_store->get(static_cast<uintptr_t>(index_id));

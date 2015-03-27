@@ -1237,7 +1237,6 @@ page_zip_compress(
 	ulint			n_blobs	= 0;
 	byte*			storage;	/* storage of uncompressed
 						columns */
-	index_id_t		ind_id;
 #ifndef UNIV_HOTBACKUP
 	uintmax_t		usec = ut_time_us(NULL);
 #endif /* !UNIV_HOTBACKUP */
@@ -1277,19 +1276,26 @@ page_zip_compress(
 		     == PAGE_NEW_SUPREMUM);
 	}
 
+	ulint		space_id;
+	space_index_t	index_id;
+
 	if (truncate_t::s_fix_up_active) {
 		ut_ad(page_comp_info != NULL);
 		n_fields = page_comp_info->n_fields;
-		ind_id = page_comp_info->index_id;
+		space_id = page_get_space_id(page);
+		index_id = page_comp_info->index_id;
 	} else {
 		if (page_is_leaf(page)) {
 			n_fields = dict_index_get_n_fields(index);
 		} else {
 			n_fields = dict_index_get_n_unique_in_tree_nonleaf(index);
 		}
-		ind_id = index->id;
+
+		space_id = index->space;
+		index_id = index->id;
 	}
 
+	index_id_t	ind_id(space_id, index_id);
 	/* The dense directory excludes the infimum and supremum records. */
 	n_dense = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
 #ifdef PAGE_ZIP_COMPRESS_DBG
@@ -1325,6 +1331,7 @@ page_zip_compress(
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
+
 	if (cmp_per_index_enabled) {
 		mutex_enter(&page_zip_stat_per_index_mutex);
 		page_zip_stat_per_index[ind_id].compressed++;
@@ -3210,9 +3217,10 @@ page_zip_decompress(
 	page_zip_stat[page_zip->ssize - 1].decompressed++;
 	page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
 
-	index_id_t	index_id = btr_page_get_index_id(page);
-
 	if (srv_cmp_per_index_enabled) {
+		index_id_t	index_id(
+			page_get_space_id(page), btr_page_get_index_id(page));
+
 		mutex_enter(&page_zip_stat_per_index_mutex);
 		page_zip_stat_per_index[index_id].decompressed++;
 		page_zip_stat_per_index[index_id].decompressed_usec += time_diff;

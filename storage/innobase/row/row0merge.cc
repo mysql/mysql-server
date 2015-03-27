@@ -3334,7 +3334,7 @@ void
 row_merge_drop_index_dict(
 /*======================*/
 	trx_t*		trx,	/*!< in/out: dictionary transaction */
-	index_id_t	index_id)/*!< in: index identifier */
+	space_index_t	index_id)/*!< in: index identifier */
 {
 	static const char sql[] =
 		"PROCEDURE DROP_INDEX_PROC () IS\n"
@@ -3796,7 +3796,7 @@ row_merge_rename_index_to_add(
 /*==========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id)	/*!< in: index identifier */
+	space_index_t	index_id)	/*!< in: index identifier */
 {
 	dberr_t		err = DB_SUCCESS;
 	pars_info_t*	info = pars_info_create();
@@ -3847,7 +3847,7 @@ row_merge_rename_index_to_drop(
 /*===========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id)	/*!< in: index identifier */
+	space_index_t	index_id)	/*!< in: index identifier */
 {
 	dberr_t		err;
 	pars_info_t*	info = pars_info_create();

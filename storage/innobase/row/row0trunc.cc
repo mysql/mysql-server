@@ -449,7 +449,7 @@ private:
 private:
 	/** Lookup the index using the index id.
 	@return index instance if found else NULL */
-	const dict_index_t* find(index_id_t id) const
+	const dict_index_t* find(space_index_t id) const
 	{
 		for (const dict_index_t* index = UT_LIST_GET_FIRST(
 				m_table->indexes);
@@ -2582,7 +2582,7 @@ truncate_t::create_index(
 	ulint			space_id,
 	const page_size_t&	page_size,
 	ulint			index_type,
-	index_id_t		index_id,
+	space_index_t		index_id,
 	const btr_create_t&	btr_redo_create_info,
 	mtr_t*			mtr) const
 {
