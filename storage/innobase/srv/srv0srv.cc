@@ -177,6 +177,9 @@ page_size_t	univ_page_size(0, 0, false);
 the checkpoints. */
 char	srv_adaptive_flushing	= TRUE;
 
+/* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
+my_bool	srv_flush_sync		= TRUE;
+
 /** Maximum number of times allowed to conditionally acquire
 mutex before switching to blocking wait on the mutex */
 #define MAX_MUTEX_NOWAIT	20

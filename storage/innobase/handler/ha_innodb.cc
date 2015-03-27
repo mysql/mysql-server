@@ -16880,6 +16880,11 @@ static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
   "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(flush_sync, srv_flush_sync,
+  PLUGIN_VAR_NOCMDARG,
+  "Allow IO bursts at the checkpoints ignoring io_capacity setting.",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_ULONG(flushing_avg_loops,
   srv_flushing_avg_loops,
   PLUGIN_VAR_RQCMDARG,
@@ -17574,6 +17579,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
   MYSQL_SYSVAR(adaptive_flushing_lwm),
   MYSQL_SYSVAR(adaptive_flushing),
+  MYSQL_SYSVAR(flush_sync),
   MYSQL_SYSVAR(flushing_avg_loops),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(max_purge_lag_delay),
