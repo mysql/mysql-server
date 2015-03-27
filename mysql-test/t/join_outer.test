@@ -1591,3 +1591,62 @@ select * from t1 left join t1 as t2
 eval explain $query;
 eval $query;
 drop table t1;
+
+--echo #
+--echo # Bug#18717059 MISSING ROWS ON NESTED JOIN WITH SUBQUERY  
+--echo #              WITH MYISAM OR MEMORY    
+--echo #
+CREATE TABLE t1 (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key, col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (23,4,'d');
+INSERT INTO t1 VALUES (24,8,'g');
+INSERT INTO t1 VALUES (25,NULL,'x');
+INSERT INTO t1 VALUES (26,NULL,'f');
+INSERT INTO t1 VALUES (27,0,'p');
+INSERT INTO t1 VALUES (28,NULL,'j');
+INSERT INTO t1 VALUES (29,8,'c');
+
+CREATE TABLE t2 (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+let $query=
+  SELECT 9
+  FROM t1 AS table1
+    RIGHT JOIN t1 AS table2
+    ON table2.col_int_key = table1.col_int_key
+      AND table1.col_varchar_key = (
+        SELECT subquery2_t2.col_varchar_key
+        FROM t2
+          STRAIGHT_JOIN ( t2 AS subquery2_t2
+            JOIN t1 AS subquery2_t3
+          ) ON ( subquery2_t3.col_int_key = subquery2_t2.pk )
+      );
+
+eval $query;      
+eval CREATE TABLE where_subselect_table AS
+  $query;
+
+set optimizer_switch='condition_fanout_filter=on';
+eval SELECT *
+FROM where_subselect_table
+WHERE (9) IN ( $query )
+ /* TRANSFORM_OUTCOME_UNORDERED_MATCH */;
+
+set optimizer_switch='condition_fanout_filter=off';    
+eval SELECT *
+FROM where_subselect_table
+WHERE (9) IN ( $query )
+ /* TRANSFORM_OUTCOME_UNORDERED_MATCH */;
+ 
+DROP TABLE t1, t2, where_subselect_table;
+
