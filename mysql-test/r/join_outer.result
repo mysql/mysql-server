@@ -2241,3 +2241,105 @@ where t1.a=1;
 a	a
 1	NULL
 drop table t1;
+#
+# Bug#18717059 MISSING ROWS ON NESTED JOIN WITH SUBQUERY  
+#              WITH MYISAM OR MEMORY    
+#
+CREATE TABLE t1 (
+pk INT,
+col_int_key INT,
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key, col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (23,4,'d');
+INSERT INTO t1 VALUES (24,8,'g');
+INSERT INTO t1 VALUES (25,NULL,'x');
+INSERT INTO t1 VALUES (26,NULL,'f');
+INSERT INTO t1 VALUES (27,0,'p');
+INSERT INTO t1 VALUES (28,NULL,'j');
+INSERT INTO t1 VALUES (29,8,'c');
+CREATE TABLE t2 (
+pk INT,
+col_int_key INT,
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+SELECT 9
+FROM t1 AS table1
+RIGHT JOIN t1 AS table2
+ON table2.col_int_key = table1.col_int_key
+AND table1.col_varchar_key = (
+SELECT subquery2_t2.col_varchar_key
+FROM t2
+STRAIGHT_JOIN ( t2 AS subquery2_t2
+JOIN t1 AS subquery2_t3
+) ON ( subquery2_t3.col_int_key = subquery2_t2.pk )
+);
+9
+9
+9
+9
+9
+9
+9
+9
+CREATE TABLE where_subselect_table AS
+SELECT 9
+FROM t1 AS table1
+RIGHT JOIN t1 AS table2
+ON table2.col_int_key = table1.col_int_key
+AND table1.col_varchar_key = (
+SELECT subquery2_t2.col_varchar_key
+FROM t2
+STRAIGHT_JOIN ( t2 AS subquery2_t2
+JOIN t1 AS subquery2_t3
+) ON ( subquery2_t3.col_int_key = subquery2_t2.pk )
+);
+set optimizer_switch='condition_fanout_filter=on';
+SELECT *
+FROM where_subselect_table
+WHERE (9) IN ( SELECT 9
+FROM t1 AS table1
+RIGHT JOIN t1 AS table2
+ON table2.col_int_key = table1.col_int_key
+AND table1.col_varchar_key = (
+SELECT subquery2_t2.col_varchar_key
+FROM t2
+STRAIGHT_JOIN ( t2 AS subquery2_t2
+JOIN t1 AS subquery2_t3
+) ON ( subquery2_t3.col_int_key = subquery2_t2.pk )
+) )
+/* TRANSFORM_OUTCOME_UNORDERED_MATCH */;
+9
+9
+9
+9
+9
+9
+9
+9
+set optimizer_switch='condition_fanout_filter=off';
+SELECT *
+FROM where_subselect_table
+WHERE (9) IN ( SELECT 9
+FROM t1 AS table1
+RIGHT JOIN t1 AS table2
+ON table2.col_int_key = table1.col_int_key
+AND table1.col_varchar_key = (
+SELECT subquery2_t2.col_varchar_key
+FROM t2
+STRAIGHT_JOIN ( t2 AS subquery2_t2
+JOIN t1 AS subquery2_t3
+) ON ( subquery2_t3.col_int_key = subquery2_t2.pk )
+) )
+/* TRANSFORM_OUTCOME_UNORDERED_MATCH */;
+9
+9
+9
+9
+9
+9
+9
+9
+DROP TABLE t1, t2, where_subselect_table;
