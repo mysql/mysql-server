@@ -54,6 +54,7 @@
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
 #include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql_cache.h"                   // query_cache
 #include "sql_locale.h"                  // my_locale_by_number
 #include "sql_parse.h"                   // killall_non_super_threads
 #include "sql_show.h"                    // opt_ignore_db_dirs

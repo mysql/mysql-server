@@ -41,7 +41,6 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"
 #include "sql_prepare.h"   // Reprepare_observer
-#include "sql_resolver.h"  // Column_privilege_tracker
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>

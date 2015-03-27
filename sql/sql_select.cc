@@ -49,6 +49,7 @@
 #include "item_sum.h"            // Item_sum
 #include "sql_planner.h"         // calculate_condition_filter
 #include "opt_hints.h"           // hint_key_state()
+#include "sql_cache.h"           // query_cache
 
 #include <algorithm>
 

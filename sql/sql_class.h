@@ -3662,6 +3662,27 @@ private:
 };
 
 
+/**
+  RAII class for column privilege checking
+*/
+class Column_privilege_tracker
+{
+public:
+  Column_privilege_tracker(THD *thd, ulong privilege)
+  : thd(thd), saved_privilege(thd->want_privilege)
+  {
+    thd->want_privilege= privilege;
+  }
+  ~Column_privilege_tracker()
+  {
+    thd->want_privilege= saved_privilege;
+  }
+private:
+  THD *const thd;
+  const ulong saved_privilege;
+};
+
+
 /** A short cut for thd->get_stmt_da()->set_ok_status(). */
 
 inline void

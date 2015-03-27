@@ -23,7 +23,6 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_derived.h"
 #include "sql_select.h"
-#include "sql_resolver.h"
 #include "sql_optimizer.h"                    // JOIN
 #include "sql_view.h"                         // check_duplicate_names
 #include "auth_common.h"                      // SELECT_ACL

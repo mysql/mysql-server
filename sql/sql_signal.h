@@ -16,8 +16,14 @@
 #ifndef SQL_SIGNAL_H
 #define SQL_SIGNAL_H
 
-#include "sql_alloc.h"
-#include "sp_pcontext.h"
+#include "my_global.h"
+#include "sql_alloc.h"       // Sql_alloc
+#include "sql_cmd.h"         // Sql_cmd
+#include "sql_error.h"       // Sql_condition
+
+class Item;
+class sp_condition_value;
+
 
 /**
    This enumeration list all the condition item names of a condition in the

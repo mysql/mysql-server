@@ -13,13 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_thread.h"          /* my_thread_id */
-#include "my_timer.h"           /* my_timer_t */
-#include "sql_class.h"          /* THD */
-#include "sql_timer.h"          /* thd_timer_set, etc. */
-#include "mysqld_thd_manager.h" /* Global_THD_manager, Find_thd_with_id */
+#include "sql_timer.h"
+
+#include "my_thread.h"          // my_thread_id
+#include "my_timer.h"           // my_timer_t
 #include "mysqld.h"             // key_thd_timer_mutex
-#include "psi_memory_key.h"
+#include "mysqld_thd_manager.h" // Global_THD_manager
+#include "psi_memory_key.h"     // key_memory_thd_timer
+#include "sql_class.h"          // THD
+
 
 /**
   Cast a member of a structure to the structure that contains it.

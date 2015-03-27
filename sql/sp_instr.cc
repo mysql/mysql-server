@@ -30,6 +30,7 @@
 #include "binlog.h"
 #include "item_cmpfunc.h" // Item_func_eq
 #include "mysqld.h"       // next_query_id
+#include "sql_cache.h"
 
 #include <algorithm>
 #include <functional>

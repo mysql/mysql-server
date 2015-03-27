@@ -25,6 +25,7 @@
 #include "auth_common.h" // DROP_ACL
 #include "sql_parse.h"   // check_one_table_access()
 #include "sql_show.h"    //append_identifier()
+#include "sql_cache.h"   // query_cache
 
 
 /**

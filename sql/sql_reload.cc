@@ -31,6 +31,7 @@
 #include "connection_handler_impl.h"
 #include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
 #include "current_thd.h" // my_thread_set_THR_THD
+#include "sql_cache.h"   // query_cache
 
 
 /**

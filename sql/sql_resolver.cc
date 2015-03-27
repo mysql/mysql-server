@@ -24,18 +24,19 @@
   @{
 */
 
-#include "sql_select.h"
 #include "sql_resolver.h"
-#include "sql_optimizer.h"
-#include "opt_trace.h"
-#include "sql_base.h"
-#include "auth_common.h"
-#include "opt_explain_format.h"
+
+#include "auth_common.h"         // check_single_table_access
+#include "aggregate_check.h"     // Group_check
+#include "derror.h"              // ER_THD
+#include "item_sum.h"            // Item_sum
 #include "opt_range.h"           // prune_partitions
+#include "opt_trace.h"           // Opt_trace_object
+#include "query_result.h"        // Query_result
+#include "sql_base.h"            // setup_fields
+#include "sql_optimizer.h"       // Prepare_error_tracker
 #include "sql_test.h"            // print_where
-#include "aggregate_check.h"
-#include "query_result.h"
-#include "derror.h"
+
 
 static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
 

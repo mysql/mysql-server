@@ -1135,35 +1135,7 @@ public:
   : ident(ident_arg)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-    sp_variable *spv;
-
-    value.var= NULL;
-    value.base_name= ident;
-
-    /* Best effort lookup for system variable. */
-    if (!pctx || !(spv= pctx->find_variable(ident, false)))
-    {
-      /* Not an SP local variable */
-      if (find_sys_var_null_base(thd, &value))
-        return true;
-    }
-    else
-    {
-      /*
-        Possibly an SP local variable (or a shadowed sysvar).
-        Will depend on the context of the SET statement.
-      */
-    }
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1382,23 +1354,7 @@ class PT_option_value_no_option_type_names :
 public:
   explicit PT_option_value_no_option_type_names(const POS &pos) : pos(pos) {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-    LEX_STRING names= { C_STRING_WITH_LEN("names") };
-
-    if (pctx && pctx->find_variable(names, false))
-      my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
-    else
-      error(pc, pos);
-
-    return true; // alwais fails with an error
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -2015,28 +1971,7 @@ public:
   virtual bool is_local() const { return true; }
   virtual uint get_offset() const { return offset; }
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    LEX *lex= pc->thd->lex;
-#ifndef DBUG_OFF
-    sp= lex->sphead;
-#endif
-    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-    sp_variable *spv;
-
-    if (!pctx || !(spv= pctx->find_variable(name, false)))
-    {
-      my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
-      return true;
-    }
-
-    offset= spv->offset;
-    
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 

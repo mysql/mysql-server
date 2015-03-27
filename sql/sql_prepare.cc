@@ -96,6 +96,7 @@ When one supplies long data for a placeholder:
 #include "sp_cache.h"           // sp_cache_enforce_limit
 #include "sql_analyse.h"        // Query_result_analyse
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
+#include "sql_cache.h"          // query_cache
 #include "sql_cursor.h"         // Server_side_cursor
 #include "sql_db.h"             // mysql_change_db
 #include "sql_delete.h"         // mysql_prepare_delete

@@ -13,13 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sp_head.h"
-#include "sp_pcontext.h"
-#include "sp_rcontext.h"
 #include "sql_signal.h"
-#include "sql_error.h"
-#include "mysqld.h"                             // error_message_charset_info
-#include "derror.h"
+
+#include "mysqld_error.h"      // ER_*
+#include "derror.h"            // ER_THD
+#include "item.h"              // Item
+#include "mysqld.h"            // error_message_charset_info
+#include "sp_pcontext.h"       // sp_condition_value
+#include "sp_rcontext.h"       // sp_rcontext
+#include "sql_class.h"         // THD
+
 
 /*
   The parser accepts any error code (desired)
