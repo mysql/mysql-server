@@ -28,6 +28,7 @@ Smart ALTER TABLE
 #include <sql_lex.h>
 #include <sql_class.h>
 #include <mysql/plugin.h>
+#include <key_spec.h>
 
 /* Include necessary InnoDB headers */
 #include "dict0crea.h"
@@ -802,7 +803,7 @@ bool
 innobase_set_foreign_key_option(
 /*============================*/
 	dict_foreign_t*	foreign,	/*!< in:InnoDB Foreign key */
-	Foreign_key*	fk_key)		/*!< in: Foreign key info from
+	Foreign_key_spec*	fk_key)	/*!< in: Foreign key info from
 					MySQL */
 {
 	ut_ad(!foreign->type);
@@ -964,8 +965,8 @@ innobase_get_foreign_key_info(
 					constraints added */
 	const trx_t*	trx)		/*!< in: user transaction */
 {
-	Key*		key;
-	Foreign_key*	fk_key;
+	Key_spec*	key;
+	Foreign_key_spec*	fk_key;
 	dict_table_t*	referenced_table = NULL;
 	char*		referenced_table_name = NULL;
 	ulint		num_fk = 0;
@@ -975,7 +976,7 @@ innobase_get_foreign_key_info(
 
 	*n_add_fk = 0;
 
-	List_iterator<Key> key_iterator(alter_info->key_list);
+	List_iterator<Key_spec> key_iterator(alter_info->key_list);
 
 	while ((key=key_iterator++)) {
 		if (key->type != KEYTYPE_FOREIGN) {
@@ -998,7 +999,7 @@ innobase_get_foreign_key_info(
 		char		tbl_name[MAX_TABLE_NAME_LEN];
 #endif
 
-		fk_key = static_cast<Foreign_key*>(key);
+		fk_key = static_cast<Foreign_key_spec*>(key);
 
 		if (fk_key->columns.elements > 0) {
 			ulint	i = 0;
@@ -3092,7 +3093,8 @@ prepare_inplace_alter_table_dict(
 		    && (0 == strcmp(ha_alter_info->create_info->tablespace,
 				    user_table->tablespace))) {
 			space_id = user_table->space;
-		} else if (target_is_shared_space(ha_alter_info->create_info)) {
+		} else if (tablespace_is_shared_space(
+				ha_alter_info->create_info)) {
 			space_id = fil_space_get_id_by_name(
 				ha_alter_info->create_info->tablespace);
 			ut_a(space_id != ULINT_UNDEFINED);
@@ -3968,10 +3970,9 @@ ha_innobase::prepare_inplace_alter_table(
 				     NULL,
 				     NULL,
 				     NULL,
-				     NULL,
-				     is_file_per_table);
+				     NULL);
 
-	info.set_tablespace_type();
+	info.set_tablespace_type(is_file_per_table);
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {

@@ -23,6 +23,8 @@
 #ifndef _WIN32
 #include <signal.h>
 
+typedef void	(*sig_return)();/* Returns type from signal */
+
 static int volatile my_have_got_alarm= 0;
 static uint my_time_to_wait_for_lock= 2; /* In seconds */
 

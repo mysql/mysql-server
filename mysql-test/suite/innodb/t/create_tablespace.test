@@ -435,16 +435,42 @@ SET innodb_strict_mode = OFF;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 eval CREATE TABLE t3 (a int, b text) DATA DIRECTORY='$MYSQL_TMP_DIR' TABLESPACE s_def;
 SHOW WARNINGS;
+
+--echo # Cannot use both a general tablespace and a DATA DIRECTORY
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION
-eval CREATE TABLE t4 (a int, b text) TABLESPACE s_def DATA DIRECTORY='$MYSQL_TMP_DIR';
+eval CREATE TABLE t4 (a int, b text) TABLESPACE=s_def DATA DIRECTORY='$MYSQL_TMP_DIR';
 SHOW WARNINGS;
+
+--echo # Do not allow an empty string in DATA DIRECTORY=''
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
+SHOW WARNINGS;
+
+--echo # TABLESPACE=innodb_file_per_table can be used with DATA DIRECTORY='...'
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE t4 (a int, b text) TABLESPACE innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
+eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
 SHOW WARNINGS;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4;
 DROP TABLE t4;
+
+--echo # If you use TABLESPACE=innodb_file_per_table, the config setting does not matter.
+SET GLOBAL innodb_file_per_table = OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+
+--echo # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY=
+ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+ALTER TABLE t4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+DROP TABLE t4;
+SET GLOBAL innodb_file_per_table = ON;
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --source suite/innodb/include/show_i_s_tables.inc

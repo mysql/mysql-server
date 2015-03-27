@@ -21,7 +21,7 @@
 
 class Create_field;
 class Item;
-class Key;
+class Key_spec;
 class String;
 struct TABLE_LIST;
 
@@ -248,7 +248,7 @@ public:
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.
   List<Alter_column>            alter_list;
   // List of keys, used by both CREATE and ALTER TABLE.
-  List<Key>                     key_list;
+  List<Key_spec>                key_list;
   // Keys to be renamed.
   List<Alter_rename_key>        alter_rename_key_list;
   // List of columns, used by both CREATE and ALTER TABLE.

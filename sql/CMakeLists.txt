@@ -109,6 +109,7 @@ SET(SQL_SHARED_SOURCES
   item_xmlfunc.cc 
   item_inetfunc.cc
   key.cc
+  key_spec.cc
   keycaches.cc
   lock.cc
   log.cc

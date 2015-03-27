@@ -7615,19 +7615,23 @@ bool Item_func_match::fix_index()
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts=0, keynr;
   uint max_cnt=0, mkeys=0, i;
 
+  if (!table_ref)
+    goto err;
+
   /*
     We will skip execution if the item is not fixed
     with fix_field
   */
   if (!fixed)
-    return false;
+  {
+    if (allows_search_on_non_indexed_columns(table_ref))
+      key= NO_SUCH_KEY;
 
+    return false;
+  }
   if (key == NO_SUCH_KEY)
     return 0;
   
-  if (!table_ref) 
-    goto err;
-
   table= table_ref->table;
   for (keynr=0 ; keynr < table->s->keys ; keynr++)
   {
@@ -7692,7 +7696,7 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (allows_search_on_non_indexed_columns(table_ref))
+  if (table_ref != 0 && allows_search_on_non_indexed_columns(table_ref))
   {
     key=NO_SUCH_KEY;
     return 0;

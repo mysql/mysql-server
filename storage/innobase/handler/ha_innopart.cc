@@ -4193,7 +4193,7 @@ ha_innopart::create_new_partition(
 	/* The below check is the same as for CREATE TABLE, but since we are
 	doing an alter here it will not trigger the check in
 	create_option_tablespace_is_valid(). */
-	if (target_is_shared_space(create_info)
+	if (tablespace_is_shared_space(create_info)
 	    && create_info->data_file_name != NULL
 	    && create_info->data_file_name[0] != '\0') {
 		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,

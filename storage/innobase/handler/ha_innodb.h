@@ -593,7 +593,7 @@ extern const char reserved_file_per_table_space_name[];
 @return true if the table is intended to use a file_per_table tablespace. */
 UNIV_INLINE
 bool
-target_is_file_per_table(
+tablespace_is_file_per_table(
 	const HA_CREATE_INFO*	create_info)
 {
 	return(create_info->tablespace != NULL
@@ -606,7 +606,7 @@ target_is_file_per_table(
 @return true if the table will use an existing shared general tablespace. */
 UNIV_INLINE
 bool
-target_is_shared_space(
+tablespace_is_shared_space(
 	const HA_CREATE_INFO*	create_info)
 {
 	return(create_info->tablespace != NULL
@@ -641,35 +641,22 @@ public:
 		char*		table_name,
 		char*		temp_path,
 		char*		remote_path,
-		char*		tablespace,
-		bool		existing_table_is_file_per_table = false)
+		char*		tablespace)
 	:m_thd(thd),
 	m_form(form),
 	m_create_info(create_info),
 	m_table_name(table_name),
 	m_temp_path(temp_path),
 	m_remote_path(remote_path),
-	m_tablespace(tablespace)
-	{
-		/* Note that "srv_file_per_table" is not under dict_sys mutex
-		protection, and could be changed while creating the table.
-		So we provide the value here and make all further decisions
-		based on this. */
-		m_file_per_table = srv_file_per_table;
-		if (existing_table_is_file_per_table) {
-			/* The table already have file_per_table,
-			so we support keeping it. */
-			m_file_per_table = true;
-		}
-	}
+	m_tablespace(tablespace),
+	m_innodb_file_per_table(srv_file_per_table)
+	{}
 
 	/** Initialize the object. */
-	int
-	initialize();
+	int initialize();
 
 	/** Set m_tablespace_type. */
-	void
-	set_tablespace_type();
+	void set_tablespace_type(bool table_being_altered_is_file_per_table);
 
 	/** Create the internal innodb table. */
 	int create_table();
@@ -784,9 +771,16 @@ private:
 	char*		m_tablespace;
 
 	/** Local copy of srv_file_per_table. */
-	bool		m_file_per_table;
+	bool		m_innodb_file_per_table;
 
-	/** Using file-per-table, single table tablespace. */
+	/** Allow file_per_table for this table either because:
+	1) the setting innodb_file_per_table=on,
+	2) it was explicitly requested by tablespace=innodb_file_per_table.
+	3) the table being altered is currently file_per_table */
+	bool		m_allow_file_per_table;
+
+	/** After all considerations, this shows whether we will actually
+	create a table and tablespace using file-per-table. */
 	bool		m_use_file_per_table;
 
 	/** Using DATA DIRECTORY */

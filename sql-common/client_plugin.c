@@ -75,6 +75,14 @@ static void init_client_plugin_psi_keys()
 }
 #endif /* HAVE_PSI_INTERFACE */
 
+#ifdef _WIN32
+#define SO_EXT ".dll"
+#elif defined(__APPLE__)
+#define SO_EXT ".dylib"
+#else
+#define SO_EXT ".so"
+#endif
+
 struct st_client_plugin_int {
   struct st_client_plugin_int *next;
   void   *dlhandle;

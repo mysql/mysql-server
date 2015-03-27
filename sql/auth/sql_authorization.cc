@@ -14,6 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_base.h"                   /* open_normal_and_derived_tables */
+#include "key_spec.h"                   /* Key_spec */
 #include "sql_table.h"                  /* build_table_filename */
 #include "sql_show.h"                   /* append_identifier */
 #include "sql_view.h"                   /* VIEW_ANY_ACL */
@@ -31,6 +32,7 @@
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "sql_authorization.h"
+#include "template_utils.h"
 
 const char *command_array[]=
 {
@@ -4138,8 +4140,8 @@ bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info)
 {
-  Key *key;
-  List_iterator<Key> key_iterator(alter_info->key_list);
+  Key_spec *key;
+  List_iterator<Key_spec> key_iterator(alter_info->key_list);
   handlerton *db_type= create_info->db_type ? create_info->db_type :
                                              ha_default_handlerton(thd);
 
@@ -4153,7 +4155,7 @@ bool check_fk_parent_table_access(THD *thd,
     {
       TABLE_LIST parent_table;
       bool is_qualified_table_name;
-      Foreign_key *fk_key= (Foreign_key *)key;
+      Foreign_key_spec *fk_key= down_cast<Foreign_key_spec*>(key);
       LEX_STRING db_name;
       LEX_STRING table_name= { (char *) fk_key->ref_table.str,
                                fk_key->ref_table.length };

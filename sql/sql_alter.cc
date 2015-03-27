@@ -22,6 +22,7 @@
 #include "sql_base.h"                        // open_temporary_tables
 #include "log.h"
 #include "sql_class.h"                       // THD
+#include "key_spec.h"                        // Key_spec
 #include "mysqld.h"                          // lower_case_table_names
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)

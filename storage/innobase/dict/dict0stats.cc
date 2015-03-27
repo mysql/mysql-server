@@ -447,6 +447,7 @@ dict_stats_table_clone_create(
 
 		UNIV_MEM_ASSERT_RW_ABORT(&index->id, sizeof(index->id));
 		idx->id = index->id;
+		idx->space = index->space;
 
 		idx->name = mem_heap_strdup(heap, index->name);
 
@@ -651,6 +652,7 @@ dict_stats_assert_initialized(
 #define INDEX_EQ(i1, i2) \
 	((i1) != NULL \
 	 && (i2) != NULL \
+	 && (i1)->space == (i2)->space \
 	 && (i1)->id == (i2)->id \
 	 && strcmp((i1)->name, (i2)->name) == 0)
 

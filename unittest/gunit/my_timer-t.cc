@@ -27,6 +27,16 @@ PSI_mutex_key key_thd_timer_mutex= PSI_NOT_INSTRUMENTED;
 PSI_thread_key key_thread_timer_notifier= PSI_NOT_INSTRUMENTED;
 #endif
 
+/**
+  Cast a member of a structure to the structure that contains it.
+
+  @param  ptr     Pointer to the member.
+  @param  type    Type of the structure that contains the member.
+  @param  member  Name of the member within the structure.
+*/
+#define my_container_of(ptr, type, member)              \
+  ((type *)((char *)ptr - offsetof(type, member)))
+
 namespace my_timer_unittest {
 
 typedef struct

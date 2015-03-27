@@ -22,6 +22,7 @@
 #include "auth_common.h"        // check_fk_parent_table_access
 #include "unireg.h"
 #include "debug_sync.h"
+#include "key_spec.h"   // Key_spec
 #include "mysqld.h"           // mysql_data_home mysql_tmpdir ...
 #include "sql_rename.h" // do_rename
 #include "sql_parse.h"                        // test_if_data_home_dir
@@ -3300,7 +3301,7 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
   @retval true            Error.
 */
 static bool check_duplicate_key(THD *thd,
-                                Key *key, KEY *key_info,
+                                Key_spec *key, KEY *key_info,
                                 Alter_info *alter_info)
 {
   /*
@@ -3314,9 +3315,9 @@ static bool check_duplicate_key(THD *thd,
   if (!key->key_create_info.check_for_duplicate_indexes || key->generated)
     return false;
 
-  List_iterator<Key> key_list_iterator(alter_info->key_list);
+  List_iterator<Key_spec> key_list_iterator(alter_info->key_list);
   List_iterator<Key_part_spec> key_column_iterator(key->columns);
-  Key *k;
+  Key_spec *k;
 
   while ((k= key_list_iterator++))
   {
@@ -3786,11 +3787,11 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
   /* Create keys */
 
-  List_iterator<Key> key_iterator(alter_info->key_list);
-  List_iterator<Key> key_iterator2(alter_info->key_list);
+  List_iterator<Key_spec> key_iterator(alter_info->key_list);
+  List_iterator<Key_spec> key_iterator2(alter_info->key_list);
   uint key_parts=0, fk_key_count=0;
   bool primary_key=0,unique_key=0;
-  Key *key, *key2;
+  Key_spec *key, *key2;
   uint tmp, key_number;
   /* special marker for keys to be ignored */
   static char ignore_key[1];
@@ -3805,9 +3806,9 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key->type == KEYTYPE_FOREIGN)
     {
       fk_key_count++;
-      if (((Foreign_key *)key)->validate(alter_info->create_list))
+      if (down_cast<Foreign_key_spec*>(key)->validate(alter_info->create_list))
         DBUG_RETURN(TRUE);
-      Foreign_key *fk_key= (Foreign_key*) key;
+      Foreign_key_spec *fk_key= down_cast<Foreign_key_spec*>(key);
       if (fk_key->ref_columns.elements &&
 	  fk_key->ref_columns.elements != fk_key->columns.elements)
       {
@@ -4715,7 +4716,7 @@ bool create_table_impl(THD *thd,
       this information in the default_db_type variable, it is either
       DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
     */
-    Key *key;
+    Key_spec *key;
     handlerton *part_engine_type= create_info->db_type;
     char *part_syntax_buf;
     uint syntax_len;
@@ -4915,7 +4916,7 @@ bool create_table_impl(THD *thd,
     */
     if (is_ha_partition_handlerton(create_info->db_type))
     {
-      List_iterator_fast<Key> key_iterator(alter_info->key_list);
+      List_iterator_fast<Key_spec> key_iterator(alter_info->key_list);
       while ((key= key_iterator++))
       {
         if (key->type == KEYTYPE_FOREIGN)
@@ -7339,7 +7340,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   /* New column definitions are added here */
   List<Create_field> new_create_list;
   /* New key definitions are added here */
-  List<Key> new_key_list;
+  List<Key_spec> new_key_list;
   /*
     Alter_info::alter_rename_key_list is also used by fill_alter_inplace_info()
     call. So this function should not modify original list but rather work with
@@ -7350,7 +7351,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
   List_iterator<Create_field> def_it(alter_info->create_list);
   List_iterator<Alter_column> alter_it(alter_info->alter_list);
-  List_iterator<Key> key_it(alter_info->key_list);
+  List_iterator<Key_spec> key_it(alter_info->key_list);
   List_iterator<Create_field> find_it(new_create_list);
   List_iterator<Create_field> field_it(new_create_list);
   List<Key_part_spec> key_parts;
@@ -7709,7 +7710,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (key_parts.elements)
     {
       KEY_CREATE_INFO key_create_info;
-      Key *key;
+      Key_spec *key;
       keytype key_type;
       memset(&key_create_info, 0, sizeof(key_create_info));
 
@@ -7772,19 +7773,19 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         key_create_info.check_for_duplicate_indexes= true;
       }
 
-      key= new Key(key_type, key_name, strlen(key_name),
-                   &key_create_info,
-                   MY_TEST(key_info->flags & HA_GENERATED_KEY),
-                   key_parts);
+      key= new Key_spec(key_type, key_name, strlen(key_name),
+                        &key_create_info,
+                        MY_TEST(key_info->flags & HA_GENERATED_KEY),
+                        key_parts);
       new_key_list.push_back(key);
     }
   }
   {
-    Key *key;
+    Key_spec *key;
     while ((key=key_it++))			// Add new keys
     {
       if (key->type == KEYTYPE_FOREIGN &&
-          ((Foreign_key *)key)->validate(new_create_list))
+          (down_cast<Foreign_key_spec*>(key))->validate(new_create_list))
         goto err;
       new_key_list.push_back(key);
       if (key->name.str &&
