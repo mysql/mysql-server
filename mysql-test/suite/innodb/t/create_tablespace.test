@@ -466,10 +466,10 @@ eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIREC
 SHOW CREATE TABLE t4;
 
 --echo # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY=
-ALTER TABLE T4 ROW_FORMAT=dynamic, algorithm=copy;
+ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4;
-ALTER TABLE T4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
+ALTER TABLE t4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4;
 DROP TABLE t4;

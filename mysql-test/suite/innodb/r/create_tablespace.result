@@ -619,14 +619,14 @@ t4	CREATE TABLE `t4` (
   `b` text
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
 # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY=
-ALTER TABLE T4 ROW_FORMAT=dynamic, algorithm=copy;
+ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC DATA DIRECTORY='MYSQL_TMP_DIR/'
-ALTER TABLE T4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
+ALTER TABLE t4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
