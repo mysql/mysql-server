@@ -222,7 +222,7 @@ int Gcalc_function::count_internal()
         result= result & !next_res;
         break;
       case op_backdifference:
-        result= !result & next_res;
+        result= (!result) & next_res;
         break;
       default:
         DBUG_ASSERT(FALSE);
