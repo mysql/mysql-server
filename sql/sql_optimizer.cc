@@ -2377,7 +2377,8 @@ void JOIN::adjust_access_methods()
         ((i == const_tables && tab->type() == JT_REF) ||
          ((tab->type() == JT_ALL || tab->type() == JT_RANGE ||
            tab->type() == JT_INDEX_MERGE || tab->type() == JT_INDEX_SCAN) &&
-           tab->use_quick != QS_RANGE)))
+           tab->use_quick != QS_RANGE)) &&
+        !tab->table_ref->is_inner_table_of_outer_join())
       zero_result_cause=
         "Impossible WHERE noticed after reading const tables";
   }
