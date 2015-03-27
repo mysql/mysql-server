@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -350,7 +350,7 @@ protected:
                                       size_t *db_length);
 
   /* The following functions require that structure_guard_mutex is locked */
-  void flush_cache();
+  void flush_cache(THD *thd);
   my_bool free_old_query();
   void free_query(Query_cache_block *point);
   my_bool allocate_data_chain(Query_cache_block **result_block,
@@ -361,17 +361,17 @@ protected:
   void invalidate_table(THD *thd, TABLE *table);
   void invalidate_table(THD *thd, uchar *key, size_t key_length);
   void invalidate_table(THD *thd, Query_cache_block *table_block);
-  void invalidate_query_block_list(THD *thd, 
+  void invalidate_query_block_list(THD *thd,
                                    Query_cache_block_table *list_root);
 
   TABLE_COUNTER_TYPE
-    register_tables_from_list(TABLE_LIST *tables_used,
+    register_tables_from_list(THD *thd, TABLE_LIST *tables_used,
                               TABLE_COUNTER_TYPE counter,
                               Query_cache_block_table *block_table);
-  my_bool register_all_tables(Query_cache_block *block,
+  my_bool register_all_tables(THD *thd, Query_cache_block *block,
 			      TABLE_LIST *tables_used,
 			      TABLE_COUNTER_TYPE tables);
-  my_bool insert_table(size_t key_len, const char *key,
+  my_bool insert_table(THD *thd, size_t key_len, const char *key,
                        Query_cache_block_table *node,
                        size_t db_length, uint8 cache_type,
                        qc_engine_callback callback,
@@ -413,10 +413,10 @@ protected:
                                       size_t header_len,
                                       Query_cache_block::block_type type,
                                       TABLE_COUNTER_TYPE ntab = 0);
-  my_bool append_result_data(Query_cache_block **result,
+  my_bool append_result_data(THD *thd, Query_cache_block **result,
 			     ulong data_len, uchar* data,
 			     Query_cache_block *parent);
-  my_bool write_result_data(Query_cache_block **result,
+  my_bool write_result_data(THD *thd, Query_cache_block **result,
 			    ulong data_len, uchar* data,
 			    Query_cache_block *parent,
 			    Query_cache_block::block_type
@@ -449,7 +449,7 @@ protected:
   /* initialize cache (mutex) */
   void init();
   /* resize query cache (return real query size, 0 if disabled) */
-  ulong resize(ulong query_cache_size);
+  ulong resize(THD *thd, ulong query_cache_size);
   /* set limit on result size */
   inline void result_size_limit(ulong limit){query_cache_limit=limit;}
   /* set minimal result data allocation unit size */
@@ -470,31 +470,31 @@ protected:
   /* Remove all queries that uses any of the listed following tables */
   void invalidate(THD* thd, TABLE_LIST *tables_used,
 		  my_bool using_transactions);
-  void invalidate(CHANGED_TABLE_LIST *tables_used);
-  void invalidate_locked_for_write(TABLE_LIST *tables_used);
+  void invalidate(THD *thd, CHANGED_TABLE_LIST *tables_used);
+  void invalidate_locked_for_write(THD *thd, TABLE_LIST *tables_used);
   void invalidate(THD* thd, TABLE *table, my_bool using_transactions);
   void invalidate(THD *thd, const char *key, uint32  key_length,
 		  my_bool using_transactions);
 
   /* Remove all queries that uses any of the tables in following database */
-  void invalidate(const char *db);
+  void invalidate(THD *thd, const char *db);
 
   /* Remove all queries that uses any of the listed following table */
-  void invalidate_by_MyISAM_filename(const char *filename);
+  void invalidate_by_MyISAM_filename(THD *thd, const char *filename);
 
-  void flush();
-  void pack(ulong join_limit = QUERY_CACHE_PACK_LIMIT,
+  void flush(THD *thd);
+  void pack(THD *thd, ulong join_limit = QUERY_CACHE_PACK_LIMIT,
 	    uint iteration_limit = QUERY_CACHE_PACK_ITERATION);
 
-  void destroy();
+  void destroy(THD *thd);
 
-  void insert(Query_cache_tls *query_cache_tls,
+  void insert(THD *thd, Query_cache_tls *query_cache_tls,
               const char *packet,
               ulong length,
               unsigned pkt_nr);
 
   void end_of_result(THD *thd);
-  void abort(Query_cache_tls *query_cache_tls);
+  void abort(THD *thd, Query_cache_tls *query_cache_tls);
 
   /*
     The following functions are only used when debugging
@@ -515,10 +515,10 @@ protected:
 			const char *name);
   my_bool in_blocks(Query_cache_block * point);
 
-  bool try_lock(bool use_timeout= FALSE);
-  void lock(void);
-  void lock_and_suspend(void);
-  void unlock(void);
+  bool try_lock(THD *thd, bool use_timeout= FALSE);
+  void lock(THD *thd);
+  void lock_and_suspend(THD *thd);
+  void unlock(THD *thd);
 };
 
 struct Query_cache_query_flags

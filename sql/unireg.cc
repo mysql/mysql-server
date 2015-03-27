@@ -26,7 +26,6 @@
 
 #include "unireg.h"
 
-#include "current_thd.h"
 #include "derror.h"                           // ER_THD
 #include "mysqld.h"                           // opt_sync_frm key_file_frm
 #include "partition_info.h"                   // partition_info
@@ -52,7 +51,8 @@ static uchar * pack_screens(List<Create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
 static uint pack_keys(uchar *keybuff,uint key_count, KEY *key_info,
                       ulong data_offset);
-static bool pack_header(uchar *forminfo,enum legacy_db_type table_type,
+static bool pack_header(THD *thd, uchar *forminfo,
+                        enum legacy_db_type table_type,
 			List<Create_field> &create_fields,
 			uint info_length, uint screens, uint table_options,
 			ulong data_offset, handler *file);
@@ -145,7 +145,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   thd->push_internal_handler(&pack_header_error_handler);
 
-  error= pack_header(forminfo, ha_legacy_type(create_info->db_type),
+  error= pack_header(thd, forminfo, ha_legacy_type(create_info->db_type),
                      create_fields,info_length,
                      screens, create_info->table_options,
                      data_offset, db_file);
@@ -161,7 +161,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     // Try again without UNIREG screens (to get more columns)
     if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,1)))
       DBUG_RETURN(1);
-    if (pack_header(forminfo, ha_legacy_type(create_info->db_type),
+    if (pack_header(thd, forminfo, ha_legacy_type(create_info->db_type),
                     create_fields,info_length,
 		    screens, create_info->table_options, data_offset, db_file))
     {
@@ -687,7 +687,8 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
 
 	/* Make formheader */
 
-static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
+static bool pack_header(THD *thd, uchar *forminfo,
+                        enum legacy_db_type table_type,
 			List<Create_field> &create_fields,
                         uint info_length, uint screens, uint table_options,
                         ulong data_offset, handler *file)
@@ -716,7 +717,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   Create_field *field;
   while ((field=it++))
   {
-    if (validate_comment_length(current_thd,
+    if (validate_comment_length(thd,
                                 field->comment.str,
                                 &field->comment.length,
                                 COLUMN_COMMENT_MAXLEN,

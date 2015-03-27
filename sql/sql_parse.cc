@@ -3379,7 +3379,7 @@ end_with_restore_list:
     else
     {
       if (thd->variables.query_cache_wlock_invalidate)
-        query_cache.invalidate_locked_for_write(first_table);
+        query_cache.invalidate_locked_for_write(thd, first_table);
       my_ok(thd);
     }
     break;
@@ -5213,7 +5213,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
-      query_cache.abort(&thd->query_cache_tls);
+      query_cache.abort(thd, &thd->query_cache_tls);
     }
 
     THD_STAGE_INFO(thd, stage_freeing_items);

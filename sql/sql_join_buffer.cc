@@ -529,7 +529,7 @@ int JOIN_CACHE_BNL::init()
       going to be joined with all buffered records of the previous tables.
     */
     const table_map available= join->best_ref[qep_tab->idx()]->added_tables();
-    Item *const tmp= make_cond_for_table(qep_tab->condition(),
+    Item *const tmp= make_cond_for_table(join->thd, qep_tab->condition(),
                                          join->const_table_map | available,
                                          available, false);
     if (tmp)

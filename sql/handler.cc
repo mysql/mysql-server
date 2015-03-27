@@ -1574,7 +1574,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     DBUG_EXECUTE_IF("dbug.enabled_commit",
                     {
                       const char act[]= "now signal Reached wait_for signal.commit_continue";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
                                                          STRING_WITH_LEN(act)));
                     };);
     if (rw_trans && !ignore_global_read_lock)
@@ -1742,7 +1742,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     trn_ctx->reset_scope(trx_scope);
     if (all)
     {
-      trn_ctx->invalidate_changed_tables_in_cache();
+      trn_ctx->invalidate_changed_tables_in_cache(thd);
     }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */

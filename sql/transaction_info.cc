@@ -59,10 +59,10 @@ void Transaction_ctx::push_unsafe_rollback_warnings(THD *thd)
 }
 
 
-void Transaction_ctx::invalidate_changed_tables_in_cache()
+void Transaction_ctx::invalidate_changed_tables_in_cache(THD *thd)
 {
   if (m_changed_tables)
-    query_cache.invalidate(m_changed_tables);
+    query_cache.invalidate(thd, m_changed_tables);
 }
 
 

@@ -186,12 +186,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   }
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
-    query_cache.pack();				// FLUSH QUERY CACHE
+    query_cache.pack(thd);			// FLUSH QUERY CACHE
     options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
   }
   if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
   {
-    query_cache.flush();			// RESET QUERY CACHE
+    query_cache.flush(thd);			// RESET QUERY CACHE
   }
 
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||

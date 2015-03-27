@@ -3722,7 +3722,7 @@ bool JOIN::make_tmp_tables_info()
         used_tables= 1;
       }
 
-      Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
+      Item* sort_table_cond= make_cond_for_table(thd, having_cond, used_tables,
                                                  (table_map) 0, false);
       if (sort_table_cond)
       {
@@ -3739,7 +3739,7 @@ bool JOIN::make_tmp_tables_info()
 					 "select and having",
                                          QT_ORDINARY););
 
-        having_cond= make_cond_for_table(having_cond, ~ (table_map) 0,
+        having_cond= make_cond_for_table(thd, having_cond, ~ (table_map) 0,
                                          ~used_tables, false);
         DBUG_EXECUTE("where",
                      print_where(having_cond, "having after sort",

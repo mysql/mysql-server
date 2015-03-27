@@ -431,7 +431,7 @@ public:
     return strmake_root(&m_mem_root, str, len);
   }
 
-  void invalidate_changed_tables_in_cache();
+  void invalidate_changed_tables_in_cache(THD *thd);
 
   bool add_changed_table(const char *key, long key_length);
 

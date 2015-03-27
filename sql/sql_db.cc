@@ -891,7 +891,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
 
     ha_drop_database(path);
     tmp_disable_binlog(thd);
-    query_cache.invalidate(db.str);
+    query_cache.invalidate(thd, db.str);
     (void) sp_drop_db_routines(thd, db.str); /* @todo Do not ignore errors */
 #ifndef EMBEDDED_LIBRARY
     Events::drop_schema_events(thd, db.str);

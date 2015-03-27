@@ -1424,7 +1424,7 @@ void clean_up(bool print_message)
   acl_free(1);
   grant_free();
 #endif
-  query_cache.destroy();
+  query_cache.destroy(NULL);
   hostname_cache_free();
   item_func_sleep_free();
   lex_free();       /* Free some memory */
@@ -3840,7 +3840,7 @@ static void init_server_query_cache()
   query_cache.set_min_res_unit(query_cache_min_res_unit);
   query_cache.init();
 	
-  set_cache_size= query_cache.resize(query_cache_size);
+  set_cache_size= query_cache.resize(NULL, query_cache_size);
   if (set_cache_size != query_cache_size)
   {
     sql_print_warning(ER_DEFAULT(ER_WARN_QC_RESIZE), query_cache_size,
