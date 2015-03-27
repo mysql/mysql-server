@@ -4900,7 +4900,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           without any changes at all.
         */
         flags= table->file->alter_table_flags(alter_info->flags);
-        DBUG_ASSERT(flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE));
         if (flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE))
         {
           *new_part_info= tab_part_info;
@@ -4935,7 +4934,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       goto err;
     }
-    DBUG_ASSERT((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0);
     if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
     {
       /*
