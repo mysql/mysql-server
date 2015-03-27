@@ -12869,6 +12869,13 @@ ha_innobase::enable_indexes(
 			= UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			/* InnoDB being clustered index we can't disable/enable
+			clustered index itself. */
+			if (dict_index_is_clust(index)) {
+				continue;
+			}
+
 			index->allow_duplicates = false;
 		}
 		error = 0;
@@ -12895,6 +12902,13 @@ ha_innobase::disable_indexes(
 			= UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			/* InnoDB being clustered index we can't disable/enable
+			clustered index itself. */
+			if (dict_index_is_clust(index)) {
+				continue;
+			}
+
 			index->allow_duplicates = true;
 		}
 		error = 0;
