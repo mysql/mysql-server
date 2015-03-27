@@ -2122,8 +2122,6 @@ NdbEventOperation* Ndb::createEventOperation(const char* eventName)
   if (tOp)
   {
     // keep track of all event operations
-    // Serialize changes to m_ev_op with dropEventOperation
-    theImpl->lock();
     NdbEventOperationImpl *op=
       NdbEventBuffer::getEventOperationImpl(tOp);
     op->m_next= theImpl->m_ev_op;
@@ -2131,7 +2129,6 @@ NdbEventOperation* Ndb::createEventOperation(const char* eventName)
     theImpl->m_ev_op= op;
     if (op->m_next)
       op->m_next->m_prev= op;
-    theImpl->unlock();
   }
 
   DBUG_RETURN(tOp);
