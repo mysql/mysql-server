@@ -282,7 +282,7 @@ enum enum_alter_inplace_result {
 /**
   Handler supports Generated Columns
 */
-#define HA_GENERATED_COLUMNS            (1LL << 45)
+#define HA_GENERATED_COLUMNS            (1LL << 46)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
