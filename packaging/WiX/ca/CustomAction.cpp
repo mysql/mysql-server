@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #include <wcautil.h>
 #include <string.h>
 #include <strsafe.h>
-#include <direct.h>
 
 /*
  * Search the registry for a service whose ImagePath starts
@@ -128,6 +127,8 @@ int remove_service(TCHAR *installdir, int check_only) {
 	return done;
 }
 
+#ifdef CLUSTER_EXTRA_CUSTOM_ACTIONS
+#include <direct.h>
 UINT RunProcess(TCHAR *AppName, TCHAR *CmdLine, TCHAR * WorkDir)
 {
     PROCESS_INFORMATION processInformation;
@@ -200,6 +201,7 @@ UINT mccPostInstall(MSIHANDLE hInstall) {
 LExit:
 	return WcaFinalize(er);
 }
+#endif
 
 UINT wrap(MSIHANDLE hInstall, char *name, int check_only) {
 	HRESULT hr = S_OK;
@@ -242,7 +244,11 @@ UINT __stdcall TestService(MSIHANDLE hInstall)
 
 UINT __stdcall RunPostInstall(MSIHANDLE hInstall)
 {
+#ifdef CLUSTER_EXTRA_CUSTOM_ACTIONS
 	return mccPostInstall(hInstall);
+#else
+	return ERROR_SUCCESS;
+#endif
 }
 
 /* DllMain - Initialize and cleanup WiX custom action utils */
@@ -265,4 +271,3 @@ extern "C" BOOL WINAPI DllMain(
 
 	return TRUE;
 }
-
