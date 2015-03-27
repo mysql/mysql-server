@@ -122,6 +122,7 @@ bool Query_result_union::create_result_table(THD *thd_arg,
                     *column_types, false, true);
   tmp_table_param.skip_create_table= !create_table;
   tmp_table_param.bit_fields_as_long= bit_fields_as_long;
+  tmp_table_param.can_use_pk_for_unique= !is_union_mixed_with_union_all;
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  NULL, is_union_distinct, true,
@@ -579,6 +580,15 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
     if (global_parameters()->ftfunc_list->elements)
       create_options|= TMP_TABLE_FORCE_MYISAM;
 
+    if (union_distinct)
+    {
+      SELECT_LEX *last= first_select();
+      while (last->next_select())
+        last= last->next_select();
+      // Mixed UNION and UNION ALL
+      if (union_distinct != last)
+        union_result->is_union_mixed_with_union_all= true;
+    }
     if (union_result->create_result_table(thd, &types, MY_TEST(union_distinct),
                                           create_options, "", false,
                                           instantiate_tmp_table))

@@ -4706,6 +4706,14 @@ public:
   */
   bool bit_fields_as_long;
 
+  /*
+    Generally, pk of internal temp table can be used as unique key to eliminate
+    the duplication of records. But because Innodb doesn't support disable PK
+    (cluster key)when doing operations mixed UNION ALL and UNION, the PK can't
+    be treated as the unique key in such a case.
+  */
+  bool can_use_pk_for_unique;
+
   Temp_table_param()
     :copy_field(NULL), copy_field_end(NULL),
      recinfo(NULL), start_recinfo(NULL),
@@ -4717,7 +4725,7 @@ public:
      using_outer_summary_function(false),
      table_charset(NULL),
      schema_table(false), precomputed_group_by(false), force_copy_fields(false),
-     skip_create_table(false), bit_fields_as_long(false)
+     skip_create_table(false), bit_fields_as_long(false), can_use_pk_for_unique(true)
   {}
   ~Temp_table_param()
   {
