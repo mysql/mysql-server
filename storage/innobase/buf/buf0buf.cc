@@ -5285,18 +5285,22 @@ buf_page_monitor(
 
 	const ulint		page_type = fil_page_get_type(frame);
 
-	ulint			level;
+	bool			is_leaf;
 	space_index_t		index_id;
+	bool			is_ibuf;
 
 	if (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE) {
 
-		level = btr_page_get_level_low(frame);
+		is_leaf = page_is_leaf(frame);
 
 		index_id = btr_page_get_index_id(frame);
 
-		/* Account reading of leaf pages into the buffer pool(s). */
-		if (level == 0 && io_type == BUF_IO_READ
-		    && index_id != ibuf_index_id) {
+		is_ibuf = bpage->id.space() == IBUF_SPACE_ID
+			&& index_id == ibuf_index_id;
+
+		/* Account reading of leaf, non-ibuf, pages into the buffer
+		pool(s). */
+		if (is_leaf && io_type == BUF_IO_READ && !is_ibuf) {
 			ib::info() /* XXX */
 				<< buf_stat_per_index->get(index_id)
 				<< " inc (read) index_id=" << index_id
@@ -5311,26 +5315,27 @@ buf_page_monitor(
 
 	switch (page_type) {
 	case FIL_PAGE_INDEX:
-	case FIL_PAGE_RTREE:
 		/* Check if it is an index page for insert buffer */
-		if (index_id == ibuf_index_id) {
-
-			if (level == 0) {
+		if (is_ibuf) {
+			if (is_leaf) {
 				counter = MONITOR_RW_COUNTER(
-					io_type, MONITOR_INDEX_IBUF_LEAF_PAGE);
+					io_type,
+					MONITOR_INDEX_IBUF_LEAF_PAGE);
 			} else {
 				counter = MONITOR_RW_COUNTER(
 					io_type,
 					MONITOR_INDEX_IBUF_NON_LEAF_PAGE);
 			}
+			break;
+		}
+		/* fall through */
+	case FIL_PAGE_RTREE:
+		if (is_leaf) {
+			counter = MONITOR_RW_COUNTER(
+				io_type, MONITOR_INDEX_LEAF_PAGE);
 		} else {
-			if (level == 0) {
-				counter = MONITOR_RW_COUNTER(
-					io_type, MONITOR_INDEX_LEAF_PAGE);
-			} else {
-				counter = MONITOR_RW_COUNTER(
-					io_type, MONITOR_INDEX_NON_LEAF_PAGE);
-			}
+			counter = MONITOR_RW_COUNTER(
+				io_type, MONITOR_INDEX_NON_LEAF_PAGE);
 		}
 		break;
 
