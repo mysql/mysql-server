@@ -13,12 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Detect if this is Cluster build
-MESSAGE(STATUS "Checking if ${VERSION} is Cluster in packaging/WiX/CPackWixConfig")
-IF("${VERSION}" MATCHES "-ndb-")
-  MESSAGE(STATUS "This is Cluster build")
-ENDIF()
-
 IF(ESSENTIALS)
  SET(CPACK_COMPONENTS_USED "Server;Client;DataFiles")
  SET(CPACK_WIX_UI "WixUI_InstallDir")
@@ -31,12 +25,11 @@ ELSE()
   SET(CPACK_COMPONENTS_USED 
     "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries")
 
-  # Append Cluster components
-  MESSAGE(STATUS "Append additional Cluster components")
-  MESSAGE(STATUS "CPACK_COMPONENTS_USED: ${CPACK_COMPONENTS_USED}")
-  SET(CPACK_COMPONENTS_USED
-    "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
-  MESSAGE(STATUS "CPACK_COMPONENTS_USED: ${CPACK_COMPONENTS_USED}")
+  IF("${VERSION}" MATCHES "-ndb-")
+    MESSAGE(STATUS "This is Cluster build, append additional components")
+    SET(CPACK_COMPONENTS_USED
+      "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
+  ENDIF()
 ENDIF()
 
 
@@ -124,40 +117,43 @@ SET(CPACK_COMPONENT_TEST_DISPLAY_NAME "Tests")
 SET(CPACK_COMPONENT_TEST_DESCRIPTION "Installs unittests (requires Perl to run)")
 SET(CPACK_COMPONENT_TEST_WIX_LEVEL 2)
 
-MESSAGE(STATUS "Defining Cluster features and subfeatures")
-#Feature "Cluster"
-SET(CPACK_COMPONENT_GROUP_CLUSTER_DISPLAY_NAME "MySQL Cluster")
-SET(CPACK_COMPONENT_GROUP_CLUSTER_DESCRIPTION "Installs MySQL Cluster")
+IF("${VERSION}" MATCHES "-ndb-")
+  MESSAGE(STATUS "This is Cluster build, define additional components")
+  
+  #Feature "Cluster"
+  SET(CPACK_COMPONENT_GROUP_CLUSTER_DISPLAY_NAME "MySQL Cluster")
+  SET(CPACK_COMPONENT_GROUP_CLUSTER_DESCRIPTION "Installs MySQL Cluster")
 
- #Subfeature "ClusterTools"
- SET(CPACK_COMPONENT_CLUSTERTOOLS_GROUP "Cluster")
- SET(CPACK_COMPONENT_CLUSTERTOOLS_DISPLAY_NAME "Cluster Tools")
- SET(CPACK_COMPONENT_CLUSTERTOOLS_DESCRIPTION "Installs Cluster Tools")
+   #Subfeature "ClusterTools"
+   SET(CPACK_COMPONENT_CLUSTERTOOLS_GROUP "Cluster")
+   SET(CPACK_COMPONENT_CLUSTERTOOLS_DISPLAY_NAME "Cluster Tools")
+   SET(CPACK_COMPONENT_CLUSTERTOOLS_DESCRIPTION "Installs Cluster Tools")
 
- #Subfeature "Cluster Storage Engines"
- SET(CPACK_COMPONENT_CLUSTERDATANODE_GROUP "Cluster")
- SET(CPACK_COMPONENT_CLUSTERDATANODE_DISPLAY_NAME "Cluster Storage Engines")
- SET(CPACK_COMPONENT_CLUSTERDATANODE_DESCRIPTION "Installs Cluster Storage Engines")
+   #Subfeature "Cluster Storage Engines"
+   SET(CPACK_COMPONENT_CLUSTERDATANODE_GROUP "Cluster")
+   SET(CPACK_COMPONENT_CLUSTERDATANODE_DISPLAY_NAME "Cluster Storage Engines")
+   SET(CPACK_COMPONENT_CLUSTERDATANODE_DESCRIPTION "Installs Cluster Storage Engines")
 
- #Subfeature "Cluster Management Server"
- SET(CPACK_COMPONENT_CLUSTERMANAGEMENTSERVER_GROUP "Cluster")
- SET(CPACK_COMPONENT_CLUSTERMANAGEMENTSERVER_DISPLAY_NAME "Cluster Management Server")
- SET(CPACK_COMPONENT_CLUSTERMANAGEMENTSERVER_DESCRIPTION "Installs Cluster Management Server")
+   #Subfeature "Cluster Management Server"
+   SET(CPACK_COMPONENT_CLUSTERMANAGEMENTSERVER_GROUP "Cluster")
+   SET(CPACK_COMPONENT_CLUSTERMANAGEMENTSERVER_DISPLAY_NAME "Cluster Management Server")
+   SET(CPACK_COMPONENT_CLUSTERMANAGEMENTSERVER_DESCRIPTION "Installs Cluster Management Server")
 
- #Subfeature "Cluster Management Client"
- SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_GROUP "Cluster")
- SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_DISPLAY_NAME "Cluster Management Client")
- SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_DESCRIPTION "Installs Cluster Management Client")
+   #Subfeature "Cluster Management Client"
+   SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_GROUP "Cluster")
+   SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_DISPLAY_NAME "Cluster Management Client")
+   SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_DESCRIPTION "Installs Cluster Management Client")
 
- #Subfeature "ClusterJ"
- SET(CPACK_COMPONENT_CLUSTERJ_GROUP "Devel")
- SET(CPACK_COMPONENT_CLUSTERJ_DISPLAY_NAME "ClusterJ Java Connector for Cluster")
- SET(CPACK_COMPONENT_CLUSTERJ_DESCRIPTION "Installs ClusterJ")
+   #Subfeature "ClusterJ"
+   SET(CPACK_COMPONENT_CLUSTERJ_GROUP "Devel")
+   SET(CPACK_COMPONENT_CLUSTERJ_DISPLAY_NAME "ClusterJ Java Connector for Cluster")
+   SET(CPACK_COMPONENT_CLUSTERJ_DESCRIPTION "Installs ClusterJ")
 
- #Subfeature "nodejs"
- SET(CPACK_COMPONENT_NODEJS_GROUP "Devel")
- SET(CPACK_COMPONENT_NODEJS_DISPLAY_NAME "nodejs Connector for Cluster")
- SET(CPACK_COMPONENT_NODEJS_DESCRIPTION "Installs nodejs connector")
+   #Subfeature "nodejs"
+   SET(CPACK_COMPONENT_NODEJS_GROUP "Devel")
+   SET(CPACK_COMPONENT_NODEJS_DISPLAY_NAME "nodejs Connector for Cluster")
+   SET(CPACK_COMPONENT_NODEJS_DESCRIPTION "Installs nodejs connector")
+ENDIF()
 
 #Feature Misc (hidden, installs only if everything is installed)
 SET(CPACK_COMPONENT_GROUP_MISC_HIDDEN 1)
