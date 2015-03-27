@@ -332,19 +332,20 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 bool Sql_cmd_discard_import_tablespace::execute(THD *thd)
 {
   /* Verify that exactly one of the DISCARD and IMPORT flags are set. */
-  uint alter_flags= thd->lex->alter_info.flags;
-  DBUG_ASSERT((alter_flags & Alter_info::ALTER_DISCARD_TABLESPACE) ^
-              (alter_flags & Alter_info::ALTER_IMPORT_TABLESPACE));
+  DBUG_ASSERT((thd->lex->alter_info.flags &
+               Alter_info::ALTER_DISCARD_TABLESPACE) ^
+              (thd->lex->alter_info.flags &
+               Alter_info::ALTER_IMPORT_TABLESPACE));
 
   /*
     Verify that none of the other flags are set, except for
     ALTER_ALL_PARTITION, which may be set or not, and is
     therefore masked away along with the DISCARD/IMPORT flags.
   */
-  uint mask= Alter_info::ALTER_DISCARD_TABLESPACE |
-             Alter_info::ALTER_IMPORT_TABLESPACE |
-             Alter_info::ALTER_ALL_PARTITION;
-  DBUG_ASSERT(!(alter_flags & ~mask));
+  DBUG_ASSERT(!(thd->lex->alter_info.flags &
+                ~(Alter_info::ALTER_DISCARD_TABLESPACE |
+                  Alter_info::ALTER_IMPORT_TABLESPACE |
+                  Alter_info::ALTER_ALL_PARTITION)));
 
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= thd->lex->select_lex;
