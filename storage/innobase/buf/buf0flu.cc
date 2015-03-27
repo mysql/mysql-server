@@ -2641,7 +2641,7 @@ page_cleaner_flush_pages_recommendation(
 	/* Cap the maximum IO capacity that we are going to use by
 	max_io_capacity. Limit the value to avoid too quick increase */
 	ulint	pages_for_lsn =
-		std::min(sum_pages_for_lsn, srv_max_io_capacity * 2);
+		std::min<ulint>(sum_pages_for_lsn, srv_max_io_capacity * 2);
 
 	n_pages = (PCT_IO(pct_total) + avg_page_rate + pages_for_lsn) / 3;
 
