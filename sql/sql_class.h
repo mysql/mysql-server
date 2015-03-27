@@ -4710,7 +4710,7 @@ public:
     Generally, pk of internal temp table can be used as unique key to eliminate
     the duplication of records. But because Innodb doesn't support disable PK
     (cluster key)when doing operations mixed UNION ALL and UNION, the PK can't
-    be treated as the unique key in such a case.
+    be used as the unique key in such a case.
   */
   bool can_use_pk_for_unique;
 
