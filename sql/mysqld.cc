@@ -592,6 +592,7 @@ ulong connection_errors_peer_addr= 0;
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
+Equal_creator equal_creator;
 Gt_creator gt_creator;
 Lt_creator lt_creator;
 Ge_creator ge_creator;
@@ -3036,7 +3037,7 @@ int init_common_variables()
 
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (!(my_default_lc_messages=
-        my_locale_by_name(lc_messages)))
+        my_locale_by_name(NULL, lc_messages)))
   {
     sql_print_error("Unknown locale: '%s'", lc_messages);
     return 1;
@@ -3138,7 +3139,7 @@ int init_common_variables()
   }
 
   if (!(my_default_lc_time_names=
-        my_locale_by_name(lc_time_names_name)))
+        my_locale_by_name(NULL, lc_time_names_name)))
   {
     sql_print_error("Unknown locale: '%s'", lc_time_names_name);
     return 1;
@@ -7735,7 +7736,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
      ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
 
   global_system_variables.sql_mode=
-    expand_sql_mode(global_system_variables.sql_mode);
+    expand_sql_mode(NULL, global_system_variables.sql_mode);
 
   if (!(global_system_variables.sql_mode & MODE_NO_AUTO_CREATE_USER))
   {

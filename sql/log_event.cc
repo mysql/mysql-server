@@ -12232,7 +12232,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
     TODO: Add safety measures against infinite looping. 
    */
 
-  m_table->mark_columns_per_binlog_row_image();
+  m_table->mark_columns_per_binlog_row_image(thd);
 
   while ((error= table->file->ha_write_row(table->record[0])))
   {
@@ -12527,7 +12527,7 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   int error;
   DBUG_ASSERT(m_table != NULL);
   /* m_table->record[0] contains the BI */
-  m_table->mark_columns_per_binlog_row_image();
+  m_table->mark_columns_per_binlog_row_image(thd);
   error= m_table->file->ha_delete_row(m_table->record[0]);
   m_table->default_column_bitmaps();
   return error;
@@ -12677,7 +12677,7 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
   memcpy(m_table->write_set->bitmap, m_cols_ai.bitmap, (m_table->write_set->n_bits + 7) / 8);
 
-  m_table->mark_columns_per_binlog_row_image();
+  m_table->mark_columns_per_binlog_row_image(thd);
   error= m_table->file->ha_update_row(m_table->record[1], m_table->record[0]);
   if (error == HA_ERR_RECORD_IS_THE_SAME)
     error= 0;

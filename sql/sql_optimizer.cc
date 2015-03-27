@@ -8517,31 +8517,6 @@ bool JOIN::cache_const_exprs()
 }
 
 
-void JOIN::replace_item_field(const char* field_name, Item* new_item)
-{
-  if (where_cond)
-  {
-    where_cond= where_cond->compile(&Item::item_field_by_name_analyzer,
-                                    (uchar **)&field_name,
-                                    &Item::item_field_by_name_transformer,
-                                    (uchar *)new_item);
-    where_cond->update_used_tables();
-  }
-
-  List_iterator<Item> it(fields_list);
-  Item *item;
-  while ((item= it++))
-  {
-    item= item->compile(&Item::item_field_by_name_analyzer,
-                        (uchar **)&field_name,
-                        &Item::item_field_by_name_transformer,
-                        (uchar *)new_item);
-    it.replace(item);
-    item->update_used_tables();
-  }
-}
-
-
 /**
   Extract a condition that can be checked after reading given table
   

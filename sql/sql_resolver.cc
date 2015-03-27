@@ -2378,6 +2378,9 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
         itself ordered.
      Otherwise the ORDER BY clause is ignored.
 
+     Only SELECT statements and single-table UPDATE and DELETE statements
+     allow ordering.
+
      Up to version 5.6 included, ORDER BY was unconditionally merged.
      Currently we only merge in the simple case above, which ensures
      backward compatibility for most reasonable use cases.
@@ -2388,9 +2391,10 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
     // LIMIT currently blocks derived table merge
     DBUG_ASSERT(!derived_select->has_limit());
 
-    if (!(master_unit()->is_union() ||
-          lex->sql_command == SQLCOM_UPDATE_MULTI ||
-          lex->sql_command == SQLCOM_DELETE_MULTI ||
+    if ((lex->sql_command == SQLCOM_SELECT ||
+         lex->sql_command == SQLCOM_UPDATE ||
+         lex->sql_command == SQLCOM_DELETE) &&
+        !(master_unit()->is_union() ||
           is_grouped() ||
           is_distinct() ||
           is_ordered() ||
@@ -3059,7 +3063,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
     return FALSE;
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
-  select_item= find_item_in_list(order_item, fields, &counter,
+  select_item= find_item_in_list(thd, order_item, fields, &counter,
                                  REPORT_EXCEPT_NOT_FOUND, &resolution);
   if (!select_item)
     return TRUE; /* The item is not unique, or some other error occured. */

@@ -38,7 +38,6 @@
 #include "binlog.h"                      // mysql_bin_log
 #include "connection_handler_impl.h"     // Per_thread_connection_handler
 #include "connection_handler_manager.h"  // Connection_handler_manager
-#include "current_thd.h"
 #include "debug_sync.h"                  // DEBUG_SYNC
 #include "derror.h"                      // read_texts
 #include "events.h"                      // Events
@@ -3685,14 +3684,13 @@ static Sys_var_ulong Sys_sort_buffer(
   have no effect.
 */
 
-void unset_removed_sql_modes(sql_mode_t &sql_mode)
+static void unset_removed_sql_modes(THD *thd, sql_mode_t &sql_mode)
 {
   /**
     If sql_mode is set throught the client, the warning should
     go to the client connection. If it is used as server startup option,
     it will go the error-log if the removed sql_modes are used.
   */
-  THD *thd= current_thd;
   if (thd)
   {
     if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
@@ -3742,9 +3740,9 @@ void unset_removed_sql_modes(sql_mode_t &sql_mode)
                MODE_NO_ZERO_IN_DATE);
 }
 
-export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
+export sql_mode_t expand_sql_mode(THD *thd, sql_mode_t sql_mode)
 {
-  unset_removed_sql_modes(sql_mode);
+  unset_removed_sql_modes(thd, sql_mode);
 
   if (sql_mode & MODE_ANSI)
   {
@@ -3794,7 +3792,7 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
 {
   var->save_result.ulonglong_value=
-    expand_sql_mode(var->save_result.ulonglong_value);
+    expand_sql_mode(thd, var->save_result.ulonglong_value);
 
   /* Warning displayed only if the non default sql_mode is specified. */
   if (var->value)
@@ -5190,7 +5188,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
     String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
       return true;
-    else if (!(locale= my_locale_by_name(res->c_ptr_safe())))
+    else if (!(locale= my_locale_by_name(thd, res->c_ptr_safe())))
     {
       ErrConvString err(res);
       my_error(ER_UNKNOWN_LOCALE, MYF(0), err.ptr());

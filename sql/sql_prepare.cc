@@ -1182,8 +1182,6 @@ bool Sql_cmd_insert::mysql_test_insert(THD *thd, TABLE_LIST *table_list)
   List_item *values;
   DBUG_ENTER("mysql_test_insert");
 
-  TABLE_LIST *insert_table_ref= 0;
-
   if (open_temporary_tables(thd, table_list))
     goto error;
 
@@ -1210,8 +1208,7 @@ bool Sql_cmd_insert::mysql_test_insert(THD *thd, TABLE_LIST *table_list)
       table_list->table->insert_values=(uchar *)1;
     }
 
-    if (mysql_prepare_insert(thd, table_list, &insert_table_ref, values, FALSE))
-
+    if (mysql_prepare_insert(thd, table_list, values, false))
       goto error;
 
     value_count= values->elements;
@@ -2477,9 +2474,9 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   }
   lex->set_current_select(lex->select_lex);
 
-  /* restore original list used in INSERT ... SELECT */
-  if (lex->leaf_tables_insert)
-    lex->select_lex->leaf_tables= lex->leaf_tables_insert;
+  // restore leaf tables used in INSERT ... SELECT
+  if (lex->insert_table)
+    lex->select_lex->leaf_tables= lex->insert_table->first_leaf_table();
 
   if (lex->result)
   {
@@ -2938,7 +2935,7 @@ Reprepare_observer::report_error(THD *thd)
     Test with rpl_sp_effects and friends.
   */
   thd->get_stmt_da()->reset_diagnostics_area();
-  thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
+  thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE);
   m_invalidated= TRUE;
 
   return TRUE;

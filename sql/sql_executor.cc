@@ -87,6 +87,15 @@ static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
 
+
+void Temp_table_param::cleanup(void)
+{
+  delete [] copy_field;
+  copy_field= NULL;
+  copy_field_end= NULL;
+}
+
+
 /**
   Execute select, executor entry point.
 
@@ -913,13 +922,16 @@ do_select(JOIN *join)
         item->no_rows_in_result();
 
       // Mark tables as containing only NULL values
-      join->clear();
+      if (join->clear())
+        error= NESTED_LOOP_ERROR;
+      else
+      {
+        if (!join->having_cond || join->having_cond->val_int())
+          rc= join->select_lex->query_result()->send_data(*join->fields);
 
-      if (!join->having_cond || join->having_cond->val_int())
-        rc= join->select_lex->query_result()->send_data(*join->fields);
-
-      if (save_nullinfo)
-        restore_const_null_info(join, save_nullinfo);
+        if (save_nullinfo)
+          restore_const_null_info(join, save_nullinfo);
+      }
     }
     /*
       An error can happen when evaluating the conds 
@@ -2861,7 +2873,8 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
          join->qep_tab[0].quick_optim()->is_loose_index_scan()))
     {
       // Copy non-aggregated fields when loose index scan is used.
-      copy_fields(&join->tmp_table_param);
+      if (copy_fields(&join->tmp_table_param, join->thd))
+        DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     }
     // Use JOIN's HAVING for the case of tableless SELECT.
     if (join->having_cond && join->having_cond->val_int() == 0)
@@ -2992,7 +3005,8 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
               item->no_rows_in_result();
 
             // Mark tables as containing only NULL values
-            join->clear();
+            if (join->clear())
+              DBUG_RETURN(NESTED_LOOP_ERROR);        /* purecov: inspected */
 	  }
 	  if (join->having_cond && join->having_cond->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
@@ -3051,7 +3065,8 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
         This branch is executed also for cursors which have finished their
         fetch limit - the reason for ok_code.
       */
-      copy_fields(&join->tmp_table_param);
+      if (copy_fields(&join->tmp_table_param, join->thd))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       join->group_sent= false;
@@ -3278,7 +3293,8 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   if (!end_of_records)
   {
     Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
-    copy_fields(tmp_tbl);
+    if (copy_fields(tmp_tbl, join->thd))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
     if (copy_funcs(tmp_tbl->items_to_copy, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
 
@@ -3340,7 +3356,9 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
 
   Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
   join->found_records++;
-  copy_fields(tmp_tbl);	// Groups are copied twice.
+  if (copy_fields(tmp_tbl, join->thd))	// Groups are copied twice.
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+      
   /* Make a key of group index */
   if (table->hash_field)
   {
@@ -3473,7 +3491,8 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
             item->no_rows_in_result();
 
           // Mark tables as containing only NULL values
-          join->clear();
+          if (join->clear())
+            DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         copy_sum_funcs(join->sum_funcs,
                        join->sum_funcs_end[send_group_parts]);
@@ -3508,11 +3527,12 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
     }
     if (idx < (int) join->send_group_parts)
     {
-      copy_fields(tmp_tbl);
+      if (copy_fields(tmp_tbl, join->thd))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
       if (copy_funcs(tmp_tbl->items_to_copy, join->thd))
-	DBUG_RETURN(NESTED_LOOP_ERROR);
+        DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
-	DBUG_RETURN(NESTED_LOOP_ERROR);
+        DBUG_RETURN(NESTED_LOOP_ERROR);
       DBUG_RETURN(NESTED_LOOP_OK);
     }
   }
@@ -4234,10 +4254,11 @@ err2:
 
   This is done at the start of a new group so that we can retrieve
   these later when the group changes.
+  @returns false if OK, true on error.
 */
 
-void
-copy_fields(Temp_table_param *param)
+bool
+copy_fields(Temp_table_param *param, const THD *thd)
 {
   Copy_field *ptr=param->copy_field;
   Copy_field *end=param->copy_field_end;
@@ -4249,8 +4270,11 @@ copy_fields(Temp_table_param *param)
 
   List_iterator_fast<Item> it(param->copy_funcs);
   Item_copy *item;
-  while ((item = (Item_copy*) it++))
-    item->copy();
+  bool is_error= thd->is_error();
+  while (!is_error && (item= (Item_copy*) it++))
+    is_error= item->copy(thd);
+
+  return is_error;
 }
 
 

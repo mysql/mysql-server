@@ -20,7 +20,6 @@
 #include "sql_table.h"
 
 #include "auth_common.h"        // check_fk_parent_table_access
-#include "current_thd.h"
 #include "unireg.h"
 #include "debug_sync.h"
 #include "mysqld.h"           // mysql_data_home mysql_tmpdir ...
@@ -81,7 +80,8 @@ const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
-static int copy_data_between_tables(PSI_stage_progress *psi,
+static int copy_data_between_tables(THD *thd,
+                                    PSI_stage_progress *psi,
                                     TABLE *from,TABLE *to,
                                     List<Create_field> &create,
 				    ha_rows *copied,ha_rows *deleted,
@@ -2881,6 +2881,7 @@ static int sort_keys(KEY *a, KEY *b)
 
   SYNOPSIS
     check_duplicates_in_interval()
+    thd           Thread handle
     set_or_name   "SET" or "ENUM" string for warning message
     name	  name of the checked column
     typelib	  list of values for the column
@@ -2895,9 +2896,10 @@ static int sort_keys(KEY *a, KEY *b)
     1             Error
 */
 
-bool check_duplicates_in_interval(const char *set_or_name,
-                                  const char *name, TYPELIB *typelib,
-                                  const CHARSET_INFO *cs, uint *dup_val_count)
+static bool check_duplicates_in_interval(THD *thd,
+                                         const char *set_or_name,
+                                         const char *name, TYPELIB *typelib,
+                                         const CHARSET_INFO *cs, uint *dup_val_count)
 {
   TYPELIB tmp= *typelib;
   const char **cur_value= typelib->type_names;
@@ -2911,9 +2913,8 @@ bool check_duplicates_in_interval(const char *set_or_name,
     tmp.count--;
     if (find_type2(&tmp, (const char*)*cur_value, *cur_length, cs))
     {
-      THD *thd= current_thd;
       ErrConvString err(*cur_value, *cur_length, cs);
-      if (current_thd->is_strict_mode())
+      if (thd->is_strict_mode())
       {
         my_error(ER_DUPLICATED_VALUE_IN_TYPE, MYF(0),
                  name, err.ptr(), set_or_name);
@@ -2971,6 +2972,7 @@ static void calculate_interval_lengths(const CHARSET_INFO *cs,
 
   SYNOPSIS
     prepare_create_field()
+    thd           Thread handle
     sql_field     field to prepare for packing
     blob_columns  count for BLOBs
     table_flags   table flags
@@ -2984,9 +2986,9 @@ static void calculate_interval_lengths(const CHARSET_INFO *cs,
    1	Error
 */
 
-int prepare_create_field(Create_field *sql_field, 
-			 uint *blob_columns, 
-			 longlong table_flags)
+static int prepare_create_field(THD *thd, Create_field *sql_field,
+                                uint *blob_columns,
+                                longlong table_flags)
 {
   unsigned int dup_val_count;
   DBUG_ENTER("prepare_field");
@@ -3015,7 +3017,7 @@ int prepare_create_field(Create_field *sql_field,
     if (!(table_flags & HA_CAN_GEOMETRY))
     {
       my_printf_error(ER_CHECK_NOT_IMPLEMENTED,
-                      ER_THD(current_thd, ER_CHECK_NOT_IMPLEMENTED),
+                      ER_THD(thd, ER_CHECK_NOT_IMPLEMENTED),
                       MYF(0), "GEOMETRY");
       DBUG_RETURN(1);
     }
@@ -3039,7 +3041,7 @@ int prepare_create_field(Create_field *sql_field,
           MAX_FIELD_CHARLENGTH)
       {
         my_printf_error(ER_TOO_BIG_FIELDLENGTH,
-                        ER_THD(current_thd, ER_TOO_BIG_FIELDLENGTH),
+                        ER_THD(thd, ER_TOO_BIG_FIELDLENGTH),
                         MYF(0), sql_field->field_name,
                         static_cast<ulong>(MAX_FIELD_CHARLENGTH));
         DBUG_RETURN(1);
@@ -3057,7 +3059,7 @@ int prepare_create_field(Create_field *sql_field,
     if (sql_field->charset->state & MY_CS_BINSORT)
       sql_field->pack_flag|=FIELDFLAG_BINARY;
     sql_field->unireg_check=Field::INTERVAL_FIELD;
-    if (check_duplicates_in_interval("ENUM",sql_field->field_name,
+    if (check_duplicates_in_interval(thd, "ENUM",sql_field->field_name,
                                      sql_field->interval,
                                      sql_field->charset, &dup_val_count))
       DBUG_RETURN(1);
@@ -3068,7 +3070,7 @@ int prepare_create_field(Create_field *sql_field,
     if (sql_field->charset->state & MY_CS_BINSORT)
       sql_field->pack_flag|=FIELDFLAG_BINARY;
     sql_field->unireg_check=Field::BIT_FIELD;
-    if (check_duplicates_in_interval("SET",sql_field->field_name,
+    if (check_duplicates_in_interval(thd, "SET",sql_field->field_name,
                                      sql_field->interval,
                                      sql_field->charset, &dup_val_count))
       DBUG_RETURN(1);
@@ -3215,7 +3217,7 @@ bool fill_field_definition(THD *thd,
 
   sp_prepare_create_field(thd, field_def);
 
-  return prepare_create_field(field_def, &unused1, HA_CAN_GEOMETRY);
+  return prepare_create_field(thd, field_def, &unused1, HA_CAN_GEOMETRY);
 }
 
 /*
@@ -3724,7 +3726,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   {
     DBUG_ASSERT(sql_field->charset != 0);
 
-    if (prepare_create_field(sql_field, &blob_columns, 
+    if (prepare_create_field(thd, sql_field, &blob_columns,
 			     file->ha_table_flags()))
       DBUG_RETURN(TRUE);
     if (sql_field->sql_type == MYSQL_TYPE_VARCHAR)
@@ -5099,7 +5101,7 @@ bool create_table_impl(THD *thd,
 
     if (!table)
     {
-      (void) rm_temporary_table(create_info->db_type, path);
+      (void) rm_temporary_table(thd, create_info->db_type, path);
       goto err;
     }
 
@@ -5322,6 +5324,7 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
 /**
   Rename a table.
 
+  @param thd       Thread handle
   @param base      The handlerton handle.
   @param old_db    The old database name.
   @param old_name  The old table name.
@@ -5340,11 +5343,10 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
 */
 
 bool
-mysql_rename_table(handlerton *base, const char *old_db,
+mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                    const char *old_name, const char *new_db,
                    const char *new_name, uint flags)
 {
-  THD *thd= current_thd;
   char from[FN_REFLEN + 1], to[FN_REFLEN + 1],
     lc_from[FN_REFLEN + 1], lc_to[FN_REFLEN + 1];
   char *from_base= from, *to_base= to;
@@ -5674,6 +5676,28 @@ err:
 }
 
 
+/**
+  Class utilizing RAII for correct set/reset of the
+  THD::tablespace_op flag. The destructor will reset
+  the flag when a stack allocated instance goes out
+  of scope.
+ */
+
+class Tablespace_op_flag_handler
+{
+private:
+  THD *m_thd;
+public:
+  Tablespace_op_flag_handler(THD *thd): m_thd(thd)
+  {
+    m_thd->tablespace_op= true;
+  }
+  ~Tablespace_op_flag_handler()
+  {
+    m_thd->tablespace_op= false;
+  }
+};
+
 /* table_list should contain just one table */
 int mysql_discard_or_import_tablespace(THD *thd,
                                        TABLE_LIST *table_list,
@@ -5690,11 +5714,13 @@ int mysql_discard_or_import_tablespace(THD *thd,
 
   THD_STAGE_INFO(thd, stage_discard_or_import_tablespace);
 
- /*
-   We set this flag so that ha_innobase::open and ::external_lock() do
-   not complain when we lock the table
- */
-  thd->tablespace_op= true;
+  /*
+    Set thd->tablespace_op, and reset it when the variable leaves scope.
+    We set this flag so that ha_innobase::open and ::external_lock() do
+    not complain when we lock the table
+  */
+  Tablespace_op_flag_handler set_tablespace_op(thd);
+
   /*
     Adjust values of table-level and metadata which was set in parser
     for the case general ALTER TABLE.
@@ -5707,7 +5733,6 @@ int mysql_discard_or_import_tablespace(THD *thd,
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
   {
     /* purecov: begin inspected */
-    thd->tablespace_op= false;
     DBUG_RETURN(-1);
     /* purecov: end */
   }
@@ -5752,7 +5777,6 @@ int mysql_discard_or_import_tablespace(THD *thd,
                                            MDL_EXCLUSIVE,
                                            thd->variables.lock_wait_timeout))
   {
-    thd->tablespace_op= false;
     DBUG_RETURN(-1);
   }
 
@@ -5784,8 +5808,6 @@ err:
   {
     table_list->table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
-
-  thd->tablespace_op= false;
 
   if (error == 0)
   {
@@ -6711,7 +6733,7 @@ bool mysql_compare_tables(TABLE *table,
 */
 
 static
-bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
+bool alter_table_manage_keys(THD *thd, TABLE *table, int indexes_were_disabled,
                              Alter_info::enum_enable_or_disable keys_onoff)
 {
   int error= 0;
@@ -6733,8 +6755,8 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
 
   if (error == HA_ERR_WRONG_COMMAND)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_NOTE,
-                        ER_ILLEGAL_HA, ER_THD(current_thd, ER_ILLEGAL_HA),
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
+                        ER_ILLEGAL_HA, ER_THD(thd, ER_ILLEGAL_HA),
                         table->s->table_name.str);
     error= 0;
   } else if (error)
@@ -7031,7 +7053,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     Replace the old .FRM with the new .FRM, but keep the old name for now.
     Rename to the new name (if needed) will be handled separately below.
   */
-  if (mysql_rename_table(db_type, alter_ctx->new_db, alter_ctx->tmp_name,
+  if (mysql_rename_table(thd, db_type, alter_ctx->new_db, alter_ctx->tmp_name,
                          alter_ctx->db, alter_ctx->alias,
                          FN_FROM_IS_TMP | NO_HA_TABLE))
   {
@@ -7067,7 +7089,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
                      alter_ctx->db, alter_ctx->table_name, false);
 
-    if (mysql_rename_table(db_type, alter_ctx->db, alter_ctx->table_name,
+    if (mysql_rename_table(thd, db_type, alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias, 0))
     {
       /*
@@ -7087,7 +7109,7 @@ static bool mysql_inplace_alter_table(THD *thd,
         If the rename of trigger files fails, try to rename the table
         back so we at least have matching table and trigger files.
       */
-      (void) mysql_rename_table(db_type,
+      (void) mysql_rename_table(thd, db_type,
                                 alter_ctx->new_db, alter_ctx->new_alias,
                                 alter_ctx->db, alter_ctx->alias, NO_FK_CHECKS);
       DBUG_RETURN(true);
@@ -8212,7 +8234,8 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(true);
     close_all_tables_for_name(thd, table->s, true, NULL);
 
-    if (mysql_rename_table(old_db_type, alter_ctx->db, alter_ctx->table_name,
+    if (mysql_rename_table(thd, old_db_type,
+                           alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias, 0))
       error= -1;
     else if (change_trigger_table_name(thd,
@@ -8222,7 +8245,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
                                        alter_ctx->new_db,
                                        alter_ctx->new_alias))
     {
-      (void) mysql_rename_table(old_db_type,
+      (void) mysql_rename_table(thd, old_db_type,
                                 alter_ctx->new_db, alter_ctx->new_alias,
                                 alter_ctx->db, alter_ctx->table_name, 
                                 NO_FK_CHECKS);
@@ -9037,7 +9060,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
         goto err_new_table_cleanup;
       });
-    if (copy_data_between_tables(thd->m_stage_progress_psi,
+    if (copy_data_between_tables(thd,
+                                 thd->m_stage_progress_psi,
                                  table, new_table,
                                  alter_info->create_list,
                                  &copied, &deleted,
@@ -9054,7 +9078,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_new_table_cleanup;
     THD_STAGE_INFO(thd, stage_manage_keys);
     DEBUG_SYNC(thd, "alter_table_manage_keys");
-    alter_table_manage_keys(table, table->file->indexes_are_disabled(),
+    alter_table_manage_keys(thd, table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
@@ -9139,7 +9163,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
               current_pid, thd->thread_id());
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, backup_name);
-  if (mysql_rename_table(old_db_type, alter_ctx.db, alter_ctx.table_name,
+  if (mysql_rename_table(thd, old_db_type, alter_ctx.db, alter_ctx.table_name,
                          alter_ctx.db, backup_name, FN_TO_IS_TMP))
   {
     // Rename to temporary name failed, delete the new table, abort ALTER.
@@ -9149,7 +9173,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   // Rename the new table to the correct name.
-  if (mysql_rename_table(new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,
+  if (mysql_rename_table(thd, new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,
                          alter_ctx.new_db, alter_ctx.new_alias,
                          FN_FROM_IS_TMP))
   {
@@ -9158,7 +9182,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                           alter_ctx.tmp_name, FN_IS_TMP);
     
     // Restore the backup of the original table to the old name.
-    (void) mysql_rename_table(old_db_type, alter_ctx.db, backup_name,
+    (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
                               alter_ctx.db, alter_ctx.alias, 
                               FN_FROM_IS_TMP | NO_FK_CHECKS);
     
@@ -9178,7 +9202,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     (void) quick_rm_table(thd, new_db_type,
                           alter_ctx.new_db, alter_ctx.new_alias, 0);
     // Restore the backup of the original table to the old name.
-    (void) mysql_rename_table(old_db_type, alter_ctx.db, backup_name,
+    (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
                               alter_ctx.db, alter_ctx.alias, 
                               FN_FROM_IS_TMP | NO_FK_CHECKS);
     goto err_with_mdl;
@@ -9362,7 +9386,8 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
 
 
 static int
-copy_data_between_tables(PSI_stage_progress *psi,
+copy_data_between_tables(THD * thd,
+                         PSI_stage_progress *psi,
                          TABLE *from,TABLE *to,
 			 List<Create_field> &create,
 			 ha_rows *copied,
@@ -9373,7 +9398,6 @@ copy_data_between_tables(PSI_stage_progress *psi,
   int error;
   Copy_field *copy,*copy_end;
   ulong found_count,delete_count;
-  THD *thd= current_thd;
   READ_RECORD info;
   TABLE_LIST   tables;
   List<Item>   fields;
@@ -9396,7 +9420,8 @@ copy_data_between_tables(PSI_stage_progress *psi,
     DBUG_RETURN(-1);
 
   /* We need external lock before we can disable/enable keys */
-  alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
+  alter_table_manage_keys(thd, to, from->file->indexes_are_disabled(),
+                          keys_onoff);
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);

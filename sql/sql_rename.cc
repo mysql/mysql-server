@@ -278,7 +278,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
           my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), ren_table->db, old_alias);
           DBUG_RETURN(1);
         }
-        if (!(rc= mysql_rename_table(hton, ren_table->db, old_alias,
+        if (!(rc= mysql_rename_table(thd, hton, ren_table->db, old_alias,
                                      new_db, new_alias, 0)))
         {
           if ((rc= change_trigger_table_name(thd, ren_table->db, old_alias,
@@ -291,7 +291,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
               triggers appropriately. So let us revert operations on .frm
               and handler's data and report about failure to rename table.
             */
-            (void) mysql_rename_table(hton, new_db, new_alias,
+            (void) mysql_rename_table(thd, hton, new_db, new_alias,
                                       ren_table->db, old_alias, NO_FK_CHECKS);
           }
         }

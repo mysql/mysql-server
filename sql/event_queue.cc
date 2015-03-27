@@ -158,7 +158,7 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element,
              new_element->dbname.str, new_element->name.str));
 
   /* Will do nothing if the event is disabled */
-  new_element->compute_next_execution_time();
+  new_element->compute_next_execution_time(thd);
   if (new_element->status != Event_parse_data::ENABLED)
   {
     delete new_element;
@@ -209,7 +209,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
     new_element= NULL;
   }
   else
-    new_element->compute_next_execution_time();
+    new_element->compute_next_execution_time(thd);
 
   LOCK_QUEUE_DATA();
   find_n_remove_event(dbname, name);
@@ -405,7 +405,7 @@ Event_queue::recalculate_activation_times(THD *thd)
                       static_cast<unsigned>(queue.size())));
   for (size_t i= 0; i < queue.size(); i++)
   {
-    queue[i]->compute_next_execution_time();
+    queue[i]->compute_next_execution_time(thd);
   }
   queue.build_heap();
   /*
@@ -586,7 +586,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 
     DBUG_PRINT("info", ("Ready for execution"));
     top->mark_last_executed(thd);
-    if (top->compute_next_execution_time())
+    if (top->compute_next_execution_time(thd))
       top->status= Event_parse_data::DISABLED;
     DBUG_PRINT("info", ("event %s status is %d", top->name.str, top->status));
 

@@ -504,7 +504,7 @@ public:
   virtual ~Table_check_intact() {}
 
   /** Checks whether a table is intact. */
-  bool check(TABLE *table, const TABLE_FIELD_DEF *table_def);
+  bool check(THD *thd, TABLE *table, const TABLE_FIELD_DEF *table_def);
 };
 
 
@@ -1189,6 +1189,10 @@ public:
      tree only.
    */
   my_bool key_read;
+  /**
+     Certain statements which need the full row, set this to ban index-only
+     access.
+  */
   my_bool no_keyread;
   my_bool locked_by_logger;
   /**
@@ -1267,10 +1271,10 @@ public:
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
-  void mark_columns_needed_for_update(void);
-  void mark_columns_needed_for_delete(void);
-  void mark_columns_needed_for_insert(void);
-  void mark_columns_per_binlog_row_image(void);
+  void mark_columns_needed_for_update(THD *thd);
+  void mark_columns_needed_for_delete(THD *thd);
+  void mark_columns_needed_for_insert(THD *thd);
+  void mark_columns_per_binlog_row_image(THD *thd);
   void mark_generated_columns(bool is_update);
   bool is_field_dependent_on_generated_columns(uint field_index);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
@@ -2765,10 +2769,13 @@ void free_table_share(TABLE_SHARE *share);
 
 
 /**
-  Get the tablespace name from within an .FRM file.
+  Get the tablespace name for a table.
 
   This function will open the .FRM file for the given TABLE_LIST element
-  and find the tablespace name, if present.
+  and get the tablespace name, if present. For NDB tables with version
+  before 50120, the function will ask the SE for the tablespace name,
+  because for these tables, the tablespace name is not stored in the.FRM
+  file, but only within the SE itself.
 
   @note The function does *not* consider errors. If the file is not present,
         this does not raise an error. The reason is that this function will
@@ -2798,7 +2805,8 @@ void free_table_share(TABLE_SHARE *share);
 const char *get_tablespace_name(THD *thd, const TABLE_LIST *table);
 
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
-void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
+void open_table_error(THD *thd, TABLE_SHARE *share,
+                      int error, int db_errno, int errarg);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 enum_ident_name_check check_and_convert_db_name(LEX_STRING *db,
                                                 bool preserve_lettercase);

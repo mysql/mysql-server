@@ -2989,8 +2989,8 @@ public:
 
   /// Table being inserted into (may be a view)
   TABLE_LIST *insert_table;
-  /// store original leaf_tables for INSERT SELECT and PS/SP
-  TABLE_LIST *leaf_tables_insert;
+  /// Leaf table being inserted into (always a base table)
+  TABLE_LIST *insert_table_leaf;
 
   /** SELECT of CREATE VIEW statement */
   LEX_STRING create_view_select;

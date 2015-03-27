@@ -194,7 +194,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
                              HA_CREATE_INFO *create_info);
-bool mysql_rename_table(handlerton *base, const char *old_db,
+bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                         const char * old_name, const char *new_db,
                         const char * new_name, uint flags);
 
@@ -215,9 +215,6 @@ bool fill_field_definition(THD *thd,
                            class sp_head *sp,
                            enum enum_field_types field_type,
                            Create_field *field_def);
-int prepare_create_field(Create_field *sql_field,
-			 uint *blob_columns,
-			 longlong table_flags);
 const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
                                           HA_CREATE_INFO *create_info);
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);

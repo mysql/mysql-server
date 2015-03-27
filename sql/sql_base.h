@@ -217,7 +217,7 @@ thr_lock_type read_lock_type_for_table(THD *thd,
                                        bool routine_modifies_data);
 
 my_bool mysql_rm_tmp_tables(void);
-bool rm_temporary_table(handlerton *base, const char *path);
+bool rm_temporary_table(THD *thd, handlerton *base, const char *path);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
@@ -270,7 +270,8 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
                     bool allow_rowid, uint *cached_field_index_ptr);
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
-Item ** find_item_in_list(Item *item, List<Item> &items, uint *counter,
+Item ** find_item_in_list(THD *thd, Item *item,
+                          List<Item> &items, uint *counter,
                           find_item_error_report_type report_error,
                           enum_resolution_type *resolution);
 bool setup_natural_join_row_types(THD *thd,
@@ -310,7 +311,7 @@ TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
 int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
-void close_temporary(TABLE *table, bool free_share, bool delete_table);
+void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list);

@@ -24,7 +24,6 @@
 
 #include "filesort.h"
 
-#include "current_thd.h"
 #include "derror.h"
 #include <m_ctype.h>
 #include "sql_sort.h"
@@ -77,7 +76,7 @@ struct Mem_compare
 
 	/* functions defined in this file */
 
-static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
+static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *buffer_file,
                              IO_CACHE *chunk_file,
@@ -87,7 +86,8 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
 static int write_keys(Sort_param *param, Filesort_info *fs_info,
                       uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
 static void register_used_fields(Sort_param *param);
-static int merge_index(Sort_param *param,
+static int merge_index(THD *thd,
+                       Sort_param *param,
                        Sort_buffer sort_buffer,
                        Merge_chunk_array chunk_array,
                        IO_CACHE *tempfile,
@@ -414,7 +414,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows= find_all_keys(&param, qep_tab,
+    num_rows= find_all_keys(thd, &param, qep_tab,
                             &table_sort,
                             &chunk_file,
                             &tempfile,
@@ -471,7 +471,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     param.max_keys_per_buffer=
       table_sort.sort_buffer_size() / param.rec_length;
 
-    if (merge_many_buff(&param,
+    if (merge_many_buff(thd, &param,
                         table_sort.get_raw_buf(),
                         table_sort.merge_chunks,
                         &num_chunks,
@@ -480,7 +480,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     if (flush_io_cache(&tempfile) ||
 	reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
       goto err;
-    if (merge_index(&param,
+    if (merge_index(thd, &param,
                     table_sort.get_raw_buf(),
                     Merge_chunk_array(table_sort.merge_chunks.begin(),
                                       num_chunks),
@@ -753,6 +753,7 @@ static const Item::enum_walk walk_subquery=
   (if we run out of space in the sort buffer).
   All produced sequences are guaranteed to be non-empty.
 
+  @param thd               Thread handle
   @param param             Sorting parameter
   @param select            Use this to get source data
   @param fs_info           Struct containing sort buffer etc.
@@ -796,7 +797,7 @@ static const Item::enum_walk walk_subquery=
     HA_POS_ERROR on error.
 */
 
-static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
+static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *chunk_file,
                              IO_CACHE *tempfile,
@@ -809,7 +810,6 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
   uchar *ref_pos,*next_pos,ref_buff[MAX_REFLENGTH];
   my_off_t record;
   TABLE *sort_form;
-  THD *thd= current_thd;
   volatile THD::killed_state *killed= &thd->killed;
   handler *file;
   MY_BITMAP *save_read_set, *save_write_set;
@@ -1663,7 +1663,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
                       output: the number of chunks left in the output file.
   @param t_file       Where to store the result.
 */
-int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
+int merge_many_buff(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
                     Merge_chunk_array chunk_array,
                     size_t *p_num_chunks, IO_CACHE *t_file)
 {
@@ -1691,7 +1691,8 @@ int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
     Merge_chunk *last_chunk= chunk_array.begin();;
     for (i=0 ; i < num_chunks - MERGEBUFF * 3 / 2 ; i+= MERGEBUFF)
     {
-      if (merge_buffers(param,                  // param
+      if (merge_buffers(thd,
+                        param,                  // param
                         from_file,              // from_file
                         to_file,                // to_file
                         sort_buffer,            // sort_buffer
@@ -1700,7 +1701,8 @@ int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
                         0))                     // flag
       goto cleanup;
     }
-    if (merge_buffers(param,
+    if (merge_buffers(thd,
+                      param,
                       from_file,
                       to_file,
                       sort_buffer,
@@ -1870,7 +1872,7 @@ struct Merge_chunk_less
     other  error
 */
 
-int merge_buffers(Sort_param *param, IO_CACHE *from_file,
+int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
                   IO_CACHE *to_file, Sort_buffer sort_buffer,
                   Merge_chunk *last_chunk,
                   Merge_chunk_array chunk_array,
@@ -1886,11 +1888,11 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   Merge_chunk *merge_chunk;
   Sort_param::chunk_compare_fun cmp;
   Merge_chunk_compare_context *first_cmp_arg;
-  volatile THD::killed_state *killed= &current_thd->killed;
+  volatile THD::killed_state *killed= &thd->killed;
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
 
-  current_thd->inc_status_sort_merge_passes();
+  thd->inc_status_sort_merge_passes();
   if (param->not_killable)
   {
     killed= &not_killable;
@@ -2090,12 +2092,13 @@ end:
 
 	/* Do a merge to output-file (save only positions) */
 
-static int merge_index(Sort_param *param, Sort_buffer sort_buffer,
+static int merge_index(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
                        Merge_chunk_array chunk_array,
                        IO_CACHE *tempfile, IO_CACHE *outfile)
 {
   DBUG_ENTER("merge_index");
-  if (merge_buffers(param,                    // param
+  if (merge_buffers(thd,
+                    param,                    // param
                     tempfile,                 // from_file
                     outfile,                  // to_file
                     sort_buffer,              // sort_buffer

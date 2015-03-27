@@ -21,6 +21,7 @@
   This file defines implementations of GIS set operation functions.
 */
 #include "my_config.h"
+#include "current_thd.h"
 #include "item_geofunc_internal.h"
 
 
@@ -3219,7 +3220,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   if (g1->store_shapes(&trn) || g2->store_shapes(&trn))
     goto exit;
 #ifndef DBUG_OFF
-  func.debug_print_function_buffer();
+  func.debug_print_function_buffer(current_thd);
 #endif
 
   collector.prepare_operation();

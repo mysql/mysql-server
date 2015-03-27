@@ -880,7 +880,7 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
       }
       else
       {
-        // we never use anonymous users when mapping 
+        // we never use anonymous users when mapping
         // proxy users for internal plugins:
         if (strcmp(proxy->get_proxied_user() ?
           proxy->get_proxied_user() : "", ""))

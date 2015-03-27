@@ -3188,7 +3188,8 @@ int ha_federated::real_connect()
   /* this sets the csname like 'set names utf8' */
   mysql_options(mysql,MYSQL_SET_CHARSET_NAME,
                 this->table->s->table_charset->csname);
-
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "federated");
   sql_query.length(0);
 
   if (!mysql_real_connect(mysql,

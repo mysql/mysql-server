@@ -3274,9 +3274,13 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 /**
   clear results if there are not rows found for group
   (end_send_group/end_write_group)
+  @retval
+    FALSE if OK
+  @retval
+    TRUE on error  
 */
 
-void JOIN::clear()
+bool JOIN::clear()
 {
   /* 
     must clear only the non-const tables, as const tables
@@ -3285,7 +3289,8 @@ void JOIN::clear()
   for (uint tableno= const_tables; tableno < primary_tables; tableno++)
     mark_as_null_row(qep_tab[tableno].table());  // All fields are NULL
 
-  copy_fields(&tmp_table_param);
+  if (copy_fields(&tmp_table_param, thd))
+    return true;
 
   if (sum_funcs)
   {
@@ -3293,6 +3298,7 @@ void JOIN::clear()
     while ((func= *(func_ptr++)))
       func->clear();
   }
+  return false;
 }
 
 
@@ -3693,19 +3699,27 @@ bool JOIN::make_tmp_tables_info()
     /* If we have already done the group, add HAVING to sorted table */
     if (having_cond && !group_list && !sort_and_group)
     {
-      /*
-        Fields in HAVING condition may have been replaced with fields in an
-        internal temporary table. This table has map=1, hence we check that
-        we have no fields from other tables (outer references are fine).
-      */
       having_cond->update_used_tables();
       QEP_TAB *const curr_table= &qep_tab[curr_tmp_table];
-      DBUG_ASSERT(curr_table->table_ref ||
-                  !(having_cond->used_tables() &
-                    ~(1 | PSEUDO_TABLE_BITS)));
-      table_map used_tables= curr_table->table_ref ?
-                               curr_table->table_ref->map() :
-                               1; // Internal temporary table
+      table_map used_tables;
+
+      if (curr_table->table_ref)
+        used_tables= curr_table->table_ref->map();
+      else
+      {
+        /*
+          Pushing parts of HAVING to an internal temporary table.
+          Fields in HAVING condition may have been replaced with fields in an
+          internal temporary table. This table has map=1, hence we check that
+          we have no fields from other tables (outer references are fine).
+          Unfortunaly, update_used_tables() is not reliable for subquery
+          items, which could thus still have other tables in their
+          used_tables() information.
+        */
+        DBUG_ASSERT(having_cond->has_subquery() ||
+                    !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS)));
+        used_tables= 1;
+      }
 
       Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
                                                  (table_map) 0, false);

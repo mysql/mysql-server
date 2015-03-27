@@ -888,7 +888,7 @@ bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
 
   need_close= true;
 
-  if (log_table_intact.check(table_list.table, &general_log_table_def))
+  if (log_table_intact.check(thd, table_list.table, &general_log_table_def))
     goto err;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
@@ -1013,7 +1013,7 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
 
   need_close= true;
 
-  if (log_table_intact.check(table_list.table, &slow_query_log_table_def))
+  if (log_table_intact.check(thd, table_list.table, &slow_query_log_table_def))
     goto err;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||

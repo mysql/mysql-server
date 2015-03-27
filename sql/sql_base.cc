@@ -17,7 +17,6 @@
 
 #include "sql_base.h"
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "current_thd.h"
 #include "psi_memory_key.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
@@ -582,7 +581,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                     open_table_err= 1;
                     share->error= 1;
                     share->open_errno= ENOENT;
-                    open_table_error(share, share->error,
+                    open_table_error(thd, share, share->error,
                                      share->open_errno, 0);
                   });
 
@@ -628,12 +627,13 @@ found:
   if (share->error)
   {
     /* Table definition contained an error */
-    open_table_error(share, share->error, share->open_errno, share->errarg);
+    open_table_error(thd, share,
+                     share->error, share->open_errno, share->errarg);
     DBUG_RETURN(0);
   }
   if (share->is_view && !(db_flags & OPEN_VIEW))
   {
-    open_table_error(share, 1, ENOENT, 0);
+    open_table_error(thd, share, 1, ENOENT, 0);
     DBUG_RETURN(0);
   }
 
@@ -1613,7 +1613,7 @@ bool close_temporary_tables(THD *thd)
     {
       tmp_next= t->next;
       mysql_lock_remove(thd, thd->lock, t);
-      close_temporary(t, 1, 1);
+      close_temporary(thd, t, 1, 1);
     }
 
     thd->temporary_tables= 0;
@@ -1747,7 +1747,7 @@ bool close_temporary_tables(THD *thd)
 
         next= table->next;
         mysql_lock_remove(thd, thd->lock, table);
-        close_temporary(table, 1, 1);
+        close_temporary(thd, table, 1, 1);
       }
       thd->clear_error();
       const CHARSET_INFO *cs_save= thd->variables.character_set_client;
@@ -1824,7 +1824,7 @@ bool close_temporary_tables(THD *thd)
     else
     {
       next= table->next;
-      close_temporary(table, 1, 1);
+      close_temporary(thd, table, 1, 1);
     }
   }
   if (!was_quote_show)
@@ -2249,7 +2249,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     DBUG_ASSERT(slave_open_temp_tables || !thd->temporary_tables);
     modify_slave_open_temp_tables(thd, -1);
   }
-  close_temporary(table, free_share, delete_table);
+  close_temporary(thd, table, free_share, delete_table);
   DBUG_VOID_RETURN;
 }
 
@@ -2262,7 +2262,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     If this is needed, use close_temporary_table()
 */
 
-void close_temporary(TABLE *table, bool free_share, bool delete_table)
+void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table)
 {
   handlerton *table_type= table->s->db_type();
   DBUG_ENTER("close_temporary");
@@ -2272,7 +2272,10 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
   free_io_cache(table);
   closefrm(table, 0);
   if (delete_table)
-    rm_temporary_table(table_type, table->s->path.str);
+  {
+    DBUG_ASSERT(thd);
+    rm_temporary_table(thd, table_type, table->s->path.str);
+  }
   if (free_share)
   {
     free_table_share(table->s);
@@ -6575,6 +6578,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 /**
   Delete a temporary table.
 
+  @param thd   Thread handle
   @param base  Handlerton for table to be deleted.
   @param path  Path to the table to be deleted (i.e. path
                to its .frm without an extension).
@@ -6583,7 +6587,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   @retval true  - failure.
 */
 
-bool rm_temporary_table(handlerton *base, const char *path)
+bool rm_temporary_table(THD *thd, handlerton *base, const char *path)
 {
   bool error=0;
   handler *file;
@@ -6593,7 +6597,7 @@ bool rm_temporary_table(handlerton *base, const char *path)
   strxnmov(frm_path, sizeof(frm_path) - 1, path, reg_ext, NullS);
   if (mysql_file_delete(key_file_frm, frm_path, MYF(0)))
     error=1; /* purecov: inspected */
-  file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
+  file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base);
   if (file && file->ha_delete_table(path))
   {
     error=1;
@@ -7566,7 +7570,7 @@ Item **not_found_item= (Item**) 0x1;
 
 
 Item **
-find_item_in_list(Item *find, List<Item> &items, uint *counter,
+find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
                   find_item_error_report_type report_error,
                   enum_resolution_type *resolution)
 {
@@ -7646,7 +7650,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
             */
             if (report_error != IGNORE_ERRORS)
               my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                       find->full_name(), current_thd->where);
+                       find->full_name(), thd->where);
             return (Item**) 0;
           }
           found_unaliased= li.ref();
@@ -7676,7 +7680,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
               continue;                           // Same field twice
             if (report_error != IGNORE_ERRORS)
               my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                       find->full_name(), current_thd->where);
+                       find->full_name(), thd->where);
             return (Item**) 0;
           }
           found= li.ref();
@@ -7756,7 +7760,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     {
       if (report_error != IGNORE_ERRORS)
         my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                 find->full_name(), current_thd->where);
+                 find->full_name(), thd->where);
       return (Item **) 0;
     }
     if (found_unaliased)
@@ -7772,7 +7776,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   {
     if (report_error == REPORT_ALL_ERRORS)
       my_error(ER_BAD_FIELD_ERROR, MYF(0),
-               find->full_name(), current_thd->where);
+               find->full_name(), thd->where);
     return (Item **) 0;
   }
   else
@@ -7986,17 +7990,19 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     */
     if (nj_col_2 && (!using_fields ||is_using_column_1))
     {
-      Item *item_1=   nj_col_1->create_item(thd);
-      Item *item_2=   nj_col_2->create_item(thd);
+      Item *item_1= nj_col_1->create_item(thd);
+      if (!item_1)
+        DBUG_RETURN(true);
+      Item *item_2= nj_col_2->create_item(thd);
+      if (!item_2)
+        DBUG_RETURN(true);
+
       Field *field_1= nj_col_1->field();
       Field *field_2= nj_col_2->field();
       Item_ident *item_ident_1, *item_ident_2;
       Item_func_eq *eq_cond;
       fields.push_back(field_1);
       fields.push_back(field_2);
-
-      if (!item_1 || !item_2)
-        DBUG_RETURN(true);                      // Out of memory.
 
       /*
         The created items must be of sub-classes of Item_ident.
@@ -8044,41 +8050,30 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
                            nj_col_2->name()));
 
       // Mark fields in the read set
-      if (table_ref_1->is_view_or_derived())
-      {
-        Mark_field mf(MARK_COLUMNS_READ);
-        item_1->walk(&Item::mark_field_in_map,
-                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-                     (uchar *)&mf);
-      }
-      else if (field_1)
+      if (field_1)
       {
         nj_col_1->table_ref->table->mark_column_used(thd, field_1,
                                                      MARK_COLUMNS_READ);
       }
       else
       {
-        /*
-          Reaching here probably means that a field has been resolved in
-          a deeper join nest, and has been fully prepared there.
-          In that case, item_1::walk() above may actually attempt to update
-          bitmap, covering_keys and merge_keys twice, but no big harm done.
-          This comment applies to the following if test, too.
-          @todo Investigate if this can be simplified, or we can even avoid
-                resolving columns at this level.
-        */
+        Mark_field mf(MARK_COLUMNS_READ);
+        item_1->walk(&Item::mark_field_in_map,
+                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                     (uchar *)&mf);
       }
-      if (table_ref_2->is_view_or_derived())
+
+      if (field_2)
+      {
+        nj_col_2->table_ref->table->mark_column_used(thd, field_2,
+                                                     MARK_COLUMNS_READ);
+      }
+      else
       {
         Mark_field mf(MARK_COLUMNS_READ);
         item_2->walk(&Item::mark_field_in_map,
                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                      (uchar *)&mf);
-      }
-      else if (field_2)
-      {
-        nj_col_2->table_ref->table->mark_column_used(thd, field_2,
-                                                     MARK_COLUMNS_READ);
       }
 
       if (using_fields != NULL)

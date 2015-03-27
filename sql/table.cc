@@ -20,7 +20,6 @@
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
-#include "current_thd.h"
 #include "debug_sync.h"                  // DEBUG_SYNC
 #include "derror.h"                      // ER_THD
 #include "item_cmpfunc.h"                // and_conds
@@ -85,8 +84,6 @@ LEX_STRING PARSE_GCOL_KEYWORD= {C_STRING_WITH_LEN("parse_gcol_expr")};
 
 	/* Functions defined in this file */
 
-void open_table_error(TABLE_SHARE *share, int error, int db_errno,
-                      myf errortype, int errarg);
 static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                            uchar *head, File file);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
@@ -824,7 +821,7 @@ err_not_open:
   if (error && !error_given)
   {
     share->error= error;
-    open_table_error(share, error, (share->open_errno= my_errno), 0);
+    open_table_error(thd, share, error, (share->open_errno= my_errno), 0);
   }
 
   DBUG_RETURN(error);
@@ -1019,10 +1016,10 @@ end:
 
 
 /**
-  When reading the tablespace name from the .FRM file, the tablespace name
-  is validated. If the name is invalid, it is ignored. The function used to
-  validate the name, 'check_tablespace_name()', emits errors. In the context
-  of reading .FRM files, the errors must be ignored. This error handler makes
+  After retrieving the tablespace name, the tablespace name is validated.
+  If the name is invalid, it is ignored. The function used to validate
+  the name, 'check_tablespace_name()', emits errors. In the context of
+  reading .FRM files, the errors must be ignored. This error handler makes
   sure this is done.
 */
 
@@ -1069,7 +1066,61 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
     return NULL;
   }
 
-  // Then, check that we have an extra data segment and a proper form position.
+  // For mysql versions before 50120, NDB stored the tablespace names only
+  // in the NDB dictionary. Thus, we have to get the tablespace name from
+  // the engine in this case.
+
+  // Get the relevant db type value.
+  enum legacy_db_type db_type= static_cast<enum legacy_db_type>(*(head + 3));
+
+  // Tablespace name to be returned.
+  const char *tablespace_name= NULL;
+
+  if (db_type == DB_TYPE_NDBCLUSTER &&            // Cluster table.
+      uint4korr(head + 51) < 50120)               // Version before 50120.
+  {
+    // Lock the plugin, and get the handlerton.
+    plugin_ref se_plugin= ha_lock_engine(NULL,
+                                         ha_checktype(thd,
+                                                      db_type, false, false));
+    handlerton *se_hton= plugin_data<handlerton*>(se_plugin);
+    DBUG_ASSERT(se_hton);
+
+    // Now, assemble the parameters:
+    // 1. The tablespace name (to be retrieved).
+    LEX_CSTRING ts_name= {NULL, 0};
+
+    // 2. The schema name for the table.
+    LEX_CSTRING schema_name= {table->db, table->db_length};
+
+    // 3. The table name.
+    LEX_CSTRING table_name= {table->table_name, table->table_name_length};
+
+    // If the handlerton supports the required function, invoke it.
+    if (se_hton->get_tablespace &&
+        !se_hton->get_tablespace(thd, schema_name, table_name, &ts_name))
+    {
+      Tablespace_name_error_handler error_handler;
+      thd->push_internal_handler(&error_handler);
+      // If an empty or valid tablespace name, assign the name to the
+      // output parameter. The string is allocated in THD::mem_root,
+      // so it is safe to return it.
+      if (ts_name.length == 0 ||
+          check_tablespace_name(ts_name.str) == IDENT_NAME_OK)
+        tablespace_name= ts_name.str;
+      thd->pop_internal_handler();
+    }
+    plugin_unlock(NULL, se_plugin);
+
+    // The buffers being freed at the end of the function are not allocated
+    // yet, so it is safe to return directly, after closing the file.
+    mysql_file_close(file, MYF(MY_WME));
+    return tablespace_name;
+  }
+
+  // For other engines, and for cluster tables with version >= 50120, we
+  // continue by checking that we have an extra data segment and a proper
+  // form position.
   const ulong pos= get_form_pos(file, head);   //< Position of form info
   const uint n_length= uint4korr(head + 55);   //< Length of extra segment
   if (n_length == 0 || pos == 0)
@@ -1157,7 +1208,6 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   const uint record_offset= uint2korr(head + 6) +
           ((uint2korr(head + 14) == 0xffff ?
             uint4korr(head + 47) : uint2korr(head + 14)));
-  char *tablespace_name= NULL;        //< Tablespace name to be returned
   if (!mysql_file_read(file, forminfo, sizeof(forminfo), MYF(MY_NABP)) &&
       extra_segment_buff &&
       !mysql_file_pread(file, extra_segment_buff, n_length,
@@ -2344,7 +2394,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete handler_file;
   my_hash_free(&share->name_hash);
 
-  open_table_error(share, error, share->open_errno, errarg);
+  open_table_error(thd, share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
 } /* open_binary_frm */
 
@@ -3029,7 +3079,7 @@ partititon_err:
 
  err:
   if (! error_reported)
-    open_table_error(share, error, my_errno, 0);
+    open_table_error(thd, share, error, my_errno, 0);
   delete outparam->file;
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
@@ -3277,7 +3327,8 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 
 	/* error message when opening a form file */
 
-void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
+void open_table_error(THD *thd, TABLE_SHARE *share,
+                      int error, int db_errno, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
@@ -3311,7 +3362,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
 
     if (share->db_type() != NULL)
     {
-      if ((file= get_new_handler(share, current_thd->mem_root,
+      if ((file= get_new_handler(share, thd->mem_root,
                                  share->db_type())))
       {
         if (!(datext= *file->bas_ext()))
@@ -3909,7 +3960,8 @@ bool check_column_name(const char *name)
 */
 
 bool
-Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
+Table_check_intact::check(THD *thd, TABLE *table,
+                          const TABLE_FIELD_DEF *table_def)
 {
   uint i;
   my_bool error= FALSE;
@@ -3930,7 +3982,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
-                   ER_THD(current_thd, ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   ER_THD(thd, ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
                    table->s->db.str, table->alias,
                    table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
@@ -3940,7 +3992,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2,
-                   ER_THD(current_thd, ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
+                   ER_THD(thd, ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
                    table->s->db.str, table->s->table_name.str,
                    table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
@@ -4315,6 +4367,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   clear_column_bitmaps();
 
   DBUG_ASSERT(key_read == 0);
+  no_keyread= false;
 
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
@@ -5853,9 +5906,9 @@ void TABLE::mark_auto_increment_column()
     retrieve the row again.
 */
 
-void TABLE::mark_columns_needed_for_delete()
+void TABLE::mark_columns_needed_for_delete(THD *thd)
 {
-  mark_columns_per_binlog_row_image();
+  mark_columns_per_binlog_row_image(thd);
 
   if (triggers)
     triggers->mark_fields(TRG_EVENT_DELETE);
@@ -5919,11 +5972,11 @@ void TABLE::mark_columns_needed_for_delete()
     Table_trigger_dispatcher::mark_used_fields(TRG_EVENT_UPDATE)!
 */
 
-void TABLE::mark_columns_needed_for_update()
+void TABLE::mark_columns_needed_for_update(THD *thd)
 {
 
   DBUG_ENTER("mark_columns_needed_for_update");
-  mark_columns_per_binlog_row_image();
+  mark_columns_per_binlog_row_image(thd);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
@@ -5997,7 +6050,7 @@ void TABLE::mark_columns_needed_for_update()
   we only want to log a PK and we needed other fields for
   execution).
  */
-void TABLE::mark_columns_per_binlog_row_image()
+void TABLE::mark_columns_per_binlog_row_image(THD *thd)
 {
   DBUG_ENTER("mark_columns_per_binlog_row_image");
   DBUG_ASSERT(read_set->bitmap);
@@ -6011,9 +6064,6 @@ void TABLE::mark_columns_per_binlog_row_image()
        in_use->is_current_stmt_binlog_format_row() &&
        !ha_check_storage_engine_flag(s->db_type(), HTON_NO_BINLOG_ROW_OPT)))
   {
-
-    THD *thd= current_thd;
-
     /* if there is no PK, then mark all columns for the BI. */
     if (s->primary_key >= MAX_KEY)
       bitmap_set_all(read_set);
@@ -6289,9 +6339,9 @@ void TABLE::use_index(int key_to_save)
   as changed.
 */
 
-void TABLE::mark_columns_needed_for_insert()
+void TABLE::mark_columns_needed_for_insert(THD *thd)
 {
-  mark_columns_per_binlog_row_image();
+  mark_columns_per_binlog_row_image(thd);
   if (triggers)
   {
     /*

@@ -3721,14 +3721,15 @@ const int FORMAT_MAX_DECIMALS= 30;
 MY_LOCALE *Item_func_format::get_locale(Item *item)
 {
   DBUG_ASSERT(arg_count == 3);
+  THD *thd= current_thd;
   String tmp, *locale_name= args[2]->val_str_ascii(&tmp);
   MY_LOCALE *lc;
   if (!locale_name ||
-      !(lc= my_locale_by_name(locale_name->c_ptr_safe())))
+      !(lc= my_locale_by_name(thd, locale_name->c_ptr_safe())))
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_UNKNOWN_LOCALE,
-                        ER_THD(current_thd, ER_UNKNOWN_LOCALE),
+                        ER_THD(thd, ER_UNKNOWN_LOCALE),
                         locale_name ? locale_name->c_ptr_safe() : "NULL");
     lc= &my_locale_en_US;
   }

@@ -28,7 +28,6 @@
 #include "sql_auth_cache.h"
 #include "sql_user_table.h"
 #include "sql_authentication.h"
-#include "current_thd.h"
 #include "sql_class.h"
 #include "field.h"
 
@@ -1599,6 +1598,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
 
   SYNOPSIS
     handle_grant_table()
+    thd                         Thread handle
     tables                      The array with the four open tables.
     table_no                    The number of the table to handle (0..4).
     drop                        If user_from is to be dropped.
@@ -1626,7 +1626,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     < 0         Error.
 */
 
-int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
+int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;
@@ -1639,7 +1639,6 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   uchar user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   DBUG_ENTER("handle_grant_table");
-  THD *thd= current_thd;
 
   table->use_all_columns();
   if (! table_no) // mysql.user table

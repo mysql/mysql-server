@@ -436,7 +436,7 @@ public:
   bool check_partition_info(THD *thd, handlerton **eng_type,
                             handler *file, HA_CREATE_INFO *info,
                             bool check_partition_function);
-  void print_no_partition_found(TABLE *table);
+  void print_no_partition_found(THD *thd, TABLE *table);
   void print_debug(const char *str, uint*);
   Item* get_column_item(Item *item, Field *field);
   bool fix_partition_values(THD *thd,

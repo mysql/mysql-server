@@ -1166,11 +1166,11 @@ bool Explain_join::explain_modify_flags()
     }
     break;
   case SQLCOM_INSERT_SELECT:
-    if (table == query_plan->get_lex()->leaf_tables_insert->table)
+    if (table == query_plan->get_lex()->insert_table_leaf->table)
       fmt->entry()->mod_type= MT_INSERT;
     break;
   case SQLCOM_REPLACE_SELECT:
-    if (table == query_plan->get_lex()->leaf_tables_insert->table)
+    if (table == query_plan->get_lex()->insert_table_leaf->table)
       fmt->entry()->mod_type= MT_REPLACE;
     break;
   default: ;
@@ -1226,10 +1226,10 @@ bool Explain_join::shallow_explain()
   join_entry->col_read_cost.set(join->best_read);
 
   LEX const*query_lex= join->thd->query_plan.get_lex();
-  if (query_lex->leaf_tables_insert &&
-      query_lex->leaf_tables_insert->select_lex == join->select_lex)
+  if (query_lex->insert_table_leaf &&
+      query_lex->insert_table_leaf->select_lex == join->select_lex)
   {
-    table= query_lex->leaf_tables_insert->table;
+    table= query_lex->insert_table_leaf->table;
     /*
       The target table for INSERT/REPLACE doesn't actually belong to join,
       thus tab is set to NULL. But in order to print it we add it to the
@@ -2058,12 +2058,12 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
     }
     case JOIN::NO_TABLES:
     {
-      if (query_plan->get_lex()->leaf_tables_insert &&
-          query_plan->get_lex()->leaf_tables_insert->select_lex == select_lex)
+      if (query_plan->get_lex()->insert_table_leaf &&
+          query_plan->get_lex()->insert_table_leaf->select_lex == select_lex)
       {
         // INSERT/REPLACE SELECT ... FROM dual
         ret= Explain_table(ethd, select_lex,
-                           query_plan->get_lex()->leaf_tables_insert->table,
+                           query_plan->get_lex()->insert_table_leaf->table,
                            NULL,
                            MAX_KEY,
                            HA_POS_ERROR,

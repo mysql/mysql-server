@@ -298,6 +298,11 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
                                    stat_print_fn *,
                                    enum ha_stat_type);
+
+static int ndbcluster_get_tablespace(THD* thd,
+                                     LEX_CSTRING db_name,
+                                     LEX_CSTRING table_name,
+                                     LEX_CSTRING *tablespace_name);
 static int ndbcluster_alter_tablespace(handlerton *hton,
                                        THD* thd, 
                                        st_alter_tablespace *info);
@@ -12342,6 +12347,7 @@ int ndbcluster_init(void* p)
     h->drop_database=    ndbcluster_drop_database;  /* Drop a database */
     h->panic=            ndbcluster_end;            /* Panic call */
     h->show_status=      ndbcluster_show_status;    /* Show status */
+    h->get_tablespace=   ndbcluster_get_tablespace; /* Get ts for old ver */
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
 #if MYSQL_VERSION_ID >= 50501
@@ -12524,7 +12530,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error: %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
-    m_part_info->print_no_partition_found(table);
+    m_part_info->print_no_partition_found(current_thd, table);
   else
   {
     if (error == HA_ERR_FOUND_DUPP_KEY &&
@@ -17197,6 +17203,70 @@ bool set_up_undofile(st_alter_tablespace *alter_info,
   ndb_uf->setSize(alter_info->initial_size);
   ndb_uf->setLogfileGroup(alter_info->logfile_group_name);
   return FALSE;
+}
+
+
+/**
+  Get the tablespace name from the NDB dictionary for the given table in the
+  given schema.
+
+  @note For NDB tables with version before 50120, the server must ask the
+        SE for the tablespace name, because for these tables, the tablespace
+        name is not stored in the .FRM file, but only within the SE itself.
+
+  @note The function is essentially doing the same as the corresponding code
+        block in the function 'get_metadata()', except for the handling of
+        empty strings, which are in this case returned as "" rather than NULL.
+
+  @param       thd              Thread context.
+  @param       db_name          Name of the relevant schema.
+  @param       table_name       Name of the relevant table.
+  @param [out] tablespace_name  Name of the tablespace containing the table.
+
+  @return Operation status.
+    @retval == 0  Success.
+    @retval != 0  Error (handler error code returned).
+ */
+
+static
+int ndbcluster_get_tablespace(THD* thd,
+                              LEX_CSTRING db_name,
+                              LEX_CSTRING table_name,
+                              LEX_CSTRING *tablespace_name)
+{
+  DBUG_ENTER("ndbcluster_get_tablespace");
+  DBUG_PRINT("enter", ("db_name: %s, table_name: %s", db_name.str,
+             table_name.str));
+  DBUG_ASSERT(tablespace_name != NULL);
+
+  Ndb* ndb= check_ndb_in_thd(thd);
+  if (ndb == NULL)
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+
+  NDBDICT *dict= ndb->getDictionary();
+  const NDBTAB *tab= NULL;
+
+  ndb->setDatabaseName(db_name.str);
+  Ndb_table_guard ndbtab_g(dict, table_name.str);
+  if (!(tab= ndbtab_g.get_table()))
+    ERR_RETURN(dict->getNdbError());
+
+  Uint32 id;
+  if (tab->getTablespace(&id))
+  {
+    NdbDictionary::Tablespace ts= dict->getTablespace(id);
+    NdbError ndberr= dict->getNdbError();
+    if (ndberr.classification == NdbError::NoError)
+    {
+      const char *tablespace= ts.getName();
+      DBUG_ASSERT(tablespace);
+      const size_t tablespace_len= strlen(tablespace);
+      DBUG_PRINT("info", ("Found tablespace '%s'", tablespace));
+      thd->make_lex_string(tablespace_name, tablespace, tablespace_len, false);
+    }
+  }
+
+  DBUG_RETURN(0);
 }
 
 static

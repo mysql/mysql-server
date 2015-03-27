@@ -9185,16 +9185,21 @@ bool_pri:
           {
             $$= NEW_PTN Item_func_isnotnull(@$, $1);
           }
-        | bool_pri EQUAL_SYM predicate %prec EQUAL_SYM
-          {
-            $$= NEW_PTN Item_func_equal(@$, $1, $3);
-          }
         | bool_pri comp_op predicate %prec EQ
           {
             $$= NEW_PTN PTI_comp_op(@$, $1, $2, $3);
           }
         | bool_pri comp_op all_or_any '(' subselect ')' %prec EQ
           {
+            if ($2 == &comp_equal_creator)
+              /*
+                We throw this manual parse error rather than split the rule
+                comp_op into a null-safe and a non null-safe rule, since doing
+                so would add a shift/reduce conflict. It's actually this rule
+                and the ones referencing it that cause all the conflicts, but
+                we still don't want the count to go up.
+              */
+              YYTHD->parse_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
             $$= NEW_PTN PTI_comp_op_all(@$, $1, $2, $3, $5);
           }
         | predicate
@@ -9353,6 +9358,7 @@ not2:
 
 comp_op:
           EQ     { $$ = &comp_eq_creator; }
+        | EQUAL_SYM { $$ = &comp_equal_creator; }
         | GE     { $$ = &comp_ge_creator; }
         | GT_SYM { $$ = &comp_gt_creator; }
         | LE     { $$ = &comp_le_creator; }

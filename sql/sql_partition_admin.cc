@@ -16,7 +16,6 @@
 #include "sql_partition_admin.h"
 
 #include "auth_common.h"                    // check_access
-#include "current_thd.h"
 #include "mysqld.h"                         // opt_log_slow_admin_statements
 #include "sql_table.h"                      // mysql_alter_table, etc.
 #include "partition_info.h"                 // class partition_info etc.
@@ -421,7 +420,7 @@ err_rename:
     will log to the error log about the failures...
   */
   /* execute the ddl log entry to revert the renames */
-  (void) execute_ddl_log_entry(current_thd, log_entry->entry_pos);
+  (void) execute_ddl_log_entry(thd, log_entry->entry_pos);
   mysql_mutex_lock(&LOCK_gdl);
   /* mark the execute log entry done */
   (void) write_execute_ddl_log_entry(0, TRUE, &exec_log_entry);

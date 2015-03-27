@@ -127,7 +127,7 @@ public:
     Printing to mysqld log is useful when server crashed during an operation.
     Printing to client side warnings is useful for mtr purposes.
   */
-  void debug_print_function_buffer();
+  void debug_print_function_buffer(THD *thd);
 #endif
 };
 
