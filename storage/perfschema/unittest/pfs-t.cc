@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 
 #include "stub_print_error.h"
 #include "stub_pfs_defaults.h"
-#include "stub_server_misc.h"
 
 /* test helpers, to simulate the setup */
 
@@ -112,6 +111,7 @@ void test_bootstrap()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_max_digest_length= 0;
 
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
@@ -170,6 +170,7 @@ PSI * load_perfschema()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_max_digest_length= 0;
 
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
@@ -1514,6 +1515,7 @@ void test_event_name_index()
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
+  param.m_max_digest_length= 0;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;

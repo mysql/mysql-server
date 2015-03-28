@@ -1,4 +1,4 @@
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,7 +70,9 @@ usr/share/man/man8/mysqld.8
 usr/share/mysql/*.sql
 # plugins
 usr/lib/mysql/plugin/*.so
+usr/lib/mysql/plugin/debug/*.so
 usr/lib/mysql/plugin/daemon_example.ini
+usr/lib/mysql/plugin/debug/daemon_example.ini
 # support files
 usr/share/mysql/mysqld_multi.server
 usr/share/mysql/magic

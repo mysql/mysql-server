@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4368,6 +4368,7 @@ bool mysql_unpack_partition(THD *thd,
     thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_unpack_partition");
 
@@ -4399,14 +4400,17 @@ bool mysql_unpack_partition(THD *thd,
   part_info= lex.part_info;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, NULL) ||
       part_info->fix_parser_data(thd))
   {
     thd->free_items();
+    thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
     goto end;
   }
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
   /*
     The parsed syntax residing in the frm file can still contain defaults.
@@ -4768,8 +4772,8 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
   @param[in,out] create_info     Create info for CREATE TABLE
   @param[in]  alter_ctx          ALTER TABLE runtime context
   @param[out] partition_changed  Boolean indicating whether partition changed
-  @param[out] fast_alter_table   Boolean indicating if fast partition alter is
-                                 possible.
+  @param[out] new_part_info      New partition_info object if fast partition
+                                 alter is possible. (NULL if not possible).
 
   @return Operation status
     @retval TRUE                 Error
@@ -4789,9 +4793,10 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
-                           bool *fast_alter_table)
+                           partition_info **new_part_info)
 {
   DBUG_ENTER("prep_alter_part_table");
+  DBUG_ASSERT(new_part_info);
 
 #ifndef MCP_BUG17526814
   /* Foreign keys are not supprted by ha_partition, waits for WL#148 */
@@ -4845,18 +4850,28 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       DBUG_RETURN(TRUE);
     }
 
-    /*
-      Open our intermediate table, we will operate on a temporary instance
-      of the original table, to be able to skip copying all partitions.
-      Open it as a copy of the original table, and modify its partition_info
-      object to allow fast_alter_partition_table to perform the changes.
-    */
     DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
                                                alter_ctx->db,
                                                alter_ctx->table_name,
                                                MDL_INTENTION_EXCLUSIVE));
 
-    tab_part_info= table->part_info;
+    /*
+      We will operate on a cached instance of the original table,
+      to be able to skip copying all non-changed partitions
+      while allowing concurrent access.
+
+      We create a new partition_info object which will carry
+      the new state of the partitions. It will only be temporary
+      attached to the handler when needed and then detached afterwards
+      (through handler::set_part_info()). That way it will not get reused
+      by next statement, even if the table object is reused due to LOCK TABLE.
+    */
+    tab_part_info= table->part_info->get_full_clone();
+    if (!tab_part_info)
+    {
+      mem_alloc_error(sizeof(partition_info));
+      DBUG_RETURN(true);
+    }
 
     if (alter_info->flags & Alter_info::ALTER_TABLE_REORG)
     {
@@ -4885,20 +4900,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           without any changes at all.
         */
         flags= table->file->alter_table_flags(alter_info->flags);
+        DBUG_ASSERT(flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE));
         if (flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE))
         {
-          *fast_alter_table= true;
+          *new_part_info= tab_part_info;
           /* Force table re-open for consistency with the main case. */
           table->m_needs_reopen= true;
-        }
-        else
-        {
-          /*
-            Create copy of partition_info to avoid modifying original
-            TABLE::part_info, to keep it safe for later use.
-          */
-          if (!(tab_part_info= tab_part_info->get_clone()))
-            DBUG_RETURN(TRUE);
         }
 
         thd->work_part_info= tab_part_info;
@@ -4928,6 +4935,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       goto err;
     }
+    DBUG_ASSERT((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0);
     if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
     {
       /*
@@ -4936,20 +4944,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         information to storage engine in this case), so the table
         must be reopened.
       */
-      *fast_alter_table= true;
+      *new_part_info= tab_part_info;
       table->m_needs_reopen= true;
-    }
-    else
-    {
-      /*
-        "Fast" changing of partitioning is not supported. Create
-        a copy of TABLE::part_info object, so we can modify it safely.
-        Modifying original TABLE::part_info will cause problems when
-        we read data from old version of table using this TABLE object
-        while copying them to new version of table.
-      */
-      if (!(tab_part_info= tab_part_info->get_clone()))
-        DBUG_RETURN(TRUE);
     }
     DBUG_PRINT("info", ("*fast_alter_table flags: 0x%x", flags));
     if ((alter_info->flags & Alter_info::ALTER_ADD_PARTITION) ||
@@ -5139,7 +5135,7 @@ adding and copying partitions, the second after completing the adding
 and copying and finally the third line after also dropping the partitions
 that are reorganised.
 */
-      if (*fast_alter_table &&
+      if (*new_part_info &&
           tab_part_info->part_type == HASH_PARTITION)
       {
         uint part_no= 0, start_part= 1, start_sec_part= 1;
@@ -5244,7 +5240,7 @@ that are reorganised.
         do
         {
           partition_element *part_elem= alt_it++;
-          if (*fast_alter_table)
+          if (*new_part_info)
             part_elem->part_state= PART_TO_BE_ADDED;
           if (tab_part_info->partitions.push_back(part_elem))
           {
@@ -5331,7 +5327,7 @@ that are reorganised.
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "REBUILD");
         goto err;
       }
-      if (!(*fast_alter_table))
+      if (!(*new_part_info))
       {
         table->file->print_error(HA_ERR_WRONG_COMMAND, MYF(0));
         goto err;
@@ -5394,7 +5390,7 @@ state of p1.
         uint part_count= 0, start_part= 1, start_sec_part= 1;
         uint end_part= 0, end_sec_part= 0;
         bool all_parts= TRUE;
-        if (*fast_alter_table &&
+        if (*new_part_info &&
             tab_part_info->linear_hash_ind)
         {
           uint upper_2n= tab_part_info->linear_hash_mask + 1;
@@ -5420,14 +5416,14 @@ state of p1.
         do
         {
           partition_element *p_elem= part_it++;
-          if (*fast_alter_table &&
+          if (*new_part_info &&
               (all_parts ||
               (part_count >= start_part && part_count <= end_part) ||
               (part_count >= start_sec_part && part_count <= end_sec_part)))
             p_elem->part_state= PART_CHANGED;
           if (++part_count > num_parts_remain)
           {
-            if (*fast_alter_table)
+            if (*new_part_info)
               p_elem->part_state= PART_REORGED_DROPPED;
             else
               part_it.remove();
@@ -5554,13 +5550,13 @@ the generated partition syntax in a correct manner.
             }
             else
               tab_max_range= part_elem->range_value;
-            if (*fast_alter_table &&
+            if (*new_part_info &&
                 tab_part_info->temp_partitions.push_back(part_elem))
             {
               mem_alloc_error(1);
               goto err;
             }
-            if (*fast_alter_table)
+            if (*new_part_info)
               part_elem->part_state= PART_TO_BE_REORGED;
             if (!found_first)
             {
@@ -5580,7 +5576,7 @@ the generated partition syntax in a correct manner.
                 else
                   alt_max_range= alt_part_elem->range_value;
 
-                if (*fast_alter_table)
+                if (*new_part_info)
                   alt_part_elem->part_state= PART_TO_BE_ADDED;
                 if (alt_part_count == 0)
                   tab_it.replace(alt_part_elem);
@@ -5828,7 +5824,7 @@ the generated partition syntax in a correct manner.
   }
   DBUG_RETURN(FALSE);
 err:
-  *fast_alter_table= false;
+  *new_part_info= NULL;
   DBUG_RETURN(TRUE);
 }
 
@@ -5865,6 +5861,7 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   int error;
   handler *file= lpt->table->file;
   THD *thd= lpt->thd;
+  partition_info *old_part_info= lpt->table->part_info;
   DBUG_ENTER("mysql_change_partitions");
 
   build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
@@ -5874,9 +5871,12 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   /* TODO: test if bulk_insert would increase the performance */
 
-  if ((error= file->ha_change_partitions(lpt->create_info, path, &lpt->copied,
-                                         &lpt->deleted, lpt->pack_frm_data,
-                                         lpt->pack_frm_len)))
+  file->set_part_info(lpt->part_info, false);
+  error= file->ha_change_partitions(lpt->create_info, path, &lpt->copied,
+                                    &lpt->deleted, lpt->pack_frm_data,
+                                    lpt->pack_frm_len);
+  file->set_part_info(old_part_info, false);
+  if (error)
   {
     file->print_error(error, MYF(error != ER_OUTOFMEMORY ? 0 : ME_FATALERROR));
   }
@@ -5911,10 +5911,14 @@ static bool mysql_rename_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   char path[FN_REFLEN+1];
   int error;
+  partition_info *old_part_info= lpt->table->part_info;
   DBUG_ENTER("mysql_rename_partitions");
 
   build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
-  if ((error= lpt->table->file->ha_rename_partitions(path)))
+  lpt->table->file->set_part_info(lpt->part_info, false);
+  error= lpt->table->file->ha_rename_partitions(path);
+  lpt->table->file->set_part_info(old_part_info, false);
+  if (error)
   {
     if (error != 1)
       lpt->table->file->print_error(error, MYF(0));
@@ -5947,7 +5951,8 @@ static bool mysql_rename_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   char path[FN_REFLEN+1];
-  partition_info *part_info= lpt->table->part_info;
+  partition_info *old_part_info= lpt->table->part_info;
+  partition_info *part_info= lpt->part_info;
   List_iterator<partition_element> part_it(part_info->partitions);
   uint i= 0;
   uint remove_count= 0;
@@ -5960,7 +5965,10 @@ static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
                                                 MDL_EXCLUSIVE));
 
   build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
-  if ((error= lpt->table->file->ha_drop_partitions(path)))
+  lpt->table->file->set_part_info(part_info, false);
+  error= lpt->table->file->ha_drop_partitions(path);
+  lpt->table->file->set_part_info(old_part_info, false);
+  if (error)
   {
     lpt->table->file->print_error(error, MYF(0));
     DBUG_RETURN(TRUE);
@@ -6730,7 +6738,6 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
       }
     }
     /* Ensure the share is destroyed and reopened. */
-    part_info= lpt->part_info->get_clone();
     close_all_tables_for_name(thd, table->s, false, NULL);
   }
   else
@@ -6748,7 +6755,6 @@ err_exclusive_lock:
       the table cache.
     */
     mysql_lock_remove(thd, thd->lock, table);
-    part_info= lpt->part_info->get_clone();
     close_thread_table(thd, &thd->open_tables);
     lpt->table_list->table= NULL;
   }
@@ -6895,12 +6901,13 @@ static void downgrade_mdl_if_lock_tables_mode(THD *thd, MDL_ticket *ticket,
   previously prepared.
 
   @param thd                           Thread object
-  @param table                         Original table object with new part_info
+  @param table                         Original table object
   @param alter_info                    ALTER TABLE info
   @param create_info                   Create info for CREATE TABLE
   @param table_list                    List of the table involved
   @param db                            Database name of new table
   @param table_name                    Table name of new table
+  @param new_part_info                 New partition_info to use
 
   @return Operation status
     @retval TRUE                          Error
@@ -6916,7 +6923,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                 HA_CREATE_INFO *create_info,
                                 TABLE_LIST *table_list,
                                 char *db,
-                                const char *table_name)
+                                const char *table_name,
+                                partition_info *new_part_info)
 {
   /* Set-up struct used to write frm files */
   partition_info *part_info;
@@ -6929,7 +6937,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   DBUG_ENTER("fast_alter_partition_table");
   DBUG_ASSERT(table->m_needs_reopen);
 
-  part_info= table->part_info;
+  part_info= new_part_info;
   lpt->thd= thd;
   lpt->table_list= table_list;
   lpt->part_info= part_info;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -230,24 +230,6 @@ os_cond_broadcast(
 	wake_all_condition_variable(cond);
 #else
 	ut_a(pthread_cond_broadcast(cond) == 0);
-#endif
-}
-
-/*********************************************************//**
-Wakes one thread waiting for condition variable */
-UNIV_INLINE
-void
-os_cond_signal(
-/*==========*/
-	os_cond_t*	cond)	/*!< in: condition variable. */
-{
-	ut_a(cond);
-
-#ifdef __WIN__
-	ut_a(wake_condition_variable != NULL);
-	wake_condition_variable(cond);
-#else
-	ut_a(pthread_cond_signal(cond) == 0);
 #endif
 }
 

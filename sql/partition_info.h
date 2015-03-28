@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -287,6 +287,7 @@ public:
   ~partition_info() {}
 
   partition_info *get_clone();
+  partition_info *get_full_clone();
   bool set_named_partition_bitmap(const char *part_name, uint length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
   /* Answers the question if subpartitioning is used for a certain table */

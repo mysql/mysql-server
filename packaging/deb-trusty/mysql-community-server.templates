@@ -14,14 +14,6 @@ Type: error
 Description: The two passwords did not match
  Please try again. Make sure you type the exact same password twice.
 
-Template: mysql-community-server/remove-test-db
-Type: boolean
-Default: false
-Description: Do you wish to install/ keep test database ?
- The test database is created as part of a fresh installation which may be used for initial development and test environment.
- .
- It is highly recommended that you do not install the test database in a production environment.
-
 Template: mysql-community-server/remove-data-dir
 Type: boolean
 Default: false

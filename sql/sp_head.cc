@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -642,7 +642,12 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
+    sql_digest_state *parent_digest= thd->m_digest;
+    thd->m_digest= NULL;
+
     err_status= i->execute(thd, &ip);
+
+    thd->m_digest= parent_digest;
 
     if (i->free_list)
       cleanup_items(i->free_list);

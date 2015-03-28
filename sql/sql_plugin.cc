@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1674,12 +1674,6 @@ void memcached_shutdown(void)
   struct st_plugin_int *plugin;
   if (initialized)
   {
-    /*
-      It's perfectly safe not to lock LOCK_plugin, as there're no
-      concurrent threads anymore. But some functions called from here
-      use mysql_mutex_assert_owner(), so we lock the mutex to satisfy it
-    */
-    mysql_mutex_lock(&LOCK_plugin);
 
     for (uint i= 0; i < plugin_array.elements; i++)
     {
@@ -1689,12 +1683,14 @@ void memcached_shutdown(void)
 	  && strcmp(plugin->name.str, "daemon_memcached") == 0)
       {
 	plugin_deinitialize(plugin, true);
+
+        mysql_mutex_lock(&LOCK_plugin);
 	plugin->state= PLUGIN_IS_DYING;
 	plugin_del(plugin);
+        mysql_mutex_unlock(&LOCK_plugin);
       }
     }
 
-    mysql_mutex_unlock(&LOCK_plugin);
   }
 }
 

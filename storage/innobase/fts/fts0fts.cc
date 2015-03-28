@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -81,11 +81,13 @@ ulint n_nodes = 0;
 /** Error condition reported by fts_utf8_decode() */
 const ulint UTF8_ERROR = 0xFFFFFFFF;
 
+#ifdef FTS_CACHE_SIZE_DEBUG
 /** The cache size permissible lower limit (1K) */
 static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 
 /** The cache size permissible upper limit (1G) */
 static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
+#endif /* FTS_CACHE_SIZE_DEBUG */
 
 /** Time to sleep after DEADLOCK error before retrying operation. */
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
@@ -191,7 +193,7 @@ static const char* fts_create_common_tables_sql = {
 	""
 	"CREATE TABLE \"%s_CONFIG\" (\n"
 	"  key CHAR(50),\n"
-	"  value CHAR(50) NOT NULL\n"
+	"  value CHAR(200) NOT NULL\n"
 	") COMPACT;\n"
 	"CREATE UNIQUE CLUSTERED INDEX IND ON \"%s_CONFIG\"(key);\n"
 };
@@ -329,27 +331,6 @@ fts_update_sync_doc_id(
 	doc_id_t		doc_id,		/*!< in: last document id */
 	trx_t*			trx)		/*!< in: update trx, or NULL */
 	__attribute__((nonnull(1)));
-/********************************************************************
-Check if we should stop. */
-UNIV_INLINE
-ibool
-fts_is_stop_signalled(
-/*==================*/
-	fts_t*		fts)			/*!< in: fts instance */
-{
-	ibool		stop_signalled = FALSE;
-
-	mutex_enter(&fts->bg_threads_mutex);
-
-	if (fts->fts_status & BG_THREAD_STOP) {
-
-		stop_signalled = TRUE;
-	}
-
-	mutex_exit(&fts->bg_threads_mutex);
-
-	return(stop_signalled);
-}
 
 /****************************************************************//**
 This function loads the default InnoDB stopword list */
@@ -3408,7 +3389,7 @@ fts_fetch_doc_from_rec(
 		doc->charset = get_doc->index_cache->charset;
 
 		/* Null Field */
-		if (doc->text.f_len == UNIV_SQL_NULL) {
+		if (doc->text.f_len == UNIV_SQL_NULL || doc->text.f_len == 0) {
 			continue;
 		}
 
@@ -5544,7 +5525,7 @@ fts_savepoint_lookup(
 
 /*********************************************************************//**
 Release the savepoint data identified by  name. All savepoints created
-after the named savepoint are also released.
+after the named savepoint are kept.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 void
@@ -5553,81 +5534,37 @@ fts_savepoint_release(
 	trx_t*		trx,		/*!< in: transaction */
 	const char*	name)		/*!< in: savepoint name */
 {
-	ulint			i;
-	ib_vector_t*		savepoints;
-	ulint			top_of_stack = 0;
-
 	ut_a(name != NULL);
 
-	savepoints = trx->fts_trx->savepoints;
+	ib_vector_t*	savepoints = trx->fts_trx->savepoints;
 
 	ut_a(ib_vector_size(savepoints) > 0);
 
-	/* Skip the implied savepoint (first element). */
-	for (i = 1; i < ib_vector_size(savepoints); ++i) {
-		fts_savepoint_t*	savepoint;
+	ulint   i = fts_savepoint_lookup(savepoints, name);
+	if (i != ULINT_UNDEFINED) {
+		ut_a(i >= 1);
 
+		fts_savepoint_t*        savepoint;
 		savepoint = static_cast<fts_savepoint_t*>(
 			ib_vector_get(savepoints, i));
 
-		/* Even though we release the resources that are part
-		of the savepoint, we don't (always) actually delete the
-		entry.  We simply set the savepoint name to NULL. Therefore
-		we have to skip deleted/released entries. */
-		if (savepoint->name != NULL
-		    && strcmp(name, savepoint->name) == 0) {
-			break;
+		if (i == ib_vector_size(savepoints) - 1) {
+			/* If the savepoint is the last, we save its
+			tables to the  previous savepoint. */
+			fts_savepoint_t*	prev_savepoint;
+			prev_savepoint = static_cast<fts_savepoint_t*>(
+				ib_vector_get(savepoints, i - 1));
 
-		/* Track the previous savepoint instance that will
-		be at the top of the stack after the release. */
-		} else if (savepoint->name != NULL) {
-			/* We need to delete all entries
-			greater than this element. */
-			top_of_stack = i;
+			ib_rbt_t*	tables = savepoint->tables;
+			savepoint->tables = prev_savepoint->tables;
+			prev_savepoint->tables = tables;
 		}
-	}
 
-	/* Only if we found and element to release. */
-	if (i < ib_vector_size(savepoints)) {
-		fts_savepoint_t*	last_savepoint;
-		fts_savepoint_t*	top_savepoint;
-		ib_rbt_t*		tables;
-
-		ut_a(top_of_stack < ib_vector_size(savepoints));
-
-		/* Exchange tables between last savepoint and top savepoint */
-		last_savepoint = static_cast<fts_savepoint_t*>(
-				ib_vector_last(trx->fts_trx->savepoints));
-		top_savepoint = static_cast<fts_savepoint_t*>(
-				ib_vector_get(savepoints, top_of_stack));
-		tables = top_savepoint->tables;
-		top_savepoint->tables = last_savepoint->tables;
-		last_savepoint->tables = tables;
-
-		/* Skip the implied savepoint. */
-		for (i = ib_vector_size(savepoints) - 1;
-		     i > top_of_stack;
-		     --i) {
-
-			fts_savepoint_t*	savepoint;
-
-			savepoint = static_cast<fts_savepoint_t*>(
-				ib_vector_get(savepoints, i));
-
-			/* Skip savepoints that were released earlier. */
-			if (savepoint->name != NULL) {
-				savepoint->name = NULL;
-				fts_savepoint_free(savepoint);
-			}
-
-			ib_vector_pop(savepoints);
-		}
+		fts_savepoint_free(savepoint);
+		ib_vector_remove(savepoints, *(void**)savepoint);
 
 		/* Make sure we don't delete the implied savepoint. */
 		ut_a(ib_vector_size(savepoints) > 0);
-
-		/* This must hold. */
-		ut_a(ib_vector_size(savepoints) == (top_of_stack + 1));
 	}
 }
 
@@ -6329,7 +6266,7 @@ fts_fake_hex_to_dec(
 {
 	ib_id_t		dec_id = 0;
 	char		tmp_id[FTS_AUX_MIN_TABLE_ID_LENGTH];
-	int		ret;
+	int		ret __attribute__((unused));
 
 	ret = sprintf(tmp_id, UINT64PFx, id);
 	ut_ad(ret == 16);

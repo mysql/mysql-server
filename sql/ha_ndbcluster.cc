@@ -8493,7 +8493,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
       of the transaction
     */
     DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
-    mark_transaction_to_rollback(thd, 1);
+    thd->mark_transaction_to_rollback(1);
     my_error(ER_WARN_ENGINE_TRANSACTION_ROLLBACK, MYF(0), "NDB");
     DBUG_RETURN(0);
   }

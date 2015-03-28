@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -248,7 +248,8 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                 HA_CREATE_INFO *create_info,
                                 TABLE_LIST *table_list,
                                 char *db,
-                                const char *table_name);
+                                const char *table_name,
+                                partition_info *new_part_info);
 void set_all_part_state(partition_info *tab_part_info,
                         enum partition_state part_state);
 bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
@@ -257,7 +258,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
-                           bool *fast_alter_table);
+                           partition_info **new_part_info);
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options,

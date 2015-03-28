@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -67,14 +67,14 @@ case "$1" in
 
 		if ! getent passwd mysql >/dev/null;
 		then
-			adduser --ingroup mysql --system --disabled-login --no-create-home --home /nowhere --shell /bin/false --gecos "MySQL Server" mysql >/dev/null
+			adduser --ingroup mysql --system --disabled-login --no-create-home --home ${MYSQLDATA} --shell /bin/false --gecos "MySQL Server" mysql >/dev/null
 		fi
 
 		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
 		then
 			mkdir ${MYSQLDATA}
 			chown mysql:mysql ${MYSQLDATA}
-			chmod 700 ${MYSQLDATA}
+			chmod 750 ${MYSQLDATA}
 		fi
 
 		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];

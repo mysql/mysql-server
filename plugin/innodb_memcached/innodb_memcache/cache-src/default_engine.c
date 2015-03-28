@@ -1,3 +1,8 @@
+/*****************************************************************************
+This file was modified by Oracle on 2015/02/05
+Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+*****************************************************************************/
+
 #include "config.h"
 
 #include <stdlib.h>
@@ -270,7 +275,8 @@ static ENGINE_ERROR_CODE default_item_allocate(ENGINE_HANDLE* handle,
    }
 
    hash_item *it;
-   it = item_alloc(engine, key, nkey, flags, exptime, nbytes, cookie);
+   it = item_alloc(engine, key, nkey, flags, engine->server.core->realtime(exptime),
+                   nbytes, cookie);
 
    if (it != NULL) {
       *item = it;

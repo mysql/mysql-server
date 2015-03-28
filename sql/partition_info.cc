@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,8 +34,6 @@
 partition_info *partition_info::get_clone()
 {
   DBUG_ENTER("partition_info::get_clone");
-  if (!this)
-    DBUG_RETURN(NULL);
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
   partition_info *clone= new partition_info();
@@ -49,6 +47,7 @@ partition_info *partition_info::get_clone()
   memset(&(clone->lock_partitions), 0, sizeof(clone->lock_partitions));
   clone->bitmaps_are_initialized= FALSE;
   clone->partitions.empty();
+  clone->temp_partitions.empty();
 
   while ((part= (part_it++)))
   {
@@ -78,6 +77,18 @@ partition_info *partition_info::get_clone()
   DBUG_RETURN(clone);
 }
 
+partition_info *partition_info::get_full_clone()
+{
+  partition_info *clone;
+  DBUG_ENTER("partition_info::get_full_clone");
+  clone= get_clone();
+  if (!clone)
+    DBUG_RETURN(NULL);
+  memcpy(&clone->read_partitions, &read_partitions, sizeof(read_partitions));
+  memcpy(&clone->lock_partitions, &lock_partitions, sizeof(lock_partitions));
+  clone->bitmaps_are_initialized= bitmaps_are_initialized;
+  DBUG_RETURN(clone);
+}
 
 /**
   Mark named [sub]partition to be used/locked.

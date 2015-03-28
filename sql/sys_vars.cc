@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1779,6 +1779,21 @@ static Sys_var_ulong Sys_max_connect_errors(
        VALID_RANGE(1, ULONG_MAX), DEFAULT(100),
        BLOCK_SIZE(1));
 
+static Sys_var_long Sys_max_digest_length(
+       "max_digest_length",
+       "Maximum length considered for digest text.",
+       READ_ONLY GLOBAL_VAR(max_digest_length),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(1024),
+       BLOCK_SIZE(1),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(0),
+       NULL,
+       /* max_digest_length is used as a sizing hint by the performance schema. */
+       sys_var::PARSE_EARLY);
+
 static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 {
   return var->type != OPT_GLOBAL &&
@@ -2042,7 +2057,7 @@ static Sys_var_ulong Sys_open_files_limit(
        "open_files_limit",
        "If this is not 0, then mysqld will use this value to reserve file "
        "descriptors to use with setrlimit(). If this value is 0 then mysqld "
-       "will reserve max_connections*5 or max_connections + table_cache*2 "
+       "will reserve max_connections*5 or max_connections + table_open_cache*2 "
        "(whichever is larger) number of file descriptors",
        READ_ONLY GLOBAL_VAR(open_files_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, OS_FILE_LIMIT), DEFAULT(0), BLOCK_SIZE(1),
@@ -2469,7 +2484,7 @@ static Sys_var_ulong Sys_trans_alloc_block_size(
        "transaction_alloc_block_size",
        "Allocation block size for transactions to be stored in binary log",
        SESSION_VAR(trans_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
+       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -2477,7 +2492,7 @@ static Sys_var_ulong Sys_trans_prealloc_size(
        "transaction_prealloc_size",
        "Persistent buffer for transactions to be stored in binary log",
        SESSION_VAR(trans_prealloc_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
+       VALID_RANGE(1024, 128 * 1024 * 1024), DEFAULT(TRANS_ALLOC_PREALLOC_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_trans_mem_root));
 
@@ -4659,3 +4674,28 @@ static Sys_var_enum Sys_block_encryption_mode(
   "block_encryption_mode", "mode for AES_ENCRYPT/AES_DECRYPT",
   SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG),
   my_aes_opmode_names, DEFAULT(my_aes_128_ecb));
+
+static Sys_var_mybool Sys_avoid_temporal_upgrade(
+       "avoid_temporal_upgrade",
+       "When this option is enabled, the pre-5.6.4 temporal types are "
+       "not upgraded to the new format for ALTER TABLE requests ADD/CHANGE/MODIFY"
+       " COLUMN, ADD INDEX or FORCE operation. "
+       "This variable is deprecated and will be removed in a future release.",
+        GLOBAL_VAR(avoid_temporal_upgrade),
+        CMD_LINE(OPT_ARG, OPT_AVOID_TEMPORAL_UPGRADE),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0),
+        DEPRECATED(""));
+
+static Sys_var_mybool Sys_show_old_temporals(
+       "show_old_temporals",
+       "When this option is enabled, the pre-5.6.4 temporal types will "
+       "be marked in the 'SHOW CREATE TABLE' and 'INFORMATION_SCHEMA.COLUMNS' "
+       "table as a comment in COLUMN_TYPE field. "
+       "This variable is deprecated and will be removed in a future release.",
+        SESSION_VAR(show_old_temporals),
+        CMD_LINE(OPT_ARG, OPT_SHOW_OLD_TEMPORALS),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0),
+        DEPRECATED(""));
+

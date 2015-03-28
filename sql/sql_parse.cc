@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,6 +100,8 @@
 #include "global_threads.h"
 #include "sql_analyse.h"
 #include "table_cache.h" // table_cache_manager
+
+#include "sql_digest.h"
 
 #include <algorithm>
 using std::max;
@@ -987,6 +989,7 @@ bool do_command(THD *thd)
     /* Mark the statement completed. */
     MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
     thd->m_statement_psi= NULL;
+    thd->m_digest= NULL;
 
     if (net->error != 3)
     {
@@ -1035,6 +1038,7 @@ bool do_command(THD *thd)
 
 out:
   /* The statement instrumentation must be closed in all cases. */
+  DBUG_ASSERT(thd->m_digest == NULL);
   DBUG_ASSERT(thd->m_statement_psi == NULL);
   DBUG_RETURN(return_value);
 }
@@ -1306,6 +1310,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_QUERY:
   {
+    DBUG_ASSERT(thd->m_digest == NULL);
+    thd->m_digest= & thd->m_digest_state;
+    thd->m_digest->reset(thd->m_token_array, max_digest_length);
+
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
     MYSQL_QUERY_START(thd->query(), thd->thread_id,
@@ -1363,6 +1371,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 /* PSI end */
       MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
       thd->m_statement_psi= NULL;
+      thd->m_digest= NULL;
 
 /* DTRACE end */
       if (MYSQL_QUERY_DONE_ENABLED())
@@ -1388,6 +1397,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (char *) thd->security_ctx->host_or_ip);
 
 /* PSI begin */
+      thd->m_digest= & thd->m_digest_state;
+
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   com_statement_info[command].m_key,
                                                   thd->db, thd->db_length,
@@ -1777,6 +1788,7 @@ done:
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
+  thd->m_digest= NULL;
 
   dec_thread_running();
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
@@ -4254,8 +4266,7 @@ end_with_restore_list:
     LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
     if (!grant_user)
       goto error;
-    if ((thd->security_ctx->priv_user &&
-	 !strcmp(thd->security_ctx->priv_user, grant_user->user.str)) ||
+    if (!strcmp(thd->security_ctx->priv_user, grant_user->user.str) ||
         !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
     {
       res = mysql_show_grants(thd, grant_user);
@@ -4393,6 +4404,12 @@ end_with_restore_list:
     if (sp_process_definer(thd))
       goto create_sp_error;
 
+    /*
+      Record the CURRENT_USER in binlog. The CURRENT_USER is used on slave to
+      grant default privileges when sp_automatic_privileges variable is set.
+    */
+    thd->binlog_invoker();
+
     res= (sp_result= sp_create_routine(thd, lex->sphead));
     switch (sp_result) {
     case SP_OK: {
@@ -4402,7 +4419,6 @@ end_with_restore_list:
       Security_context security_context;
       bool restore_backup_context= false;
       Security_context *backup= NULL;
-      LEX_USER *definer= thd->lex->definer;
       /*
         We're going to issue an implicit GRANT statement so we close all
         open tables. We have to keep metadata locks as this ensures that
@@ -4421,21 +4437,41 @@ end_with_restore_list:
       DBUG_ASSERT(thd->transaction.stmt.is_empty());
       close_thread_tables(thd);
       /*
-        Check if the definer exists on slave, 
+        Check if invoker exists on slave, then use invoker privilege to
+        insert routine privileges to mysql.procs_priv. If invoker is not
+        available then consider using definer.
+
+        Check if the definer exists on slave,
         then use definer privilege to insert routine privileges to mysql.procs_priv.
 
-        For current user of SQL thread has GLOBAL_ACL privilege, 
-        which doesn't any check routine privileges, 
+        For current user of SQL thread has GLOBAL_ACL privilege,
+        which doesn't any check routine privileges,
         so no routine privilege record  will insert into mysql.procs_priv.
       */
-      if (thd->slave_thread && is_acl_user(definer->host.str, definer->user.str))
+
+      if (thd->slave_thread)
       {
-        security_context.change_security_context(thd, 
-                                                 &thd->lex->definer->user,
-                                                 &thd->lex->definer->host,
-                                                 &thd->lex->sphead->m_db,
-                                                 &backup);
-        restore_backup_context= true;
+        LEX_STRING current_user;
+        LEX_STRING current_host;
+        if (thd->has_invoker())
+        {
+          current_host= thd->get_invoker_host();
+          current_user= thd->get_invoker_user();
+        }
+        else
+        {
+          current_host= lex->definer->host;
+          current_user= lex->definer->user;
+        }
+        if (is_acl_user(current_host.str, current_user.str))
+        {
+          security_context.change_security_context(thd,
+                                                   &current_user,
+                                                   &current_host,
+                                                   &thd->lex->sphead->m_db,
+                                                   &backup);
+          restore_backup_context= true;
+        }
       }
 
       if (sp_automatic_privileges && !opt_noacl &&
@@ -6289,9 +6325,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
         no logging happens at all. If rewriting does not happen here,
         thd->rewritten_query is still empty from being reset in alloc_query().
       */
-      bool general= (opt_log && ! (opt_log_raw || thd->slave_thread));
-
-      if (general || opt_slow_log || opt_bin_log)
+      if (!(opt_log_raw || thd->slave_thread) || opt_slow_log || opt_bin_log)
       {
         mysql_rewrite_query(thd);
 
@@ -6299,7 +6333,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
           lex->safe_to_cache_query= false; // see comments below
       }
 
-      if (general)
+      if (!(opt_log_raw || thd->slave_thread))
       {
         if (thd->rewritten_query.length())
           general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
@@ -6453,6 +6487,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
 {
   LEX *lex= thd->lex;
   bool ignorable= false;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
@@ -6464,6 +6499,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
 
+    thd->m_digest= NULL;
     thd->m_statement_psi= NULL;
     if (parse_sql(thd, & parser_state, NULL) == 0)
     {
@@ -6477,6 +6513,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
                !rpl_filter->db_ok(thd->db))
         ignorable= true;
     }
+    thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
     thd->end_statement();
   }
@@ -8308,10 +8345,27 @@ bool parse_sql(THD *thd,
 
   thd->m_parser_state= parser_state;
 
-#ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-  /* Start Digest */
-  thd->m_parser_state->m_lip.m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
-#endif
+  parser_state->m_digest_psi= NULL;
+  parser_state->m_lip.m_digest= NULL;
+
+  if (thd->m_digest != NULL)
+  {
+    /* Start Digest */
+    parser_state->m_digest_psi= MYSQL_DIGEST_START(thd->m_statement_psi);
+
+    if (parser_state->m_input.m_compute_digest ||
+       (parser_state->m_digest_psi != NULL))
+    {
+      /*
+        If either:
+        - the caller wants to compute a digest
+        - the performance schema wants to compute a digest
+        set the digest listener in the lexer.
+      */
+      parser_state->m_lip.m_digest= thd->m_digest;
+      parser_state->m_lip.m_digest->m_digest_storage.m_charset_number= thd->charset()->number;
+    }
+  }
 
   /* Parse the query. */
 
@@ -8344,6 +8398,18 @@ bool parse_sql(THD *thd,
   /* That's it. */
 
   ret_value= mysql_parse_status || thd->is_fatal_error;
+
+  if ((ret_value == 0) &&
+      (parser_state->m_digest_psi != NULL))
+  {
+    /*
+      On parsing success, record the digest in the performance schema.
+    */
+    DBUG_ASSERT(thd->m_digest != NULL);
+    MYSQL_DIGEST_END(parser_state->m_digest_psi,
+                     & thd->m_digest->m_digest_storage);
+  }
+
   MYSQL_QUERY_PARSE_DONE(ret_value);
   return ret_value;
 }
