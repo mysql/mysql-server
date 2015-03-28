@@ -2,6 +2,9 @@
 # (or just InnoDB storage engine)
 --source include/have_innodb.inc
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -182,3 +185,54 @@ insert into t1 values ( 654, 'a'), ( 654, 'b'), ( 654, 'c'),
 select * from t2 order by b;
 drop trigger t1_after_insert;
 drop table t1,t2;
+
+--echo #
+--echo #Bug#19683834 SOME INNODB ERRORS CAUSES STORED FUNCTION
+--echo #             AND TRIGGER HANDLERS TO BE IGNORED
+
+--echo #Code fixed in Bug#16041903
+--enable_connect_log
+
+CREATE TABLE t1 (id int unsigned PRIMARY KEY, val int DEFAULT 0)
+ENGINE=InnoDB;
+INSERT INTO t1 (id) VALUES (1), (2);
+
+CREATE TABLE t2 (id int PRIMARY KEY);
+CREATE TABLE t3 LIKE t2;
+
+# Trigger with continue handler for ER_DUP_ENTRY(1062)
+DELIMITER //;
+CREATE TRIGGER bef_insert BEFORE INSERT ON t2 FOR EACH ROW
+BEGIN
+   DECLARE CONTINUE HANDLER FOR 1062 BEGIN END;
+   INSERT INTO t3 (id) VALUES (NEW.id);
+   INSERT INTO t3 (id) VALUES (NEW.id);
+END//
+DELIMITER ;//
+
+# Transaction 1: Grab locks on t1
+START TRANSACTION;
+UPDATE t1 SET val = val + 1;
+
+# Transaction 2:
+--connect (con2,localhost,root,,test,,)
+SET SESSION innodb_lock_wait_timeout = 2;
+# Trigger lock timeout (1205)
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET val = val + 1;
+
+# This insert should go through, as the continue handler should
+# handle ER_DUP_ENTRY, even after ER_LOCK_WAIT_TIMEOUT (Bug#16041903)
+INSERT INTO t2 (id) VALUES (1);
+
+# Cleanup
+disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;
+
+DROP TABLE t3, t2, t1;
+
+--disable_connect_log
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
