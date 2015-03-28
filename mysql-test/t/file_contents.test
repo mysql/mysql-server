@@ -17,7 +17,7 @@ if ($dir_bin =~ m|/usr/|) {
   $dir_docs =~ s|/lib|/share/doc|;
   if(-d "$dir_docs/packages") {
     # SuSE: "packages/" in the documentation path
-    $dir_docs = glob "$dir_docs/packages/MySQL-server*";
+    $dir_docs = glob "$dir_docs/packages/*-server*";
   } else {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";
@@ -27,7 +27,7 @@ if ($dir_bin =~ m|/usr/|) {
   $dir_docs = "$dir_bin/share/doc";
   if(-d "$dir_docs/packages") {
     # SuSE: "packages/" in the documentation path
-    $dir_docs = glob "$dir_docs/packages/MySQL-server*";
+    $dir_docs = glob "$dir_docs/packages/*-server*";
   } else {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";
