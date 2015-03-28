@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -126,6 +126,13 @@ innodb_clean_engine(
 	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
 	const void*	cookie,		/*!< in: connection cookie */
 	void*		conn);		/*!< in: item to free */
+/*******************************************************************//**
+Free value assocaited with key */
+static
+void
+innodb_free_item(
+/*=====================*/
+        void* item);     /*!< in: Item to be freed */
 /*******************************************************************//**
 Support memcached "GET" command, fetch the value according to key
 @return ENGINE_SUCCESS if successfully, otherwise error code */

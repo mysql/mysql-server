@@ -92,7 +92,9 @@ close pfs_cursor;
 signal sqlstate '01000' set message_text='Done', mysql_errno=12000;
 end
 $
-show variables like "performance_schema%";
+show variables where
+`Variable_name` != "performance_schema_max_statement_classes" and
+`Variable_name` like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
 performance_schema_accounts_size	100
@@ -116,7 +118,6 @@ performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
 performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	168
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
 performance_schema_max_thread_classes	50
@@ -125,31 +126,6 @@ performance_schema_session_connect_attrs_size	2048
 performance_schema_setup_actors_size	100
 performance_schema_setup_objects_size	100
 performance_schema_users_size	100
-show status like "performance_schema%";
-Variable_name	Value
-Performance_schema_accounts_lost	0
-Performance_schema_cond_classes_lost	0
-Performance_schema_cond_instances_lost	0
-Performance_schema_digest_lost	0
-Performance_schema_file_classes_lost	0
-Performance_schema_file_handles_lost	0
-Performance_schema_file_instances_lost	0
-Performance_schema_hosts_lost	0
-Performance_schema_locker_lost	0
-Performance_schema_mutex_classes_lost	0
-Performance_schema_mutex_instances_lost	0
-Performance_schema_rwlock_classes_lost	0
-Performance_schema_rwlock_instances_lost	0
-Performance_schema_session_connect_attrs_lost	0
-Performance_schema_socket_classes_lost	0
-Performance_schema_socket_instances_lost	0
-Performance_schema_stage_classes_lost	0
-Performance_schema_statement_classes_lost	0
-Performance_schema_table_handles_lost	0
-Performance_schema_table_instances_lost	0
-Performance_schema_thread_classes_lost	0
-Performance_schema_thread_instances_lost	0
-Performance_schema_users_lost	0
 call check_instrument("wait/synch/mutex/");
 instr_name	is_wait	is_stage	is_statement
 wait/synch/mutex/	1	0	0

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -484,7 +484,8 @@ public:
   void lock_exclusive() { mysql_rwlock_wrlock(&LOCK_logger); }
   void unlock() { mysql_rwlock_unlock(&LOCK_logger); }
   bool is_log_table_enabled(uint log_table_type);
-  bool log_command(THD *thd, enum enum_server_command command);
+  bool log_command(THD *thd, enum enum_server_command command,
+                   const char *query_str, size_t query_length);
 
   /*
     We want to initialize all log mutexes as soon as possible,

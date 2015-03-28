@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -166,7 +166,7 @@ MACRO (MYSQL_CHECK_SSL)
     # Encoded as MNNFFPPS: major minor fix patch status
     FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
       OPENSSL_VERSION_NUMBER
-      REGEX "^#define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+      REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
     )
     STRING(REGEX REPLACE
       "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
@@ -230,14 +230,29 @@ MACRO (MYSQL_CHECK_SSL)
       SET(SSL_INTERNAL_INCLUDE_DIRS "")
       SET(SSL_DEFINES "-DHAVE_OPENSSL")
     ELSE()
-      IF(WITH_SSL STREQUAL "system")
-        MESSAGE(SEND_ERROR "Cannot find appropriate system libraries for SSL. Use  WITH_SSL=bundled to enable SSL support")
-      ENDIF()
-      MYSQL_USE_BUNDLED_SSL()
+
+      UNSET(WITH_SSL_PATH)
+      UNSET(WITH_SSL_PATH CACHE)
+      UNSET(OPENSSL_ROOT_DIR)
+      UNSET(OPENSSL_ROOT_DIR CACHE)
+      UNSET(OPENSSL_INCLUDE_DIR)
+      UNSET(OPENSSL_INCLUDE_DIR CACHE)
+      UNSET(OPENSSL_APPLINK_C)
+      UNSET(OPENSSL_APPLINK_C CACHE)
+      UNSET(OPENSSL_LIBRARY)
+      UNSET(OPENSSL_LIBRARY CACHE)
+      UNSET(CRYPTO_LIBRARY)
+      UNSET(CRYPTO_LIBRARY CACHE)
+
+      MESSAGE(SEND_ERROR
+        "Cannot find appropriate system libraries for SSL. "
+        "Make sure you've specified a supported SSL version. "
+        "Consult the documentation for WITH_SSL alternatives")
     ENDIF()
   ELSE()
     MESSAGE(SEND_ERROR
-      "Wrong option for WITH_SSL. Valid values are : ${WITH_SSL_DOC}")
+      "Wrong option or path for WITH_SSL. "
+      "Valid options are : ${WITH_SSL_DOC}")
   ENDIF()
 ENDMACRO()
 

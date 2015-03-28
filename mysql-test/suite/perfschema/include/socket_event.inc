@@ -126,7 +126,7 @@ if($is_connect)
       # Connect is visible.
       # We hope that sleep 1 is long enough so that PERFORMANCE_SCHEMA
       # can remove this row before we collect the after action state.
-      let $wait_timeou= 5;
+      let $wait_timeout= 5;
       let $wait_condition=
       SELECT COUNT(*) = 0
       $part;

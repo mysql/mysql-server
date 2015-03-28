@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -306,11 +306,11 @@ static inline void log_execute_line(THD *thd)
     return;
 
   if (thd->rewritten_query.length())
-    logger.general_log_write(thd, COM_STMT_EXECUTE,
+    general_log_write(thd, COM_STMT_EXECUTE,
                              thd->rewritten_query.c_ptr_safe(),
                              thd->rewritten_query.length());
   else
-    logger.general_log_write(thd, COM_STMT_EXECUTE,
+    general_log_write(thd, COM_STMT_EXECUTE,
                              thd->query(), thd->query_length());
 }
 
@@ -3137,6 +3137,7 @@ Execute_sql_statement(LEX_STRING sql_text)
 bool
 Execute_sql_statement::execute_server_code(THD *thd)
 {
+  sql_digest_state *parent_digest;
   PSI_statement_locker *parent_locker;
   bool error;
 
@@ -3150,9 +3151,12 @@ Execute_sql_statement::execute_server_code(THD *thd)
   parser_state.m_lip.multi_statements= FALSE;
   lex_start(thd);
 
+  parent_digest= thd->m_digest;
   parent_locker= thd->m_statement_psi;
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   error= parse_sql(thd, &parser_state, NULL) || thd->is_error();
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   if (error)
@@ -3162,18 +3166,17 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   parent_locker= thd->m_statement_psi;
   thd->m_statement_psi= NULL;
+
   /*
     Rewrite first (if needed); execution might replace passwords
     with hashes in situ without flagging it, and then we'd make
     a hash of that hash.
   */
   rewrite_query_if_needed(thd);
+  log_execute_line(thd);
+
   error= mysql_execute_command(thd) ;
   thd->m_statement_psi= parent_locker;
-
-  /* report error issued during command execution */
-  if (error == 0)
-    log_execute_line(thd);
 
 end:
   lex_end(thd->lex);
@@ -3354,7 +3357,10 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   bool error;
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
+  unsigned char *token_array= NULL;
+
   DBUG_ENTER("Prepared_statement::prepare");
   /*
     If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
@@ -3383,6 +3389,11 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     DBUG_RETURN(TRUE);
   }
 
+  if (max_digest_length > 0)
+  {
+    token_array= (unsigned char*) thd->alloc(max_digest_length);
+  }
+
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
 
@@ -3401,10 +3412,18 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   lex_start(thd);
   lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_PREPARE;
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
+
+  sql_digest_state digest;
+  digest.reset(token_array, max_digest_length);
+  thd->m_digest= &digest;
+
   error= parse_sql(thd, & parser_state, NULL) ||
     thd->is_error() ||
     init_param_array(this);
+
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   lex->set_trg_event_type_for_tables();
@@ -3515,12 +3534,15 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     if (thd->sp_runtime_ctx == NULL)
     {
       if (thd->rewritten_query.length())
-        logger.general_log_write(thd, COM_STMT_PREPARE,
+        general_log_write(thd, COM_STMT_PREPARE,
                                  thd->rewritten_query.c_ptr_safe(),
                                  thd->rewritten_query.length());
       else
-        logger.general_log_write(thd, COM_STMT_PREPARE,
+        general_log_write(thd, COM_STMT_PREPARE,
                                  query(), query_length());
+
+      /* audit plugins can return an error */
+      error |= thd->is_error();
     }
   }
   DBUG_RETURN(error);
@@ -4005,12 +4027,28 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                              1);
       parent_locker= thd->m_statement_psi;
       thd->m_statement_psi= NULL;
+
       /*
+        Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
+        prepared statements this causes two records to be output:
+
+        Query       EXECUTE <statement name>
+        Execute     <statement SQL text>
+
+        This is considered user-friendly, since in the
+        second log entry we output values of parameter markers.
+
+        Rewriting/password obfuscation:
+
+        - Any passwords in the "Execute" line should be substituted with
+        their hashes, or a notice.
+
         Rewrite first (if needed); execution might replace passwords
         with hashes in situ without flagging it, and then we'd make
         a hash of that hash.
       */
       rewrite_query_if_needed(thd);
+      log_execute_line(thd);
 
       error= mysql_execute_command(thd);
       thd->m_statement_psi= parent_locker;
@@ -4048,25 +4086,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     else
       thd->protocol->send_out_parameters(&this->lex->param_list);
   }
-
-  /*
-    Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
-    prepared statements this causes two records to be output:
-
-    Query       EXECUTE <statement name>
-    Execute     <statement SQL text>
-
-    This is considered user-friendly, since in the
-    second log entry we output values of parameter markers.
-
-    Rewriting/password obfuscation:
-
-    - Any passwords in the "Execute" line should be substituted with
-      their hashes, or a notice.
-
-  */
-  if (error == 0)
-    log_execute_line(thd);
 
 error:
   flags&= ~ (uint) IS_IN_USE;

@@ -1,0 +1,30 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+#
+# Stop slave threads and clear slave datadir.
+#
+include/stop_slave.inc
+RESET SLAVE;
+[connection master]
+CREATE TABLE t1 (c1 INT);
+[connection slave]
+#
+# Copy the binlog with Anonymous_GTID log events and
+# relay log index to slave datadir.
+#
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+#
+# Make sure that the binlog with Anonymous_GTID log events
+# is applied completely.
+#
+include/assert.inc [Table t2 must contain 1]
+DROP TABLE t2;
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

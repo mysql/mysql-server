@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -294,7 +294,10 @@ uint32 wt_wait_stats[WT_WAIT_STATS+1];
 uint32 wt_cycle_stats[2][WT_CYCLE_STATS+1];
 uint32 wt_success_stats;
 
-static my_atomic_rwlock_t cycle_stats_lock, wait_stats_lock, success_stats_lock;
+static my_atomic_rwlock_t
+  cycle_stats_lock __attribute__((unused)),
+  wait_stats_lock __attribute__((unused)),
+  success_stats_lock __attribute__((unused));
 
 #ifdef SAFE_STATISTICS
 #define incr(VAR, LOCK)                           \

@@ -1,3 +1,39 @@
+mysql-community (5.6.24-1debian7) wheezy; urgency=low
+
+  * new upstream release
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 16 Feb 2014 15:45:09 +0530
+
+mysql-community (5.6.23-1debian7) wheezy; urgency=low
+
+  * new upstream release
+  * mysql-community-server now recommends mysql-client
+  * removed template install-test-db; not installed by default
+  * d/compat incremented to 9 from 8
+  * d/control updated to build depend on debhelper 9
+  * added d/*.lintian-overrides and d/source/lintian-overrides
+  * d/rules updated to reflect correct file permissions
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 31 Dec 2014 10:51:07 +0530
+
+mysql-community (5.6.22-1debian7) wheezy; urgency=low
+
+  * new upstream release
+  * fixed d/*server.postinst to allow dropping test db without
+    setting root password
+  * init script will now run my_i_db if data dir is not present or empty
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 24 Sep 2014 14:48:07 +0530
+
+mysql-community (5.6.21-1debian7) wheezy; urgency=low
+
+  * new upstream release
+  * updated d/rules to increment -j8 as make option
+  * updated d/source/include-binaries to add mysql_no_login plugin
+  * updated CMake option WITH_EXTRA_CHARSETS from complex to all
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 20 Aug 2014 19:12:30 +0530
+
 mysql-community (5.6.20-1debian7) wheezy; urgency=low
 
   * new upstream release
@@ -5,8 +41,20 @@ mysql-community (5.6.20-1debian7) wheezy; urgency=low
   * added d/*.dirs for bench, dev and test pkg
   * updated d/rules to make compilation verbose
   * removed default CFLAGS, CXXFLAGS in d/rules
+  * added patch for testsuite search paths under d/patches
+  * modified cmake option for testsuite in d/rules
+  * updated patch d/fix-mysql_install_db.patch
+  * enabled two patches in d/patches/series
+  * removed extra permissions check in d/rules when fixed in source
+  * modified d/mysql-*-server.postinst to stop removing /usr/my.cnf
+  * modified d/*-test.* for updated location of testsuite
+  * updated d/{mysql-*-server.install,rules} to include debug plugins
+  * updated d/rules to remove storage engine cmake options
+  * modified data dir permission in d/*server.{pre,post}inst
+  * updated d/source/include-binaries to add debug plugins
+  * updated d/rules to rename debug plugins
 
- -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 26 Jun 2014 16:13:30 +0530
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 02 Jul 2014 17:45:30 +0530
 
 mysql-community (5.6.19-1debian7) wheezy; urgency=low
 

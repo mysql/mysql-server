@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1851,6 +1851,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   char *part_syntax_buf;
   uint syntax_len;
+  partition_info *old_part_info= lpt->table->part_info;
 #endif
   DBUG_ENTER("mysql_write_frm");
 
@@ -1874,7 +1875,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     {
-      partition_info *part_info= lpt->table->part_info;
+      partition_info *part_info= lpt->part_info;
       if (part_info)
       {
         if (!(part_syntax_buf= generate_partition_syntax(part_info,
@@ -1888,6 +1889,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         }
         part_info->part_info_string= part_syntax_buf;
         part_info->part_info_len= syntax_len;
+        lpt->table->file->set_part_info(part_info, false);
       }
     }
 #endif
@@ -1931,6 +1933,10 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     partition_info *part_info= lpt->part_info;
+    if (part_info)
+    {
+      lpt->table->file->set_part_info(part_info, false);
+    }
 #endif
     /*
       Build frm file name
@@ -2011,6 +2017,10 @@ err:
   }
 
 end:
+  if (old_part_info)
+  {
+    lpt->table->file->set_part_info(old_part_info, false);
+  }
   DBUG_RETURN(error);
 }
 
@@ -6976,6 +6986,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (create_info->storage_media == HA_SM_DEFAULT)
     create_info->storage_media= table->s->default_storage_media;
 
+  /* Creation of federated table with LIKE clause needs connection string */
+  if (!(used_fields & HA_CREATE_USED_CONNECTION))
+    create_info->connect_string= table->s->connect_string;
+
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   Create_field *def;
 
@@ -8127,11 +8141,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   bool partition_changed= false;
-  bool fast_alter_partition= false;
+  partition_info *new_part_info= NULL;
   {
     if (prep_alter_part_table(thd, table, alter_info, create_info,
                               &alter_ctx, &partition_changed,
-                              &fast_alter_partition))
+                              &new_part_info))
     {
       DBUG_RETURN(true);
     }
@@ -8147,7 +8161,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   set_table_default_charset(thd, create_info, alter_ctx.db);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (fast_alter_partition)
+  if (new_part_info)
   {
     /*
       ALGORITHM and LOCK clauses are generally not allowed by the
@@ -8189,7 +8203,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     DBUG_RETURN(fast_alter_partition_table(thd, table, alter_info,
                                            create_info, table_list,
                                            alter_ctx.db,
-                                           alter_ctx.table_name));
+                                           alter_ctx.table_name,
+                                           new_part_info));
   }
 #endif
 
@@ -8223,8 +8238,21 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     alter_info->requested_algorithm= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
   }
 
-  if (upgrade_old_temporal_types(thd, alter_info))
-    DBUG_RETURN(true);
+  /*
+    If 'avoid_temporal_upgrade' mode is not enabled, then the
+    pre MySQL 5.6.4 old temporal types if present is upgraded to the
+    current format.
+  */
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  bool check_temporal_upgrade= !avoid_temporal_upgrade;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (check_temporal_upgrade)
+  {
+    if (upgrade_old_temporal_types(thd, alter_info))
+      DBUG_RETURN(true);
+  }
 
   /*
     ALTER TABLE ... ENGINE to the same engine is a common way to

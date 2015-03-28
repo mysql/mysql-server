@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,29 +21,11 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
-# Gen_pfs_lex_token
-ADD_EXECUTABLE(gen_pfs_lex_token gen_pfs_lex_token.cc)
-# gen_pfs_lex_token itself depends on ${CMAKE_CURRENT_BINARY_DIR}/sql/sql_yacc.h
-ADD_DEPENDENCIES(gen_pfs_lex_token GenServerSource)
-
-ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pfs_lex_token.h
-  COMMAND gen_pfs_lex_token > pfs_lex_token.h
-  DEPENDS gen_pfs_lex_token
-)
-
-SET(PFS_GEN_SOURCES
-  ${CMAKE_CURRENT_BINARY_DIR}/pfs_lex_token.h
-)
-
-SET_SOURCE_FILES_PROPERTIES(${PFS_GEN_SOURCES} PROPERTIES GENERATED 1)
-
 #
 # Maintainer: keep this list sorted, to avoid merge collisions.
 # Tip: ls -1 *.h, ls -1 *.cc
 #
 SET(PERFSCHEMA_SOURCES
-${PFS_GEN_SOURCES}
 ha_perfschema.h
 cursor_by_account.h
 cursor_by_host.h

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -183,220 +183,8 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
-static const
-TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
-  {
-    { C_STRING_WITH_LEN("Host") },            
-    { C_STRING_WITH_LEN("char(60)") },
-    { NULL, 0 }
-  },
-  {
-    { C_STRING_WITH_LEN("User") },            
-    { C_STRING_WITH_LEN("char(16)") },
-    { NULL, 0 }
-  },
-  {
-    { C_STRING_WITH_LEN("Password") },            
-    { C_STRING_WITH_LEN("char(41)") },
-    { C_STRING_WITH_LEN("latin1") }
-  }, 
-  {
-    { C_STRING_WITH_LEN("Select_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Insert_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Update_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Delete_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Create_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Drop_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Reload_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  {
-    { C_STRING_WITH_LEN("Shutdown_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Process_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("File_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Grant_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("References_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Index_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Alter_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Show_db_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Super_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_tmp_table_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Lock_tables_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Execute_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Repl_slave_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Repl_client_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_view_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Show_view_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_routine_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Alter_routine_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_user_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Event_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Trigger_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("Create_tablespace_priv") },
-    { C_STRING_WITH_LEN("enum('N','Y')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("ssl_type") },
-    { C_STRING_WITH_LEN("enum('','ANY','X509','SPECIFIED')") },
-    { C_STRING_WITH_LEN("utf8") }
-  },
-  { 
-    { C_STRING_WITH_LEN("ssl_cipher") },
-    { C_STRING_WITH_LEN("blob") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("x509_issuer") },
-    { C_STRING_WITH_LEN("blob") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("x509_subject") },
-    { C_STRING_WITH_LEN("blob") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("max_questions") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("max_updates") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("max_connections") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("plugin") },
-    { C_STRING_WITH_LEN("char(64)") },
-    { NULL, 0 }
-  },
-  { 
-    { C_STRING_WITH_LEN("authentication_string") },
-    { C_STRING_WITH_LEN("text") },
-    { NULL, 0 }
-  } 
-};
-
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
-
-const TABLE_FIELD_DEF
-  mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
 
 static LEX_STRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
@@ -2932,8 +2720,14 @@ update_user_table(THD *thd, TABLE *table,
   */
   if (!password_expired)
   {
-    table->field[(int) password_field]->store(new_password, new_password_len,
-                                              system_charset_info);
+    if (table->s->fields >= (uint) password_field)
+      table->field[(uint) password_field]->store(new_password, new_password_len,
+                                                 system_charset_info);
+    else
+    {
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), "authentication string", "mysql.user");
+      DBUG_RETURN(1);
+    }
     if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 &&
         password_field == MYSQL_USER_FIELD_PASSWORD)
     {
@@ -3137,17 +2931,24 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       /* Use the authentication_string field */
       combo->auth.str= password;
       combo->auth.length= password_len;
-      if (password_len > 0)
+      if (table->s->fields >= MYSQL_USER_FIELD_AUTHENTICATION_STRING)
+      {
+        if (password_len > 0)
+          table->
+            field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
+              store(password, password_len, &my_charset_utf8_bin);
+        /* Assert that the proper plugin is set */
         table->
-          field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
-            store(password, password_len, &my_charset_utf8_bin);
-      /* Assert that the proper plugin is set */
-      table->
-        field[MYSQL_USER_FIELD_PLUGIN]->
-          store(sha256_password_plugin_name.str,
-                sha256_password_plugin_name.length,
-                system_charset_info);
-
+          field[MYSQL_USER_FIELD_PLUGIN]->
+            store(sha256_password_plugin_name.str,
+                  sha256_password_plugin_name.length,
+                  system_charset_info);
+      }
+      else
+      {
+        my_error(ER_BAD_FIELD_ERROR, MYF(0), "plugin", "mysql.user");
+        goto end;
+      }
     }
     else
 #endif
@@ -3155,8 +2956,9 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       /* Use the legacy Password field */
       table->field[MYSQL_USER_FIELD_PASSWORD]->store(password, password_len,
                                                      system_charset_info);
-      table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->store("\0", 0,
-                                                     &my_charset_utf8_bin);
+      if (table->s->fields >= MYSQL_USER_FIELD_AUTHENTICATION_STRING)
+        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->store("\0", 0,
+                                                       &my_charset_utf8_bin);
     }
   }
   else // if (table->file->ha_index_read_idx_map [..]
@@ -3309,7 +3111,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       else
         combo->auth.length= 0;
     }
-    
     /* 2. Digest password if needed (plugin must have been resolved */
     if (combo->uses_identified_by_clause)
     {
@@ -6252,7 +6053,7 @@ bool check_grant_db(THD *thd,const char *db)
   bool error= TRUE;
   size_t copy_length;
 
-  copy_length= (size_t) (strlen(sctx->priv_user ? sctx->priv_user : "") +
+  copy_length= (size_t) (strlen(sctx->priv_user) +
                  strlen(db ? db : "")) + 1; /* Added 1 at the end to avoid  
                                                buffer overflow at strmov()*/
 
@@ -6601,24 +6402,34 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 		  system_charset_info);
     global.append ('\'');
 #if defined(HAVE_OPENSSL)
-    if (acl_user->plugin.str == sha256_password_plugin_name.str)
+    if (acl_user->plugin.str == sha256_password_plugin_name.str &&
+        acl_user->auth_string.length > 0)
     {
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append((const char *) &acl_user->auth_string.str[0]);
-      global.append('\'');
+      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
+      if ((thd->security_ctx->master_access & SUPER_ACL) == SUPER_ACL)
+      {
+        global.append(" \'");
+        global.append((const char *) &acl_user->auth_string.str[0]);
+        global.append('\'');
+      }
     }
     else
 #endif
     if (acl_user->salt_len)
     {
-      char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
-      if (acl_user->salt_len == SCRAMBLE_LENGTH)
-        make_password_from_salt(passwd_buff, acl_user->salt);
-      else
-        make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append(passwd_buff);
-      global.append('\'');
+      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
+      if ((thd->security_ctx->master_access & SUPER_ACL) == SUPER_ACL)
+      {
+        char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
+        if (acl_user->salt_len == SCRAMBLE_LENGTH)
+          make_password_from_salt(passwd_buff, acl_user->salt);
+        else
+          make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
+
+        global.append(" \'");
+        global.append(passwd_buff);
+        global.append('\'');
+      }
     }
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
@@ -9363,7 +9174,7 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', table: `%s`.`%s`",
                        sctx->priv_host, (sctx->get_ip()->length() ?
                        sctx->get_ip()->ptr() : "(NULL)"),
-                       (sctx->priv_user ? sctx->priv_user : "(NULL)"),
+                       sctx->priv_user,
                        db, table));
   /* --skip-grants */
   if (!initialized)
@@ -11356,8 +11167,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     {
       general_log_print(thd, command, "%s@%s as %s on %s",
                         mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.auth_info.authenticated_as ? 
-                          mpvio.auth_info.authenticated_as : "anonymous",
+                        mpvio.auth_info.authenticated_as,
                         mpvio.db.str ? mpvio.db.str : (char*) "");
     }
     else
