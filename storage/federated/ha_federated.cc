@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -402,7 +402,6 @@ static const int bulk_padding= 64;              // bytes "overhead" in packet
 
 /* Variables used when chopping off trailing characters */
 static const uint sizeof_trailing_comma= sizeof(", ") - 1;
-static const uint sizeof_trailing_closeparen= sizeof(") ") - 1;
 static const uint sizeof_trailing_and= sizeof(" AND ") - 1;
 static const uint sizeof_trailing_where= sizeof(" WHERE ") - 1;
 
@@ -2902,7 +2901,7 @@ int ha_federated::info(uint flag)
 
   }
 
-  if (flag & HA_STATUS_AUTO)
+  if ((flag & HA_STATUS_AUTO) && mysql)
     stats.auto_increment_value= mysql->insert_id;
 
   mysql_free_result(result);

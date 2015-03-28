@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -905,7 +905,6 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     recpos= field->offset+1 + (uint) data_offset;
     int3store(buff+5,recpos);
     int2store(buff+8,field->pack_flag);
-    DBUG_ASSERT(field->unireg_check < 256);
     buff[10]= (uchar) field->unireg_check;
     buff[12]= (uchar) field->interval_id;
     buff[13]= (uchar) field->sql_type; 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1399,6 +1399,9 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
     */
     thd->variables.sql_mode&= ~(MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |
                                 MODE_IGNORE_SPACE | MODE_NO_BACKSLASH_ESCAPES);
+
+    if (thd->m_digest != NULL)
+      thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
     /* Parse the query. */
 

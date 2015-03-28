@@ -1,4 +1,4 @@
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# obscured filename for mysqld-debug and libmysqld-debug.a
+# obscured filename for mysqld-debug, libmysqld-debug.a and debug plugins
 debian/extra/server-binary
 debian/extra/embedded-server
+debian/extra/adt_null-plugin
+debian/extra/auth-plugin
+debian/extra/auth_socket-plugin
+debian/extra/auth_test_plugin-plugin
+debian/extra/innodb_engine-plugin
+debian/extra/libdaemon_example-plugin
+debian/extra/libmemcached-plugin
+debian/extra/mypluglib-plugin
+debian/extra/mysql_no_login-plugin
+debian/extra/qa_auth_client-plugin
+debian/extra/qa_auth_interface-plugin
+debian/extra/qa_auth_server-plugin
+debian/extra/semisync_master-plugin
+debian/extra/semisync_slave-plugin
+debian/extra/validate_password-plugin

@@ -15,6 +15,9 @@
 # Tests that require multibyte character sets, which are not always available,
 #   go into separate files (e.g. sp-ucs2.test)
 
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
 use test;
 
 # Test tables
@@ -9004,5 +9007,120 @@ SET @@default_storage_engine = @default_storage_engine_saved;
 DROP PROCEDURE p1;
 
 DROP TABLE t1;
+
+
+--echo
+--echo #
+--echo # BUG 16041903: CONTINUE HANDLER NOT INVOKED
+--echo # IN A STORED FUNCTION AFTER A LOCK WAIT TIMEOUT
+--echo #
+
+--echo
+--echo # Save and set lock wait timeout
+SET @lock_wait_timeout_saved= @@lock_wait_timeout;
+SET @innodb_lock_wait_timeout_saved= @@innodb_lock_wait_timeout;
+SET @@lock_wait_timeout= 1;
+SET @@innodb_lock_wait_timeout= 1;
+
+--echo
+--echo # Create a function with exit handler:
+DELIMITER //;
+CREATE FUNCTION f1() RETURNS VARCHAR(20)
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLSTATE '42S02' RETURN 'No such table';
+  INSERT INTO no_such_table VALUES (1);
+END//
+
+--echo
+--echo # Create a function calling f1():
+CREATE FUNCTION f2() RETURNS VARCHAR(20)
+BEGIN
+  RETURN f1();
+END//
+
+--echo
+--echo # Create a function provoking deadlock:
+CREATE FUNCTION f3() RETURNS VARCHAR(20)
+BEGIN
+  UPDATE t1 SET i= 1 WHERE i= 1;
+  RETURN 'Will never get here';
+END//
+
+--echo
+--echo # Create a function calling f3, to create
+--echo # a deadlock indirectly:
+CREATE FUNCTION f4() RETURNS VARCHAR(20)
+BEGIN
+  RETURN f3();
+END//
+DELIMITER ;//
+
+--echo
+--echo # Open another connection, create and initialize a table
+--echo # to be used for provoking deadlock, put a lock on the table:
+connect (con1,localhost,root,,);
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+SET AUTOCOMMIT= 0;
+UPDATE t1 SET i=1 WHERE i=1;
+
+--echo
+--echo # On the default connection, do an update to provoke a
+--echo # deadlock, then call the function with handler. This case
+--echo # fails without the patch (with error ER_NO_SUCH_TABLE):
+--connection default
+SET AUTOCOMMIT= 0;
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET i=1 WHERE i=1;
+SELECT f1() AS 'f1():';
+
+--echo
+--echo # Provoke another deadlock, then call the function with
+--echo # handler indirectly. This case fails without the patch
+--echo # (with error ER_NO_SUCH_TABLE):
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET i= 1 WHERE i= 1;
+SELECT f2() AS 'f2():';
+
+--echo
+--echo # Provoke yet another deadlock, but now from within a function,
+--echo # then call the function with handler. This succeeds even
+--echo # without the patch because is_fatal_sub_stmt_error is reset
+--echo # in restore_sub_stmt after the failing function has been
+--echo # executed. The test case is included anyway for better coverage:
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT f3() AS 'f3():';
+SELECT f1() AS 'f1():';
+
+--echo # Provoke yet another deadlock, but now from within a function,
+--echo # calling another function, then call the function with handler.
+--echo # This succeeds even without the patch because
+--echo # is_fatal_sub_stmt_error is reset in restore_sub_stmt after
+--echo # the failing function has been executed. The test case is
+--echo # included anyway for better coverage:
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT f4() AS 'f4():';
+SELECT f1() AS 'f1():';
+
+--echo
+--echo # Disconnect, drop functions and table:
+--disconnect con1
+DROP FUNCTION f4;
+DROP FUNCTION f3;
+DROP FUNCTION f2;
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+--echo
+--echo # Reset lock wait timeouts
+SET @@lock_wait_timeout= @lock_wait_timeout_saved;
+SET @@innodb_lock_wait_timeout= @innodb_lock_wait_timeout_saved;
+
+--echo #
+--echo # BUG 16041903: End of test case
+--echo #
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
 
 --echo # End of 5.6 tests

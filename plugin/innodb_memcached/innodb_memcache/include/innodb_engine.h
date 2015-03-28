@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -74,6 +74,7 @@ struct innodb_conn_data_struct {
 					is processing a request */
 	bool		is_stale;	/*!< connection closed, this is
 					stale */
+	bool		is_flushing;	/*!< if flush is running. */
 	void*		conn_cookie;	/*!< connection cookie */
 	uint64_t	n_total_reads;	/*!< number of reads */
 	uint64_t	n_reads_since_commit;
@@ -147,6 +148,8 @@ typedef struct innodb_engine {
 						connection specific data */
 	pthread_mutex_t		cas_mutex;	/*!< mutex synchronizes
 						CAS */
+	pthread_mutex_t		flush_mutex;	/*!< mutex synchronizes
+						flush and DMLs. */
 	pthread_t		bk_thd_for_commit;/*!< background thread for
 						committing long running
 						transactions */

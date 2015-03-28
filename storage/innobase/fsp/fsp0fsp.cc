@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -291,44 +291,6 @@ xdes_find_bit(
 	}
 
 	for (i = 0; i < hint; i++) {
-		if (val == xdes_mtr_get_bit(descr, bit, i, mtr)) {
-
-			return(i);
-		}
-	}
-
-	return(ULINT_UNDEFINED);
-}
-
-/**********************************************************************//**
-Looks for a descriptor bit having the desired value. Scans the extent in
-a direction opposite to xdes_find_bit.
-@return	bit index of the bit, ULINT_UNDEFINED if not found */
-UNIV_INLINE
-ulint
-xdes_find_bit_downward(
-/*===================*/
-	xdes_t*	descr,	/*!< in: descriptor */
-	ulint	bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-	ibool	val,	/*!< in: desired bit value */
-	ulint	hint,	/*!< in: hint of which bit position would
-			be desirable */
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
-{
-	ulint	i;
-
-	ut_ad(descr && mtr);
-	ut_ad(val <= TRUE);
-	ut_ad(hint < FSP_EXTENT_SIZE);
-	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_X_FIX));
-	for (i = hint + 1; i > 0; i--) {
-		if (val == xdes_mtr_get_bit(descr, bit, i - 1, mtr)) {
-
-			return(i - 1);
-		}
-	}
-
-	for (i = FSP_EXTENT_SIZE - 1; i > hint; i--) {
 		if (val == xdes_mtr_get_bit(descr, bit, i, mtr)) {
 
 			return(i);

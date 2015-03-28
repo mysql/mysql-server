@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -543,6 +543,7 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+ulong max_digest_length= 0;
 ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
 my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
@@ -582,6 +583,11 @@ ulong expire_logs_days = 0;
   in the sp_cache for one connection.
 */
 ulong stored_program_cache_size= 0;
+/**
+  Compatibility option to prevent auto upgrade of old temporals
+  during certain ALTER TABLE operations.
+*/
+my_bool avoid_temporal_upgrade;
 
 const double log_10[] = {
   1e000, 1e001, 1e002, 1e003, 1e004, 1e005, 1e006, 1e007, 1e008, 1e009,
@@ -3856,6 +3862,9 @@ int init_common_variables()
     return 1;
   set_server_version();
 
+  sql_print_information("%s (mysqld %s) starting as process %lu ...",
+                        my_progname, server_version, (ulong) getpid());
+
 #ifndef EMBEDDED_LIBRARY
   if (opt_help && !opt_verbose)
     unireg_abort(0);
@@ -5247,6 +5256,8 @@ int mysqld_main(int argc, char **argv)
         pfs_param.m_hints.m_table_open_cache= table_cache_size;
         pfs_param.m_hints.m_max_connections= max_connections;
 	pfs_param.m_hints.m_open_files_limit= requested_open_files;
+        /* the performance schema digest size is the same as the SQL layer */
+        pfs_param.m_max_digest_length= max_digest_length;
         PSI_hook= initialize_performance_schema(&pfs_param);
         if (PSI_hook == NULL)
         {
@@ -6935,7 +6946,7 @@ void adjust_table_cache_size(ulong requested_open_files)
     char msg[1024];
 
     snprintf(msg, sizeof(msg),
-             "Changed limits: table_cache: %lu (requested %lu)",
+             "Changed limits: table_open_cache: %lu (requested %lu)",
              limit, table_cache_size);
     buffered_logs.buffer(WARNING_LEVEL, msg);
 
@@ -8406,9 +8417,11 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOGGING_IMPOSSIBLE_MODE:
     WARN_DEPRECATED(NULL, "--binlogging_impossible_mode",
                     "'--binlog_error_action'");
+    break;
   case OPT_SIMPLIFIED_BINLOG_GTID_RECOVERY:
     WARN_DEPRECATED(NULL, "--simplified_binlog_gtid_recovery",
                     "'--binlog_gtid_simple_recovery'");
+    break;
 #include <sslopt-case.h>
 #ifndef EMBEDDED_LIBRARY
   case 'V':
@@ -8751,6 +8764,12 @@ pfs_error:
     break;
   case OPT_TABLE_DEFINITION_CACHE:
     table_definition_cache_specified= true;
+    break;
+  case OPT_AVOID_TEMPORAL_UPGRADE:
+    WARN_DEPRECATED_NO_REPLACEMENT(NULL, "avoid_temporal_upgrade");
+    break;
+  case OPT_SHOW_OLD_TEMPORALS:
+    WARN_DEPRECATED_NO_REPLACEMENT(NULL, "show_old_temporals");
     break;
   }
   return 0;

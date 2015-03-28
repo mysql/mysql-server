@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,8 +120,10 @@ static audit_handler_t audit_handlers[] =
   general_class_handler, connection_class_handler
 };
 
+#ifndef DBUG_OFF
 static const uint audit_handlers_count=
   (sizeof(audit_handlers) / sizeof(audit_handler_t));
+#endif /* DBUG_OFF */
 
 
 /**
@@ -342,8 +344,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
 {
   st_mysql_audit *data= (st_mysql_audit*) plugin->plugin->info;
   
-  if (!data->class_mask || !data->event_notify ||
-      !data->class_mask[0])
+  if (!data->event_notify || !data->class_mask[0])
   {
     sql_print_error("Plugin '%s' has invalid data.",
                     plugin->name.str);

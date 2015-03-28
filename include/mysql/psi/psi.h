@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,18 +43,8 @@
 C_MODE_START
 
 struct TABLE_SHARE;
-/*
-  There are 3 known bison parsers in the server:
-  - (1) the SQL parser itself, sql/sql_yacc.yy
-  - (2) storage/innobase/fts/fts0pars.y
-  - (3) storage/innobase/pars/pars0grm.y
-  What is instrumented here are the tokens from the SQL query text (1),
-  to make digests.
-  Now, to avoid name pollution and conflicts with different YYSTYPE definitions,
-  an opaque structure is used here.
-  The real type to use when invoking the digest api is LEX_YYSTYPE.
-*/
-struct OPAQUE_LEX_YYSTYPE;
+
+struct sql_digest_storage;
 
 /**
   @file mysql/psi/psi.h
@@ -952,29 +942,6 @@ struct PSI_table_locker_state_v1
   uint m_index;
 };
 
-#define PSI_MAX_DIGEST_STORAGE_SIZE 1024
-
-/**
-  Structure to store token count/array for a statement
-  on which digest is to be calculated.
-*/
-struct PSI_digest_storage
-{
-  my_bool m_full;
-  int m_byte_count;
-  /** Character set number. */
-  uint m_charset_number;
-  unsigned char m_token_array[PSI_MAX_DIGEST_STORAGE_SIZE];
-};
-typedef struct PSI_digest_storage PSI_digest_storage;
-
-struct PSI_digest_locker_state
-{
-  int m_last_id_index;
-  PSI_digest_storage m_digest_storage;
-};
-typedef struct PSI_digest_locker_state PSI_digest_locker_state;
-
 /* Duplicate of NAME_LEN, to avoid dependency on mysql_com.h */
 #define PSI_SCHEMA_NAME_LEN (64 * 3)
 
@@ -1037,7 +1004,7 @@ struct PSI_statement_locker_state_v1
   /** Metric, number of sort scans. */
   ulong m_sort_scan;
   /** Statement digest. */
-  PSI_digest_locker_state m_digest_state;
+  const struct sql_digest_storage *m_digest;
   /** Current schema name. */
   char m_schema_name[PSI_SCHEMA_NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
@@ -1902,11 +1869,15 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 */
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
+/**
+  Get a digest locker for the current statement.
+  @param locker a statement locker for the running thread
+*/
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 
-typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
-  (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
+typedef void (*digest_end_v1_t)
+  (struct PSI_digest_locker *locker, const struct sql_digest_storage *digest);
 
 /**
   Stores an array of connection attributes
@@ -2118,8 +2089,8 @@ struct PSI_v1
   set_socket_thread_owner_v1_t set_socket_thread_owner;
   /** @sa digest_start_v1_t. */
   digest_start_v1_t digest_start;
-  /** @sa digest_add_token_v1_t. */
-  digest_add_token_v1_t digest_add_token;
+  /** @sa digest_end_v1_t. */
+  digest_end_v1_t digest_end;
   /** @sa set_thread_connect_attrs_v1_t. */
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
 };
@@ -2412,6 +2383,10 @@ extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 
 #ifndef PSI_STATEMENT_CALL
 #define PSI_STATEMENT_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
+#ifndef PSI_DIGEST_CALL
+#define PSI_DIGEST_CALL(M) PSI_DYNAMIC_CALL(M)
 #endif
 
 #ifndef PSI_TABLE_CALL

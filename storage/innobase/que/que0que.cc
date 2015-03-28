@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -378,32 +378,6 @@ que_fork_start_command(
 	}
 
 	return(thr);
-}
-
-/****************************************************************//**
-Tests if all the query threads in the same fork have a given state.
-@return TRUE if all the query threads in the same fork were in the
-given state */
-UNIV_INLINE
-ibool
-que_fork_all_thrs_in_state(
-/*=======================*/
-	que_fork_t*	fork,	/*!< in: query fork */
-	ulint		state)	/*!< in: state */
-{
-	que_thr_t*	thr_node;
-
-	for (thr_node = UT_LIST_GET_FIRST(fork->thrs);
-	     thr_node != NULL;
-	     thr_node = UT_LIST_GET_NEXT(thrs, thr_node)) {
-
-		if (thr_node->state != state) {
-
-			return(FALSE);
-		}
-	}
-
-	return(TRUE);
 }
 
 /**********************************************************************//**

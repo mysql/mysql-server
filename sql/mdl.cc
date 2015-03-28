@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1930,7 +1930,7 @@ MDL_context::find_ticket(MDL_request *mdl_request,
 bool
 MDL_context::try_acquire_lock(MDL_request *mdl_request)
 {
-  MDL_ticket *ticket;
+  MDL_ticket *ticket= NULL;
 
   if (try_acquire_lock_impl(mdl_request, &ticket))
     return TRUE;
@@ -2184,7 +2184,7 @@ bool
 MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 {
   MDL_lock *lock;
-  MDL_ticket *ticket;
+  MDL_ticket *ticket= NULL;
   struct timespec abs_timeout;
   MDL_wait::enum_wait_status wait_status;
   /* Do some work outside the critical section. */
