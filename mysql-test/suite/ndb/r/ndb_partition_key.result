@@ -21,6 +21,7 @@ ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning 
 CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY(a,b))
 ENGINE = NDB
 PARTITION BY KEY (a);
+ALTER TABLE t1 REORGANIZE PARTITION;
 insert into t1 values 
 (1,1,3),(1,2,3),(1,3,3),(1,4,3),(1,5,3),(1,6,3),
 (1,7,3),(1,8,3),(1,9,3),(1,10,3),(1,11,3),(1,12,3);
