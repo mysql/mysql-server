@@ -8,5 +8,5 @@ SELECT 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1
 ####################################
 SELECT event_name, digest, digest_text, sql_text FROM events_statements_history_long;
 event_name	digest	digest_text	sql_text
-statement/sql/truncate	23e0e19c4baa66c6be30e70f75e52178	TRUNCATE TABLE 	truncate table events_statements_history_long
-statement/sql/select	6695eca04b8387c092d89fa88d767328	SELECT ? + ? + 	SELECT 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1
+statement/sql/truncate	55630229528e3ed4735ed1c46933468d	TRUNCATE TABLE 	truncate table events_statements_history_long
+statement/sql/select	cb7ff3d6934df3d110f1fb8d4f5ce361	SELECT ? + ? + 	SELECT 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1
