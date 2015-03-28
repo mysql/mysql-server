@@ -56,18 +56,9 @@ static const uint NO_CURRENT_PART_ID= UINT_MAX32;
   The new idea is that handlers will handle the lock level already in
   store_lock for ALTER TABLE partitions.
   TODO: Implement this via the alter-inplace api.
-
-  HA_PARTITION_ONE_PHASE is a flag that can be set by handlers that take
-  care of changing the partitions online and in one phase. Thus all phases
-  needed to handle the change are implemented inside the storage engine.
-  The storage engine must also support auto-discovery since the frm file
-  is changed as part of the change and this change must be controlled by
-  the storage engine. A typical engine to support this is NDB (through
-  WL #2498).
 */
 #define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 0)
 #define HA_FAST_CHANGE_PARTITION                (1L << 1)
-#define HA_PARTITION_ONE_PHASE                  (1L << 2)
 
 enum enum_part_operation {
   OPTIMIZE_PARTS= 0,

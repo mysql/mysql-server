@@ -4973,9 +4973,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           without any changes at all.
         */
         flags= part_handler->alter_flags(alter_info->flags);
-        DBUG_ASSERT(flags & (HA_FAST_CHANGE_PARTITION |
-                             HA_PARTITION_ONE_PHASE));
-        if (flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE))
+        if ((flags & HA_FAST_CHANGE_PARTITION) != 0)
         {
           *new_part_info= tab_part_info;
           /* Force table re-open for consistency with the main case. */
@@ -5009,7 +5007,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       goto err;
     }
-    if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
+    if ((flags & HA_FAST_CHANGE_PARTITION) != 0)
     {
       /*
         "Fast" change of partitioning is supported in this case.
@@ -6829,58 +6827,7 @@ bool fast_alter_partition_table(THD *thd,
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
-  if (part_handler->alter_flags(alter_info->flags) & HA_PARTITION_ONE_PHASE)
-  {
-    /*
-      In the case where the engine supports one phase online partition
-      changes it is not necessary to have any exclusive locks. The
-      correctness is upheld instead by transactions being aborted if they
-      access the table after its partition definition has changed (if they
-      are still using the old partition definition).
-
-      The handler is in this case responsible to ensure that all users
-      start using the new frm file after it has changed. To implement
-      one phase it is necessary for the handler to have the master copy
-      of the frm file and use discovery mechanisms to renew it. Thus
-      write frm will write the frm, pack the new frm and finally
-      the frm is deleted and the discovery mechanisms will either restore
-      back to the old or installing the new after the change is activated.
-
-      Thus all open tables will be discovered that they are old, if not
-      earlier as soon as they try an operation using the old table. One
-      should ensure that this is checked already when opening a table,
-      even if it is found in the cache of open tables.
-
-      change_partitions will perform all operations and it is the duty of
-      the handler to ensure that the frm files in the system gets updated
-      in synch with the changes made and if an error occurs that a proper
-      error handling is done.
-
-      If the MySQL Server crashes at this moment but the handler succeeds
-      in performing the change then the binlog is not written for the
-      change. There is no way to solve this as long as the binlog is not
-      transactional and even then it is hard to solve it completely.
-
-      The first approach here was to downgrade locks. Now a different approach
-      is decided upon. The idea is that the handler will have access to the
-      Alter_info when store_lock arrives with TL_WRITE_ALLOW_READ. So if the
-      handler knows that this functionality can be handled with a lower lock
-      level it will set the lock level to TL_WRITE_ALLOW_WRITE immediately.
-      Thus the need to downgrade the lock disappears.
-      1) Write the new frm, pack it and then delete it
-      2) Perform the change within the handler
-    */
-    /* No engine supports this yet, so this is not yet tested! */
-    DBUG_ASSERT(0);
-    if (mysql_write_frm(lpt, WFRM_WRITE_SHADOW | WFRM_PACK_FRM) ||
-        mysql_change_partitions(lpt))
-    {
-      DBUG_RETURN(true);
-    }
-    fast_end_partition(thd, lpt->copied, lpt->deleted, table_list);
-    DBUG_RETURN(false);
-  }
-  else if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
+  if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
   {
     /*
       Now after all checks and setting state on dropped partitions we can
