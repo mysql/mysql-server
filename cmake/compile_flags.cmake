@@ -1,4 +1,4 @@
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,11 +18,11 @@
 MACRO(ADD_COMPILE_FLAGS)
   SET(FILES "")
   SET(FLAGS "")
-  SET(COMPILE_FLAGS)
+  SET(COMPILE_FLAGS_SEEN)
   FOREACH(ARG ${ARGV})
     IF(ARG STREQUAL "COMPILE_FLAGS")
-      SET(COMPILE_FLAGS "COMPILE_FLAGS")
-    ELSEIF(COMPILE_FLAGS)
+      SET(COMPILE_FLAGS_SEEN 1)
+    ELSEIF(COMPILE_FLAGS_SEEN)
       LIST(APPEND FLAGS ${ARG})
     ELSE()
       LIST(APPEND FILES ${ARG})
