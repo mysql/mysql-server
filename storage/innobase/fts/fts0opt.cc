@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,9 +41,6 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
-
-/** The number of document ids to delete in one statement. */
-static const ulint FTS_MAX_DELETE_DOC_IDS = 1000;
 
 /** Time to wait for a message. */
 static const ulint FTS_QUEUE_WAIT_IN_USECS = 5000000;
@@ -1154,6 +1151,7 @@ fts_optimize_encode_node(
 	}
 
 	/* Calculate the space required to store the ilist. */
+	ut_ad(doc_id > node->last_doc_id);
 	doc_id_delta = doc_id - node->last_doc_id;
 	enc_len = fts_get_encoded_len(static_cast<ulint>(doc_id_delta));
 
@@ -1396,7 +1394,8 @@ fts_optimize_word(
 
 		src_node = (fts_node_t*) ib_vector_get(word->nodes, i);
 
-		if (!dst_node) {
+		if (dst_node == NULL
+		    || dst_node->last_doc_id > src_node->first_doc_id) {
 
 			dst_node = static_cast<fts_node_t*>(
 				ib_vector_push(nodes, NULL));

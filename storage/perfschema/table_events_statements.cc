@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -302,7 +302,7 @@ table_events_statements_common::table_events_statements_common
   @param statement                      the statement the cursor is reading
 */
 void table_events_statements_common::make_row_part_1(PFS_events_statements *statement,
-                                                     PSI_digest_storage *digest)
+                                                     sql_digest_storage *digest)
 {
   const char *base;
   const char *safe_source_file;
@@ -367,46 +367,40 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   m_row.m_sort_scan= statement->m_sort_scan;
   m_row.m_no_index_used= statement->m_no_index_used;
   m_row.m_no_good_index_used= statement->m_no_good_index_used;
-  /* 
+  /*
     Making a copy of digest storage.
   */
-  digest_copy(digest, & statement->m_digest_storage);
+  digest->copy(& statement->m_digest_storage);
 
   m_row_exists= true;
   return;
 }
 
 
-void table_events_statements_common::make_row_part_2(PSI_digest_storage *digest)
+void table_events_statements_common::make_row_part_2(const sql_digest_storage *digest)
 {
   /*
     Filling up statement digest information.
   */
-  int safe_byte_count= digest->m_byte_count;
+  uint safe_byte_count= digest->m_byte_count;
   if (safe_byte_count > 0 &&
-      safe_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE)
+      safe_byte_count <= pfs_max_digest_length)
   {
-    PFS_digest_key md5;
-    compute_md5_hash((char *) md5.m_md5,
-                     (char *) digest->m_token_array,
-                     safe_byte_count);
-
     /* Generate the DIGEST string from the MD5 digest  */
-    MD5_HASH_TO_STRING(md5.m_md5,
+    MD5_HASH_TO_STRING(digest->m_md5,
                        m_row.m_digest.m_digest);
     m_row.m_digest.m_digest_length= MD5_HASH_TO_STRING_LENGTH;
 
     /* Generate the DIGEST_TEXT string from the token array */
-    get_digest_text(m_row.m_digest.m_digest_text, digest);
-    m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
+    compute_digest_text(digest, &m_row.m_digest.m_digest_text);
 
-    if (m_row.m_digest.m_digest_text_length == 0)
+    if (m_row.m_digest.m_digest_text.length() == 0)
       m_row.m_digest.m_digest_length= 0;
   }
   else
   {
     m_row.m_digest.m_digest_length= 0;
-    m_row.m_digest.m_digest_text_length= 0;
+    m_row.m_digest.m_digest_text.length(0);
   }
 
   return;
@@ -491,9 +485,9 @@ int table_events_statements_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 11: /* DIGEST_TEXT */
-        if (m_row.m_digest.m_digest_text_length > 0)
-           set_field_longtext_utf8(f, m_row.m_digest.m_digest_text,
-                                   m_row.m_digest.m_digest_text_length);
+        if (m_row.m_digest.m_digest_text.length() > 0)
+           set_field_longtext_utf8(f, m_row.m_digest.m_digest_text.ptr(),
+                                   m_row.m_digest.m_digest_text.length());
         else
           f->set_null();
         break;
@@ -710,11 +704,11 @@ int table_events_statements_current::rnd_pos(const void *pos)
 void table_events_statements_current::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
-  PSI_digest_storage digest;
+  sql_digest_storage digest;
   pfs_lock lock;
   pfs_lock stmt_lock;
 
-  digest_reset(&digest);
+  digest.reset(m_token_array, MAX_DIGEST_STORAGE_SIZE);
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
   /* Protect this reader against writing on statement information. */
@@ -838,10 +832,10 @@ int table_events_statements_history::rnd_pos(const void *pos)
 void table_events_statements_history::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
-  PSI_digest_storage digest;
+  sql_digest_storage digest;
   pfs_lock lock;
 
-  digest_reset(&digest);
+  digest.reset(m_token_array, MAX_DIGEST_STORAGE_SIZE);
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
 
@@ -942,9 +936,9 @@ int table_events_statements_history_long::rnd_pos(const void *pos)
 
 void table_events_statements_history_long::make_row(PFS_events_statements *statement)
 {
-  PSI_digest_storage digest;
+  sql_digest_storage digest;
 
-  digest_reset(&digest);
+  digest.reset(m_token_array, MAX_DIGEST_STORAGE_SIZE);
   table_events_statements_common::make_row_part_1(statement, &digest);
 
   table_events_statements_common::make_row_part_2(&digest);

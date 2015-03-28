@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "pfs_host.h"
 #include "pfs_user.h"
 #include "pfs_account.h"
+#include "pfs_instr.h"
 
 int PFS_host_row::make_row(PFS_host *pfs)
 {
@@ -109,8 +110,8 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
   if (m_schema_name_length > 0)
     memcpy(m_schema_name, pfs->m_digest_key.m_schema_name, m_schema_name_length);
 
-  int safe_byte_count= pfs->m_digest_storage.m_byte_count;
-  if (safe_byte_count > PSI_MAX_DIGEST_STORAGE_SIZE)
+  uint safe_byte_count= pfs->m_digest_storage.m_byte_count;
+  if (safe_byte_count > pfs_max_digest_length)
     safe_byte_count= 0;
 
   /*
@@ -124,23 +125,22 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
       Calculate digest from MD5 HASH collected to be shown as
       DIGEST in this row.
     */
-    MD5_HASH_TO_STRING(pfs->m_digest_key.m_md5, m_digest);
+    MD5_HASH_TO_STRING(pfs->m_digest_storage.m_md5, m_digest);
     m_digest_length= MD5_HASH_TO_STRING_LENGTH;
 
     /*
       Calculate digest_text information from the token array collected
       to be shown as DIGEST_TEXT column.
     */
-    get_digest_text(m_digest_text, &pfs->m_digest_storage);
-    m_digest_text_length= strlen(m_digest_text);
+    compute_digest_text(&pfs->m_digest_storage, &m_digest_text);
 
-    if (m_digest_text_length == 0)
+    if (m_digest_text.length() == 0)
       m_digest_length= 0;
   }
   else
   {
     m_digest_length= 0;
-    m_digest_text_length= 0;
+    m_digest_text.length(0);
   }
 
   return 0;
@@ -165,9 +165,9 @@ void PFS_digest_row::set_field(uint index, Field *f)
         f->set_null();
       break;
     case 2: /* DIGEST_TEXT */
-      if (m_digest_text_length > 0)
-        PFS_engine_table::set_field_longtext_utf8(f, m_digest_text,
-                                                  m_digest_text_length);
+      if (m_digest_text.length() > 0)
+        PFS_engine_table::set_field_longtext_utf8(f, m_digest_text.ptr(),
+                                                  m_digest_text.length());
       else
         f->set_null();
       break;

@@ -13,33 +13,39 @@
 #
 # Test:
 # =====
-# Set replicate-do-table=test.t1. Execute  statements on ignored tables.
+# Set replicate-do-table=test.t1. Execute statements on ignored tables.
 # During the execution of the first such statement the actual warning will be
-# printed and the remaining such errors will be suppressed. Script sleeps for
-# a minute and executes another statment on the ignored table so that
-# "error throttle" becomes active and checks if 1 minute has elapsed and
-# prints the acutal error message and along with that it also prints the number
-# of errors that were suppressed. With fix less warnings should be printed.
-# With bug we get 5 warnings.
+# printed and the remaining such errors will be suppressed. The test script
+# uses debug simulation to make the error throttle to expire. Execute another
+# statement on the ignored table so that "error throttle" becomes active and
+# checks if 1 minute has elapsed and prints the actual error message and along
+# with that it also prints the number of errors that were suppressed. With fix
+# less warnings should be printed. With bug we get 5 warnings.
 ###############################################################################
 --source include/have_binlog_format_statement.inc
 # Inorder to grep a specific error pattern in error log a fresh error log
 # needs to be generated.
 --source include/force_restart.inc
 --source include/master-slave.inc
+--source include/have_debug.inc
 
 CREATE TABLE t2 (c1 INT) ENGINE=InnoDB;
 --source include/sync_slave_sql_with_master.inc
 
---connection master
+--source include/rpl_connection_master.inc
 INSERT INTO test.t2 VALUES (100);
 INSERT INTO test.t2 VALUES (200);
 INSERT INTO test.t2 VALUES (300);
-# Error log throttle is checked once per minute hence the sleep has been
-# added.
-SLEEP 60;
+--source include/sync_slave_sql_with_master.inc
+
+--let $debug_saved= `SELECT @@GLOBAL.DEBUG`
+SET @@GLOBAL.DEBUG= '+d,simulate_error_throttle_expiry';
+
+--source include/rpl_connection_master.inc
 DROP TABLE t2;
 --source include/sync_slave_sql_with_master.inc
+
+SET @@GLOBAL.DEBUG= '$debug_saved';
 
 --replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [0-9]+/--TIME--/ s/Worker .* end_log_pos [0-9]*; //
 --let GREP_FILE=$MYSQLTEST_VARDIR/tmp/slave.err

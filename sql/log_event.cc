@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,8 @@ slave_ignored_err_throttle(window_size,
 #include <base64.h>
 #include <my_bitmap.h>
 #include "rpl_utility.h"
+
+#include "sql_digest.h"
 
 using std::min;
 using std::max;
@@ -2731,7 +2733,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   {
     if (!rli->curr_group_seen_gtid && !rli->curr_group_seen_begin)
     {
-      ulong gaq_idx;
+      ulong gaq_idx __attribute__((unused));
       rli->mts_groups_assigned++;
 
       rli->curr_group_isolated= FALSE;
@@ -3422,26 +3424,23 @@ bool Query_log_event::write(IO_CACHE* file)
       }
     }
 
-    if (user.length > 0)
-    {
-      *start++= Q_INVOKER;
+    *start++= Q_INVOKER;
 
-      /*
-        Store user length and user. The max length of use is 16, so 1 byte is
-        enough to store the user's length.
-       */
-      *start++= (uchar)user.length;
-      memcpy(start, user.str, user.length);
-      start+= user.length;
+    /*
+      Store user length and user. The max length of use is 16, so 1 byte is
+      enough to store the user's length.
+     */
+    *start++= (uchar)user.length;
+    memcpy(start, user.str, user.length);
+    start+= user.length;
 
-      /*
-        Store host length and host. The max length of host is 60, so 1 byte is
-        enough to store the host's length.
-       */
-      *start++= (uchar)host.length;
-      memcpy(start, host.str, host.length);
-      start+= host.length;
-    }
+    /*
+      Store host length and host. The max length of host is 60, so 1 byte is
+      enough to store the host's length.
+     */
+    *start++= (uchar)host.length;
+    memcpy(start, host.str, host.length);
+    start+= host.length;
   }
 
   if (thd && thd->get_binlog_accessed_db_names() != NULL)
@@ -4093,12 +4092,16 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       user.length= *pos++;
       CHECK_SPACE(pos, end, user.length);
       user.str= (char *)pos;
+      if (user.length == 0)
+        user.str= (char *)"";
       pos+= user.length;
 
       CHECK_SPACE(pos, end, 1);
       host.length= *pos++;
       CHECK_SPACE(pos, end, host.length);
       host.str= (char *)pos;
+      if (host.length == 0)
+        host.str= (char *)"";
       pos+= host.length;
       break;
     }
@@ -4816,12 +4819,17 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
       {
+        DBUG_ASSERT(thd->m_digest == NULL);
+        thd->m_digest= & thd->m_digest_state;
+        DBUG_ASSERT(thd->m_statement_psi == NULL);
         thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                     stmt_info_rpl.m_key,
                                                     thd->db, thd->db_length,
                                                     thd->charset());
         THD_STAGE_INFO(thd, stage_init);
         MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
+        if (thd->m_digest != NULL)
+          thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
         /* Finalize server status flags after executing a statement. */
@@ -5033,6 +5041,7 @@ end:
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
+  thd->m_digest= NULL;
 
   /*
     As a disk space optimization, future masters will not log an event for
@@ -13551,8 +13560,28 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ENTER("Gtid_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
 
-  // Gtid_log_events should be filtered out at earlier stages if gtid_mode == 0
-  DBUG_ASSERT(gtid_mode > 0);
+  if (get_type_code() == ANONYMOUS_GTID_LOG_EVENT)
+  {
+    if (gtid_mode == GTID_MODE_ON)
+    {
+      my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
+      DBUG_RETURN(1);
+    }
+    thd->variables.gtid_next.set_anonymous();
+    /*
+      We do not need to write the anonymous gtid log event into binary log,
+      since we should not add new fields to include logical timestamps used
+      for applying transactions in parallel in the GA version.
+    */
+    DBUG_RETURN(0);
+  }
+
+  /* Applying Gtid_log_event should report an error when GTID_MODE is OFF */
+  if (gtid_mode == GTID_MODE_OFF)
+  {
+    my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
+    DBUG_RETURN(1);
+  }
 
   rpl_sidno sidno= get_sidno(true);
   if (sidno < 0)

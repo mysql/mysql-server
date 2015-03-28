@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ bool events_statements_history_long_full= false;
 volatile uint32 events_statements_history_long_index= 0;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_events_statements *events_statements_history_long_array= NULL;
+static unsigned char *h_long_stmts_digest_token_array= NULL;
 
 /**
   Initialize table EVENTS_STATEMENTS_HISTORY_LONG.
@@ -51,6 +52,7 @@ PFS_events_statements *events_statements_history_long_array= NULL;
 */
 int init_events_statements_history_long(uint events_statements_history_long_sizing)
 {
+  uint index;
   events_statements_history_long_size= events_statements_history_long_sizing;
   events_statements_history_long_full= false;
   PFS_atomic::store_u32(&events_statements_history_long_index, 0);
@@ -62,20 +64,50 @@ int init_events_statements_history_long(uint events_statements_history_long_sizi
     PFS_MALLOC_ARRAY(events_statements_history_long_size, PFS_events_statements,
                      MYF(MY_ZEROFILL));
 
-  return (events_statements_history_long_array ? 0 : 1);
+  if (events_statements_history_long_array == NULL)
+  {
+    cleanup_events_statements_history_long();
+    return 1;
+  }
+
+  if (pfs_max_digest_length > 0)
+  {
+    h_long_stmts_digest_token_array=
+      PFS_MALLOC_ARRAY(events_statements_history_long_size * pfs_max_digest_length,
+                       unsigned char, MYF(MY_ZEROFILL));
+    if (h_long_stmts_digest_token_array == NULL)
+    {
+      cleanup_events_statements_history_long();
+      return 1;
+    }
+  }
+
+  for (index= 0; index < events_statements_history_long_size; index++)
+  {
+    events_statements_history_long_array[index].m_digest_storage.reset(h_long_stmts_digest_token_array
+                                                                       + index * pfs_max_digest_length, pfs_max_digest_length);
+  }
+
+  return 0;
 }
 
 /** Cleanup table EVENTS_STATEMENTS_HISTORY_LONG. */
 void cleanup_events_statements_history_long(void)
 {
   pfs_free(events_statements_history_long_array);
+  pfs_free(h_long_stmts_digest_token_array);
   events_statements_history_long_array= NULL;
+  h_long_stmts_digest_token_array= NULL;
 }
 
 static inline void copy_events_statements(PFS_events_statements *dest,
                                       const PFS_events_statements *source)
 {
-  memcpy(dest, source, sizeof(PFS_events_statements));
+  /* Copy all attributes except DIGEST */
+  memcpy(dest, source, my_offsetof(PFS_events_statements, m_digest_storage));
+
+  /* Copy DIGEST */
+  dest->m_digest_storage.copy(& source->m_digest_storage);
 }
 
 /**

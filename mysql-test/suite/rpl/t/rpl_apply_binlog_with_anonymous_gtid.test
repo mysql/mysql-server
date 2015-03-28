@@ -1,0 +1,72 @@
+###############################################################################
+# Bug #20436436  NEW->OLD ASSERT FAILURE `GTID_MODE > 0' IN 5.6.24 AT LOG_EVENT.CC:13555
+#
+# The problem is caused when slave sql thread is applying an
+# anonymous_gtid log events on mysql 5.6, since the
+# anonymous_gtid log event can be generated on mysql 5.7 after
+# wl#7592 when gtid_mode is OFF or OFF_PERMISSVE. So the
+# NEW->OLD replication is broken.
+#
+# On mysql 5.6, the slave sql thread should manage to apply the
+# anonymous_gtid log event successfully if gtid_mode is OFF;
+#
+# Steps to Reproduce:
+#  1) Stop slave threads and clear slave datadir.
+#  2) Copy the binlog with Anonymous_GTID log events and
+#     relay log index to slave datadir.
+#  3) Make sure that the binlog with Anonymous_GTID log events
+#     is applied completely.
+###############################################################################
+
+--source include/not_gtid_enabled.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+# Initial setup
+--source include/rpl_connection_slave.inc
+--let $MYSQLD_SLAVE_DATADIR= `select @@datadir`
+
+--echo #
+--echo # Stop slave threads and clear slave datadir.
+--echo #
+--source include/stop_slave.inc
+RESET SLAVE;
+--remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
+--remove_file $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+
+--source include/rpl_connection_slave.inc
+--echo #
+--echo # Copy the binlog with Anonymous_GTID log events and
+--echo # relay log index to slave datadir.
+--echo #
+# On Win* platforms path separator is backslash.
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
+{
+  --copy_file std_data/slave-relay-bin_win.index $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
+}
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64', 'Windows')`)
+{
+  --copy_file std_data/slave-relay-bin_linux.index $MYSQLD_SLAVE_DATADIR/slave-relay-bin.index
+}
+--copy_file std_data/binlog_transaction_with_anonymous_GTID.000001 $MYSQLD_SLAVE_DATADIR/slave-relay-bin.000001
+
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Make sure that the binlog with Anonymous_GTID log events
+--echo # is applied completely.
+--echo #
+--let $assert_text= Table t2 must contain 1
+--let $assert_cond= "[SELECT c1 FROM t2]" = "1"
+--source include/assert.inc
+DROP TABLE t2;
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -754,6 +754,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   Silence_deprecated_warning warning_handler;
   Parser_state parser_state;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
 
   thd->variables.sql_mode= sql_mode;
@@ -770,6 +771,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->push_internal_handler(&warning_handler);
   thd->sp_runtime_ctx= NULL;
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, creation_ctx) || thd->lex == NULL)
   {
@@ -781,6 +783,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   {
     sp= thd->lex->sphead;
   }
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   thd->pop_internal_handler();
@@ -1512,6 +1515,14 @@ bool lock_db_routines(THD *thd, char *db)
     {
       char *sp_name= get_field(thd->mem_root,
                                table->field[MYSQL_PROC_FIELD_NAME]);
+      if (sp_name == NULL)
+      {
+        table->file->ha_index_end();
+        my_error(ER_SP_WRONG_NAME, MYF(0), "");
+        close_system_tables(thd, &open_tables_state_backup);
+        DBUG_RETURN(true);
+      }
+
       longlong sp_type= table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
       MDL_request *mdl_request= new (thd->mem_root) MDL_request;
       mdl_request->init(sp_type == SP_TYPE_FUNCTION ?

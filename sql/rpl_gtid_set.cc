@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -229,6 +229,7 @@ void Gtid_set::put_free_interval(Interval *iv)
 void Gtid_set::clear()
 {
   DBUG_ENTER("Gtid_set::clear");
+  cached_string_length= -1;
   rpl_sidno max_sidno= get_max_sidno();
   if (max_sidno == 0)
     DBUG_VOID_RETURN;

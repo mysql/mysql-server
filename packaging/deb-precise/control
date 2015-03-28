@@ -4,7 +4,7 @@ Section: database
 Priority: optional
 Standards-Version: 3.9.3
 Homepage: http://www.mysql.com/
-Build-Depends: debhelper (>= 8.0.0), libaio-dev[linux-any], libncurses5-dev (>= 5.0-6), perl, zlib1g-dev (>= 1:1.1.3-5), po-debconf, psmisc, bison, dh-apparmor, lsb-release, cmake, fakeroot
+Build-Depends: debhelper (>= 9.0.0), libaio-dev[linux-any], libncurses5-dev (>= 5.0-6), perl, zlib1g-dev (>= 1:1.1.3-5), po-debconf, psmisc, bison, dh-apparmor, lsb-release, cmake, fakeroot
 
 Package: mysql-server
 Architecture: any
@@ -20,21 +20,21 @@ Description: MySQL Server meta package depending on latest version
 Package: mysql-community-server
 Architecture: any
 Pre-depends: debconf (>= 0.2.17), adduser
-Depends: mysql-common (= ${binary:Version}),
+Depends: mysql-common (= ${binary:Version}), apparmor,
  ${shlibs:Depends}, ${misc:Depends}
-Recommends: mysql-community-client (= ${binary:Version})
+Recommends: mysql-client (= ${binary:Version})
 Conflicts: mysql,
  mysql-server-5.0, mysql-server-core-5.0,
  mysql-server-5.1, mysql-server-core-5.1,
  mysql-server-5.5, mysql-server-core-5.5,
  mysql-server-5.6, mysql-server-core-5.6,
- mysql-enterprise-server
+ mysql-commercial-server
 Replaces: mysql,
  mysql-server-5.0, mysql-server-core-5.0,
  mysql-server-5.1, mysql-server-core-5.1,
  mysql-server-5.5, mysql-server-core-5.5,
  mysql-server-5.6, mysql-server-core-5.6,
- mysql-enterprise-server
+ mysql-commercial-server
 Provides: virtual-mysql-server, virtual-mysql-server-core,
  mysql-server-5.6, mysql-server-core-5.6
 Description: MySQL Server
@@ -65,13 +65,13 @@ Conflicts: mysql,
  mysql-client-5.1, mysql-client-core-5.1,
  mysql-client-5.5, mysql-client-core-5.5,
  mysql-client-5.6, mysql-client-core-5.6,
- mysql-enterprise-client
+ mysql-commercial-client
 Replaces: mysql,
  mysql-client-5.0, mysql-client-core-5.0,
  mysql-client-5.1, mysql-client-core-5.1,
  mysql-client-5.5, mysql-client-core-5.5,
  mysql-client-5.6, mysql-client-core-5.6,
- mysql-enterprise-client
+ mysql-commercial-client
 Provides: virtual-mysql-client, virtual-mysql-client-core,
  mysql-client-5.6, mysql-client-core-5.6
 Description: MySQL Client
@@ -156,7 +156,7 @@ Depends: mysql-community-server (= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
 Conflicts: mysql,
  mysql-testsuite-5.0, mysql-testsuite-5.1, mysql-testsuite-5.5,
- mysql-testsuite-5.6, mysql-enterprise-test
+ mysql-testsuite-5.6, mysql-commercial-test
 Description: MySQL Test Run MTR - The MySQL testsuite
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
@@ -169,7 +169,7 @@ Package: mysql-community-bench
 Architecture: any
 Depends: mysql-community-server (= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
-Conflicts: mysql, mysql-enterprise-bench
+Conflicts: mysql, mysql-commercial-bench
 Description: MySQL Bench
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
