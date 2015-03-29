@@ -9,3 +9,12 @@
  SELECT * FROM t2 
  WHERE (a, a) IN (SELECT alias2.b, alias2.a FROM t1 AS alias1, t1 AS alias2 
  WHERE 
+@@ -1272,7 +1272,7 @@
+ );
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	PRIMARY	T3_0_	ref	PRIMARY,FK_T3_T2Id	PRIMARY	8	const	3	Using index; Start temporary
+-1	PRIMARY	T2_1_	eq_ref	PRIMARY,FK_T2_T1Id	PRIMARY	8	test.T3_0_.t2idref	1	Using join buffer (flat, BKA join); Key-ordered scan
++1	PRIMARY	T2_1_	eq_ref	PRIMARY,FK_T2_T1Id	PRIMARY	8	test.T3_0_.t2idref	1	
+ 1	PRIMARY	T1_1_	eq_ref	PRIMARY	PRIMARY	8	test.T2_1_.t1idref	1	Using index
+ 1	PRIMARY	T2_0_	ref	FK_T2_T1Id	FK_T2_T1Id	8	test.T2_1_.t1idref	1	Using index; End temporary
+ drop table t3,t2,t1;
