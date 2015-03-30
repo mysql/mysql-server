@@ -54,6 +54,7 @@ CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass';
 GRANT SELECT ON test.t1 TO 'user2'@'localhost';
 select distinct User,Authentication_string from mysql.user order by User;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
+CREATE USER 'user'@'localhost';
 grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 GRANT SELECT ON test.t1 TO 'user'@'localhost';

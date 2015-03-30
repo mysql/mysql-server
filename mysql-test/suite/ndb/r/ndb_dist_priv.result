@@ -22,9 +22,8 @@ select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
 newuser	Update
 user2	Select
+CREATE USER 'user'@'localhost';
 grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
 newuser	Update
@@ -131,9 +130,16 @@ Warning	1297	Got temporary error 274 'Time-out in NDB, probably caused by deadlo
 Error	1205	Lock wait timeout exceeded; try restarting transaction
 ROLLBACK;
 DROP USER 'billy1'@'127.0.0.1';
+set @orig_sql_mode= @@sql_mode;
+set SESSION sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT ALL ON *.* TO 'billy2'@'127.0.0.1';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set SESSION sql_mode = @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT USER();
 USER()
 billy2@localhost
