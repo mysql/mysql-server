@@ -211,7 +211,8 @@ static TYPELIB innodb_stats_method_typelib = {
 	NULL
 };
 
-/** Possible values for system variable "innodb_checksum_algorithm". */
+/** Possible values for system variable "innodb_checksum_algorithm" and
+"innodb_log_checksum_algorithm". */
 static const char* innodb_checksum_algorithm_names[] = {
 	"crc32",
 	"strict_crc32",
@@ -2993,6 +2994,29 @@ static const char*	deprecated_file_format_check
 static const char*	deprecated_file_format_max
 	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format_max");
 
+/** Update log_checksum_algorithm_ptr with a pointer to the function
+corresponding to the given checksum algorithm.
+@param[in]	algorithm	the checksum algorithm */
+static
+void
+innodb_log_checksum_func_update(ulint	algorithm)
+{
+	switch (algorithm) {
+	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+	case SRV_CHECKSUM_ALGORITHM_INNODB:
+		log_checksum_algorithm_ptr = log_block_calc_checksum_innodb;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+	case SRV_CHECKSUM_ALGORITHM_CRC32:
+		log_checksum_algorithm_ptr = log_block_calc_checksum_crc32;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+	case SRV_CHECKSUM_ALGORITHM_NONE:
+		log_checksum_algorithm_ptr = log_block_calc_checksum_none;
+		break;
+       }
+}
+
 /*********************************************************************//**
 Opens an InnoDB database.
 @return 0 on success, 1 on failure */
@@ -3382,6 +3406,8 @@ innobase_change_buffering_inited_ok:
 			" should set innodb_checksum_algorithm=NONE instead.";
 		srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_NONE;
 	}
+
+	innodb_log_checksum_func_update(srv_log_checksum_algorithm);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
 	if ((os_use_large_pages = my_use_large_pages)) {
@@ -9364,7 +9390,7 @@ create_table_info_t::create_option_data_directory_is_valid()
 	      && m_create_info->data_file_name[0] != '\0');
 
 	/* Use DATA DIRECTORY only with file-per-table. */
-	if (!m_use_shared_space && !m_file_per_table) {
+	if (!m_use_shared_space && !m_allow_file_per_table) {
 		push_warning(
 			m_thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9481,7 +9507,7 @@ create_table_info_t::create_option_tablespace_is_valid()
 	}
 
 	/* If TABLESPACE=innodb_file_per_table this function is not called
-	since target_is_shared_space() will return false.  Any other
+	since tablespace_is_shared_space() will return false.  Any other
 	tablespace is incompatible with the DATA DIRECTORY phrase.
 	On any ALTER TABLE that contains a DATA DIRECTORY, MySQL will issue
 	a warning like "<DATA DIRECTORY> option ignored." The check below is
@@ -9637,7 +9663,7 @@ create_table_info_t::create_options_are_invalid()
 			}
 
 			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
-			if (!m_file_per_table) {
+			if (!m_allow_file_per_table) {
 				push_warning(
 					m_thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9671,7 +9697,7 @@ create_table_info_t::create_options_are_invalid()
 	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
 		if (!m_use_shared_space) {
-			if (!m_file_per_table) {
+			if (!m_allow_file_per_table) {
 				push_warning_printf(
 					m_thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9693,7 +9719,7 @@ create_table_info_t::create_options_are_invalid()
 		break;
 	case ROW_TYPE_DYNAMIC:
 		if (!m_use_shared_space) {
-			if (!m_file_per_table && !is_temp) {
+			if (!m_allow_file_per_table && !is_temp) {
 				push_warning_printf(
 					m_thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9842,7 +9868,7 @@ create_table_info_t::parse_table_name(
 	returns error if it is in full path format, but not creating a temp.
 	table. Currently InnoDB does not support symbolic link on Windows. */
 
-	if (m_file_per_table
+	if (m_innodb_file_per_table
 	    && !mysqld_embedded
 	    && !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
@@ -9956,7 +9982,7 @@ create_table_info_t::innobase_table_flags()
 			if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE
 			    && m_create_info->options
 			       & HA_LEX_CREATE_INTERNAL_TMP_TABLE
-			    && !m_file_per_table) {
+			    && !m_use_file_per_table) {
 				my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 				DBUG_RETURN(false);
 			}
@@ -9999,7 +10025,7 @@ index_bad:
 		}
 
 		/* Make sure compressed row format is allowed. */
-		if (!m_file_per_table && !m_use_shared_space) {
+		if (!m_allow_file_per_table && !m_use_shared_space) {
 			push_warning(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -10075,7 +10101,7 @@ index_bad:
 		ROW_FORMAT=DYNAMIC requires file_per_table and
 		file_format=Barracuda unless there is a target tablespace or
 		it is a temp file */
-		if (!m_file_per_table
+		if (!m_allow_file_per_table
 		    && !m_use_shared_space
 		    && (row_type == ROW_TYPE_COMPRESSED
 		        || (row_type == ROW_TYPE_DYNAMIC
@@ -10160,29 +10186,6 @@ index_bad:
 			m_flags2 &= ~DICT_TF2_FTS_AUX_HEX_NAME;);
 
 	DBUG_RETURN(true);
-}
-
-/** Check if table is non-compressed temporary table.
-@param[in]	create_info	Metadata for the table to create.
-@return true if non-compressed temporary table. */
-UNIV_INLINE
-bool
-table_is_noncompressed_temporary(
-	const HA_CREATE_INFO*	create_info)
-{
-	/* If you specify ROW_FORMAT=COMPRESSED but not KEY_BLOCK_SIZE,
-	the default compressed page size of 8KB is used. Setting of 8K
-	is done in innodb at latter stage during data validation.
-	MySQL will continue to report key_block_size as 0 */
-	bool is_compressed =
-		(create_info->row_type == ROW_TYPE_COMPRESSED
-		 || create_info->key_block_size > 0)
-		&& (srv_file_format >= UNIV_FORMAT_B)
-		&& srv_file_per_table;
-
-	bool is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
-
-	return(is_temp && !is_compressed);
 }
 
 /** Parse MERGE_THRESHOLD value from the string.
@@ -10356,22 +10359,38 @@ innobase_parse_hint_from_comment(
 
 /** Set m_use_* flags. */
 void
-create_table_info_t::set_tablespace_type()
+create_table_info_t::set_tablespace_type(
+	bool	table_being_altered_is_file_per_table)
 {
-	/*
-	Ignore the current innodb-file-per-table setting if we are
+	/* Note whether this table will be created using a shared,
+	general or system tablespace. */
+	m_use_shared_space = tablespace_is_shared_space(m_create_info);
+
+	/** Allow file_per_table for this table either because:
+	1) the setting innodb_file_per_table=on,
+	2) the table being altered is currently file_per_table
+	3) explicitly requested by tablespace=innodb_file_per_table. */
+	m_allow_file_per_table =
+		m_innodb_file_per_table
+		|| table_being_altered_is_file_per_table
+		|| tablespace_is_file_per_table(m_create_info);
+
+	/* All noncompresed temporary tables will be put into the
+	system temporary tablespace.  */
+	bool is_noncompressed_temporary =
+		m_create_info->options & HA_LEX_CREATE_TMP_TABLE
+		&& !(m_create_info->row_type == ROW_TYPE_COMPRESSED
+		     || m_create_info->key_block_size > 0);
+
+	/* Ignore the current innodb-file-per-table setting if we are
 	creating a temporary, non-compressed table or if the
 	TABLESPACE= phrase is using an existing shared tablespace. */
 	m_use_file_per_table =
-		(m_file_per_table || target_is_file_per_table(m_create_info))
-		&& !table_is_noncompressed_temporary(m_create_info)
-		&& !target_is_shared_space(m_create_info);
+		m_allow_file_per_table
+		&& !is_noncompressed_temporary
+		&& !m_use_shared_space;
 
-	/* Note whether this table will be created using a shared,
-	general or system tablespace. */
-	m_use_shared_space = target_is_shared_space(m_create_info);
-
-	/* DATA DIRECTORY must have m_file_per_table but cannot be
+	/* DATA DIRECTORY must have m_use_file_per_table but cannot be
 	used with TEMPORARY tables. */
 	m_use_data_dir =
 		m_use_file_per_table
@@ -10433,7 +10452,7 @@ create_table_info_t::prepare_create_table(
 
 	ut_ad(m_form->s->row_type == m_create_info->row_type);
 
-	set_tablespace_type();
+	set_tablespace_type(false);
 
 	/* Validate the create options if innodb_strict_mode is set.
 	Do not use the regular message for ER_ILLEGAL_HA_CREATE_OPTION
@@ -12876,6 +12895,13 @@ ha_innobase::enable_indexes(
 			= UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			/* InnoDB being clustered index we can't disable/enable
+			clustered index itself. */
+			if (dict_index_is_clust(index)) {
+				continue;
+			}
+
 			index->allow_duplicates = false;
 		}
 		error = 0;
@@ -12902,6 +12928,13 @@ ha_innobase::disable_indexes(
 			= UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			/* InnoDB being clustered index we can't disable/enable
+			clustered index itself. */
+			if (dict_index_is_clust(index)) {
+				continue;
+			}
+
 			index->allow_duplicates = true;
 		}
 		error = 0;
@@ -17158,6 +17191,31 @@ innodb_status_output_update(
 	os_event_set(lock_sys->timeout_event);
 }
 
+/** On update hook for the innodb_log_checksum_algorithm variable.
+@param[in]	thd	thread handle
+@param[in]	var	system variable
+@param[out]	var_ptr	current value
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_log_checksum_algorithm_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	srv_checksum_algorithm_t        algorithm;
+
+	algorithm = static_cast<srv_checksum_algorithm_t>(
+		*static_cast<const ulong*>(save));
+
+	/* Make sure we are the only log user */
+	mutex_enter(&log_sys->mutex);
+	innodb_log_checksum_func_update(algorithm);
+	srv_log_checksum_algorithm = algorithm;
+	mutex_exit(&log_sys->mutex);
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
 	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
 	{NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
@@ -17190,6 +17248,30 @@ static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
   " Files updated when this option is set to crc32 or strict_crc32 will"
   " not be readable by MySQL versions older than 5.6.3",
   NULL, NULL, SRV_CHECKSUM_ALGORITHM_CRC32,
+  &innodb_checksum_algorithm_typelib);
+
+static MYSQL_SYSVAR_ENUM(log_checksum_algorithm, srv_log_checksum_algorithm,
+  PLUGIN_VAR_RQCMDARG,
+  "The algorithm InnoDB uses for redo log block checksums. Possible values are"
+  " CRC32 (hardware accelerated if the CPU supports it)"
+    " write crc32, allow any of the other checksums to match when reading;"
+  " STRICT_CRC32 "
+    " write crc32, do not allow other algorithms to match when reading;"
+  " INNODB"
+    " write a software calculated checksum, allow any other checksums"
+    " to match when reading;"
+  " STRICT_INNODB"
+    " write a software calculated checksum, do not allow other algorithms"
+    " to match when reading;"
+  " NONE"
+    " write a constant magic number, do not do any checksum verification"
+    " when reading"
+  " STRICT_NONE"
+    " write a constant magic number, do not allow values other than that"
+    " magic number when reading;"
+  " Redo logs created when this option is set to crc32, strict_crc32, none, or"
+  " strict_none will not be readable by MySQL versions older than 5.7.6",
+  NULL, innodb_log_checksum_algorithm_update, SRV_CHECKSUM_ALGORITHM_INNODB,
   &innodb_checksum_algorithm_typelib);
 
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
@@ -17384,6 +17466,11 @@ static MYSQL_SYSVAR_ULONG(adaptive_flushing_lwm,
 static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
   PLUGIN_VAR_NOCMDARG,
   "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
+  NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(flush_sync, srv_flush_sync,
+  PLUGIN_VAR_NOCMDARG,
+  "Allow IO bursts at the checkpoints ignoring io_capacity setting.",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(flushing_avg_loops,
@@ -18035,6 +18122,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(lru_scan_depth),
   MYSQL_SYSVAR(flush_neighbors),
   MYSQL_SYSVAR(checksum_algorithm),
+  MYSQL_SYSVAR(log_checksum_algorithm),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
@@ -18084,6 +18172,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
   MYSQL_SYSVAR(adaptive_flushing_lwm),
   MYSQL_SYSVAR(adaptive_flushing),
+  MYSQL_SYSVAR(flush_sync),
   MYSQL_SYSVAR(flushing_avg_loops),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(max_purge_lag_delay),
