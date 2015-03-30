@@ -106,13 +106,11 @@ ALTER TABLE t1 ADD PARTITION
 (PARTITION eightythousands VALUES LESS THAN (90000)
 (SUBPARTITION p80k_1 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR',
 SUBPARTITION p80k_2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR'));
-ERROR HY000: Table storage engine for 't1' doesn't have this option
 # Test if both TABLESPACE and DATA DIRECTORY is allowed on table level.
 CREATE TABLE t3 (a int)
 ENGINE = InnoDB
 TABLESPACE = innodb_file_per_table DATA DIRECTORY = 'MYSQL_TMP_DIR';
-ERROR HY000: Table storage engine for 't3' doesn't have this option
-CREATE TABLE t3 (a int)
+CREATE TABLE t4 (a int)
 ENGINE = InnoDB
 TABLESPACE = innodb_system DATA DIRECTORY = 'MYSQL_TMP_DIR';
 ERROR HY000: InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
@@ -123,6 +121,8 @@ SUBPARTITION p90k_2 TABLESPACE = `innodb_system`));
 FLUSH TABLES;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#eightythousands#sp#p80k_1	test/t1#p#eightythousands#sp#p80k_1	65	5	Compact	0	Single
+test/t1#p#eightythousands#sp#p80k_2	test/t1#p#eightythousands#sp#p80k_2	65	5	Compact	0	Single
 test/t1#p#fiftythousands#sp#fiftythousandssp0	s1	129	5	Compact	0	General
 test/t1#p#fiftythousands#sp#fiftythousandssp1	s1	129	5	Compact	0	General
 test/t1#p#fortythousands#sp#p40k_1	test/t1#p#fortythousands#sp#p40k_1	65	5	Compact	0	Single
@@ -153,6 +153,7 @@ test/t2#p#tens#sp#subpart11	s1	129	5	Compact	0	General
 test/t2#p#tens#sp#subpart12	s1	129	5	Compact	0	General
 test/t2#p#thousands#sp#subpart31	test/t2#p#thousands#sp#subpart31	65	5	Compact	0	Single
 test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	65	5	Compact	0	Single
+test/t3	test/t3	65	4	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
@@ -171,6 +172,9 @@ test/t1#p#fortythousands#sp#p40k_1	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40
 test/t1#p#fortythousands#sp#p40k_2	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t1#p#seventythousands#sp#seventythousandssp0	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp0.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t1#p#seventythousands#sp#seventythousandssp1	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#eightythousands#sp#p80k_1	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#eightythousands#sp#p80k_2	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_2.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3	MYSQL_TMP_DIR/test/t3.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t1#p#ninetythousands#sp#p90k_1	MYSQLD_DATADIR/test/t1#p#ninetythousands#sp#p90k_1.ibd	DEFAULT	0	Compact or Redundant	Single
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -213,6 +217,9 @@ SUBPARTITION BY KEY (b)
  PARTITION seventythousands VALUES LESS THAN (80000)
  (SUBPARTITION seventythousandssp0 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
   SUBPARTITION seventythousandssp1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION eightythousands VALUES LESS THAN (90000)
+ (SUBPARTITION p80k_1 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB,
+  SUBPARTITION p80k_2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB),
  PARTITION ninetythousands VALUES LESS THAN (100000)
  (SUBPARTITION p90k_1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
   SUBPARTITION p90k_2 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
@@ -279,6 +286,9 @@ SUBPARTITION BY KEY (b)
  PARTITION seventythousands VALUES LESS THAN (80000)
  (SUBPARTITION seventythousandssp0 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
   SUBPARTITION seventythousandssp1 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB),
+ PARTITION eightythousands VALUES LESS THAN (90000)
+ (SUBPARTITION p80k_1 TABLESPACE = "innodb_file_per_table" DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB,
+  SUBPARTITION p80k_2 TABLESPACE = "innodb_file_per_table" DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB),
  PARTITION ninetythousands VALUES LESS THAN (100000)
  (SUBPARTITION p90k_1 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
   SUBPARTITION p90k_2 TABLESPACE = "innodb_system" ENGINE = InnoDB)) */
@@ -400,11 +410,13 @@ test/t2#p#tens#sp#subpart11	s1	129	5	Compact	0	General
 test/t2#p#tens#sp#subpart12	s1	129	5	Compact	0	General
 test/t2#p#thousands#sp#subpart31	test/t2#p#thousands#sp#subpart31	1	5	Compact	0	Single
 test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	1	5	Compact	0	Single
+test/t3	test/t3	65	4	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
 innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s1	MYSQLD_DATADIR/s1.ibd	DEFAULT	0	Any	General
 s`1	MYSQLD_DATADIR/s-1.ibd	DEFAULT	0	Any	General
+test/t3	MYSQL_TMP_DIR/test/t3.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t1#p#fortythousands#sp#p40k_2	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t2#p#hundreds#sp#subpart21	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t2#p#thousands#sp#subpart31	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart31.ibd	DEFAULT	0	Compact or Redundant	Single
@@ -470,7 +482,12 @@ SUBPARTITION BY KEY (b)
  PARTITION thousands VALUES LESS THAN (10000)
  (SUBPARTITION subpart31 ENGINE = InnoDB,
   SUBPARTITION subpart32 ENGINE = InnoDB)) */
-DROP TABLE t1, t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
+DROP TABLE t1, t2, t3;
 DROP TABLESPACE s1;
 DROP TABLESPACE `s``1`;
 CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
