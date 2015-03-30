@@ -43,6 +43,7 @@ CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass';
 GRANT SELECT ON test.t1 TO 'user2'@'localhost';
 select distinct User,Authentication_string from mysql.user order by User;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
+CREATE USER 'user'@'localhost';
 grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 GRANT SELECT ON test.t1 TO 'user'@'localhost';
@@ -137,7 +138,12 @@ DROP USER 'billy1'@'127.0.0.1';
 # to connect as that user on second mysqld
 #
 connection server1;
+# Remove NO_AUTO_CREATE_USER sql mode since this part of the
+# test is written to explcitly create a user with GRANT
+set @orig_sql_mode= @@sql_mode;
+set SESSION sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL ON *.* TO 'billy2'@'127.0.0.1';
+set SESSION sql_mode = @orig_sql_mode;
 
 connect (server2_as_billy2,127.0.0.1,billy2,,test,$MASTER_MYPORT1,);
 connection server2_as_billy2;

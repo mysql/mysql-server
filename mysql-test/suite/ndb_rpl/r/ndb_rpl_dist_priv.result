@@ -26,9 +26,8 @@ select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
 newuser	Update
 user2	Select
+CREATE USER 'user'@'localhost';
 grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
 newuser	Update
@@ -120,6 +119,7 @@ master-bin.000001	#	Query	#	#	use `test`; RENAME USER 'user'@'localhost' TO 'new
 master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.* TO 'newuser'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1E9649BB3F345563008E37641B407AFF50E5835C'
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.`t1` TO 'user2'@'localhost'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user'@'localhost' IDENTIFIED WITH 'mysql_native_password' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 master-bin.000001	#	Query	#	#	use `test`; GRANT ALL PRIVILEGES ON `test`.* TO 'user'@'localhost' WITH GRANT OPTION
 master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.`t1` TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	REVOKE SELECT ON test.t1 FROM 'user'@'localhost'
@@ -139,6 +139,7 @@ master-bin.000001	#	Query	#	#	RENAME USER 'user'@'localhost' TO 'newuser'@'local
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.* TO 'newuser'@'localhost' IDENTIFIED by 'mypass2'
 master-bin.000001	#	Query	#	#	CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass'
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.t1 TO 'user2'@'localhost'
+master-bin.000001	#	Query	#	#	CREATE USER 'user'@'localhost'
 master-bin.000001	#	Query	#	#	grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.t1 TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; FLUSH PRIVILEGES
@@ -193,6 +194,7 @@ master-bin.000001	#	Query	#	#	RENAME USER 'user'@'localhost' TO 'newuser'@'local
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.* TO 'newuser'@'localhost' IDENTIFIED by 'mypass2'
 master-bin.000001	#	Query	#	#	CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass'
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.t1 TO 'user2'@'localhost'
+master-bin.000001	#	Query	#	#	CREATE USER 'user'@'localhost'
 master-bin.000001	#	Query	#	#	grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION
 master-bin.000001	#	Query	#	#	GRANT SELECT ON test.t1 TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; FLUSH PRIVILEGES
