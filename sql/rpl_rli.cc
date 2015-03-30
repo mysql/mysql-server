@@ -596,7 +596,6 @@ int Relay_log_info::init_relay_log_pos(const char* log,
         look_for_description_event=
           (ev->get_type_code() == binary_log::ROTATE_EVENT ||
            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT);
-        DBUG_ASSERT(look_for_description_event);
         delete ev;
       }
     }
