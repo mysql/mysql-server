@@ -5095,6 +5095,12 @@ mysql_real_query(MYSQL *mysql, const char *query, ulong length)
   DBUG_ENTER("mysql_real_query");
   DBUG_PRINT("enter",("handle: %p", mysql));
   DBUG_PRINT("query",("Query = '%-.*s'", (int) length, query));
+  DBUG_EXECUTE_IF("inject_ER_NET_READ_INTERRUPTED",
+                  {
+                    mysql->net.last_errno= ER_NET_READ_INTERRUPTED;
+                    DBUG_SET("-d,inject_ER_NET_READ_INTERRUPTED");
+                    DBUG_RETURN(1);
+                  });
 
   if (mysql_send_query(mysql,query,length))
     DBUG_RETURN(1);
