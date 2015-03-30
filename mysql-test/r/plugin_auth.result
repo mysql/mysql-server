@@ -601,3 +601,24 @@ select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug20537246@localhost	bug20537246@localhost
 DROP USER bug20537246@localhost;
+#
+# Bug #20599280 PASSWORD EXPIRED FLAG SET FOR PROXY USER SESSION WHEN
+#               IT SET FOR PROXIED USER
+#
+CREATE USER 'empl_external'@'localhost' IDENTIFIED WITH test_plugin_server AS 'employee';
+CREATE USER 'employee'@'localhost' IDENTIFIED BY 'passkey';
+GRANT ALL ON *.* TO 'employee'@'localhost';
+GRANT PROXY ON 'employee'@'localhost' TO 'empl_external'@'localhost';
+SELECT USER(), CURRENT_USER, @@PROXY_USER;
+USER()	CURRENT_USER	@@PROXY_USER
+empl_external@localhost	employee@localhost	'empl_external'@'localhost'
+ALTER USER 'employee'@'localhost' PASSWORD EXPIRE;
+SELECT USER(), CURRENT_USER, @@PROXY_USER;
+USER()	CURRENT_USER	@@PROXY_USER
+empl_external@localhost	employee@localhost	'empl_external'@'localhost'
+SELECT USER(), CURRENT_USER, @@PROXY_USER;
+USER()	CURRENT_USER	@@PROXY_USER
+empl_external@localhost	employee@localhost	'empl_external'@'localhost'
+SELECT USER(), CURRENT_USER, @@PROXY_USER;
+ERROR HY000: You must SET PASSWORD before executing this statement
+DROP USER 'employee'@'localhost', 'empl_external'@'localhost';
