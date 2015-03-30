@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -110,43 +110,25 @@ else
 fi
 
 # Create options 
-# We intentionally add a space to the beginning and end of lib strings, simplifies replace later
-libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@"
-libs="$libs @openssl_libs@ "
-libs_r=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@ @openssl_libs@ "
+libs="$ldflags"
+libs="$libs -L$pkglibdir"
+libs="$libs @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@"
+libs="$libs @openssl_libs@"
 libs="$libs @QUOTED_CMAKE_C_LINK_FLAGS@"
-libs_r="$libs_r @QUOTED_CMAKE_C_LINK_FLAGS@"
-embedded_libs=" $ldflags -L$pkglibdir @RPATH_OPTION@ -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @openssl_libs@ "
+
+libs_r="$libs"
+
+embedded_libs="$ldflags"
+embedded_libs="$embedded_libs -L$pkglibdir"
+embedded_libs="$embedded_libs @RPATH_OPTION@ -lmysqld @ZLIB_DEPS@ @LIBS@"
+embedded_libs="$embedded_libs @openssl_libs@"
 embedded_libs="$embedded_libs @QUOTED_CMAKE_CXX_LINK_FLAGS@"
 
-cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
-cxxflags="-I$pkgincludedir @CXXFLAGS@ " #note: end space!
+cflags="-I$pkgincludedir @CFLAGS@"
+cxxflags="-I$pkgincludedir @CXXFLAGS@"
 include="-I$pkgincludedir"
 
-# Remove some options that a client doesn't have to care about
-for remove in DDBUG_OFF DSAFE_MUTEX \
-              DEXTRA_DEBUG DHAVE_VALGRIND O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
-              'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
-              unroll2 ip mp restrict
-do
-  # The first option we might strip will always have a space before it because
-  # we set -I$pkgincludedir as the first option
-  cflags=`echo "$cflags"|sed -e "s/ -$remove  */ /g"` 
-  cxxflags=`echo "$cxxflags"|sed -e "s/ -$remove  */ /g"` 
-done
-cflags=`echo "$cflags"|sed -e 's/ *\$//'` 
-cxxflags=`echo "$cxxflags"|sed -e 's/ *\$//'` 
-
-# Same for --libs(_r)
-for remove in lmtmalloc static-libcxa i-static static-intel
-do
-  # We know the strings starts with a space
-  libs=`echo "$libs"|sed -e "s/ -$remove  */ /g"` 
-  libs_r=`echo "$libs_r"|sed -e "s/ -$remove  */ /g"` 
-  embedded_libs=`echo "$embedded_libs"|sed -e "s/ -$remove  */ /g"` 
-done
-
-# Strip trailing and ending space if any, and '+' (FIXME why?)
+# Strip whitespace
 libs=`echo "$libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 libs_r=`echo "$libs_r" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
