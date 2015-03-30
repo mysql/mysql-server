@@ -168,35 +168,27 @@ eval select EVENT_NAME, SQL_TEXT from performance_schema.events_statements_curre
   where THREAD_ID = $con2_thread_id
   order by THREAD_ID, EVENT_ID;
 eval select count(*) from performance_schema.events_statements_history
-  where THREAD_ID = $con2_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con2_thread_id;
 eval select count(*) from performance_schema.events_statements_history_long
-  where THREAD_ID = $con2_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con2_thread_id;
 
 echo "=========================== Statements user 3";
 
 eval select count(*) from performance_schema.events_statements_current
-  where THREAD_ID = $con3_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con3_thread_id;
 eval select count(*) from performance_schema.events_statements_history
-  where THREAD_ID = $con3_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con3_thread_id;
 eval select count(*) from performance_schema.events_statements_history_long
-  where THREAD_ID = $con3_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con3_thread_id;
 
 echo "=========================== Statements user 4";
 
 eval select count(*) from performance_schema.events_statements_current
-  where THREAD_ID = $con4_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con4_thread_id;
 eval select count(*) from performance_schema.events_statements_history
-  where THREAD_ID = $con4_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con4_thread_id;
 eval select count(*) from performance_schema.events_statements_history_long
-  where THREAD_ID = $con4_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con4_thread_id;
 
 echo "=========================== Stages user 1";
 
@@ -216,48 +208,37 @@ eval select EVENT_NAME from performance_schema.events_stages_current
   where THREAD_ID = $con2_thread_id
   order by THREAD_ID, EVENT_ID;
 eval select count(*) from performance_schema.events_stages_history
-  where THREAD_ID = $con2_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con2_thread_id;
 eval select count(*) from performance_schema.events_stages_history_long
-  where THREAD_ID = $con2_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con2_thread_id;
 
 echo "=========================== Stages user 3";
 
 eval select count(*) from performance_schema.events_stages_current
-  where THREAD_ID = $con3_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con3_thread_id;
 eval select count(*) from performance_schema.events_stages_history
-  where THREAD_ID = $con3_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con3_thread_id;
 eval select count(*) from performance_schema.events_stages_history_long
-  where THREAD_ID = $con3_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con3_thread_id;
 
 echo "=========================== Stages user 4";
 
 eval select count(*) from performance_schema.events_stages_current
-  where THREAD_ID = $con4_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con4_thread_id;
 eval select count(*) from performance_schema.events_stages_history
-  where THREAD_ID = $con4_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con4_thread_id;
 eval select count(*) from performance_schema.events_stages_history_long
-  where THREAD_ID = $con4_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con4_thread_id;
 
 echo "=========================== Waits user 1";
 
 eval select EVENT_NAME from performance_schema.events_waits_current
   where THREAD_ID = $con1_thread_id
   order by THREAD_ID, EVENT_ID;
-eval select EVENT_NAME from performance_schema.events_waits_history
-  where THREAD_ID = $con1_thread_id
-  order by THREAD_ID, EVENT_ID;
-eval select EVENT_NAME from performance_schema.events_waits_history_long
-  where THREAD_ID = $con1_thread_id
-  order by THREAD_ID, EVENT_ID
-  limit 15;
+eval select (count(*) > 5) as has_waits from performance_schema.events_waits_history
+  where THREAD_ID = $con1_thread_id;
+eval select (count(*) > 15) as has_waits from performance_schema.events_waits_history_long
+  where THREAD_ID = $con1_thread_id;
 
 echo "=========================== Waits user 2";
 
@@ -265,35 +246,27 @@ eval select EVENT_NAME from performance_schema.events_waits_current
   where THREAD_ID = $con2_thread_id
   order by THREAD_ID, EVENT_ID;
 eval select count(*) from performance_schema.events_waits_history
-  where THREAD_ID = $con2_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con2_thread_id;
 eval select count(*) from performance_schema.events_waits_history_long
-  where THREAD_ID = $con2_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con2_thread_id;
 
 echo "=========================== Waits user 3";
 
 eval select count(*) from performance_schema.events_waits_current
-  where THREAD_ID = $con3_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con3_thread_id;
 eval select count(*) from performance_schema.events_waits_history
-  where THREAD_ID = $con3_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con3_thread_id;
 eval select count(*) from performance_schema.events_waits_history_long
-  where THREAD_ID = $con3_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con3_thread_id;
 
 echo "=========================== Waits user 4";
 
 eval select count(*) from performance_schema.events_waits_current
-  where THREAD_ID = $con4_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con4_thread_id;
 eval select count(*) from performance_schema.events_waits_history
-  where THREAD_ID = $con4_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con4_thread_id;
 eval select count(*) from performance_schema.events_waits_history_long
-  where THREAD_ID = $con4_thread_id
-  order by THREAD_ID, EVENT_ID;
+  where THREAD_ID = $con4_thread_id;
 
 --enable_query_log
 
