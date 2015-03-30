@@ -84,6 +84,10 @@ reduce the size of the log.
 /* Global log system variable */
 log_t*	log_sys	= NULL;
 
+/** Pointer to the log checksum calculation function */
+log_checksum_func_t log_checksum_algorithm_ptr =
+	log_block_calc_checksum_innodb;
+
 /* These control how often we print warnings if the last checkpoint is too
 old */
 bool	log_has_printed_chkp_warning = false;
