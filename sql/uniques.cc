@@ -34,6 +34,7 @@
 
 #include "malloc_allocator.h"
 #include "my_tree.h"                            // element_count
+#include "mysqld.h"                             // mysql_tmpdir
 #include "opt_costmodel.h"
 #include "priority_queue.h"
 #include "psi_memory_key.h"
@@ -691,14 +692,14 @@ bool Unique::get(TABLE *table)
   sort_param.cmp_context.key_compare_arg= tree.custom_arg;
 
   /* Merge the buffers to one file, removing duplicates */
-  if (merge_many_buff(&sort_param, Sort_buffer(sort_memory, num_bytes),
+  if (merge_many_buff(table->in_use, &sort_param, Sort_buffer(sort_memory, num_bytes),
                       Merge_chunk_array(file_ptrs.begin(), file_ptrs.size()),
                       &num_chunks, &file))
     goto err;
   if (flush_io_cache(&file) ||
       reinit_io_cache(&file,READ_CACHE,0L,0,0))
     goto err;
-  if (merge_buffers(&sort_param, &file, outfile,
+  if (merge_buffers(table->in_use, &sort_param, &file, outfile,
                     Sort_buffer(sort_memory, num_bytes),
                     file_ptr,
                     Merge_chunk_array(file_ptr, num_chunks), 0))

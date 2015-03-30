@@ -25,6 +25,8 @@
 #include "sql_time.h"
 #include "sql_plugin.h"                         // lock_plugin_data etc.
 #include "psi_memory_key.h"
+#include "field.h"
+#include "sql_class.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -66,6 +68,15 @@ bool initialized=0;
 bool allow_all_hosts=1;
 uint grant_version=0; /* Version of priv tables */
 my_bool validate_user_plugins= TRUE;
+/**
+  Flag to track if rwlocks in ACL subsystem were initialized.
+  Necessary because acl_free() can be called in some error scenarios
+  without prior call to acl_init().
+*/
+bool rwlocks_initialized= false;
+
+const uint LOCK_GRANT_PARTITIONS= 32;
+Partitioned_rwlock LOCK_grant;
 
 #define FIRST_NON_YN_FIELD 26
 
@@ -270,7 +281,8 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
 
 bool
 ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
-                        const char *ip_arg, const char *proxied_user_arg)
+                        const char *ip_arg, const char *proxied_user_arg,
+						bool any_proxy_user)
 {
   DBUG_ENTER("ACL_PROXY_USER::matches");
   DBUG_PRINT("info", ("compare_hostname(%s,%s,%s) &&"
@@ -291,7 +303,7 @@ ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
               proxied_host.compare_hostname(host_arg, ip_arg) &&
               (!user ||
                (user_arg && !wild_compare(user_arg, user, TRUE))) &&
-              (!proxied_user || 
+              (any_proxy_user || !proxied_user || 
                (proxied_user && !wild_compare(proxied_user_arg, proxied_user,
                                               TRUE))));
 }
@@ -834,8 +846,8 @@ bool is_acl_user(const char *host, const char *user)
 */
 
 ACL_PROXY_USER *
-acl_find_proxy_user(const char *user, const char *host, const char *ip, 
-                    const char *authenticated_as, bool *proxy_used)
+acl_find_proxy_user(const char *user, const char *host, const char *ip,
+                    char *authenticated_as, bool *proxy_used)
 {
   /* if the proxied and proxy user are the same return OK */
   DBUG_ENTER("acl_find_proxy_user");
@@ -848,14 +860,60 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
     DBUG_RETURN (NULL);
   }
 
-  *proxy_used= TRUE; 
+  bool find_any = check_proxy_users && !*authenticated_as;
+
+  if(!find_any)
+    *proxy_used= TRUE; 
   for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
        proxy != acl_proxy_users->end(); ++proxy)
   {
-    if (proxy->matches(host, user, ip, authenticated_as))
-      DBUG_RETURN(proxy);
+	if (proxy->matches(host, user, ip, authenticated_as, find_any))
+	{
+      DBUG_PRINT("info", ("proxy matched=%s@%s",
+		proxy->get_proxied_user(),
+		proxy->get_proxied_host()));
+      if (!find_any)
+	  {
+        DBUG_PRINT("info", ("returning specific match as authenticated_as was specified"));
+        *proxy_used = TRUE;
+        DBUG_RETURN(proxy);
+      }
+      else
+      {
+        // we never use anonymous users when mapping
+        // proxy users for internal plugins:
+        if (strcmp(proxy->get_proxied_user() ?
+          proxy->get_proxied_user() : "", ""))
+        {
+          mysql_mutex_lock(&acl_cache->lock);
+          if (find_acl_user(
+            proxy->get_proxied_host(),
+            proxy->get_proxied_user(),
+            TRUE))
+          {
+            DBUG_PRINT("info", ("setting proxy_used to true, as \
+              find_all search matched real user=%s host=%s",
+              proxy->get_proxied_user(),
+              proxy->get_proxied_host()));
+            *proxy_used = TRUE;
+            strcpy(authenticated_as, proxy->get_proxied_user());
+          }
+          else
+          {
+            DBUG_PRINT("info", ("skipping match because ACL user \
+              does not exist, looking for next match to map"));
+          }
+          mysql_mutex_unlock(&acl_cache->lock);
+          if (*proxy_used)
+          {
+            DBUG_PRINT("info", ("returning matching user"));
+            DBUG_RETURN(proxy);
+          }
+        }
+      }
+	}
   }
-
+  DBUG_PRINT("info", ("No matching users found, returning null"));
   DBUG_RETURN(NULL);
 }
 
@@ -1287,6 +1345,13 @@ my_bool acl_init(bool dont_read_acl_tables)
                            &my_charset_utf8_bin);
 
   mysql_rwlock_init(key_rwlock_proxy_users, &proxy_users_rwlock);
+  LOCK_grant.init(LOCK_GRANT_PARTITIONS
+#ifdef HAVE_PSI_INTERFACE
+                  , key_rwlock_LOCK_grant
+#endif
+                  );
+  rwlocks_initialized= true;
+
   /*
     cache built-in native authentication plugins,
     to avoid hash searches and a global mutex lock on every connect
@@ -1347,6 +1412,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   bool password_expired= false;
   bool super_users_with_empty_plugin= false;
+  Acl_load_user_table_schema_factory user_table_schema_factory;
+  Acl_load_user_table_schema *table_schema = NULL;
+  bool is_old_db_layout= false;
   DBUG_ENTER("acl_load");
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
@@ -1366,7 +1434,13 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     goto end;
   table->use_all_columns();
   acl_users->clear();
-  
+  /*
+   We need to check whether we are working with old database layout. This
+   might be the case for instance when we are running mysql_upgrade.
+  */
+  table_schema= user_table_schema_factory.get_user_table_schema(table);
+  is_old_db_layout= user_table_schema_factory.is_old_user_table_schema(table);
+
   allow_all_hosts=0;
   while (!(read_record_info.read_record(&read_record_info)))
   {
@@ -1390,9 +1464,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     user.account_locked= false;
 
     user.host.update_hostname(get_field(&global_acl_memory,
-                                        table->field[MYSQL_USER_FIELD_HOST]));
+                                      table->field[table_schema->host_idx()]));
     user.user= get_field(&global_acl_memory,
-                         table->field[MYSQL_USER_FIELD_USER]);
+                         table->field[table_schema->user_idx()]);
     if (check_no_resolve && hostname_requires_resolving(user.host.get_host()))
     {
       sql_print_warning("'user' entry '%s@%s' "
@@ -1403,9 +1477,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
 
     /* Read password from authentication_string field */
-    if (table->s->fields > MYSQL_USER_FIELD_AUTHENTICATION_STRING)
-      user.auth_string.str= get_field(&global_acl_memory,
-                        table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]);
+    if (table->s->fields > table_schema->authentication_string_idx())
+      user.auth_string.str=
+        get_field(&global_acl_memory,
+                  table->field[table_schema->authentication_string_idx()]);
     else
     {
       sql_print_error("Fatal error: mysql.user table is damaged. "
@@ -1419,7 +1494,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
     {
       uint next_field;
-      user.access= get_access(table, MYSQL_USER_FIELD_SELECT_PRIV,
+      user.access= get_access(table, table_schema->select_priv_idx(),
                               &next_field) & GLOBAL_ACLS;
       /*
         if it is pre 5.0.1 privilege table then map CREATE privilege on
@@ -1463,7 +1538,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       if (table->s->fields >= 31)
       {
         char *ssl_type=
-          get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_SSL_TYPE]);
+          get_field(thd->mem_root, table->field[table_schema->ssl_type_idx()]);
         if (!ssl_type)
           user.ssl_type=SSL_TYPE_NONE;
         else if (!strcmp(ssl_type, "ANY"))
@@ -1474,85 +1549,128 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           user.ssl_type=SSL_TYPE_SPECIFIED;
 
         user.ssl_cipher= 
-          get_field(&global_acl_memory, table->field[MYSQL_USER_FIELD_SSL_CIPHER]);
+          get_field(&global_acl_memory,
+                    table->field[table_schema->ssl_cipher_idx()]);
         user.x509_issuer=
-          get_field(&global_acl_memory, table->field[MYSQL_USER_FIELD_X509_ISSUER]);
+          get_field(&global_acl_memory,
+                    table->field[table_schema->x509_issuer_idx()]);
         user.x509_subject=
-          get_field(&global_acl_memory, table->field[MYSQL_USER_FIELD_X509_SUBJECT]);
+          get_field(&global_acl_memory,
+                    table->field[table_schema->x509_subject_idx()]);
 
         char *ptr= get_field(thd->mem_root,
-                             table->field[MYSQL_USER_FIELD_MAX_QUESTIONS]);
+                             table->field[table_schema->max_questions_idx()]);
         user.user_resource.questions=ptr ? atoi(ptr) : 0;
         ptr= get_field(thd->mem_root,
-                       table->field[MYSQL_USER_FIELD_MAX_UPDATES]);
+                       table->field[table_schema->max_updates_idx()]);
         user.user_resource.updates=ptr ? atoi(ptr) : 0;
         ptr= get_field(thd->mem_root,
-                       table->field[MYSQL_USER_FIELD_MAX_CONNECTIONS]);
+                       table->field[table_schema->max_connections_idx()]);
         user.user_resource.conn_per_hour= ptr ? atoi(ptr) : 0;
         if (user.user_resource.questions || user.user_resource.updates ||
             user.user_resource.conn_per_hour)
           mqh_used=1;
 
-        if (table->s->fields > MYSQL_USER_FIELD_MAX_USER_CONNECTIONS)
+        if (table->s->fields > table_schema->max_user_connections_idx())
         {
           /* Starting from 5.0.3 we have max_user_connections field */
           ptr= get_field(thd->mem_root,
-                         table->field[MYSQL_USER_FIELD_MAX_USER_CONNECTIONS]);
+                         table->field[table_schema->max_user_connections_idx()]);
           user.user_resource.user_conn= ptr ? atoi(ptr) : 0;
         }
 
         if (table->s->fields >= 41)
         {
           /* We may have plugin & auth_String fields */
-          char *tmpstr= get_field(&global_acl_memory,
-                                  table->field[MYSQL_USER_FIELD_PLUGIN]);
-          if (tmpstr)
+          const char *tmpstr=
+            get_field(&global_acl_memory,
+                      table->field[table_schema->plugin_idx()]);
+
+          /* In case we are working with 5.6 db layout we need to make server
+             aware of Password field and that the plugin column can be null.
+             In case when plugin column is null we use native password plugin
+             if we can.
+          */
+          if (is_old_db_layout && (tmpstr == NULL || strlen(tmpstr) == 0 ||
+              my_strcasecmp(system_charset_info, tmpstr,
+                            native_password_plugin_name.str) == 0))
           {
-	    /*
-	      Check if the plugin string is blank.
-	      If it is, the user will be skipped.
-	    */
-	    if(strlen(tmpstr) == 0)
-	    {
-              if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin)
-                super_users_with_empty_plugin= true;
-	      sql_print_warning("User entry '%s'@'%s' has an empty plugin "
-				"value. The user will be ignored and no one can login "
-				"with this user anymore.",
-				user.user ? user.user : "",
-				user.host.get_host() ? user.host.get_host() : "");
-	      continue;
-	    }
-            /*
-              By comparing the plugin with the built in plugins it is possible
-              to optimize the string allocation and comparision.
-            */
-            if (my_strcasecmp(system_charset_info, tmpstr,
-                              native_password_plugin_name.str) == 0)
-              user.plugin= native_password_plugin_name;
-#if defined(HAVE_OPENSSL)
-            else
-              if (my_strcasecmp(system_charset_info, tmpstr,
-                                sha256_password_plugin_name.str) == 0)
-                user.plugin= sha256_password_plugin_name;
-#endif
-            else
+            char *password= get_field(&global_acl_memory,
+                                    table->field[table_schema->password_idx()]);
+
+            //We only support native hash, we do not support pre 4.1 hashes
+            plugin_ref native_plugin= NULL;
+            native_plugin= my_plugin_lock_by_name(0,
+                                       native_password_plugin_name,
+                                       MYSQL_AUTHENTICATION_PLUGIN);
+            if (native_plugin)
+            {
+              uint password_len= password ? strlen(password) : 0;
+              st_mysql_auth *auth=
+                (st_mysql_auth *) plugin_decl(native_plugin)->info;
+              if (auth->validate_authentication_string(password,
+                                                       password_len) == 0)
               {
-                user.plugin.str= tmpstr;
-                user.plugin.length= strlen(tmpstr);
+                //auth_string takes precedence over password
+                if (user.auth_string.length == 0)
+                {
+                  user.auth_string.str= password;
+                  user.auth_string.length= password_len;
+                }
+                if (tmpstr == NULL || strlen(tmpstr) == 0)
+                  tmpstr= native_password_plugin_name.str;
               }
+              else
+              {
+                if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin
+                    && (tmpstr == NULL || strlen(tmpstr) == 0))
+                  super_users_with_empty_plugin= true;
+
+                sql_print_warning("User entry '%s'@'%s' has a deprecated "
+                "pre-4.1 password. The user will be ignored and no one can "
+                "login with this user anymore.",
+                user.user ? user.user : "",
+                user.host.get_host() ? user.host.get_host() : "");
+                plugin_unlock(0, native_plugin);
+                continue;
+              }
+              plugin_unlock(0, native_plugin);
+            }
           }
-          else /* skip the user if plugin value is NULL */
-	  {
+
+          /*
+            Check if the plugin string is blank or null.
+            If it is, the user will be skipped.
+          */
+          if(tmpstr == NULL || strlen(tmpstr) == 0)
+          {
             if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin)
-              super_users_with_empty_plugin= true;
+                      super_users_with_empty_plugin= true;
             sql_print_warning("User entry '%s'@'%s' has an empty plugin "
-			      "value. The user will be ignored and no one can login "
-			      "with this user anymore.",
-			      user.user ? user.user : "",
-			      user.host.get_host() ? user.host.get_host() : "");
-	    continue;
-	  }
+      			"value. The user will be ignored and no one can login "
+      			"with this user anymore.",
+      			user.user ? user.user : "",
+      			user.host.get_host() ? user.host.get_host() : "");
+            continue;
+          }
+          /*
+            By comparing the plugin with the built in plugins it is possible
+            to optimize the string allocation and comparision.
+          */
+          if (my_strcasecmp(system_charset_info, tmpstr,
+                            native_password_plugin_name.str) == 0)
+            user.plugin= native_password_plugin_name;
+#if defined(HAVE_OPENSSL)
+          else
+            if (my_strcasecmp(system_charset_info, tmpstr,
+                              sha256_password_plugin_name.str) == 0)
+              user.plugin= sha256_password_plugin_name;
+#endif
+          else
+            {
+              user.plugin.str= tmpstr;
+              user.plugin.length= strlen(tmpstr);
+            }
         }
 
         /* Validate the hash string. */
@@ -1574,10 +1692,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           plugin_unlock(0, plugin);
         }
 
-        if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
+        if (table->s->fields > table_schema->password_expired_idx())
         {
           char *tmpstr= get_field(&global_acl_memory,
-                                  table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]);
+                           table->field[table_schema->password_expired_idx()]);
           if (tmpstr && (*tmpstr == 'Y' || *tmpstr == 'y'))
           {
             user.password_expired= true;
@@ -1596,10 +1714,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           }
         }
 
-        if (table->s->fields > MYSQL_USER_FIELD_ACCOUNT_LOCKED)
+        if (table->s->fields > table_schema->account_locked_idx())
         {
           char *locked = get_field(&global_acl_memory,
-                               table->field[MYSQL_USER_FIELD_ACCOUNT_LOCKED]);
+                             table->field[table_schema->account_locked_idx()]);
 
           if (locked && (*locked == 'Y' || *locked == 'y'))
           {
@@ -1615,12 +1733,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 	user.use_default_password_lifetime= true;
 	user.password_lifetime= 0;
 
-	if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED)
+	if (table->s->fields > table_schema->password_last_changed_idx())
         {
-	  if (!table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->is_null())
+	  if (!table->field[table_schema->password_last_changed_idx()]->is_null())
 	  {
             char *password_last_changed= get_field(&global_acl_memory,
-	          table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]);
+	          table->field[table_schema->password_last_changed_idx()]);
 
 	    if (password_last_changed &&
 	        memcmp(password_last_changed, INVALID_DATE, sizeof(INVALID_DATE)))
@@ -1631,13 +1749,13 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 	  }
 	}
 
-        if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LIFETIME)
+        if (table->s->fields > table_schema->password_lifetime_idx())
         {
           if (!table->
-              field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->is_null())
+              field[table_schema->password_lifetime_idx()]->is_null())
 	  {
 	    char *ptr= get_field(&global_acl_memory,
-		table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]);
+		table->field[table_schema->password_lifetime_idx()]);
 	    user.password_lifetime= ptr ? atoi(ptr) : 0;
 	    user.use_default_password_lifetime= false;
 	  }
@@ -1677,8 +1795,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   {
     sql_print_warning("Some of the user accounts with SUPER privileges were "
                       "disabled because of empty mysql.user.plugin value. "
-                      "If you are upgrading from MySQL 5.6 to MySQL 5.7 "
-                      "and your account is disabled you will need to:");
+                      "If you are upgrading from MySQL 5.6 to MySQL 5.7 it "
+                      "means we were not able to substitute for empty plugin "
+                      "column. Probably because of pre 4.1 password hash. "
+                      "If your account is disabled you will need to:");
     sql_print_warning("1. Stop the server and restart it with "
                       "--skip-grant-tables.");
     sql_print_warning("2. Run mysql_upgrade.");
@@ -1794,8 +1914,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
 end:
   thd->variables.sql_mode= old_sql_mode;
+  if (table_schema)
+    delete table_schema;
   DBUG_RETURN(return_val);
 }
+
+
 
 
 void acl_free(bool end)
@@ -1817,6 +1941,13 @@ void acl_free(bool end)
     plugin_unlock(0, native_password_plugin);
     delete acl_cache;
     acl_cache=0;
+
+    if (rwlocks_initialized)
+    {
+      LOCK_grant.destroy();
+      mysql_rwlock_destroy(&proxy_users_rwlock);
+      rwlocks_initialized= false;
+    }
   }
 }
 
@@ -2252,7 +2383,8 @@ static my_bool grant_reload_procs_priv(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
+
   /* Save a copy of the current hash if we need to undo the grant load */
   old_proc_priv_hash= proc_priv_hash;
   old_func_priv_hash= func_priv_hash;
@@ -2270,7 +2402,6 @@ static my_bool grant_reload_procs_priv(THD *thd)
     my_hash_free(&old_proc_priv_hash);
     my_hash_free(&old_func_priv_hash);
   }
-  mysql_rwlock_unlock(&LOCK_grant);
 
   DBUG_RETURN(return_val);
 }
@@ -2322,7 +2453,8 @@ my_bool grant_reload(THD *thd)
     goto end;
   }
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  LOCK_grant.wrlock();
+
   old_column_priv_hash= column_priv_hash;
 
   /*
@@ -2345,7 +2477,9 @@ my_bool grant_reload(THD *thd)
     my_hash_free(&old_column_priv_hash);
     free_root(&old_mem,MYF(0));
   }
-  mysql_rwlock_unlock(&LOCK_grant);
+
+  LOCK_grant.wrunlock();
+
   close_acl_tables(thd);
 
   /*
@@ -2355,9 +2489,9 @@ my_bool grant_reload(THD *thd)
   if (grant_reload_procs_priv(thd))
     return_val= 1;
 
-  mysql_rwlock_wrlock(&LOCK_grant);
+  LOCK_grant.wrlock();
   grant_version++;
-  mysql_rwlock_unlock(&LOCK_grant);
+  LOCK_grant.wrunlock();
 
 end:
   close_acl_tables(thd);
@@ -2375,7 +2509,8 @@ void acl_update_user(const char *user, const char *host,
                      const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
 		     MYSQL_TIME password_change_time,
-                     LEX_ALTER password_life)
+                     LEX_ALTER password_life,
+                     ulong what_is_set)
 {
   DBUG_ENTER("acl_update_user");
   mysql_mutex_assert_owner(&acl_cache->lock);
@@ -2430,7 +2565,9 @@ void acl_update_user(const char *user, const char *host,
                                    strdup_root(&global_acl_memory, x509_subject) : 0);
         }
         /* update details related to password lifetime, password expiry */
-        acl_user->password_expired= password_life.update_password_expired_column;
+        if (password_life.update_password_expired_column ||
+            what_is_set & PLUGIN_ATTR)
+          acl_user->password_expired= password_life.update_password_expired_column;
         if (!password_life.update_password_expired_column)
         {
           if (!password_life.use_default_password_lifetime)

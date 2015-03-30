@@ -978,6 +978,116 @@ recv_read_checkpoint_info_for_backup(
 }
 #endif /* !UNIV_HOTBACKUP */
 
+/** Calculate the checksum of the given redo log block using different
+checksum algorithms and see if any of them matches with what has been
+stored in the block itself.
+@param[in]	block		the redo log block
+@param[in]	block_checksum	checksum stored in the redo log block.
+@return true if there is a checksum match, false otherwise. */
+static
+bool
+log_block_checksum_weak_validation(
+	const byte*	block,
+	ulint		block_checksum)
+{
+	/* The algorithm specified in srv_log_checksum_algorithm has already
+	been checked.  So no need to check it again */
+	switch (srv_log_checksum_algorithm) {
+	case SRV_CHECKSUM_ALGORITHM_CRC32:
+		if (block_checksum == log_block_calc_checksum_none(block)
+		    || block_checksum == log_block_calc_checksum_innodb(block)) {
+			return(true);
+		}
+		break;
+	case SRV_CHECKSUM_ALGORITHM_INNODB:
+		if (block_checksum == log_block_calc_checksum_none(block)
+		    || block_checksum == log_block_calc_checksum_crc32(block)) {
+			return(true);
+		}
+		break;
+	case SRV_CHECKSUM_ALGORITHM_NONE:
+		if (block_checksum == log_block_calc_checksum_crc32(block)
+		    || block_checksum == log_block_calc_checksum_innodb(block)) {
+			return(true);
+		}
+		break;
+	}
+	return(false);
+}
+
+/** Get the name of the checksum algorithm that matches with the checksum
+stored in the redo log block.
+@param[in]	block		the redo log block
+@param[in]	block_checksum	checksum stored in the redo log block.
+@return name of the checksum algorithm, if a match is found.
+@return the string "NULL", if no match is found.*/
+static
+const char*
+log_block_checksum_what_matches(
+	const byte*	block,
+	ulint		block_checksum)
+{
+	/* The algorithm specified in srv_log_checksum_algorithm has already
+	been checked.  So no need to check it again */
+	switch (srv_log_checksum_algorithm) {
+	case SRV_CHECKSUM_ALGORITHM_CRC32:
+		if (block_checksum == log_block_calc_checksum_none(block)) {
+			return("none");
+		}
+		if (block_checksum == log_block_calc_checksum_innodb(block)) {
+			return("innodb");
+		}
+		break;
+	case SRV_CHECKSUM_ALGORITHM_INNODB:
+		if (block_checksum == log_block_calc_checksum_none(block)) {
+			return("none");
+		}
+		if (block_checksum == log_block_calc_checksum_crc32(block)) {
+			return("crc32");
+		}
+		break;
+	case SRV_CHECKSUM_ALGORITHM_NONE:
+		if (block_checksum == log_block_calc_checksum_crc32(block)) {
+			return("crc32");
+		}
+		if (block_checksum == log_block_calc_checksum_innodb(block)) {
+			return("innodb");
+		}
+		break;
+	}
+	return("NULL");
+}
+
+static
+void
+log_block_checksum_fail_fatal(
+	const byte*	block,
+	ulint		block_checksum,
+	ulint		calc_checksum)
+{
+	ib::error() << "log block checksum mismatch: expected checksum is "
+		<< block_checksum << ", but calculated checksum is "
+		<< calc_checksum;
+
+	/* Find the algorithm that matches */
+	const char*	algo = log_block_checksum_what_matches(
+		block, block_checksum);
+
+	/* Get the algorithm specified */
+	const char*	current_algo = buf_checksum_algorithm_name(
+		static_cast<srv_checksum_algorithm_t>(
+			srv_log_checksum_algorithm));
+
+	ib::error() << "current InnoDB log checksum type: "
+		<< current_algo
+		<< ", detected log checksum type: "
+		<< algo;
+
+	ib::fatal() << "STRICT method was specified for"
+		" innodb_log_checksum, so we intentionally"
+		" assert here.";
+}
+
 /******************************************************//**
 Checks the 4-byte checksum to the trailer checksum field of a log
 block.  We also accept a log block in the old format before
@@ -990,12 +1100,29 @@ log_block_checksum_is_ok_or_old_format(
 /*===================================*/
 	const byte*	block)	/*!< in: pointer to a log block */
 {
-	if (log_block_calc_checksum(block) == log_block_get_checksum(block)) {
-
+	if (srv_log_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE) {
 		return(TRUE);
 	}
 
-	if (log_block_get_hdr_no(block) == log_block_get_checksum(block)) {
+	const ulint	block_checksum = log_block_get_checksum(block);
+	const ulint	calc_checksum  = log_block_calc_checksum(block);
+
+	if (block_checksum == calc_checksum) {
+		return(TRUE);
+	}
+
+	if (is_checksum_strict(srv_log_checksum_algorithm)) {
+
+		log_block_checksum_fail_fatal(block, block_checksum,
+					      calc_checksum);
+
+	} else if (log_block_checksum_weak_validation(block,
+						      block_checksum)) {
+
+			return(TRUE);
+	}
+
+	if (log_block_get_hdr_no(block) == block_checksum) {
 
 		/* We assume the log block is in the format of
 		InnoDB version < 3.23.52 and the block is ok */
@@ -3626,6 +3753,34 @@ recv_recovery_from_checkpoint_finish(void)
 
 	/* Free up the flush_rbt. */
 	buf_flush_free_flush_rbt();
+
+	/* Validate a few system page types that were left uninitialized
+	by older versions of MySQL. */
+	mtr_t		mtr;
+	buf_block_t*	block;
+	mtr.start();
+	mtr.set_sys_modified();
+	/* Bitmap page types will be reset in buf_dblwr_check_block()
+	without redo logging. */
+	block = buf_page_get(
+		page_id_t(IBUF_SPACE_ID, FSP_IBUF_HEADER_PAGE_NO),
+		univ_page_size, RW_X_LATCH, &mtr);
+	fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
+	/* Already MySQL 3.23.53 initialized FSP_IBUF_TREE_ROOT_PAGE_NO
+	to FIL_PAGE_INDEX. No need to reset that one. */
+	block = buf_page_get(
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO),
+		univ_page_size, RW_X_LATCH, &mtr);
+	fil_block_check_type(block, FIL_PAGE_TYPE_TRX_SYS, &mtr);
+	block = buf_page_get(
+		page_id_t(TRX_SYS_SPACE, FSP_FIRST_RSEG_PAGE_NO),
+		univ_page_size, RW_X_LATCH, &mtr);
+	fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
+	block = buf_page_get(
+		page_id_t(TRX_SYS_SPACE, FSP_DICT_HDR_PAGE_NO),
+		univ_page_size, RW_X_LATCH, &mtr);
+	fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
+	mtr.commit();
 
 	/* Roll back any recovered data dictionary transactions, so
 	that the data dictionary tables will be free of any locks.

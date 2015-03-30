@@ -989,14 +989,64 @@ fil_page_set_type(
 /*==============*/
 	byte*	page,	/*!< in/out: file page */
 	ulint	type);	/*!< in: type */
-/*********************************************************************//**
-Gets the file page type.
-@return type; NOTE that if the type has not been written to page, the
-return value not defined */
+/** Reset the page type.
+Data files created before MySQL 5.1 may contain garbage in FIL_PAGE_TYPE.
+In MySQL 3.23.53, only undo log pages and index pages were tagged.
+Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+@param[in]	page_id	page number
+@param[in,out]	page	page with invalid FIL_PAGE_TYPE
+@param[in]	type	expected page type
+@param[in,out]	mtr	mini-transaction */
+void
+fil_page_reset_type(
+	const page_id_t&	page_id,
+	byte*			page,
+	ulint			type,
+	mtr_t*			mtr);
+/** Get the file page type.
+@param[in]	page	file page
+@return page type */
+inline
 ulint
 fil_page_get_type(
-/*==============*/
-	const byte*	page);	/*!< in: file page */
+	const byte*	page)
+{
+	return(mach_read_from_2(page + FIL_PAGE_TYPE));
+}
+/** Check (and if needed, reset) the page type.
+Data files created before MySQL 5.1 may contain
+garbage in the FIL_PAGE_TYPE field.
+In MySQL 3.23.53, only undo log pages and index pages were tagged.
+Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+@param[in]	page_id	page number
+@param[in,out]	page	page with possibly invalid FIL_PAGE_TYPE
+@param[in]	type	expected page type
+@param[in,out]	mtr	mini-transaction */
+inline
+void
+fil_page_check_type(
+	const page_id_t&	page_id,
+	byte*			page,
+	ulint			type,
+	mtr_t*			mtr)
+{
+	ulint	page_type	= fil_page_get_type(page);
+
+	if (page_type != type) {
+		fil_page_reset_type(page_id, page, type, mtr);
+	}
+}
+
+/** Check (and if needed, reset) the page type.
+Data files created before MySQL 5.1 may contain
+garbage in the FIL_PAGE_TYPE field.
+In MySQL 3.23.53, only undo log pages and index pages were tagged.
+Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+@param[in,out]	block	block with possibly invalid FIL_PAGE_TYPE
+@param[in]	type	expected page type
+@param[in,out]	mtr	mini-transaction */
+#define fil_block_check_type(block, type, mtr)				\
+	fil_page_check_type(block->page.id, block->frame, type, mtr)
 
 #ifdef UNIV_DEBUG
 /** Increase redo skipped of a tablespace.
@@ -1209,6 +1259,8 @@ fil_names_write_if_was_clean(
 
 	return(was_clean);
 }
+
+extern volatile bool	recv_recovery_on;
 
 /** During crash recovery, open a tablespace if it had not been opened
 yet, to get valid size and flags.

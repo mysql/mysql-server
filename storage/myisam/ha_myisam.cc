@@ -31,6 +31,8 @@
 #include "log.h"
 #include "current_thd.h"
 #include "system_variables.h"
+#include "mysqld.h"
+#include "derror.h"
 
 #include <algorithm>
 
@@ -145,7 +147,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 			       const char *fmt, va_list args)
 {
   THD* thd = (THD*)param->thd;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   size_t length, msg_length;
   char msgbuf[MI_MAX_MSG_BUF];
   char name[NAME_LEN*2+2];
@@ -180,12 +182,12 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   if (param->need_print_msg_lock)
     mysql_mutex_lock(&param->print_msg_mutex);
 
-  protocol->prepare_for_resend();
+  protocol->start_row();
   protocol->store(name, length, system_charset_info);
   protocol->store(param->op_name, system_charset_info);
   protocol->store(msg_type, system_charset_info);
   protocol->store(msgbuf, msg_length, system_charset_info);
-  if (protocol->write())
+  if (protocol->end_row())
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
 		    msgbuf);
 
@@ -651,7 +653,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR |
                   HA_GENERATED_COLUMNS | 
                   HA_ATTACHABLE_TRX_COMPATIBLE),
-   can_enable_indexes(1)
+   can_enable_indexes(1), ds_mrr(this)
 {}
 
 handler *ha_myisam::clone(const char *name, MEM_ROOT *mem_root)
@@ -2182,7 +2184,8 @@ int ha_myisam::multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                                      uint n_ranges, uint mode, 
                                      HANDLER_BUFFER *buf)
 {
-  return ds_mrr.dsmrr_init(this, seq, seq_init_param, n_ranges, mode, buf);
+  ds_mrr.init(table);
+  return ds_mrr.dsmrr_init(seq, seq_init_param, n_ranges, mode, buf);
 }
 
 int ha_myisam::multi_range_read_next(char **range_info)
@@ -2200,7 +2203,7 @@ ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     already be known.
     TODO: consider moving it into some per-query initialization call.
   */
-  ds_mrr.init(this, table);
+  ds_mrr.init(table);
   return ds_mrr.dsmrr_info_const(keyno, seq, seq_init_param, n_ranges, bufsz,
                                  flags, cost);
 }
@@ -2209,7 +2212,7 @@ ha_rows ha_myisam::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                          uint *bufsz, uint *flags,
                                          Cost_estimate *cost)
 {
-  ds_mrr.init(this, table);
+  ds_mrr.init(table);
   return ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);
 }
 

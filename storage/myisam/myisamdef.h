@@ -659,6 +659,7 @@ typedef struct st_mi_block_info {	/* Parameter to _mi_get_block_info */
 #define NEED_MEM	((uint) 10*4*(IO_SIZE+32)+32) /* Nead for recursion */
 #define MAXERR			20
 #define BUFFERS_WHEN_SORTING	16		/* Alloc for sort-key-tree */
+#define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
 #define WRITE_COUNT		MY_HOW_OFTEN_TO_WRITE
 #define INDEX_TMP_EXT		".TMM"
 #define DATA_TMP_EXT		".TMD"

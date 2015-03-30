@@ -627,8 +627,8 @@ row_log_table_delete(
 	old and new table are in COMPACT or REDUNDANT format,
 	which store the prefix in the clustered index record. */
 	if (rec_offs_any_extern(offsets)
-	    && (dict_table_get_format(index->table) >= UNIV_FORMAT_B
-		|| dict_table_get_format(new_table) >= UNIV_FORMAT_B)) {
+	    && (dict_table_has_atomic_blobs(index->table)
+		|| dict_table_has_atomic_blobs(new_table))) {
 
 		/* Build a cache of those off-page column prefixes
 		that are referenced by secondary indexes. It can be
@@ -2504,7 +2504,8 @@ row_log_estimate_work(
 	}
 
 	const row_log_t*	l = index->online_log;
-	const ulint		bytes_left = l->tail.total - l->head.total;
+	const ulint		bytes_left =
+		static_cast<ulint>(l->tail.total - l->head.total);
 	const ulint		blocks_left = bytes_left / srv_sort_buf_size;
 
 	return(blocks_left * row_log_progress_inc_per_block());

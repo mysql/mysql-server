@@ -17,18 +17,17 @@
 #define TRANSACTION_INFO_INCLUDED
 
 #include "my_global.h"
-#include "my_dbug.h"                   // DBUG_ENTER
-#include "my_sys.h"                    // strmake_root
-#include "xa.h"                        // XID_STATE
 #include "my_alloc.h"                  // MEM_ROOT
-#include "thr_malloc.h"                // init_sql_alloc
-#include "sql_cache.h"                 // query_cache
+#include "my_sys.h"                    // strmake_root
 #include "mdl.h"                       // MDL_savepoint
-#include "handler.h"                   // handlerton
 #include "rpl_transaction_ctx.h"       // Rpl_transaction_ctx
 #include "rpl_transaction_write_set_ctx.h" // Transaction_write_set_ctx
+#include "xa.h"                        // XID_STATE
 
 class THD;
+struct handlerton;
+typedef struct st_savepoint SAVEPOINT;
+
 
 typedef struct st_changed_table_list
 {
@@ -66,9 +65,6 @@ public:
   void register_ha(Ha_trx_info *ha_info, handlerton *ht_arg)
   {
     DBUG_ENTER("Ha_trx_info::register_ha");
-    DBUG_PRINT("enter", ("ht: 0x%llx (%s)",
-                         (ulonglong) ht_arg,
-                         ha_legacy_type_name(ht_arg->db_type)));
     DBUG_ASSERT(m_flags == 0);
     DBUG_ASSERT(m_ht == NULL);
     DBUG_ASSERT(m_next == NULL);
@@ -435,11 +431,7 @@ public:
     return strmake_root(&m_mem_root, str, len);
   }
 
-  void invalidate_changed_tables_in_cache()
-  {
-    if (m_changed_tables)
-      query_cache.invalidate(m_changed_tables);
-  }
+  void invalidate_changed_tables_in_cache(THD *thd);
 
   bool add_changed_table(const char *key, long key_length);
 

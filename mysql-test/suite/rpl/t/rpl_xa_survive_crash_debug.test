@@ -1,0 +1,73 @@
+#  The test verifies that crashed in the middle of XA COMMIT server
+#  does not lose the prepared transaction, neither it gets committed.
+#  This is to test that fixes to  BUG #12161 Xa recovery and client disconnection
+#  do not break existing policy.
+#  The prepared XA can be identified and concluded with XA COMMIT or ROLLBACK,
+#  "manually" by the user.
+
+--source include/have_debug.inc
+# There's some format specifics through show_binlog_events,
+# but MIXED is chosen rather to optimize.
+--source include/have_binlog_format_mixed.inc
+#
+# Crash-safe testing is difficult on other than Linux.
+# TODO: Open it back at XA-commit/rollback crash-safe bug/FR fixing.
+#
+if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
+{
+  skip Need Linux;
+}
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+--source include/rpl_connection_master.inc
+
+call mtr.add_suppression("Found 1 prepared XA transactions");
+
+CREATE TABLE t1 (a INT);
+
+--connect (master_conn, 127.0.0.1,root,,test,$MASTER_MYPORT,)
+--disable_reconnect
+# Transaction is committed (XA-rollback) only
+# to binlog, not to engine.
+SET DEBUG="+d,crash_after_xa_rollback";
+XA START 'xid_partly_rolled_back';
+INSERT INTO t1 VALUES(1);
+XA END 'xid_partly_rolled_back';
+XA PREPARE 'xid_partly_rolled_back';
+
+# Server crashes after doing the rollback, but before writing to
+# binlog -> ROLLBACK is lost in the binlog.
+--error 2013 # CR_SERVER_LOST
+--send XA ROLLBACK 'xid_partly_rolled_back'
+
+--source include/rpl_connection_master.inc
+#
+# Server restart
+#
+--enable_reconnect
+--let $rpl_server_number= 1
+--source include/rpl_start_server.inc
+--disable_reconnect
+
+--source include/rpl_connection_master.inc
+XA RECOVER;
+SELECT * FROM t1;
+--source include/show_binlog_events.inc
+SET @save.sql_log_bin = @@session.sql_log_bin;
+SET @@session.sql_log_bin = 0;
+XA ROLLBACK 'xid_partly_rolled_back';
+SET @@session.sql_log_bin = @save.sql_log_bin;
+
+# Verify that slave has 'xid_partly_rolled_back' rolled back.
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

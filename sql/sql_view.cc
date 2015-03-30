@@ -18,6 +18,8 @@
 #include "auth_common.h" // CREATE_VIEW_ACL
 #include "binlog.h"      // mysql_bin_log
 #include "datadict.h"    // dd_frm_type
+#include "derror.h"      // ER_THD
+#include "mysqld.h"      // stage_end reg_ext key_file_frm
 #include "opt_trace.h"   // Opt_trace_object
 #include "parse_file.h"  // File_option
 #include "sp_cache.h"    // sp_cache_invalidate
@@ -1689,9 +1691,6 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
 
   // Updatability is not decided yet
   DBUG_ASSERT(!view_ref->is_updatable());
-
-  // Should be in constructor
-  view_ref->effective_with_check= VIEW_CHECK_NONE;
 
   // Link query expression of view into the outer query
   view_lex->unit->include_down(old_lex, view_ref->select_lex);

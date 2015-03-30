@@ -2,7 +2,6 @@
 --source include/not_embedded.inc
 
 eval SET GLOBAL innodb_file_per_table=$file_per_table;
-eval SET GLOBAL innodb_file_format=$file_format;
 
 #
 # This test is the same as innodb_gis_rollback
@@ -416,5 +415,3 @@ SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-

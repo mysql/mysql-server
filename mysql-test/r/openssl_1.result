@@ -1,3 +1,7 @@
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1;
 create table t1(f1 int);
 insert into t1 values (5);
@@ -220,4 +224,17 @@ SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 DROP USER bug42158@localhost;
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 End of 5.1 tests
+#
+# Bug #20648276: SSL-RELATED GLOBAL STATUS INFORMATION ONLY AVAILABLE
+#  WHEN CONNECTED USING --SSL
+#
+# Must return empty
+# Must return values for the certificate data
+Variable_name	Value
+Ssl_server_not_after	Dec  1 04:48:40 2029 GMT
+Ssl_server_not_before	Dec  5 04:48:40 2014 GMT
+End of 5.7 tests

@@ -20,6 +20,7 @@
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
+#include "derror.h"                     // ER_DEFAULT
 #include "mysqld.h"                     // key_socket_tcpip
 #include "log.h"                        // sql_print_error
 #include "sql_class.h"                  // THD
@@ -121,10 +122,12 @@ static void init_net_server_extension(THD *thd)
   thd->m_net_server_extension.m_user_data= thd;
   thd->m_net_server_extension.m_before_header= net_before_header_psi;
   thd->m_net_server_extension.m_after_header= net_after_header_psi;
+
   /* Activate this private extension for the mysqld server. */
-  thd->net.extension= & thd->m_net_server_extension;
+  thd->get_protocol_classic()->get_net()->extension=
+    &thd->m_net_server_extension;
 #else
-  thd->net.extension= NULL;
+  thd->get_protocol_classic()->get_net()->extension= NULL;
 #endif
 }
 
@@ -367,7 +370,8 @@ public:
 
         MYSQL_SOCKET s= mysql_socket_socket(0, AF_INET6, SOCK_STREAM, 0);
         ipv6_available= mysql_socket_getfd(s) != INVALID_SOCKET;
-        mysql_socket_close(s);
+        if (ipv6_available)
+          mysql_socket_close(s);
       }
       if (ipv6_available)
       {

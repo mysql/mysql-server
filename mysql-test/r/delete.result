@@ -649,6 +649,8 @@ DROP TABLE t1, t2;
 #              ON DELETE (ER_SUBQUERY..)
 #
 SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 col_int_key int,
 pk integer auto_increment,

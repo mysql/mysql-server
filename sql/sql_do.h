@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,11 @@
 #ifndef SQL_DO_INCLUDED
 #define SQL_DO_INCLUDED
 
-#include "sql_list.h"                           /* List */
+#include "my_global.h"
 
 class THD;
 class Item;
+template <class T> class List;
 
 bool mysql_do(THD *thd, List<Item> &values);
 

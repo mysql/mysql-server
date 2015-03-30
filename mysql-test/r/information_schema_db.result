@@ -1,3 +1,7 @@
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1,t2;
 drop view if exists v1,v2;
 drop function if exists f1;
@@ -253,3 +257,6 @@ show create view testdb_1.v1;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'v1'
 drop user mysqltest_1@localhost;
 drop database testdb_1;
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

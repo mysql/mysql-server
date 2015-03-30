@@ -197,7 +197,7 @@ int delete_setup_object(enum_object_type object_type, const String *schema,
   entry= reinterpret_cast<PFS_setup_object**>
     (lf_hash_search(&setup_object_hash, pins, key.m_hash_key, key.m_key_length));
 
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     PFS_setup_object *pfs= *entry;
     lf_hash_delete(&setup_object_hash, pins, key.m_hash_key, key.m_key_length);
@@ -306,7 +306,7 @@ void lookup_setup_object(PFS_thread *thread,
     entry= reinterpret_cast<PFS_setup_object**>
       (lf_hash_search(&setup_object_hash, pins, key.m_hash_key, key.m_key_length));
 
-    if (entry && (entry != MY_ERRPTR))
+    if (entry && (entry != MY_LF_ERRPTR))
     {
       pfs= *entry;
       *enabled= pfs->m_enabled;

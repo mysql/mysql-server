@@ -153,6 +153,8 @@ F0CEC4	Пнд
 drop table t1;
 set LC_TIME_NAMES='en_US';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set names koi8r;
 create table t1 (s1 char(1) character set utf8);
 insert into t1 values (_koi8r'��');
@@ -1149,6 +1151,8 @@ ERROR 42000: Invalid default value for 'x'
 create table t1 (x enum('A', 'B') default 0) character set utf8;
 ERROR 42000: Invalid default value for 'x'
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES UTF8;
 CREATE TABLE t1 (
 `id` int(20) NOT NULL auto_increment,
@@ -1185,6 +1189,8 @@ ERR Имри.Афимим.Аеимимримдмримрмрирор имрим�
 DROP TABLE t1,t2;
 SET sql_mode = default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a char(20) character set utf8);
 insert into t1 values ('123456'),('андрей');
 alter table t1 modify a char(2) character set utf8;
@@ -1674,6 +1680,8 @@ xxx
 yyy
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (
 a varchar(26) not null
 ) default character set utf8;
@@ -1742,8 +1750,6 @@ NULL
 Warnings:
 Warning	1300	Invalid utf8 character string: 'FF8F'
 set sql_mode=traditional;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select char(0xff,0x8f using utf8);
 char(0xff,0x8f using utf8)
 NULL
@@ -1928,8 +1934,6 @@ i
 н1234567890
 DROP TABLE t1, t2;
 set sql_mode=traditional;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select hex(char(0xFF using utf8));
 hex(char(0xFF using utf8))
 NULL
@@ -3539,6 +3543,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 SET sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select hex(concat(period_diff(200902, 200802)));
 hex(concat(period_diff(200902, 200802)))
 3132
@@ -5149,6 +5155,8 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 SET NAMES latin1;
 SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
 INSERT INTO t1 VALUES ();
 SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;

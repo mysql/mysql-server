@@ -196,9 +196,16 @@ ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
 5 Grant PROCESS privilege to anonymous user.
 connection default (user=root)
 ####################################################################################
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT PROCESS ON *.* TO ''@'localhost';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ####################################################################################
 5.1 Establish connection (anonymous1,localhost,'',,information_schema)
 anonymous user with PROCESS privilege

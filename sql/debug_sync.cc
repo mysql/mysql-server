@@ -330,9 +330,10 @@
 
 #if defined(ENABLED_DEBUG_SYNC)
 
-#include "sql_parse.h"
 #include "log.h"
 #include "current_thd.h"
+#include "sql_class.h"
+#include "derror.h"
 
 #include <set>
 #include <string>

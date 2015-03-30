@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _decimal_h
-#define _decimal_h
+#ifndef DECIMAL_INCLUDED
+#define DECIMAL_INCLUDED
+
+#include "my_global.h"
+
+C_MODE_START
 
 typedef enum
 {TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
@@ -134,5 +138,6 @@ void max_decimal(int precision, int frac, decimal_t *to);
 #define E_DEC_ERROR            31
 #define E_DEC_FATAL_ERROR      30
 
-#endif
+C_MODE_END
 
+#endif  // DECIMAL_INCLUDED

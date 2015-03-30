@@ -20,12 +20,14 @@
 #include "aggregate_check.h" // Distinct_check
 #include "auth_common.h"     // get_column_grant
 #include "current_thd.h"
+#include "derror.h"          // ER_THD
 #include "item_cmpfunc.h"    // COND_EQUAL
 #include "item_create.h"     // create_temporal_literal
 #include "item_func.h"       // item_func_sleep_init
 #include "item_strfunc.h"    // Item_func_conv_charset
 #include "item_sum.h"        // Item_sum
 #include "log_event.h"       // append_query_string
+#include "mysqld.h"          // lower_case_table_names files_charset_info
 #include "sp.h"              // sp_map_item_type
 #include "sp_rcontext.h"     // sp_rcontext
 #include "sql_base.h"        // view_ref_found
@@ -550,7 +552,7 @@ Item::Item():
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
-  runtime_item(false), with_subselect(false),
+  runtime_item(false), derived_used(false), with_subselect(false),
   with_stored_program(false), tables_locked_cache(false),
   is_parser_item(false)
 {
@@ -573,7 +575,7 @@ Item::Item(const POS &):
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
   collation(&my_charset_bin, DERIVATION_COERCIBLE),
-  runtime_item(false), with_subselect(false),
+  runtime_item(false), derived_used(false), with_subselect(false),
   with_stored_program(false), tables_locked_cache(false),
   is_parser_item(true)
 {
@@ -2116,7 +2118,8 @@ void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
   if ((type() != SUM_FUNC_ITEM && with_sum_func) ||
       (type() == FUNC_ITEM &&
        (((Item_func *) this)->functype() == Item_func::ISNOTNULLTEST_FUNC ||
-        ((Item_func *) this)->functype() == Item_func::TRIG_COND_FUNC)))
+        ((Item_func *) this)->functype() == Item_func::TRIG_COND_FUNC)) ||
+      type() == ROW_ITEM)
   {
     /* Will split complicated items and ignore simple ones */
     split_sum_func(thd, ref_pointer_array, fields);
@@ -2548,6 +2551,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field)
   tmp_field->flags= field->table->is_nullable() ? 
     (field->flags & ~NOT_NULL_FLAG) : field->flags;
   tmp_field->decimals= field->decimals();
+  tmp_field->field= false;
 }
 
 /**********************************************/
@@ -3726,13 +3730,12 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
 
   value.time= *tm;
   value.time.time_type= time_type;
+  decimals= tm->second_part ? DATETIME_MAX_DECIMALS : 0;
 
   if (check_datetime_range(&value.time))
   {
     make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
-                                 ErrConvString(&value.time,
-                                               MY_MIN(decimals,
-                                                      DATETIME_MAX_DECIMALS)),
+                                 ErrConvString(&value.time, decimals),
                                  time_type, NullS);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
@@ -3740,7 +3743,6 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
   state= TIME_VALUE;
   maybe_null= 0;
   max_length= max_length_arg;
-  decimals= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -4546,12 +4548,13 @@ Item_copy_string::save_in_field(Field *field, bool no_conversions)
 }
 
 
-void Item_copy_string::copy()
+bool Item_copy_string::copy(const THD *thd)
 {
   String *res=item->val_str(&str_value);
   if (res && res != &str_value)
     str_value.copy(*res);
   null_value=item->null_value;
+  return thd->is_error();
 }
 
 /* ARGSUSED */
@@ -4588,10 +4591,11 @@ bool Item_copy_string::get_time(MYSQL_TIME *ltime)
   Item_copy_int
 ****************************************************************************/
 
-void Item_copy_int::copy()
+bool Item_copy_int::copy(const THD *thd)
 {
   cached_value= item->val_int();
   null_value=item->null_value;
+  return thd->is_error();
 }
 
 static type_conversion_status
@@ -4643,6 +4647,13 @@ String *Item_copy_uint::val_str(String *str)
 /****************************************************************************
   Item_copy_float
 ****************************************************************************/
+
+bool Item_copy_float::copy(const THD *thd)
+{
+  cached_value= item->val_real();
+  null_value= item->null_value;
+  return thd->is_error();
+}
 
 String *Item_copy_float::val_str(String *str)
 {
@@ -4733,12 +4744,13 @@ longlong Item_copy_decimal::val_int()
 }
 
 
-void Item_copy_decimal::copy()
+bool Item_copy_decimal::copy(const THD *thd)
 {
   my_decimal *nr= item->val_decimal(&cached_value);
   if (nr && nr != &cached_value)
     my_decimal2decimal (nr, &cached_value);
   null_value= item->null_value;
+  return thd->is_error();
 }
 
 
@@ -5126,7 +5138,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     Search for a column or derived column named as 'ref' in the SELECT
     clause of the current select.
   */
-  if (!(select_ref= find_item_in_list(ref, *(select->get_item_list()),
+  if (!(select_ref= find_item_in_list(thd, ref, *(select->get_item_list()),
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &resolution)))
     return NULL; /* Some error occurred. */
@@ -5563,7 +5575,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       {
         uint counter;
         enum_resolution_type resolution;
-        Item** res= find_item_in_list(this, thd->lex->current_select()->item_list,
+        Item** res= find_item_in_list(thd, this,
+                                      thd->lex->current_select()->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &resolution);
         if (!res)
@@ -6008,6 +6021,7 @@ void Item::init_make_field(Send_field *tmp_field,
   tmp_field->decimals=decimals;
   if (unsigned_flag)
     tmp_field->flags |= UNSIGNED_FLAG;
+  tmp_field->field= false;
 }
 
 void Item::make_field(Send_field *tmp_field)
@@ -6336,6 +6350,7 @@ void Item_field::make_field(Send_field *tmp_field)
     tmp_field->table_name= table_name;
   if (db_name)
     tmp_field->db_name= db_name;
+  tmp_field->field= true;
 }
 
 
@@ -9025,7 +9040,7 @@ String *Item_cache_datetime::val_str(String *str)
         return NULL;
       str_value_cached= TRUE;
     }
-    else if (!cache_value())
+    else if (!cache_value() || null_value)
       return NULL;
   }
   return &str_value;
@@ -9985,7 +10000,7 @@ bool Item_ident::aggregate_check_distinct(uchar *arg)
   uint counter;
   enum_resolution_type resolution;
   Item **const res=
-    find_item_in_list(this,
+    find_item_in_list(current_thd, this,
                       sl->item_list,
                       &counter, REPORT_EXCEPT_NOT_FOUND,
                       &resolution);

@@ -22,6 +22,8 @@
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_add64 */
 #include "sql_cmd.h"                       /* SQLCOM_END */
+#include "sql_const.h"                     /* UUID_LENGTH */
+#include "sql_bitmap.h"                    /* Key_map */
 #include "my_thread_local.h"               /* my_get_thread_local */
 #include "my_thread.h"                     /* my_thread_attr_t */
 
@@ -43,13 +45,6 @@ typedef struct st_mysql_show_var SHOW_VAR;
 typedef struct charset_info_st CHARSET_INFO;
 #endif  /* CHARSET_INFO_DEFINED */
 
-#if MAX_INDEXES <= 64
-typedef Bitmap<64>  key_map;          /* Used for finding keys */
-#elif MAX_INDEXES > 255
-#error "MAX_INDEXES values greater than 255 is not supported."
-#else
-typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
-#endif
 
 	/* Bits from testflag */
 #define TEST_PRINT_CACHED_TABLES 1
@@ -129,9 +124,19 @@ extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern ulong slave_exec_mode_options;
+
+enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 extern ulonglong slave_type_conversions_options;
+
 extern my_bool read_only, opt_readonly;
 extern my_bool lower_case_file_system;
+
+enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
+                                         SLAVE_ROWS_INDEX_SCAN = (1U << 1),
+                                         SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
 extern ulonglong slave_rows_search_algorithms_options;
 
 #ifdef HAVE_REPLICATION
@@ -150,6 +155,7 @@ extern size_t opt_secure_backup_file_priv_len;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
+extern my_bool check_proxy_users, mysql_native_password_proxy_users, sha256_password_proxy_users;
 extern uint opt_crash_binlog_innodb;
 extern char *shared_memory_base_name, *mysqld_unix_port;
 extern my_bool opt_enable_shared_memory;
@@ -176,7 +182,11 @@ extern my_bool offline_mode;
 extern my_bool opt_log_backward_compatible_user_definitions;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
+
+enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
+			    DELAY_KEY_WRITE_ALL };
 extern ulong delay_key_write_options;
+
 extern ulong opt_log_timestamps;
 extern const char *timestamp_type_names[];
 extern char *opt_general_logname, *opt_slow_logname, *opt_bin_logname,
@@ -193,8 +203,6 @@ extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char default_logfile_name[FN_REFLEN];
 extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
-/*Move UUID_LENGTH from item_strfunc.h*/
-#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
 extern char server_uuid[UUID_LENGTH+1];
 extern const char *server_uuid_ptr;
 extern const double log_10[309];
@@ -360,7 +368,7 @@ extern PSI_mutex_key
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
-  key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_status,
   key_LOCK_sql_slave_skip_counter,
   key_LOCK_slave_net_timeout,
   key_LOCK_table_share, key_LOCK_thd_data, key_LOCK_thd_sysvar,
@@ -410,7 +418,6 @@ extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
 extern PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 extern PSI_cond_key key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_manager,
-  key_COND_server_started,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
   key_master_info_sleep_cond,
@@ -596,23 +603,10 @@ void init_com_statement_info();
 extern my_thread_t signal_thread;
 #endif
 
-#ifndef EMBEDDED_LIBRARY
-typedef enum ssl_artifacts_status
-{
-  SSL_ARTIFACTS_NOT_FOUND= 0,
-  SSL_ARTIFACTS_VIA_OPTIONS,
-  SSL_ARTIFACTS_AUTO_DETECTED
-} ssl_artifacts_status;
-
-#endif /* EMBEDDED_LIBRARY */
-
 #ifdef HAVE_OPENSSL
 extern struct st_VioSSLFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
-/*
-  The following variables were under INNODB_COMPABILITY_HOOKS
- */
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
 extern char lc_messages_dir[FN_REFLEN];
@@ -621,6 +615,11 @@ extern MYSQL_PLUGIN_IMPORT char reg_ext[FN_EXTLEN];
 extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
 extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
+
+#define TC_HEURISTIC_RECOVER_COMMIT   1
+#define TC_HEURISTIC_RECOVER_ROLLBACK 2
+extern ulong tc_heuristic_recover;
+
 extern ulong specialflag;
 extern size_t mysql_data_home_len;
 extern size_t mysql_real_data_home_len;
@@ -634,8 +633,8 @@ extern char default_logfile_name[FN_REFLEN];
 
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 
-extern MYSQL_PLUGIN_IMPORT const key_map key_map_empty;
-extern MYSQL_PLUGIN_IMPORT key_map key_map_full;          /* Should be threaded as const */
+extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
+extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
 
 /*
   Server mutex locks and condition variables.
@@ -656,7 +655,7 @@ extern mysql_mutex_t LOCK_server_started;
 extern mysql_cond_t COND_server_started;
 extern mysql_mutex_t LOCK_compress_gtid_table;
 extern mysql_cond_t COND_compress_gtid_table;
-extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
+extern mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
@@ -664,104 +663,6 @@ extern int32 thread_running;
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
 
-/**
-  only options that need special treatment in get_one_option() deserve
-  to be listed below
-*/
-enum options_mysqld
-{
-  OPT_to_set_the_start_number=256,
-  OPT_BIND_ADDRESS,
-  OPT_BINLOG_CHECKSUM,
-  OPT_BINLOG_DO_DB,
-  OPT_BINLOG_FORMAT,
-  OPT_BINLOG_IGNORE_DB,
-  OPT_BIN_LOG,
-  OPT_BOOTSTRAP,
-  OPT_CONSOLE,
-  OPT_DEBUG_SYNC_TIMEOUT,
-  OPT_DELAY_KEY_WRITE_ALL,
-  OPT_ISAM_LOG,
-  OPT_IGNORE_DB_DIRECTORY,
-  OPT_KEY_BUFFER_SIZE,
-  OPT_KEY_CACHE_AGE_THRESHOLD,
-  OPT_KEY_CACHE_BLOCK_SIZE,
-  OPT_KEY_CACHE_DIVISION_LIMIT,
-  OPT_LC_MESSAGES_DIRECTORY,
-  OPT_LOWER_CASE_TABLE_NAMES,
-  OPT_MASTER_RETRY_COUNT,
-  OPT_MASTER_VERIFY_CHECKSUM,
-  OPT_POOL_OF_THREADS,
-  OPT_REPLICATE_DO_DB,
-  OPT_REPLICATE_DO_TABLE,
-  OPT_REPLICATE_IGNORE_DB,
-  OPT_REPLICATE_IGNORE_TABLE,
-  OPT_REPLICATE_REWRITE_DB,
-  OPT_REPLICATE_WILD_DO_TABLE,
-  OPT_REPLICATE_WILD_IGNORE_TABLE,
-  OPT_SERVER_ID,
-  OPT_SKIP_HOST_CACHE,
-  OPT_SKIP_LOCK,
-  OPT_SKIP_NEW,
-  OPT_SKIP_RESOLVE,
-  OPT_SKIP_STACK_TRACE,
-  OPT_SKIP_SYMLINKS,
-  OPT_SLAVE_SQL_VERIFY_CHECKSUM,
-  OPT_SSL_CA,
-  OPT_SSL_CAPATH,
-  OPT_SSL_CERT,
-  OPT_SSL_CIPHER,
-  OPT_SSL_KEY,
-  OPT_UPDATE_LOG,
-  OPT_WANT_CORE,
-  OPT_LOG_ERROR,
-  OPT_MAX_LONG_DATA_SIZE,
-  OPT_PLUGIN_LOAD,
-  OPT_PLUGIN_LOAD_ADD,
-  OPT_SSL_CRL,
-  OPT_SSL_CRLPATH,
-  OPT_PFS_INSTRUMENT,
-  OPT_DEFAULT_AUTH,
-  OPT_SECURE_AUTH,
-  OPT_THREAD_CACHE_SIZE,
-  OPT_HOST_CACHE_SIZE,
-  OPT_TABLE_DEFINITION_CACHE,
-  OPT_MDL_CACHE_SIZE,
-  OPT_MDL_HASH_INSTANCES,
-  OPT_SKIP_INNODB,
-  OPT_AVOID_TEMPORAL_UPGRADE,
-  OPT_SHOW_OLD_TEMPORALS,
-  OPT_ENFORCE_GTID_CONSISTENCY
-};
-
-
-/**
-   Query type constants (usable as bitmap flags).
-*/
-enum enum_query_type
-{
-  /// Nothing specific, ordinary SQL query.
-  QT_ORDINARY= 0,
-  /// In utf8.
-  QT_TO_SYSTEM_CHARSET= (1 << 0),
-  /// Without character set introducers.
-  QT_WITHOUT_INTRODUCERS= (1 << 1),
-  /// When printing a SELECT, add its number (select_lex->number)
-  QT_SHOW_SELECT_NUMBER= (1 << 2),
-  /// Don't print a database if it's equal to the connection's database
-  QT_NO_DEFAULT_DB= (1 << 3),
-  /// When printing a derived table, don't print its expression, only alias
-  QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4),
-  /// Print in charset of Item::print() argument (typically thd->charset()).
-  QT_TO_ARGUMENT_CHARSET= (1 << 5),
-  /// Print identifiers in compact format, omitting schema names.
-  QT_COMPACT_FORMAT= (1 << 6),
-  /**
-    Change all Item_basic_constant to ? (used by query rewrite to compute
-    digest.)
-  */
-  QT_NORMALIZED_FORMAT= (1 << 7)
-};
 
 /* query_id */
 typedef int64 query_id_t;

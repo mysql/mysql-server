@@ -14,6 +14,7 @@ SET default_storage_engine=InnoDB;
 
 # Set up some variables
 LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 LET $index_directory_clause = INDEX DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 
@@ -89,28 +90,15 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 
 --echo # Show that the new system tables have this table in them correctly
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
---replace_regex /emp#P#/emp#p#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo #
 --echo # Show that the system tables are updated on drop table
 --echo #
 DROP TABLE t1;
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
-       ORDER BY name;
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo #
 --echo # Create the same table a second time in the same place
@@ -122,15 +110,8 @@ INSERT INTO t1 VALUES (2, "Create the same table a second time in the same place
 SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
-       ORDER BY name;
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -142,15 +123,9 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 TRUNCATE TABLE t1;
 INSERT INTO t1 VALUES (3, "Truncate the table, then insert");
 SELECT * FROM t1;
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
-       ORDER BY name;
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -162,15 +137,9 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 RENAME TABLE t1 TO t2;
 INSERT INTO t2 VALUES (4, "Rename the table, then insert");
 SELECT * FROM t2;
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
-       ORDER BY name;
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -182,15 +151,8 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 CREATE TABLE t3 LIKE t2;
 INSERT INTO t3 VALUES (5, "CREATE TABLE LIKE");
 SELECT * FROM t3;
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
-       ORDER BY name;
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
---replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 
@@ -198,14 +160,8 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 --echo # Now make sure the tables can be fully dropped.
 --echo #
 DROP TABLE t2, t3;
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
-       ORDER BY name;
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -243,9 +199,21 @@ SHOW WARNINGS;
 SET SESSION innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
-SHOW WARNINGS;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+--echo # Also a warning should be issued if DATA DIR and TEMP is used without
+--echo # innodb_file_per_table
+SET GLOBAL innodb_file_per_table=OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
+DROP TABLE t1;
+SET SESSION innodb_strict_mode = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA
+eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
+SHOW WARNINGS;
+SET SESSION innodb_strict_mode = OFF;
+SET GLOBAL innodb_file_per_table=ON;
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -259,9 +227,7 @@ DELIMITER |;
 eval CREATE PROCEDURE static_proc() BEGIN CREATE TABLE t1 (a int KEY, b text) $data_directory_clause; END |
 DELIMITER ;|
 CALL static_proc;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 INSERT INTO t1 VALUES (7, "Create the remote table via static DDL statements");
 SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -281,9 +247,7 @@ DELIMITER |;
 eval CREATE PROCEDURE dynamic_proc() BEGIN PREPARE stmt1 FROM "CREATE TABLE t1 (a int KEY, b text) $data_directory_clause"; EXECUTE stmt1; END |
 DELIMITER ;|
 CALL dynamic_proc;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 INSERT INTO t1 VALUES (8, "Create the remote table via dynamic DDL statements");
 SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -321,20 +285,8 @@ INSERT INTO emp values(3,'IBM','NAIL',70);
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
-# InnoDB always converts table names to lower case on Windows
---replace_regex /emp#P#/emp#p#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%'
-       ORDER BY name;
---replace_regex /emp#P#/emp#p#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
---replace_regex /emp#P#/emp#p#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 SELECT * FROM emp;
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex /emp#P#/emp#p#/
@@ -355,19 +307,8 @@ SELECT * FROM emp;
 ALTER TABLE emp DROP PARTITION west;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
---replace_regex /emp#P#/emp#p#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%'
-       ORDER BY name;
---replace_regex /emp#P#/emp#p#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
---replace_regex /emp#P#/emp#p#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 SELECT * FROM emp;
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex /emp#P#/emp#p#/
@@ -391,21 +332,12 @@ eval ALTER TABLE emp ADD PARTITION (
     DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_west');
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
---replace_regex /emp#P#/emp#p#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%'
-       ORDER BY name;
---replace_regex /emp#P#/emp#p#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
---replace_regex /emp#P#/emp#p#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
 INSERT INTO emp VALUES(3,'IBM','NAIL',70);
 SELECT * FROM emp;
+
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex /emp#P#/emp#p#/
 --list_files $MYSQLD_DATADIR/test
@@ -426,21 +358,12 @@ SELECT * FROM emp;
 ALTER TABLE emp TRUNCATE PARTITION west;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
---replace_regex /emp#P#/emp#p#/
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%'
-       ORDER BY name;
---replace_regex /emp#P#/emp#p#/
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
---replace_regex /emp#P#/emp#p#/
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+
 SELECT * FROM emp;
 INSERT INTO emp VALUES(3,'IBM','NAIL',70);
+
 SELECT * FROM emp;
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex /emp#P#/emp#p#/

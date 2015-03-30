@@ -625,12 +625,19 @@ trx_free_prepared(
 	trx_free(trx);
 }
 
-/********************************************************************//**
-Frees a transaction object for MySQL. */
+/** Disconnect a transaction from MySQL and optionally mark it as if
+it's been recovered. For the marking the transaction must be in prepared state.
+The recovery-marked transaction is going to survive "alone" so its association
+with the mysql handle is destroyed now rather than when it will be
+finally freed.
+@param[in,out]	trx		transaction
+@param[in]	prepared	boolean value to specify whether trx is
+				for recovery or not. */
+inline
 void
-trx_free_for_mysql(
-/*===============*/
-	trx_t*	trx)	/*!< in, own: trx object */
+trx_disconnect_from_mysql(
+	trx_t*	trx,
+	bool	prepared)
 {
 	trx_sys_mutex_enter();
 
@@ -645,8 +652,43 @@ trx_free_for_mysql(
 
 	ut_ad(trx_sys_validate_trx_list());
 
-	trx_sys_mutex_exit();
+	if (prepared) {
 
+		ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
+
+		trx->is_recovered = true;
+		trx_sys->n_prepared_recovered_trx++;
+	        trx->mysql_thd = NULL;
+		/* todo/fixme: suggest to do it at innodb prepare */
+		trx->will_lock = 0;
+	}
+
+	trx_sys_mutex_exit();
+}
+
+/** Disconnect a transaction from MySQL.
+@param[in,out]	trx	transaction */
+inline
+void
+trx_disconnect_plain(trx_t*	trx)
+{
+	trx_disconnect_from_mysql(trx, false);
+}
+
+/** Disconnect a prepared transaction from MySQL.
+@param[in,out]	trx	transaction */
+void
+trx_disconnect_prepared(trx_t*	trx)
+{
+	trx_disconnect_from_mysql(trx, true);
+}
+
+/** Free a transaction object for MySQL.
+@param[in,out]	trx	transaction */
+void
+trx_free_for_mysql(trx_t*	trx)
+{
+	trx_disconnect_plain(trx);
 	trx_free_for_background(trx);
 }
 
@@ -2124,11 +2166,19 @@ trx_commit_low(
 	} else {
 		serialised = false;
 	}
-
-	if (trx->mysql_thd != NULL) {
+#ifndef DBUG_OFF
+	/* In case of this function is called from a stack executing
+	   THD::release_resources -> ...
+              innobase_connection_close() ->
+                     trx_rollback_for_mysql... -> .
+           mysql's thd does not seem to have
+           thd->debug_sync_control defined any longer. However the stack
+           is possible only with a prepared trx not updating any data.
+        */
+	if (trx->mysql_thd != NULL && trx_is_redo_rseg_updated(trx)) {
 		DEBUG_SYNC_C("before_trx_state_committed_in_memory");
 	}
-
+#endif
 	trx_commit_in_memory(trx, mtr, serialised);
 }
 

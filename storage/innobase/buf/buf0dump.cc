@@ -44,8 +44,8 @@ Created April 08, 2011 Vasil Dimov
 #include <algorithm>
 
 enum status_severity {
+	STATUS_VERBOSE,
 	STATUS_INFO,
-	STATUS_NOTICE,
 	STATUS_ERR
 };
 
@@ -122,10 +122,17 @@ buf_dump_status(
 		sizeof(export_vars.innodb_buffer_pool_dump_status),
 		fmt, ap);
 
-	if (severity == STATUS_NOTICE || severity == STATUS_ERR) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n",
-			export_vars.innodb_buffer_pool_dump_status);
+	switch (severity) {
+	case STATUS_INFO:
+		ib::info() << export_vars.innodb_buffer_pool_dump_status;
+		break;
+
+	case STATUS_ERR:
+		ib::error() << export_vars.innodb_buffer_pool_dump_status;
+		break;
+
+	case STATUS_VERBOSE:
+		break;
 	}
 
 	va_end(ap);
@@ -157,10 +164,17 @@ buf_load_status(
 		sizeof(export_vars.innodb_buffer_pool_load_status),
 		fmt, ap);
 
-	if (severity == STATUS_NOTICE || severity == STATUS_ERR) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n",
-			export_vars.innodb_buffer_pool_load_status);
+	switch (severity) {
+	case STATUS_INFO:
+		ib::info() << export_vars.innodb_buffer_pool_load_status;
+		break;
+
+	case STATUS_ERR:
+		ib::error() << export_vars.innodb_buffer_pool_load_status;
+		break;
+
+	case STATUS_VERBOSE:
+		break;
 	}
 
 	va_end(ap);
@@ -195,7 +209,7 @@ buf_dump(
 	ut_snprintf(tmp_filename, sizeof(tmp_filename),
 		    "%s.incomplete", full_filename);
 
-	buf_dump_status(STATUS_NOTICE, "Dumping buffer pool(s) to %s",
+	buf_dump_status(STATUS_INFO, "Dumping buffer pool(s) to %s",
 			full_filename);
 
 	f = fopen(tmp_filename, "w");
@@ -283,7 +297,7 @@ buf_dump(
 
 			if (j % 128 == 0) {
 				buf_dump_status(
-					STATUS_INFO,
+					STATUS_VERBOSE,
 					"Dumping buffer pool"
 					" " ULINTPF "/" ULINTPF ","
 					" page " ULINTPF "/" ULINTPF,
@@ -329,7 +343,7 @@ buf_dump(
 
 	ut_sprintf_timestamp(now);
 
-	buf_dump_status(STATUS_NOTICE,
+	buf_dump_status(STATUS_INFO,
 			"Buffer pool(s) dump completed at %s", now);
 }
 
@@ -428,7 +442,7 @@ buf_load()
 		    "%s%c%s", srv_data_home, OS_PATH_SEPARATOR,
 		    srv_buf_dump_filename);
 
-	buf_load_status(STATUS_NOTICE,
+	buf_load_status(STATUS_INFO,
 			"Loading buffer pool(s) from %s", full_filename);
 
 	f = fopen(full_filename, "r");
@@ -533,7 +547,7 @@ buf_load()
 	if (dump_n == 0) {
 		ut_free(dump);
 		ut_sprintf_timestamp(now);
-		buf_load_status(STATUS_NOTICE,
+		buf_load_status(STATUS_INFO,
 				"Buffer pool(s) load completed at %s"
 				" (%s was empty)", now, full_filename);
 		return;
@@ -601,7 +615,7 @@ buf_load()
 			/ page_size.physical();
 
 		if (i % update_status_every_n_pages == 0) {
-			buf_load_status(STATUS_INFO,
+			buf_load_status(STATUS_VERBOSE,
 					"Loaded " ULINTPF "/" ULINTPF " pages",
 					i + 1, dump_n);
 			mysql_stage_set_work_completed(pfs_stage_progress, i);
@@ -614,7 +628,7 @@ buf_load()
 			buf_load_abort_flag = FALSE;
 			ut_free(dump);
 			buf_load_status(
-				STATUS_NOTICE,
+				STATUS_INFO,
 				"Buffer pool(s) load aborted on request");
 			/* Premature end, set estimated = completed = i and
 			end the current stage event. */
@@ -638,7 +652,7 @@ buf_load()
 
 	ut_sprintf_timestamp(now);
 
-	buf_load_status(STATUS_NOTICE,
+	buf_load_status(STATUS_INFO,
 			"Buffer pool(s) load completed at %s", now);
 
 	/* Make sure that estimated = completed when we end. */
@@ -680,8 +694,8 @@ DECLARE_THREAD(buf_dump_thread)(
 
 	srv_buf_dump_thread_active = TRUE;
 
-	buf_dump_status(STATUS_INFO, "not started");
-	buf_load_status(STATUS_INFO, "not started");
+	buf_dump_status(STATUS_VERBOSE, "not started");
+	buf_load_status(STATUS_VERBOSE, "not started");
 
 	if (srv_buffer_pool_load_at_startup) {
 		buf_load();

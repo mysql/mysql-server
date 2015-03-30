@@ -21,6 +21,7 @@
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "log.h"                        // sql_print_error
+#include "mysqld.h"                     // global_system_variables
 #include "named_pipe.h"                 // create_server_named_pipe.
 #include "sql_class.h"                  // THD
 

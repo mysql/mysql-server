@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "parse_tree_helpers.h"      // PT_item_list
+#include "parse_tree_hints.h"
 #include "sp_head.h"                 // sp_head
 #include "sql_class.h"               // THD
 #include "sql_lex.h"                 // LEX
@@ -697,16 +698,19 @@ class PT_table_factor_select_sym : public PT_table_list
   typedef PT_table_list super;
 
   POS pos;
+  PT_hint_list *opt_hint_list;
   Query_options select_options;
   PT_item_list *select_item_list;
   PT_table_expression *table_expression;
 
 public:
   PT_table_factor_select_sym(const POS &pos,
+                             PT_hint_list *opt_hint_list_arg,
                              Query_options select_options_arg,
                              PT_item_list *select_item_list_arg,
                              PT_table_expression *table_expression_arg)
   : pos(pos),
+    opt_hint_list(opt_hint_list_arg),
     select_options(select_options_arg),
     select_item_list(select_item_list_arg),
     table_expression(table_expression_arg)
@@ -963,21 +967,23 @@ class PT_query_specification_select : public PT_select_lex
 {
   typedef Parse_tree_node super;
 
+  PT_hint_list *opt_hint_list;
   PT_select_part2_derived *select_part2_derived;
   PT_table_expression *table_expression;
 
 public:
   PT_query_specification_select(
+    PT_hint_list *opt_hint_list_arg,
     PT_select_part2_derived *select_part2_derived_arg,
     PT_table_expression *table_expression_arg)
-  : select_part2_derived(select_part2_derived_arg),
+  : opt_hint_list(opt_hint_list_arg),
+    select_part2_derived(select_part2_derived_arg),
     table_expression(table_expression_arg)
   {}
 
   virtual bool contextualize(Parse_context *pc)
   {
-    if (super::contextualize(pc) ||
-        select_part2_derived->contextualize(pc))
+    if (super::contextualize(pc) || select_part2_derived->contextualize(pc))
       return true;
 
     // Parentheses carry no meaning here.
@@ -987,6 +993,10 @@ public:
       return true;
 
     value= pc->select->master_unit()->first_select();
+
+    if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
+      return true;
+
     return false;
   }
 };
@@ -996,13 +1006,16 @@ class PT_select_paren_derived : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
+  PT_hint_list *opt_hint_list;
   PT_select_part2_derived *select_part2_derived;
   PT_table_expression *table_expression;
 
 public:
-  PT_select_paren_derived(PT_select_part2_derived *select_part2_derived_arg,
+  PT_select_paren_derived(PT_hint_list *opt_hint_list_arg,
+                          PT_select_part2_derived *select_part2_derived_arg,
                           PT_table_expression *table_expression_arg)
-  : select_part2_derived(select_part2_derived_arg),
+  : opt_hint_list(opt_hint_list_arg),
+    select_part2_derived(select_part2_derived_arg),
     table_expression(table_expression_arg)
   {}
 
@@ -1018,6 +1031,9 @@ public:
       return true;
 
     if (setup_select_in_parentheses(pc->select))
+      return true;
+
+    if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
       return true;
 
     return false;
@@ -1119,35 +1135,7 @@ public:
   : ident(ident_arg)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-    sp_variable *spv;
-
-    value.var= NULL;
-    value.base_name= ident;
-
-    /* Best effort lookup for system variable. */
-    if (!pctx || !(spv= pctx->find_variable(ident, false)))
-    {
-      /* Not an SP local variable */
-      if (find_sys_var_null_base(thd, &value))
-        return true;
-    }
-    else
-    {
-      /*
-        Possibly an SP local variable (or a shadowed sysvar).
-        Will depend on the context of the SET statement.
-      */
-    }
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1352,27 +1340,7 @@ public:
   : opt_charset(opt_charset_arg)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    int flags= opt_charset ? 0 : set_var_collation_client::SET_CS_DEFAULT;
-    const CHARSET_INFO *cs2;
-    cs2= opt_charset ? opt_charset
-                     : global_system_variables.character_set_client;
-    set_var_collation_client *var;
-    var= new set_var_collation_client(flags,
-                                      cs2,
-                                      thd->variables.collation_database,
-                                      cs2);
-    if (var == NULL)
-      return true;
-    lex->var_list.push_back(var);
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1386,23 +1354,7 @@ class PT_option_value_no_option_type_names :
 public:
   explicit PT_option_value_no_option_type_names(const POS &pos) : pos(pos) {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-    LEX_STRING names= { C_STRING_WITH_LEN("names") };
-
-    if (pctx && pctx->find_variable(names, false))
-      my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
-    else
-      error(pc, pos);
-
-    return true; // alwais fails with an error
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1421,34 +1373,7 @@ public:
   : opt_charset(opt_charset_arg), opt_collation(opt_collation_arg)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    const CHARSET_INFO *cs2;
-    const CHARSET_INFO *cs3;
-    int flags= set_var_collation_client::SET_CS_NAMES
-               | (opt_charset ? 0 : set_var_collation_client::SET_CS_DEFAULT)
-               | (opt_collation ? set_var_collation_client::SET_CS_COLLATE : 0);
-    cs2= opt_charset ? opt_charset 
-                     : global_system_variables.character_set_client;
-    cs3= opt_collation ? opt_collation : cs2;
-    if (!my_charset_same(cs2, cs3))
-    {
-      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
-               cs3->name, cs2->csname);
-      return true;
-    }
-    set_var_collation_client *var;
-    var= new set_var_collation_client(flags, cs3, cs3, cs3);
-    if (var == NULL)
-      return true;
-    lex->var_list.push_back(var);
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1973,7 +1898,7 @@ public:
     LEX *lex= pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
     if (!(lex->exchange= new sql_exchange(file_name, 0)) ||
-        !(lex->result= new Query_result_export(lex->exchange)))
+        !(lex->result= new Query_result_export(pc->thd, lex->exchange)))
       return true;
 
     lex->exchange->cs= charset;
@@ -2006,7 +1931,7 @@ public:
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
       if (!(lex->exchange= new sql_exchange(file_name, 1)))
         return true;
-      if (!(lex->result= new Query_result_dump(lex->exchange)))
+      if (!(lex->result= new Query_result_dump(pc->thd, lex->exchange)))
         return true;
     }
     return false;
@@ -2046,28 +1971,7 @@ public:
   virtual bool is_local() const { return true; }
   virtual uint get_offset() const { return offset; }
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    LEX *lex= pc->thd->lex;
-#ifndef DBUG_OFF
-    sp= lex->sphead;
-#endif
-    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-    sp_variable *spv;
-
-    if (!pctx || !(spv= pctx->find_variable(name, false)))
-    {
-      my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
-      return true;
-    }
-
-    offset= spv->offset;
-    
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -2095,7 +1999,7 @@ public:
     if (lex->describe)
       return false;
 
-    Query_dumpvar *dumpvar= new (pc->mem_root) Query_dumpvar;
+    Query_dumpvar *dumpvar= new (pc->mem_root) Query_dumpvar(pc->thd);
     if (dumpvar == NULL)
       return true;
 
@@ -2240,11 +2144,13 @@ class PT_select_paren : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
+  PT_hint_list *opt_hint_list;
   PT_select_part2 *select_part2;
 
 public:
-  explicit PT_select_paren(PT_select_part2 *select_part2_arg)
-  : select_part2(select_part2_arg)
+  PT_select_paren(PT_hint_list *opt_hint_list_arg,
+                  PT_select_part2 *select_part2_arg)
+  : opt_hint_list(opt_hint_list_arg), select_part2(select_part2_arg)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -2262,6 +2168,9 @@ public:
       return true;
 
     if (setup_select_in_parentheses(pc->select))
+      return true;
+
+    if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
       return true;
 
     return false;
@@ -2294,24 +2203,35 @@ class PT_select_init2 : public PT_select_init
 {
   typedef PT_select_init super;
 
+  PT_hint_list *opt_hint_list;
   PT_select_part2 *select_part2;
   PT_union_list *opt_union_clause;
 
 public:
-  PT_select_init2(PT_select_part2 *select_part2_arg,
+  PT_select_init2(PT_hint_list *opt_hint_list_arg,
+                  PT_select_part2 *select_part2_arg,
                   PT_union_list *opt_union_clause_arg)
-  : select_part2(select_part2_arg), opt_union_clause(opt_union_clause_arg)
+  : opt_hint_list(opt_hint_list_arg),
+    select_part2(select_part2_arg),
+    opt_union_clause(opt_union_clause_arg)
   {}
 
   virtual bool contextualize(Parse_context *pc)
   {
-    if (super::contextualize(pc) || select_part2->contextualize(pc))
+    if (super::contextualize(pc) ||
+        select_part2->contextualize(pc))
       return true;
 
     // Parentheses carry no meaning here.
     pc->select->set_braces(false);
 
-    return opt_union_clause != NULL && opt_union_clause->contextualize(pc);
+    if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
+      return true;
+
+    if (opt_union_clause != NULL && opt_union_clause->contextualize(pc))
+      return true;
+
+    return false;
   }
 };
 
@@ -2329,10 +2249,14 @@ public:
 
   virtual bool contextualize(Parse_context *pc)
   {
-    if (super::contextualize(pc) || select_init->contextualize(pc))
+    if (super::contextualize(pc))
       return true;
 
     pc->thd->lex->sql_command= SQLCOM_SELECT;
+
+    if (select_init->contextualize(pc))
+      return true;
+
     return false;
   }
 };
@@ -2342,6 +2266,7 @@ class PT_delete : public PT_statement
 {
   typedef PT_statement super;
 
+  PT_hint_list *opt_hints;
   const int opt_delete_options;
   Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_list;
@@ -2354,13 +2279,15 @@ class PT_delete : public PT_statement
 public:
   // single-table DELETE node constructor:
   PT_delete(MEM_ROOT *mem_root,
+            PT_hint_list *opt_hints_arg,
             int opt_delete_options_arg,
             Table_ident *table_ident_arg,
             List<String> *opt_use_partition_arg,
             Item *opt_where_clause_arg,
             PT_order *opt_order_clause_arg,
             Item *opt_delete_limit_clause_arg)
-  : opt_delete_options(opt_delete_options_arg),
+  : opt_hints(opt_hints_arg),
+    opt_delete_options(opt_delete_options_arg),
     table_ident(table_ident_arg),
     opt_use_partition(opt_use_partition_arg),
     join_table_list(NULL),
@@ -2372,11 +2299,13 @@ public:
   }
 
   // multi-table DELETE node constructor:
-  PT_delete(int opt_delete_options_arg,
+  PT_delete(PT_hint_list *opt_hints_arg,
+            int opt_delete_options_arg,
             const Mem_root_array_YY<Table_ident *> &table_list_arg,
             PT_join_table_list *join_table_list_arg,
             Item *opt_where_clause_arg)
-  : opt_delete_options(opt_delete_options_arg),
+  : opt_hints(opt_hints_arg),
+    opt_delete_options(opt_delete_options_arg),
     table_ident(NULL),
     table_list(table_list_arg),
     opt_use_partition(NULL),
@@ -2405,6 +2334,7 @@ class PT_update : public PT_statement
 {
   typedef PT_statement super;
 
+  PT_hint_list *opt_hints;
   thr_lock_type opt_low_priority;
   bool opt_ignore;
   PT_join_table_list *join_table_list;
@@ -2417,7 +2347,8 @@ class PT_update : public PT_statement
   Sql_cmd_update sql_cmd;
 
 public:
-  PT_update(thr_lock_type opt_low_priority_arg,
+  PT_update(PT_hint_list *opt_hints_arg,
+            thr_lock_type opt_low_priority_arg,
             bool opt_ignore_arg,
             PT_join_table_list *join_table_list_arg,
             PT_item_list *column_list_arg,
@@ -2425,7 +2356,8 @@ public:
             Item *opt_where_clause_arg,
             PT_order *opt_order_clause_arg,
             Item *opt_limit_clause_arg)
-  : opt_low_priority(opt_low_priority_arg),
+  : opt_hints(opt_hints_arg),
+    opt_low_priority(opt_low_priority_arg),
     opt_ignore(opt_ignore_arg),
     join_table_list(join_table_list_arg),
     column_list(column_list_arg),
@@ -2445,15 +2377,18 @@ class PT_create_select : public Parse_tree_node
 {
   typedef Parse_tree_node super;
 
+  PT_hint_list *opt_hints;
   Query_options options;
   PT_item_list *item_list;
   PT_table_expression *table_expression;
 
 public:
-  PT_create_select(const Query_options &options_arg,
+  PT_create_select(PT_hint_list *opt_hints_arg,
+                   const Query_options &options_arg,
                    PT_item_list *item_list_arg,
                    PT_table_expression *table_expression_arg)
-  : options(options_arg),
+  : opt_hints(opt_hints_arg),
+    options(options_arg),
     item_list(item_list_arg),
     table_expression(table_expression_arg)
   {}
@@ -2507,6 +2442,7 @@ class PT_insert : public PT_statement
   typedef PT_statement super;
 
   const bool is_replace;
+  PT_hint_list *opt_hints;
   const thr_lock_type lock_option;
   const bool ignore;
   Table_ident * const table_ident;
@@ -2519,6 +2455,7 @@ class PT_insert : public PT_statement
 
 public:
   PT_insert(bool is_replace_arg,
+            PT_hint_list *opt_hints_arg,
             thr_lock_type lock_option_arg,
             bool ignore_arg,
             Table_ident *table_ident_arg,
@@ -2529,6 +2466,7 @@ public:
             PT_item_list *opt_on_duplicate_column_list_arg,
             PT_item_list *opt_on_duplicate_value_list_arg)
   : is_replace(is_replace_arg),
+    opt_hints(opt_hints_arg),
     lock_option(lock_option_arg),
     ignore(ignore_arg),
     table_ident(table_ident_arg),

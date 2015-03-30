@@ -20,13 +20,16 @@
 #include "my_user.h"      // parse_user
 #include "mysql/psi/mysql_sp.h"
 #include "binlog.h"       // mysql_bin_log
+#include "derror.h"       // ER_THD
 #include "item_timefunc.h"// Item_func_now_local
 #include "key.h"          // key_copy
 #include "lock.h"         // lock_object_name
 #include "log.h"          // sql_print_warning
 #include "log_event.h"    // append_query_string
+#include "mysqld.h"       // trust_function_creators
 #include "sp_cache.h"     // sp_cache_invalidate
 #include "sp_head.h"      // Stored_program_creation_ctx
+#include "sp_pcontext.h"  // sp_pcontext
 #include "sql_base.h"     // close_thread_tables
 #include "sql_db.h"       // get_default_db_collation
 #include "sql_parse.h"    // parse_sql
@@ -425,7 +428,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
     goto err;
   }
 
-  if (!proc_table_intact.check(table.table, &proc_table_def))
+  if (!proc_table_intact.check(thd, table.table, &proc_table_def))
     DBUG_RETURN(table.table);
 
 err:
@@ -460,7 +463,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
   if (!(table= open_system_table_for_update(thd, &table_list)))
     DBUG_RETURN(NULL);
 
-  if (!proc_table_intact.check(table, &proc_table_def))
+  if (!proc_table_intact.check(thd, table, &proc_table_def))
     DBUG_RETURN(table);
 
   close_thread_tables(thd);

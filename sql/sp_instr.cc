@@ -29,6 +29,8 @@
 #include "prealloced_array.h"
 #include "binlog.h"
 #include "item_cmpfunc.h" // Item_func_eq
+#include "mysqld.h"       // next_query_id
+#include "sql_cache.h"
 
 #include <algorithm>
 #include <functional>
@@ -324,7 +326,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   */
 
 #ifndef EMBEDDED_LIBRARY
-  if ((thd->client_capabilities & CLIENT_SESSION_TRACK) &&
+  if (thd->get_protocol()->has_client_capability(CLIENT_SESSION_TRACK) &&
       thd->session_tracker.enabled_any() &&
       thd->session_tracker.changed_any())
     thd->lex->safe_to_cache_query= 0;
@@ -838,7 +840,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
       /* Finalize server status flags after executing a statement. */
       thd->update_server_status();
 
-      thd->protocol->end_statement();
+      thd->send_statement_status();
     }
 
     query_cache.end_of_result(thd);
@@ -1507,7 +1509,7 @@ bool sp_instr_cpush::execute(THD *thd, uint *nextp)
 
   // sp_instr_cpush::execute() just registers the cursor in the runtime context.
 
-  return thd->sp_runtime_ctx->push_cursor(this);
+  return thd->sp_runtime_ctx->push_cursor(thd, this);
 }
 
 

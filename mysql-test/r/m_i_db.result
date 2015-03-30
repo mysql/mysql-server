@@ -1,5 +1,4 @@
 # Basic cases related to mysql_install_db
-call mtr.add_suppression('InnoDB: Unable to lock');
 # Execute m_i_db without any options where the file MYSQL_TMP_DIR/.mysql_secret is not there. Start server and try to login with root credentials.
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
@@ -20,6 +19,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 select count(*) from mysql.user;
@@ -45,6 +45,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # with --insecure where the file MYSQL_TMP_DIR/.mysql_secret is not there. Start server and try to login with root credentials
@@ -64,6 +65,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior of the option --admin-user
@@ -83,6 +85,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Execution of mysql_install_db starts............
@@ -104,6 +107,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior of the option --login-path when passed with --login-file
@@ -123,6 +127,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior when login-path is not passed, but only --login-file
@@ -142,6 +147,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior of the option --admin-user
@@ -161,6 +167,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Now without the option --insecure
@@ -183,6 +190,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior of the option --admin-host
@@ -205,6 +213,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Execution of mysql_install_db starts............
@@ -223,6 +232,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior of the option --admin-host when passed along with --admin-path
@@ -242,6 +252,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior of the option --admin-require-ssl when no value is passed with the option
@@ -265,6 +276,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Execution of mysql_install_db starts............
@@ -284,6 +296,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior of the option --admin-require-ssl when ON is passed with the option
@@ -307,6 +320,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Execution of mysql_install_db starts............
@@ -326,6 +340,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior of the option --admin-require-ssl when OFF is passed with the option
@@ -348,6 +363,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Execution of mysql_install_db starts............
@@ -366,6 +382,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Check the behavior of the option --admin-require-ssl when invalid value is passed with the option
@@ -388,6 +405,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Execution of mysql_install_db starts............
@@ -406,6 +424,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Invoke mysql_install_db with --random-password-file=<valid path of file> where the file at specified path does not exist 
@@ -428,6 +447,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Below case is, when --random-password-file already exists
@@ -450,6 +470,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Execution of mysql_install_db starts............
@@ -468,6 +489,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 set password='';
 # Reset mtr state 

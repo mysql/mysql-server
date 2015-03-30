@@ -1224,7 +1224,7 @@ ulong STDCALL
 mysql_real_escape_string_quote(MYSQL *mysql, char *to, const char *from,
                                ulong length, char quote)
 {
-  if (mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
+  if (quote == '`' || mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
     return (uint)escape_quotes_for_mysql(mysql->charset, to, 0,
                                          from, length, quote);
   return (uint)escape_string_for_mysql(mysql->charset, to, 0, from, length);
@@ -1431,7 +1431,7 @@ void set_stmt_errmsg(MYSQL_STMT *stmt, NET *net)
   DBUG_ASSERT(stmt != 0);
 
   stmt->last_errno= net->last_errno;
-  if (net->last_error && net->last_error[0])
+  if (net->last_error[0] != '\0')
     my_stpcpy(stmt->last_error, net->last_error);
   my_stpcpy(stmt->sqlstate, net->sqlstate);
 
@@ -1491,7 +1491,8 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
       mysql->server_status|= SERVER_STATUS_IN_TRANS;
 
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
-    if (!(stmt->fields= cli_read_metadata(mysql, field_count, 7)))
+    if (!(stmt->fields= cli_read_metadata_ex(mysql, &stmt->mem_root,
+                                             field_count, 7)))
       DBUG_RETURN(1);
   }
 

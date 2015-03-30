@@ -399,21 +399,23 @@ def	performance_schema	events_transactions_current	EVENT_NAME	4	NULL	NO	varchar	
 def	performance_schema	events_transactions_current	STATE	5	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ACTIVE','COMMITTED','ROLLED BACK')			select,insert,update,references		
 def	performance_schema	events_transactions_current	TRX_ID	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_transactions_current	GTID	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_current	XID	8	NULL	YES	varchar	132	396	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(132)			select,insert,update,references		
-def	performance_schema	events_transactions_current	XA_STATE	9	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_current	SOURCE	10	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_current	TIMER_START	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_current	TIMER_END	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_current	TIMER_WAIT	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_current	ACCESS_MODE	14	NULL	YES	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('READ ONLY','READ WRITE')			select,insert,update,references		
-def	performance_schema	events_transactions_current	ISOLATION_LEVEL	15	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_current	AUTOCOMMIT	16	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references		
-def	performance_schema	events_transactions_current	NUMBER_OF_SAVEPOINTS	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_current	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	18	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_current	NUMBER_OF_RELEASE_SAVEPOINT	19	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_current	OBJECT_INSTANCE_BEGIN	20	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_current	NESTING_EVENT_ID	21	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_current	NESTING_EVENT_TYPE	22	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references		
+def	performance_schema	events_transactions_current	XID_FORMAT_ID	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	performance_schema	events_transactions_current	XID_GTRID	9	NULL	YES	varchar	130	390	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(130)			select,insert,update,references		
+def	performance_schema	events_transactions_current	XID_BQUAL	10	NULL	YES	varchar	130	390	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(130)			select,insert,update,references		
+def	performance_schema	events_transactions_current	XA_STATE	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	events_transactions_current	SOURCE	12	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	events_transactions_current	TIMER_START	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_current	TIMER_END	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_current	TIMER_WAIT	15	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_current	ACCESS_MODE	16	NULL	YES	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('READ ONLY','READ WRITE')			select,insert,update,references		
+def	performance_schema	events_transactions_current	ISOLATION_LEVEL	17	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	events_transactions_current	AUTOCOMMIT	18	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references		
+def	performance_schema	events_transactions_current	NUMBER_OF_SAVEPOINTS	19	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_current	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	20	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_current	NUMBER_OF_RELEASE_SAVEPOINT	21	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_current	OBJECT_INSTANCE_BEGIN	22	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_current	NESTING_EVENT_ID	23	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_current	NESTING_EVENT_TYPE	24	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references		
 def	performance_schema	events_transactions_history	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_transactions_history	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_transactions_history	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
@@ -421,21 +423,23 @@ def	performance_schema	events_transactions_history	EVENT_NAME	4	NULL	NO	varchar	
 def	performance_schema	events_transactions_history	STATE	5	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ACTIVE','COMMITTED','ROLLED BACK')			select,insert,update,references		
 def	performance_schema	events_transactions_history	TRX_ID	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_transactions_history	GTID	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_history	XID	8	NULL	YES	varchar	132	396	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(132)			select,insert,update,references		
-def	performance_schema	events_transactions_history	XA_STATE	9	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_history	SOURCE	10	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_history	TIMER_START	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history	TIMER_END	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history	TIMER_WAIT	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history	ACCESS_MODE	14	NULL	YES	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('READ ONLY','READ WRITE')			select,insert,update,references		
-def	performance_schema	events_transactions_history	ISOLATION_LEVEL	15	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_history	AUTOCOMMIT	16	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references		
-def	performance_schema	events_transactions_history	NUMBER_OF_SAVEPOINTS	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	18	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history	NUMBER_OF_RELEASE_SAVEPOINT	19	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history	OBJECT_INSTANCE_BEGIN	20	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history	NESTING_EVENT_ID	21	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history	NESTING_EVENT_TYPE	22	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references		
+def	performance_schema	events_transactions_history	XID_FORMAT_ID	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	performance_schema	events_transactions_history	XID_GTRID	9	NULL	YES	varchar	130	390	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(130)			select,insert,update,references		
+def	performance_schema	events_transactions_history	XID_BQUAL	10	NULL	YES	varchar	130	390	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(130)			select,insert,update,references		
+def	performance_schema	events_transactions_history	XA_STATE	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	events_transactions_history	SOURCE	12	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	events_transactions_history	TIMER_START	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history	TIMER_END	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history	TIMER_WAIT	15	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history	ACCESS_MODE	16	NULL	YES	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('READ ONLY','READ WRITE')			select,insert,update,references		
+def	performance_schema	events_transactions_history	ISOLATION_LEVEL	17	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	events_transactions_history	AUTOCOMMIT	18	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references		
+def	performance_schema	events_transactions_history	NUMBER_OF_SAVEPOINTS	19	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	20	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history	NUMBER_OF_RELEASE_SAVEPOINT	21	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history	OBJECT_INSTANCE_BEGIN	22	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history	NESTING_EVENT_ID	23	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history	NESTING_EVENT_TYPE	24	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references		
 def	performance_schema	events_transactions_history_long	THREAD_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_transactions_history_long	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_transactions_history_long	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
@@ -443,21 +447,23 @@ def	performance_schema	events_transactions_history_long	EVENT_NAME	4	NULL	NO	var
 def	performance_schema	events_transactions_history_long	STATE	5	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ACTIVE','COMMITTED','ROLLED BACK')			select,insert,update,references		
 def	performance_schema	events_transactions_history_long	TRX_ID	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	performance_schema	events_transactions_history_long	GTID	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	XID	8	NULL	YES	varchar	132	396	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(132)			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	XA_STATE	9	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	SOURCE	10	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	TIMER_START	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	TIMER_END	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	TIMER_WAIT	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	ACCESS_MODE	14	NULL	YES	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('READ ONLY','READ WRITE')			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	ISOLATION_LEVEL	15	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	AUTOCOMMIT	16	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	NUMBER_OF_SAVEPOINTS	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	18	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	NUMBER_OF_RELEASE_SAVEPOINT	19	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	OBJECT_INSTANCE_BEGIN	20	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	NESTING_EVENT_ID	21	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	performance_schema	events_transactions_history_long	NESTING_EVENT_TYPE	22	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	XID_FORMAT_ID	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	XID_GTRID	9	NULL	YES	varchar	130	390	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(130)			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	XID_BQUAL	10	NULL	YES	varchar	130	390	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(130)			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	XA_STATE	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	SOURCE	12	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	TIMER_START	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	TIMER_END	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	TIMER_WAIT	15	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	ACCESS_MODE	16	NULL	YES	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('READ ONLY','READ WRITE')			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	ISOLATION_LEVEL	17	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	AUTOCOMMIT	18	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	NUMBER_OF_SAVEPOINTS	19	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	NUMBER_OF_ROLLBACK_TO_SAVEPOINT	20	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	NUMBER_OF_RELEASE_SAVEPOINT	21	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	OBJECT_INSTANCE_BEGIN	22	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	NESTING_EVENT_ID	23	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
+def	performance_schema	events_transactions_history_long	NESTING_EVENT_TYPE	24	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references		
 def	performance_schema	events_transactions_summary_by_account_by_event_name	USER	1	NULL	YES	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references		
 def	performance_schema	events_transactions_summary_by_account_by_event_name	HOST	2	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references		
 def	performance_schema	events_transactions_summary_by_account_by_event_name	EVENT_NAME	3	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references		

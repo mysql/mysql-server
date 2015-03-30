@@ -665,6 +665,23 @@ private:
 	void
 	clear_blob_heaps();
 
+	/** Reset state of file to after 'open'. This function is called
+	after every statement for all tables used by that statement. */
+	int
+	reset();
+
+	/** Allocate the array to hold blob heaps for all partitions */
+	mem_heap_t**
+	alloc_blob_heap_array();
+
+	/** Free the array that holds blob heaps for all partitions */
+	void
+	free_blob_heap_array();
+
+	/** Clear the blob heap for the given partition */
+	void
+	clear_blob_heap_part(uint part_id);
+
 	/** Changes the active index of a handle.
 	@param[in]	part_id	Use this partition.
 	@param[in]	keynr	Use this index; MAX_KEY means always
@@ -1159,6 +1176,14 @@ private:
 	}
 	/** @} */
 
+	/** Fill in data_dir_path and tablespace name from internal data
+	dictionary.
+	@param	part_elem	Partition element to fill.
+	@param	ib_table	InnoDB table to copy from. */
+	void
+	update_part_elem(
+		partition_element*	part_elem,
+		dict_table_t*		ib_table);
 protected:
 	/* Protected handler:: functions specific for native InnoDB partitioning.
 	@see handler.h @{ */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,20 @@
 #ifndef TRIGGER_CHAIN_H_INCLUDED
 #define TRIGGER_CHAIN_H_INCLUDED
 
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"         // LEX_STRING
+#include "sql_alloc.h"                      // Sql_alloc
+#include "sql_list.h"                       // List
+#include "trigger_def.h"                    // enum_trigger_order_type
+
+class Query_tables_list;
 class THD;
 class Trigger;
+struct TABLE;
+struct TABLE_LIST;
+typedef struct st_mysql_lex_string LEX_STRING;
+typedef struct st_bitmap MY_BITMAP;
+
 
 class Trigger_chain : public Sql_alloc
 {

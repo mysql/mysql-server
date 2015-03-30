@@ -22,6 +22,8 @@
 
 typedef ulonglong my_xid;
 
+#define TC_LOG_PAGE_SIZE   8192
+#define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
 /**
   Transaction Coordinator Log.
@@ -310,18 +312,7 @@ enum enum_log_table_type
 
 class File_query_log
 {
-  File_query_log(enum_log_table_type log_type)
-  : m_log_type(log_type), name(NULL), write_error(false), log_open(false)
-  {
-    memset(&log_file, 0, sizeof(log_file));
-    mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
-#ifdef HAVE_PSI_INTERFACE
-    if (log_type == QUERY_LOG_GENERAL)
-      m_log_file_key= key_file_general_log;
-    else if (log_type == QUERY_LOG_SLOW)
-      m_log_file_key= key_file_slow_log;
-#endif
-  }
+  File_query_log(enum_log_table_type log_type);
 
   ~File_query_log()
   {
@@ -648,15 +639,7 @@ public:
 
      @return true if table logging is on, false otherwise.
   */
-  bool is_log_table_enabled(enum_log_table_type log_type) const
-  {
-    if (log_type == QUERY_LOG_SLOW)
-      return (opt_slow_log && (log_output_options & LOG_TABLE));
-    else if (log_type == QUERY_LOG_GENERAL)
-      return (opt_general_log && (log_output_options & LOG_TABLE));
-    DBUG_ASSERT(false);
-    return false;                             /* make compiler happy */
-  }
+  bool is_log_table_enabled(enum_log_table_type log_type) const;
 
   /**
      Check if file logging is turned on for the given log type.
@@ -676,11 +659,7 @@ public:
      initialization, performed by MY_INIT(). This why this is done in
      this function.
   */
-  void init()
-  {
-    file_log_handler= new Log_to_file_event_handler; // Causes mutex init
-    mysql_rwlock_init(key_rwlock_LOCK_logger, &LOCK_logger);
-  }
+  void init();
 
   /** Free memory. Nothing could be logged after this function is called. */
   void cleanup();

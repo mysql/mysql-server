@@ -23,7 +23,6 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_derived.h"
 #include "sql_select.h"
-#include "sql_resolver.h"
 #include "sql_optimizer.h"                    // JOIN
 #include "sql_view.h"                         // check_duplicate_names
 #include "auth_common.h"                      // SELECT_ACL
@@ -60,7 +59,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     DBUG_ASSERT(sl->context.outer_context == NULL);
   }
 #endif
-  if (!(derived_result= new (thd->mem_root) Query_result_union))
+  if (!(derived_result= new (thd->mem_root) Query_result_union(thd)))
     DBUG_RETURN(true);              /* purecov: inspected */
 
   /*

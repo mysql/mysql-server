@@ -124,6 +124,7 @@ bool Query_result_union::create_result_table(THD *thd_arg,
                     *column_types, false, true);
   tmp_table_param.skip_create_table= !create_table;
   tmp_table_param.bit_fields_as_long= bit_fields_as_long;
+  tmp_table_param.can_use_pk_for_unique= !is_union_mixed_with_union_all;
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  NULL, is_union_distinct, true,
@@ -194,8 +195,9 @@ private:
   ha_rows limit;
 
 public:
-  Query_result_union_direct(Query_result *result, SELECT_LEX *last_select_lex)
-    :result(result), last_select_lex(last_select_lex),
+  Query_result_union_direct(THD *thd, Query_result *result,
+                            SELECT_LEX *last_select_lex)
+    :Query_result_union(thd), result(result), last_select_lex(last_select_lex),
     done_send_result_set_metadata(false), done_initialize_tables(false),
     limit_found_rows(0)
   {}
@@ -465,7 +467,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
       while (last->next_select())
         last= last->next_select();
       if (!(tmp_result= union_result=
-              new Query_result_union_direct(sel_result, last)))
+            new Query_result_union_direct(thd, sel_result, last)))
         goto err; /* purecov: inspected */
       mysql_mutex_lock(&thd->LOCK_query_plan);
       fake_select_lex= NULL;
@@ -474,7 +476,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
     }
     else
     {
-      if (!(tmp_result= union_result= new Query_result_union()))
+      if (!(tmp_result= union_result= new Query_result_union(thd)))
         goto err; /* purecov: inspected */
       instantiate_tmp_table= true;
     }
@@ -580,6 +582,15 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
     if (global_parameters()->ftfunc_list->elements)
       create_options|= TMP_TABLE_FORCE_MYISAM;
 
+    if (union_distinct)
+    {
+      SELECT_LEX *last= first_select();
+      while (last->next_select())
+        last= last->next_select();
+      // Mixed UNION and UNION ALL
+      if (union_distinct != last)
+        union_result->is_union_mixed_with_union_all= true;
+    }
     if (union_result->create_result_table(thd, &types, MY_TEST(union_distinct),
                                           create_options, "", false,
                                           instantiate_tmp_table))

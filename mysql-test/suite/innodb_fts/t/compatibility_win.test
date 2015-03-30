@@ -130,7 +130,7 @@ SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 
 --source include/shutdown_mysqld.inc
---error 3
+--error 2
 --exec $MYSQLD_CMD --debug="d,parent_table_flag_fail"
 
 --source include/start_mysqld.inc

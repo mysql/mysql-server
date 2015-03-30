@@ -134,6 +134,8 @@ a
 2
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (i tinyint unsigned not null auto_increment primary key);
 insert into t1 set i = 254;
 insert into t1 set i = null;
@@ -188,6 +190,8 @@ drop table t1;
 SET sql_mode = default;
 create table t1(a int auto_increment,b int null,primary key(a));
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1(a,b)values(NULL,1);
 insert into t1(a,b)values(200,2);
 insert into t1(a,b)values(0,3);

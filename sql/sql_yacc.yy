@@ -43,9 +43,11 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "rpl_slave.h"
 #include "rpl_msr.h"       /* multisource replication */
 #include "rpl_filter.h"
+#include "mysqld.h"        // slave_net_timeout national_charset_info ...
 #include "log_event.h"
 #include "lex_symbol.h"
 #include "item_create.h"
+#include "key_spec.h"
 #include "sp_head.h"
 #include "sp_instr.h"
 #include "sp_pcontext.h"
@@ -74,6 +76,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "item_cmpfunc.h"
 #include "item_geofunc.h"
 #include "sql_plugin.h"                      // plugin_is_ready
+#include "parse_tree_hints.h"
+#include "derror.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -151,6 +155,20 @@ int yylex(void *yylval, void *yythd);
     if (YYTHD->is_error() || (x)->itemize(&pc, (y)))   \
       MYSQL_YYABORT;                                   \
   } while(0)
+
+/**
+  PT_statement::make_cmd() wrapper to raise postponed error message on OOM
+
+  @note x may be NULL because of OOM error.
+*/
+#define MAKE_CMD(x)                                     \
+  do                                                    \
+  {                                                     \
+    if (YYTHD->is_error())                              \
+      MYSQL_YYABORT;                                    \
+    Lex->m_sql_cmd= (x)->make_cmd(YYTHD);               \
+  } while(0)
+
 
 #ifndef DBUG_OFF
 #define YYDEBUG 1
@@ -367,9 +385,10 @@ static bool add_create_index (LEX *lex, keytype type,
                               const LEX_STRING &name,
                               KEY_CREATE_INFO *info= NULL, bool generated= 0)
 {
-  Key *key;
-  key= new Key(type, name, info ? info : &lex->key_create_info, generated,
-               lex->col_list);
+  Key_spec *key;
+  key= new Key_spec(type, name, info ? info : &lex->key_create_info,
+                    generated,
+                    lex->col_list);
   if (key == NULL)
     return TRUE;
 
@@ -431,6 +450,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 #include "parse_tree_items.h"
 
 %}
+
+%yacc
 
 %parse-param { class THD *YYTHD }
 %lex-param { class THD *YYTHD }
@@ -1377,7 +1398,7 @@ END_OF_INPUT
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
         ',' '!' '{' '}' '&' '|' AND_SYM OR_SYM OR_OR_SYM BETWEEN_SYM CASE_SYM
-        THEN_SYM WHEN_SYM DIV_SYM MOD_SYM OR2_SYM AND_AND_SYM DELETE_SYM
+        THEN_SYM WHEN_SYM DIV_SYM MOD_SYM OR2_SYM AND_AND_SYM
 
 %type<NONE> SHOW DESC DESCRIBE describe_command
 
@@ -1491,8 +1512,6 @@ END_OF_INPUT
 
 %type <select_init> select_init
 
-%type <select_init2> select_init2
-
 %type <select> select
 
 %type <param_marker> param_marker
@@ -1531,6 +1550,8 @@ END_OF_INPUT
 %type <insert_query_expression> insert_query_expression
 
 %type <column_row_value_list_pair> insert_from_constructor
+
+%type <optimizer_hints> SELECT_SYM INSERT REPLACE UPDATE_SYM DELETE_SYM
 
 %%
 
@@ -1572,7 +1593,7 @@ query:
           {
             Lex_input_stream *lip = YYLIP;
 
-            if ((YYTHD->client_capabilities & CLIENT_MULTI_QUERIES) &&
+            if (YYTHD->get_protocol()->has_client_capability(CLIENT_MULTI_QUERIES) &&
                 lip->multi_statements &&
                 ! lip->eof())
             {
@@ -1622,7 +1643,7 @@ statement:
         | commit
         | create
         | deallocate
-        | delete_stmt           {  Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | delete_stmt           {  MAKE_CMD($1); }
         | describe
         | do
         | drop
@@ -1633,7 +1654,7 @@ statement:
         | grant
         | handler
         | help
-        | insert_stmt           { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | insert_stmt           { MAKE_CMD($1); }
         | install
         | kill
         | load
@@ -1648,7 +1669,7 @@ statement:
         | release
         | rename
         | repair
-        | replace_stmt          { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | replace_stmt          { MAKE_CMD($1); }
         | reset
         | resignal_stmt
         | revoke
@@ -1663,7 +1684,7 @@ statement:
         | truncate
         | uninstall
         | unlock
-        | update_stmt           { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | update_stmt           { MAKE_CMD($1); }
         | use
         | xa
         ;
@@ -5754,7 +5775,7 @@ opt_part_option_list:
        ;
 
 opt_part_option:
-          TABLESPACE_SYM opt_equal ident_or_text
+          TABLESPACE_SYM opt_equal ident
           { Lex->part_info->curr_part_elem->tablespace_name= $3.str; }
         | opt_storage ENGINE_SYM opt_equal storage_engines
           {
@@ -5783,7 +5804,7 @@ opt_part_option:
 create_select:
           SELECT_SYM select_options select_item_list table_expression
           {
-            $$= NEW_PTN PT_create_select($2, $3, $4);
+            $$= NEW_PTN PT_create_select($1, $2, $3, $4);
           }
         ;
 
@@ -6202,13 +6223,14 @@ key_def:
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
             LEX *lex=Lex;
-            Key *key= new Foreign_key($4.str ? $4 : $1, lex->col_list,
-                                      $8->db,
-                                      $8->table,
-                                      lex->ref_list,
-                                      lex->fk_delete_opt,
-                                      lex->fk_update_opt,
-                                      lex->fk_match_option);
+            Key_spec *key=
+              new Foreign_key_spec($4.str ? $4 : $1, lex->col_list,
+                                   $8->db,
+                                   $8->table,
+                                   lex->ref_list,
+                                   lex->fk_delete_opt,
+                                   lex->fk_update_opt,
+                                   lex->fk_match_option);
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
@@ -7713,17 +7735,17 @@ alter_commands:
           /* empty */
         | DISCARD TABLESPACE_SYM
           {
+            Lex->alter_info.flags|= Alter_info::ALTER_DISCARD_TABLESPACE;
             Lex->m_sql_cmd= new (YYTHD->mem_root)
-              Sql_cmd_discard_import_tablespace(
-                Sql_cmd_discard_import_tablespace::DISCARD_TABLESPACE);
+              Sql_cmd_discard_import_tablespace();
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         | IMPORT TABLESPACE_SYM
           {
+            Lex->alter_info.flags|= Alter_info::ALTER_IMPORT_TABLESPACE;
             Lex->m_sql_cmd= new (YYTHD->mem_root)
-              Sql_cmd_discard_import_tablespace(
-                Sql_cmd_discard_import_tablespace::IMPORT_TABLESPACE);
+              Sql_cmd_discard_import_tablespace();
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -7853,18 +7875,18 @@ alter_commands:
         | DISCARD PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE_SYM
           {
+            Lex->alter_info.flags|= Alter_info::ALTER_DISCARD_TABLESPACE;
             Lex->m_sql_cmd= new (YYTHD->mem_root)
-              Sql_cmd_discard_import_tablespace(
-                Sql_cmd_discard_import_tablespace::DISCARD_TABLESPACE);
+              Sql_cmd_discard_import_tablespace();
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         | IMPORT PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE_SYM
           {
+            Lex->alter_info.flags|= Alter_info::ALTER_IMPORT_TABLESPACE;
             Lex->m_sql_cmd= new (YYTHD->mem_root)
-              Sql_cmd_discard_import_tablespace(
-                Sql_cmd_discard_import_tablespace::IMPORT_TABLESPACE);
+              Sql_cmd_discard_import_tablespace();
             if (Lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -8862,11 +8884,11 @@ select:
           }
         ;
 
-/* Need select_init2 for subselects. */
+/* Need first branch for subselects. */
 select_init:
-          SELECT_SYM select_init2
+          SELECT_SYM select_part2 opt_union_clause
           {
-            $$= $2;
+            $$= NEW_PTN PT_select_init2($1, $2, $3);
           }
         | '(' select_paren ')' union_opt
           {
@@ -8877,7 +8899,7 @@ select_init:
 select_paren:
           SELECT_SYM select_part2
           {
-            $$= NEW_PTN PT_select_paren($2);
+            $$= NEW_PTN PT_select_paren($1, $2);
           }
         | '(' select_paren ')' { $$= $2; }
         ;
@@ -8886,16 +8908,9 @@ select_paren:
 select_paren_derived:
           SELECT_SYM select_part2_derived table_expression
           {
-            $$= NEW_PTN PT_select_paren_derived($2, $3);
+            $$= NEW_PTN PT_select_paren_derived($1, $2, $3);
           }
         | '(' select_paren_derived ')' { $$= $2; }
-        ;
-
-select_init2:
-          select_part2 opt_union_clause
-          {
-            $$= NEW_PTN PT_select_init2($1, $2);
-          }
         ;
 
 /*
@@ -9118,7 +9133,9 @@ optional_braces:
 expr:
           expr or expr %prec OR_SYM
           {
-            $$= NEW_PTN PTI_expr_or(@$, $1, $3);
+            $$= flatten_associative_operator<Item_cond_or,
+                                             Item_func::COND_OR_FUNC>(
+                                                 YYTHD->mem_root, @$, $1, $3);
           }
         | expr XOR expr %prec XOR
           {
@@ -9127,7 +9144,9 @@ expr:
           }
         | expr and expr %prec AND_SYM
           {
-            $$= NEW_PTN PTI_expr_and(@$, $1, $3);
+            $$= flatten_associative_operator<Item_cond_and,
+                                             Item_func::COND_AND_FUNC>(
+                                                 YYTHD->mem_root, @$, $1, $3);
           }
         | NOT_SYM expr %prec NOT_SYM
           {
@@ -9169,16 +9188,21 @@ bool_pri:
           {
             $$= NEW_PTN Item_func_isnotnull(@$, $1);
           }
-        | bool_pri EQUAL_SYM predicate %prec EQUAL_SYM
-          {
-            $$= NEW_PTN Item_func_equal(@$, $1, $3);
-          }
         | bool_pri comp_op predicate %prec EQ
           {
             $$= NEW_PTN PTI_comp_op(@$, $1, $2, $3);
           }
         | bool_pri comp_op all_or_any '(' subselect ')' %prec EQ
           {
+            if ($2 == &comp_equal_creator)
+              /*
+                We throw this manual parse error rather than split the rule
+                comp_op into a null-safe and a non null-safe rule, since doing
+                so would add a shift/reduce conflict. It's actually this rule
+                and the ones referencing it that cause all the conflicts, but
+                we still don't want the count to go up.
+              */
+              YYTHD->parse_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
             $$= NEW_PTN PTI_comp_op_all(@$, $1, $2, $3, $5);
           }
         | predicate
@@ -9337,6 +9361,7 @@ not2:
 
 comp_op:
           EQ     { $$ = &comp_eq_creator; }
+        | EQUAL_SYM { $$ = &comp_equal_creator; }
         | GE     { $$ = &comp_ge_creator; }
         | GT_SYM { $$ = &comp_gt_creator; }
         | LE     { $$ = &comp_le_creator; }
@@ -9776,13 +9801,7 @@ function_call_conflict:
         ;
 
 geometry_function:
-          CONTAINS_SYM '(' expr ',' expr ')'
-          {
-            push_deprecated_warn(YYTHD, "CONTAINS", "MBRCONTAINS");
-            $$= NEW_PTN Item_func_spatial_mbr_rel(@$, $3, $5,
-                        Item_func::SP_CONTAINS_FUNC);
-          }
-        | GEOMETRYCOLLECTION '(' expr_list ')'
+          GEOMETRYCOLLECTION '(' expr_list ')'
           {
             $$= NEW_PTN Item_func_spatial_collection(@$, $3,
                         Geometry::wkb_geometrycollection,
@@ -10350,7 +10369,7 @@ table_factor:
           }
         | SELECT_SYM select_options select_item_list table_expression
           {
-            $$= NEW_PTN PT_table_factor_select_sym(@$, $2, $3, $4);
+            $$= NEW_PTN PT_table_factor_select_sym(@$, $1, $2, $3, $4);
           }
           /*
             Represents a flattening of the following rules from the SQL:2003
@@ -11167,7 +11186,7 @@ insert_stmt:
           insert_from_constructor      /* #7 */
           opt_insert_update_list       /* #8 */
           {
-            $$= NEW_PTN PT_insert(false, $2, $3, $5, $6,
+            $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $7.column_list, $7.row_value_list,
                                   NULL,
                                   $8.column_list, $8.value_list);
@@ -11185,7 +11204,7 @@ insert_stmt:
             PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list;
             if (one_row == NULL || one_row->push_back(&$8.value_list->value))
               MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_insert(false, $2, $3, $5, $6,
+            $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $8.column_list, one_row,
                                   NULL,
                                   $9.column_list, $9.value_list);
@@ -11199,7 +11218,7 @@ insert_stmt:
           insert_from_subquery         /* #7 */
           opt_insert_update_list       /* #8 */
           {
-            $$= NEW_PTN PT_insert(false, $2, $3, $5, $6,
+            $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $7.column_list, NULL,
                                   $7.insert_query_expression,
                                   $8.column_list, $8.value_list);
@@ -11214,7 +11233,7 @@ replace_stmt:
           opt_use_partition             /* #5 */
           insert_from_constructor       /* #6 */
           {
-            $$= NEW_PTN PT_insert(true, $2, false, $4, $5,
+            $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $6.column_list, $6.row_value_list,
                                   NULL,
                                   NULL, NULL);
@@ -11230,7 +11249,7 @@ replace_stmt:
             PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list;
             if (one_row == NULL || one_row->push_back(&$7.value_list->value))
               MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_insert(true, $2, false, $4, $5,
+            $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $7.column_list, one_row,
                                   NULL,
                                   NULL, NULL);
@@ -11242,7 +11261,7 @@ replace_stmt:
           opt_use_partition             /* #5 */
           insert_from_subquery          /* #6 */
           {
-            $$= NEW_PTN PT_insert(true, $2, false, $4, $5,
+            $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $6.column_list, NULL,
                                   $6.insert_query_expression,
                                   NULL, NULL);
@@ -11443,7 +11462,7 @@ update_stmt:
           opt_order_clause      /* #8 */
           opt_simple_limit      /* #9 */
           {
-            $$= NEW_PTN PT_update($2, $3, $4, $6.column_list, $6.value_list,
+            $$= NEW_PTN PT_update($1, $2, $3, $4, $6.column_list, $6.value_list,
                                   $7, $8, $9);
           }
         ;
@@ -11492,7 +11511,7 @@ delete_stmt:
           opt_order_clause
           opt_simple_limit
           {
-            $$= NEW_PTN PT_delete(YYTHD->mem_root, $2, $4, $5, $6, $7, $8);
+            $$= NEW_PTN PT_delete(YYTHD->mem_root, $1, $2, $4, $5, $6, $7, $8);
           }
         | DELETE_SYM
           opt_delete_options
@@ -11501,7 +11520,7 @@ delete_stmt:
           join_table_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($2, $3, $5, $6);
+            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6);
           }
         | DELETE_SYM
           opt_delete_options
@@ -11511,7 +11530,7 @@ delete_stmt:
           join_table_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($2, $4, $6, $7);
+            $$= NEW_PTN PT_delete($1, $2, $4, $6, $7);
           }
         ;
 
@@ -12085,10 +12104,10 @@ describe:
 
 explainable_command:
           select  { CONTEXTUALIZE($1); }
-        | insert_stmt      { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
-        | replace_stmt     { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
-        | update_stmt      { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
-        | delete_stmt      { Lex->m_sql_cmd= $1->make_cmd(YYTHD); }
+        | insert_stmt                           { MAKE_CMD($1); }
+        | replace_stmt                          { MAKE_CMD($1); }
+        | update_stmt                           { MAKE_CMD($1); }
+        | delete_stmt                           { MAKE_CMD($1); }
         | FOR_SYM CONNECTION_SYM real_ulong_num
           {
             Lex->sql_command= SQLCOM_EXPLAIN_OTHER;
@@ -12823,7 +12842,7 @@ table_ident:
           }
         | ident '.' ident
           {
-            if (YYTHD->client_capabilities & CLIENT_NO_SCHEMA)
+            if (YYTHD->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
               $$= NEW_PTN Table_ident(to_lex_cstring($3));
             else {
               $$= NEW_PTN Table_ident(to_lex_cstring($1), to_lex_cstring($3));
@@ -12849,7 +12868,8 @@ table_ident_opt_wild:
           }
         | ident '.' ident opt_wild
           {
-            $$= NEW_PTN Table_ident(YYTHD, to_lex_cstring($1),
+            $$= NEW_PTN Table_ident(YYTHD->get_protocol(),
+                                    to_lex_cstring($1),
                                     to_lex_cstring($3), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
@@ -12860,7 +12880,8 @@ table_ident_nodb:
           ident
           {
             LEX_CSTRING db= { any_db, strlen(any_db) };
-            $$= new Table_ident(YYTHD, db, to_lex_cstring($1), 0);
+            $$= new Table_ident(YYTHD->get_protocol(),
+                                db, to_lex_cstring($1), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -14214,7 +14235,10 @@ grant_user:
             $1->auth.length= $5.length;
             $1->uses_identified_by_password_clause= true;
             if (Lex->sql_command == SQLCOM_ALTER_USER)
+            {
+              my_syntax_error(ER_THD(YYTHD, ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
+            }
             else
               push_deprecated_warn(YYTHD, "IDENTIFIED BY PASSWORD",
                                    "IDENTIFIED WITH <plugin> AS <hash>");
@@ -14495,7 +14519,7 @@ union_option:
 query_specification:
           SELECT_SYM select_part2_derived table_expression
           {
-            $$= NEW_PTN PT_query_specification_select($2, $3);
+            $$= NEW_PTN PT_query_specification_select($1, $2, $3);
           }
         | '(' select_paren_derived ')'
           opt_union_order_or_limit
@@ -14694,7 +14718,6 @@ view_select:
             lex->parsing_options.allows_variable= FALSE;
             lex->parsing_options.allows_select_into= FALSE;
             lex->parsing_options.allows_select_procedure= FALSE;
-            lex->parsing_options.allows_derived= FALSE;
           }
           view_select_aux view_check_option
           {
@@ -14710,7 +14733,6 @@ view_select:
             lex->parsing_options.allows_variable= TRUE;
             lex->parsing_options.allows_select_into= TRUE;
             lex->parsing_options.allows_select_procedure= TRUE;
-            lex->parsing_options.allows_derived= TRUE;
           }
         ;
 
@@ -14727,7 +14749,7 @@ view_select_aux:
               parsing of Select query (SELECT1) is completed and UNION_CLAUSE
               is not yet parsed. So check for
               Lex->current_select()->master_unit()->first_select()->braces
-              (as its done in "select_init2" for "select_part2" rule) is not
+              (as its done in "PT_select_init2::contextualize()) is not
               done here.
             */
           }

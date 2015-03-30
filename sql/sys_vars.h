@@ -39,6 +39,7 @@
 #include "rpl_rli.h"              // sql_slave_skip_counter
 #include "rpl_msr.h"              // msr_map
 #include "rpl_group_replication.h"// is_group_replication_running
+#include "mysqld.h"               // max_system_variables test_flags ...
 
 
 /*
@@ -2296,13 +2297,13 @@ public:
 
 
 /**
-  Class for @@session.gtid_executed and @@global.gtid_executed.
+  Class for @@global.gtid_executed.
 */
 class Sys_var_gtid_executed : Sys_var_charptr_func
 {
 public:
   Sys_var_gtid_executed(const char *name_arg, const char *comment_arg)
-    : Sys_var_charptr_func(name_arg, comment_arg, SESSION) {}
+    : Sys_var_charptr_func(name_arg, comment_arg, GLOBAL) {}
 
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
@@ -2316,51 +2317,6 @@ public:
       gs->to_string(buf);
     global_sid_lock->unlock();
     DBUG_RETURN((uchar *)buf);
-  }
-
-public:
-  uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
-  {
-    DBUG_ENTER("Sys_var_gtid_executed::session_value_ptr");
-    
-    if (opt_bin_log &&
-       (target_thd == running_thd)) /* Supported for current thread only. */
-    {
-      target_thd->binlog_setup_trx_data();
-      /*
-        It is enough to check if the transaction cache is nonempty, we
-        do not need to check the statement cache.  The statement cache
-        can only be nonempty for single-statement transactions.  Since
-        single-statement transactions are flushed to the binary log
-        before the next statement gets to execute, there is no chance
-        that the value of @@session.gtid_executed is read when the
-        statement cache is nonempty.
-      */
-      if (!target_thd->is_binlog_cache_empty(true))
-      {
-        /*
-          The case sidno == -1 cannot happen since it is not implemented.
-          The cases sidno == 0 and sidno == -2 mean that we don't own any
-          GTID, so we should return empty string.
-        */
-        if (target_thd->owned_gtid.sidno > 0)
-        {
-          uchar *buf= (uchar *)running_thd->alloc(Gtid::MAX_TEXT_LENGTH + 1);
-          if (buf == NULL)
-            my_error(ER_OUT_OF_RESOURCES, MYF(0));
-          else
-            target_thd->owned_gtid.to_string(target_thd->owned_sid, (char *)buf);
-          DBUG_RETURN(buf);
-        }
-      }
-    }
-
-    uchar *buf= (uchar *)running_thd->alloc(1);
-    if (buf == NULL)
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    else
-      buf[0]= 0;
-    DBUG_RETURN(buf);
   }
 };
 

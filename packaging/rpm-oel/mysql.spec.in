@@ -383,7 +383,7 @@ Obsoletes:      mariadb-embedded
 Obsoletes:      MySQL-embedded < %{version}-%{release}
 Obsoletes:      mysql-embedded < %{version}-%{release}
 Provides:       mysql-embedded = %{version}-%{release}
-Provides:       mysql-emdedded%{?_isa} = %{version}-%{release}
+Provides:       mysql-embedded%{?_isa} = %{version}-%{release}
 
 %description    embedded
 This package contains the MySQL server as an embedded library.
@@ -824,6 +824,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
 %endif
 %attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
+%attr(644, root, root) %{_datadir}/mysql/mysql_sys_schema.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_data.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_test_data_timezone.sql

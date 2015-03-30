@@ -17,6 +17,7 @@
 
 #include "my_dir.h"                // MY_STAT
 #include "log_event.h"             // Log_event
+#include "mysqld.h"                // sync_relaylog_period ...
 #include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...
 #include "rpl_info_factory.h"      // Rpl_info_factory
 #include "rpl_mi.h"                // Master_info
@@ -576,23 +577,26 @@ int Relay_log_info::init_relay_log_pos(const char* log,
           describes the whole relay log; indeed, one can have this sequence
           (starting from position 4):
           Format_desc (of slave)
+          Previous-GTIDs (of slave IO thread)
           Rotate (of master)
           Format_desc (of master)
           So the Format_desc which really describes the rest of the relay log
-          is the 3rd event (it can't be further than that, because we rotate
+          is the 4rd event (it can't be further than that, because we rotate
           the relay log when we queue a Rotate event from the master).
           But what describes the Rotate is the first Format_desc.
           So what we do is:
           go on searching for Format_description events, until you exceed the
-          position (argument 'pos') or until you find another event than Rotate
-          or Format_desc.
+          position (argument 'pos') or until you find another event than
+          Previous-GTIDs, Rotate or Format_desc.
         */
       }
       else
       {
         DBUG_PRINT("info",("found event of another type=%d",
                            ev->get_type_code()));
-        look_for_description_event= (ev->get_type_code() == binary_log::ROTATE_EVENT);
+        look_for_description_event=
+          (ev->get_type_code() == binary_log::ROTATE_EVENT ||
+           ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT);
         delete ev;
       }
     }
@@ -1118,7 +1122,7 @@ void Relay_log_info::close_temporary_tables()
       slave restarts, but it is a better intention to not delete them.
     */
     DBUG_PRINT("info", ("table: 0x%lx", (long) table));
-    close_temporary(table, 1, 0);
+    close_temporary(NULL, table, true, false);
   }
   save_temporary_tables= 0;
   slave_open_temp_tables= 0;
@@ -1777,7 +1781,6 @@ bool mysql_show_relaylog_events(THD* thd)
 {
 
   Master_info *mi =0;
-  Protocol *protocol= thd->protocol;
   List<Item> field_list;
   bool res;
   DBUG_ENTER("mysql_show_relaylog_events");
@@ -1791,8 +1794,8 @@ bool mysql_show_relaylog_events(THD* thd)
   }
 
   Log_event::init_show_field_list(&field_list);
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
   mysql_mutex_lock(&LOCK_msr_map);
@@ -2336,6 +2339,14 @@ size_t Relay_log_info::get_number_info_rli_fields()
 { 
   return sizeof(info_rli_fields)/sizeof(info_rli_fields[0]);
 }
+
+void Relay_log_info::start_sql_delay(time_t delay_end)
+{
+  mysql_mutex_assert_owner(&data_lock);
+  sql_delay_end= delay_end;
+  THD_STAGE_INFO(info_thd, stage_sql_thd_waiting_until_delay);
+}
+
 
 bool Relay_log_info::read_info(Rpl_info_handler *from)
 {

@@ -674,7 +674,7 @@ deallocate prepare stmt;
 --echo #
 --echo # Test 3: View referencing an Information schema table
 --echo #
-create view t1 as select table_name from information_schema.views;
+create view t1 as select table_name from information_schema.views where table_schema != 'sys';
 
 prepare stmt from "select * from t1";
 execute stmt;
@@ -1865,6 +1865,7 @@ execute stmt;
 drop table t1;
 deallocate prepare stmt;
 
+
 --echo #
 --echo # SQLCOM_SHOW_TABLES
 --echo #
@@ -1917,11 +1918,23 @@ deallocate prepare stmt;
 --disable_warnings ONCE
 drop table if exists t1;
 create table t1 (a int);
+# The gtid_executed session variable was deprecated on MySQL 5.7 and
+# only in MySQL 5.7 with GTID support (non-embedded for example) a
+# "SHOW VARIABLES" statement will throw a warning about the deprecation.
 prepare stmt from "show variables where (1) in (select * from t1)";
+# We disable the warnings only for the "execute stmt;"
+--disable_warnings ONCE
 execute stmt;
+# We check for other warnings than ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT
+--let $assert_no_warnings_exception= convert_error(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT)
+--source include/assert_no_warnings.inc
 drop table t1;
 create table t1 (x int);
+# We disable the warnings only for the "execute stmt;"
+--disable_warnings ONCE
 execute stmt;
+# We check for other warnings than ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT
+--source include/assert_no_warnings.inc
 drop table t1;
 deallocate prepare stmt;
 

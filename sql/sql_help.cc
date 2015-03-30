@@ -430,6 +430,7 @@ void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
 
   SYNOPSIS
     send_answer_1()
+    thd      - THD to get the current protocol from and call send_result_metadata
     protocol - protocol for sending
     s1 - value of column "Name"
     s2 - value of column "Description"
@@ -450,7 +451,7 @@ void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
     0		Successeful send
 */
 
-int send_answer_1(Protocol *protocol, String *s1, String *s2, String *s3)
+int send_answer_1(THD *thd, String *s1, String *s2, String *s3)
 {
   DBUG_ENTER("send_answer_1");
   List<Item> field_list;
@@ -458,15 +459,15 @@ int send_answer_1(Protocol *protocol, String *s1, String *s2, String *s3)
   field_list.push_back(new Item_empty_string("description",1000));
   field_list.push_back(new Item_empty_string("example",1000));
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
-  protocol->prepare_for_resend();
-  protocol->store(s1);
-  protocol->store(s2);
-  protocol->store(s3);
-  if (protocol->write())
+  thd->get_protocol()->start_row();
+  thd->get_protocol()->store(s1);
+  thd->get_protocol()->store(s2);
+  thd->get_protocol()->store(s3);
+  if (thd->get_protocol()->end_row())
     DBUG_RETURN(-1);
   DBUG_RETURN(0);
 }
@@ -477,7 +478,7 @@ int send_answer_1(Protocol *protocol, String *s1, String *s2, String *s3)
 
   SYNOPSIS
    send_header_2()
-    protocol       - protocol for sending
+    thd            - thread to get the current status from
     is_it_category - need column 'source_category_name'
 
   IMPLEMENTATION
@@ -493,7 +494,7 @@ int send_answer_1(Protocol *protocol, String *s1, String *s2, String *s3)
     result of protocol->send_result_set_metadata
 */
 
-int send_header_2(Protocol *protocol, bool for_category)
+int send_header_2(THD *thd, bool for_category)
 {
   DBUG_ENTER("send_header_2");
   List<Item> field_list;
@@ -501,8 +502,8 @@ int send_header_2(Protocol *protocol, bool for_category)
     field_list.push_back(new Item_empty_string("source_category_name",64));
   field_list.push_back(new Item_empty_string("name",64));
   field_list.push_back(new Item_empty_string("is_it_category",1));
-  DBUG_RETURN(protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
-                                                 Protocol::SEND_EOF));
+  DBUG_RETURN(thd->send_result_metadata(&field_list,
+    Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
 /*
@@ -559,12 +560,12 @@ int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
 
   for (pos= pointers; pos!=end; pos++)
   {
-    protocol->prepare_for_resend();
+    protocol->start_row();
     if (source_name)
       protocol->store(source_name);
     protocol->store(*pos);
     protocol->store(cat,1,&my_charset_latin1);
-    if (protocol->write())
+    if (protocol->end_row())
       DBUG_RETURN(-1);
   }
 
@@ -602,7 +603,7 @@ bool prepare_simple_select(THD *thd, Item *cond,
 
   // Wrapper for correct JSON in optimizer trace
   Opt_trace_object wrapper(&thd->opt_trace);
-  key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+  Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
   QUICK_SELECT_I *qck;
   const bool impossible=
     test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,
@@ -657,7 +658,7 @@ bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
 
 bool mysqld_help(THD *thd, const char *mask)
 {
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   st_find_field used_fields[array_elements(init_used_fields)];
   TABLE_LIST tables[4];
   List<String> topics_list, categories_list, subcategories_list;
@@ -758,12 +759,12 @@ bool mysqld_help(THD *thd, const char *mask)
     }
     if (!count_categories)
     {
-      if (send_header_2(protocol,FALSE))
+      if (send_header_2(thd, FALSE))
 	goto error;
     }
     else if (count_categories > 1)
     {
-      if (send_header_2(protocol,FALSE) ||
+      if (send_header_2(thd, FALSE) ||
 	  send_variant_2_list(mem_root,protocol,&categories_list,"Y",0))
 	goto error;
     }
@@ -800,7 +801,7 @@ bool mysqld_help(THD *thd, const char *mask)
                                    &subcategories_list);
       }
       String *cat= categories_list.head();
-      if (send_header_2(protocol, TRUE) ||
+      if (send_header_2(thd, TRUE) ||
 	  send_variant_2_list(mem_root,protocol,&topics_list,       "N",cat) ||
 	  send_variant_2_list(mem_root,protocol,&subcategories_list,"Y",cat))
 	goto error;
@@ -808,13 +809,13 @@ bool mysqld_help(THD *thd, const char *mask)
   }
   else if (count_topics == 1)
   {
-    if (send_answer_1(protocol,&name,&description,&example))
+    if (send_answer_1(thd, &name, &description, &example))
       goto error;
   }
   else
   {
     /* First send header and functions */
-    if (send_header_2(protocol, FALSE) ||
+    if (send_header_2(thd, FALSE) ||
 	send_variant_2_list(mem_root,protocol, &topics_list, "N", 0))
       goto error;
 

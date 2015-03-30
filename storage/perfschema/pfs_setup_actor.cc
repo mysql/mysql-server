@@ -201,7 +201,7 @@ int delete_setup_actor(const String *user, const String *host, const String *rol
   entry= reinterpret_cast<PFS_setup_actor**>
     (lf_hash_search(&setup_actor_hash, pins, key.m_hash_key, key.m_key_length));
 
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     PFS_setup_actor *pfs= *entry;
     lf_hash_delete(&setup_actor_hash, pins, key.m_hash_key, key.m_key_length);
@@ -304,7 +304,7 @@ void lookup_setup_actor(PFS_thread *thread,
     entry= reinterpret_cast<PFS_setup_actor**>
       (lf_hash_search(&setup_actor_hash, pins, key.m_hash_key, key.m_key_length));
 
-    if (entry && (entry != MY_ERRPTR))
+    if (entry && (entry != MY_LF_ERRPTR))
     {
       PFS_setup_actor *pfs= *entry;
       lf_hash_search_unpin(pins);

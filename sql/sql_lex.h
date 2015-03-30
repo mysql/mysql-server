@@ -31,6 +31,7 @@
 #include "parse_tree_node_base.h"     // enum_parsing_context
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
 #include "sql_alloc.h"                // Sql_alloc
+#include "sql_chars.h"
 #include "sql_alter.h"                // Alter_info
 #include "sql_connect.h"              // USER_RESOURCES
 #include "sql_data_change.h"          // enum_duplicates
@@ -41,6 +42,7 @@
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
+#include "parse_tree_hints.h"
 
 #ifdef MYSQL_SERVER
 #include "item_func.h"                // Cast_target
@@ -49,7 +51,6 @@
 /* YACC and LEX Definitions */
 
 /* These may not be declared yet */
-class Table_ident;
 class sql_exchange;
 class sp_head;
 class sp_name;
@@ -70,6 +71,8 @@ struct sql_digest_state;
 typedef class st_select_lex SELECT_LEX;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
+class Opt_hints_global;
+class Opt_hints_qb;
 
 #ifdef MYSQL_SERVER
 /*
@@ -153,6 +156,7 @@ struct sys_var_with_base
 };
 
 
+#define YYSTYPE_IS_DECLARED 1
 union YYSTYPE;
 typedef YYSTYPE *LEX_YYSTYPE;
 
@@ -166,14 +170,16 @@ typedef YYSTYPE *LEX_YYSTYPE;
   If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
   the old SHOW WARNINGS|ERRORS, or "diagnostics variables" such as
   @@warning_count | @@error_count, we'll set some hints so this
-  information is not lost.
+  information is not lost. DA_KEEP_UNSPECIFIED is used in LEX constructor to
+  avoid leaving variables uninitialized.
  */
 enum enum_keep_diagnostics
 {
   DA_KEEP_NOTHING= 0,   /**< keep nothing */
   DA_KEEP_DIAGNOSTICS,  /**< keep the diagnostics area */
   DA_KEEP_COUNTS,       /**< keep @@warning_count / @error_count */
-  DA_KEEP_PARSE_ERROR   /**< keep diagnostics area after parse error */
+  DA_KEEP_PARSE_ERROR,  /**< keep diagnostics area after parse error */
+  DA_KEEP_UNSPECIFIED   /**< keep semantics is unspecified */
 };
 
 enum enum_sp_suid_behaviour
@@ -255,6 +261,50 @@ enum enum_drop_mode
 #define TL_OPTION_FORCE_INDEX	2
 #define TL_OPTION_IGNORE_LEAVES 4
 #define TL_OPTION_ALIAS         8
+
+/* Structure for db & table in sql_yacc */
+extern LEX_CSTRING EMPTY_CSTR;
+extern LEX_CSTRING NULL_CSTR;
+extern char internal_table_name[2];
+
+class Table_ident :public Sql_alloc
+{
+public:
+  LEX_CSTRING db;
+  LEX_CSTRING table;
+  SELECT_LEX_UNIT *sel;
+  Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
+              const LEX_CSTRING &table_arg, bool force);
+  Table_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &table_arg)
+    :db(db_arg), table(table_arg), sel(NULL)
+  {}
+  Table_ident(const LEX_CSTRING &table_arg)
+    :table(table_arg), sel(NULL)
+  {
+    db= NULL_CSTR;
+  }
+  /*
+    This constructor is used only for the case when we create a derived
+    table. A derived table has no name and doesn't belong to any database.
+    Later, if there was an alias specified for the table, it will be set
+    by add_table_to_list.
+  */
+  Table_ident(SELECT_LEX_UNIT *s) : sel(s)
+  {
+    /* We must have a table name here as this is used with add_table_to_list */
+    db= EMPTY_CSTR;                    /* a subject to casedn_str */
+    table.str= internal_table_name;
+    table.length=1;
+  }
+  // True if we can tell from syntax that this is an unnamed derived table.
+  bool is_derived_table() const { return MY_TEST(sel); }
+  void change_db(const char *db_name)
+  {
+    db.str= db_name;
+    db.length= strlen(db_name);
+  }
+};
+
 
 typedef List<Item> List_item;
 typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
@@ -1076,6 +1126,9 @@ public:
   table_map select_list_tables;
   table_map outer_join;       ///< Bitmap of all inner tables from outer joins
 
+  Opt_hints_qb *opt_hints_qb;
+
+
   /**
     @note the group_by and order_by lists below will probably be added to the
           constructor when the parser is converted into a true bottom-up design.
@@ -1323,6 +1376,9 @@ public:
   bool validate_base_options(LEX *lex, ulonglong options) const;
 
 private:
+  // Delete unused columns from merged derived tables
+  void delete_unused_merged_columns(List<TABLE_LIST> *tables);
+
   bool m_agg_func_used;
 
   /// Helper for fix_prepare_information()
@@ -1493,8 +1549,21 @@ enum delete_option_enum {
 };
 
 
-#define YYSTYPE_IS_DECLARED
 union YYSTYPE {
+  /*
+    Hint parser section (sql_hints.yy)
+  */
+  opt_hints_enum hint_type;
+  LEX_CSTRING hint_string;
+  class PT_hint *hint;
+  class PT_hint_list *hint_list;
+  Hint_param_index_list hint_param_index_list;
+  Hint_param_table hint_param_table;
+  Hint_param_table_list hint_param_table_list;
+
+  /*
+    Main parser section (sql_yacc.yy)
+  */
   int  num;
   ulong ulong_num;
   ulonglong ulonglong_number;
@@ -1642,6 +1711,7 @@ union YYSTYPE {
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
+  class PT_hint_list *optimizer_hints;
 };
 
 #endif
@@ -2372,7 +2442,6 @@ struct st_parsing_options
   bool allows_variable;
   bool allows_select_into;
   bool allows_select_procedure;
-  bool allows_derived;
 
   st_parsing_options() { reset(); }
   void reset();
@@ -2388,13 +2457,17 @@ enum enum_comment_state
     Not parsing comments.
   */
   NO_COMMENT,
+
   /**
     Parsing comments that need to be preserved.
+    (Copy '/' '*' and '*' '/' sequences to the preprocessed buffer.)
     Typically, these are user comments '/' '*' ... '*' '/'.
   */
   PRESERVE_COMMENT,
+
   /**
     Parsing comments that need to be discarded.
+    (Don't copy '/' '*' '!' and '*' '/' sequences to the preprocessed buffer.)
     Typically, these are special comments '/' '*' '!' ... '*' '/',
     or '/' '*' '!' 'M' 'M' 'm' 'm' 'm' ... '*' '/', where the comment
     markers should not be expanded.
@@ -2904,6 +2977,9 @@ public:
   THD *thd;
   Generated_column *gcol_info;
 
+  /* Optimizer hints */
+  Opt_hints_global *opt_hints_global;
+
   /* maintain a list of used plugins for this LEX */
   typedef Prealloced_array<plugin_ref,
     INITIAL_LEX_PLUGIN_LIST_SIZE, true> Plugins_array;
@@ -2913,8 +2989,8 @@ public:
 
   /// Table being inserted into (may be a view)
   TABLE_LIST *insert_table;
-  /// store original leaf_tables for INSERT SELECT and PS/SP
-  TABLE_LIST *leaf_tables_insert;
+  /// Leaf table being inserted into (always a base table)
+  TABLE_LIST *insert_table_leaf;
 
   /** SELECT of CREATE VIEW statement */
   LEX_STRING create_view_select;
@@ -3282,7 +3358,6 @@ public:
   bool can_not_use_merged();
   bool only_view_structure();
   bool need_correct_ident();
-  uint8 get_effective_with_check(TABLE_LIST *view);
   /*
     Is this update command where 'WHITH CHECK OPTION' clause is important
 
@@ -3542,7 +3617,7 @@ struct st_lex_local: public LEX
 };
 
 
-extern void lex_init(void);
+extern bool lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);

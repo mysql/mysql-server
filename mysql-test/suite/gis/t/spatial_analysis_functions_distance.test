@@ -16,7 +16,7 @@
 # Creating the spatial objects                                                             #
 ############################################################################################
 
---echo #Creating the spatial Geometry object
+--echo # Creating the spatial Geometry object
 USE test;
 
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
@@ -106,7 +106,7 @@ SET @star_elem_horizontal_val_3= '((85 0,60 15,90 15,82 10,85 0))';
 SET @star_of_elems_3='MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0)))';
 SET @star_collection_elems_3='GEOMETRYCOLLECTION(MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))';
 
---echo #INSERT base star
+--echo # INSERT base star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
  (100,ST_GEOMFROMTEXT(@star)),
@@ -127,7 +127,7 @@ INSERT INTO gis_geometrycollection VALUES
  (115,ST_GEOMFROMTEXT(@star_collection_elems));
 --enable_warnings
 
---echo #INSERT identical (to base) star
+--echo # INSERT identical (to base) star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
  (200,ST_GEOMFROMTEXT(@star_1)),
@@ -148,7 +148,7 @@ INSERT INTO gis_geometrycollection VALUES
  (215,ST_GEOMFROMTEXT(@star_collection_elems_1));
 --enable_warnings
 
---echo #INSERT overlapping star
+--echo # INSERT overlapping star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
  (300,ST_GEOMFROMTEXT(@star_2)),
@@ -169,7 +169,7 @@ INSERT INTO gis_geometrycollection VALUES
  (315,ST_GEOMFROMTEXT(@star_collection_elems_2));
 --enable_warnings
 
---echo #INSERT seperate star
+--echo # INSERT seperate star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
  (400,ST_GEOMFROMTEXT(@star_3)),
@@ -192,20 +192,20 @@ INSERT INTO gis_geometrycollection VALUES
 
 CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
 
---echo #Checking the integrity of the above create/insert statements 
+--echo # Checking the integrity of the above create/insert statements 
 
---echo #64 rows. 
+--echo # 64 rows. 
 SELECT count(ST_AsText(g) != 'NULL') FROM gis_geometrycollection;
---echo #64 rows. 
+--echo # 64 rows. 
 SELECT count(ST_AsText(g2) != 'NULL') FROM gis_geometrycollection_2;
 
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # ST_DISTANCE(g1,g2)
---echo #=======================================================================================
+--echo #####################################################################################
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
@@ -218,9 +218,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(-1e154 0
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(10 10)'));
@@ -231,9 +231,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(-0 
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(10 10,10 0)'));
@@ -242,22 +242,23 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('LINESTRING(10 
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 10,1 0))'));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((10 10,10 0),(0.0000 -0.0000))'));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1e77 0)'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 1e154),(0 1e154,1e154 0))'));
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
@@ -268,9 +269,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('POLYGON((0 0
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star)) FROM gis_geometrycollection WHERE fid=104;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)))'));
@@ -287,9 +288,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON((
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # point,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(5 5)))'));
@@ -304,9 +305,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLEC
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center));
@@ -321,9 +322,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(1e154 0)'),ST_GEOMFROMTEXT('POINT
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
@@ -336,9 +337,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'),ST_GEOMFROMTEXT('
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0)'),ST_GEOMFROMTEXT('LINESTRING(2 2,5 0,8 2)'));
@@ -349,9 +350,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(1 1,1 4,4 4,4 0.00009)'),ST_GEOMF
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
@@ -364,9 +365,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6)'),ST_GEOMFROMTEXT('MULTI
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_elem_horizontal));
@@ -381,9 +382,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(4 4,6 6)'),ST_GEOMFROMTEXT('POLYG
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 30,30 25)'),ST_GEOMFROMTEXT(@star_of_elems));
@@ -398,9 +399,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,15 15.1)'),ST_GEOMFROMTEXT('M
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipoint,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_multilinestr));
@@ -419,9 +420,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOINT(5 5,20 20)'),ST_GEOMFROMTEXT('GEO
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_bottom_left));
@@ -434,9 +435,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0)'),ST_GEOMFROMTEXT('POIN
 
 SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=110 and fid2=105;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)'));
@@ -449,9 +450,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 0,10 10,0 10)'),ST_GEOMFRO
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_vertical),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top_to_center),ST_GEOMFROMTEXT(@star_line_vertical));
@@ -462,9 +463,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('LIN
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_lines_near_vertical));
@@ -475,9 +476,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('MUL
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
@@ -490,15 +491,16 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(-11 -11,-11 11)'),ST_GEOMFROMTEXT
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.4)'),ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 10)),((25 0,0 15,25 10)))'));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,20 20,30 30)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(-1 5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)),'
@@ -507,9 +509,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(4.5 4.5,5.5 5.5)'),ST_GEOMFROMTEX
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(5 5,15 15)'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4)),'
                                                                                          '((10 10,10 20,20 20,20 10),(14 14,14 16,16 16,16 14)))'));
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # linestring,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -528,9 +530,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('LINESTRING(5 5,15 15,25 24)'),ST_GEOMFROMTEX
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_center));
@@ -543,9 +545,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(0 10,10 10))'),S
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_all_points));
@@ -560,9 +562,9 @@ SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycoll
 
 SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=114 and fid2=108;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
@@ -573,9 +575,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 0),(10 10,0 10))'),S
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'));
@@ -588,9 +590,9 @@ SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')) FROM 
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_elem_horizontal));
@@ -608,15 +610,16 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((14 14,14 16),(10 15,10 20,2
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,20 20,30 30))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((10 10,20 20),(30 30))'),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 4,4 4,0 0)),((0 5,0 10,10 5,0 5)))'));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5))'),
@@ -627,9 +630,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((4.5 4.5,5.5 5.5),(14.5 14.5
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multilinestring,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
@@ -648,9 +651,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((5 5,15 15,25 25))'),ST_GEOM
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_center));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('POINT(0 0)'));
@@ -667,9 +670,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_all_points));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT('MULTIPOINT(0 0,30 25)'));
@@ -686,9 +689,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_line_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_line_horizontal));
@@ -708,15 +711,17 @@ SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycoll
 
 SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_lines_near_horizontal));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTILINESTRING((5 0,20 20),(100 100))'));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('MULTILINESTRING((110 110,-100 100),(-50 50))'));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6 4,4 4))'),ST_GEOMFROMTEXT('MULTILINESTRING((4.3 4.3,5.5 5.5))'));
@@ -729,9 +734,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star));
@@ -746,9 +751,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems));
@@ -763,9 +768,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0),(4 4,4 6,6 6,6
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # polygon,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
@@ -786,9 +791,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POINT(30 30)'));
@@ -808,9 +813,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
@@ -830,9 +835,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
@@ -852,9 +857,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
@@ -876,9 +881,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star));
@@ -897,9 +902,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0),(4 4,4 6
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
@@ -922,9 +927,9 @@ SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WH
 
 SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # multipolygon,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
@@ -948,9 +953,9 @@ SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=215;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,point
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POINT(30 30)'));
@@ -978,9 +983,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGO
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipoint
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOINT(30 30,0 35)'));
@@ -1004,9 +1009,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGO
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,linestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)'));
@@ -1038,9 +1043,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGO
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multilinestring
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
@@ -1049,6 +1054,7 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_multilinestr),ST_GEOMFROMTEX
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(50 50)))'),ST_GEOMFROMTEXT('MULTILINESTRING((0 0,100 100))'));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((20 20,20 30,30 30,30 20,20 20),(0 0,0 10,10 10,10 0,0 0)))'),
                    ST_GEOMFROMTEXT('MULTILINESTRING((20 20,40 40),(60 60))'));
 
@@ -1062,9 +1068,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGO
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,polygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_vertical));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star));
@@ -1088,9 +1094,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGO
 
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,multipolygon
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
@@ -1114,9 +1120,9 @@ SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=103;
 
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 --echo # geometrycollection,geometrycollection
---echo #-------------------------------------------------------------------------------------------
+--echo #====================================================================================
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
@@ -1133,6 +1139,7 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMET
                                                       'POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4)))'),
                    ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(4.5 4.5,5.5 5.5))'));
 
+--error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4,4 4))),'
                                                       'GEOMETRYCOLLECTION(MULTIPOLYGON(((3 3,3 7,7 7,7 3,3 3),(4 4,4 6,6 6,6 4,4 4)))))'),
                    ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((40 40,50 50),(5 5)))'));
@@ -1141,9 +1148,9 @@ SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT ST_DISTANCE(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=215;
 
---echo #====================================================================================
+--echo #####################################################################################
 --echo # ST_DISTANCE() with 2 geometries of same SRID
---echo #====================================================================================
+--echo #####################################################################################
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
@@ -1163,9 +1170,9 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center
 
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
 
---echo #=======================================================================================
+--echo #####################################################################################
 --echo # Invalid function calls
---echo #=======================================================================================
+--echo #####################################################################################
 
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 SELECT ST_DISTANCE();
@@ -1276,6 +1283,6 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'),
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), 200);
 
---echo #clean up
+--echo # Clean up
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;

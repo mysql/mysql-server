@@ -16,6 +16,7 @@
 #include "opt_explain_traditional.h"
 #include "current_thd.h"
 #include "sql_class.h"
+#include "query_result.h"
 
 /**
   Heads of "extra" column parts

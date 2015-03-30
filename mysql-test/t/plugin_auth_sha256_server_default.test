@@ -40,6 +40,8 @@ disconnect con2;
 DROP USER 'kristofer'@'localhost';
 DROP USER 'kristofer2'@'localhost';
 
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL ON *.* TO 'kristofer'@'localhost';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
 connect(con3,localhost,kristofer,,,);
@@ -51,6 +53,7 @@ disconnect con3;
 DROP USER 'kristofer'@'localhost';
 
 GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33';
+set sql_mode= @orig_sql_mode;
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
 --echo Connection should fail for localhost
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK

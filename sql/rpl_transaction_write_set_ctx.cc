@@ -18,7 +18,6 @@
 #include "mysql/service_rpl_transaction_write_set.h" // Transaction_write_set
 #include "mysqld_thd_manager.h"                      // Global_THD_manager
 #include "sql_class.h"                               // THD
-#include "sql_parse.h"                               // Find_thd_with_id
 #include "psi_memory_key.h"
 
 

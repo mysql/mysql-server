@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -95,6 +95,24 @@ enum srv_checksum_algorithm_t {
 	SRV_CHECKSUM_ALGORITHM_STRICT_NONE	/*!< Write none, allow none
 						when reading */
 };
+
+inline
+bool
+is_checksum_strict(srv_checksum_algorithm_t algo)
+{
+	return(algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32
+	       || algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
+	       || algo == SRV_CHECKSUM_ALGORITHM_STRICT_NONE);
+}
+
+inline
+bool
+is_checksum_strict(ulint algo)
+{
+	return(algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32
+	       || algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
+	       || algo == SRV_CHECKSUM_ALGORITHM_STRICT_NONE);
+}
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */

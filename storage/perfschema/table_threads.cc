@@ -16,6 +16,7 @@
 #include "my_global.h"
 #include "my_thread.h"
 #include "table_threads.h"
+#include "field.h"
 #include "sql_parse.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"

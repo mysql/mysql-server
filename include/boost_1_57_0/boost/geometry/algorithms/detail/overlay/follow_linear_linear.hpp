@@ -38,21 +38,16 @@ namespace boost { namespace geometry
 #if ! defined(BOOST_GEOMETRY_OVERLAY_NO_THROW)
 class inconsistent_turns_exception : public geometry::exception
 {
-    std::string message;
-
 public:
 
-    inline inconsistent_turns_exception()
-    {
-        message = "Boost.Geometry Inconsistent Turns exception";
-    }
+    inline inconsistent_turns_exception() {}
 
     virtual ~inconsistent_turns_exception() throw()
     {}
 
     virtual char const* what() const throw()
     {
-        return message.c_str();
+        return "Boost.Geometry Inconsistent Turns exception";
     }
 };
 #endif

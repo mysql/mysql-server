@@ -68,8 +68,12 @@ include/stop_slave.inc
 CHANGE MASTER TO master_log_pos=MASTER_POS;
 START SLAVE;
 include/wait_for_slave_param.inc [Last_IO_Errno]
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Last_IO_Errno = '1236'
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Client requested master to start replication from position > file size''
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;

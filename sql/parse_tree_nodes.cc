@@ -18,6 +18,80 @@
 #include "sp_instr.h"       // sp_instr_set
 #include "sql_delete.h"     // Sql_cmd_delete_multi, Sql_cmd_delete
 #include "sql_insert.h"     // Sql_cmd_insert...
+#include "mysqld.h"         // global_system_variables
+
+
+bool PT_option_value_no_option_type_charset:: contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+  int flags= opt_charset ? 0 : set_var_collation_client::SET_CS_DEFAULT;
+  const CHARSET_INFO *cs2;
+  cs2= opt_charset ? opt_charset
+    : global_system_variables.character_set_client;
+  set_var_collation_client *var;
+  var= new set_var_collation_client(flags,
+                                    cs2,
+                                    thd->variables.collation_database,
+                                    cs2);
+  if (var == NULL)
+    return true;
+  lex->var_list.push_back(var);
+  return false;
+}
+
+
+bool PT_option_value_no_option_type_names::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+  sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
+  LEX_STRING names= { C_STRING_WITH_LEN("names") };
+
+  if (pctx && pctx->find_variable(names, false))
+    my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
+  else
+    error(pc, pos);
+
+  return true; // alwais fails with an error
+}
+
+
+bool 
+PT_option_value_no_option_type_names_charset:: contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+  const CHARSET_INFO *cs2;
+  const CHARSET_INFO *cs3;
+  int flags= set_var_collation_client::SET_CS_NAMES
+    | (opt_charset ? 0 : set_var_collation_client::SET_CS_DEFAULT)
+    | (opt_collation ? set_var_collation_client::SET_CS_COLLATE : 0);
+  cs2= opt_charset ? opt_charset 
+    : global_system_variables.character_set_client;
+  cs3= opt_collation ? opt_collation : cs2;
+  if (!my_charset_same(cs2, cs3))
+  {
+    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
+             cs3->name, cs2->csname);
+    return true;
+  }
+  set_var_collation_client *var;
+  var= new set_var_collation_client(flags, cs3, cs3, cs3);
+  if (var == NULL)
+    return true;
+  lex->var_list.push_back(var);
+  return false;
+}
 
 
 bool PT_group::contextualize(Parse_context *pc)
@@ -157,12 +231,6 @@ bool PT_table_factor_select_sym::contextualize(Parse_context *pc)
   LEX * const lex= pc->thd->lex;
   SELECT_LEX *const outer_select= pc->select;
 
-  if (! lex->parsing_options.allows_derived)
-  {
-    my_error(ER_VIEW_SELECT_DERIVED, MYF(0));
-    return true;
-  }
-
   if (!outer_select->embedding || outer_select->end_nested_join(pc->thd))
   {
     /* we are not in parentheses */
@@ -231,6 +299,9 @@ bool PT_table_factor_select_sym::contextualize(Parse_context *pc)
      nested in select_derived rule to be here. */
   value= NULL;
 
+  if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
+    return true;
+
   return false;
 }
 
@@ -296,6 +367,37 @@ bool PT_table_factor_parenthesis::contextualize(Parse_context *pc)
   {
     /* nested join: FROM (t1 JOIN t2 ...) */
     value= select_derived_union->value;
+  }
+  return false;
+}
+
+
+bool PT_internal_variable_name_1d::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+  sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
+  sp_variable *spv;
+
+  value.var= NULL;
+  value.base_name= ident;
+
+  /* Best effort lookup for system variable. */
+  if (!pctx || !(spv= pctx->find_variable(ident, false)))
+  {
+    /* Not an SP local variable */
+    if (find_sys_var_null_base(thd, &value))
+      return true;
+  }
+  else
+  {
+    /*
+      Possibly an SP local variable (or a shadowed sysvar).
+      Will depend on the context of the SET statement.
+    */
   }
   return false;
 }
@@ -512,6 +614,30 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc)
 }
 
 
+bool PT_select_sp_var::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  LEX *lex= pc->thd->lex;
+#ifndef DBUG_OFF
+  sp= lex->sphead;
+#endif
+  sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
+  sp_variable *spv;
+
+  if (!pctx || !(spv= pctx->find_variable(name, false)))
+  {
+    my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
+    return true;
+  }
+
+  offset= spv->offset;
+
+  return false;
+}
+
+
 /*
   Given a table in the source list, find a correspondent table in the
   table references list.
@@ -680,6 +806,10 @@ bool PT_delete::contextualize(Parse_context *pc)
 
   if (is_multitable() && multi_delete_set_locks_and_link_aux_tables(pc))
     return true;
+
+  if (opt_hints != NULL && opt_hints->contextualize(pc))
+    return true;
+
   return false;
 }
 
@@ -756,6 +886,10 @@ bool PT_update::contextualize(Parse_context *pc)
     lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
     pc->select->explicit_limit= 1;
   }
+
+  if (opt_hints != NULL && opt_hints->contextualize(pc))
+    return true;
+
   return false;
 }
 
@@ -814,6 +948,9 @@ bool PT_create_select::contextualize(Parse_context *pc)
     is created correctly in this case
   */
   pc->select->table_list.push_front(&save_list);
+
+  if (opt_hints != NULL && opt_hints->contextualize(pc))
+    return true;
 
   return false;
 }
@@ -927,6 +1064,9 @@ bool PT_insert::contextualize(Parse_context *pc)
     DBUG_ASSERT(pc->select->parsing_place == CTX_UPDATE_VALUE_LIST);
     pc->select->parsing_place= CTX_NONE;
   }
+
+  if (opt_hints != NULL && opt_hints->contextualize(pc))
+    return true;
 
   return false;
 }

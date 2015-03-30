@@ -25,6 +25,7 @@
 #include "opt_trace.h"
 #include "sql_base.h"
 #include "sql_select.h"
+#include "derror.h"
 
 
 /**
@@ -115,7 +116,7 @@ bool Distinct_check::check_query(THD *thd)
       differ due to white space....).
       Subqueries in ORDER BY are non-standard anyway.
     */
-    Item** const res= find_item_in_list(*order->item, select->item_list,
+    Item** const res= find_item_in_list(thd, *order->item, select->item_list,
                                         &counter, REPORT_EXCEPT_NOT_FOUND,
                                         &resolution);
     if (res == NULL)    // Other error than "not found", my_error() was called
@@ -237,7 +238,7 @@ bool Group_check::check_expression(THD *thd, Item *expr,
     uint counter;
     enum_resolution_type resolution;
     // Search if this expression is equal to one in the SELECT list.
-    Item** const res= find_item_in_list(expr,
+    Item** const res= find_item_in_list(thd, expr,
                                         select->item_list,
                                         &counter, REPORT_EXCEPT_NOT_FOUND,
                                         &resolution);
@@ -1029,13 +1030,13 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list)
   TABLE_LIST *table;
   while ((table= li++))
   {
-    if (table->sj_on_expr)
+    if (table->sj_cond())
     {
       /*
         We can ignore this nest as:
-        - the subquery's WHERE was copied to sj_on_expr
+        - the subquery's WHERE was copied to the semi-join condition
         - so where the IN equalities
-        - sj_on_expr is also present in the parent nest's join condition or in
+        - sj_cond() is also present in the parent nest's join condition or in
         the query block's WHERE condition, which we check somewhere else.
         Note that columns from sj-inner tables can help only as "intermediate
         link" in the graph of functional dependencies, as they are neither in

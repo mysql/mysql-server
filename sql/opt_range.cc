@@ -111,6 +111,8 @@
 #include "opt_range.h"
 
 #include "current_thd.h"
+#include "derror.h"              // ER_THD
+#include "filesort.h"            // filesort_free_buffers
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
 #include "log.h"                 // sql_print_error
@@ -125,6 +127,7 @@
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
 #include "uniques.h"             // Unique
+#include "opt_hints.h"           // hint_key_state
 
 using std::min;
 using std::max;
@@ -853,7 +856,7 @@ public:
     pointer to such SEL_TREE instead of NULL)
   */
   SEL_ARG *keys[MAX_KEY];
-  key_map keys_map;        /* bitmask of non-NULL elements in keys */
+  Key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
   /*
     Possible ways to read rows using Index merge (sort) union.
@@ -868,7 +871,7 @@ public:
   List<SEL_IMERGE> merges;
 
   /* The members below are filled/used only after get_mm_tree is done */
-  key_map ror_scans_map;   /* bitmask of ROR scan-able elements in keys */
+  Key_map ror_scans_map;   /* bitmask of ROR scan-able elements in keys */
   uint    n_ror_scans;     /* number of set bits in ror_scans_map */
 
   struct st_ror_scan_info **ror_scans;     /* list of ROR key scans */
@@ -962,7 +965,7 @@ public:
   MY_BITMAP needed_fields;    /* bitmask of fields needed by the query */
   MY_BITMAP tmp_covered_fields;
 
-  key_map *needed_reg; /* ptr to needed_reg argument of test_quick_select() */
+  Key_map *needed_reg; /* ptr to needed_reg argument of test_quick_select() */
 
   // Buffer for index_merge cost estimates.
   Unique::Imerge_cost_buf_type imerge_cost_buff;
@@ -1019,12 +1022,12 @@ static
 TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
                                           const Cost_estimate *cost_est);
 #ifndef DBUG_OFF
-static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
+static void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
                            const char *msg);
 static void print_ror_scans_arr(TABLE *table, const char *msg,
                                 struct st_ror_scan_info **start,
                                 struct st_ror_scan_info **end);
-static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg);
+static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
 #endif
 
 static void append_range_all_keyparts(Opt_trace_array *range_trace,
@@ -2664,13 +2667,13 @@ static int fill_used_fields_bitmap(PARAM *param)
   by calling QEP_TAB::set_quick() and updating tab->type() if appropriate.
 
 */
-int test_quick_select(THD *thd, key_map keys_to_use,
+int test_quick_select(THD *thd, Key_map keys_to_use,
                       table_map prev_tables,
                       ha_rows limit, bool force_quick_range,
                       const ORDER::enum_order interesting_order,
                       const QEP_shared_owner *tab,
                       Item *cond,
-                      key_map *needed_reg,
+                      Key_map *needed_reg,
                       QUICK_SELECT_I **quick)
 {
   DBUG_ENTER("test_quick_select");
@@ -2795,12 +2798,21 @@ int test_quick_select(THD *thd, key_map keys_to_use,
         Opt_trace_object trace_idx_details(trace);
         trace_idx_details.add_utf8("index", key_info->name);
         KEY_PART_INFO *key_part_info;
+
         if (!keys_to_use.is_set(idx))
         {
           trace_idx_details.add("usable", false).
             add_alnum("cause", "not_applicable");
           continue;
         }
+
+        if (hint_key_state(thd, head, idx, NO_RANGE_HINT_ENUM, 0))
+        {
+          trace_idx_details.add("usable", false).
+            add_alnum("cause", "no_range_optimization hint");
+          continue;
+        }
+
         if (key_info->flags & HA_FULLTEXT)
         {
           trace_idx_details.add("usable", false).
@@ -2823,7 +2835,8 @@ int test_quick_select(THD *thd, key_map keys_to_use,
           key_parts->field=        key_part_info->field;
           key_parts->null_bit=     key_part_info->null_bit;
           key_parts->image_type =
-            (key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
+            (part < key_info->user_defined_key_parts &&
+             key_info->flags & HA_SPATIAL) ? Field::itMBR : Field::itRAW;
           /* Only HA_PART_KEY_SEG is used */
           key_parts->flag=         (uint8) key_part_info->key_part_flag;
           trace_keypart.add_utf8(key_parts->field->field_name);
@@ -6564,11 +6577,21 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 
   param->cond= cond;
 
-  switch (cond_func->functype()) {
+  /*
+    Notice that all fields that are outer references are const during
+    the execution and should not be considered for range analysis like
+    fields coming from the local query block are.
+  */
+  switch (cond_func->functype())
+  {
   case Item_func::BETWEEN:
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
+  {
+    Item *const arg_left= cond_func->arguments()[0];
+
+    if (!(arg_left->used_tables() & OUTER_REF_TABLE_BIT) &&
+        arg_left->real_item()->type() == Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
+      field_item= (Item_field*) arg_left->real_item();
       ftree= get_full_func_mm_tree(param, field_item, cond_func, NULL, inv);
     }
 
@@ -6578,9 +6601,12 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     */
     for (uint i= 1 ; i < cond_func->arg_count ; i++)
     {
-      if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM)
+      Item *const arg= cond_func->arguments()[i];
+
+      if (!(arg->used_tables() & OUTER_REF_TABLE_BIT) &&
+          arg->real_item()->type() == Item::FIELD_ITEM)
       {
-        field_item= (Item_field*) (cond_func->arguments()[i]->real_item());
+        field_item= (Item_field*) arg->real_item();
         SEL_TREE *tmp=
           get_full_func_mm_tree(param, field_item, cond_func,
                                 reinterpret_cast<Item*>(i), inv);
@@ -6602,16 +6628,18 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 
     ftree = tree_and(param, ftree, tree);
     break;
+  } // end case Item_func::BETWEEN
+
   case Item_func::IN_FUNC:
   {
-    Item_func_in *func=(Item_func_in*) cond_func;
-    if (func->key_item()->real_item()->type() != Item::FIELD_ITEM &&
-        func->key_item()->real_item()->type() != Item::ROW_ITEM)
+    Item *const predicand= ((Item_func_in*) cond_func)->key_item()->real_item();
+    if (predicand->type() != Item::FIELD_ITEM &&
+        predicand->type() != Item::ROW_ITEM)
       DBUG_RETURN(NULL);
-    Item *predicand= func->key_item()->real_item();
     ftree= get_full_func_mm_tree(param, predicand, cond_func, NULL, inv);
     break;
-  }
+  } // end case Item_func::IN_FUNC
+
   case Item_func::MULT_EQUAL_FUNC:
   {
     Item_equal *item_equal= (Item_equal *) cond;    
@@ -6633,13 +6661,17 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     
     dbug_print_tree("tree_returned", ftree, param);
     DBUG_RETURN(ftree);
-  }
+  } // end case Item_func::MULT_EQUAL_FUNC
+
   default:
+  {
+    Item *const arg_left= cond_func->arguments()[0];
 
     DBUG_ASSERT (!ftree);
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
+    if (!(arg_left->used_tables() & OUTER_REF_TABLE_BIT) &&
+        arg_left->real_item()->type() == Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
+      field_item= (Item_field*) arg_left->real_item();
       value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : NULL;
       ftree= get_full_func_mm_tree(param, field_item, cond_func, value, inv);
     }
@@ -6659,14 +6691,18 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
       call to get_full_func_mm_tree() with reversed operands (see
       below) may succeed.
      */
+    Item *arg_right;
     if (!ftree && cond_func->have_rev_func() &&
-        cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM)
+        (arg_right= cond_func->arguments()[1]) &&
+        !(arg_right->used_tables() & OUTER_REF_TABLE_BIT) &&
+        arg_right->real_item()->type() == Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[1]->real_item());
-      value= cond_func->arguments()[0];
+      field_item= (Item_field*) arg_right->real_item();
+      value= arg_left;
       ftree= get_full_func_mm_tree(param, field_item, cond_func, value, inv);
     }
-  }
+  }  // end case default
+  }  // end switch
 
   dbug_print_tree("tree_returned", ftree, param);
   DBUG_RETURN(ftree);
@@ -7481,7 +7517,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   dbug_print_tree("tree1", tree1, param);
   dbug_print_tree("tree2", tree2, param);
 
-  key_map  result_keys;
+  Key_map  result_keys;
   
   /* Join the trees key per key */
   SEL_ARG **key1,**key2,**end;
@@ -7529,7 +7565,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, 
                            RANGE_OPT_PARAM* param)
 {
-  key_map common_keys= tree1->keys_map;
+  Key_map common_keys= tree1->keys_map;
   DBUG_ENTER("sel_trees_can_be_ored");
   common_keys.intersect(tree2->keys_map);
 
@@ -7682,7 +7718,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   }
 
   SEL_TREE *result= 0;
-  key_map  result_keys;
+  Key_map  result_keys;
   if (sel_trees_can_be_ored(tree1, tree2, param))
   {
     /* Join the trees key per key */
@@ -11849,7 +11885,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
     uint cur_group_prefix_len= 0;
     Cost_estimate cur_read_cost;
     ha_rows cur_records;
-    key_map used_key_parts_map;
+    Key_map used_key_parts_map;
     uint max_key_part= 0;
     uint cur_key_infix_len= 0;
     uchar cur_key_infix[MAX_KEY_LENGTH];
@@ -14063,7 +14099,7 @@ static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, uint lim
 
 #ifndef DBUG_OFF
 
-static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
+static void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
                            const char *msg)
 {
   SEL_ARG **key,**end;
@@ -14578,7 +14614,7 @@ restore_col_map:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }
 
-static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg)
+static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg)
 {
   char buf[MAX_KEY/8+1];
   TABLE *table;

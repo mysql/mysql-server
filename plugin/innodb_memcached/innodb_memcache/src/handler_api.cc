@@ -44,6 +44,8 @@ Created 3/14/2011 Jimmy Yang
 #include "handler.h"
 #include "mysqld_thd_manager.h"
 #include "current_thd.h"
+#include "mysqld.h"
+#include "sql_cache.h"
 
 #include "log_event.h"
 #include "innodb_config.h"
@@ -87,8 +89,8 @@ handler_create_thd(
 		return(NULL);
 	}
 
-	my_net_init(&thd->net,(st_vio*) 0);
-        thd->set_new_thread_id();
+	thd->get_protocol_classic()->init_net((st_vio *) 0);
+	thd->set_new_thread_id();
 	thd->thread_stack = reinterpret_cast<char*>(&thd);
 	thd->store_globals();
 
@@ -370,11 +372,10 @@ handler_close_thd(
 /*==============*/
 	void*		my_thd)		/*!< in: THD */
 {
-	THD*	thd = static_cast<THD*>(my_thd);
+	THD* thd= static_cast<THD*>(my_thd);
 
 	/* destructor will not free it, because net.vio is 0. */
-	net_end(&thd->net);
-
+	thd->get_protocol_classic()->end_net();
 	thd->release_resources();
 	delete (thd);
 }

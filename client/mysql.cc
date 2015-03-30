@@ -1198,7 +1198,7 @@ int main(int argc,char *argv[])
   default_prompt = my_strdup(PSI_NOT_INSTRUMENTED,
                              getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
-			     "\\u@\\h [\\d] > ",MYF(MY_WME));
+			     "mysql> ",MYF(MY_WME));
   current_prompt = my_strdup(PSI_NOT_INSTRUMENTED,
                              default_prompt,MYF(MY_WME));
   prompt_counter=0;
@@ -2644,8 +2644,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 
       break;
     }
-    else if (!*in_string && inchar == '/' && *(pos+1) == '*' &&
-	     *(pos+2) != '!')
+    else if (!*in_string && inchar == '/' && pos[1] == '*' &&
+	     pos[2] != '!' && pos[2] != '+')
     {
       if (preserve_comments)
       {
@@ -2682,8 +2682,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
     }      
     else
     {						// Add found char to buffer
-      if (!*in_string && inchar == '/' && *(pos + 1) == '*' &&
-          *(pos + 2) == '!')
+      if (!*in_string && inchar == '/' && pos[1] == '*' &&
+          (pos[2] == '!' || pos[2] == '+'))
         ss_comment= 1;
       else if (!*in_string && ss_comment && inchar == '*' && *(pos + 1) == '/')
         ss_comment= 0;

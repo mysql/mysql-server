@@ -147,6 +147,7 @@ typedef uint lf_hash_func(const struct st_lf_hash *, const uchar *, size_t);
 typedef void lf_hash_init_func(uchar *dst, const uchar* src);
 
 #define LF_HASH_UNIQUE 1
+#define MY_LF_ERRPTR ((void*)(intptr)1)
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
 extern const int LF_HASH_OVERHEAD;

@@ -9,7 +9,10 @@ use mysql;
 create database MYSQLtest;
 
 # check that database name gets forced to lowercase
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 grant all on MySQLtest.* to mysqltest_1@localhost;
+set sql_mode= @orig_sql_mode;
 show grants for mysqltest_1@localhost;
 
 # now force it to mixed case, but see that it is lowercased in the acl cache

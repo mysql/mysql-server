@@ -27,9 +27,12 @@
 #include "sql_base.h"      // lock_tables
 #include "sql_acl.h"       // check_global_access, PROCESS_ACL
 #include "debug_sync.h"    // DEBUG_SYNC
+#include "opt_range.h"     // QUICK_SELECT_I
 #include "opt_trace.h"     // Opt_trace_*
 #include "sql_parse.h"     // is_explainable_query
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "mysqld.h"        // stage_explaining
+#include "derror.h"              // ER_THD
 
 typedef qep_row::extra extra;
 
@@ -320,7 +323,7 @@ protected:
      condition_optim() instead.
   */
   QEP_TAB *tab;
-  key_map usable_keys;
+  Key_map usable_keys;
 
   Explain_table_base(enum_parsing_context context_type_arg,
                      THD *const thd_arg, SELECT_LEX *select_lex= NULL,
@@ -1163,11 +1166,11 @@ bool Explain_join::explain_modify_flags()
     }
     break;
   case SQLCOM_INSERT_SELECT:
-    if (table == query_plan->get_lex()->leaf_tables_insert->table)
+    if (table == query_plan->get_lex()->insert_table_leaf->table)
       fmt->entry()->mod_type= MT_INSERT;
     break;
   case SQLCOM_REPLACE_SELECT:
-    if (table == query_plan->get_lex()->leaf_tables_insert->table)
+    if (table == query_plan->get_lex()->insert_table_leaf->table)
       fmt->entry()->mod_type= MT_REPLACE;
     break;
   default: ;
@@ -1223,10 +1226,10 @@ bool Explain_join::shallow_explain()
   join_entry->col_read_cost.set(join->best_read);
 
   LEX const*query_lex= join->thd->query_plan.get_lex();
-  if (query_lex->leaf_tables_insert &&
-      query_lex->leaf_tables_insert->select_lex == join->select_lex)
+  if (query_lex->insert_table_leaf &&
+      query_lex->insert_table_leaf->select_lex == join->select_lex)
   {
-    table= query_lex->leaf_tables_insert->table;
+    table= query_lex->insert_table_leaf->table;
     /*
       The target table for INSERT/REPLACE doesn't actually belong to join,
       thus tab is set to NULL. But in order to print it we add it to the
@@ -1938,7 +1941,7 @@ bool explain_single_table_modification(THD *ethd,
                                        SELECT_LEX *select)
 {
   DBUG_ENTER("explain_single_table_modification");
-  Query_result_send result;
+  Query_result_send result(ethd);
   const THD *const query_thd= select->master_unit()->thd;
   const bool other= (query_thd != ethd);
   bool ret;
@@ -2055,12 +2058,12 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
     }
     case JOIN::NO_TABLES:
     {
-      if (query_plan->get_lex()->leaf_tables_insert &&
-          query_plan->get_lex()->leaf_tables_insert->select_lex == select_lex)
+      if (query_plan->get_lex()->insert_table_leaf &&
+          query_plan->get_lex()->insert_table_leaf->select_lex == select_lex)
       {
         // INSERT/REPLACE SELECT ... FROM dual
         ret= Explain_table(ethd, select_lex,
-                           query_plan->get_lex()->leaf_tables_insert->table,
+                           query_plan->get_lex()->insert_table_leaf->table,
                            NULL,
                            MAX_KEY,
                            HA_POS_ERROR,
@@ -2159,11 +2162,11 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
     explain_result= unit->query_result() ?
                     unit->query_result() : unit->first_select()->query_result();
 
-  Query_result_explain explain_wrapper(unit, explain_result);
+  Query_result_explain explain_wrapper(ethd, unit, explain_result);
 
   if (other)  
   {
-    if (!((explain_result= new Query_result_send)))
+    if (!((explain_result= new Query_result_send(ethd))))
       return true; /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||

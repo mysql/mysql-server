@@ -2196,7 +2196,8 @@ fil_recreate_tablespace(
 #endif /* UNIV_DEBUG */
 		page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
 		buf_flush_init_for_writing(
-			page, &page_zip, 0, fsp_is_checksum_disabled(space_id));
+			NULL, page, &page_zip, 0,
+			fsp_is_checksum_disabled(space_id));
 
 		err = fil_write(page_id_t(space_id, 0), page_size, 0,
 				page_size.physical(), page_zip.data);
@@ -2260,7 +2261,7 @@ fil_recreate_tablespace(
 			ut_ad(!page_size.is_compressed());
 
 			buf_flush_init_for_writing(
-				page, NULL, recv_lsn,
+				block, page, NULL, recv_lsn,
 				fsp_is_checksum_disabled(space_id));
 
 			err = fil_write(cur_page_id, page_size, 0,
@@ -2275,7 +2276,7 @@ fil_recreate_tablespace(
 					buf_block_get_page_zip(block);
 
 				buf_flush_init_for_writing(
-					page, page_zip, recv_lsn,
+					block, page, page_zip, recv_lsn,
 					fsp_is_checksum_disabled(space_id));
 
 				err = fil_write(cur_page_id, page_size, 0,
@@ -3552,7 +3553,8 @@ fil_ibd_create(
 
 	if (!page_size.is_compressed()) {
 		buf_flush_init_for_writing(
-			page, NULL, 0, fsp_is_checksum_disabled(space_id));
+			NULL, page, NULL, 0,
+			fsp_is_checksum_disabled(space_id));
 		success = os_file_write(path, file, page, 0,
 					page_size.physical());
 	} else {
@@ -3567,7 +3569,8 @@ fil_ibd_create(
 			page_zip.n_blobs = 0;
 
 		buf_flush_init_for_writing(
-			page, &page_zip, 0, fsp_is_checksum_disabled(space_id));
+			NULL, page, &page_zip, 0,
+			fsp_is_checksum_disabled(space_id));
 		success = os_file_write(path, file, page_zip.data, 0,
 					page_size.physical());
 	}
@@ -5094,9 +5097,12 @@ fil_io(
 		&& space->stop_new_ops && !space->is_being_truncated)) {
 		mutex_exit(&fil_system->mutex);
 
-		ib::error() << "Trying to do i/o to a tablespace which does"
-			" not exist. i/o type " << type << ", page " << page_id
-			<< ", i/o length " << len << " bytes";
+		if (!ignore_nonexistent_pages) {
+			ib::error() << "Trying to do i/o to a tablespace which"
+				" does not exist. i/o type " << type
+				<< ", page " << page_id	<< ", i/o length "
+				<< len << " bytes";
+		}
 
 		return(DB_TABLESPACE_DELETED);
 	}
@@ -5154,11 +5160,14 @@ fil_io(
 		    && fil_is_user_tablespace_id(space->id)) {
 			mutex_exit(&fil_system->mutex);
 
-			ib::error() << "Trying to do i/o to a tablespace which"
-				" exists without .ibd data file. i/o type "
-				<< type << ", space id " << page_id.space()
-				<< ", page no " << cur_page_no << ","
-				" i/o length " << len << " bytes";
+			if (!ignore_nonexistent_pages) {
+				ib::error() << "Trying to do i/o to a"
+					" tablespace which exists without .ibd"
+					" data file. i/o type "	<< type
+					<< ", space id " << page_id.space()
+					<< ", page no " << cur_page_no << ","
+					" i/o length " << len << " bytes";
+			}
 
 			return(DB_TABLESPACE_DELETED);
 		}
@@ -5673,18 +5682,25 @@ fil_page_set_type(
 	mach_write_to_2(page + FIL_PAGE_TYPE, type);
 }
 
-/*********************************************************************//**
-Gets the file page type.
-@return type; NOTE that if the type has not been written to page, the
-return value not defined */
-ulint
-fil_page_get_type(
-/*==============*/
-	const byte*	page)	/*!< in: file page */
+/** Reset the page type.
+Data files created before MySQL 5.1 may contain garbage in FIL_PAGE_TYPE.
+In MySQL 3.23.53, only undo log pages and index pages were tagged.
+Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+@param[in]	page_id	page number
+@param[in,out]	page	page with invalid FIL_PAGE_TYPE
+@param[in]	type	expected page type
+@param[in,out]	mtr	mini-transaction */
+void
+fil_page_reset_type(
+	const page_id_t&	page_id,
+	byte*			page,
+	ulint			type,
+	mtr_t*			mtr)
 {
-	ut_ad(page);
-
-	return(mach_read_from_2(page + FIL_PAGE_TYPE));
+	ib::info()
+		<< "Resetting invalid page " << page_id << " type "
+		<< fil_page_get_type(page) << " to " << type << ".";
+	mlog_write_ulint(page + FIL_PAGE_TYPE, type, MLOG_2BYTES, mtr);
 }
 
 /****************************************************************//**

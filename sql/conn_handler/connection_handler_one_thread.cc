@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "mysqld.h"                      // connection_errors_internal
 #include "mysqld_error.h"                // ER_*
 #include "mysqld_thd_manager.h"          // Global_THD_manager
 #include "sql_audit.h"                   // mysql_audit_release
@@ -69,7 +70,8 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   }
 
   mysql_thread_set_psi_id(thd->thread_id());
-  mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
+  mysql_socket_set_thread_owner(
+    thd->get_protocol_classic()->get_vio()->mysql_socket);
 
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);

@@ -22,6 +22,7 @@
 #include "sql_tmp_table.h"                     // create_virtual_tmp_table
 #include "sp_instr.h"
 #include "template_utils.h"
+#include "derror.h"
 
 extern "C" void sql_alloc_error_handler(void);
 
@@ -158,7 +159,7 @@ bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 }
 
 
-bool sp_rcontext::push_cursor(sp_instr_cpush *i)
+bool sp_rcontext::push_cursor(THD *thd, sp_instr_cpush *i)
 {
   /*
     We should create cursors on the system heap because:
@@ -167,7 +168,7 @@ bool sp_rcontext::push_cursor(sp_instr_cpush *i)
      - a cursor can be pushed/popped many times in a loop, having these objects
        on callers' mem-root would lead to a memory leak in every iteration.
   */
-  sp_cursor *c= new (std::nothrow) sp_cursor(i);
+  sp_cursor *c= new (std::nothrow) sp_cursor(thd, i);
 
   if (!c)
   {
@@ -424,7 +425,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
   /* End aborted result set. */
   if (end_partial_result_set)
-    thd->protocol->end_partial_result_set(thd);
+    thd->get_protocol()->end_partial_result_set();
 
   /* Reset error state. */
   thd->clear_error();

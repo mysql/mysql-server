@@ -157,6 +157,10 @@
   }
 
 
+#define GIS_ZERO 0.00000000001
+
+extern bool simplify_multi_geometry(String *str);
+
 using std::auto_ptr;
 
 /// A wrapper and interface for all geometry types used here. Make these
@@ -403,7 +407,7 @@ inline bool is_empty_geocollection(const String &wkbres)
     return true;
 
   Is_empty_geometry checker;
-  uint32 len= wkbres.length() - GEOM_HEADER_SIZE;
+  uint32 len= static_cast<uint32>(wkbres.length()) - GEOM_HEADER_SIZE;
   wkb_scanner(wkbres.ptr() + GEOM_HEADER_SIZE, &len,
               Geometry::wkb_geometrycollection, false, &checker);
   return checker.is_empty;

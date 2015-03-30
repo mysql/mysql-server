@@ -30,6 +30,8 @@
 #include "parse_tree_nodes.h"
 #include "aggregate_check.h"
 #include "current_thd.h"
+#include "mysqld.h"                        // my_thread_get_THR_MALLOC
+#include "derror.h"
 
 using std::min;
 using std::max;
@@ -1121,7 +1123,8 @@ bool Aggregator_distinct::add()
       sum->count= 1;
       return 0;
     }
-    copy_fields(tmp_table_param);
+    if (copy_fields(tmp_table_param, table->in_use))
+      return true;
     if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
       return TRUE;
 
@@ -2900,8 +2903,6 @@ double Item_variance_field::val_real()
 ** Rewritten by: Monty.
 ****************************************************************************/
 
-#ifdef HAVE_DLOPEN
-
 bool Item_udf_sum::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -3072,8 +3073,6 @@ String *Item_sum_udf_str::val_str(String *str)
   null_value = !res;
   DBUG_RETURN(res);
 }
-
-#endif /* HAVE_DLOPEN */
 
 
 /*****************************************************************************
@@ -3506,7 +3505,8 @@ bool Item_func_group_concat::add()
 {
   if (always_null)
     return 0;
-  copy_fields(tmp_table_param);
+  if (copy_fields(tmp_table_param, table->in_use))
+    return true;
   if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
     return TRUE;
 

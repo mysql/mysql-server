@@ -17,6 +17,7 @@
 
 #include "sql_tablespace.h"
 #include "my_global.h"
+#include "derror.h"                             // ER_THD
 #include "lock.h"                               // lock_tablespace_name
 #include "sql_table.h"                          // write_bin_log
 #include "sql_class.h"                          // THD

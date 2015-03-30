@@ -156,8 +156,14 @@ row_mysql_prebuilt_free_blob_heap(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct of a
 					ha_innobase:: table handle */
 {
+	DBUG_ENTER("row_mysql_prebuilt_free_blob_heap");
+
+	DBUG_PRINT("row_mysql_prebuilt_free_blob_heap",
+		   ("blob_heap freeing: %p", prebuilt->blob_heap));
+
 	mem_heap_free(prebuilt->blob_heap);
 	prebuilt->blob_heap = NULL;
+	DBUG_VOID_RETURN;
 }
 
 /*******************************************************************//**
@@ -791,6 +797,8 @@ row_create_prebuilt(
 	ulint		mysql_row_len)	/*!< in: length in bytes of a row in
 					the MySQL format */
 {
+	DBUG_ENTER("row_create_prebuilt");
+
 	row_prebuilt_t*	prebuilt;
 	mem_heap_t*	heap;
 	dict_index_t*	clust_index;
@@ -942,8 +950,11 @@ row_create_prebuilt(
 	prebuilt->session = NULL;
 
 	prebuilt->fts_doc_id_in_read_set = 0;
+	prebuilt->blob_heap = NULL;
 
-	return(prebuilt);
+	prebuilt->m_no_prefetch = false;
+
+	DBUG_RETURN(prebuilt);
 }
 
 /********************************************************************//**
@@ -954,6 +965,8 @@ row_prebuilt_free(
 	row_prebuilt_t*	prebuilt,	/*!< in, own: prebuilt struct */
 	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
 {
+	DBUG_ENTER("row_prebuilt_free");
+
 	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
 	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
@@ -978,7 +991,7 @@ row_prebuilt_free(
 	}
 
 	if (prebuilt->blob_heap) {
-		mem_heap_free(prebuilt->blob_heap);
+		row_mysql_prebuilt_free_blob_heap(prebuilt);
 	}
 
 	if (prebuilt->old_vers_heap) {
@@ -1014,6 +1027,8 @@ row_prebuilt_free(
 	}
 
 	mem_heap_free(prebuilt->heap);
+
+	DBUG_VOID_RETURN;
 }
 
 /*********************************************************************//**
@@ -3137,26 +3152,26 @@ row_create_index_for_mysql(
 		que_graph_free((que_t*) que_node_get_parent(thr));
 	} else {
 		dict_build_index_def(table, index, trx);
-
-		index_id_t index_id = index->id;
+#ifdef UNIV_DEBUG
+		space_index_t index_id = index->id;
+#endif
 
 		/* add index to dictionary cache and also free index object */
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
-			(trx_is_strict(trx)
-			 || dict_table_get_format(table) >= UNIV_FORMAT_B));
+			trx_is_strict(trx)
+			|| dict_table_has_atomic_blobs(table));
 
 		if (err != DB_SUCCESS) {
 			goto error_handling;
 		}
 
+		index = UT_LIST_GET_LAST(table->indexes);
+		ut_ad(index->id == index_id);
+
 		/* as above function has freed index object re-load it
 		now from dictionary cache using index_id */
-		if (!dict_table_is_intrinsic(table)) {
-			index = dict_index_get_if_in_cache_low(index_id);
-		} else {
-			index = dict_table_find_index_on_id(table, index_id);
-
+		if (dict_table_is_intrinsic(table)) {
 			/* trx_id field is used for tracking which transaction
 			created the index. For intrinsic table this is
 			ir-relevant and so re-use it for tracking consistent
@@ -3231,8 +3246,6 @@ fields than mentioned in the constraint.
 				database id the database of parameter name
 @param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in[	is_temp_table	true if table is temporary
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
@@ -3243,30 +3256,26 @@ row_table_add_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	bool			is_temp_table,
-	dict_table_t*		handler,
 	ibool			reject_fks)
 {
 	dberr_t	err;
 
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
-	ut_ad(mutex_own(&dict_sys->mutex) || handler);
+	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X) || handler);
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 
 	trx->op_info = "adding foreign keys";
 
-	if (!is_temp_table) {
-		trx_start_if_not_started_xa(trx, true);
-	}
+	trx_start_if_not_started_xa(trx, true);
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	err = dict_create_foreign_constraints(
-		trx, sql_string, sql_length, name, handler, reject_fks);
+		trx, sql_string, sql_length, name, reject_fks);
 
 	DBUG_EXECUTE_IF("ib_table_add_foreign_fail",
 			err = DB_DUPLICATE_KEY;);
@@ -3276,7 +3285,7 @@ row_table_add_foreign_constraints(
 	/* Check like this shouldn't be done for table that doesn't
 	have foreign keys but code still continues to run with void action.
 	Disable it for intrinsic table at-least */
-	if (err == DB_SUCCESS && handler == NULL) {
+	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
 		dict_names_t	fk_tables;
 		err = dict_load_foreigns(name, NULL, false, true,
@@ -3299,7 +3308,7 @@ row_table_add_foreign_constraints(
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
-		row_drop_table_for_mysql(name, trx, FALSE, true, handler);
+		row_drop_table_for_mysql(name, trx, FALSE, true);
 
 		if (trx_is_started(trx)) {
 

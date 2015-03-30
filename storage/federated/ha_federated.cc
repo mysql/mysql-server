@@ -372,19 +372,18 @@
 
 
 #define MYSQL_SERVER 1
+#include "ha_federated.h"
+
 #include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
 #include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
-
-#include "ha_federated.h"
 #include "probes_mysql.h"
-
 #include "m_string.h"
 #include "key.h"                                // key_copy
 #include "myisam.h"                             // TT_USEFRM
 #include "current_thd.h"
-
-#include <mysql/plugin.h>
+#include "mysqld.h"                             // my_localhost
+#include "sql_class.h"
 
 #include <algorithm>
 
@@ -3189,7 +3188,8 @@ int ha_federated::real_connect()
   /* this sets the csname like 'set names utf8' */
   mysql_options(mysql,MYSQL_SET_CHARSET_NAME,
                 this->table->s->table_charset->csname);
-
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "federated");
   sql_query.length(0);
 
   if (!mysql_real_connect(mysql,

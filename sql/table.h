@@ -24,6 +24,7 @@
 #include "datadict.h"      // frm_type_enum
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
+#include "enum_query_type.h" // enum_query_type
 #include "opt_costmodel.h" // Cost_model_table
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
@@ -41,12 +42,17 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Table_cache_element;
 class Table_trigger_dispatcher;
+class QEP_TAB;
 class Query_result_union;
 class Temp_table_param;
 class Index_hint;
 struct Name_resolution_context;
 struct LEX;
 typedef int8 plan_idx;
+class Opt_hints_qb;
+class Opt_hints_table;
+
+typedef int64 query_id_t;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -498,7 +504,7 @@ public:
   virtual ~Table_check_intact() {}
 
   /** Checks whether a table is intact. */
-  bool check(TABLE *table, const TABLE_FIELD_DEF *table_def);
+  bool check(THD *thd, TABLE *table, const TABLE_FIELD_DEF *table_def);
 };
 
 
@@ -603,8 +609,8 @@ struct TABLE_SHARE
      Set of keys in use, implemented as a Bitmap.
      Excludes keys disabled by ALTER TABLE ... DISABLE KEYS.
   */
-  key_map keys_in_use;
-  key_map keys_for_keyread;
+  Key_map keys_in_use;
+  Key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
   /**
@@ -1008,8 +1014,8 @@ public:
     Map of keys that can be used to retrieve all data from this table 
     needed by the query without reading the row.
   */
-  key_map covering_keys;
-  key_map quick_keys, merge_keys;
+  Key_map covering_keys;
+  Key_map quick_keys, merge_keys;
   
   /*
     possible_quick_keys is a superset of quick_keys to use with EXPLAIN of
@@ -1021,7 +1027,7 @@ public:
     optimizer at the top level. OTOH they directly use the range optimizer,
     that collects all keys usable for range access here.
   */
-  key_map possible_quick_keys;
+  Key_map possible_quick_keys;
 
   /*
     A set of keys that can be used in the query that references this
@@ -1034,11 +1040,11 @@ public:
 
     The set is implemented as a bitmap.
   */
-  key_map keys_in_use_for_query;
+  Key_map keys_in_use_for_query;
   /* Map of keys that can be used to calculate GROUP BY without sorting */
-  key_map keys_in_use_for_group_by;
+  Key_map keys_in_use_for_group_by;
   /* Map of keys that can be used to calculate ORDER BY without sorting */
-  key_map keys_in_use_for_order_by;
+  Key_map keys_in_use_for_order_by;
   KEY  *key_info;			/* data of keys defined for the table */
 
   Field *next_number_field;		/* Set if next_number is activated */
@@ -1183,6 +1189,10 @@ public:
      tree only.
    */
   my_bool key_read;
+  /**
+     Certain statements which need the full row, set this to ban index-only
+     access.
+  */
   my_bool no_keyread;
   my_bool locked_by_logger;
   /**
@@ -1261,10 +1271,10 @@ public:
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
-  void mark_columns_needed_for_update(void);
-  void mark_columns_needed_for_delete(void);
-  void mark_columns_needed_for_insert(void);
-  void mark_columns_per_binlog_row_image(void);
+  void mark_columns_needed_for_update(THD *thd);
+  void mark_columns_needed_for_delete(THD *thd);
+  void mark_columns_needed_for_insert(THD *thd);
+  void mark_columns_per_binlog_row_image(THD *thd);
   void mark_generated_columns(bool is_update);
   bool is_field_dependent_on_generated_columns(uint field_index);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
@@ -1491,10 +1501,17 @@ enum enum_view_algorithm {
 /** The threshold size a blob field buffer before it is freed */
 #define MAX_TDC_BLOB_SIZE 65536
 
-
+/**
+  Struct that describes an expression selected from a derived table or view.
+*/
 struct Field_translator
 {
+  /**
+    Points to an item that represents the expression.
+    If the item is determined to be unused, the pointer is set to NULL.
+  */
   Item *item;
+  /// Name of selected expression
   const char *name;
 };
 
@@ -1656,6 +1673,8 @@ struct TABLE_LIST
                      mdl_type_for_dml(lock_type),
                      MDL_TRANSACTION);
     callback_func= 0;
+    opt_hints_table= NULL;
+    opt_hints_qb= NULL;
   }
 
   /// Create a TABLE_LIST object representing a nested join
@@ -1686,6 +1705,16 @@ struct TABLE_LIST
     m_join_cond_optim= cond;
   }
   Item **join_cond_optim_ref() { return &m_join_cond_optim; }
+
+  /// Get the semi-join condition for a semi-join nest, NULL otherwise
+  Item *sj_cond() const { return m_sj_cond; }
+
+  /// Set the semi-join condition for a semi-join nest
+  void set_sj_cond(Item *cond)
+  {
+    DBUG_ASSERT(m_sj_cond == NULL);
+    m_sj_cond= cond;
+  }
 
   /// Merge tables from a query block into a nested join structure
   bool merge_underlying_tables(class st_select_lex *select);
@@ -1736,14 +1765,7 @@ struct TABLE_LIST
   }
 
   /// Prepare check option for a view
-  inline bool prepare_check_option(THD *thd)
-  {
-    DBUG_ASSERT(is_view());
-    bool res= false;
-    if (effective_with_check)
-      res= prep_check_option(thd, effective_with_check);
-    return res;
-  }
+  bool prepare_check_option(THD *thd, bool is_cascaded= false);
 
   /// Merge WHERE condition of view or derived table into outer query
   bool merge_where(THD *thd);
@@ -2024,7 +2046,7 @@ struct TABLE_LIST
   {
     if (!embedding)
       return NULL;
-    if (embedding->sj_on_expr)
+    if (embedding->sj_cond())
       return embedding->embedding;
     return embedding;
   }
@@ -2102,6 +2124,11 @@ struct TABLE_LIST
   char *schema_table_name;
   char *option;                /* Used by cache index  */
 
+  /** Table level optimizer hints for this table.  */
+  Opt_hints_table *opt_hints_table;
+  /* Hints for query block of this table. */
+  Opt_hints_qb *opt_hints_qb;
+
 private:
   /**
     The members below must be kept aligned so that (1 << m_tableno) == m_map.
@@ -2117,8 +2144,8 @@ private:
      once for all executions of a prepared statement).
   */
   Item		*m_join_cond;
+  Item          *m_sj_cond;               ///< Synthesized semijoin condition
 public:
-  Item          *sj_on_expr;            /* Synthesized semijoin condition */
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
     semi-join (this is different from bitmap of all nest's children because
@@ -2203,8 +2230,10 @@ private:
   LEX *view;                    /* link on VIEW lex for merging */
 
 public:
-  Field_translator *field_translation;	/* array of VIEW fields */
-  /* pointer to element after last one in translation table above */
+  /// Array of selected expressions from a derived table or view.
+  Field_translator *field_translation;
+
+  /// pointer to element after last one in translation table above
   Field_translator *field_translation_end;
   /*
     List (based on next_local) of underlying tables of this view. I.e. it
@@ -2267,11 +2296,6 @@ public:
   ulonglong     algorithm;
   ulonglong     view_suid;              ///< view is suid (TRUE by default)
   ulonglong     with_check;             ///< WITH CHECK OPTION
-  /*
-    effective value of WITH CHECK OPTION (differ for temporary table
-    algorithm)
-  */
-  uint8         effective_with_check;
 
 private:
   /// The view algorithm that is actually used, if this is a view.
@@ -2436,7 +2460,6 @@ public:
   // End of group for optimization
 
 private:
-  bool prep_check_option(THD *thd, uint8 check_opt_type);
   /** See comments for set_metadata_id() */
   enum enum_table_ref_type m_table_ref_type;
   /** See comments for TABLE_SHARE::get_table_ref_version() */
@@ -2746,10 +2769,13 @@ void free_table_share(TABLE_SHARE *share);
 
 
 /**
-  Get the tablespace name from within an .FRM file.
+  Get the tablespace name for a table.
 
   This function will open the .FRM file for the given TABLE_LIST element
-  and find the tablespace name, if present.
+  and get the tablespace name, if present. For NDB tables with version
+  before 50120, the function will ask the SE for the tablespace name,
+  because for these tables, the tablespace name is not stored in the.FRM
+  file, but only within the SE itself.
 
   @note The function does *not* consider errors. If the file is not present,
         this does not raise an error. The reason is that this function will
@@ -2779,7 +2805,8 @@ void free_table_share(TABLE_SHARE *share);
 const char *get_tablespace_name(THD *thd, const TABLE_LIST *table);
 
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
-void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
+void open_table_error(THD *thd, TABLE_SHARE *share,
+                      int error, int db_errno, int errarg);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 enum_ident_name_check check_and_convert_db_name(LEX_STRING *db,
                                                 bool preserve_lettercase);
@@ -2818,6 +2845,7 @@ extern LEX_STRING MYSQL_SCHEMA_NAME;
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
 extern LEX_STRING WORKER_INFO_NAME;
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 inline bool is_infoschema_db(const char *name, size_t len)
 {

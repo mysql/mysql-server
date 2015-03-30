@@ -18,10 +18,12 @@
 #ifndef MYSQL_CLIENT
 
 #include "binlog_event.h"                // checksum_crv32
+#include "derror.h"                      // ER_THD
 #include "template_utils.h"              // delete_container_pointers
 #include "field.h"                       // Field
 #include "log.h"                         // sql_print_error
 #include "log_event.h"                   // Log_event
+#include "mysqld.h"                      // slave_type_conversions_options
 #include "psi_memory_key.h"
 #include "rpl_rli.h"                     // Relay_log_info
 #include "sql_class.h"                   // THD

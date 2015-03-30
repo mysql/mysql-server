@@ -1530,6 +1530,34 @@ row_merge_spatial_rows(
 	return(err);
 }
 
+/** Check if the geometry field is valid.
+@param[in]	row		the row
+@param[in]	index		spatial index
+@return true if it's valid, false if it's invalid. */
+static
+bool
+row_geo_field_is_valid(
+	const dtuple_t*		row,
+	dict_index_t*		index)
+{
+	const dict_field_t*	ind_field
+		= dict_index_get_nth_field(index, 0);
+	const dict_col_t*	col
+		= ind_field->col;
+	ulint			col_no
+		= dict_col_get_no(col);
+	const dfield_t*		dfield
+		= dtuple_get_nth_field(row, col_no);
+
+	if (dfield_is_null(dfield)
+	    || dfield_get_len(dfield) < GEO_DATA_HEADER_SIZE) {
+		return(false);
+	}
+
+	return(true);
+}
+
+
 /** Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
 @param[in]	trx		transaction
@@ -2057,7 +2085,6 @@ write_buffers:
 			bool			exceed_page = false;
 
 			if (dict_index_is_spatial(buf->index)) {
-
 				if (!row) {
 					continue;
 				}
@@ -2065,8 +2092,14 @@ write_buffers:
 				ut_ad(sp_tuples[s_idx_cnt]->get_index()
 				      == buf->index);
 
-				sp_tuples[s_idx_cnt]->add(row, ext);
+				/* If the geometry field is invalid, report
+				error. */
+				if (!row_geo_field_is_valid(row, buf->index)) {
+					err = DB_CANT_CREATE_GEOMETRY_OBJECT;
+					break;
+				}
 
+				sp_tuples[s_idx_cnt]->add(row, ext);
 				s_idx_cnt++;
 
 				continue;
@@ -3301,7 +3334,7 @@ void
 row_merge_drop_index_dict(
 /*======================*/
 	trx_t*		trx,	/*!< in/out: dictionary transaction */
-	index_id_t	index_id)/*!< in: index identifier */
+	space_index_t	index_id)/*!< in: index identifier */
 {
 	static const char sql[] =
 		"PROCEDURE DROP_INDEX_PROC () IS\n"
@@ -3763,7 +3796,7 @@ row_merge_rename_index_to_add(
 /*==========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id)	/*!< in: index identifier */
+	space_index_t	index_id)	/*!< in: index identifier */
 {
 	dberr_t		err = DB_SUCCESS;
 	pars_info_t*	info = pars_info_create();
@@ -3814,7 +3847,7 @@ row_merge_rename_index_to_drop(
 /*===========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id)	/*!< in: index identifier */
+	space_index_t	index_id)	/*!< in: index identifier */
 {
 	dberr_t		err;
 	pars_info_t*	info = pars_info_create();

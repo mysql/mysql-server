@@ -2,9 +2,6 @@ set global innodb_file_per_table = on;
 set innodb_strict_mode=off;
 "1. Error in assigning undo logs for truncate action."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -28,9 +25,6 @@ i	f	c
 drop table t;
 "2. Error while preparing for truncate."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -54,9 +48,6 @@ i	f	c
 drop table t;
 "3. Error while dropping/creating indexes"
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -76,9 +67,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -98,9 +86,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create temporary table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -121,9 +106,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
@@ -145,9 +127,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "5. Error while updating sys-tables."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
@@ -167,17 +146,11 @@ set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
-set global innodb_file_format = Barracuda;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;
 set global innodb_file_per_table = on;
 set innodb_strict_mode=off;
 "1. Error in assigning undo logs for truncate action."
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -201,9 +174,6 @@ i	f	c
 drop table t;
 "2. Error while preparing for truncate."
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -227,9 +197,6 @@ i	f	c
 drop table t;
 "3. Error while dropping/creating indexes"
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -249,9 +216,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -271,9 +235,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create temporary table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -294,9 +255,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
@@ -318,9 +276,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "5. Error while updating sys-tables."
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compact
@@ -340,17 +295,11 @@ set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
-set global innodb_file_format = Barracuda;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;
 set global innodb_file_per_table = on;
 set innodb_strict_mode=off;
 "1. Error in assigning undo logs for truncate action."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -374,9 +323,6 @@ i	f	c
 drop table t;
 "2. Error while preparing for truncate."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -400,9 +346,6 @@ i	f	c
 drop table t;
 "3. Error while dropping/creating indexes"
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -422,9 +365,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -444,9 +384,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create temporary table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -467,9 +404,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
@@ -491,9 +425,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "5. Error while updating sys-tables."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
@@ -513,17 +444,11 @@ set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
-set global innodb_file_format = Barracuda;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;
 set global innodb_file_per_table = on;
 set innodb_strict_mode=off;
 "1. Error in assigning undo logs for truncate action."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -547,9 +472,6 @@ i	f	c
 drop table t;
 "2. Error while preparing for truncate."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -573,9 +495,6 @@ i	f	c
 drop table t;
 "3. Error while dropping/creating indexes"
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -595,9 +514,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -617,9 +533,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create temporary table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -640,9 +553,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
@@ -664,9 +574,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "5. Error while updating sys-tables."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
@@ -686,17 +593,11 @@ set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
-set global innodb_file_format = Barracuda;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;
 set global innodb_file_per_table = on;
 set innodb_strict_mode=off;
 "1. Error in assigning undo logs for truncate action."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -720,9 +621,6 @@ i	f	c
 drop table t;
 "2. Error while preparing for truncate."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -746,9 +644,6 @@ i	f	c
 drop table t;
 "3. Error while dropping/creating indexes"
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -768,9 +663,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -790,9 +682,6 @@ select * from t;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create temporary table t (
 i int, f float, c char,
 primary key pk(i), unique findex(f), index ck(c))
@@ -813,9 +702,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "4. Error while completing truncate of table involving FTS."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
@@ -837,9 +723,6 @@ ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corru
 drop table t;
 "5. Error while updating sys-tables."
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create  table t (i int, f float, c char(100),
 primary key pk(i), index fk(f), fulltext index ck(c))
 engine=innodb row_format=compressed
@@ -859,7 +742,4 @@ set session debug = "-d,ib_err_trunc_during_sys_table_update";
 select * from t order by i;
 ERROR HY000: Operation cannot be performed. The table 'test.t' is missing, corrupt or contains bad data.
 drop table t;
-set global innodb_file_format = Barracuda;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;

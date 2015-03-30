@@ -1,8 +1,5 @@
 set global innodb_support_xa=default;
 set session innodb_support_xa=default;
-set global innodb_large_prefix=off;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 SET SESSION DEFAULT_TMP_STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
@@ -559,6 +556,8 @@ id	c	counter
 4	a	2
 drop table t1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(
 id int AUTO_INCREMENT PRIMARY KEY,
 stat_id int NOT NULL,
@@ -804,14 +803,6 @@ ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
 drop table t1,t2;
-SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(f1 varchar(800) binary not null, key(f1))
-character set utf8 collate utf8_general_ci;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-insert into t1 values('aaa');
-drop table t1;
-SET sql_mode=default;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
 INSERT INTO t1 VALUES (    1 , 1              , 1);
 INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20), 1 FROM t1;
@@ -1214,17 +1205,19 @@ CALL p1();
 DROP PROCEDURE p1;
 DROP TABLE t1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(a text) engine=innodb default charset=utf8;
-insert into t1 values('aaa');
-alter table t1 add index(a(1024));
 Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create table t1(a text) engine=innodb row_format=dynamic default charset=utf8;
+insert into t1 values('aaa');
+alter table t1 add index(a(1025));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 3072 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text,
-  KEY `a` (`a`(255))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+  KEY `a` (`a`(1024))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC
 drop table t1;
 SET sql_mode=default;
 CREATE TABLE t1 (
@@ -1571,6 +1564,8 @@ DROP TABLE t1;
 create table t1 (a bit(1) not null,b int) engine=myisam;
 create table t2 (c int) engine=innodb;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1860,7 +1855,7 @@ INSERT INTO t1 VALUES
 (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
 EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	16	2.00	Using where
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	12	NULL	16	1.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`vid` AS `vid`,`test`.`t1`.`tid` AS `tid`,`test`.`t1`.`idx` AS `idx`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`type` AS `type` from `test`.`t1` FORCE INDEX (PRIMARY) where ((`test`.`t1`.`vid` = 3) and (`test`.`t1`.`tid` = 1)) order by `test`.`t1`.`idx` desc
 SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
@@ -1985,10 +1980,6 @@ a
 # Disconnect con1
 # Connection default
 DROP TABLE t1;
-set global innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
-drop table if exists t1, t2, t3;
 #
 # BUG#35850: Performance regression in 5.1.23/5.1.24
 #
@@ -2441,6 +2432,8 @@ INSERT INTO t2 VALUES (1,1,2);
 CREATE TABLE t3 (a INT, b INT) ENGINE=MyISAM;
 INSERT INTO t3 VALUES (1, 1);
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1, t2, t3
 WHERE t1.a = t3.a AND (t1.b = t3.b OR t1.d) AND t2.b = t1.b AND t2.e = 2
 GROUP BY t1.b;
@@ -2945,6 +2938,8 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT) ENGINE=innodb;
 INSERT INTO t1 VALUES (0);
 SET SQL_MODE='STRICT_ALL_TABLES';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t2 
 SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
 ERROR 22007: Incorrect datetime value: '' for column 'NOW()' at row 2

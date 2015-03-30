@@ -23,6 +23,7 @@
 #include "replication.h"      // THD_ENTER_COND
 #include "sql_base.h"         // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
 #include "sql_parse.h"        // mysql_reset_thd_for_next_command
+#include "mysqld.h"           // gtid_executed_compression_period
 
 using std::list;
 using std::string;
@@ -115,7 +116,7 @@ bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
     m_tmp_disable_binlog__save_options= (*thd)->variables.option_bits;
     (*thd)->variables.option_bits&= ~OPTION_BIN_LOG;
   }
-  (*thd)->is_operating_gtid_table= true;
+  (*thd)->is_operating_gtid_table_implicitly= true;
   bool ret= this->open_table(*thd, DB_NAME, TABLE_NAME,
                              Gtid_table_persistor::number_fields,
                              m_is_write ? TL_WRITE : TL_READ,
@@ -131,7 +132,7 @@ void Gtid_table_access_context::deinit(THD *thd, TABLE *table,
   DBUG_ENTER("Gtid_table_access_context::deinit");
 
   this->close_table(thd, table, &m_backup, 0 != error, need_commit);
-  thd->is_operating_gtid_table= false;
+  thd->is_operating_gtid_table_implicitly= false;
   /* Reenable binlog */
   if (m_is_write)
     thd->variables.option_bits= m_tmp_disable_binlog__save_options;
@@ -187,25 +188,34 @@ int Gtid_table_persistor::write_row(TABLE *table, const char *sid,
   fields= table->field;
   empty_record(table);
 
-  if(fill_fields(fields, sid, gno_start, gno_end))
-    goto err;
+  if (fill_fields(fields, sid, gno_start, gno_end))
+    DBUG_RETURN(-1);
 
   /* Inserts a new row into the gtid_executed table. */
   error= table->file->ha_write_row(table->record[0]);
   if (DBUG_EVALUATE_IF("simulate_err_on_write_gtid_into_table",
                        (error= -1), error))
   {
-    table->file->print_error(error, MYF(0));
-    /*
-      This makes sure that the error is -1 and not the status returned
-      by the handler.
-    */
-    goto err;
+    if (error == HA_ERR_FOUND_DUPP_KEY)
+    {
+      /* Ignore the duplicate key error, log a warning for it. */
+      sql_print_warning("The transaction owned GTID is already in "
+                        "the %s table, which is caused by an "
+                        "explicit modifying from user client.",
+                        Gtid_table_access_context::TABLE_NAME.str);
+    }
+    else
+    {
+      table->file->print_error(error, MYF(0));
+      /*
+        This makes sure that the error is -1 and not the status
+        returned by the handler.
+      */
+      DBUG_RETURN(-1);
+    }
   }
 
   DBUG_RETURN(0);
-err:
-  DBUG_RETURN(-1);
 }
 
 
@@ -777,7 +787,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
                       {
                         const char act[]= "now signal compression_failed";
                         DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                        DBUG_ASSERT(!debug_sync_set_action(thd,
                                                            STRING_WITH_LEN(act)));
                       };);
     }

@@ -15,9 +15,4 @@ archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this le
 ds_mrr-big @solaris      : Bug#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers
 mysql_embedded_client_test	: Bug#13964673 2012-04-16 amitbha since most of the test cases are failing
 mysql_client_test_embedded : Bug#16084066 2013-01-08 Disabled since this test is failing
-ssl-big @solaris         : Bug #18977126 MAIN.SSL-BIG FAILS WITH TIMEOUT Times out on Solaris, disable it here
-gis-precise              : Bug #20259578 MAIN.GIS-PRECISE FAILS IN EMBEDDED MODE ON 32-BIT PLATFORMS
-internal_tmp_disk_storage_engine : Bug#20590162 INCORRECT ASSUMPTION ABOUT INNODB RECORD LENGTH IN OPTIMIZER TEMPORARY TABLES
-subquery_sj_mat_nosj : Bug#20590162 INCORRECT ASSUMPTION ABOUT INNODB RECORD LENGTH IN OPTIMIZER TEMPORARY TABLES
-subquery_mat : Bug#20590162 INCORRECT ASSUMPTION ABOUT INNODB RECORD LENGTH IN OPTIMIZER TEMPORARY TABLES
-subquery_mat_all : Bug#20590162 INCORRECT ASSUMPTION ABOUT INNODB RECORD LENGTH IN OPTIMIZER TEMPORARY TABLES
+ssl-big                  : Bug #18977126 MAIN.SSL-BIG FAILS WITH TIMEOUT Times out on weekly, disable it 

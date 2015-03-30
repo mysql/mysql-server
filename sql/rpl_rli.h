@@ -1009,12 +1009,7 @@ public:
 
     @param delay_end The time when the delay shall end.
   */
-  void start_sql_delay(time_t delay_end)
-  {
-    mysql_mutex_assert_owner(&data_lock);
-    sql_delay_end= delay_end;
-    THD_STAGE_INFO(info_thd, stage_sql_thd_waiting_until_delay);
-  }
+  void start_sql_delay(time_t delay_end);
 
   /* Note that this is cast to uint32 in show_slave_status(). */
   time_t get_sql_delay() { return sql_delay; }

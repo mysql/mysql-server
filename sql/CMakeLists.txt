@@ -32,6 +32,8 @@ SET(CONF_SOURCES
 SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 SET(GEN_DIGEST_SOURCES
@@ -61,6 +63,7 @@ ENDIF()
 
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
+  auth/auth_common.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
@@ -76,6 +79,7 @@ SET(SQL_SHARED_SOURCES
   debug_sync.cc
   derror.cc
   discover.cc
+  error_handler.cc
   field.cc
   field_conv.cc 
   filesort.cc
@@ -93,6 +97,7 @@ SET(SQL_SHARED_SOURCES
   item_create.cc
   item_func.cc
   item_geofunc.cc
+  item_geofunc_buffer.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
@@ -104,6 +109,7 @@ SET(SQL_SHARED_SOURCES
   item_xmlfunc.cc 
   item_inetfunc.cc
   key.cc
+  key_spec.cc
   keycaches.cc
   lock.cc
   log.cc
@@ -117,6 +123,7 @@ SET(SQL_SHARED_SOURCES
   opt_explain_format.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
+  opt_hints.cc
   opt_range.cc
   opt_statistics.cc
   opt_sum.cc 
@@ -124,6 +131,7 @@ SET(SQL_SHARED_SOURCES
   opt_trace2server.cc
   parse_file.cc
   parse_tree_helpers.cc
+  parse_tree_hints.cc
   parse_tree_items.cc
   parse_tree_node_base.cc
   parse_tree_nodes.cc
@@ -132,8 +140,9 @@ SET(SQL_SHARED_SOURCES
   partition_info.cc
   partitioning/partition_handler.cc
   procedure.cc 
-  protocol.cc
+  protocol_classic.cc
   psi_memory_key.cc
+  query_result.cc
   records.cc
   rpl_group_replication.cc
   rpl_handler.cc
@@ -177,6 +186,8 @@ SET(SQL_SHARED_SOURCES
   sql_insert.cc
   sql_join_buffer.cc
   sql_lex.cc 
+  sql_lex_hash.cc
+  sql_lex_hints.cc
   sql_list.cc
   sql_load.cc
   sql_locale.cc
@@ -281,6 +292,7 @@ ENDIF()
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   item_geofunc.cc
+  item_geofunc_buffer.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
@@ -297,6 +309,7 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
+    item_geofunc_buffer.cc
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
@@ -328,6 +341,7 @@ ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 ADD_DEPENDENCIES(sql GenDigestServerSource)
 ADD_DEPENDENCIES(sql GenBootstrapPriv)
+ADD_DEPENDENCIES(sql GenSysSchema)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
   mysys mysys_ssl dbug strings vio regex binlogevents_static
@@ -476,10 +490,25 @@ COPY_BISON_OUTPUT(
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
 )
 
+COPY_BISON_OUTPUT(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+)
+
 RUN_BISON(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+  MYSQL
+)
+
+RUN_BISON(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+  HINT_PARSER_
 )
 
 # Gen_lex_hash
@@ -506,7 +535,7 @@ ADD_CUSTOM_TARGET(
 )
 
 
-IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
+IF(NOT DISABLE_SHARED)
   ADD_LIBRARY(udf_example MODULE udf_example.cc)
   SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
   # udf_example depends on strings 
@@ -537,7 +566,7 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(dist 
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/make_dist.cmake
-  DEPENDS ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
+  DEPENDS ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc ${CMAKE_BINARY_DIR}/sql/sql_yacc.h ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 

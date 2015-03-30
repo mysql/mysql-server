@@ -809,8 +809,6 @@ select '1' || '3' from t1;
 1
 1
 set SQL_MODE=oracle;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select '1' || '3' from t1;
 '1' || '3'
 13
@@ -919,6 +917,8 @@ drop table t1, t2;
 set GLOBAL query_cache_size=1355776;
 flush status;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 `date` datetime NOT NULL default '0000-00-00 00:00:00',
 KEY `date` (`date`)
@@ -1898,13 +1898,13 @@ DROP DATABASE `db-db`;
 #
 # BUG 20528928 - BUFFER OVERFLOW IN MYSQL_QUERY_CACHE_INVALIDATE4
 #
-CREATE DATABASE `$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$`;
-USE `$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$`;
+CREATE DATABASE `tttttttttttttttttttttttttttttttttttttttttt`;
+USE `tttttttttttttttttttttttttttttttttttttttttt`;
 CREATE TABLE parent(a INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE spoiled_child(a INT PRIMARY KEY,
 FOREIGN KEY(a) REFERENCES parent(a) ON DELETE CASCADE) ENGINE=InnoDB;
 INSERT INTO parent VALUES(1),(2),(3);
 INSERT INTO spoiled_child VALUES (1),(2);
 DELETE FROM parent WHERE a>1;
-DROP DATABASE `$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$`;
+DROP DATABASE `tttttttttttttttttttttttttttttttttttttttttt`;
 SET GLOBAL query_cache_size = @query_cache_size.saved;

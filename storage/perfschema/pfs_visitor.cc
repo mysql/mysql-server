@@ -21,6 +21,7 @@
 #include "pfs_user.h"
 #include "pfs_host.h"
 #include "pfs_account.h"
+#include "mysqld.h"
 #include "mysqld_thd_manager.h"
 #include "pfs_buffer_container.h"
 #include "sql_class.h"

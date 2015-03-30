@@ -83,6 +83,11 @@
 #define IGNORE_NONE 0x00 /* no ignore */
 #define IGNORE_DATA 0x01 /* don't dump data for this table */
 
+#ifdef HAVE_CHARSET_utf8
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
+#else
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
+#endif
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value);

@@ -164,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -3703,6 +3703,21 @@ sub mysql_install_db {
               "in working directory.");
   }
 
+  if ( ! $opt_embedded_server )
+  {
+    # Add the sys schema, but only in non-embedded installs
+    my $path_sys_schema= my_find_file($install_basedir,
+            ["mysql", "sql/share", "share/mysql",
+             "share", "scripts"],
+            "mysql_sys_schema.sql",
+             NOT_REQUIRED);
+
+    if (-f $path_sys_schema)
+    {
+      mtr_appendfile_to_file($path_sys_schema, $bootstrap_sql_file);
+    }
+  }
+
   # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
 	     "DELETE FROM mysql.user where user= '';\n");
@@ -5420,6 +5435,18 @@ sub mysqld_arguments ($$$) {
   my $found_skip_core= 0;
   my $found_no_console= 0;
   my $found_log_error= 0;
+
+  # Do not add console if log-error found in .cnf file for windows
+  
+  open (CONFIG_FILE, " < $path_config_file") or die ("Could not open output file $path_config_file");
+  while ( <CONFIG_FILE> )
+  {
+    if ( m/^log-error/ ) {
+      $found_log_error= 1;
+    }  
+  }
+  close (CONFIG_FILE);
+
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.

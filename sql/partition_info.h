@@ -17,7 +17,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "partition_element.h"
-#include "mysqld.h"                           // key_map
 #include "sql_bitmap.h"                       // Bitmap
 #include "sql_data_change.h"                  // enum_duplicates
 
@@ -297,12 +296,12 @@ public:
 
   TABLE *table;
   /*
-    These key_map's are used for Partitioning to enable quick decisions
+    These Key_maps are used for Partitioning to enable quick decisions
     on whether we can derive more information about which partition to
     scan just by looking at what index is used.
   */
-  key_map all_fields_in_PF, all_fields_in_PPF, all_fields_in_SPF;
-  key_map some_fields_in_PF;
+  Key_map all_fields_in_PF, all_fields_in_PPF, all_fields_in_SPF;
+  Key_map some_fields_in_PF;
 
   handlerton *default_engine_type;
   partition_type part_type;
@@ -437,7 +436,7 @@ public:
   bool check_partition_info(THD *thd, handlerton **eng_type,
                             handler *file, HA_CREATE_INFO *info,
                             bool check_partition_function);
-  void print_no_partition_found(TABLE *table);
+  void print_no_partition_found(THD *thd, TABLE *table);
   void print_debug(const char *str, uint*);
   Item* get_column_item(Item *item, Field *field);
   bool fix_partition_values(THD *thd,

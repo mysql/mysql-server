@@ -23,6 +23,7 @@
 #include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "sql_class.h"                  // THD
 #include "sql_plugin.h"                 // plugin_unlock
+#include "mysqld.h"                     // key_thread_one_connection
 
 #include <algorithm>
 using std::min;
@@ -172,8 +173,7 @@ void thd_set_thread_stack(THD *thd, char *stack_start)
 
 void thd_close_connection(THD *thd)
 {
-  if (thd->net.vio)
-    vio_shutdown(thd->net.vio);
+  thd->get_protocol_classic()->shutdown();
 }
 
 
@@ -227,7 +227,8 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd_manager->add_thd(thd);
 
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
-          (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
+          (ulong)thd, mysql_socket_getfd(
+            thd->get_protocol_classic()->get_vio()->mysql_socket)));
   thd_set_thread_stack(thd, stack_start);
   DBUG_VOID_RETURN;
 }
@@ -279,7 +280,7 @@ bool thd_is_transaction_active(THD *thd)
 
 int thd_connection_has_data(THD *thd)
 {
-  Vio *vio= thd->net.vio;
+  Vio *vio= thd->get_protocol_classic()->get_vio();
   return vio->has_data(vio);
 }
 
@@ -293,7 +294,7 @@ int thd_connection_has_data(THD *thd)
 
 uint thd_get_net_read_write(THD *thd)
 {
-  return thd->net.reading_or_writing;
+  return thd->get_protocol_classic()->get_rw_status();
 }
 
 
@@ -306,7 +307,7 @@ uint thd_get_net_read_write(THD *thd)
 
 void thd_set_net_read_write(THD *thd, uint val)
 {
-  thd->net.reading_or_writing= val;
+  thd->get_protocol_classic()->get_net()->reading_or_writing= val;
 }
 
 
@@ -333,7 +334,7 @@ void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
 
 my_socket thd_get_fd(THD *thd)
 {
-  return mysql_socket_getfd(thd->net.vio->mysql_socket);
+  return thd->get_protocol_classic()->get_socket();
 }
 
 
@@ -427,7 +428,15 @@ int thd_in_lock_tables(const MYSQL_THD thd)
 extern "C"
 int thd_tablespace_op(const MYSQL_THD thd)
 {
-  return MY_TEST(thd->tablespace_op);
+  /*
+    The Alter_info is reset only at the beginning of an ALTER
+    statement, so this function must check both the SQL command
+    code and the Alter_info::flags.
+  */
+  return MY_TEST(thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
+                 (thd->lex->alter_info.flags &
+                  (Alter_info::ALTER_DISCARD_TABLESPACE |
+                   Alter_info::ALTER_IMPORT_TABLESPACE)));
 }
 
 

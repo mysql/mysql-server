@@ -1,0 +1,32 @@
+DESC sys.statements_with_sorting;
+Field	Type	Null	Key	Default	Extra
+query	longtext	YES		NULL	
+db	varchar(64)	YES		NULL	
+exec_count	bigint(20) unsigned	NO		NULL	
+total_latency	text	YES		NULL	
+sort_merge_passes	bigint(20) unsigned	NO		NULL	
+avg_sort_merges	decimal(21,0)	NO		0	
+sorts_using_scans	bigint(20) unsigned	NO		NULL	
+sort_using_range	bigint(20) unsigned	NO		NULL	
+rows_sorted	bigint(20) unsigned	NO		NULL	
+avg_rows_sorted	decimal(21,0)	NO		0	
+first_seen	timestamp	NO		0000-00-00 00:00:00	
+last_seen	timestamp	NO		0000-00-00 00:00:00	
+digest	varchar(32)	YES		NULL	
+SELECT * FROM sys.statements_with_sorting;
+DESC sys.x$statements_with_sorting;
+Field	Type	Null	Key	Default	Extra
+query	longtext	YES		NULL	
+db	varchar(64)	YES		NULL	
+exec_count	bigint(20) unsigned	NO		NULL	
+total_latency	bigint(20) unsigned	NO		NULL	
+sort_merge_passes	bigint(20) unsigned	NO		NULL	
+avg_sort_merges	decimal(21,0)	NO		0	
+sorts_using_scans	bigint(20) unsigned	NO		NULL	
+sort_using_range	bigint(20) unsigned	NO		NULL	
+rows_sorted	bigint(20) unsigned	NO		NULL	
+avg_rows_sorted	decimal(21,0)	NO		0	
+first_seen	timestamp	NO		0000-00-00 00:00:00	
+last_seen	timestamp	NO		0000-00-00 00:00:00	
+digest	varchar(32)	YES		NULL	
+SELECT * FROM sys.x$statements_with_sorting;

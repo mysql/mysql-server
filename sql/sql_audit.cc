@@ -17,6 +17,7 @@
 
 #include "current_thd.h"
 #include "log.h"
+#include "mysqld.h"                             // sql_statement_names
 #include "sql_class.h"                          // THD
 #include "sql_plugin.h"                         // my_plugin_foreach
 #include "sql_rewrite.h"                        // mysql_rewrite_query

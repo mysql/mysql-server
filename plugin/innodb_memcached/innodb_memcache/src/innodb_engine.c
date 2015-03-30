@@ -810,6 +810,11 @@ have_conn:
 		} else {
 			/* Write cursor transaction exists.
 			   Reuse this transaction.*/
+			if (ib_cb_trx_read_only(conn_data->crsr_trx)) {
+				innodb_cb_trx_commit(
+					conn_data->crsr_trx);
+			}
+
 			assert(ib_cb_trx_start(conn_data->crsr_trx,
 					       engine->trx_level,
 					       true, false, NULL));
@@ -850,6 +855,11 @@ have_conn:
 					engine->trx_level, true, false);
 				trx_updated = true;
 			} else {
+				if (ib_cb_trx_read_only(conn_data->crsr_trx)) {
+					innodb_cb_trx_commit(
+						conn_data->crsr_trx);
+				}
+
 				ib_cb_trx_start(conn_data->crsr_trx,
 						engine->trx_level,
 						true, false, NULL);
@@ -915,6 +925,12 @@ have_conn:
 					engine, idx_crsr, lock_mode);
 			}
 		} else {
+
+			if (ib_cb_trx_read_only(conn_data->crsr_trx)) {
+				innodb_cb_trx_commit(
+					conn_data->crsr_trx);
+			}
+
 			ib_cb_trx_start(conn_data->crsr_trx,
 					engine->trx_level,
 					true, false, NULL);
@@ -2011,7 +2027,6 @@ innodb_flush_sync_conn(
 
 	curr_conn_data = engine->server.cookie->get_engine_specific(cookie);
 	assert(curr_conn_data);
-	assert(!engine->enable_binlog || curr_conn_data->thd);
 
 	conn_data = UT_LIST_GET_FIRST(engine->conn_data);
 

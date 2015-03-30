@@ -21,10 +21,12 @@
 
 #include "records.h"               // READ_RECORD
 #include "sql_opt_exec_shared.h"   // QEP_shared_owner
+#include "temp_table_param.h"      // Temp_table_param
 
 class JOIN;
 class JOIN_TAB;
 class QEP_TAB;
+typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_table_ref TABLE_REF;
 typedef struct st_position POSITION;
 
@@ -283,7 +285,9 @@ evaluate_join_record(JOIN *join, QEP_TAB *qep_tab, int error);
 
 
 
-void copy_fields(Temp_table_param *param);
+__attribute__((warn_unused_result))
+bool copy_fields(Temp_table_param *param, const THD *thd);
+
 bool copy_funcs(Func_ptr_array*, const THD *thd);
 bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
@@ -515,8 +519,24 @@ public:
     record combination
   */
   bool found_match;
-  bool found;         /**< true after all matches or null complement*/
-  bool not_null_compl;/**< true before null complement is added    */
+
+  /**
+    Used to decide whether an inner table of an outer join should produce NULL
+    values. If it is true after a call to evaluate_join_record(), the join
+    condition has been satisfied for at least one row from the inner
+    table. This member is not really manipulated by this class, see sub_select
+    for details on its use.
+  */
+  bool found;
+
+  /**
+    This member is true as long as we are evaluating rows from the inner
+    tables of an outer join. If none of these rows satisfy the join condition,
+    we generated NULL-complemented rows and set this member to false. In the
+    meantime, the value may be read by triggered conditions, see
+    Item_func_trig_cond::val_int().
+  */
+  bool not_null_compl;
 
   plan_idx first_unmatched; /**< used for optimization purposes only   */
 

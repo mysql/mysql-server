@@ -23,13 +23,11 @@
   @{
 */
 
-#include "sql_select.h"
-#include "key.h"
-#include "psi_memory_key.h"
-#include "sql_optimizer.h"  // JOIN
 #include "sql_join_buffer.h"
-#include "sql_tmp_table.h"  // instantiate_tmp_table()
-#include "opt_trace.h"
+
+#include "opt_trace.h"      // Opt_trace_object
+#include "psi_memory_key.h" // key_memory_JOIN_CACHE
+#include "sql_optimizer.h"  // JOIN
 
 #include <algorithm>
 using std::max;
@@ -531,7 +529,7 @@ int JOIN_CACHE_BNL::init()
       going to be joined with all buffered records of the previous tables.
     */
     const table_map available= join->best_ref[qep_tab->idx()]->added_tables();
-    Item *const tmp= make_cond_for_table(qep_tab->condition(),
+    Item *const tmp= make_cond_for_table(join->thd, qep_tab->condition(),
                                          join->const_table_map | available,
                                          available, false);
     if (tmp)

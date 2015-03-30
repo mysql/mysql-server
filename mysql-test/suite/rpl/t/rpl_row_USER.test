@@ -23,7 +23,10 @@ CREATE DATABASE mysqltest1;
 # Section 1 test anonymous user
 CREATE USER tester IDENTIFIED BY 'test';
 GRANT ALL ON mysqltest1.* TO 'tester'@'%' IDENTIFIED BY 'test';
+set @orig_sql_mode= @@sql_mode;
+set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 GRANT ALL ON mysqltest1.* TO ''@'localhost%';
+set sql_mode= @orig_sql_mode;
 FLUSH PRIVILEGES;
 connect (m_1,localhost,tester,,mysqltest1);
 

@@ -99,6 +99,8 @@ E	Essen	Ost	5	ESSEN
 F	NULL	Sachsenhausen	NULL	NULL
 H	Hamburg	Norderstedt	7	HAMBURG
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY c2 int;
 Warnings:
 Warning	1366	Incorrect integer value: 'Berlin' for column 'c2' at row 1

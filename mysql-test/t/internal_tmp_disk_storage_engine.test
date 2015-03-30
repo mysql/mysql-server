@@ -1,12 +1,13 @@
 --echo #
 --echo # wl#6711:User can choose tmp table engine between MyISAM and InnoDB
 --echo #
+# In order to support innodb_limit_optimistic_insert_debug
+--source include/have_debug.inc
 # In order to make the output of explain json-format stable
 --source include/have_innodb_16k.inc
 # Contains several strange queries with GROUP BY, so:
 --source include/turn_off_only_full_group_by.inc
 # =======================initialization====================
-SET GLOBAL innodb_large_prefix=OFF;
 create table t1(a int, b varchar(20));
 create table t2(a int, b varchar(20));
 insert into t1 values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
@@ -290,7 +291,7 @@ col_varchar_1024_utf8_key varchar(1024) CHARACTER SET utf8 DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_varchar_1024_utf8_key (col_varchar_1024_utf8_key(333))
-) ;
+) ROW_FORMAT=DYNAMIC;
 
 INSERT INTO N VALUES
 (1,3,repeat('a',1000)),(0,4,'tell'),(7,6,'o'),(6,7,'g'),(8,8,'can'),
@@ -561,7 +562,7 @@ key (col_date_key ),
 key (col_varchar_1024_utf8_key ),
 key (col_int_key ),
 key (col_varchar_10_latin1_key ),
-primary key (pk)) ENGINE=innodb;
+primary key (pk)) ENGINE=innodb ROW_FORMAT=DYNAMIC;
 SET sql_mode = default;
 CREATE OR REPLACE VIEW view_h AS SELECT * FROM H;
 
@@ -1298,8 +1299,45 @@ SELECT DISTINCT sum(b) FROM t1 GROUP BY a, c1, c2, c3, c4, c5, c6, c7, c8,
 c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, c23,
 c24, c25, c26, c27, c28, c29, c30, c31, c32, c33, c34, c35;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20454833 PREFIX INDEX FIELD, ON AN INAPPROPRIATE DATA TYPE
+--echo #
+
+set sql_mode='';
+create table t1 (a blob,b int) engine=innodb;
+create table t2 (b blob) engine=innodb;
+select t2.b,t1.b,t1.a
+from t2 inner join t1 on 1 cross join t2 a  on 1
+group by t1.b;
+set sql_mode=default;
+drop table t1,t2;
+
+--echo #
+--echo # Bug#20506527 FAILING ASSERTION: !MBMAXLEN || !(PREFIX_LEN % MBMAXLEN)
+--echo #
+
+set names utf8, sql_mode='';
+create table t1(a date,b text charset utf8,c linestring not null);
+insert into t1 values ('2015-01-01','a',linestring(point(1,1),point(2,2)));
+select distinct nullif(a,b) as c from t1 z order by z.c;
+set names default, sql_mode=default;
+drop table t1;
+
+--echo #
+--echo # Bug#20752543 INNODB:FAILING ASSERTION:FLAGS & BUF_PAGE_PRINT_NO_CRASH
+--echo #
+SET @old_big_tables=@@big_tables;
+SET big_tables=on;
+set @old_limit_optimistic_insert_debug= @@innodb_limit_optimistic_insert_debug;
+set global innodb_limit_optimistic_insert_debug=2;
+select 1 as a union all select 1 union all select 2 union select 1 union all
+select 2;
+set big_tables= @old_big_tables;
+set global innodb_limit_optimistic_insert_debug=
+                      @old_limit_optimistic_insert_debug;
+
 #============================end && cleanup======================= 
-SET GLOBAL innodb_large_prefix=default;
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;

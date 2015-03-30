@@ -42,9 +42,11 @@ This file contains the implementation of error and warnings related
 ***********************************************************************/
 
 #include "sql_error.h"
-#include "sp_rcontext.h"
+
+#include "derror.h"       // ER_THD
 #include "log.h"          // sql_print_warning
-#include "current_thd.h"
+#include "sql_class.h"    // THD
+#include "mysqld.h"       // error_message_charset_info
 
 using std::min;
 using std::max;
@@ -424,10 +426,10 @@ void Diagnostics_area::set_eof_status(THD *thd)
 }
 
 
-void Diagnostics_area::set_error_status(uint mysql_errno)
+void Diagnostics_area::set_error_status(THD *thd, uint mysql_errno)
 {
   set_error_status(mysql_errno,
-                   ER_THD(current_thd, mysql_errno),
+                   ER_THD(thd, mysql_errno),
                    mysql_errno_to_sqlstate(mysql_errno));
 }
 
@@ -827,15 +829,15 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
   field_list.push_back(new Item_return_int("Code",4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Message",MYSQL_ERRMSG_SIZE));
 
-  if (thd->protocol->send_result_set_metadata(&field_list,
-                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     rc= true;
 
   const Sql_condition *err;
   SELECT_LEX *sel= thd->lex->select_lex;
   SELECT_LEX_UNIT *unit= thd->lex->unit;
   ulonglong idx= 0;
-  Protocol *protocol=thd->protocol;
+  Protocol *protocol=thd->get_protocol();
 
   unit->set_limit(sel);
 
@@ -849,7 +851,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
       continue;
     if (idx > unit->select_limit_cnt)
       break;
-    protocol->prepare_for_resend();
+    protocol->start_row();
     protocol->store(warning_level_names[err->severity()].str,
 		    warning_level_names[err->severity()].length,
                     system_charset_info);
@@ -857,7 +859,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
     protocol->store(err->message_text(),
                     err->message_octet_length(),
                     system_charset_info);
-    if (protocol->write())
+    if (protocol->end_row())
       rc= true;
   }
   thd->pop_diagnostics_area();

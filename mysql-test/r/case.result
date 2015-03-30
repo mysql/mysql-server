@@ -1,5 +1,7 @@
 drop table if exists t1, t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select CASE "b" when "a" then 1 when "b" then 2 END;
 CASE "b" when "a" then 1 when "b" then 2 END
 2
@@ -234,6 +236,8 @@ SET sql_mode = default;
 #              (SIG 6 -STRINGS/CTYPE-UTF8.C:5151)
 #
 set @@sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(c1 SET('','')CHARACTER SET ucs2) engine=innodb;
 Warnings:
 Note	1291	Column 'c1' has duplicated value '' in SET

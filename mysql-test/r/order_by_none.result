@@ -1,5 +1,7 @@
 drop table if exists t1,t2,t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 id int(6) DEFAULT '0' NOT NULL,
 idservice int(5),
@@ -2837,4 +2839,20 @@ NULL	3
 DROP VIEW view_t1;
 DROP TABLE t1, t2;
 SET sql_mode = default;
+#
+# Bug#20455386 INVALID WRITE IN COPY_FIELD::SET CAUSE CRASH WITH TMP TABLES
+#
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+CREATE TABLE t2(c INT) ENGINE=INNODB;
+CREATE TABLE t3(b BLOB NOT NULL) ENGINE=INNODB;
+SELECT
+(SELECT 1 FROM t1
+WHERE (SELECT c FROM t2 ORDER BY COUNT(t3.b ))
+)
+FROM t3;
+(SELECT 1 FROM t1
+WHERE (SELECT c FROM t2 ORDER BY COUNT(t3.b ))
+)
+NULL
+DROP TABLE t1,t2,t3;
 set optimizer_switch=default;

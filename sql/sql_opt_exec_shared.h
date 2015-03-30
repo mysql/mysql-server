@@ -296,7 +296,7 @@ public:
   void set_type(enum join_type t) { m_type= t; }
   Item *condition() const { return m_condition; }
   void set_condition(Item *c) { m_condition= c; }
-  key_map &keys() { return m_keys; }
+  Key_map &keys() { return m_keys; }
   ha_rows records() const { return m_records; }
   void set_records(ha_rows r) { m_records= r; }
   QUICK_SELECT_I *quick() const { return m_quick; }
@@ -416,7 +416,7 @@ private:
      Used by add_key_field() (optimization time) and execution of dynamic
      range (join_init_quick_record()), and EXPLAIN.
   */
-  key_map       m_keys;
+  Key_map       m_keys;
 
   /**
      Either #rows in the table or 1 for const table.
@@ -489,7 +489,7 @@ public:
   void set_type(enum join_type t) { return m_qs->set_type(t); }
   Item *condition() const { return m_qs->condition(); }
   void set_condition(Item *to) { return m_qs->set_condition(to); }
-  key_map &keys() { return m_qs->keys(); }
+  Key_map &keys() { return m_qs->keys(); }
   ha_rows records() const { return m_qs->records(); }
   void set_records(ha_rows r) { return m_qs->set_records(r); }
   QUICK_SELECT_I *quick() const { return m_qs->quick(); }

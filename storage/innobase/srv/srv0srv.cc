@@ -141,16 +141,6 @@ my_bool	srv_read_only_mode;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 my_bool	srv_file_per_table;
-/** The file format to use on new *.ibd files. */
-ulint	srv_file_format = 0;
-/** Whether to check file format during startup.  A value of
-UNIV_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
-set it to the highest format we support. */
-ulint	srv_max_file_format_at_startup = UNIV_FORMAT_MAX;
-
-#if UNIV_FORMAT_A
-# error "UNIV_FORMAT_A must be 0!"
-#endif
 
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
@@ -186,6 +176,9 @@ page_size_t	univ_page_size(0, 0, false);
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
 char	srv_adaptive_flushing	= TRUE;
+
+/* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
+my_bool	srv_flush_sync		= TRUE;
 
 /** Maximum number of times allowed to conditionally acquire
 mutex before switching to blocking wait on the mutex */
@@ -265,7 +258,7 @@ ulong	srv_io_capacity         = 200;
 ulong	srv_max_io_capacity     = 400;
 
 /* The number of page cleaner threads to use.*/
-ulong	srv_n_page_cleaners = 1;
+ulong	srv_n_page_cleaners = 4;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -283,7 +276,7 @@ ulong	srv_adaptive_flushing_lwm	= 10;
 ulong	srv_flushing_avg_loops		= 30;
 
 /* The number of purge threads to use.*/
-ulong	srv_n_purge_threads = 1;
+ulong	srv_n_purge_threads = 4;
 
 /* the number of pages to purge in one batch */
 ulong	srv_purge_batch_size = 20;
@@ -345,6 +338,8 @@ of the pages are used for single page flushing. */
 ulong	srv_doublewrite_batch_size	= 120;
 
 ulong	srv_replication_delay		= 0;
+
+ulong	srv_log_checksum_algorithm	= SRV_CHECKSUM_ALGORITHM_INNODB;
 
 /*-------------------------------------------*/
 ulong	srv_n_spin_wait_rounds	= 30;
@@ -561,8 +556,8 @@ char*	srv_buf_dump_filename;
 
 /** Boolean config knobs that tell InnoDB to dump the buffer pool at shutdown
 and/or load it during startup. */
-char	srv_buffer_pool_dump_at_shutdown = FALSE;
-char	srv_buffer_pool_load_at_startup = FALSE;
+char	srv_buffer_pool_dump_at_shutdown = TRUE;
+char	srv_buffer_pool_load_at_startup = TRUE;
 
 /** Slot index in the srv_sys->sys_threads array for the purge thread. */
 static const ulint	SRV_PURGE_SLOT	= 1;

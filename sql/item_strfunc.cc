@@ -37,12 +37,14 @@
 #include "my_aes.h"                  // MY_AES_IV_SIZE
 #include "my_md5.h"                  // MD5_HASH_SIZE
 #include "my_rnd.h"                  // my_rand_buffer
+#include "mysqld.h"                  // LOCK_des_key_file
 #include "sha1.h"                    // SHA1_HASH_SIZE
 #include "auth_common.h"             // check_password_policy
 #include "des_key_file.h"            // st_des_keyblock
 #include "item_geofunc.h"            // Item_func_geomfromgeojson
 #include "password.h"                // my_make_scrambled_password
 #include "sql_class.h"               // THD
+#include "sql_locale.h"              // my_locale_by_name
 #include "strfunc.h"                 // hexchar_to_int
 
 C_MODE_START
@@ -1459,7 +1461,16 @@ String *Item_func_concat::val_str(String *str)
 	  str->replace(0,0,*res);
 	else
 	{
-	  str->copy(*res);
+          // If res2 is a substring of str, then clone it first.
+          char buff[STRING_BUFFER_USUAL_SIZE];
+          String res2_clone(buff, sizeof(buff), system_charset_info);
+          if (res2->uses_buffer_owned_by(str))
+          {
+            if (res2_clone.copy(*res2))
+              goto null;
+            res2= &res2_clone;
+          }
+ 	  str->copy(*res);
 	  str->append(*res2);
 	}
         res= str;
@@ -1810,6 +1821,15 @@ String *Item_func_concat_ws::val_str(String *str)
       }
       else
       {
+        // If res2 is a substring of str, then clone it first.
+        char buff[STRING_BUFFER_USUAL_SIZE];
+        String res2_clone(buff, sizeof(buff), system_charset_info);
+        if (res2->uses_buffer_owned_by(str))
+        {
+          if (res2_clone.copy(*res2))
+            goto null;
+          res2= &res2_clone;
+        }
 	str->copy(*res);
 	str->append(*sep_str);
 	str->append(*res2);
@@ -3701,14 +3721,15 @@ const int FORMAT_MAX_DECIMALS= 30;
 MY_LOCALE *Item_func_format::get_locale(Item *item)
 {
   DBUG_ASSERT(arg_count == 3);
+  THD *thd= current_thd;
   String tmp, *locale_name= args[2]->val_str_ascii(&tmp);
   MY_LOCALE *lc;
   if (!locale_name ||
-      !(lc= my_locale_by_name(locale_name->c_ptr_safe())))
+      !(lc= my_locale_by_name(thd, locale_name->c_ptr_safe())))
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_UNKNOWN_LOCALE,
-                        ER_THD(current_thd, ER_UNKNOWN_LOCALE),
+                        ER_THD(thd, ER_UNKNOWN_LOCALE),
                         locale_name ? locale_name->c_ptr_safe() : "NULL");
     lc= &my_locale_en_US;
   }
@@ -5660,6 +5681,15 @@ static void set_clock_seq_str()
 }
 
 
+void Item_func_uuid::fix_length_and_dec()
+{
+  collation.set(system_charset_info,
+                DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
+  fix_char_length(UUID_LENGTH);
+}
+
+
+
 bool Item_func_uuid::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -5783,6 +5813,9 @@ String *Item_func_uuid::val_str(String *str)
   tohex(s+9, time_mid, 4);
   tohex(s+14, time_hi_and_version, 4);
   my_stpcpy(s+18, clock_seq_and_node_str);
+  DBUG_EXECUTE_IF("force_fake_uuid",
+                  my_stpcpy(s, "a2d00942-b69c-11e4-a696-0020ff6fcbe6");
+                  );
   return str;
 }
 

@@ -23,11 +23,14 @@
 
 #include "binlog.h"                   // mysql_bin_log
 #include "debug_sync.h"               // DEBUG_SYNC
+#include "filesort.h"                 // Filesort
 #include "opt_explain.h"              // Modification_plan
+#include "opt_range.h"                // prune_partitions
 #include "opt_trace.h"                // Opt_trace_object
 #include "psi_memory_key.h"
 #include "records.h"                  // READ_RECORD
-#include "sql_base.h"                 // open_normal_and_derived_tables
+#include "sql_base.h"                 // open_tables_for_query
+#include "sql_cache.h"                // query_cache
 #include "sql_optimizer.h"            // optimize_cond
 #include "sql_resolver.h"             // setup_order
 #include "sql_select.h"               // free_underlaid_joins
@@ -36,7 +39,7 @@
 #include "uniques.h"                  // Unique
 #include "probes_mysql.h"
 #include "auth_common.h"
-
+#include "mysqld.h"                   // stage_init
 
 /**
   Implement DELETE SQL word.
@@ -160,13 +163,15 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     - The condition is constant
     - If there is a condition, then it it produces a non-zero value
     - If the current command is DELETE FROM with no where clause, then:
-      - We should not be binlogging this statement in row-based, and
+      - We will not be binlogging this statement in row-based, and
       - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond_result &&
       !(specialflag & SPECIAL_NO_NEW_FUNC) &&
-       (!thd->is_current_stmt_binlog_format_row() &&
-        !(table->triggers && table->triggers->has_delete_triggers())))
+      ((!thd->is_current_stmt_binlog_format_row() ||   /* not ROW binlog-format */
+        thd->is_current_stmt_binlog_disabled() || /* no binlog for this command */
+        !mysql_bin_log.is_open()) &&                   /* binary log is not opened */
+       !(table->triggers && table->triggers->has_delete_triggers())))
   {
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -184,8 +189,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     if (!(error=table->file->ha_delete_all_rows()))
     {
       /*
-        If delete_all_rows() is used, it is not possible to log the
-        query in row format, so we have to log it in statement format.
+        As delete_all_rows() was used, we have to log it in statement format.
       */
       query_type= THD::STMT_QUERY_TYPE;
       error= -1;
@@ -270,7 +274,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
       zero_rows= true;
     else if (conds != NULL)
     {
-      key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+      Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
       zero_rows= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
                                    ORDER::ORDER_NOT_RELEVANT, &qep_tab,
@@ -420,7 +424,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     else
       will_batch= !table->file->start_bulk_delete();
 
-    table->mark_columns_needed_for_delete();
+    table->mark_columns_needed_for_delete(thd);
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !using_limit &&
@@ -548,9 +552,9 @@ cleanup:
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
 
       /*
-        [binlog]: If 'handler::delete_all_rows()' was called and the
-        storage engine does not inject the rows itself, we replicate
-        statement-based; otherwise, 'ha_delete_row()' was used to
+        [binlog]: As we don't allow the use of 'handler:delete_all_rows()' when
+        binlog_format == ROW, if 'handler::delete_all_rows()' was called
+        we replicate statement-based; otherwise, 'ha_delete_row()' was used to
         delete specific rows which we might log row-based.
       */
       int log_result= thd->binlog_query(query_type,
@@ -798,17 +802,6 @@ int Sql_cmd_delete_multi::mysql_multi_delete_prepare(THD *thd,
 }
 
 
-Query_result_delete::Query_result_delete(TABLE_LIST *dt,
-                                         uint num_of_tables_arg)
-  : delete_tables(dt), tempfiles(NULL), tables(NULL), deleted(0), found(0),
-    num_of_tables(num_of_tables_arg), error(0),
-    delete_table_map(0), delete_immediate(0),
-    transactional_table_map(0), non_transactional_table_map(0),
-    do_delete(0), non_transactional_deleted(false), error_handled(false)
-{
-}
-
-
 int Query_result_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
   DBUG_ENTER("Query_result_delete::prepare");
@@ -887,7 +880,7 @@ bool Query_result_delete::initialize_tables(JOIN *join)
     if (thd->lex->is_ignore())
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     table->prepare_for_position();
-    table->mark_columns_needed_for_delete();
+    table->mark_columns_needed_for_delete(thd);
   }
   /*
     In some cases, rows may be deleted from the first table(s) in the join order
@@ -934,7 +927,6 @@ Query_result_delete::~Query_result_delete()
     TABLE *table= tbl_ref->correspondent_table->updatable_base_table()->table;
     if (thd->lex->is_ignore())
       table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-    table->no_keyread=0;
   }
 
   for (uint counter= 0; counter < num_of_tables; counter++)
@@ -1392,7 +1384,7 @@ bool Sql_cmd_delete_multi::execute(THD *thd)
   }
 
   if (!thd->is_fatal_error &&
-      (del_result= new Query_result_delete(aux_tables, del_table_count)))
+      (del_result= new Query_result_delete(thd, aux_tables, del_table_count)))
   {
     DBUG_ASSERT(select_lex->having_cond() == NULL &&
                 !select_lex->order_list.elements &&

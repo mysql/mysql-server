@@ -28,6 +28,7 @@
 #include "current_thd.h"
 #include "field.h"
 #include "sql_class.h"
+#include "mysqld.h"
 
 THR_LOCK table_status_by_thread::m_table_lock;
 

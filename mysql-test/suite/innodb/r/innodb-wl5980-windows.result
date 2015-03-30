@@ -60,6 +60,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+sys.sys_config                                     OK
 test.emp1                                          OK
 test.emp2                                          OK
 test.emp3                                          OK
@@ -153,68 +154,31 @@ SELECT COUNT(*) FROM purchase;
 COUNT(*)
 0
 # Check the system tables have the proper entry of the tables.
-SELECT path FROM information_schema.innodb_sys_datafiles
-WHERE path LIKE '%test%' ORDER BY space;
-path
-./test/emp1.ibd
-MYSQL_TMP_DIR/mysqld.5980/tab1/test/emp2#p#p1.ibd
-MYSQL_TMP_DIR/mysqld.5980/tab2/test/emp2#p#p2.ibd
-MYSQL_TMP_DIR/mysqld.5980/tab3/test/emp3.ibd
-MYSQL_TMP_DIR/mysqld.5980/part0/test/purchase#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/mysqld.5980/part1/test/purchase#p#p0#sp#s1.ibd
-MYSQL_TMP_DIR/mysqld.5980/part2/test/purchase#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/mysqld.5980/part3/test/purchase#p#p1#sp#s3.ibd
-MYSQL_TMP_DIR/mysqld.5980/tab4/test/emp4#p#p1.ibd
-MYSQL_TMP_DIR/mysqld.5980/tab5/test/emp4#p#p2.ibd
-SELECT name,file_format,row_format 
-FROM information_schema.innodb_sys_tablespaces
-ORDER BY name;
-name	file_format	row_format
-innodb_system	Antelope	Compact or Redundant
-mysql/engine_cost	Antelope	Compact or Redundant
-mysql/gtid_executed	Antelope	Compact or Redundant
-mysql/help_category	Antelope	Compact or Redundant
-mysql/help_keyword	Antelope	Compact or Redundant
-mysql/help_relation	Antelope	Compact or Redundant
-mysql/help_topic	Antelope	Compact or Redundant
-mysql/plugin	Antelope	Compact or Redundant
-mysql/servers	Antelope	Compact or Redundant
-mysql/server_cost	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/time_zone	Antelope	Compact or Redundant
-mysql/time_zone_leap_second	Antelope	Compact or Redundant
-mysql/time_zone_name	Antelope	Compact or Redundant
-mysql/time_zone_transition	Antelope	Compact or Redundant
-mysql/time_zone_transition_type	Antelope	Compact or Redundant
-test/emp1	Antelope	Compact or Redundant
-test/emp2#P#p1	Antelope	Compact or Redundant
-test/emp2#P#p2	Antelope	Compact or Redundant
-test/emp3	Antelope	Compact or Redundant
-test/emp4#P#p1	Barracuda	Dynamic
-test/emp4#P#p2	Barracuda	Dynamic
-test/purchase#P#p0#SP#s0	Antelope	Compact or Redundant
-test/purchase#P#p0#SP#s1	Antelope	Compact or Redundant
-test/purchase#P#p1#SP#s2	Antelope	Compact or Redundant
-test/purchase#P#p1#SP#s3	Antelope	Compact or Redundant
-SELECT name,n_cols,file_format,row_format 
-FROM information_schema.innodb_sys_tables 
-WHERE name LIKE '%emp%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/emp1	6	Antelope	Compact
-test/emp2#P#p1	6	Antelope	Compact
-test/emp2#P#p2	6	Antelope	Compact
-test/emp3	6	Antelope	Compact
-test/emp4#P#p1	6	Barracuda	Dynamic
-test/emp4#P#p2	6	Barracuda	Dynamic
-SELECT name,n_cols,file_format,row_format 
-FROM information_schema.innodb_sys_tables 
-WHERE name LIKE '%purchase%' ORDER BY name;
-name	n_cols	file_format	row_format
-test/purchase#P#p0#SP#s0	5	Antelope	Compact
-test/purchase#P#p0#SP#s1	5	Antelope	Compact
-test/purchase#P#p1#SP#s2	5	Antelope	Compact
-test/purchase#P#p1#SP#s3	5	Antelope	Compact
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/emp1	MYSQLD_DATADIR/test/emp1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp2#p#p1	MYSQL_TMP_DIR/mysqld.5980/tab1/test/emp2#p#p1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp2#p#p2	MYSQL_TMP_DIR/mysqld.5980/tab2/test/emp2#p#p2.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp3	MYSQL_TMP_DIR/mysqld.5980/tab3/test/emp3.ibd	DEFAULT	0	Compact or Redundant	Single
+test/purchase#p#p0#sp#s0	MYSQL_TMP_DIR/mysqld.5980/part0/test/purchase#p#p0#sp#s0.ibd	DEFAULT	0	Compact or Redundant	Single
+test/purchase#p#p0#sp#s1	MYSQL_TMP_DIR/mysqld.5980/part1/test/purchase#p#p0#sp#s1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/purchase#p#p1#sp#s2	MYSQL_TMP_DIR/mysqld.5980/part2/test/purchase#p#p1#sp#s2.ibd	DEFAULT	0	Compact or Redundant	Single
+test/purchase#p#p1#sp#s3	MYSQL_TMP_DIR/mysqld.5980/part3/test/purchase#p#p1#sp#s3.ibd	DEFAULT	0	Compact or Redundant	Single
+test/emp4#p#p1	MYSQL_TMP_DIR/mysqld.5980/tab4/test/emp4#p#p1.ibd	DEFAULT	0	Dynamic	Single
+test/emp4#p#p2	MYSQL_TMP_DIR/mysqld.5980/tab5/test/emp4#p#p2.ibd	DEFAULT	0	Dynamic	Single
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/emp1	test/emp1	1	6	Compact	0	Single
+test/emp2#p#p1	test/emp2#p#p1	65	6	Compact	0	Single
+test/emp2#p#p2	test/emp2#p#p2	65	6	Compact	0	Single
+test/emp3	test/emp3	65	6	Compact	0	Single
+test/emp4#p#p1	test/emp4#p#p1	97	6	Dynamic	0	Single
+test/emp4#p#p2	test/emp4#p#p2	97	6	Dynamic	0	Single
+test/purchase#p#p0#sp#s0	test/purchase#p#p0#sp#s0	65	5	Compact	0	Single
+test/purchase#p#p0#sp#s1	test/purchase#p#p0#sp#s1	65	5	Compact	0	Single
+test/purchase#p#p1#sp#s2	test/purchase#p#p1#sp#s2	65	5	Compact	0	Single
+test/purchase#p#p1#sp#s3	test/purchase#p#p1#sp#s3	65	5	Compact	0	Single
 #
 # Cleanup
 #

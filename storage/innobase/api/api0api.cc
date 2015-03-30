@@ -583,6 +583,18 @@ ib_trx_begin(
 }
 
 /*****************************************************************//**
+Check if transaction is read_only
+@return transaction read_only status */
+ib_u32_t
+ib_trx_read_only(
+/*=============*/
+	ib_trx_t	ib_trx)		/*!< in: trx handle */
+{
+	trx_t*		trx = (trx_t*) ib_trx;
+
+	return(trx->read_only);
+}
+/*****************************************************************//**
 Get a trx start time.
 @return trx start_time */
 ib_u64_t
@@ -822,28 +834,19 @@ ib_create_cursor(
 	return(err);
 }
 
-/*****************************************************************//**
-Create an internal cursor instance, and set prebuilt->index to index
-with supplied index_id.
+/** Create an internal cursor instance on the clustered index.
+@param[out]	ib_crsr		InnoDB cursor
+@param[in,out]	table		table instance
+@param[in,out]	trx		transaction
 @return DB_SUCCESS or err code */
 static
 ib_err_t
-ib_create_cursor_with_index_id(
-/*===========================*/
-	ib_crsr_t*	ib_crsr,	/*!< out: InnoDB cursor */
-	dict_table_t*	table,		/*!< in: table instance */
-	ib_id_u64_t	index_id,	/*!< in: index id or 0 */
-	trx_t*		trx)		/*!< in: transaction */
+ib_create_cursor_with_clust_index(
+	ib_crsr_t*	ib_crsr,
+	dict_table_t*	table,
+	trx_t*		trx)
 {
-	dict_index_t*	index;
-
-	if (index_id != 0) {
-		mutex_enter(&dict_sys->mutex);
-		index = dict_index_find_on_id_low(index_id);
-		mutex_exit(&dict_sys->mutex);
-	} else {
-		index = dict_table_get_first_index(table);
-	}
+	dict_index_t*	index = dict_table_get_first_index(table);
 
 	return(ib_create_cursor(ib_crsr, table, index, trx));
 }
@@ -871,8 +874,8 @@ ib_cursor_open_table_using_id(
 		return(DB_TABLE_NOT_FOUND);
 	}
 
-	err = ib_create_cursor_with_index_id(ib_crsr, table, 0,
-					     (trx_t*) ib_trx);
+	err = ib_create_cursor_with_clust_index(ib_crsr, table,
+						(trx_t*) ib_trx);
 
 	return(err);
 }
@@ -891,7 +894,7 @@ ib_cursor_open_index_using_name(
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
-	index_id_t	index_id = 0;
+	space_index_t	index_id = 0;
 	ib_err_t	err = DB_TABLE_NOT_FOUND;
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_open_crsr;
 
@@ -985,8 +988,8 @@ ib_cursor_open_table(
 	}
 
 	if (table != NULL) {
-		err = ib_create_cursor_with_index_id(ib_crsr, table, 0,
-						     (trx_t*) ib_trx);
+		err = ib_create_cursor_with_clust_index(ib_crsr, table,
+							(trx_t*) ib_trx);
 	} else {
 		err = DB_TABLE_NOT_FOUND;
 	}
@@ -3254,8 +3257,8 @@ ib_table_truncate(
 					DICT_ERR_IGNORE_NONE);
 
 	if (table != NULL && dict_table_get_first_index(table)) {
-		err = ib_create_cursor_with_index_id(&ib_crsr, table, 0,
-						     (trx_t*) ib_trx);
+		err = ib_create_cursor_with_clust_index(&ib_crsr, table,
+							(trx_t*) ib_trx);
 	} else {
 		err = DB_TABLE_NOT_FOUND;
 	}

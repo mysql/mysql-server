@@ -19,6 +19,7 @@
 
 #include "my_global.h"                  /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "violite.h"                    /* SSL_type */
+#include "mysql_time.h"                 /* MYSQL_TIME */
 
 #include "auth_common.h"
 
@@ -28,6 +29,7 @@ class GRANT_NAME;
 class GRANT_TABLE;
 class GRANT_COLUMN;
 struct TABLE;
+typedef struct user_resources USER_RESOURCES;
 
 /* sql_authentication */
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);
@@ -56,7 +58,7 @@ ACL_USER * find_acl_user(const char *host,
 ACL_PROXY_USER * acl_find_proxy_user(const char *user,
                                      const char *host,
                                      const char *ip,
-                                     const char *authenticated_as,
+                                     char *authenticated_as,
                                      bool *proxy_used);
 bool set_user_salt(ACL_USER *acl_user);
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value);
@@ -71,7 +73,8 @@ void acl_update_user(const char *user, const char *host,
                      const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
                      MYSQL_TIME password_change_time,
-                     LEX_ALTER password_life);
+                     LEX_ALTER password_life,
+                     ulong what_is_set);
 void acl_insert_user(const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
@@ -119,7 +122,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                           const char *db, const char *routine_name,
                           bool is_proc, ulong rights, bool revoke_grant);
 int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
-int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
+int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to);
 
 /* sql_authorization */

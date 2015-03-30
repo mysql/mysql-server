@@ -889,6 +889,8 @@ drop table t1;
 drop procedure populate_t1;
 use test;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure populate_t1()
 begin
 declare i int default 1;
@@ -928,9 +930,6 @@ count(*)
 200
 drop table t1;
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create table t1 (a int not null, d int not null, b varchar(198) not null,
 c char(185), unique key (b(10), a, d), index (d), index(a),
 index (c(120), b(120)), index (b(5), c(10), a))

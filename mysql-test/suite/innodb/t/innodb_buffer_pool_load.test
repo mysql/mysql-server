@@ -1,8 +1,12 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 #
-# Test for the functionality of InnoDB Buffer Pool dump/load.
+# Test for the functionality of InnoDB Buffer Pool dump/load
 #
+
+# This case checks buffer pool dump/load works as expected
+# with innodb_buffer_pool_load_at_startup=ON
+# and innodb_buffer_pool_dump_at_shutdown=ON
 
 --source include/have_innodb.inc
 # include/restart_mysqld.inc does not work in embedded mode
@@ -12,6 +16,10 @@
 
 --error 0,1
 --remove_file $file
+
+# Dump the whole buffer pool because if only a portion of it is dumped, we
+# cannot be sure how many of the ib_bp_test's pages will end up in the dump.
+SET GLOBAL innodb_buffer_pool_dump_pct=100;
 
 # Create a table and populate it with some data
 CREATE TABLE ib_bp_test
@@ -45,17 +53,7 @@ while ($i)
 --replace_result 83 {checked_valid} 163 {checked_valid} 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
 --eval $check_cnt
 
-# Dump
-SET GLOBAL innodb_buffer_pool_dump_now = ON;
-
-# Wait for the dump to complete
---disable_warnings
-let $wait_condition =
-  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
-  FROM information_schema.global_status
-  WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
---enable_warnings
---source include/wait_condition.inc
+--source include/shutdown_mysqld.inc
 
 # Confirm the file has been created
 --file_exists $file
@@ -71,13 +69,7 @@ print $fh "123456,123456\n";
 close($fh);
 EOF
 
---source include/restart_mysqld.inc
-
-# Load the table so that entries in the I_S table do not appear as NULL
-select count(*) from ib_bp_test where a = 1;
-
-# Load
-SET GLOBAL innodb_buffer_pool_load_now = ON;
+--source include/start_mysqld.inc
 
 # Wait for the load to complete
 --disable_warnings
@@ -101,6 +93,9 @@ WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --replace_result 83 {checked_valid} 163 {checked_valid} 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
 --eval $check_cnt
 
+call mtr.add_suppression("InnoDB: Error parsing");
+--source include/shutdown_mysqld.inc
+
 # Add some total garbage to the dump file
 --let IBDUMPFILE = $file
 perl;
@@ -110,10 +105,7 @@ print $fh "abcdefg\n";
 close($fh);
 EOF
 
-call mtr.add_suppression("InnoDB: Error parsing");
-
-# Load
-SET GLOBAL innodb_buffer_pool_load_now = ON;
+--source include/start_mysqld.inc
 
 # Wait for the load to fail
 --disable_warnings
@@ -123,6 +115,8 @@ let $wait_condition =
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 --source include/wait_condition.inc
+
+--source include/shutdown_mysqld.inc
 
 --echo # Re-write some valid pages to the dump file, make sure the space
 --echo # should be valid but all the page no should be out of bound of the file
@@ -137,11 +131,7 @@ print $fh "$space,10002\n";
 close($fh);
 EOF
 
-# We force the restart so that the table would be closed
---source include/restart_mysqld.inc
-
-# Load directly, without accessing the table first
-SET GLOBAL innodb_buffer_pool_load_now = ON;
+--source include/start_mysqld.inc
 
 # Wait for the load to complete
 --disable_warnings
@@ -161,3 +151,4 @@ WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --enable_warnings
 
 DROP TABLE ib_bp_test;
+SET GLOBAL innodb_buffer_pool_dump_pct=default;

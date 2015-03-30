@@ -1,0 +1,505 @@
+SET @old_innodb_file_per_table=@@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = OFF;
+#
+# Put all partitions of a table into a general tablespace.
+#
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
+CREATE TABLESPACE `s``1` ADD DATAFILE 's-1.ibd' ENGINE InnoDB;
+CREATE TABLE t1 (a INT, b INT)
+ENGINE = InnoDB
+TABLESPACE=`s1`
+  PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION tens VALUES LESS THAN (100) TABLESPACE=`innodb_file_per_table`
+      (SUBPARTITION subpart11,
+SUBPARTITION subpart12),
+PARTITION hundreds VALUES LESS THAN (1000)
+(SUBPARTITION subpart21,
+SUBPARTITION subpart22 TABLESPACE=`innodb_file_per_table`),
+PARTITION onethousands VALUES LESS THAN (2000)
+TABLESPACE=`innodb_file_per_table`
+      (SUBPARTITION subpart23 TABLESPACE = `s1`,
+SUBPARTITION subpart24),
+PARTITION thousands VALUES LESS THAN (10000)
+(SUBPARTITION subpart31,
+SUBPARTITION subpart32));
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t2 (a INT, b INT)
+ENGINE = InnoDB
+PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+PARTITION tens VALUES LESS THAN (100) TABLESPACE=`s1`
+      (SUBPARTITION subpart11,
+SUBPARTITION subpart12),
+PARTITION hundreds VALUES LESS THAN (1000)
+(SUBPARTITION subpart21,
+SUBPARTITION subpart22 TABLESPACE=`s``1`),
+PARTITION thousands VALUES LESS THAN (10000)
+(SUBPARTITION subpart31 DATA DIRECTORY 'MYSQL_TMP_DIR',
+SUBPARTITION subpart32 DATA DIRECTORY 'MYSQL_TMP_DIR' TABLESPACE `innodb_file_per_table`));
+ALTER TABLE t1 ADD PARTITION
+(PARTITION tenthousands VALUES LESS THAN (20000));
+# Only allow tablespace name as ident, not text. I.e. no 'single' quotes.
+ALTER TABLE t1 ADD PARTITION
+(PARTITION twentythousands VALUES LESS THAN (30000)
+TABLESPACE = 'innodb_system');
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''innodb_system')' at line 3
+ALTER TABLE t1 ADD PARTITION
+(PARTITION twentythousands VALUES LESS THAN (30000)
+TABLESPACE = "innodb_system");
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"innodb_system")' at line 3
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'ANSI_QUOTES';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t1 ADD PARTITION
+(PARTITION twentythousands VALUES LESS THAN (30000)
+TABLESPACE = 'innodb_system');
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''innodb_system')' at line 3
+ALTER TABLE t1 ADD PARTITION
+(PARTITION twentythousands VALUES LESS THAN (30000)
+TABLESPACE = "innodb_system");
+ALTER TABLE t1 ADD PARTITION
+(PARTITION thirtythousands VALUES LESS THAN (40000)
+TABLESPACE = `innodb_file_per_table`);
+SET @@sql_mode = @old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t1 ADD PARTITION
+(PARTITION fortythousands VALUES LESS THAN (50000)
+(SUBPARTITION p40k_1 TABLESPACE = innodb_system DATA DIRECTORY = 'MYSQL_TMP_DIR',
+SUBPARTITION p40k_2 DATA DIRECTORY = 'MYSQL_TMP_DIR'));
+ERROR HY000: InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
+# Verify that it is OK to have TABLESPACE innodb_system with DATA DIR also on table
+CREATE TABLE t3 (a int)
+ENGINE = InnoDB
+TABLESPACE = innodb_system DATA DIRECTORY = 'MYSQL_TMP_DIR';
+ERROR HY000: InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
+CREATE TABLE t3 (a int)
+ENGINE = InnoDB
+TABLESPACE = innodb_file_per_table DATA DIRECTORY = 'MYSQL_TMP_DIR';
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
+DROP TABLE t3;
+CREATE TABLE t3 (a int) ENGINE = InnoDB DATA DIRECTORY = 'MYSQL_TMP_DIR';
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
+DROP TABLE t3;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION fortythousands VALUES LESS THAN (50000)
+(SUBPARTITION p40k_1 DATA DIRECTORY = 'MYSQL_TMP_DIR',
+SUBPARTITION p40k_2 TABLESPACE = innodb_file_per_table DATA DIRECTORY = 'MYSQL_TMP_DIR'));
+SET GLOBAL innodb_file_per_table = OFF;
+ALTER TABLE t1 ADD PARTITION
+(PARTITION fiftythousands VALUES LESS THAN (60000));
+ALTER TABLE t1 ADD PARTITION
+(PARTITION sixtythousands VALUES LESS THAN (70000)
+TABLESPACE = `innodb_system`);
+ALTER TABLE t1 ADD PARTITION
+(PARTITION seventythousands VALUES LESS THAN (80000)
+TABLESPACE = `innodb_file_per_table`);
+ALTER TABLE t1 ADD PARTITION
+(PARTITION eightythousands VALUES LESS THAN (90000)
+(SUBPARTITION p80k_1 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR',
+SUBPARTITION p80k_2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR'));
+# Test if both TABLESPACE and DATA DIRECTORY is allowed on table level.
+CREATE TABLE t3 (a int)
+ENGINE = InnoDB
+TABLESPACE = innodb_file_per_table DATA DIRECTORY = 'MYSQL_TMP_DIR';
+CREATE TABLE t4 (a int)
+ENGINE = InnoDB
+TABLESPACE = innodb_system DATA DIRECTORY = 'MYSQL_TMP_DIR';
+ERROR HY000: InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
+ALTER TABLE t1 ADD PARTITION
+(PARTITION ninetythousands VALUES LESS THAN (100000)
+(SUBPARTITION p90k_1 TABLESPACE = `innodb_file_per_table`,
+SUBPARTITION p90k_2 TABLESPACE = `innodb_system`));
+FLUSH TABLES;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#eightythousands#sp#p80k_1	test/t1#p#eightythousands#sp#p80k_1	65	5	Compact	0	Single
+test/t1#p#eightythousands#sp#p80k_2	test/t1#p#eightythousands#sp#p80k_2	65	5	Compact	0	Single
+test/t1#p#fiftythousands#sp#fiftythousandssp0	s1	129	5	Compact	0	General
+test/t1#p#fiftythousands#sp#fiftythousandssp1	s1	129	5	Compact	0	General
+test/t1#p#fortythousands#sp#p40k_1	test/t1#p#fortythousands#sp#p40k_1	65	5	Compact	0	Single
+test/t1#p#fortythousands#sp#p40k_2	test/t1#p#fortythousands#sp#p40k_2	65	5	Compact	0	Single
+test/t1#p#hundreds#sp#subpart21	s1	129	5	Compact	0	General
+test/t1#p#hundreds#sp#subpart22	test/t1#p#hundreds#sp#subpart22	1	5	Compact	0	Single
+test/t1#p#ninetythousands#sp#p90k_1	test/t1#p#ninetythousands#sp#p90k_1	1	5	Compact	0	Single
+test/t1#p#ninetythousands#sp#p90k_2	innodb_system	129	5	Compact	0	System
+test/t1#p#onethousands#sp#subpart23	s1	129	5	Compact	0	General
+test/t1#p#onethousands#sp#subpart24	test/t1#p#onethousands#sp#subpart24	1	5	Compact	0	Single
+test/t1#p#seventythousands#sp#seventythousandssp0	test/t1#p#seventythousands#sp#seventythousandssp0	1	5	Compact	0	Single
+test/t1#p#seventythousands#sp#seventythousandssp1	test/t1#p#seventythousands#sp#seventythousandssp1	1	5	Compact	0	Single
+test/t1#p#sixtythousands#sp#sixtythousandssp0	innodb_system	129	5	Compact	0	System
+test/t1#p#sixtythousands#sp#sixtythousandssp1	innodb_system	129	5	Compact	0	System
+test/t1#p#tens#sp#subpart11	test/t1#p#tens#sp#subpart11	1	5	Compact	0	Single
+test/t1#p#tens#sp#subpart12	test/t1#p#tens#sp#subpart12	1	5	Compact	0	Single
+test/t1#p#tenthousands#sp#tenthousandssp0	s1	129	5	Compact	0	General
+test/t1#p#tenthousands#sp#tenthousandssp1	s1	129	5	Compact	0	General
+test/t1#p#thirtythousands#sp#thirtythousandssp0	test/t1#p#thirtythousands#sp#thirtythousandssp0	1	5	Compact	0	Single
+test/t1#p#thirtythousands#sp#thirtythousandssp1	test/t1#p#thirtythousands#sp#thirtythousandssp1	1	5	Compact	0	Single
+test/t1#p#thousands#sp#subpart31	s1	129	5	Compact	0	General
+test/t1#p#thousands#sp#subpart32	s1	129	5	Compact	0	General
+test/t1#p#twentythousands#sp#twentythousandssp0	innodb_system	129	5	Compact	0	System
+test/t1#p#twentythousands#sp#twentythousandssp1	innodb_system	129	5	Compact	0	System
+test/t2#p#hundreds#sp#subpart21	test/t2#p#hundreds#sp#subpart21	1	5	Compact	0	Single
+test/t2#p#hundreds#sp#subpart22	s`1	129	5	Compact	0	General
+test/t2#p#tens#sp#subpart11	s1	129	5	Compact	0	General
+test/t2#p#tens#sp#subpart12	s1	129	5	Compact	0	General
+test/t2#p#thousands#sp#subpart31	test/t2#p#thousands#sp#subpart31	65	5	Compact	0	Single
+test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	65	5	Compact	0	Single
+test/t3	test/t3	65	4	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+s1	MYSQLD_DATADIR/s1.ibd	DEFAULT	0	Any	General
+s`1	MYSQLD_DATADIR/s-1.ibd	DEFAULT	0	Any	General
+test/t1#p#tens#sp#subpart11	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart11.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#tens#sp#subpart12	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart12.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#hundreds#sp#subpart22	MYSQLD_DATADIR/test/t1#p#hundreds#sp#subpart22.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#onethousands#sp#subpart24	MYSQLD_DATADIR/test/t1#p#onethousands#sp#subpart24.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2#p#hundreds#sp#subpart21	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2#p#thousands#sp#subpart31	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart31.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2#p#thousands#sp#subpart32	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart32.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#thirtythousands#sp#thirtythousandssp0	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp0.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#thirtythousands#sp#thirtythousandssp1	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#fortythousands#sp#p40k_1	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#fortythousands#sp#p40k_2	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#seventythousands#sp#seventythousandssp0	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp0.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#seventythousands#sp#seventythousandssp1	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#eightythousands#sp#p80k_1	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#eightythousands#sp#p80k_2	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_2.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3	MYSQL_TMP_DIR/test/t3.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#ninetythousands#sp#p90k_1	MYSQLD_DATADIR/test/t1#p#ninetythousands#sp#p90k_1.ibd	DEFAULT	0	Compact or Redundant	Single
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+ (SUBPARTITION subpart11 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION subpart12 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION hundreds VALUES LESS THAN (1000)
+ (SUBPARTITION subpart21 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION subpart22 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION onethousands VALUES LESS THAN (2000)
+ (SUBPARTITION subpart23 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION subpart24 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION thousands VALUES LESS THAN (10000)
+ (SUBPARTITION subpart31 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION subpart32 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION tenthousands VALUES LESS THAN (20000)
+ (SUBPARTITION tenthousandssp0 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION tenthousandssp1 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION twentythousands VALUES LESS THAN (30000)
+ (SUBPARTITION twentythousandssp0 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION twentythousandssp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION thirtythousands VALUES LESS THAN (40000)
+ (SUBPARTITION thirtythousandssp0 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION thirtythousandssp1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION fortythousands VALUES LESS THAN (50000)
+ (SUBPARTITION p40k_1 DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB,
+  SUBPARTITION p40k_2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB),
+ PARTITION fiftythousands VALUES LESS THAN (60000)
+ (SUBPARTITION fiftythousandssp0 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION fiftythousandssp1 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION sixtythousands VALUES LESS THAN (70000)
+ (SUBPARTITION sixtythousandssp0 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sixtythousandssp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION seventythousands VALUES LESS THAN (80000)
+ (SUBPARTITION seventythousandssp0 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION seventythousandssp1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
+ PARTITION eightythousands VALUES LESS THAN (90000)
+ (SUBPARTITION p80k_1 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB,
+  SUBPARTITION p80k_2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB),
+ PARTITION ninetythousands VALUES LESS THAN (100000)
+ (SUBPARTITION p90k_1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+  SUBPARTITION p90k_2 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+ (SUBPARTITION subpart11 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION subpart12 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION hundreds VALUES LESS THAN (1000)
+ (SUBPARTITION subpart21 ENGINE = InnoDB,
+  SUBPARTITION subpart22 TABLESPACE = `s``1` ENGINE = InnoDB),
+ PARTITION thousands VALUES LESS THAN (10000)
+ (SUBPARTITION subpart31 DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB,
+  SUBPARTITION subpart32 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB)) */
+SET @@sql_mode = 'ANSI_QUOTES';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET GLOBAL innodb_file_per_table = ON;
+FLUSH TABLES;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "a" int(11) DEFAULT NULL,
+  "b" int(11) DEFAULT NULL
+) /*!50100 TABLESPACE "s1" */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+ (SUBPARTITION subpart11 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
+  SUBPARTITION subpart12 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB),
+ PARTITION hundreds VALUES LESS THAN (1000)
+ (SUBPARTITION subpart21 TABLESPACE = "s1" ENGINE = InnoDB,
+  SUBPARTITION subpart22 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB),
+ PARTITION onethousands VALUES LESS THAN (2000)
+ (SUBPARTITION subpart23 TABLESPACE = "s1" ENGINE = InnoDB,
+  SUBPARTITION subpart24 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB),
+ PARTITION thousands VALUES LESS THAN (10000)
+ (SUBPARTITION subpart31 TABLESPACE = "s1" ENGINE = InnoDB,
+  SUBPARTITION subpart32 TABLESPACE = "s1" ENGINE = InnoDB),
+ PARTITION tenthousands VALUES LESS THAN (20000)
+ (SUBPARTITION tenthousandssp0 TABLESPACE = "s1" ENGINE = InnoDB,
+  SUBPARTITION tenthousandssp1 TABLESPACE = "s1" ENGINE = InnoDB),
+ PARTITION twentythousands VALUES LESS THAN (30000)
+ (SUBPARTITION twentythousandssp0 TABLESPACE = "innodb_system" ENGINE = InnoDB,
+  SUBPARTITION twentythousandssp1 TABLESPACE = "innodb_system" ENGINE = InnoDB),
+ PARTITION thirtythousands VALUES LESS THAN (40000)
+ (SUBPARTITION thirtythousandssp0 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
+  SUBPARTITION thirtythousandssp1 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB),
+ PARTITION fortythousands VALUES LESS THAN (50000)
+ (SUBPARTITION p40k_1 DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB,
+  SUBPARTITION p40k_2 TABLESPACE = "innodb_file_per_table" DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB),
+ PARTITION fiftythousands VALUES LESS THAN (60000)
+ (SUBPARTITION fiftythousandssp0 TABLESPACE = "s1" ENGINE = InnoDB,
+  SUBPARTITION fiftythousandssp1 TABLESPACE = "s1" ENGINE = InnoDB),
+ PARTITION sixtythousands VALUES LESS THAN (70000)
+ (SUBPARTITION sixtythousandssp0 TABLESPACE = "innodb_system" ENGINE = InnoDB,
+  SUBPARTITION sixtythousandssp1 TABLESPACE = "innodb_system" ENGINE = InnoDB),
+ PARTITION seventythousands VALUES LESS THAN (80000)
+ (SUBPARTITION seventythousandssp0 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
+  SUBPARTITION seventythousandssp1 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB),
+ PARTITION eightythousands VALUES LESS THAN (90000)
+ (SUBPARTITION p80k_1 TABLESPACE = "innodb_file_per_table" DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB,
+  SUBPARTITION p80k_2 TABLESPACE = "innodb_file_per_table" DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB),
+ PARTITION ninetythousands VALUES LESS THAN (100000)
+ (SUBPARTITION p90k_1 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
+  SUBPARTITION p90k_2 TABLESPACE = "innodb_system" ENGINE = InnoDB)) */
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE "t2" (
+  "a" int(11) DEFAULT NULL,
+  "b" int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+ (SUBPARTITION subpart11 TABLESPACE = "s1" ENGINE = InnoDB,
+  SUBPARTITION subpart12 TABLESPACE = "s1" ENGINE = InnoDB),
+ PARTITION hundreds VALUES LESS THAN (1000)
+ (SUBPARTITION subpart21 ENGINE = InnoDB,
+  SUBPARTITION subpart22 TABLESPACE = "s`1" ENGINE = InnoDB),
+ PARTITION thousands VALUES LESS THAN (10000)
+ (SUBPARTITION subpart31 DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB,
+  SUBPARTITION subpart32 TABLESPACE = "innodb_file_per_table" DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB)) */
+# DISCARD will only work on the first partitions that use file_per_table
+ALTER TABLE t1 DISCARD TABLESPACE;
+ERROR 42000: InnoDB: Cannot discard table `test/t1#p#hundreds#sp#subpart21` because it is in a general tablespace. It must be file-per-table.
+SET @@sql_mode = @old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t2 DISCARD TABLESPACE;
+ERROR 42000: InnoDB: Cannot discard table `test/t2#p#tens#sp#subpart11` because it is in a general tablespace. It must be file-per-table.
+call mtr.add_suppression("Table .* Subpartition .* does not exist in the InnoDB internal data dict");
+call mtr.add_suppression("Missing .ibd file for table .*subpart");
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE `t1` (
+`a` int(11) DEFAULT NULL,
+`b` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+(SUBPARTITION subpart11 ENGINE = InnoDB,
+SUBPARTITION subpart12 ENGINE = InnoDB),
+PARTITION hundreds VALUES LESS THAN (1000)
+(SUBPARTITION subpart21 TABLESPACE = s1 ENGINE = InnoDB,
+SUBPARTITION subpart22 ENGINE = InnoDB),
+PARTITION onethousands VALUES LESS THAN (2000)
+(SUBPARTITION subpart23 TABLESPACE = s1 ENGINE = InnoDB,
+SUBPARTITION subpart24 ENGINE = InnoDB),
+PARTITION thousands VALUES LESS THAN (10000)
+(SUBPARTITION subpart31 TABLESPACE = s1 ENGINE = InnoDB,
+SUBPARTITION subpart32 TABLESPACE = s1 ENGINE = InnoDB),
+PARTITION tenthousands VALUES LESS THAN (20000)
+(SUBPARTITION tenthousandssp0 TABLESPACE = s1 ENGINE = InnoDB,
+SUBPARTITION tenthousandssp1 TABLESPACE = s1 ENGINE = InnoDB),
+PARTITION twentythousands VALUES LESS THAN (30000)
+(SUBPARTITION twentythousandssp0 TABLESPACE = innodb_system ENGINE = InnoDB,
+SUBPARTITION twentythousandssp1 TABLESPACE = innodb_system ENGINE = InnoDB),
+PARTITION thirtythousands VALUES LESS THAN (40000)
+(SUBPARTITION thirtythousandssp0 ENGINE = InnoDB,
+SUBPARTITION thirtythousandssp1 ENGINE = InnoDB),
+PARTITION fortythousands VALUES LESS THAN (50000)
+(SUBPARTITION p40k_1 TABLESPACE = innodb_system ENGINE = InnoDB,
+SUBPARTITION p40k_2 DATA DIRECTORY = 'MYSQL_TMP_DIR' ENGINE = InnoDB),
+PARTITION fiftythousands VALUES LESS THAN (60000)
+(SUBPARTITION fiftythousandssp0 TABLESPACE = s1 ENGINE = InnoDB,
+SUBPARTITION fiftythousandssp1 TABLESPACE = s1 ENGINE = InnoDB),
+PARTITION sixtythousands VALUES LESS THAN (70000)
+(SUBPARTITION sixtythousandssp0 TABLESPACE = innodb_system ENGINE = InnoDB,
+SUBPARTITION sixtythousandssp1 TABLESPACE = innodb_system ENGINE = InnoDB),
+PARTITION seventythousands VALUES LESS THAN (80000)
+(SUBPARTITION seventythousandssp0 ENGINE = InnoDB,
+SUBPARTITION seventythousandssp1 ENGINE = InnoDB),
+PARTITION ninetythousands VALUES LESS THAN (100000)
+(SUBPARTITION p90k_1 ENGINE = InnoDB,
+SUBPARTITION p90k_2 TABLESPACE = innodb_system ENGINE = InnoDB)) */;
+CREATE TABLE `t2` (
+`a` int(11) DEFAULT NULL,
+`b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+(SUBPARTITION subpart11 TABLESPACE = s1 ENGINE = InnoDB,
+SUBPARTITION subpart12 TABLESPACE = s1 ENGINE = InnoDB),
+PARTITION hundreds VALUES LESS THAN (1000)
+(SUBPARTITION subpart21 ENGINE = InnoDB,
+SUBPARTITION subpart22 TABLESPACE = `s``1` ENGINE = InnoDB),
+PARTITION thousands VALUES LESS THAN (10000)
+(SUBPARTITION subpart31 ENGINE = InnoDB,
+SUBPARTITION subpart32 ENGINE = InnoDB)) */;
+=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
+Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
+test/t1#p#fiftythousands#sp#fiftythousandssp0	s1	129	5	Compact	0	General
+test/t1#p#fiftythousands#sp#fiftythousandssp1	s1	129	5	Compact	0	General
+test/t1#p#fortythousands#sp#p40k_1	innodb_system	129	5	Compact	0	System
+test/t1#p#fortythousands#sp#p40k_2	test/t1#p#fortythousands#sp#p40k_2	65	5	Compact	0	Single
+test/t1#p#hundreds#sp#subpart21	s1	129	5	Compact	0	General
+test/t1#p#hundreds#sp#subpart22	s1	129	5	Compact	0	General
+test/t1#p#ninetythousands#sp#p90k_1	s1	129	5	Compact	0	General
+test/t1#p#ninetythousands#sp#p90k_2	innodb_system	129	5	Compact	0	System
+test/t1#p#onethousands#sp#subpart23	s1	129	5	Compact	0	General
+test/t1#p#onethousands#sp#subpart24	s1	129	5	Compact	0	General
+test/t1#p#seventythousands#sp#seventythousandssp0	s1	129	5	Compact	0	General
+test/t1#p#seventythousands#sp#seventythousandssp1	s1	129	5	Compact	0	General
+test/t1#p#sixtythousands#sp#sixtythousandssp0	innodb_system	129	5	Compact	0	System
+test/t1#p#sixtythousands#sp#sixtythousandssp1	innodb_system	129	5	Compact	0	System
+test/t1#p#tens#sp#subpart11	s1	129	5	Compact	0	General
+test/t1#p#tens#sp#subpart12	s1	129	5	Compact	0	General
+test/t1#p#tenthousands#sp#tenthousandssp0	s1	129	5	Compact	0	General
+test/t1#p#tenthousands#sp#tenthousandssp1	s1	129	5	Compact	0	General
+test/t1#p#thirtythousands#sp#thirtythousandssp0	s1	129	5	Compact	0	General
+test/t1#p#thirtythousands#sp#thirtythousandssp1	s1	129	5	Compact	0	General
+test/t1#p#thousands#sp#subpart31	s1	129	5	Compact	0	General
+test/t1#p#thousands#sp#subpart32	s1	129	5	Compact	0	General
+test/t1#p#twentythousands#sp#twentythousandssp0	innodb_system	129	5	Compact	0	System
+test/t1#p#twentythousands#sp#twentythousandssp1	innodb_system	129	5	Compact	0	System
+test/t2#p#hundreds#sp#subpart21	test/t2#p#hundreds#sp#subpart21	1	5	Compact	0	Single
+test/t2#p#hundreds#sp#subpart22	s`1	129	5	Compact	0	General
+test/t2#p#tens#sp#subpart11	s1	129	5	Compact	0	General
+test/t2#p#tens#sp#subpart12	s1	129	5	Compact	0	General
+test/t2#p#thousands#sp#subpart31	test/t2#p#thousands#sp#subpart31	1	5	Compact	0	Single
+test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	1	5	Compact	0	Single
+test/t3	test/t3	65	4	Compact	0	Single
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+s1	MYSQLD_DATADIR/s1.ibd	DEFAULT	0	Any	General
+s`1	MYSQLD_DATADIR/s-1.ibd	DEFAULT	0	Any	General
+test/t3	MYSQL_TMP_DIR/test/t3.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t1#p#fortythousands#sp#p40k_2	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2#p#hundreds#sp#subpart21	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2#p#thousands#sp#subpart31	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart31.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2#p#thousands#sp#subpart32	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart32.ibd	DEFAULT	0	Compact or Redundant	Single
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+ (SUBPARTITION subpart11 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION subpart12 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION hundreds VALUES LESS THAN (1000)
+ (SUBPARTITION subpart21 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION subpart22 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION onethousands VALUES LESS THAN (2000)
+ (SUBPARTITION subpart23 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION subpart24 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION thousands VALUES LESS THAN (10000)
+ (SUBPARTITION subpart31 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION subpart32 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION tenthousands VALUES LESS THAN (20000)
+ (SUBPARTITION tenthousandssp0 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION tenthousandssp1 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION twentythousands VALUES LESS THAN (30000)
+ (SUBPARTITION twentythousandssp0 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION twentythousandssp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION thirtythousands VALUES LESS THAN (40000)
+ (SUBPARTITION thirtythousandssp0 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION thirtythousandssp1 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION fortythousands VALUES LESS THAN (50000)
+ (SUBPARTITION p40k_1 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION p40k_2 DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB),
+ PARTITION fiftythousands VALUES LESS THAN (60000)
+ (SUBPARTITION fiftythousandssp0 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION fiftythousandssp1 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION sixtythousands VALUES LESS THAN (70000)
+ (SUBPARTITION sixtythousandssp0 TABLESPACE = `innodb_system` ENGINE = InnoDB,
+  SUBPARTITION sixtythousandssp1 TABLESPACE = `innodb_system` ENGINE = InnoDB),
+ PARTITION seventythousands VALUES LESS THAN (80000)
+ (SUBPARTITION seventythousandssp0 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION seventythousandssp1 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION ninetythousands VALUES LESS THAN (100000)
+ (SUBPARTITION p90k_1 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION p90k_2 TABLESPACE = `innodb_system` ENGINE = InnoDB)) */
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY KEY (b)
+(PARTITION tens VALUES LESS THAN (100)
+ (SUBPARTITION subpart11 TABLESPACE = `s1` ENGINE = InnoDB,
+  SUBPARTITION subpart12 TABLESPACE = `s1` ENGINE = InnoDB),
+ PARTITION hundreds VALUES LESS THAN (1000)
+ (SUBPARTITION subpart21 ENGINE = InnoDB,
+  SUBPARTITION subpart22 TABLESPACE = `s``1` ENGINE = InnoDB),
+ PARTITION thousands VALUES LESS THAN (10000)
+ (SUBPARTITION subpart31 ENGINE = InnoDB,
+  SUBPARTITION subpart32 ENGINE = InnoDB)) */
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
+DROP TABLE t1, t2, t3;
+DROP TABLESPACE s1;
+DROP TABLESPACE `s``1`;
+CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) TABLESPACE ts1 ROW_FORMAT=COMPACT;
+CREATE TABLE ti
+(id INT, amount DECIMAL(7,2), tr_date DATE) TABLESPACE ts1
+ENGINE=INNODB
+PARTITION BY HASH( MONTH(tr_date) )
+PARTITIONS 6;
+DROP TABLE t1,ti;
+DROP TABLESPACE ts1;
+#
+# Clean-up.
+#
+SET @@global.innodb_file_per_table=@old_innodb_file_per_table;

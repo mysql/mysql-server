@@ -17,11 +17,9 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --echo # It rejects all invalid input, as if strict mode is always ON.
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 
---echo # Neither file_format=antelope nor file_per_table=OFF will prevent
+--echo # innodb_file_per_table=OFF will not prevent
 --echo # CREATE TABLESPACE from working because the tablespace is an empty
 --echo # shell that can contain multiple row formats.
-SET GLOBAL innodb_file_format = 'antelope';
-SHOW VARIABLES LIKE 'innodb_file_format';
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 
 --echo #
@@ -120,16 +118,26 @@ SHOW WARNINGS;
 CREATE TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` ADD DATAFILE 's_utf8.ibd';
 CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (a int, b text) TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. `;
 INSERT INTO `t !@#$%^&*()_+-={}[]|\?<>,.` VALUES(1,'one');
+SHOW CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.`;
+CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.2` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=latin1;
+SHOW CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.`;
+DROP TABLE `t !@#$%^&*()_+-={}[]|\?<>,.2`;
 
 CREATE TABLESPACE `#sql_1` ADD DATAFILE '#sql_1.ibd';
 CREATE TABLE `#sql_1` (a int, b text) TABLESPACE `#sql_1`;
 INSERT INTO `#sql_1` VALUES(1,'one');
+SHOW CREATE TABLE `#sql_1`;
 
 CREATE TABLESPACE `s_Cöŀumň` ADD DATAFILE 's_utf8_a.ibd';
 CREATE TABLE `t_utf8_1` (a int, b text) TABLESPACE `s_Cöŀumň`;
+SHOW CREATE TABLE `t_utf8_1`;
 
 CREATE TABLESPACE `s_cöĿǖmň` ADD DATAFILE 's_utf8_b.ibd';
 CREATE TABLE `t_utf8_2` (a int, b text) TABLESPACE `s_cöĿǖmň`;
+SHOW CREATE TABLE `t_utf8_2`;
 
 --error ER_INVALID_CHARACTER_STRING
 CREATE TABLESPACE `s_😲` ADD DATAFILE 's_utf8_c.ibd';
@@ -138,6 +146,7 @@ CREATE TABLESPACE `s_𐌀𐌁𐌂𐌃𐌄𐌅𐌆𐌇𐌈𐌉𐌊𐌋𐌌𐌍�
 
 CREATE TABLESPACE `s_வணக்கம்` ADD DATAFILE 'ஆவணம்.ibd';
 CREATE TABLE `t_utf8_3` (a int, b text) TABLESPACE `s_வணக்கம்`;
+SHOW CREATE TABLE `t_utf8_3`;
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --source suite/innodb/include/show_i_s_tables.inc
@@ -333,7 +342,7 @@ CREATE TABLESPACE s_red ADD DATAFILE 's_red.ibd' ROW_FORMAT=redundant;
 CREATE TABLE t_def_in_def (a int, b text) TABLESPACE s_def;
 CREATE TABLE t_red_in_def (a int, b text) ROW_FORMAT=Redundant TABLESPACE s_def;
 # Since these are creating tables within existing general tablespaces the value
-# of INNODB_FILE_FORMAT and INNODB_FILE_PER_TABLE do not matter.
+# of INNODB_FILE_PER_TABLE does not matter.
 SET GLOBAL innodb_file_per_table = OFF;
 CREATE TABLE t_dyn_in_def (a int, b text) ROW_FORMAT=Dynamic TABLESPACE s_def;
 
@@ -405,7 +414,6 @@ SHOW WARNINGS;
 --echo #
 --echo # Try to add a second table to a single-table tablespace
 --echo #
-SET GLOBAL innodb_file_format = 'barracuda';
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE s_single (a int, b text) ROW_FORMAT=dynamic;
 --error ER_TABLESPACE_MISSING
@@ -420,17 +428,49 @@ DROP TABLE s_single;
 --echo #
 --echo # Try to use both TABLESPACE and DATA DIRECTORY in the same CREATE TABLE.
 --echo #
-# Strict mode, file_format and file_per_table should make no difference
-# when using general tabespaces.
+# Strict mode, innodb_file_per_table should make no difference
+# when using general tablespaces.
 SET innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION
 eval CREATE TABLE t3 (a int, b text) DATA DIRECTORY='$MYSQL_TMP_DIR' TABLESPACE s_def;
 SHOW WARNINGS;
+
+--echo # Cannot use both a general tablespace and a DATA DIRECTORY
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION
-eval CREATE TABLE t4 (a int, b text) TABLESPACE s_def DATA DIRECTORY='$MYSQL_TMP_DIR';
+eval CREATE TABLE t4 (a int, b text) TABLESPACE=s_def DATA DIRECTORY='$MYSQL_TMP_DIR';
 SHOW WARNINGS;
+
+--echo # Do not allow an empty string in DATA DIRECTORY=''
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
+SHOW WARNINGS;
+
+--echo # TABLESPACE=innodb_file_per_table can be used with DATA DIRECTORY='...'
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+DROP TABLE t4;
+
+--echo # If you use TABLESPACE=innodb_file_per_table, the config setting does not matter.
+SET GLOBAL innodb_file_per_table = OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+
+--echo # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY=
+ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+ALTER TABLE t4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+DROP TABLE t4;
+SET GLOBAL innodb_file_per_table = ON;
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --source suite/innodb/include/show_i_s_tables.inc
@@ -470,6 +510,11 @@ eval CREATE TABLE t_def_as_remote (a int, b text) TABLESPACE=innodb_file_per_tab
 --list_files $MYSQLD_DATADIR/ *.ibd
 --echo # Directory listing of MYSQLD_DATADIR/test/
 --list_files $MYSQLD_DATADIR/test/ *.ibd
+SHOW CREATE TABLE t_red_as_file_per_table;
+SHOW CREATE TABLE t_com_as_file_per_table;
+SHOW CREATE TABLE t_dyn_as_file_per_table;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t_def_as_remote;
 
 --echo #
 --echo # These explicit file_per_table tables can be moved to a general tablespace.
@@ -925,41 +970,6 @@ SHOW WARNINGS;
 ALTER TABLE t1 IMPORT TABLESPACE;
 SHOW WARNINGS;
 DROP TABLE t1;
-
---echo #
---echo # Put all partitions of a table into a general tablespace.
---echo # Show that individual partitions  and subpartitions ignore the
---echo # tablespace command.
---echo #
-CREATE TABLE t1 (a INT, b INT) TABLESPACE=`s1`
-  PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
-    PARTITION tens VALUES LESS THAN (100) TABLESPACE=`innodb_file_per_table`
-      (SUBPARTITION subpart11,
-       SUBPARTITION subpart12),
-    PARTITION hundreds VALUES LESS THAN (1000)
-      (SUBPARTITION subpart21,
-       SUBPARTITION subpart22 TABLESPACE=`innodb_file_per_table`),
-    PARTITION thousands VALUES LESS THAN (10000)
-      (SUBPARTITION subpart31,
-       SUBPARTITION subpart32));
-CREATE TABLE t2 (a INT, b INT)
-  PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
-    PARTITION tens VALUES LESS THAN (100) TABLESPACE=`s1`
-      (SUBPARTITION subpart11,
-       SUBPARTITION subpart12),
-    PARTITION hundreds VALUES LESS THAN (1000)
-      (SUBPARTITION subpart21,
-       SUBPARTITION subpart22 TABLESPACE=`s1`),
-    PARTITION thousands VALUES LESS THAN (10000)
-      (SUBPARTITION subpart31,
-       SUBPARTITION subpart32));
-
---source suite/innodb/include/show_i_s_tables.inc
-SHOW CREATE TABLE t1;
-SHOW CREATE TABLE t2;
-
-DROP TABLE t1;
-DROP TABLE t2;
 DROP TABLESPACE s1;
 
 --echo #

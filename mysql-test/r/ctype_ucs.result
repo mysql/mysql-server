@@ -1221,6 +1221,8 @@ drop table t1;
 CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET UCS2);
 INSERT INTO t1 VALUES ('a');
 SET @@sql_mode=pad_char_to_full_length;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT HEX(s1) FROM t1;
 HEX(s1)
 00610020002000200020
@@ -2618,6 +2620,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 SET sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select hex(concat(period_diff(200902, 200802)));
 hex(concat(period_diff(200902, 200802)))
 00310032
@@ -4228,6 +4232,8 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 SET NAMES latin1;
 SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
 INSERT INTO t1 VALUES ();
 SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
@@ -4240,6 +4246,8 @@ SET NAMES latin1;
 # Bug #13832953 	MY_STRNXFRM_UNICODE: ASSERTION `SRC' FAILED
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (c1 SET('','') CHARACTER SET ucs2);
 Warnings:
 Note	1291	Column 'c1' has duplicated value '' in SET
@@ -4768,6 +4776,8 @@ Warning	1292	Truncated incorrect INTEGER value: ''
 # 
 CREATE TABLE t1 (a DECIMAL(2,0));
 SET sql_mode='strict_all_tables';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES (CONVERT('9e99999999' USING ucs2));
 ERROR HY000: Incorrect decimal value: '9e99999999' for column 'a' at row 1
 SET sql_mode=DEFAULT;

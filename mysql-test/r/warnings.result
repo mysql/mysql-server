@@ -93,6 +93,8 @@ Warning	1264	Out of range value for column 'a' at row 3
 Warning	1264	Out of range value for column 'b' at row 3
 Warning	1265	Data truncated for column 'c' at row 3
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table t1 modify c char(4);
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
@@ -238,6 +240,8 @@ DROP PROCEDURE IF EXISTS sp3;
 Warnings:
 Note	1305	PROCEDURE test.sp3 does not exist
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE sp1()
 BEGIN
 DECLARE x NUMERIC ZEROFILL;
@@ -283,6 +287,8 @@ create table t2 (c_tinyblob tinyblob);
 set @c = repeat(' ', 256);
 set @q = repeat('q', 256);
 set sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values(@c, @c, @c);
 Warnings:
 Note	1265	Data truncated for column 'c_varchar' at row 1
@@ -300,7 +306,7 @@ Warnings:
 Warning	1265	Data truncated for column 'c_tinyblob' at row 1
 set sql_mode = 'traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values(@c, @c, @c);
 Warnings:
 Note	1265	Data truncated for column 'c_varchar' at row 1

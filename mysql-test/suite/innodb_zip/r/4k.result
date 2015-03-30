@@ -11,43 +11,61 @@ variable_value
 {checked_valid}
 # Test 3) Query some information_shema tables that are dependent upon
 #         the page size.
-INDEX_ID	NAME	TABLE_ID	TYPE	N_FIELDS	SPACE!=0
-11	ID_IND	11	3	1	0
-12	FOR_IND	11	0	1	0
-13	REF_IND	11	0	1	0
-14	ID_IND	12	3	2	0
-15	SYS_TABLESPACES_SPACE	13	3	1	0
-16	SYS_DATAFILES_SPACE	14	3	1	0
-17	PRIMARY	15	3	1	1
-18	PRIMARY	16	3	1	1
-36	PRIMARY	31	3	2	1
-37	PRIMARY	32	3	1	1
-38	PRIMARY	33	3	3	1
+SELECT	t.name table_name, t.n_cols, t.flag table_flags,
+i.name index_name, i.page_no root_page, i.type,
+i.n_fields, i.merge_threshold
+FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
+INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+WHERE	t.table_id = i.table_id
+AND	t.name LIKE 'mysql%'
+	ORDER BY t.space, i.page_no;
+table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
+mysql/plugin	5	1	PRIMARY	3	3	1	50
+mysql/servers	12	1	PRIMARY	3	3	1	50
+mysql/help_topic	9	1	PRIMARY	3	3	1	50
+mysql/help_topic	9	1	name	4	2	1	50
+mysql/help_category	7	1	PRIMARY	3	3	1	50
+mysql/help_category	7	1	name	4	2	1	50
+mysql/help_relation	5	1	PRIMARY	3	3	2	50
+mysql/help_keyword	5	1	PRIMARY	3	3	1	50
+mysql/help_keyword	5	1	name	4	2	1	50
+mysql/time_zone_name	5	1	PRIMARY	3	3	1	50
+mysql/time_zone	5	1	PRIMARY	3	3	1	50
+mysql/time_zone_transition	6	1	PRIMARY	3	3	2	50
+mysql/time_zone_transition_type	8	1	PRIMARY	3	3	2	50
+mysql/time_zone_leap_second	5	1	PRIMARY	3	3	1	50
+mysql/innodb_table_stats	9	1	PRIMARY	3	3	2	50
+mysql/innodb_index_stats	11	1	PRIMARY	3	3	4	50
+mysql/slave_relay_log_info	12	1	PRIMARY	3	3	1	50
+mysql/slave_master_info	27	1	PRIMARY	3	3	1	50
+mysql/slave_worker_info	16	1	PRIMARY	3	3	2	50
+mysql/gtid_executed	6	1	PRIMARY	3	3	2	50
+mysql/server_cost	7	1	PRIMARY	3	3	1	50
+mysql/engine_cost	9	1	PRIMARY	3	3	3	50
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
 CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
-WHERE name LIKE 'test%' ORDER BY table_id;
-TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
-{id}	test/t1	0	5	{id}	Antelope	Redundant	0	Single
-{id}	test/t2	1	5	{id}	Antelope	Compact	0	Single
-{id}	test/t3	37	5	{id}	Barracuda	Compressed	2048	Single
-{id}	test/t4	33	5	{id}	Barracuda	Dynamic	0	Single
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
-WHERE name LIKE 'test%' ORDER BY space;
-SPACE	NAME	FLAG	FILE_FORMAT	ROW_FORMAT	PAGE_SIZE	ZIP_PAGE_SIZE	SPACE_TYPE
-{id}	test/t1	192	Antelope	Compact or Redundant	4096	0	Single
-{id}	test/t2	192	Antelope	Compact or Redundant	4096	0	Single
-{id}	test/t3	229	Barracuda	Compressed	4096	2048	Single
-{id}	test/t4	225	Barracuda	Dynamic	4096	0	Single
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
-WHERE path LIKE '%test%' ORDER BY space;
-SPACE	PATH
-{id}	MYSQLD_DATADIR/test/t1.ibd
-{id}	MYSQLD_DATADIR/test/t2.ibd
-{id}	MYSQLD_DATADIR/test/t3.ibd
-{id}	MYSQLD_DATADIR/test/t4.ibd
+SELECT	t.name table_name, t.n_cols, t.flag table_flags,
+i.name index_name, i.page_no root_page, i.type,
+i.n_fields, i.merge_threshold
+FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
+INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+WHERE	t.table_id = i.table_id
+AND	t.name LIKE 'test%'
+	ORDER BY t.name, i.name;
+table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
+test/t1	5	0	PRIMARY	3	3	1	50
+test/t2	5	1	PRIMARY	3	3	1	50
+test/t3	5	37	PRIMARY	3	3	1	50
+test/t4	5	33	PRIMARY	3	3	1	50
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
+innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+test/t1	MYSQLD_DATADIR/test/t1.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t2	MYSQLD_DATADIR/test/t2.ibd	DEFAULT	0	Compact or Redundant	Single
+test/t3	MYSQLD_DATADIR/test/t3.ibd	DEFAULT	2048	Compressed	Single
+test/t4	MYSQLD_DATADIR/test/t4.ibd	DEFAULT	0	Dynamic	Single
 DROP TABLE t1, t2, t3, t4;
 # Test 4) The maximum row size is dependent upon the page size.
 #         Redundant: 1979, Compact: 1982.
@@ -244,26 +262,18 @@ Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 4.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Antelope`;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 ERROR HY000: Table storage engine for 't4' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=8 cannot be larger than 4.
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Error	1031	Table storage engine for 't4' doesn't have this option
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 ERROR HY000: Table storage engine for 't5' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 4.
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Error	1031	Table storage engine for 't5' doesn't have this option
-SET GLOBAL innodb_file_format = `Barracuda`;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 # Test 7) Not included here; 16k only
 # Test 8) Test creating a table that could lead to undo log overflow.
 CREATE TABLE t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,

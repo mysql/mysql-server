@@ -128,12 +128,22 @@ void
 trx_free_prepared(
 /*==============*/
 	trx_t*	trx);	/*!< in, own: trx object */
-/********************************************************************//**
-Frees a transaction object for MySQL. */
+
+/** Free a transaction object for MySQL.
+@param[in,out]	trx	transaction */
 void
-trx_free_for_mysql(
-/*===============*/
-	trx_t*	trx);	/*!< in, own: trx object */
+trx_free_for_mysql(trx_t*	trx);
+
+/** Disconnect a transaction from MySQL.
+@param[in,out]	trx	transaction */
+void
+trx_disconnect_plain(trx_t*	trx);
+
+/** Disconnect a prepared transaction from MySQL.
+@param[in,out]	trx	transaction */
+void
+trx_disconnect_prepared(trx_t*	trx);
+
 /****************************************************************//**
 Creates trx objects for transactions and initializes the trx list of
 trx_sys at database start. Rollback segment and undo log lists must
@@ -171,15 +181,6 @@ trx_start_internal_low(
 void
 trx_start_internal_read_only_low(
 	trx_t*	trx);
-
-/**
-Check if transaction is started.
-@param[in] trx		Transaction whose state we need to check
-@reutrn true if transaction is in state started */
-UNIV_INLINE
-bool
-trx_is_started(
-	const trx_t*	trx);
 
 #ifdef UNIV_DEBUG
 #define trx_start_if_not_started_xa(t, rw)			\
@@ -949,9 +950,12 @@ struct trx_t {
 	Recovered XA:
 	* NOT_STARTED -> PREPARED -> COMMITTED -> (freed)
 
-	XA (2PC) (shutdown before ROLLBACK or COMMIT):
+	XA (2PC) (shutdown or disconnect before ROLLBACK or COMMIT):
 	* NOT_STARTED -> PREPARED -> (freed)
 
+	Disconnected XA can become recovered:
+	* ... -> ACTIVE -> PREPARED (connected) -> PREPARED (disconnected)
+	Disconnected means from mysql e.g due to the mysql client disconnection.
 	Latching and various transaction lists membership rules:
 
 	XA (2PC) transactions are always treated as non-autocommit.
@@ -1276,6 +1280,19 @@ struct trx_t {
 #endif /* UNIV_DEBUG */
 	ulint		magic_n;
 };
+
+/**
+Check if transaction is started.
+@param[in] trx		Transaction whose state we need to check
+@reutrn true if transaction is in state started */
+inline
+bool
+trx_is_started(
+	const trx_t*	trx)
+{
+	return(trx->state != TRX_STATE_NOT_STARTED
+	       && trx->state != TRX_STATE_FORCED_ROLLBACK);
+}
 
 /* Transaction isolation levels (trx->isolation_level) */
 #define TRX_ISO_READ_UNCOMMITTED	0	/* dirty read: non-locking

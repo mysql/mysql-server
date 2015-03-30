@@ -16,6 +16,7 @@
 #include "log.h"
 #include "sql_class.h"
 #include "current_thd.h"
+#include "derror.h"
 
 extern "C" void sql_alloc_error_handler(void)
 {
@@ -42,7 +43,7 @@ extern "C" void sql_alloc_error_handler(void)
           error packet.
         - SHOW ERROR/SHOW WARNINGS may be empty.
     */
-    thd->get_stmt_da()->set_error_status(ER_OUT_OF_RESOURCES);
+    thd->get_stmt_da()->set_error_status(thd, ER_OUT_OF_RESOURCES);
   }
 
   /* Skip writing to the error log to avoid mtr complaints */

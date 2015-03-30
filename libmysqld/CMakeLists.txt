@@ -37,6 +37,8 @@ INCLUDE_DIRECTORIES(
 SET(GEN_YACC_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
 )
 
 SET(GEN_SOURCES
@@ -101,6 +103,7 @@ SET(SQL_EMBEDDED_SOURCES
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
   ../sql/item_geofunc.cc
+  ../sql/item_geofunc_buffer.cc
   ../sql/item_geofunc_relchecks.cc
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
@@ -117,6 +120,7 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     ../sql/item_geofunc.cc
+    ../sql/item_geofunc_buffer.cc
     ../sql/item_geofunc_relchecks.cc
     ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc
@@ -140,10 +144,25 @@ COPY_BISON_OUTPUT(
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
 )
 
+COPY_BISON_OUTPUT(
+  ${CMAKE_SOURCE_DIR}/sql/sql_hints.yy.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_hints.yy.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+)
+
 RUN_BISON(
   ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+  MYSQL
+)
+
+RUN_BISON(
+  ${CMAKE_SOURCE_DIR}/sql/sql_hints.yy
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
+  HINT_PARSER_
 )
 
 ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})

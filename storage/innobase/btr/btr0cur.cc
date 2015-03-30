@@ -6702,6 +6702,7 @@ btr_store_big_rec_extern_fields(
 	/* Calculate the total number of pages for blob data */
 	ulint	total_blob_pages = 0;
 	const page_size_t	page_size(dict_table_page_size(index->table));
+	const ulint pages_in_extent = dict_table_extent_size(index->table);
 
 	/* Space available in compressed page to carry blob data */
 	const ulint	payload_size_zip = page_size.physical()
@@ -6728,8 +6729,8 @@ btr_store_big_rec_extern_fields(
 		}
 	}
 
-	const ulint	n_extents = (total_blob_pages + FSP_EXTENT_SIZE - 1)
-		/ FSP_EXTENT_SIZE;
+	const ulint	n_extents = (total_blob_pages + pages_in_extent - 1)
+		/ pages_in_extent;
 	ulint	n_reserved = 0;
 #ifdef UNIV_DEBUG
 	ulint	n_used = 0;	/* number of pages used */
@@ -6823,7 +6824,7 @@ btr_store_big_rec_extern_fields(
 			}
 
 			ut_a(block != NULL);
-			ut_ad(++n_used <= (n_reserved * FSP_EXTENT_SIZE));
+			ut_ad(++n_used <= (n_reserved * pages_in_extent));
 
 			page_no = block->page.id.page_no();
 			page = buf_block_get_frame(block);
@@ -7064,9 +7065,9 @@ next_zip_page:
 	/* Verify that the number of extents used is the same as the number
 	of extents reserved. */
 	ut_ad(page_zip != NULL
-	      || ((n_used + FSP_EXTENT_SIZE - 1) / FSP_EXTENT_SIZE
+	      || ((n_used + pages_in_extent - 1) / pages_in_extent
 		  == n_reserved));
-	ut_ad((n_used + FSP_EXTENT_SIZE - 1) / FSP_EXTENT_SIZE <= n_reserved);
+	ut_ad((n_used + pages_in_extent - 1) / pages_in_extent <= n_reserved);
 
 func_exit:
 	if (page_zip) {
@@ -7121,11 +7122,11 @@ btr_check_blob_fil_page_type(
 		ulint	flags = fil_space_get_flags(space_id);
 
 #ifndef UNIV_DEBUG /* Improve debug test coverage */
-		if (dict_tf_get_format(flags) == UNIV_FORMAT_A) {
+		if (!DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
 			/* Old versions of InnoDB did not initialize
 			FIL_PAGE_TYPE on BLOB pages.  Do not print
 			anything about the type mismatch when reading
-			a BLOB page that is in Antelope format.*/
+			a BLOB page that may be from old versions. */
 			return;
 		}
 #endif /* !UNIV_DEBUG */

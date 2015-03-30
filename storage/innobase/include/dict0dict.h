@@ -184,7 +184,7 @@ dict_col_copy_type(
 	dtype_t*		type);	/*!< out: data type */
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
-note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
+note that if !dict_table_has_atomic_blobs(table), no prefix
 needs to be stored in the undo log.
 @return bytes of column prefix to be stored in the undo log */
 UNIV_INLINE
@@ -467,7 +467,6 @@ fields than mentioned in the constraint.
 				database id the database of parameter name
 @param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
@@ -478,7 +477,6 @@ dict_create_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	dict_table_t*		handler,
 	ibool			reject_fks)
 	__attribute__((warn_unused_result));
 /**********************************************************************//**
@@ -846,23 +844,13 @@ dict_table_is_comp(
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((warn_unused_result));
 
-/********************************************************************//**
-Determine the file format of a table.
-@return file format version */
+/** Determine if a table uses atomic BLOBs (no locally stored prefix).
+@param[in]	table	InnoDB table
+@return whether BLOBs are atomic */
 UNIV_INLINE
-ulint
-dict_table_get_format(
-/*==================*/
-	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((warn_unused_result));
-/********************************************************************//**
-Determine the file format from a dict_table_t::flags.
-@return file format version */
-UNIV_INLINE
-ulint
-dict_tf_get_format(
-/*===============*/
-	ulint		flags)		/*!< in: dict_table_t::flags */
+bool
+dict_table_has_atomic_blobs(
+	const dict_table_t*	table)
 	__attribute__((warn_unused_result));
 
 /** Set the various values in a dict_table_t::flags pointer.
@@ -922,6 +910,14 @@ const page_size_t
 dict_tf_get_page_size(
 	ulint	flags)
 __attribute__((const));
+
+/** Determine the extent size (in pages) for the given table
+@param[in]	table	the table whose extent size is being
+			calculated.
+@return extent size in pages (256, 128 or 64) */
+ulint
+dict_table_extent_size(
+	const dict_table_t*	table);
 
 /** Get the table page size.
 @param[in]	table	table
@@ -987,15 +983,12 @@ dict_table_wait_for_bg_threads_to_exit(
 	dict_table_t*	table,	/* in: table */
 	ulint		delay);	/* in: time in microseconds to wait between
 				checks of bg_threads. */
-/**********************************************************************//**
-Looks for an index with the given id. NOTE that we do not reserve
-the dictionary mutex: this function is for emergency purposes like
-printing info of a corrupt database page!
-@return index or NULL if not found from cache */
-dict_index_t*
-dict_index_find_on_id_low(
-/*======================*/
-	index_id_t	id)	/*!< in: index id */
+/** Look up an index.
+@param[in]	id	index identifier
+@return index or NULL if not found */
+const dict_index_t*
+dict_index_find(
+	const index_id_t&	id)
 	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Make room in the table cache by evicting an unused table. The unused table
@@ -1220,25 +1213,6 @@ dict_field_get_col(
 	const dict_field_t*	field)	/*!< in: index field */
 	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Returns an index object if it is found in the dictionary cache.
-Assumes that dict_sys->mutex is already being held.
-@return index, NULL if not found */
-dict_index_t*
-dict_index_get_if_in_cache_low(
-/*===========================*/
-	index_id_t	index_id)	/*!< in: index id */
-	__attribute__((warn_unused_result));
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/**********************************************************************//**
-Returns an index object if it is found in the dictionary cache.
-@return index, NULL if not found */
-dict_index_t*
-dict_index_get_if_in_cache(
-/*=======================*/
-	index_id_t	index_id)	/*!< in: index id */
-	__attribute__((warn_unused_result));
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
@@ -1506,14 +1480,6 @@ void
 dict_table_move_from_lru_to_non_lru(
 /*================================*/
 	dict_table_t*	table);	/*!< in: table to move from LRU to non-LRU */
-/** Looks for an index with the given id given a table instance.
-@param[in]	table	table instance
-@param[in]	id	index id
-@return index or NULL */
-dict_index_t*
-dict_table_find_index_on_id(
-	const dict_table_t*	table,
-	index_id_t		id);
 /**********************************************************************//**
 Move to the most recently used segment of the LRU list. */
 void

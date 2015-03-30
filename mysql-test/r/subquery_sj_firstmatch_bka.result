@@ -9809,6 +9809,10 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
 INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SET @old_depth=@@optimizer_search_depth;
 SET optimizer_search_depth=4;
 EXPLAIN SELECT col_datetime_key
@@ -9824,11 +9828,11 @@ ON alias5.col_int_key < alias4.col_int_key
 ON alias5.col_varchar_key = alias4.col_varchar_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index; Start temporary
-1	SIMPLE	alias1	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	50.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias5	NULL	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index
+1	SIMPLE	alias1	NULL	ref	col_datetime_key	col_datetime_key	5	test.outr.col_datetime_key	1	100.00	Using index; Start temporary
+1	SIMPLE	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	alias5	NULL	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	100.00	Using where; Using index
+1	SIMPLE	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` semi join (`test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias5`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`)))) where (`test`.`alias1`.`col_datetime_key` = `test`.`outr`.`col_datetime_key`)
 SELECT col_datetime_key
@@ -9978,70 +9982,6 @@ pk	pk
 2	2
 DROP TABLE t1;
 # End of test for bug#13838810.
-#
-# BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
-# --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
-#
-CREATE TABLE t1 (
-col_int_key INT(11) NOT NULL,
-col_datetime_key DATETIME NOT NULL,
-col_varchar_key VARCHAR(1) NOT NULL,
-col_varchar_nokey VARCHAR(1) NOT NULL,
-KEY col_int_key (col_int_key),
-KEY col_datetime_key (col_datetime_key),
-KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
-INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
-CREATE TABLE t2 (
-col_int_key INT(11) NOT NULL,
-col_datetime_key DATETIME NOT NULL,
-col_varchar_key VARCHAR(1) NOT NULL,
-col_varchar_nokey VARCHAR(1) NOT NULL,
-KEY col_int_key (col_int_key),
-KEY col_datetime_key (col_datetime_key),
-KEY col_varchar_key (col_varchar_key,col_int_key)
-);
-INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
-SET @old_depth=@@optimizer_search_depth;
-SET optimizer_search_depth=4;
-EXPLAIN SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-SELECT alias1.col_datetime_key
-FROM t1 AS alias1
-LEFT JOIN t1 as alias3
-STRAIGHT_JOIN ( t2 AS alias4
-JOIN t1 AS alias5
-ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-ON alias5.col_int_key < alias4.col_int_key
-ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index; Start temporary
-1	SIMPLE	alias1	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	50.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias5	NULL	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	2	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
-Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` semi join (`test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias5`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`)))) where (`test`.`alias1`.`col_datetime_key` = `test`.`outr`.`col_datetime_key`)
-SELECT col_datetime_key
-FROM t1 as outr
-WHERE col_datetime_key IN (
-SELECT alias1.col_datetime_key
-FROM t1 AS alias1
-LEFT JOIN t1 as alias3
-STRAIGHT_JOIN ( t2 AS alias4
-JOIN t1 AS alias5
-ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
-ON alias5.col_int_key < alias4.col_int_key
-ON alias5.col_varchar_key = alias4.col_varchar_key
-);
-col_datetime_key
-2002-02-13 17:30:06
-2008-09-27 00:34:58
-DROP TABLE t1,t2;
-SET @@optimizer_search_depth=@old_depth;
 #
 # Bug#13845930: Segfault in st_join_table::and_with_condition
 #
@@ -11910,7 +11850,175 @@ col_date_key
 2008-06-10
 2008-09-12
 2009-02-23
+SELECT COUNT(r1.col_date_key) AS COUNT_NUM
+FROM t2 AS r1
+WHERE r1.col_int_key NOT IN
+(SELECT ir2.pk
+FROM t2 AS ir1 STRAIGHT_JOIN t1 AS ir2
+ON ir2.col_varchar_nokey = ir1.col_varchar_key
+WHERE ir2.col_varchar_nokey > r1.col_varchar_nokey
+AND ir2.pk IN
+(SELECT iir2.pk
+FROM t2 AS iir1 RIGHT JOIN t3 AS iir2
+ON iir2.col_varchar_nokey = iir1.col_varchar_key
+WHERE iir2.pk<3));
+COUNT_NUM
+15
 DROP TABLE t1,t2,t3;
+#
+# Bug#20554585 ASSERT JOIN()->TABLES == 0... IN JOIN_TAB::GET_SJ_STRATEGY ON SUBQUERY + VAR
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+PRIMARY KEY (pk)
+);
+CREATE TABLE t2 (
+pk int NOT NULL,
+col_int_key int,
+col_varchar_key varchar(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+CREATE TABLE t3 (
+pk int NOT NULL,
+col_int_key int,
+col_varchar_key varchar(1),
+col_varchar varchar(1),
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t3 VALUES (1,4,'c','g'),(20,1,'i','p');
+CREATE TABLE t4 (
+col_int int
+);
+CREATE TABLE t5 (
+col_varchar_key varchar(1),
+pk int NOT NULL,
+col_int int,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+SELECT table1.col_varchar_key AS field1
+FROM (t3 AS table1
+INNER JOIN (
+SELECT SUBQUERY1_t1.*
+FROM (t1 AS SUBQUERY1_t1
+RIGHT JOIN (t2 AS SUBQUERY1_t2
+INNER JOIN t3 AS SUBQUERY1_t3
+ON (SUBQUERY1_t3.col_varchar_key = SUBQUERY1_t2.col_varchar_key)
+) ON (SUBQUERY1_t3.col_int_key = SUBQUERY1_t2.pk)
+)
+WHERE SUBQUERY1_t2.col_varchar_key >= ANY (
+SELECT CHILD_SUBQUERY1_t2.col_varchar AS CHILD_SUBQUERY1_field1
+FROM (t2 AS CHILD_SUBQUERY1_t1
+LEFT OUTER JOIN t3 AS CHILD_SUBQUERY1_t2
+ON (CHILD_SUBQUERY1_t2.col_int_key = CHILD_SUBQUERY1_t1.col_int_key)
+)
+WHERE CHILD_SUBQUERY1_t1.pk >= SUBQUERY1_t2.pk
+)
+) AS table2
+ON (table2.pk = table1.pk)
+)
+WHERE (EXISTS ((
+SELECT DISTINCT SUBQUERY2_t2.col_int AS SUBQUERY2_field1
+FROM (t4 AS SUBQUERY2_t1
+LEFT OUTER JOIN t5 AS SUBQUERY2_t2
+ON (SUBQUERY2_t2.pk = SUBQUERY2_t1.col_int)
+)
+WHERE SUBQUERY2_t2.col_varchar_key != @var4
+)))
+AND table1.col_int_key < (35 + 192)
+ORDER BY field1
+;
+field1
+DROP TABLE t1, t2, t3, t4, t5;
+#
+# Bug#18892055: MISSING DATA ON SELECT ... IN WITH JOINS AND INNODB
+#               ENGINE
+#
+CREATE TABLE t1 (
+col_int_key INT,
+pk INT NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE = INNODB;
+INSERT INTO t1 VALUES
+( 0, 3 ),
+( 0, 4 ),
+( 3, 1 ),
+( 900000000, 2 ),
+( 1368719360, 5 ),
+( 1922236416, 6 ),
+( 8,7 );
+CREATE TABLE t2 (
+pk INT NOT NULL,
+col_int INT,
+PRIMARY KEY (pk)
+) ENGINE = INNODB;
+INSERT INTO t2 VALUES
+( 1, 3 ),
+( 2, 2 ),
+( 3, 8 ),
+( 4, 7 );
+CREATE TABLE t3 (
+col_int_key INT,
+col_int INT,
+KEY (col_int_key)
+) ENGINE = INNODB;
+INSERT INTO t3 VALUES
+( 5, 1 ),
+( -1, -1 ),
+( 300000000, 1 ),
+( 8, 1 );
+CREATE TABLE t4 ( col_int_key INT ) ENGINE = INNODB;
+INSERT INTO t4 VALUES
+(0),
+(3),
+(8),
+(900000000),
+(1368719360),
+(1922236416);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+explain SELECT *
+FROM t4
+WHERE (col_int_key) IN (
+SELECT t1.col_int_key
+FROM t1 LEFT JOIN ( t2 JOIN t3 ON t3.col_int_key = t2.col_int ) USING ( pk )
+WHERE t3.col_int IS NULL
+)
+ORDER BY col_int_key
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using filesort
+1	SIMPLE	t1	NULL	ref	col_int_key	col_int_key	5	test.t4.col_int_key	1	100.00	Using index
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
+1	SIMPLE	t3	NULL	ref	col_int_key	col_int_key	5	test.t2.col_int	1	25.00	Using where; FirstMatch(t4)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`col_int_key` AS `col_int_key` from `test`.`t4` semi join (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t3`.`col_int_key` = `test`.`t2`.`col_int`)))) where ((`test`.`t1`.`col_int_key` = `test`.`t4`.`col_int_key`) and isnull(`test`.`t3`.`col_int`)) order by `test`.`t4`.`col_int_key`
+SELECT *
+FROM t4
+WHERE (col_int_key) IN (
+SELECT t1.col_int_key
+FROM t1 LEFT JOIN ( t2 JOIN t3 ON t3.col_int_key = t2.col_int ) USING ( pk )
+WHERE t3.col_int IS NULL
+)
+ORDER BY col_int_key
+;
+col_int_key
+0
+3
+8
+900000000
+1368719360
+1922236416
+DROP TABLE t1, t2, t3, t4;
 #
 # Bug#51457 Firstmatch semijoin strategy gives wrong results for
 #           certain query plans

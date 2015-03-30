@@ -19,7 +19,7 @@ LET $data_directory2 = DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data2';
 LET $index_directory = INDEX DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data';
 
 # These values can change during the test
-LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+LET $innodb_file_per_table_orig=`select @@global.innodb_file_per_table`;
 LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
 
 --echo # The partition engine can send DATA DIRECTORY to InnoDB.
@@ -49,10 +49,10 @@ SHOW CREATE TABLE t1;
 # This is independent of the value of lower_case_table_names.  This cannot
 # be changes without breaking backward compatibility.
 --replace_result t1#P t1#p
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t1#P t1#p
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -98,10 +98,10 @@ SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 --replace_result t1#P t1#p
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t1#P t1#p
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -118,10 +118,10 @@ RENAME TABLE t1 TO t11;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t11;
 --replace_result t11#P t11#p
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t11#P t11#p
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t11#P t11#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -148,10 +148,10 @@ DEALLOCATE PREPARE stmt1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 --replace_result t1#P t1#p
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t1#P t1#p
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -190,10 +190,10 @@ SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 --replace_result #P# #p#  #SP# #sp#
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -247,10 +247,10 @@ SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 --replace_result #P# #p#  #SP# #sp#
-SELECT name,n_cols,file_format,row_format
+SELECT name,n_cols,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#
-SELECT name,file_format,row_format
+SELECT name,row_format
        FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -325,9 +325,6 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 3
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-# Occurs when previous test did not clean-up properly!
-call mtr.add_suppression("Plugin 'MyISAM' will be forced to shutdown");
-call mtr.add_suppression("Plugin 'MyISAM' has ref_count=. after shutdown");
 --echo # Test of table where the engine returns the DATA DIR.
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t1
@@ -339,12 +336,130 @@ PARTITION BY KEY (a)
  PARTITION p1);
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
+
+--echo # Test TABLESPACE (and restart)
+CREATE TABLESPACE `ts_part1` ADD DATAFILE 'ts_part1.ibd';
+CREATE TABLESPACE `ts part2` ADD DATAFILE 'ts_part2.ibd';
+CREATE TABLESPACE `ts_part3` ADD DATAFILE 'ts_part3.ibd';
+CREATE TABLESPACE `ts_part4` ADD DATAFILE 'ts_part4.ibd';
+
+let $long_tablespace_name=ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!;
+
+--error ER_TOO_LONG_IDENT
+eval CREATE TABLE t2 (a int) ENGINE = InnoDB TABLESPACE `$long_tablespace_name`;
+--error ER_TOO_LONG_IDENT
+eval CREATE TABLE t2 (a int) ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p1 VALUES LESS THAN (10)
+TABLESPACE `$long_tablespace_name`
+);
+
+CREATE TABLE t2
+(a int not null auto_increment primary key,
+ b varchar(128))
+ENGINE = InnoDB
+TABLESPACE ts_part1
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE `ts part2`
+ (SUBPARTITION sp0 TABLESPACE ts_part3,
+  SUBPARTITION sp1,
+  SUBPARTITION sp2 TABLESPACE ts_part4),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3,
+  SUBPARTITION sp4 TABLESPACE innodb_file_per_table,
+  SUBPARTITION sp5),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE innodb_system,
+  SUBPARTITION sp7,
+  SUBPARTITION sp8),
+ PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
+ (SUBPARTITION sp9 TABLESPACE ts_part4,
+  SUBPARTITION sp10,
+  SUBPARTITION sp11));
+SHOW CREATE TABLE t2;
+
+call mtr.add_suppression("InnoDB: Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
+--error ER_TOO_LONG_IDENT
+eval ALTER TABLE t2 ADD PARTITION
+(PARTITION p4 VALUES LESS THAN (400)
+ TABLESPACE `$long_tablespace_name`);
+
+--echo # Same but without table level tablespace defined
+CREATE TABLE t3
+(a int not null auto_increment primary key,
+ b varchar(128))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION p0 VALUES LESS THAN (0) TABLESPACE `ts part2`
+ (SUBPARTITION sp0 TABLESPACE ts_part3,
+  SUBPARTITION sp1,
+  SUBPARTITION sp2 TABLESPACE ts_part4),
+ PARTITION p1 VALUES LESS THAN (100)
+ (SUBPARTITION sp3,
+  SUBPARTITION sp4 TABLESPACE innodb_file_per_table,
+  SUBPARTITION sp5),
+ PARTITION p2 VALUES LESS THAN (200)
+ (SUBPARTITION sp6 TABLESPACE innodb_system,
+  SUBPARTITION sp7,
+  SUBPARTITION sp8),
+ PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
+ (SUBPARTITION sp9 TABLESPACE ts_part4,
+  SUBPARTITION sp10,
+  SUBPARTITION sp11));
+SHOW CREATE TABLE t3;
+
+SET @@global.innodb_file_per_table = ON;
+CREATE TABLE t_file_per_table_on
+(a int not null auto_increment primary key,
+ b varchar(128))
+ENGINE = InnoDB;
+SET @@global.innodb_file_per_table = OFF;
+CREATE TABLE t_file_per_table_off
+(a int not null auto_increment primary key,
+ b varchar(128))
+ENGINE = InnoDB;
+SHOW CREATE TABLE t_file_per_table_on;
+SHOW CREATE TABLE t_file_per_table_off;
+SET @@global.innodb_file_per_table = ON;
+SHOW CREATE TABLE t_file_per_table_on;
+SHOW CREATE TABLE t_file_per_table_off;
+
+
 --echo # Restart to get DATA DIRECTORY read from the engine (InnoDB dictionary)
 --source include/restart_mysqld.inc
+
 ALTER TABLE t1 COALESCE PARTITION 1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
-DROP TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SET @old_sql_quote_show_create=@@sql_quote_show_create;
+SET @@sql_quote_show_create=0;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SET @@sql_quote_show_create=@old_sql_quote_show_create;
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+let $INNODB_PAGE_SIZE=`SELECT @@innodb_page_size`;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
+DROP TABLE t1,t2,t3;
+DROP TABLESPACE ts_part1;
+DROP TABLESPACE `ts part2`;
+DROP TABLESPACE ts_part3;
+DROP TABLESPACE ts_part4;
+
+SET @@global.innodb_file_per_table = ON;
+SHOW CREATE TABLE t_file_per_table_on;
+SHOW CREATE TABLE t_file_per_table_off;
+SET @@global.innodb_file_per_table = OFF;
+SHOW CREATE TABLE t_file_per_table_on;
+SHOW CREATE TABLE t_file_per_table_off;
+DROP TABLE t_file_per_table_on;
+DROP TABLE t_file_per_table_off;
 
 --rmdir $MYSQL_TMP_DIR/alternate_dir/data_table/test
 --rmdir $MYSQL_TMP_DIR/alternate_dir/data_table

@@ -52,8 +52,8 @@ INSERT INTO containers VALUES ("desc_t1", "test", "t1",
 
 USE test;
 
+SET innodb_strict_mode=OFF;
 --disable_warnings
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1        (c1 VARCHAR(32),
 			c200 VARCHAR(40),
 			c201 VARCHAR(40),

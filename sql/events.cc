@@ -24,6 +24,7 @@
 #include "tztime.h"                             // struct Time_zone
 #include "auth_common.h"                        // EVENT_ACL
 #include "records.h"          // init_read_record, end_read_record
+#include "mysqld.h"           // LOCK_global_system_variables
 #include "event_data_objects.h"
 #include "event_db_repository.h"
 #include "event_queue.h"
@@ -690,11 +691,11 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   field_list.push_back(
     new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
 
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (thd->send_result_metadata(&field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  protocol->prepare_for_resend();
+  protocol->start_row();
 
   protocol->store(et->name.str, et->name.length, system_charset_info);
   protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
@@ -711,7 +712,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
                   strlen(et->creation_ctx->get_db_cl()->name),
                   system_charset_info);
 
-  if (protocol->write())
+  if (protocol->end_row())
     DBUG_RETURN(TRUE);
 
   my_eof(thd);
@@ -758,7 +759,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   ret= db_repository->load_named_event(thd, dbname, name, &et);
 
   if (!ret)
-    ret= send_show_create_event(thd, &et, thd->protocol);
+    ret= send_show_create_event(thd, &et, thd->get_protocol());
 
   DBUG_RETURN(ret);
 }

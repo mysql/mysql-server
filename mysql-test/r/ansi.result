@@ -1,5 +1,7 @@
 drop table if exists t1;
 set sql_mode="MySQL40";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@sql_mode;
 @@sql_mode
 MYSQL40,HIGH_NOT_PRECEDENCE

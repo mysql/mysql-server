@@ -33,9 +33,11 @@
 #include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
 #include "lock.h"                // mysql_unlock_some_tables,
                                  // mysql_unlock_read_tables
+#include "mysqld.h"              // stage_init
 #include "sql_show.h"            // append_identifier
 #include "sql_base.h"
 #include "auth_common.h"         // *_ACL
+#include "opt_range.h"           // QUICK_SELECT_I
 #include "sql_test.h"            // misc. debug printing utilities
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
@@ -46,6 +48,9 @@
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "item_sum.h"            // Item_sum
 #include "sql_planner.h"         // calculate_condition_filter
+#include "opt_hints.h"           // hint_key_state()
+#include "sql_cache.h"           // query_cache
+
 #include <algorithm>
 
 using std::max;
@@ -58,7 +63,7 @@ static store_key *get_store_key(THD *thd,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
-uint find_shortest_key(TABLE *table, const key_map *usable_keys);
+uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 /**
   Handle a data manipulation query, from preparation through cleanup
 
@@ -1697,13 +1702,13 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
        type() == JT_RANGE || type() ==  JT_INDEX_MERGE) &&
       join_tab->use_join_cache() == JOIN_CACHE::ALG_BNL);
 
-
   /*
     We will only attempt to push down an index condition when the
     following criteria are true:
     0. The table has a select condition
     1. The storage engine supports ICP.
-    2. The system variable for enabling ICP is ON.
+    2. The index_condition_pushdown switch is on and
+       the use of ICP is not disabled by the NO_ICP hint.
     3. The query is not a multi-table update or delete statement. The reason
        for this requirement is that the same handler will be used 
        both for doing the select/join and the update. The pushed index
@@ -1731,7 +1736,8 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
   if (condition() &&
       tbl->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
-      join_->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
+      hint_key_state(join_->thd, tbl, keyno, ICP_HINT_ENUM,
+                     OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       join_->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
       join_->thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
       !has_guarded_conds() &&
@@ -3269,9 +3275,13 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 /**
   clear results if there are not rows found for group
   (end_send_group/end_write_group)
+  @retval
+    FALSE if OK
+  @retval
+    TRUE on error  
 */
 
-void JOIN::clear()
+bool JOIN::clear()
 {
   /* 
     must clear only the non-const tables, as const tables
@@ -3280,7 +3290,8 @@ void JOIN::clear()
   for (uint tableno= const_tables; tableno < primary_tables; tableno++)
     mark_as_null_row(qep_tab[tableno].table());  // All fields are NULL
 
-  copy_fields(&tmp_table_param);
+  if (copy_fields(&tmp_table_param, thd))
+    return true;
 
   if (sum_funcs)
   {
@@ -3288,6 +3299,7 @@ void JOIN::clear()
     while ((func= *(func_ptr++)))
       func->clear();
   }
+  return false;
 }
 
 
@@ -3688,21 +3700,29 @@ bool JOIN::make_tmp_tables_info()
     /* If we have already done the group, add HAVING to sorted table */
     if (having_cond && !group_list && !sort_and_group)
     {
-      /*
-        Fields in HAVING condition may have been replaced with fields in an
-        internal temporary table. This table has map=1, hence we check that
-        we have no fields from other tables (outer references are fine).
-      */
       having_cond->update_used_tables();
       QEP_TAB *const curr_table= &qep_tab[curr_tmp_table];
-      DBUG_ASSERT(curr_table->table_ref ||
-                  !(having_cond->used_tables() &
-                    ~(1 | PSEUDO_TABLE_BITS)));
-      table_map used_tables= curr_table->table_ref ?
-                               curr_table->table_ref->map() :
-                               1; // Internal temporary table
+      table_map used_tables;
 
-      Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
+      if (curr_table->table_ref)
+        used_tables= curr_table->table_ref->map();
+      else
+      {
+        /*
+          Pushing parts of HAVING to an internal temporary table.
+          Fields in HAVING condition may have been replaced with fields in an
+          internal temporary table. This table has map=1, hence we check that
+          we have no fields from other tables (outer references are fine).
+          Unfortunaly, update_used_tables() is not reliable for subquery
+          items, which could thus still have other tables in their
+          used_tables() information.
+        */
+        DBUG_ASSERT(having_cond->has_subquery() ||
+                    !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS)));
+        used_tables= 1;
+      }
+
+      Item* sort_table_cond= make_cond_for_table(thd, having_cond, used_tables,
                                                  (table_map) 0, false);
       if (sort_table_cond)
       {
@@ -3719,7 +3739,7 @@ bool JOIN::make_tmp_tables_info()
 					 "select and having",
                                          QT_ORDINARY););
 
-        having_cond= make_cond_for_table(having_cond, ~ (table_map) 0,
+        having_cond= make_cond_for_table(thd, having_cond, ~ (table_map) 0,
                                          ~used_tables, false);
         DBUG_EXECUTE("where",
                      print_where(having_cond, "having after sort",
@@ -3915,7 +3935,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
 
 bool
 test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
-                         key_map usable_keys,  int ref_key,
+                         Key_map usable_keys,  int ref_key,
                          ha_rows select_limit,
                          int *new_key, int *new_key_direction,
                          ha_rows *new_select_limit, uint *new_used_key_parts,
@@ -3933,7 +3953,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   if (join)
     ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   uint nr;
-  key_map keys;
+  Key_map keys;
   uint best_key_parts= 0;
   int best_key_direction= 0;
   ha_rows best_records= 0;

@@ -2,8 +2,23 @@ mysql-community (5.8.0-m17-1ubuntu14.04) trusty; urgency=low
 
   * new upstream release
   * updated d/extra/my.cnf to remove option sql_mode
+  * non-essential tools, files and plugins have been moved to
+    mysql-community-test pkg.
+    mysql-community-test now replaces mysql-community-{server,client}
+    (Closes: #20546298)
+    (Closes: #20636865)
+  * mysql-community-test now depends on perl, python, libmysqlclient-dev
+    mysql-community-server now depends on psmisc
+    (Closes: #20561621)
+  * mysql-*-server.{mysql.init,postinst,templates} updated to deprecate
+    my_i_db and use msyqld --initialize-insecure to create system tables.
+    Now if user does not provide password or it is not possible to
+    receive password from user then UNIX socket authentication will be
+    enabled to secure the deployment by default.
+    mysql-community-server now depends on mysql-community-client
+    (Closes: #20613327)
 
- -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 13 Feb 2015 16:22:33 +0530
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 27 Feb 2015 10:01:55 +0530
 
 mysql-community (5.7.6-m16-1ubuntu14.04) trusty; urgency=low
 

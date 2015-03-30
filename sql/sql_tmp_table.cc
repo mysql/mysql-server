@@ -32,6 +32,7 @@
 #include "sql_executor.h"         // SJ_TMP_TABLE
 #include "sql_plugin.h"           // plugin_unlock
 #include "current_thd.h"
+#include "mysqld.h"               // heap_hton use_temp_pool
 
 #include <algorithm>
 
@@ -466,7 +467,17 @@ void Cache_temp_engine_properties::init(THD *thd)
   db_plugin= ha_lock_engine(0, innodb_hton);
   handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, innodb_hton);
   INNODB_MAX_KEY_LENGTH= handler->max_key_length();
-  INNODB_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
+  /*
+    For ha_innobase::max_supported_key_part_length(), the returned value
+    is constant. However, in innodb itself, the limitation
+    on key_part length is up to the ROW_FORMAT. In current trunk, internal
+    temp table's ROW_FORMAT is COMPACT. In order to keep the consistence
+    between server and innodb, here we hard-coded 767 as the maximum of 
+    key_part length supported by innodb until bug#20629014 is fixed.
+
+    TODO: Remove the hard-code here after bug#20629014 is fixed.
+  */
+  INNODB_MAX_KEY_PART_LENGTH= 767;
   INNODB_MAX_KEY_PARTS= handler->max_key_parts();
   delete handler;
   plugin_unlock(0, db_plugin);
@@ -1391,7 +1402,8 @@ update_hidden:
   {
     ORDER *cur_group= group;
     key_part_info= keyinfo->key_part;
-    share->primary_key= 0;
+    if (param->can_use_pk_for_unique)
+      share->primary_key= 0;
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     /*
       Here, we have to make the group fields point to the right record
@@ -1433,7 +1445,8 @@ update_hidden:
   {
     null_pack_length-=hidden_null_pack_length;
     key_part_info= keyinfo->key_part;
-    share->primary_key= 0;
+    if (param->can_use_pk_for_unique)
+      share->primary_key= 0;
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     /*
       Here, we have to make the key fields point to the right record

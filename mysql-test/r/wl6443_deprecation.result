@@ -143,6 +143,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+sys.sys_config                                     OK
 drop table mysql.host;
 create view mysql.host as select HOST from mysql.db;
 create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
@@ -182,6 +183,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+sys.sys_config                                     OK
 drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
 mysql.columns_priv                                 OK
@@ -217,6 +219,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+sys.sys_config                                     OK
 # End of 5.6 tests
 #
 # WL#6802: Deprecate the INFORMATION_SCHEMA.PROFILING table

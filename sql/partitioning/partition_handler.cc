@@ -24,7 +24,7 @@
 #include "key.h"                             // key_rec_cmp
 #include "sql_class.h"                       // THD
 #include "myisam.h"                          // MI_MAX_MSG_BUF
-#include "current_thd.h"
+#include "derror.h"
 
 // In sql_class.cc:
 int thd_binlog_format(const MYSQL_THD thd);
@@ -328,6 +328,41 @@ const char *Partition_share::get_partition_name(size_t part_id) const
   }
   return reinterpret_cast<const char*>(partition_names[part_id]);
 }
+
+
+int Partition_handler::truncate_partition()
+{
+  handler *file= get_handler();
+  if (!file)
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
+  DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
+              file->m_lock_type == F_WRLCK);
+  file->mark_trx_read_write();
+  return truncate_partition_low();
+}
+
+
+int Partition_handler::change_partitions(HA_CREATE_INFO *create_info,
+                                         const char *path,
+                                         ulonglong * const copied,
+                                         ulonglong * const deleted)
+{
+  handler *file= get_handler();
+  if (!file)
+  {
+    my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
+              file->m_lock_type != F_UNLCK);
+  file->mark_trx_read_write();
+  return change_partitions_low(create_info, path, copied, deleted);
+}
+
+
+
 /*
   Implementation of Partition_helper class.
 */
@@ -335,6 +370,7 @@ Partition_helper::Partition_helper(handler *main_handler)
   :
   m_handler(main_handler),
   m_part_info(),
+  m_tot_parts(),
   m_last_part(),
   m_err_rec(),
   m_ordered(),
@@ -363,7 +399,14 @@ Partition_helper::~Partition_helper()
 void Partition_helper::set_part_info_low(partition_info *part_info,
                                          bool early)
 {
-  if (m_part_info == NULL || !early)
+  /* 
+    ha_partition will set m_tot_parts from the .par file during creating
+    the new handler.
+    And this call can be earlier than the partition_default_handling(),
+    so get_tot_partitions() may return zero.
+  */
+  if (m_tot_parts == 0 &&
+      (m_part_info == NULL || !early))
   {
     m_tot_parts= part_info->get_tot_partitions();
   }
@@ -419,6 +462,22 @@ void Partition_helper::close_partitioning()
   DBUG_ASSERT(!m_ordered_rec_buffer);
   destroy_record_priority_queue();
 }
+
+
+void Partition_helper::lock_auto_increment()
+{
+  /* lock already taken */
+  if (m_auto_increment_safe_stmt_log_lock)
+    return;
+  DBUG_ASSERT(!m_auto_increment_lock);
+  if(m_table->s->tmp_table == NO_TMP_TABLE)
+  {
+    m_auto_increment_lock= true;
+    m_part_share->lock_auto_inc();
+  }
+}
+
+
 
 /****************************************************************************
                 MODULE change record
@@ -971,7 +1030,7 @@ bool Partition_helper::print_partition_error(int error, myf errflag)
   if ((error == HA_ERR_NO_PARTITION_FOUND) &&
       ! (thd->lex->alter_info.flags & Alter_info::ALTER_TRUNCATE_PARTITION))
   {
-    m_part_info->print_no_partition_found(m_table);
+    m_part_info->print_no_partition_found(thd, m_table);
     // print_no_partition_found() reports an error, so we can just return here.
     DBUG_RETURN(false);
   }
@@ -1074,6 +1133,9 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
   List_iterator<partition_element> part_it(m_part_info->partitions);
   List_iterator <partition_element> t_it(m_part_info->temp_partitions);
   char part_name_buff[FN_REFLEN];
+  const char *table_level_data_file_name= create_info->data_file_name;
+  const char *table_level_index_file_name= create_info->index_file_name;
+  const char *table_level_tablespace_name= create_info->tablespace;
   uint num_parts= m_part_info->partitions.elements;
   uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
@@ -1241,8 +1303,11 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
             '#P#<part_name>[#SP#<subpart_name>] suffix. Remove that suffix
             if it exists.
           */
-          truncate_partition_filename(sub_elem->data_file_name);
-          truncate_partition_filename(sub_elem->index_file_name);
+          truncate_partition_filename(&m_table->mem_root,
+                                      &sub_elem->data_file_name);
+          truncate_partition_filename(&m_table->mem_root,
+                                      &sub_elem->index_file_name);
+          /* Notice that sub_elem is already based on part_elem's defaults. */
           error= set_up_table_before_create(thd,
                                             m_table->s,
                                             part_name_buff,
@@ -1260,6 +1325,10 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
           {
             goto err;
           }
+          /* Reset create_info to table level values. */
+          create_info->data_file_name= table_level_data_file_name;
+          create_info->index_file_name= table_level_index_file_name;
+          create_info->tablespace= table_level_tablespace_name;
         } while (++j < num_subparts);
       }
       else
@@ -1269,8 +1338,10 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
                               true);
         DBUG_PRINT("info", ("Add partition %s", part_name_buff));
         /* See comment in subpartition branch above! */
-        truncate_partition_filename(part_elem->data_file_name);
-        truncate_partition_filename(part_elem->index_file_name);
+        truncate_partition_filename(&m_table->mem_root,
+                                    &part_elem->data_file_name);
+        truncate_partition_filename(&m_table->mem_root,
+                                    &part_elem->index_file_name);
         error= set_up_table_before_create(thd,
                                           m_table->s,
                                           part_name_buff,
@@ -1288,6 +1359,10 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
         {
           goto err;
         }
+        /* Reset create_info to table level values. */
+        create_info->data_file_name= table_level_data_file_name;
+        create_info->index_file_name= table_level_index_file_name;
+        create_info->tablespace= table_level_tablespace_name;
       }
     }
   } while (++i < num_parts);
@@ -1667,7 +1742,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
                                        ...)
 {
   va_list args;
-  Protocol *protocol= thd->protocol;
+  Protocol *protocol= thd->get_protocol();
   uint length;
   size_t msg_length;
   char name[NAME_LEN*2+2];
@@ -1701,12 +1776,12 @@ bool Partition_helper::print_admin_msg(THD* thd,
   */
   DBUG_PRINT("info",("print_admin_msg:  %s, %s, %s, %s", name, op_name,
                      msg_type, msgbuf));
-  protocol->prepare_for_resend();
+  protocol->start_row();
   protocol->store(name, length, system_charset_info);
   protocol->store(op_name, system_charset_info);
   protocol->store(msg_type, system_charset_info);
   protocol->store(msgbuf, msg_length, system_charset_info);
-  if (protocol->write())
+  if (protocol->end_row())
   {
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
                     msgbuf);
@@ -1996,6 +2071,8 @@ void Partition_helper::ph_position(const uchar *record)
 {
   DBUG_ASSERT(m_part_info->is_partition_used(m_last_part));
   DBUG_ENTER("Partition_helper::ph_position");
+  DBUG_PRINT("info", ("record: %p", record));
+  DBUG_DUMP("record", record, m_rec_length);
 
   /*
     If m_ref_usage is set, then the ref is already stored in the
@@ -2006,14 +2083,17 @@ void Partition_helper::ph_position(const uchar *record)
     DBUG_ASSERT(!m_queue->empty());
     DBUG_ASSERT(m_ordered_rec_buffer);
     DBUG_ASSERT(!m_curr_key_info[1]);
+    DBUG_ASSERT(uint2korr(m_queue->top()) == m_last_part);
     /* We already have the ref and part id. */
     memcpy(m_handler->ref, m_queue->top(), m_handler->ref_length);
   }
   else
   {
+    DBUG_PRINT("info", ("m_last_part: %u", m_last_part));
     int2store(m_handler->ref, m_last_part);
     position_in_last_part(m_handler->ref + PARTITION_BYTES_IN_POS, record);
   }
+  DBUG_DUMP("ref_out", m_handler->ref, m_handler->ref_length);
 
   DBUG_VOID_RETURN;
 }
@@ -3169,8 +3249,8 @@ int Partition_helper::handle_ordered_index_scan(uchar *buf)
        i <= m_part_spec.end_part;
        i= m_part_info->get_next_used_partition(i))
   {
-    DBUG_PRINT("info", ("reading from part %u (scan_type: %u)",
-                        i, m_index_scan_type));
+    DBUG_PRINT("info", ("reading from part %u (scan_type: %u inx: %u)",
+                        i, m_index_scan_type, m_handler->active_index));
     DBUG_ASSERT(i == uint2korr(part_rec_buf_ptr));
     uchar *rec_buf_ptr= part_rec_buf_ptr + m_rec_offset;
     uchar *read_buf;
@@ -3223,6 +3303,7 @@ int Partition_helper::handle_ordered_index_scan(uchar *buf)
       DBUG_ASSERT(false);
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
+    DBUG_PRINT("info", ("error %d from partition %u", error, i));
     /* When using ICP, copy record[0] to the priority queue for sorting. */
     if (m_handler->pushed_idx_cond)
       memcpy(rec_buf_ptr, read_buf, m_rec_length);
@@ -3240,6 +3321,7 @@ int Partition_helper::handle_ordered_index_scan(uchar *buf)
         Save for later insertion in queue;
       */
       parts.push_back(part_rec_buf_ptr);
+      DBUG_DUMP("row", read_buf, m_rec_length);
     }
     else if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
     {
@@ -3292,6 +3374,8 @@ void Partition_helper::return_top_record(uchar *buf)
 
   part_id= uint2korr(key_buffer);
   copy_cached_row(buf, rec_buffer);
+  DBUG_PRINT("info", ("from part_id %u", part_id));
+  DBUG_DUMP("returned_row", buf, m_table->s->reclength);
   m_last_part= part_id;
   m_top_entry= part_id;
 }
@@ -3445,6 +3529,12 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
   if (part_id >= m_tot_parts)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
+  DBUG_PRINT("info", ("next row from part %u (inx %u)",
+                      part_id, m_handler->active_index));
+
+  /* Assert that buffer for fetch is not NULL */
+  DBUG_ASSERT(rec_buf);
+
   /* ICP relies on Item evaluation, which expects the row in record[0]. */
   if (m_handler->pushed_idx_cond)
     read_buf= m_table->record[0];
@@ -3472,11 +3562,20 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
       /* Return next buffered row */
       if (!m_queue->empty())
         m_queue->pop();
-      if (!m_queue->empty())
+      if (m_queue->empty())
       {
+        /*
+          If priority queue is empty, we have finished fetching rows from all
+          partitions. Reset the value of next partition to NONE. This would
+          imply HA_ERR_END_OF_FILE for all future calls.
+        */
+        m_top_entry= NO_CURRENT_PART_ID;
+      }
+      else
+      {
+         return_top_record(buf);
          DBUG_PRINT("info", ("Record returned from partition %u (2)",
                      m_top_entry));
-         return_top_record(buf);
          m_table->status= 0;
          error= 0;
       }
@@ -3493,6 +3592,7 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
     position_in_last_part(rec_buf - m_rec_offset + PARTITION_BYTES_IN_POS,
                           rec_buf);
   }
+  DBUG_DUMP("rec_buf", rec_buf, m_rec_length);
   m_queue->update_top();
   return_top_record(buf);
   DBUG_PRINT("info", ("Record returned from partition %u", m_top_entry));
@@ -3558,6 +3658,9 @@ int Partition_helper::handle_ordered_prev(uchar *buf)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
 
+  /* Assert that buffer for fetch is not NULL */
+  DBUG_ASSERT(rec_buf);
+
   /* ICP relies on Item evaluation, which expects the row in record[0]. */
   if (m_handler->pushed_idx_cond)
     read_buf= m_table->record[0];
@@ -3570,7 +3673,16 @@ int Partition_helper::handle_ordered_prev(uchar *buf)
     {
       if (!m_queue->empty())
         m_queue->pop();
-      if (!m_queue->empty())
+      if (m_queue->empty())
+      {
+        /*
+          If priority queue is empty, we have finished fetching rows from all
+          partitions. Reset the value of next partition to NONE. This would
+          imply HA_ERR_END_OF_FILE for all future calls.
+        */
+        m_top_entry= NO_CURRENT_PART_ID;
+      }
+      else
       {
         return_top_record(buf);
         DBUG_PRINT("info", ("Record returned from partition %d (2)",

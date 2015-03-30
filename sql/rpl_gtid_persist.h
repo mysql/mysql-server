@@ -19,6 +19,7 @@
 #define RPL_GTID_PERSIST_H_
 
 #include "my_global.h"
+#include "derror.h"                  // ER_THD
 #include "rpl_table_access.h"        // System_table_access
 #include "sql_class.h"               // Open_tables_backup
 
@@ -172,6 +173,37 @@ public:
       -1   Error
   */
   int compress(THD *thd);
+  /**
+    Push a waring to client if user is modifying
+    the gtid_executed table explicitly.
+
+    @param thd Thread requesting to access the table
+    @param table The table is being accessed.
+
+    @retval true A warning was pushed to the client.
+    @retval false No warning was pushed to the client.
+  */
+  bool warn_on_explicit_modification(THD *thd, TABLE_LIST *table)
+  {
+    DBUG_ENTER("Gtid_table_persistor::warn_on_explicit_modification");
+
+    if (!thd->is_operating_gtid_table_implicitly &&
+        table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+        !strcmp(table->table_name, Gtid_table_access_context::TABLE_NAME.str))
+    {
+      /*
+        Push a waring to client if user is modifying
+        the gtid_executed table explicitly.
+      */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
+                          ER_THD(thd, ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE),
+                          table->table_name);
+      DBUG_RETURN(true);
+    }
+
+    DBUG_RETURN(false);
+  }
 
 private:
   /* Count the append size of the table */

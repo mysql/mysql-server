@@ -16,6 +16,8 @@ Warnings:
 Warning	1618	<INDEX DIRECTORY> option ignored
 set @org_mode=@@sql_mode;
 set @@sql_mode='NO_DIR_IN_CREATE';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -38,6 +40,8 @@ t2	CREATE TABLE `t2` (
 (PARTITION p01 VALUES LESS THAN (1000) ENGINE = InnoDB) */
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT)
 PARTITION BY KEY (a)
 (PARTITION p0 DATA DIRECTORY 'MYSQLD_DATADIR/test');

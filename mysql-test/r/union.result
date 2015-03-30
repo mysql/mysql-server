@@ -1074,6 +1074,8 @@ a
 150
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
 CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
 (SELECT * FROM t1 AS PARTITIONED, t2 AS
@@ -1471,6 +1473,8 @@ id
 99
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
 create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;

@@ -38,7 +38,6 @@ fi
 
 mybasedir="$basedir/@@instdir@@"
 mystart1="$mybasedir/support-files/mysql.server"
-myinstdb="$mybasedir/bin/mysql_install_db"
 mystart=/etc/init.d/mysql
 
 # Check: Is this a first installation, or an upgrade ?
@@ -64,7 +63,7 @@ chown -R $myuser:$mygroup $mysecurefiledir
 
 # Solaris patch 119255 (somewhere around revision 42) changes the behaviour
 # of pkgadd to set TMPDIR internally to a root-owned install directory.  This
-# has the unfortunate side effect of breaking running mysql_install_db with
+# has the unfortunate side effect of breaking running mysqld --initialize with
 # the --user=mysql argument as mysqld uses TMPDIR if set, and is unable to
 # write temporary tables to that directory.  To work around this issue, we
 # create a subdirectory inside TMPDIR (if set) for mysqld to write to.
@@ -83,7 +82,7 @@ if [ -n "$INSTALL" ] ; then
   # We install/update the system tables
   (
     cd "$mybasedir"
-    bin/mysql_install_db \
+    sbin/mysqld --initialize \
 	  --user=mysql \
 	  --basedir="$mybasedir" \
 	  --datadir=$mydatadir

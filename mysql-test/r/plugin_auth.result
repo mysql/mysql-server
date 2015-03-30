@@ -50,8 +50,6 @@ USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
 ## test no_auto_create_user sql mode with plugin users
 SET @@sql_mode=no_auto_create_user;
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
@@ -103,6 +101,18 @@ INDENTIFIED BY PASSWORD 'plug_dest_passwd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INDENTIFIED BY PASSWORD 'plug_dest_passwd'' at line 2
 DROP DATABASE test_grant_db;
 ## GRANT PROXY tests
+SELECT @@global.check_proxy_users;
+@@global.check_proxy_users
+0
+SELECT @@global.mysql_native_password_proxy_users;
+@@global.mysql_native_password_proxy_users
+0
+SELECT @@global.sha256_password_proxy_users;
+@@global.sha256_password_proxy_users
+0
+SET @@global.check_proxy_users=ON;
+SET @@global.mysql_native_password_proxy_users=ON;
+SET @@global.sha256_password_proxy_users=ON;
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
 AS 'grant_plug_dest';
 CREATE USER grant_plug_dest IDENTIFIED BY 'grant_plug_dest_passwd';
@@ -205,6 +215,9 @@ SELECT @@LOCAL.proxy_user;
 @@LOCAL.proxy_user
 'plug'@'%'
 # in connection default
+SET @@global.check_proxy_users=0;
+SET @@global.mysql_native_password_proxy_users=0;
+SET @@global.sha256_password_proxy_users=0;
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
@@ -261,9 +274,16 @@ SET GLOBAL general_log= @old_general_log;
 #
 #  Bug #56798 : Wrong credentials assigned when using a proxy user.
 #
+set @orig_sql_mode = @@sql_mode;
+set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT ALL PRIVILEGES ON *.* TO power_user;
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+set sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT USAGE ON anonymous_db.* TO ''@''
   IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
 Warnings:
@@ -352,6 +372,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+sys.sys_config                                     OK
 SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv;
 Host	localhost
 User	root
@@ -487,6 +508,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+sys.sys_config                                     OK
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
 COLUMN_NAME IN ('plugin', 'authentication_string')

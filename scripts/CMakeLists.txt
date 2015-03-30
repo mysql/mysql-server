@@ -61,6 +61,23 @@ ADD_CUSTOM_COMMAND(
 ADD_CUSTOM_TARGET(GenFixPrivs
   ALL
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables_sql.c
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
+  COMMAND comp_sql
+  mysql_sys_schema
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
+  sql_commands_sys_schema.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
+)
+
+ADD_CUSTOM_TARGET(GenSysSchema
+  ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
 )
 
 ADD_CUSTOM_COMMAND(
@@ -116,6 +133,7 @@ INSTALL(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_security_commands.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_fix_for_downgrade.sql

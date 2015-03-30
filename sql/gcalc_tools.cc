@@ -21,7 +21,6 @@
 #include "spatial.h"
 #include "sql_class.h"                          // THD
 #include "prealloced_array.h"
-#include "current_thd.h"
 
 #include <algorithm>
 #include <functional>
@@ -166,10 +165,9 @@ const char *Gcalc_function::shape_name(int code)
   Trace spatial operation buffer into debug log
   and optionally into client side warnings.
 */
-void Gcalc_function::debug_print_function_buffer()
+void Gcalc_function::debug_print_function_buffer(THD *thd)
 {
   int i, nelements= function_buffer.length() / function_buffer_item_size;
-  THD *thd= current_thd;
   DBUG_PRINT("info", ("nelements=%d", nelements));
   for (i= 0; i < nelements; i++)
   {
@@ -224,7 +222,7 @@ int Gcalc_function::count_internal()
         result= result & !next_res;
         break;
       case op_backdifference:
-        result= !result & next_res;
+        result= (!result) & next_res;
         break;
       default:
         DBUG_ASSERT(FALSE);

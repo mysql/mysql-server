@@ -430,8 +430,6 @@ row_table_add_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	bool			is_temp_table,
-	dict_table_t*		handler,
 	ibool			reject_fks)
 	__attribute__((warn_unused_result));
 
@@ -887,6 +885,8 @@ struct row_prebuilt_t {
 					search key values from MySQL format
 					to InnoDB format.*/
 	uint		srch_key_val_len; /*!< Size of search key */
+	/** Disable prefetch. */
+	bool		m_no_prefetch;
 
 };
 

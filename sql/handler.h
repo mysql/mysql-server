@@ -26,10 +26,11 @@
 #include "thr_lock.h"          // thr_lock_type
 #include "discrete_interval.h" // Discrete_interval
 #include "key.h"               // KEY
-#include "mysqld.h"            // key_map
+#include "sql_bitmap.h"        // Key_map
 #include "sql_const.h"         // SHOW_COMP_OPTION
 #include "sql_list.h"          // SQL_I_List
 #include "sql_plugin_ref.h"    // plugin_ref
+#include "system_variables.h"  // System_variables
 
 #include "mysql/psi/psi.h"
 
@@ -48,6 +49,9 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
 
+
+extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
+extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
 
 // the following is for checking tables
 
@@ -282,7 +286,7 @@ enum enum_alter_inplace_result {
 /**
   Handler supports Generated Columns
 */
-#define HA_GENERATED_COLUMNS            (1LL << 45)
+#define HA_GENERATED_COLUMNS            (1LL << 46)
 
 
 /* bits in index_flags(index_number) for what you can do with index */
@@ -767,6 +771,24 @@ struct handlerton
      implemented.
    */
    uint (*partition_flags)();
+
+
+  /**
+    Get the tablespace name from the SE for the given schema and table.
+
+    @param       thd              Thread context.
+    @param       db_name          Name of the relevant schema.
+    @param       table_name       Name of the relevant table.
+    @param [out] tablespace_name  Name of the tablespace containing the table.
+
+    @return Operation status.
+      @retval == 0  Success.
+      @retval != 0  Error (handler error code returned).
+   */
+
+  int (*get_tablespace)(THD* thd, LEX_CSTRING db_name, LEX_CSTRING table_name,
+                        LEX_CSTRING *tablespace_name);
+
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
                         class Item *cond, 
@@ -854,6 +876,22 @@ struct handlerton
   */
 
   SE_cost_constants *(*get_cost_constants)(uint storage_category);
+
+  /**
+    @param[in,out]  thd          pointer to THD
+    @param[in]      new_trx_arg  pointer to replacement transaction
+    @param[out]     ptr_trx_arg  double pointer to being replaced transaction
+
+    Associated with THD engine's native transaction is replaced
+    with @c new_trx_arg. The old value is returned through a buffer if non-null
+    pointer is provided with @c ptr_trx_arg.
+    The method is adapted by XA start and XA prepare handlers to
+    handle XA transaction that is logged as two parts by slave applier.
+
+    This interface concerns engines that are aware of XA transaction.
+  */
+  void (*replace_native_transaction_in_thd)(THD *thd, void *new_trx_arg,
+                                            void **ptr_trx_arg);
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -1147,6 +1185,10 @@ public:
 
   // Alter generated column
   static const HA_ALTER_FLAGS HA_ALTER_STORED_GCOL       = 1ULL << 32;
+
+  // Alter index comment
+  static const HA_ALTER_FLAGS ALTER_INDEX_COMMENT        = 1ULL << 33;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 
@@ -2111,7 +2153,6 @@ public:
   void end_psi_batch_mode();
 
 private:
-  friend class DsMrr_impl;
   /**
     The lock type set by when calling::ha_external_lock(). This is 
     propagated down to the storage engine. The reason for also storing 
@@ -2414,7 +2455,7 @@ public:
   virtual int multi_range_read_next(char **range_info);
 
 
-  virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
+  virtual const Key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
   virtual uint extra_rec_buf_length() const { return 0; }
@@ -3583,7 +3624,7 @@ class DsMrr_impl
 public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
-  DsMrr_impl() : h2(NULL) {}
+  DsMrr_impl(handler *owner) : h(owner), table(NULL), h2(NULL) {}
 
   ~DsMrr_impl()
   {
@@ -3596,14 +3637,15 @@ public:
       reset();
     DBUG_ASSERT(h2 == NULL);
   }
-  
+
+private:
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
     It is used to retrieve full table rows by calling rnd_pos().
   */
-  handler *h;
+  handler *const h;
   TABLE *table; /* Always equal to h->table */
-private:
+
   /* Secondary handler object.  It is used for scanning the index */
   handler *h2;
 
@@ -3627,19 +3669,16 @@ public:
     This function just initializes the object. To do a DS-MRR scan,
     this must also be initialized by calling dsmrr_init().
 
-    @param h_arg     pointer to the handler that owns this object
     @param table_arg pointer to the TABLE that owns the handler
   */
 
-  void init(handler *h_arg, TABLE *table_arg)
+  void init(TABLE *table_arg)
   {
-    DBUG_ASSERT(h_arg != NULL);
     DBUG_ASSERT(table_arg != NULL);
-    h= h_arg; 
     table= table_arg;
   }
 
-  int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
+  int dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
 

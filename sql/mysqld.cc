@@ -75,6 +75,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
+#include "options_mysqld.h"
 #include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"
 #include "rpl_slave.h"
@@ -84,7 +85,6 @@
 #include "rpl_filter.h"
 #include <sql_common.h>
 #include <my_stacktrace.h>
-#include "mysqld_suffix.h"
 #include "mysys_err.h"
 #include "events.h"
 #include "sql_audit.h"
@@ -258,6 +258,8 @@ static PSI_mutex_key key_LOCK_start_signal_handler;
 static PSI_cond_key key_COND_start_signal_handler;
 #endif // _WIN32
 #endif // !EMBEDDED_LIBRARY
+static PSI_mutex_key key_LOCK_server_started;
+static PSI_cond_key key_COND_server_started;
 
 #if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static PSI_rwlock_key key_rwlock_openssl;
@@ -393,6 +395,7 @@ mysql_mutex_t LOCK_default_password_lifetime;
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+my_bool check_proxy_users= 0, mysql_native_password_proxy_users= 0, sha256_password_proxy_users= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -558,8 +561,8 @@ char mysql_unpacked_real_data_home[FN_REFLEN];
 size_t mysql_unpacked_real_data_home_len;
 size_t mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
-const key_map key_map_empty(0);
-key_map key_map_full(0);                        // Will be initialized later
+const Key_map key_map_empty(0);
+Key_map key_map_full(0);                        // Will be initialized later
 char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
@@ -589,6 +592,7 @@ ulong connection_errors_peer_addr= 0;
 /* classes for comparation parsing/processing */
 Eq_creator eq_creator;
 Ne_creator ne_creator;
+Equal_creator equal_creator;
 Gt_creator gt_creator;
 Lt_creator lt_creator;
 Ge_creator ge_creator;
@@ -653,7 +657,7 @@ mysql_mutex_t LOCK_offline_mode;
 #ifdef HAVE_OPENSSL
 mysql_mutex_t LOCK_des_key_file;
 #endif
-mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
+mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 my_thread_handle signal_thread_id;
 my_thread_attr_t connection_attrib;
@@ -997,6 +1001,7 @@ static unsigned long openssl_id_function();
 char *des_key_file;
 #ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
+SSL *ssl_acceptor;
 #endif
 #endif /* HAVE_OPENSSL */
 
@@ -1023,7 +1028,10 @@ static void clean_up_mutexes(void);
 static void create_pid_file();
 static void mysqld_exit(int exit_code) __attribute__((noreturn));
 static void delete_pid_file(myf flags);
+#ifndef _WIN32
+static void start_processing_signals();
 #endif
+#endif // !EMBEDDED_LIBRARY
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -1268,6 +1276,9 @@ extern "C" void unireg_abort(int exit_code)
 #ifndef _WIN32
   if (signal_thread_id.thread != 0)
   {
+    // Make sure the signal thread isn't blocked when we are trying to exit.
+    start_processing_signals();
+
     pthread_kill(signal_thread_id.thread, SIGTERM);
     my_thread_join(&signal_thread_id, NULL);
   }
@@ -1413,16 +1424,14 @@ void clean_up(bool print_message)
   acl_free(1);
   grant_free();
 #endif
-  query_cache.destroy();
+  query_cache.destroy(NULL);
   hostname_cache_free();
   item_func_sleep_free();
   lex_free();       /* Free some memory */
   item_create_cleanup();
   if (!opt_noacl)
   {
-#ifdef HAVE_DLOPEN
     udf_free();
-#endif
   }
   table_def_start_shutdown();
   plugin_shutdown();
@@ -1518,7 +1527,6 @@ void clean_up(bool print_message)
 
 static void clean_up_mutexes()
 {
-  mysql_rwlock_destroy(&LOCK_grant);
   mysql_mutex_destroy(&LOCK_log_throttle_qni);
   mysql_mutex_destroy(&LOCK_status);
   mysql_mutex_destroy(&LOCK_manager);
@@ -2298,9 +2306,23 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   return NULL;        /* purecov: deadcode */
 }
 
+
+/**
+  Starts processing signals initialized in the signal_hand function.
+
+  @see signal_hand
+*/
+
+static void start_processing_signals()
+{
+  mysql_mutex_lock(&LOCK_server_started);
+  mysqld_server_started= true;
+  mysql_cond_broadcast(&COND_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+}
+
 #endif // !_WIN32
 #endif // !EMBEDDED_LIBRARY
-
 
 #if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 #include <cxxabi.h>
@@ -2587,7 +2609,6 @@ SHOW_VAR com_status_vars[]= {
   {"stmt_close",           (char*) offsetof(System_status_var, com_stmt_close),                                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"stmt_fetch",           (char*) offsetof(System_status_var, com_stmt_fetch),                                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"stmt_prepare",         (char*) offsetof(System_status_var, com_stmt_prepare),                                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
-  {"stmt_reprepare",       (char*) offsetof(System_status_var, com_stmt_reprepare),                                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"stmt_reset",           (char*) offsetof(System_status_var, com_stmt_reset),                                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"stmt_send_long_data",  (char*) offsetof(System_status_var, com_stmt_send_long_data),                            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"truncate",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_TRUNCATE]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2879,7 +2900,7 @@ int init_common_variables()
     of SQLCOM_ constants.
   */
   compile_time_assert(sizeof(com_status_vars)/sizeof(com_status_vars[0]) - 1 ==
-                     SQLCOM_END + 8);
+                     SQLCOM_END + 7);
 #endif
 
   if (get_options(&remaining_argc, &remaining_argv))
@@ -3016,7 +3037,7 @@ int init_common_variables()
 
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (!(my_default_lc_messages=
-        my_locale_by_name(lc_messages)))
+        my_locale_by_name(NULL, lc_messages)))
   {
     sql_print_error("Unknown locale: '%s'", lc_messages);
     return 1;
@@ -3026,7 +3047,6 @@ int init_common_variables()
     return 1;
   init_client_errs();
   mysql_client_plugin_init();
-  lex_init();
   if (item_create_init())
     return 1;
   item_init();
@@ -3112,8 +3132,14 @@ int init_common_variables()
     return 1;
   global_system_variables.character_set_filesystem= character_set_filesystem;
 
+  if (lex_init())
+  {
+    sql_print_error("Out of memory");
+    return 1;
+  }
+
   if (!(my_default_lc_time_names=
-        my_locale_by_name(lc_time_names_name)))
+        my_locale_by_name(NULL, lc_time_names_name)))
   {
     sql_print_error("Unknown locale: '%s'", lc_time_names_name);
     return 1;
@@ -3278,7 +3304,6 @@ static int init_thread_environment()
 #endif
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
-  mysql_rwlock_init(key_rwlock_LOCK_grant, &LOCK_grant);
   mysql_cond_init(key_COND_manager, &COND_manager);
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
@@ -3557,6 +3582,9 @@ static int init_ssl()
       /* Check if CA certificate is self signed */
       if (warn_self_signed_ca())
         return 1;
+      /* create one SSL that we can use to read information from */
+      if (!(ssl_acceptor= SSL_new(ssl_acceptor_fd->ssl_context)))
+        return 1;
     }
   }
   else
@@ -3583,6 +3611,8 @@ static void end_ssl()
 #ifndef EMBEDDED_LIBRARY
   if (ssl_acceptor_fd)
   {
+    if (ssl_acceptor)
+      SSL_free(ssl_acceptor);
     free_vio_ssl_acceptor_fd(ssl_acceptor_fd);
     ssl_acceptor_fd= 0;
   }
@@ -3731,7 +3761,7 @@ static int init_server_auto_options()
   DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-    if (!Uuid::is_valid(uuid))
+    if (!binary_log::Uuid::is_valid(uuid))
     {
       sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
@@ -3810,7 +3840,7 @@ static void init_server_query_cache()
   query_cache.set_min_res_unit(query_cache_min_res_unit);
   query_cache.init();
 	
-  set_cache_size= query_cache.resize(query_cache_size);
+  set_cache_size= query_cache.resize(NULL, query_cache_size);
   if (set_cache_size != query_cache_size)
   {
     sql_print_warning(ER_DEFAULT(ER_WARN_QC_RESIZE), query_cache_size,
@@ -4901,9 +4931,7 @@ int mysqld_main(int argc, char **argv)
 
   if (!opt_noacl)
   {
-#ifdef HAVE_DLOPEN
     udf_init();
-#endif
   }
 
   init_status_vars();
@@ -4951,11 +4979,9 @@ int mysqld_main(int argc, char **argv)
 
   if (opt_bootstrap)
   {
-    /* Signal threads waiting for server to be started */
-    mysql_mutex_lock(&LOCK_server_started);
-    mysqld_server_started= true;
-    mysql_cond_broadcast(&COND_server_started);
-    mysql_mutex_unlock(&LOCK_server_started);
+#ifndef _WIN32
+    start_processing_signals();
+#endif
 
     int error= bootstrap(mysql_stdin);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
@@ -4985,14 +5011,9 @@ int mysqld_main(int argc, char **argv)
                          MYSQL_COMPILATION_COMMENT);
 #if defined(_WIN32)
   Service.SetRunning();
+#else
+  start_processing_signals();
 #endif
-
-
-  /* Signal threads waiting for server to be started */
-  mysql_mutex_lock(&LOCK_server_started);
-  mysqld_server_started= true;
-  mysql_cond_broadcast(&COND_server_started);
-  mysql_mutex_unlock(&LOCK_server_started);
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* engine specific hook, to be made generic */
@@ -5924,7 +5945,8 @@ static int show_queries(THD *thd, SHOW_VAR *var, char *buff)
 static int show_net_compression(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
-  var->value= (char *)&thd->net.compress;
+  var->value= buff;
+  *((bool *)buff)= thd->get_protocol()->get_compression();
   return 0;
 }
 
@@ -6418,8 +6440,9 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    var->value= const_cast<char*>(SSL_get_version((SSL*) thd->net.vio->ssl_arg));
+  if (thd->get_protocol()->get_ssl())
+    var->value=
+      const_cast<char*>(SSL_get_version(thd->get_protocol()->get_ssl()));
   else
     var->value= (char *)"";
   return 0;
@@ -6429,8 +6452,9 @@ static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_session_reused((SSL*) thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+        (long)SSL_session_reused(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6440,8 +6464,9 @@ static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_get_default_timeout((SSL*)thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+      (long)SSL_get_default_timeout(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6451,8 +6476,9 @@ static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->net.vio && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_get_verify_mode((SSL*)thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+      (long)SSL_get_verify_mode(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6462,8 +6488,9 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    *((long *)buff)= (long)SSL_get_verify_depth((SSL*)thd->net.vio->ssl_arg);
+  if (thd->get_protocol()->get_ssl())
+    *((long *)buff)=
+        (long)SSL_get_verify_depth(thd->get_protocol()->get_ssl());
   else
     *((long *)buff)= 0;
   return 0;
@@ -6472,8 +6499,9 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if( thd->vio_ok() && thd->net.vio->ssl_arg )
-    var->value= const_cast<char*>(SSL_get_cipher((SSL*) thd->net.vio->ssl_arg));
+  if (thd->get_protocol()->get_ssl())
+    var->value=
+      const_cast<char*>(SSL_get_cipher(thd->get_protocol()->get_ssl()));
   else
     var->value= (char *)"";
   return 0;
@@ -6483,12 +6511,12 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
   var->value= buff;
-  if (thd->vio_ok() && thd->net.vio->ssl_arg)
+  if (thd->get_protocol()->get_ssl())
   {
     int i;
     const char *p;
     char *end= buff + SHOW_VAR_FUNC_BUFF_SIZE;
-    for (i=0; (p= SSL_get_cipher_list((SSL*) thd->net.vio->ssl_arg,i)) &&
+    for (i=0; (p= SSL_get_cipher_list(thd->get_protocol()->get_ssl(),i)) &&
                buff < end; i++)
     {
       buff= my_stpnmov(buff, p, end-buff-1);
@@ -6556,10 +6584,9 @@ static int
 show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if(thd->vio_ok() && thd->net.vio->ssl_arg)
+  if (ssl_acceptor_fd)
   {
-    SSL *ssl= (SSL*) thd->net.vio->ssl_arg;
-    X509 *cert= SSL_get_certificate(ssl);
+    X509 *cert= SSL_get_certificate(ssl_acceptor);
     ASN1_TIME *not_before= X509_get_notBefore(cert);
 
     var->value= my_asn1_time_to_string(not_before, buff,
@@ -6589,10 +6616,9 @@ static int
 show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if(thd->vio_ok() && thd->net.vio->ssl_arg)
+  if (ssl_acceptor_fd)
   {
-    SSL *ssl= (SSL*) thd->net.vio->ssl_arg;
-    X509 *cert= SSL_get_certificate(ssl);
+    X509 *cert= SSL_get_certificate(ssl_acceptor);
     ASN1_TIME *not_after= X509_get_notAfter(cert);
 
     var->value= my_asn1_time_to_string(not_after, buff,
@@ -6633,6 +6659,7 @@ SHOW_VAR status_vars[]= {
   {"Bytes_received",           (char*) offsetof(System_status_var, bytes_received),          SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
   {"Bytes_sent",               (char*) offsetof(System_status_var, bytes_sent),              SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
   {"Com",                      (char*) com_status_vars,                               SHOW_ARRAY,              SHOW_SCOPE_ALL},
+  {"Com_stmt_reprepare",       (char*) offsetof(System_status_var, com_stmt_reprepare),      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"Compression",              (char*) &show_net_compression,                         SHOW_FUNC,               SHOW_SCOPE_SESSION},
   {"Connections",              (char*) &show_thread_id_count,                         SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
 #ifndef EMBEDDED_LIBRARY
@@ -7025,11 +7052,7 @@ static int mysql_init_variables(void)
 
   have_symlink= SHOW_OPTION_YES;
 
-#ifdef HAVE_DLOPEN
   have_dlopen=SHOW_OPTION_YES;
-#else
-  have_dlopen=SHOW_OPTION_NO;
-#endif
 
   have_query_cache=SHOW_OPTION_YES;
 
@@ -7717,7 +7740,12 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
      ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
 
   global_system_variables.sql_mode=
-    expand_sql_mode(global_system_variables.sql_mode);
+    expand_sql_mode(NULL, global_system_variables.sql_mode);
+
+  if (!(global_system_variables.sql_mode & MODE_NO_AUTO_CREATE_USER))
+  {
+    sql_print_warning("'NO_AUTO_CREATE_USER' sql mode was not set.");
+  }
 
   if (!my_enable_symlinks)
     have_symlink= SHOW_OPTION_DISABLED;
@@ -7789,6 +7817,16 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   to the version name to make the version more descriptive.
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
+
+/*
+  The following code is quite ugly as there is no portable way to easily set a
+  string to the value of a macro
+*/
+#ifdef MYSQL_SERVER_SUFFIX
+#define MYSQL_SERVER_SUFFIX_STR STRINGIFY_ARG(MYSQL_SERVER_SUFFIX)
+#else
+#define MYSQL_SERVER_SUFFIX_STR MYSQL_SERVER_SUFFIX_DEF
+#endif
 
 static void set_server_version(void)
 {
@@ -8335,7 +8373,7 @@ PSI_mutex_key
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
-  key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_status,
   key_LOCK_sql_slave_skip_counter,
   key_LOCK_slave_net_timeout,
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
@@ -8490,7 +8528,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Binlog_transmit_delegate_lock, "Binlog_transmit_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_relay_IO_delegate_lock, "Binlog_relay_IO_delegate::lock", PSI_FLAG_GLOBAL},
 #endif
-  { &key_rwlock_LOCK_grant, "LOCK_grant", PSI_FLAG_GLOBAL},
+  { &key_rwlock_LOCK_grant, "LOCK_grant", 0},
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0},
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
@@ -8507,7 +8545,6 @@ static PSI_rwlock_info all_server_rwlocks[]=
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 PSI_cond_key key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_manager,
-  key_COND_server_started,
   key_item_func_sleep_cond, key_master_info_data_cond,
   key_master_info_start_cond, key_master_info_stop_cond,
   key_master_info_sleep_cond,

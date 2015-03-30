@@ -136,7 +136,7 @@ struct buf_page_info_t{
 					the youngest modification */
 	lsn_t		oldest_mod;	/*!< Log sequence number of
 					the oldest modification */
-	index_id_t	index_id;	/*!< Index ID if a index page */
+	space_index_t	index_id;	/*!< Index ID if a index page */
 };
 
 /** Maximum number of buffer page info we would cache. */
@@ -1772,8 +1772,8 @@ i_s_cmp_per_index_fill_low(
 
 	for (iter = snap.begin(), i = 0; iter != snap.end(); iter++, i++) {
 
-		char		name[192];
-		dict_index_t*	index = dict_index_find_on_id_low(iter->first);
+		char			name[NAME_LEN];
+		const dict_index_t*	index = dict_index_find(iter->first);
 
 		if (index != NULL) {
 			char	db_utf8[MAX_DB_UTF8_LEN];
@@ -1790,7 +1790,8 @@ i_s_cmp_per_index_fill_low(
 		} else {
 			/* index not found */
 			ut_snprintf(name, sizeof(name),
-				    "index_id:" IB_ID_FMT, iter->first);
+				    "index_id:" IB_ID_FMT,
+				    iter->first.m_index_id);
 			field_store_string(fields[IDX_DATABASE_NAME],
 					   "unknown");
 			field_store_string(fields[IDX_TABLE_NAME],
@@ -5247,11 +5248,12 @@ i_s_innodb_buffer_page_fill(
 		/* If this is an index page, fetch the index name
 		and table name */
 		if (page_info->page_type == I_S_PAGE_TYPE_INDEX) {
+			index_id_t		id(page_info->space_id,
+						   page_info->index_id);
 			const dict_index_t*	index;
 
 			mutex_enter(&dict_sys->mutex);
-			index = dict_index_get_if_in_cache_low(
-				page_info->index_id);
+			index = dict_index_find(id);
 
 			if (index) {
 
@@ -5376,8 +5378,8 @@ i_s_innodb_set_page_type(
 		(1) for index pages or I_S_PAGE_TYPE_IBUF for
 		change buffer index pages */
 		if (page_info->index_id
-		    == static_cast<index_id_t>(DICT_IBUF_ID_MIN
-					       + IBUF_SPACE_ID)) {
+		    == static_cast<space_index_t>(
+			    DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
 			page_info->page_type = I_S_PAGE_TYPE_IBUF;
 		} else if (page_type == FIL_PAGE_RTREE) {
 			page_info->page_type = I_S_PAGE_TYPE_RTREE;
@@ -5969,11 +5971,12 @@ i_s_innodb_buf_page_lru_fill(
 		/* If this is an index page, fetch the index name
 		and table name */
 		if (page_info->page_type == I_S_PAGE_TYPE_INDEX) {
+			index_id_t		id(page_info->space_id,
+						   page_info->index_id);
 			const dict_index_t*	index;
 
 			mutex_enter(&dict_sys->mutex);
-			index = dict_index_get_if_in_cache_low(
-				page_info->index_id);
+			index = dict_index_find(id);
 
 			if (index) {
 
@@ -6316,16 +6319,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_FILE_FORMAT		5
-	{STRUCT_FLD(field_name,		"FILE_FORMAT"),
-	 STRUCT_FLD(field_length,	10),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define SYS_TABLES_ROW_FORMAT		6
+#define SYS_TABLES_ROW_FORMAT		5
 	{STRUCT_FLD(field_name,		"ROW_FORMAT"),
 	 STRUCT_FLD(field_length,	12),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -6334,7 +6328,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_ZIP_PAGE_SIZE	7
+#define SYS_TABLES_ZIP_PAGE_SIZE	6
 	{STRUCT_FLD(field_name,		"ZIP_PAGE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -6343,7 +6337,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_SPACE_TYPE	8
+#define SYS_TABLES_SPACE_TYPE		7
 	{STRUCT_FLD(field_name,		"SPACE_TYPE"),
 	 STRUCT_FLD(field_length,	10),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -6372,11 +6366,9 @@ i_s_dict_fill_sys_tables(
 	ulint			atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(
 								table->flags);
 	const page_size_t&	page_size = dict_tf_get_page_size(table->flags);
-	const char*		file_format;
 	const char*		row_format;
 	const char*		space_type;
 
-	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
 	if (!compact) {
 		row_format = "Redundant";
 	} else if (!atomic_blobs) {
@@ -6408,8 +6400,6 @@ i_s_dict_fill_sys_tables(
 	OK(fields[SYS_TABLES_NUM_COLUMN]->store(table->n_cols));
 
 	OK(fields[SYS_TABLES_SPACE]->store(table->space));
-
-	OK(field_store_string(fields[SYS_TABLES_FILE_FORMAT], file_format));
 
 	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
 
@@ -7418,7 +7408,7 @@ int
 i_s_dict_fill_sys_fields(
 /*=====================*/
 	THD*		thd,		/*!< in: thread */
-	index_id_t	index_id,	/*!< in: index id for the field */
+	space_index_t	index_id,	/*!< in: index id for the field */
 	dict_field_t*	field,		/*!< in: table */
 	ulint		pos,		/*!< in: Field position */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
@@ -7455,7 +7445,7 @@ i_s_sys_fields_fill_table(
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
-	index_id_t	last_id;
+	space_index_t	last_id;
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_fields_fill_table");
@@ -7480,7 +7470,7 @@ i_s_sys_fields_fill_table(
 	while (rec) {
 		ulint		pos;
 		const char*	err_msg;
-		index_id_t	index_id;
+		space_index_t	index_id;
 		dict_field_t	field_rec;
 
 		/* Populate a dict_field_t structure with information from
@@ -8070,16 +8060,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_FILE_FORMAT	3
-	{STRUCT_FLD(field_name,		"FILE_FORMAT"),
-	 STRUCT_FLD(field_length,	10),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define SYS_TABLESPACES_ROW_FORMAT	4
+#define SYS_TABLESPACES_ROW_FORMAT	3
 	{STRUCT_FLD(field_name,		"ROW_FORMAT"),
 	 STRUCT_FLD(field_length,	22),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -8088,7 +8069,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_PAGE_SIZE	5
+#define SYS_TABLESPACES_PAGE_SIZE	4
 	{STRUCT_FLD(field_name,		"PAGE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -8097,7 +8078,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_ZIP_PAGE_SIZE	6
+#define SYS_TABLESPACES_ZIP_PAGE_SIZE	5
 	{STRUCT_FLD(field_name,		"ZIP_PAGE_SIZE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -8106,7 +8087,7 @@ static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESPACES_SPACE_TYPE	7
+#define SYS_TABLESPACES_SPACE_TYPE	6
 	{STRUCT_FLD(field_name,		"SPACE_TYPE"),
 	 STRUCT_FLD(field_length,	10),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -8136,18 +8117,15 @@ i_s_dict_fill_sys_tablespaces(
 	Field**		fields;
 	ulint		atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
 	bool		is_compressed = FSP_FLAGS_GET_ZIP_SSIZE(flags);
-	const char*	file_format;
 	const char*	row_format;
 	const page_size_t	page_size(flags);
 	const char*	space_type;
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablespaces");
 
-	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
 	if (is_system_tablespace(space)) {
 		row_format = "Compact or Redundant";
 	} else if (fsp_is_shared_tablespace(flags) && !is_compressed) {
-		file_format = "Any";
 		row_format = "Any";
 	} else if (is_compressed) {
 		row_format = "Compressed";
@@ -8174,9 +8152,6 @@ i_s_dict_fill_sys_tablespaces(
 
 	OK(fields[SYS_TABLESPACES_FLAGS]->store(
 		static_cast<double>(flags)));
-
-	OK(field_store_string(fields[SYS_TABLESPACES_FILE_FORMAT],
-			      file_format));
 
 	OK(field_store_string(fields[SYS_TABLESPACES_ROW_FORMAT],
 			      row_format));

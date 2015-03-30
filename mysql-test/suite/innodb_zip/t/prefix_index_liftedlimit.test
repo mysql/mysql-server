@@ -23,9 +23,8 @@ let $innodb_file_per_table_orig = `select @@innodb_file_per_table`;
 
 set global innodb_file_per_table=1;
 
--- disable_warnings
-DROP TABLE IF EXISTS worklog5743;
--- enable_warnings
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
 #------------------------------------------------------------------------------
 # Prefix index with VARCHAR data type , primary/secondary index and DML ops
 CREATE TABLE worklog5743 (
@@ -1113,6 +1112,7 @@ WHERE col_2_varchar = REPEAT("p", 3500);
 --echo " Switching to con1 connection to commit changes "
 --connection con1
 COMMIT;
+--disconnect con1
 
 --echo " Switching to default connection to drop and end sub-test "
 --connection default
@@ -1164,10 +1164,10 @@ AND col_2_varbinary = REPEAT("o", 4000);
 DROP INDEX prefix_idx ON worklog5743;
 
 # Again add index length > 3072.
-# If "innodb_large_prefix" is turned on, than the index prefix larger than 3072
-# will be truncated to 3072. If the table is REDUNDANT and COMPACT, which does
+# Index prefix larger than 3072 will be truncated to 3072.
+# If the table is REDUNDANT or COMPACT, which do
 # not support prefix > 767, the create index will be rejected.
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION'; 
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE INDEX prefix_idx ON worklog5743(col_1_varbinary (4000));
 SET sql_mode = default;
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
@@ -1221,9 +1221,10 @@ WHERE col_1_text = REPEAT("c", 4000) AND col_2_text = REPEAT("o", 4000);
 DROP INDEX prefix_idx ON worklog5743;
 
 # Again add index length > 3072.
-# If "innodb_large_prefix" is turned on, than the index prefix larger than 3072
-# will be truncated to 3072. In STRICT mode, the statement will fail with error.
-# If the table is REDUNDANT and COMPACT, which does not support prefix > 767, the create index will be rejected.
+# Index prefix larger than 3072 will be truncated to 3072.
+# In innodb_strict_mode, the statement will fail with error.
+# If the table is REDUNDANT or COMPACT, which do not support
+# prefix > 767, the create index will be rejected.
 --error ER_TOO_LONG_KEY
 CREATE INDEX prefix_idx ON worklog5743(col_1_text (4000));
 CREATE INDEX prefix_idx ON worklog5743(col_1_text (3072));
@@ -1308,8 +1309,8 @@ ALTER TABLE worklog5743 DROP PRIMARY KEY;
 # Again add index length > 3072. Expect error.Length exceeds maximum supported
 # key length
 # Again add index length > 3072.
-# If "innodb_large_prefix" is turned on, than the index prefix larger than 3072
-# will be truncated to 3072. If the table is REDUNDANT and COMPACT, which does
+# Index prefix larger than 3072 will be truncated to 3072.
+# If the table is REDUNDANT or COMPACT, which do
 # not support prefix > 767, the create index will be rejected.
 # Index length is truncated only for 'create index' , but error if we add
 # prefix index with length > 3072
@@ -1349,17 +1350,15 @@ ALTER TABLE worklog5743 ADD PRIMARY KEY `pk_idx` (col_1_varchar(3000));
 DROP TABLE worklog5743;
 
 # -----------------------------------------------------------------------------
-set global innodb_large_prefix=0;
-# Prefix index > 767 is allowed if innodb_large_prefix is set to 1
---error ER_TOO_LONG_KEY
 CREATE TABLE worklog5743 (
 col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
 PRIMARY KEY (col_1_varchar(3072))
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
+SHOW CREATE TABLE worklog5743;
+DROP TABLE worklog5743;
 
 
 # -----------------------------------------------------------------------------
-set global innodb_large_prefix=0;
 # Backward compatibility test - Index lenghth > 767 is truncated for REDUNDANT
 # and COMPACT
 CREATE TABLE worklog5743 (
@@ -1369,7 +1368,7 @@ PRIMARY KEY (col_1_varchar(767))
 INSERT INTO worklog5743 VALUES(REPEAT('a',4000),REPEAT('b',4000));
 # Prefix index > 767 is truncated with REDUNDANT and COMPACT
 --enable_info
---error ER_TOO_LONG_KEY
+--error ER_INDEX_COLUMN_TOO_LONG
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1000));
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (767));
 ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;
@@ -1378,12 +1377,9 @@ SHOW CREATE TABLE worklog5743;
 DROP TABLE worklog5743;
 #------------------------------------------------------------------------------
 
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
+
 --disable_query_log
 eval set global innodb_file_per_table = $innodb_file_per_table_orig;
-set global innodb_large_prefix = default;
---echo "Disconnect the connection 1"
---connection con1
---disconnect con1
---source include/wait_until_disconnected.inc
---enable_query_log
---connection default

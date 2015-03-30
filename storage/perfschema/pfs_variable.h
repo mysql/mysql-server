@@ -30,7 +30,7 @@
   1. INITIALIZE - Build or acquire a sorted list of variables to use for input.
      Use the SHOW_VAR struct as an intermediate format common to system, status
      and user vars:
-     
+
      SHOW_VAR
        Name  - Text string
        Value - Pointer to memory location, function, subarray structure
@@ -45,7 +45,7 @@
      - For status variables, copy existing global status array into a local
        array that can be used without locks. Expand nested subarrays, indicated
        by a type of SHOW_ARRAY.
-     
+
   2. MATERIALIZE - Convert the list of SHOW_VAR variables to string format,
      store in a local cache:
      - Resolve each variable according to the type.
@@ -55,7 +55,7 @@
      - Prefix variable name with the plugin name.
 
   3. OUTPUT - Iterate the cache for the SHOW command or table query.
-  
+
   CLASS OVERVIEW
   --------------
   1. System_variable - A materialized system variable
@@ -213,13 +213,13 @@ public:
   PFS_variable_cache(bool external_init);
 
   virtual ~PFS_variable_cache()= 0;
-  
+
   /**
     Build array of SHOW_VARs from the external variable source.
     Filter using session scope.
   */
   bool initialize_session(void);
-  
+
   /**
     Build array of SHOW_VARs suitable for aggregation by user, host or account.
     Filter using session scope.
@@ -354,7 +354,7 @@ private:
   virtual int do_materialize_session(PFS_thread *) { return 1; }
   virtual int do_materialize_session(PFS_thread *, uint index) { return 1; }
 
-protected: 
+protected:
   /* Validated THD */
   THD *m_safe_thd;
 

@@ -840,6 +840,8 @@ Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 6)
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # test of RANGE and index
 CREATE TABLE t1 (a DATE, KEY(a))
 PARTITION BY RANGE (TO_DAYS(a))

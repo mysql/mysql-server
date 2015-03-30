@@ -219,7 +219,7 @@ struct SyncDebug {
 		m_enabled(),
 		m_destroy_at_exit(destroy_mutex_at_exit)
 	{
-		new (&m_mutex) SyncMutex();
+		new (&m_mutex) SyncMutex(destroy_mutex_at_exit);
 
 		m_mutex.init(".sync_debug_mutex", __FILE__, __LINE__);
 	}
@@ -602,7 +602,6 @@ SyncDebug::check_order(const latch_t* latch)
 	case SYNC_LOG:
 	case SYNC_LOG_FLUSH_ORDER:
 	case SYNC_ANY_LATCH:
-	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
 	case SYNC_SEARCH_SYS:
 	case SYNC_THREADS:
@@ -909,10 +908,6 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "dict_sys",
 		  SYNC_DICT,
 		  dict_sys_mutex_key);
-
-	LATCH_ADD(SrvLatches, "file_format_max",
-		  SYNC_FILE_FORMAT_TAG,
-		  file_format_max_mutex_key);
 
 	LATCH_ADD(SrvLatches, "fil_system",
 		  SYNC_ANY_LATCH,

@@ -15,15 +15,17 @@
 
 
 #include "transaction.h"
-#include "rpl_handler.h"
-#include "debug_sync.h"         // DEBUG_SYNC
-#include "auth_common.h"            // SUPER_ACL
-#include <pfs_transaction_provider.h>
-#include <mysql/psi/mysql_transaction.h>
-#include "rpl_context.h"
-#include "sql_class.h"
-#include "log.h"
-#include "binlog.h"
+
+#include "auth_common.h"      // SUPER_ACL
+#include "binlog.h"           // mysql_bin_log
+#include "debug_sync.h"       // DEBUG_SYNC
+#include "log.h"              // sql_print_warning
+#include "mysqld.h"           // opt_readonly
+#include "sql_class.h"        // THD
+
+#include "pfs_transaction_provider.h"
+#include "mysql/psi/mysql_transaction.h"
+
 
 /**
   Check if we have a condition where the transaction state must
@@ -451,7 +453,9 @@ bool trans_rollback_stmt(THD *thd)
 
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
   DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
-              thd->m_transaction_psi == NULL);
+              thd->m_transaction_psi == NULL ||
+              /* Todo: BUG#20488921 is in the way. */
+              DBUG_EVALUATE_IF("simulate_xa_commit_log_failure", true, false));
 
   thd->get_transaction()->reset(Transaction_ctx::STMT);
 

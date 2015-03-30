@@ -16,10 +16,15 @@
 
 /* Execute DO statement */
 
-#include "transaction.h"
 #include "sql_do.h"
-#include "sql_base.h"                           // setup_fields
-#include "sql_select.h"                         // free_underlaid_joins
+
+#include "item.h"              // Item
+#include "sql_base.h"          // setup_fields
+#include "sql_class.h"         // THD
+#include "sql_list.h"          // List_iterator
+#include "sql_select.h"        // free_underlaid_joins
+#include "transaction.h"       // trans_rollback_stmt
+
 
 bool mysql_do(THD *thd, List<Item> &values)
 {

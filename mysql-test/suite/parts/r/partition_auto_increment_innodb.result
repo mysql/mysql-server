@@ -211,6 +211,8 @@ INSERT INTO t1 VALUES (1, NULL);
 INSERT INTO t1 VALUES (1, 1), (99, 99);
 INSERT INTO t1 VALUES (1, NULL);
 SET @@session.sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES (1, 0);
 SELECT * FROM t1 ORDER BY c1, c2;
 c1	c2
@@ -237,7 +239,9 @@ c1	c2
 1	8
 2	3
 4	7
-SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 # Simple test with NULL, 0 and explicit values both incr. and desc.
 CREATE TABLE t1 (
@@ -738,6 +742,8 @@ c1
 16
 # Test sql_mode 'NO_AUTO_VALUE_ON_ZERO'
 SET @@session.sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (c1) VALUES (300);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -773,7 +779,9 @@ c1
 16
 300
 301
-SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 # Test SET INSERT_ID
 CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (c1))
@@ -972,6 +980,8 @@ INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (126,30);
 INSERT INTO t VALUES (127,40);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t VALUES (128,50);
 INSERT INTO t VALUES (129,60);
 SELECT * FROM t ORDER BY c1 ASC;
@@ -1379,4 +1389,206 @@ SELECT * FROM t1;
 a	b
 18446744073709551613	2
 5	non-generated number
+DROP TABLE t1;
+# test auto increment with export import
+CREATE TABLE t1 (
+col_1_int int AUTO_INCREMENT,
+col_2_varchar VARCHAR (20),
+primary key (col_1_int))
+ENGINE = 'InnoDB'
+PARTITION BY HASH (col_1_int)
+PARTITIONS 3;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_1_int` int(11) NOT NULL AUTO_INCREMENT,
+  `col_2_varchar` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`col_1_int`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (col_1_int)
+PARTITIONS 3 */
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE
+TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+AUTO_INCREMENT
+1
+# Insert values in all partitions
+INSERT INTO t1 VALUES (1,'a1'),(2,'a2'),(3,'a3'),(4,'a4'),(5,'a5');
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_varchar
+1	a1
+2	a2
+3	a3
+4	a4
+5	a5
+# Export table and save the data [auto_inc = 6]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_1_int` int(11) NOT NULL AUTO_INCREMENT,
+  `col_2_varchar` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`col_1_int`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (col_1_int)
+PARTITIONS 3 */
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+INSERT INTO t1 VALUES (5,'a5');
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+# Check auto increment INSERT
+INSERT INTO t1(col_2_varchar) VALUES('a6'),('a7'),('a8');
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_varchar
+1	a1
+2	a2
+3	a3
+4	a4
+5	a5
+6	a6
+7	a7
+8	a8
+# Drop and create the table and import old data
+DROP TABLE t1;
+CREATE TABLE t1 (
+col_1_int int AUTO_INCREMENT,
+col_2_varchar VARCHAR (20),
+primary key (col_1_int))
+ENGINE = 'InnoDB'
+PARTITION BY HASH (col_1_int)
+PARTITIONS 3;
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Import old table and saved data [auto_inc = 6]
+ALTER TABLE t1 IMPORT TABLESPACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_1_int` int(11) NOT NULL AUTO_INCREMENT,
+  `col_2_varchar` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`col_1_int`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (col_1_int)
+PARTITIONS 3 */
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_varchar
+1	a1
+2	a2
+3	a3
+4	a4
+5	a5
+INSERT INTO t1 VALUES (5,'a5');
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+# Check auto increment INSERT
+INSERT INTO t1(col_2_varchar) VALUES('a6'),('a7'),('a8');
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_varchar
+1	a1
+2	a2
+3	a3
+4	a4
+5	a5
+6	a6
+7	a7
+8	a8
+DROP TABLE t1;
+# test auto increment with export import and missing cfg file
+CREATE TABLE t1 (
+col_1_int int AUTO_INCREMENT,
+col_2_varchar VARCHAR (20),
+primary key (col_1_int))
+ENGINE = 'InnoDB'
+PARTITION BY HASH (col_1_int)
+PARTITIONS 3;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_1_int` int(11) NOT NULL AUTO_INCREMENT,
+  `col_2_varchar` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`col_1_int`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (col_1_int)
+PARTITIONS 3 */
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE
+TABLE_SCHEMA='test' AND TABLE_NAME='t1';
+AUTO_INCREMENT
+1
+# Insert values in all partitions
+INSERT INTO t1 VALUES (1,'a1'),(2,'a2'),(3,'a3'),(4,'a4'),(5,'a5');
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_varchar
+1	a1
+2	a2
+3	a3
+4	a4
+5	a5
+# Export table and save the .ibd files only [auto_inc = 6]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_1_int` int(11) NOT NULL AUTO_INCREMENT,
+  `col_2_varchar` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`col_1_int`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (col_1_int)
+PARTITIONS 3 */
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+INSERT INTO t1 VALUES (5,'a5');
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+# Check auto increment INSERT
+INSERT INTO t1(col_2_varchar) VALUES('a6'),('a7'),('a8');
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_varchar
+1	a1
+2	a2
+3	a3
+4	a4
+5	a5
+6	a6
+7	a7
+8	a8
+# Drop and create the table and import old data
+DROP TABLE t1;
+CREATE TABLE t1 (
+col_1_int int AUTO_INCREMENT,
+col_2_varchar VARCHAR (20),
+primary key (col_1_int))
+ENGINE = 'InnoDB'
+PARTITION BY HASH (col_1_int)
+PARTITIONS 3;
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Import old table and saved data from .ibd files [auto_inc = 6]
+ALTER TABLE t1 IMPORT TABLESPACE;
+Warnings:
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t1#P#p0.cfg', will attempt to import without schema verification
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t1#P#p1.cfg', will attempt to import without schema verification
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t1#P#p2.cfg', will attempt to import without schema verification
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col_1_int` int(11) NOT NULL AUTO_INCREMENT,
+  `col_2_varchar` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`col_1_int`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (col_1_int)
+PARTITIONS 3 */
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_varchar
+1	a1
+2	a2
+3	a3
+4	a4
+5	a5
+INSERT INTO t1 VALUES (5,'a5');
+ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+# Check auto increment INSERT
+INSERT INTO t1(col_2_varchar) VALUES('a6'),('a7'),('a8');
+SELECT * FROM t1 ORDER BY col_1_int;
+col_1_int	col_2_varchar
+1	a1
+2	a2
+3	a3
+4	a4
+5	a5
+6	a6
+7	a7
+8	a8
 DROP TABLE t1;

@@ -889,7 +889,7 @@ private:
 	void Uint(unsigned i) { new (stack_.template Push<ValueType>()) ValueType(i); }
 	void Int64(int64_t i) { new (stack_.template Push<ValueType>()) ValueType(i); }
 	void Uint64(uint64_t i) { new (stack_.template Push<ValueType>()) ValueType(i); }
-	void Double(double d) { new (stack_.template Push<ValueType>()) ValueType(d); }
+	void Double(double d, bool is_int = false) { new (stack_.template Push<ValueType>()) ValueType(d); }
 
 	void String(const Ch* str, SizeType length, bool copy) { 
 		if (copy) 

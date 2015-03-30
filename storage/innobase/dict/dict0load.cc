@@ -411,8 +411,8 @@ dict_process_sys_fields_rec(
 	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
 					filled */
 	ulint*		pos,		/*!< out: Field position */
-	index_id_t*	index_id,	/*!< out: current index id */
-	index_id_t	last_id)	/*!< in: previous index id */
+	space_index_t*	index_id,	/*!< out: current index id */
+	space_index_t	last_id)	/*!< in: previous index id */
 {
 	byte*		buf;
 	byte*		last_index_id;
@@ -2029,7 +2029,7 @@ dict_load_index_low(
 	ulint		len;
 	ulint		name_len;
 	char*		name_buf;
-	index_id_t	id;
+	space_index_t	id;
 	ulint		n_fields;
 	ulint		type;
 	ulint		space;

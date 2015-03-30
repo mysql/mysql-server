@@ -28,7 +28,8 @@
 #include "sql_auth_cache.h"
 #include "sql_user_table.h"
 #include "sql_authentication.h"
-#include "current_thd.h"
+#include "sql_class.h"
+#include "field.h"
 
 #include "tztime.h"
 #include "sql_time.h"
@@ -340,7 +341,7 @@ void get_grantor(THD *thd, char *grantor)
 
 */
 
-void updateSSLProperties(THD *thd, TABLE *table)
+void update_ssl_properties(THD *thd, TABLE *table)
 {
   LEX *lex= thd->lex;
   switch (lex->ssl_type)
@@ -396,7 +397,7 @@ void updateSSLProperties(THD *thd, TABLE *table)
 
 */
 
-void updateUserResource(TABLE *table, USER_RESOURCES *mqh)
+void update_user_resource(TABLE *table, USER_RESOURCES *mqh)
 {
   if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
     table->field[MYSQL_USER_FIELD_MAX_QUESTIONS]->
@@ -622,11 +623,11 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
   /* We write down SSL related ACL stuff */
   if ((what_to_replace & SSL_ATTR) && (table->s->fields >= 31))
-    updateSSLProperties(thd, table);
+    update_ssl_properties(thd, table);
   next_field+=4;
 
   if (what_to_replace & RESOURCE_ATTR)
-    updateUserResource(table, &lex->mqh);
+    update_user_resource(table, &lex->mqh);
   mqh_used= mqh_used || lex->mqh.questions || lex->mqh.updates ||
             lex->mqh.conn_per_hour;
   next_field+= 4;
@@ -748,7 +749,8 @@ end:
 		      combo->plugin,
 		      combo->auth,
                       password_change_time,
-                      combo->alter_status);
+                      combo->alter_status,
+                      what_to_replace);
     else
       acl_insert_user(combo->user.str, combo->host.str,
 		      lex->ssl_type,
@@ -1596,6 +1598,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
 
   SYNOPSIS
     handle_grant_table()
+    thd                         Thread handle
     tables                      The array with the four open tables.
     table_no                    The number of the table to handle (0..4).
     drop                        If user_from is to be dropped.
@@ -1623,7 +1626,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     < 0         Error.
 */
 
-int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
+int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;
@@ -1636,7 +1639,6 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   uchar user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   DBUG_ENTER("handle_grant_table");
-  THD *thd= current_thd;
 
   table->use_all_columns();
   if (! table_no) // mysql.user table

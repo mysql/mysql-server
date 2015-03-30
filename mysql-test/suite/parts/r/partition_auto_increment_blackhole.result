@@ -189,6 +189,8 @@ INSERT INTO t1 VALUES (1, 1), (99, 99);
 # mysql_errno: 0
 INSERT INTO t1 VALUES (1, NULL);
 SET @@session.sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES (1, 0);
 SELECT * FROM t1 ORDER BY c1, c2;
 c1	c2
@@ -206,7 +208,9 @@ INSERT INTO t1 VALUES (2, NULL), (4, 7);
 INSERT INTO t1 VALUES (1, NULL);
 SELECT * FROM t1 ORDER BY c1, c2;
 c1	c2
-SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 # Simple test with NULL, 0 and explicit values both incr. and desc.
 CREATE TABLE t1 (
@@ -565,6 +569,8 @@ SELECT * FROM t1 ORDER BY c1;
 c1
 # Test sql_mode 'NO_AUTO_VALUE_ON_ZERO'
 SET @@session.sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (c1) VALUES (300);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -594,7 +600,9 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 2 */
 SELECT * FROM t1 ORDER BY c1;
 c1
-SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+SET @@session.sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 # Test SET INSERT_ID
 CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (c1))
@@ -763,6 +771,8 @@ INSERT INTO t(c2) VALUES (20);
 INSERT INTO t VALUES (126,30);
 INSERT INTO t VALUES (127,40);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t VALUES (128,50);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1

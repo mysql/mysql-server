@@ -2,6 +2,8 @@ call mtr.add_suppression("Column count of mysql.proc is wrong. Expected 20, foun
 call mtr.add_suppression("Stored routine .test...bug14233_[123].: invalid value in column mysql.proc");
 use test;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop procedure if exists bug14233;
 drop function if exists bug14233;
 drop table if exists t1;

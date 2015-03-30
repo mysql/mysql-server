@@ -1,5 +1,7 @@
 drop table if exists t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select 1.1 IN (1.0, 1.2);
 1.1 IN (1.0, 1.2)
 0
@@ -183,7 +185,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 set session sql_mode='traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select 1e10/0e0;
 1e10/0e0
 NULL
@@ -666,6 +668,8 @@ col3*9999999999
 555550123401234.0000000000111104321087655
 drop table wl1612_4;
 set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select 23.4 + (-41.7), 23.4 - (41.7) = -18.3;
 23.4 + (-41.7)	23.4 - (41.7) = -18.3
 -18.3	1
@@ -785,7 +789,7 @@ select 0.07 * 0.07;
 0.0049
 set sql_mode='traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select 1E-500 = 0;
 1E-500 = 0
 1
@@ -800,8 +804,6 @@ NULL
 Warnings:
 Warning	1365	Division by 0
 set sql_mode='ansi,traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 CREATE TABLE Sow6_2f (col1 NUMERIC(4,2));
 INSERT INTO Sow6_2f VALUES (10.55);
 INSERT INTO Sow6_2f VALUES (10.5555);
@@ -838,6 +840,8 @@ select 10.3330000000000/12.34500000;
 10.3330000000000/12.34500000
 0.83701903604698258
 set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select 0/0;
 0/0
 NULL
@@ -878,7 +882,7 @@ abs(NULL)
 NULL
 set @@sql_mode='traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
 insert into t1 values(1,-1,-1);
 ERROR 22003: Out of range value for column 'd2' at row 1
@@ -892,6 +896,8 @@ select * from t1;
 col1	col2
 drop table t1;
 set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set @sav_dpi= @@div_precision_increment;
 set @@div_precision_increment=15;
 create table t1 (col1 int, col2 decimal(30,25), col3 numeric(30,25));
@@ -1566,7 +1572,7 @@ Warning	1292	Truncated incorrect DECIMAL value: '9999999999999999999999999999999
 SELECT min(999999999999999999999999999999999999999999999999999999999999999999999999999999999) AS foo;
 foo
 999999999999999999999999999999999999999999999999999999999999999999999999999999999
-SELECT multipolygonfromtext(('4294967294.1'),(999999999999999999999999999999999999999999999999999999999999999999999999999999999)) AS foo;
+SELECT st_multipolygonfromtext(('4294967294.1'),(999999999999999999999999999999999999999999999999999999999999999999999999999999999)) AS foo;
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT convert((999999999999999999999999999999999999999999999999999999999999999999999999999999999), decimal(30,30)) AS foo;
 foo

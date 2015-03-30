@@ -17,12 +17,12 @@
 
 #include "sql_base.h"
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "current_thd.h"
 #include "psi_memory_key.h"
 #include "debug_sync.h"
 #include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
                          // mysql_lock_have_duplicate
+#include "mysqld.h"      // slave_open_temp_tables table_def_size ..
 #include "sql_show.h"    // append_identifier
 #include "strfunc.h"     // find_type
 #include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
@@ -30,9 +30,6 @@
 #include "auth_common.h" // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
                          // get_column_grant
-#include "sql_derived.h" // mysql_derived_prepare,
-                         // mysql_handle_derived,
-                         // mysql_derived_filling
 #include "sql_handler.h" // mysql_ha_flush
 #include "partition_info.h"                     // partition_info
 #include "log_event.h"                          // Query_log_event
@@ -44,7 +41,6 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"
 #include "sql_prepare.h"   // Reprepare_observer
-#include "sql_resolver.h"  // Column_privilege_tracker
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -57,189 +53,13 @@
 #include "table_cache.h" // Table_cache_manager, Table_cache
 #include "log.h"
 #include "binlog.h"
+#include "derror.h"
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
-
-/**
-  This handler is used for the statements which support IGNORE keyword.
-  If IGNORE is specified in the statement, this error handler converts
-  the given errors codes to warnings.
-  These errors occur for each record. With IGNORE, statements are not
-  aborted and next row is processed.
-
-*/
-bool Ignore_error_handler::handle_condition(THD *thd,
-                                            uint sql_errno,
-                                            const char *sqlstate,
-                                            Sql_condition::enum_severity_level *level,
-                                            const char *msg)
-{
-  /*
-    If a statement is executed with IGNORE keyword then this handler
-    gets pushed for the statement. If there is trigger on the table
-    which contains statements without IGNORE then this handler should
-    not convert the errors within trigger to warnings.
-  */
-  if (!thd->lex->is_ignore())
-    return false;
-  /*
-    Error codes ER_DUP_ENTRY_WITH_KEY_NAME is used while calling my_error
-    to get the proper error messages depending on the use case.
-    The error code used is ER_DUP_ENTRY to call error functions.
-
-    Same case exists for ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT which uses
-    error code of ER_NO_PARTITION_FOR_GIVEN_VALUE to call error function.
-
-    There error codes are added here to force consistency if these error
-    codes are used in any other case in future.
-  */
-  switch (sql_errno)
-  {
-  case ER_SUBQUERY_NO_1_ROW:
-  case ER_ROW_IS_REFERENCED_2:
-  case ER_NO_REFERENCED_ROW_2:
-  case ER_BAD_NULL_ERROR:
-  case ER_DUP_ENTRY:
-  case ER_DUP_ENTRY_WITH_KEY_NAME:
-  case ER_DUP_KEY:
-  case ER_VIEW_CHECK_FAILED:
-  case ER_NO_PARTITION_FOR_GIVEN_VALUE:
-  case ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT:
-  case ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET:
-    (*level)= Sql_condition::SL_WARNING;
-    break;
-  default:
-    break;
-  }
-  return false;
-}
-
-bool View_error_handler::handle_condition(
-                                THD *thd,
-                                uint sql_errno,
-                                const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *message)
-{
-  /*
-    Error will be handled by Show_create_error_handler for
-    SHOW CREATE statements.
-  */
-  if (thd->lex->sql_command == SQLCOM_SHOW_CREATE)
-    return false;
-
-  switch (sql_errno)
-  {
-    case ER_BAD_FIELD_ERROR:
-    case ER_SP_DOES_NOT_EXIST:
-    // ER_FUNC_INEXISTENT_NAME_COLLISION cannot happen here.
-    case ER_PROCACCESS_DENIED_ERROR:
-    case ER_COLUMNACCESS_DENIED_ERROR:
-    case ER_TABLEACCESS_DENIED_ERROR:
-    // ER_TABLE_NOT_LOCKED cannot happen here.
-    case ER_NO_SUCH_TABLE:
-    {
-      TABLE_LIST *top= m_top_view->top_table();
-      my_error(ER_VIEW_INVALID, MYF(0),
-               top->view_db.str, top->view_name.str);
-      return true;
-    }
-
-    case ER_NO_DEFAULT_FOR_FIELD:
-    {
-      TABLE_LIST *top= m_top_view->top_table();
-      // TODO: make correct error message
-      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
-               top->view_db.str, top->view_name.str);
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
-  Implementation of STRICT mode.
-  Upgrades a set of given conditions from warning to error.
-*/
-bool Strict_error_handler::handle_condition(THD *thd,
-                                            uint sql_errno,
-                                            const char *sqlstate,
-                                            Sql_condition::enum_severity_level *level,
-                                            const char *msg)
-{
-  /*
-    STRICT error handler should not be effective if we have changed the
-    variable to turn off STRICT mode. This is the case when a SF/SP/Trigger
-    calls another SP/SF. A statement in SP/SF which is affected by STRICT mode
-    with push this handler for the statement. If the same statement calls
-    another SP/SF/Trigger, we already have the STRICT handler pushed for the
-    statement. We dont want the strict handler to be effective for the
-    next SP/SF/Trigger call if it was not created in STRICT mode.
-  */
-  if (!thd->is_strict_mode())
-    return false;
-  /* STRICT MODE should affect only the below statements */
-  switch (thd->lex->sql_command)
-  {
-  case SQLCOM_SET_OPTION:
-  case SQLCOM_SELECT:
-    if (m_set_select_behavior == DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
-      return false;
-  case SQLCOM_CREATE_TABLE:
-  case SQLCOM_CREATE_INDEX:
-  case SQLCOM_DROP_INDEX:
-  case SQLCOM_INSERT:
-  case SQLCOM_REPLACE:
-  case SQLCOM_REPLACE_SELECT:
-  case SQLCOM_INSERT_SELECT:
-  case SQLCOM_UPDATE:
-  case SQLCOM_UPDATE_MULTI:
-  case SQLCOM_DELETE:
-  case SQLCOM_DELETE_MULTI:
-  case SQLCOM_ALTER_TABLE:
-  case SQLCOM_LOAD:
-  case SQLCOM_CALL:
-  case SQLCOM_END:
-    break;
-  default:
-    return false;
-  }
-
-  switch (sql_errno)
-  {
-  case ER_TRUNCATED_WRONG_VALUE:
-  case ER_WRONG_VALUE_FOR_TYPE:
-  case ER_WARN_DATA_OUT_OF_RANGE:
-  case ER_DIVISION_BY_ZERO:
-  case ER_TRUNCATED_WRONG_VALUE_FOR_FIELD:
-  case WARN_DATA_TRUNCATED:
-  case ER_DATA_TOO_LONG:
-  case ER_BAD_NULL_ERROR:
-  case ER_NO_DEFAULT_FOR_FIELD:
-  case ER_TOO_LONG_KEY:
-  case ER_NO_DEFAULT_FOR_VIEW_FIELD:
-  case ER_WARN_NULL_TO_NOTNULL:
-  case ER_CUT_VALUE_GROUP_CONCAT:
-  case ER_DATETIME_FUNCTION_OVERFLOW:
-  case ER_WARN_TOO_FEW_RECORDS:
-  case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
-    if ((*level == Sql_condition::SL_WARNING) &&
-        (!thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)
-         || (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)))
-    {
-      (*level)= Sql_condition::SL_ERROR;
-      thd->killed= THD::KILL_BAD_DATA;
-    }
-    break;
-  default:
-    break;
-  }
-  return false;
-}
 
 
 /**
@@ -760,7 +580,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                     open_table_err= 1;
                     share->error= 1;
                     share->open_errno= ENOENT;
-                    open_table_error(share, share->error,
+                    open_table_error(thd, share, share->error,
                                      share->open_errno, 0);
                   });
 
@@ -806,12 +626,13 @@ found:
   if (share->error)
   {
     /* Table definition contained an error */
-    open_table_error(share, share->error, share->open_errno, share->errarg);
+    open_table_error(thd, share,
+                     share->error, share->open_errno, share->errarg);
     DBUG_RETURN(0);
   }
   if (share->is_view && !(db_flags & OPEN_VIEW))
   {
-    open_table_error(share, 1, ENOENT, 0);
+    open_table_error(thd, share, 1, ENOENT, 0);
     DBUG_RETURN(0);
   }
 
@@ -1791,7 +1612,7 @@ bool close_temporary_tables(THD *thd)
     {
       tmp_next= t->next;
       mysql_lock_remove(thd, thd->lock, t);
-      close_temporary(t, 1, 1);
+      close_temporary(thd, t, 1, 1);
     }
 
     thd->temporary_tables= 0;
@@ -1925,7 +1746,7 @@ bool close_temporary_tables(THD *thd)
 
         next= table->next;
         mysql_lock_remove(thd, thd->lock, table);
-        close_temporary(table, 1, 1);
+        close_temporary(thd, table, 1, 1);
       }
       thd->clear_error();
       const CHARSET_INFO *cs_save= thd->variables.character_set_client;
@@ -2002,7 +1823,7 @@ bool close_temporary_tables(THD *thd)
     else
     {
       next= table->next;
-      close_temporary(table, 1, 1);
+      close_temporary(thd, table, 1, 1);
     }
   }
   if (!was_quote_show)
@@ -2427,7 +2248,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     DBUG_ASSERT(slave_open_temp_tables || !thd->temporary_tables);
     modify_slave_open_temp_tables(thd, -1);
   }
-  close_temporary(table, free_share, delete_table);
+  close_temporary(thd, table, free_share, delete_table);
   DBUG_VOID_RETURN;
 }
 
@@ -2440,7 +2261,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     If this is needed, use close_temporary_table()
 */
 
-void close_temporary(TABLE *table, bool free_share, bool delete_table)
+void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table)
 {
   handlerton *table_type= table->s->db_type();
   DBUG_ENTER("close_temporary");
@@ -2450,7 +2271,10 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
   free_io_cache(table);
   closefrm(table, 0);
   if (delete_table)
-    rm_temporary_table(table_type, table->s->path.str);
+  {
+    DBUG_ASSERT(thd);
+    rm_temporary_table(thd, table_type, table->s->path.str);
+  }
   if (free_share)
   {
     free_table_share(table->s);
@@ -5245,7 +5069,7 @@ lock_table_names(THD *thd,
   //          not lock. We also skip this phase if we are within the context
   //          of a FLUSH TABLE WITH READ LOCK or FLUSH TABLE FOR EXPORT
   //          statement, indicated by the MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK flag.
-  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !thd->tablespace_op)
+  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !thd_tablespace_op(thd))
   {
     MDL_request_list mdl_tablespace_requests;
 
@@ -6753,6 +6577,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 /**
   Delete a temporary table.
 
+  @param thd   Thread handle
   @param base  Handlerton for table to be deleted.
   @param path  Path to the table to be deleted (i.e. path
                to its .frm without an extension).
@@ -6761,7 +6586,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   @retval true  - failure.
 */
 
-bool rm_temporary_table(handlerton *base, const char *path)
+bool rm_temporary_table(THD *thd, handlerton *base, const char *path)
 {
   bool error=0;
   handler *file;
@@ -6771,7 +6596,7 @@ bool rm_temporary_table(handlerton *base, const char *path)
   strxnmov(frm_path, sizeof(frm_path) - 1, path, reg_ext, NullS);
   if (mysql_file_delete(key_file_frm, frm_path, MYF(0)))
     error=1; /* purecov: inspected */
-  file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
+  file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base);
   if (file && file->ha_delete_table(path))
   {
     error=1;
@@ -7412,11 +7237,10 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     */
     if (fld == view_ref_found)
     {
-      Item *const it= (*ref)->real_item();
       Mark_field mf(thd->mark_used_columns);
-      it->walk(&Item::mark_field_in_map,
-               Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-               (uchar *)&mf);
+      (*ref)->walk(&Item::mark_field_in_map,
+                   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                   (uchar *)&mf);
     }
     else  // surely fld != NULL (see outer if())
       fld->table->mark_column_used(thd, fld, thd->mark_used_columns);
@@ -7745,7 +7569,7 @@ Item **not_found_item= (Item**) 0x1;
 
 
 Item **
-find_item_in_list(Item *find, List<Item> &items, uint *counter,
+find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
                   find_item_error_report_type report_error,
                   enum_resolution_type *resolution)
 {
@@ -7825,7 +7649,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
             */
             if (report_error != IGNORE_ERRORS)
               my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                       find->full_name(), current_thd->where);
+                       find->full_name(), thd->where);
             return (Item**) 0;
           }
           found_unaliased= li.ref();
@@ -7855,7 +7679,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
               continue;                           // Same field twice
             if (report_error != IGNORE_ERRORS)
               my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                       find->full_name(), current_thd->where);
+                       find->full_name(), thd->where);
             return (Item**) 0;
           }
           found= li.ref();
@@ -7935,7 +7759,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     {
       if (report_error != IGNORE_ERRORS)
         my_error(ER_NON_UNIQ_ERROR, MYF(0),
-                 find->full_name(), current_thd->where);
+                 find->full_name(), thd->where);
       return (Item **) 0;
     }
     if (found_unaliased)
@@ -7951,7 +7775,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   {
     if (report_error == REPORT_ALL_ERRORS)
       my_error(ER_BAD_FIELD_ERROR, MYF(0),
-               find->full_name(), current_thd->where);
+               find->full_name(), thd->where);
     return (Item **) 0;
   }
   else
@@ -8165,17 +7989,19 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     */
     if (nj_col_2 && (!using_fields ||is_using_column_1))
     {
-      Item *item_1=   nj_col_1->create_item(thd);
-      Item *item_2=   nj_col_2->create_item(thd);
+      Item *item_1= nj_col_1->create_item(thd);
+      if (!item_1)
+        DBUG_RETURN(true);
+      Item *item_2= nj_col_2->create_item(thd);
+      if (!item_2)
+        DBUG_RETURN(true);
+
       Field *field_1= nj_col_1->field();
       Field *field_2= nj_col_2->field();
       Item_ident *item_ident_1, *item_ident_2;
       Item_func_eq *eq_cond;
       fields.push_back(field_1);
       fields.push_back(field_2);
-
-      if (!item_1 || !item_2)
-        DBUG_RETURN(true);                      // Out of memory.
 
       /*
         The created items must be of sub-classes of Item_ident.
@@ -8223,41 +8049,30 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
                            nj_col_2->name()));
 
       // Mark fields in the read set
-      if (table_ref_1->is_view_or_derived())
-      {
-        Mark_field mf(MARK_COLUMNS_READ);
-        item_1->walk(&Item::mark_field_in_map,
-                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-                     (uchar *)&mf);
-      }
-      else if (field_1)
+      if (field_1)
       {
         nj_col_1->table_ref->table->mark_column_used(thd, field_1,
                                                      MARK_COLUMNS_READ);
       }
       else
       {
-        /*
-          Reaching here probably means that a field has been resolved in
-          a deeper join nest, and has been fully prepared there.
-          In that case, item_1::walk() above may actually attempt to update
-          bitmap, covering_keys and merge_keys twice, but no big harm done.
-          This comment applies to the following if test, too.
-          @todo Investigate if this can be simplified, or we can even avoid
-                resolving columns at this level.
-        */
+        Mark_field mf(MARK_COLUMNS_READ);
+        item_1->walk(&Item::mark_field_in_map,
+                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                     (uchar *)&mf);
       }
-      if (table_ref_2->is_view_or_derived())
+
+      if (field_2)
+      {
+        nj_col_2->table_ref->table->mark_column_used(thd, field_2,
+                                                     MARK_COLUMNS_READ);
+      }
+      else
       {
         Mark_field mf(MARK_COLUMNS_READ);
         item_2->walk(&Item::mark_field_in_map,
                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                      (uchar *)&mf);
-      }
-      else if (field_2)
-      {
-        nj_col_2->table_ref->table->mark_column_used(thd, field_2,
-                                                     MARK_COLUMNS_READ);
       }
 
       if (using_fields != NULL)

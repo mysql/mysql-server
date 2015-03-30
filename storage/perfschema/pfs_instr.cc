@@ -813,7 +813,7 @@ search:
   entry= reinterpret_cast<PFS_file**>
     (lf_hash_search(&filename_hash, pins,
                     normalized_filename, normalized_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     pfs= *entry;
     pfs->m_file_stat.m_open_count++;
@@ -1559,7 +1559,7 @@ void aggregate_thread_status(PFS_thread *thread,
     safe_host->aggregate_status_stats(&thd->status_var);
   }
 #if 0
-  else 
+  else
   {
     /* TODO: Requires LOCK_status. global_status_var updated by server on THD disconnect. */
     add_to_status(&global_status_var, &thd->status_var, false);

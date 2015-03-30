@@ -23,9 +23,11 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "keycaches.h"
+#include "mysqld.h"         // LOCK_status
 #include "psi_memory_key.h"
 #include "sql_optimizer.h"  // JOIN
 #include "opt_explain.h"    // join_type_str
+#include "opt_range.h"      // QUICK_SELECT_I
 #include <hash.h>
 #ifndef EMBEDDED_LIBRARY
 #include "events.h"

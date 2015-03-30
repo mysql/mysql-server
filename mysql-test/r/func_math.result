@@ -251,8 +251,6 @@ Warning	1292	Truncated incorrect time value: '17540424:00:00'
 drop table t1;
 SET timestamp=DEFAULT;
 set sql_mode='traditional';
-Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
 select ln(-1);
 ln(-1)
 NULL
@@ -279,6 +277,8 @@ NULL
 Warnings:
 Warning	3020	Invalid argument for logarithm
 set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select round(111,-10);
 round(111,-10)
 0
@@ -549,9 +549,9 @@ DROP TABLE t1;
 #
 # Bug#11764994  57900: CREATE TABLE .. SELECT ASSERTS SCALE >= 0 && PRECISION > 0 && SCALE <= PR
 #
-CREATE TABLE t1 SELECT CEIL(LINESTRINGFROMWKB(1) DIV NULL);
+CREATE TABLE t1 SELECT CEIL(ST_LINESTRINGFROMWKB(1) DIV NULL);
 ERROR HY000: Incorrect arguments to DIV
-CREATE TABLE t1 SELECT FLOOR(LINESTRINGFROMWKB(1) DIV NULL);
+CREATE TABLE t1 SELECT FLOOR(ST_LINESTRINGFROMWKB(1) DIV NULL);
 ERROR HY000: Incorrect arguments to DIV
 #
 # Bug#11765923  58937: MANY VALGRIND ERRORS AFTER GROUPING BY RESULT OF DECIMAL COLUMN FUNCTION
@@ -790,6 +790,8 @@ select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;
 #              ERROR_FOR_DIVISION_BY_ZERO
 CREATE TABLE t1(a DOUBLE);
 SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES (ln(1));
 INSERT INTO t1 VALUES (ln(0));
 Warnings:

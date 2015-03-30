@@ -11,7 +11,8 @@
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
 # Set up some variables
-LET $MYSQL_DATA_DIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 --enable_query_log
 
@@ -35,8 +36,8 @@ DROP TABLE IF EXISTS t5980;
 eval CREATE TABLE t5980 (a int KEY, b text) $data_directory_clause;
 INSERT INTO t5980 VALUES (1, "Create the tablespace");
 SELECT * FROM t5980;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -55,8 +56,8 @@ SELECT * FROM t5980;
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak
 UNLOCK TABLES;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -85,8 +86,8 @@ SELECT * FROM t5980;
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak2
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak2
 UNLOCK TABLES;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -94,8 +95,8 @@ UNLOCK TABLES;
 --echo # DROP the table and make sure all files except the backups are gone.
 --echo #
 DROP TABLE t5980;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -113,8 +114,8 @@ SELECT * FROM t5980;
 ALTER TABLE t5980 DISCARD TABLESPACE;
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -150,8 +151,8 @@ CHECK TABLE t5980;
 --echo # Import the tablespace and do some DDL and DML.
 --echo #
 ALTER TABLE t5980 IMPORT TABLESPACE;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 CHECK TABLE t5980;
@@ -174,31 +175,18 @@ SELECT * FROM t5980;
 --echo #
 --echo # Show that the system tables have this table in them correctly.
 --echo #
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY space;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo #
 --echo # Drop the imported table and show that the system tables are updated.
 --echo #
 DROP TABLE t5980;
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY space;
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -209,8 +197,8 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 eval CREATE TABLE t5980 (a int KEY, b text) $data_directory_clause;
 INSERT INTO t5980 VALUES (1, "Create the tablespace a third time");
 SELECT * FROM t5980;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -221,8 +209,8 @@ SELECT * FROM t5980;
 --echo #
 --source include/restart_mysqld.inc
 SET GLOBAL innodb_file_per_table=ON;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 SELECT * FROM t5980;
@@ -237,15 +225,15 @@ UNLOCK TABLES;
 --source include/restart_mysqld.inc
 SET GLOBAL innodb_file_per_table=ON;
 SELECT * FROM t5980;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 ALTER TABLE t5980 DISCARD TABLESPACE;
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -254,8 +242,8 @@ SELECT * FROM t5980;
 --echo #
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak  $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak  $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -266,8 +254,8 @@ ALTER TABLE t5980 IMPORT TABLESPACE;
 SELECT * FROM t5980;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t5980;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -277,8 +265,8 @@ SHOW CREATE TABLE t5980;
 ALTER TABLE t5980 DISCARD TABLESPACE;
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -299,10 +287,10 @@ CHECK TABLE t5980;
 --echo # Restart the engine again.
 --echo # The tablespace is still in the discarded state.
 --echo #
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak  $MYSQL_DATA_DIR/test/t5980.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak  $MYSQL_DATA_DIR/test/t5980.cfg
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak  $MYSQLD_DATADIR/test/t5980.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak  $MYSQLD_DATADIR/test/t5980.cfg
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --echo # Restarting ...
@@ -334,12 +322,12 @@ CHECK TABLE t5980;
 --echo # remote location is in the data dictionary.
 --echo # Import the tablespace and check it out.
 --echo #
---copy_file $MYSQL_DATA_DIR/test/t5980.ibd  $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
---copy_file $MYSQL_DATA_DIR/test/t5980.cfg  $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
---remove_file $MYSQL_DATA_DIR/test/t5980.ibd
---remove_file $MYSQL_DATA_DIR/test/t5980.cfg
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--copy_file $MYSQLD_DATADIR/test/t5980.ibd  $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+--copy_file $MYSQLD_DATADIR/test/t5980.cfg  $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
+--remove_file $MYSQLD_DATADIR/test/t5980.ibd
+--remove_file $MYSQLD_DATADIR/test/t5980.cfg
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 ALTER TABLE t5980 IMPORT TABLESPACE;
@@ -351,15 +339,8 @@ SHOW CREATE TABLE t5980;
 --echo #
 --echo # Show that the system tables have this table in them correctly.
 --echo #
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY space;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 DROP TABLE t5980;
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak
@@ -398,16 +379,11 @@ SHOW CREATE TABLE t5980c;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t5980d;
 
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY space;
---replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -415,8 +391,8 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 --echo # Shutdown the server, remove two tablespaces, restart server.
 --echo #
 --source include/shutdown_mysqld.inc
---remove_file $MYSQL_DATA_DIR/test/t5980c.ibd
---remove_file $MYSQL_DATA_DIR/test/t5980d.isl
+--remove_file $MYSQLD_DATADIR/test/t5980c.ibd
+--remove_file $MYSQLD_DATADIR/test/t5980d.isl
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 --source include/start_mysqld.inc
 
@@ -426,8 +402,8 @@ UNLOCK TABLES;
 ALTER TABLE t5980a DISCARD TABLESPACE;
 ALTER TABLE t5980b DISCARD TABLESPACE;
 
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -448,16 +424,11 @@ SHOW CREATE TABLE t5980c;
 --error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE t5980d;
 
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY space;
---replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -511,13 +482,8 @@ SHOW CREATE TABLE t5980c;
 --error ER_TABLESPACE_MISSING
 SHOW CREATE TABLE t5980d;
 
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY space;
---replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo #
 --echo # Discarded tablespaces cannot be ALTERED with ALGORITHM=COPY.
@@ -540,8 +506,8 @@ ALTER TABLE t5980aa ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
 ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
 SET @@sql_mode = @old_sql_mode;
 
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -563,16 +529,11 @@ SHOW CREATE TABLE t5980aa;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t5980bb;
 
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY space;
---replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -603,16 +564,11 @@ SHOW CREATE TABLE t5980a;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t5980b;
 
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY space;
---replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -655,8 +611,8 @@ INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after AL
 SELECT * FROM t5980a;
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980b;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -703,8 +659,8 @@ INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after AL
 SELECT * FROM t5980a;
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980b;
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
@@ -713,16 +669,11 @@ DROP TABLE t5980b;
 DROP TABLE t5980c;
 DROP TABLE t5980d;
 
-SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%' ORDER BY name;
-SELECT name,file_format,row_format FROM information_schema.innodb_sys_tablespaces
-       WHERE name LIKE 'test%' ORDER BY space;
---replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
---echo ### files in MYSQL_DATA_DIR/test
---list_files $MYSQL_DATA_DIR/test
+--echo ### files in MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 

@@ -19,6 +19,8 @@
 #include "ha_ndbcluster.h"
 #include "ndb_table_guard.h"
 #include "mysql/service_thd_alloc.h"
+#include "key_spec.h"
+#include "template_utils.h"
 
 #define ERR_RETURN(err)                  \
 {                                        \
@@ -1188,15 +1190,15 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
   char tmpbuf[FN_REFLEN];
 
   assert(thd->lex != 0);
-  Key * key= 0;
-  List_iterator<Key> key_iterator(thd->lex->alter_info.key_list);
+  Key_spec *key= 0;
+  List_iterator<Key_spec> key_iterator(thd->lex->alter_info.key_list);
   while ((key=key_iterator++))
   {
     if (key->type != KEYTYPE_FOREIGN)
       continue;
 
     NDBDICT *dict= ndb->getDictionary();
-    Foreign_key * fk= reinterpret_cast<Foreign_key*>(key);
+    Foreign_key_spec * fk= down_cast<Foreign_key_spec*>(key);
 
     /**
      * NOTE: we need to fetch also child table...

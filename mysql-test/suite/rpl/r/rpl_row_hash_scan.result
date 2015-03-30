@@ -4,6 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Update_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's master log master-bin.[0-9]*, end_log_pos [0-9]*, Error_code: 1032");
 call mtr.add_suppression("Slave: Can't find record in 't1' Error_code: 1032");
 call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's master log master-bin.[0-9]*, end_log_pos [0-9]*, Error_code: 1032");

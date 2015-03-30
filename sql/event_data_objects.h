@@ -133,7 +133,7 @@ public:
   load_from_row(THD *thd, TABLE *table);
 
   bool
-  compute_next_execution_time();
+  compute_next_execution_time(THD *thd);
 
   void
   mark_last_executed(THD *thd);

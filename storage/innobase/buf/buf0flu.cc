@@ -76,7 +76,13 @@ ibool buf_page_cleaner_is_active = FALSE;
 
 /** Factor for scan length to determine n_pages for intended oldest LSN
 progress */
-ulint buf_flush_lsn_scan_factor = 3;
+static ulint buf_flush_lsn_scan_factor = 3;
+
+/** Average redo generation rate */
+static lsn_t lsn_avg_rate = 0;
+
+/** Target oldest LSN for the requested flush_sync */
+static lsn_t buf_flush_sync_lsn = 0;
 
 #ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t page_cleaner_thread_key;
@@ -801,19 +807,25 @@ buf_flush_update_zip_checksum(
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 }
 
-/********************************************************************//**
-Initializes a page for writing to the tablespace. */
+/** Initialize a page for writing to the tablespace.
+@param[in]	block		buffer block; NULL if bypassing the buffer pool
+@param[in,out]	page		page frame
+@param[in,out]	page_zip_	compressed page, or NULL if uncompressed
+@param[in]	newest_lsn	newest modification LSN to the page
+@param[in]	skip_checksum	whether to disable the page checksum */
 void
 buf_flush_init_for_writing(
-/*=======================*/
-	byte*	page,		/*!< in/out: page */
-	void*	page_zip_,	/*!< in/out: compressed page, or NULL */
-	lsn_t	newest_lsn,	/*!< in: newest modification lsn
-				to the page */
-	bool	skip_checksum)	/*!< in: if true, disable/skip checksum. */
+	const buf_block_t*	block,
+	byte*			page,
+	void*			page_zip_,
+	lsn_t			newest_lsn,
+	bool			skip_checksum)
 {
 	ib_uint32_t	checksum = BUF_NO_CHECKSUM_MAGIC;
 
+	ut_ad(block == NULL || block->frame == page);
+	ut_ad(block == NULL || page_zip_ == NULL
+	      || &block->page.zip == page_zip_);
 	ut_ad(page);
 
 	if (page_zip_) {
@@ -865,6 +877,58 @@ buf_flush_init_for_writing(
 	if (skip_checksum) {
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 	} else {
+		if (block != NULL && UNIV_PAGE_SIZE == 16384) {
+			/* The page type could be garbage in old files
+			created before MySQL 5.5. Such files always
+			had a page size of 16 kilobytes. */
+			ulint	page_type = fil_page_get_type(page);
+			ulint	reset_type = page_type;
+
+			switch (block->page.id.page_no() % 16384) {
+			case 0:
+				reset_type = block->page.id.page_no() == 0
+					? FIL_PAGE_TYPE_FSP_HDR
+					: FIL_PAGE_TYPE_XDES;
+				break;
+			case 1:
+				reset_type = FIL_PAGE_IBUF_BITMAP;
+				break;
+			default:
+				switch (page_type) {
+				case FIL_PAGE_INDEX:
+				case FIL_PAGE_RTREE:
+				case FIL_PAGE_UNDO_LOG:
+				case FIL_PAGE_INODE:
+				case FIL_PAGE_IBUF_FREE_LIST:
+				case FIL_PAGE_TYPE_ALLOCATED:
+				case FIL_PAGE_TYPE_SYS:
+				case FIL_PAGE_TYPE_TRX_SYS:
+				case FIL_PAGE_TYPE_BLOB:
+				case FIL_PAGE_TYPE_ZBLOB:
+				case FIL_PAGE_TYPE_ZBLOB2:
+					break;
+				case FIL_PAGE_TYPE_FSP_HDR:
+				case FIL_PAGE_TYPE_XDES:
+				case FIL_PAGE_IBUF_BITMAP:
+					/* These pages should have
+					predetermined page numbers
+					(see above). */
+				default:
+					reset_type = FIL_PAGE_TYPE_UNKNOWN;
+					break;
+				}
+			}
+
+			if (UNIV_UNLIKELY(page_type != reset_type)) {
+				ib::info()
+					<< "Resetting invalid page "
+					<< block->page.id << " type "
+					<< page_type << " to "
+					<< reset_type << " when flushing.";
+				fil_page_set_type(page, reset_type);
+			}
+		}
+
 		switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
 		case SRV_CHECKSUM_ALGORITHM_CRC32:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
@@ -979,12 +1043,12 @@ buf_flush_write_block_low(
 			frame = ((buf_block_t*) bpage)->frame;
 		}
 
-		buf_flush_init_for_writing(((buf_block_t*) bpage)->frame,
-					   bpage->zip.data
-					   ? &bpage->zip : NULL,
-					   bpage->newest_modification,
-					   fsp_is_checksum_disabled(
-						bpage->id.space()));
+		buf_flush_init_for_writing(
+			reinterpret_cast<const buf_block_t*>(bpage),
+			reinterpret_cast<const buf_block_t*>(bpage)->frame,
+			bpage->zip.data ? &bpage->zip : NULL,
+			bpage->newest_modification,
+			fsp_is_checksum_disabled(bpage->id.space()));
 		break;
 	}
 
@@ -1993,6 +2057,8 @@ buf_flush_wait_flushed(
 
 			/* sleep and retry */
 			os_thread_sleep(buf_flush_wait_flushed_sleep_time);
+
+			MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
 		}
 	}
 }
@@ -2388,7 +2454,6 @@ page_cleaner_flush_pages_recommendation(
 	lsn_t*	lsn_limit,
 	ulint	last_pages_in)
 {
-	static	lsn_t		lsn_avg_rate = 0;
 	static	lsn_t		prev_lsn = 0;
 	static	ulint		sum_pages = 0;
 	static	ulint		avg_page_rate = 0;
@@ -2430,11 +2495,15 @@ page_cleaner_flush_pages_recommendation(
 			time_elapsed = 1;
 		}
 
-		avg_page_rate = ((sum_pages / time_elapsed)
-				 + avg_page_rate) / 2;
+		avg_page_rate = static_cast<ulint>(
+			((static_cast<double>(sum_pages)
+			  / time_elapsed)
+			 + avg_page_rate) / 2);
 
 		/* How much LSN we have generated since last call. */
-		lsn_rate = (cur_lsn - prev_lsn) / time_elapsed;
+		lsn_rate = static_cast<lsn_t>(
+			static_cast<double>(cur_lsn - prev_lsn)
+			/ time_elapsed);
 
 		lsn_avg_rate = (lsn_avg_rate + lsn_rate) / 2;
 
@@ -2443,15 +2512,15 @@ page_cleaner_flush_pages_recommendation(
 		mutex_enter(&page_cleaner->mutex);
 
 		ulint	flush_tm = page_cleaner->flush_time;
-		int	flush_pass = page_cleaner->flush_pass;
+		ulint	flush_pass = page_cleaner->flush_pass;
 
 		page_cleaner->flush_time = 0;
 		page_cleaner->flush_pass = 0;
 
 		ulint	lru_tm = 0;
 		ulint	list_tm = 0;
-		int	lru_pass = 0;
-		int	list_pass = 0;
+		ulint	lru_pass = 0;
+		ulint	list_pass = 0;
 
 		for (ulint i = 0; i < page_cleaner->n_slots; i++) {
 			page_cleaner_slot_t*	slot;
@@ -2560,7 +2629,7 @@ page_cleaner_flush_pages_recommendation(
 		ut_ad(page_cleaner->slots[i].state
 		      == PAGE_CLEANER_STATE_NONE);
 		page_cleaner->slots[i].n_pages_requested
-			= pages_for_lsn / buf_flush_lsn_scan_factor;
+			= pages_for_lsn / buf_flush_lsn_scan_factor + 1;
 		mutex_exit(&page_cleaner->mutex);
 	}
 
@@ -2570,8 +2639,11 @@ page_cleaner_flush_pages_recommendation(
 	}
 
 	/* Cap the maximum IO capacity that we are going to use by
-	max_io_capacity. */
-	n_pages = (PCT_IO(pct_total) + avg_page_rate + sum_pages_for_lsn) / 3;
+	max_io_capacity. Limit the value to avoid too quick increase */
+	ulint	pages_for_lsn =
+		std::min<ulint>(sum_pages_for_lsn, srv_max_io_capacity * 2);
+
+	n_pages = (PCT_IO(pct_total) + avg_page_rate + pages_for_lsn) / 3;
 
 	if (n_pages > srv_max_io_capacity) {
 		n_pages = srv_max_io_capacity;
@@ -2588,7 +2660,7 @@ page_cleaner_flush_pages_recommendation(
 		don't care about age distribution of pages */
 		page_cleaner->slots[i].n_pages_requested = pct_for_lsn > 30 ?
 			page_cleaner->slots[i].n_pages_requested
-			* n_pages / sum_pages_for_lsn
+			* n_pages / sum_pages_for_lsn + 1
 			: n_pages / srv_buf_pool_instances;
 	}
 	mutex_exit(&page_cleaner->mutex);
@@ -3061,7 +3133,46 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			n_flushed_last = n_evicted = 0;
 		}
 
-		if (srv_check_activity(last_activity)) {
+		if (ret_sleep != OS_SYNC_TIME_EXCEEDED
+		    && srv_flush_sync
+		    && buf_flush_sync_lsn > 0) {
+			/* woke up for flush_sync */
+			mutex_enter(&page_cleaner->mutex);
+			lsn_t	lsn_limit = buf_flush_sync_lsn;
+			buf_flush_sync_lsn = 0;
+			mutex_exit(&page_cleaner->mutex);
+
+			/* Request flushing for threads */
+			pc_request(ULINT_MAX, lsn_limit);
+
+			ulint tm = ut_time_ms();
+
+			/* Coordinator also treats requests */
+			while (pc_flush_slot() > 0) {}
+
+			/* only coordinator is using these counters,
+			so no need to protect by lock. */
+			page_cleaner->flush_time += ut_time_ms() - tm;
+			page_cleaner->flush_pass++;
+
+			/* Wait for all slots to be finished */
+			ulint	n_flushed_lru = 0;
+			ulint	n_flushed_list = 0;
+			pc_wait_finished(&n_flushed_lru, &n_flushed_list);
+
+			if (n_flushed_list > 0 || n_flushed_lru > 0) {
+				buf_flush_stats(n_flushed_list, n_flushed_lru);
+
+				MONITOR_INC_VALUE_CUMULATIVE(
+					MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+					MONITOR_FLUSH_SYNC_COUNT,
+					MONITOR_FLUSH_SYNC_PAGES,
+					n_flushed_lru + n_flushed_list);
+			}
+
+			n_flushed = n_flushed_lru + n_flushed_list;
+
+		} else if (srv_check_activity(last_activity)) {
 			ulint	n_to_flush;
 			lsn_t	lsn_limit = 0;
 
@@ -3298,6 +3409,24 @@ buf_flush_sync_all_buf_pools(void)
 	} while (!success);
 
 	ut_a(success);
+}
+
+/** Request IO burst and wake page_cleaner up.
+@param[in]	lsn_limit	upper limit of LSN to be flushed */
+void
+buf_flush_request_force(
+	lsn_t	lsn_limit)
+{
+	/* adjust based on lsn_avg_rate not to get old */
+	lsn_t	lsn_target = lsn_limit + lsn_avg_rate * 3;
+
+	mutex_enter(&page_cleaner->mutex);
+	if (lsn_target > buf_flush_sync_lsn) {
+		buf_flush_sync_lsn = lsn_target;
+	}
+	mutex_exit(&page_cleaner->mutex);
+
+	os_event_set(buf_flush_event);
 }
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 

@@ -451,7 +451,7 @@ private:
 private:
 	/** Lookup the index using the index id.
 	@return index instance if found else NULL */
-	const dict_index_t* find(index_id_t id) const
+	const dict_index_t* find(space_index_t id) const
 	{
 		for (const dict_index_t* index = UT_LIST_GET_FIRST(
 				m_table->indexes);
@@ -1243,6 +1243,19 @@ row_truncate_fts(
 	fts_table.id = new_id;
 	fts_table.name = table->name;
 	fts_table.flags2 = table->flags2;
+	fts_table.flags = table->flags;
+	fts_table.tablespace = table->tablespace;
+	fts_table.space = table->space;
+
+	/* table->data_dir_path is used for FTS AUX table
+	creation. */
+	if (DICT_TF_HAS_DATA_DIR(table->flags)
+	    && table->data_dir_path == NULL) {
+		dict_get_and_save_data_dir_path(table, true);
+		ut_ad(table->data_dir_path != NULL);
+	}
+
+	fts_table.data_dir_path = table->data_dir_path;
 
 	dberr_t		err;
 
@@ -2572,7 +2585,7 @@ truncate_t::create_index(
 	ulint			space_id,
 	const page_size_t&	page_size,
 	ulint			index_type,
-	index_id_t		index_id,
+	space_index_t		index_id,
 	const btr_create_t&	btr_redo_create_info,
 	mtr_t*			mtr) const
 {

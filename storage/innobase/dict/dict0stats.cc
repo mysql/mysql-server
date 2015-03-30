@@ -447,6 +447,7 @@ dict_stats_table_clone_create(
 
 		UNIV_MEM_ASSERT_RW_ABORT(&index->id, sizeof(index->id));
 		idx->id = index->id;
+		idx->space = index->space;
 
 		idx->name = mem_heap_strdup(heap, index->name);
 
@@ -651,6 +652,7 @@ dict_stats_assert_initialized(
 #define INDEX_EQ(i1, i2) \
 	((i1) != NULL \
 	 && (i2) != NULL \
+	 && (i1)->space == (i2)->space \
 	 && (i1)->id == (i2)->id \
 	 && strcmp((i1)->name, (i2)->name) == 0)
 
@@ -2454,7 +2456,9 @@ dict_stats_save(
 
 		index = it->second;
 
-		if (only_for_index != NULL && index->id != *only_for_index) {
+		if (only_for_index != NULL
+		    && index->space != only_for_index->m_space_id
+		    && index->id != only_for_index->m_index_id) {
 			continue;
 		}
 
@@ -3012,7 +3016,8 @@ dict_stats_update_for_index(
 			dict_table_stats_lock(index->table, RW_X_LATCH);
 			dict_stats_analyze_index(index);
 			dict_table_stats_unlock(index->table, RW_X_LATCH);
-			dict_stats_save(index->table, &index->id);
+			index_id_t	index_id(index->space, index->id);
+			dict_stats_save(index->table, &index_id);
 			DBUG_VOID_RETURN;
 		}
 		/* else */

@@ -21,8 +21,9 @@
 #include <functional>
 #include <vector>
 
-#include "sql_select.h"
+#include "sql_optimizer.h"                      // Key_use_array
 #include "mem_root_array.h"
+#include "mysqld.h"                             // THR_MALLOC
 #include "current_thd.h"
 
 /**

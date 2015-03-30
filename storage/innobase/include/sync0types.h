@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -280,8 +280,6 @@ enum latch_level_t {
 	SYNC_FTS_CACHE,
 
 	SYNC_DICT_OPERATION,
-
-	SYNC_FILE_FORMAT_TAG,
 
 	SYNC_TRX_I_S_LAST_READ,
 

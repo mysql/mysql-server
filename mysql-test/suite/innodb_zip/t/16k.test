@@ -1,11 +1,13 @@
 # Tests for setting innodb-page-size=16k; default value
--- source include/big_test.inc
+--source include/big_test.inc
 --source include/have_innodb.inc
 --source include/have_innodb_16k.inc
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
-let $MYSQLD_DATADIR= `select @@datadir`;
+let $MYSQLD_DATADIR = `select @@datadir`;
+let $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
 # These values can change during the test
 --enable_query_log
@@ -25,45 +27,42 @@ SELECT variable_value FROM information_schema.global_status
 
 --echo # Test 3) Query some information_shema tables that are dependent upon
 --echo #         the page size.
+# Show the metadata for tables in schema 'mysql'.
 # Pulled from innodb-system-table-view.test
 # The IDs of mysql.innodb_table_stats and mysql.innodb_index_stats are
 # unpredictable. They depend on whether mtr has created the database for
 # this test from scratch or is using a previously created database where
-# those tables have been dropped and recreated. If we can force mtr to
-# use a freshly created database for this test then the following
-# complications can be removed and the test be reverted to the version
-# it was before the patch that adds this comment.
---disable_query_log
---let table_stats_id = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/innodb_table_stats'`
---let index_stats_id = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/innodb_index_stats'`
---let $rep_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_master_info'`
---let $rep_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_relay_log_info'`
---let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
---let $help_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_topic'`
---let $help_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_category'`
---let $help_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_relation'`
---let $help_table_4 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/help_keyword'`
---let $timezone_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone'`
---let $timezone_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_leap_second'`
---let $timezone_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_name'`
---let $timezone_table_4 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_transition'`
---let $timezone_table_5 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/time_zone_transition_type'`
---eval SELECT INDEX_ID, NAME, TABLE_ID, TYPE, N_FIELDS, SPACE!=0 FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3, $help_table_1, $help_table_2, $help_table_3, $help_table_4, $timezone_table_1, $timezone_table_2, $timezone_table_3, $timezone_table_4, $timezone_table_5)
---enable_query_log
+# those tables have been dropped and recreated. Since we cannot force mtr
+# to use a freshly created database for this test we do not return the
+# table or index IDs. We can return the space IS of mysql schema tables
+# since they are created consistently during bootstrap.
+SELECT	t.name table_name, t.n_cols, t.flag table_flags,
+	i.name index_name, i.page_no root_page, i.type,
+	i.n_fields, i.merge_threshold
+	FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
+		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+	WHERE	t.table_id = i.table_id
+	AND	t.name LIKE 'mysql%'
+	ORDER BY t.space, i.page_no;
+
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
 CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
---replace_column 1 {id} 5 {id}
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
-       WHERE name LIKE 'test%' ORDER BY table_id;
---replace_column 1 {id}
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
-       WHERE name LIKE 'test%' ORDER BY space;
---replace_column 1 {id}
---replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
-       WHERE path LIKE '%test%' ORDER BY space;
+
+# Show the metadata for tables in schema 'test'.
+# Do not return the space ID since this tablespace may have existed before
+# this test runs.  The root page number of each index should be consistent
+# within a file-per-table tablespace.
+SELECT	t.name table_name, t.n_cols, t.flag table_flags,
+	i.name index_name, i.page_no root_page, i.type,
+	i.n_fields, i.merge_threshold
+	FROM	INFORMATION_SCHEMA.INNODB_SYS_TABLES  t,
+		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+	WHERE	t.table_id = i.table_id
+	AND	t.name LIKE 'test%'
+	ORDER BY t.name, i.name;
+--source suite/innodb/include/show_i_s_tablespaces.inc
 DROP TABLE t1, t2, t3, t4;
 
 --echo # Test 4) The maximum row size is dependent upon the page size.
@@ -296,15 +295,11 @@ SHOW WARNINGS;
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_per_table = ON;
-SET GLOBAL innodb_file_format = `Antelope`;
---error ER_ILLEGAL_HA
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
---error ER_ILLEGAL_HA
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
-SET GLOBAL innodb_file_format = `Barracuda`;
-
+DROP TABLE t4,t5;
 
 --echo # Test 7) This series of tests were moved from innodb-index to here
 --echo # because the second alter table t1 assumes a 16k page size.

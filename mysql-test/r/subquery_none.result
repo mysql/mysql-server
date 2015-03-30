@@ -1,6 +1,8 @@
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='subquery_materialization_cost_based=off';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 select (select 2);
 (select 2)
@@ -4121,6 +4123,8 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select 2 AS `2` from `test`.`t1` where exists((/* select#2 */ select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) union (/* select#3 */ select 1 from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))
 DROP TABLE t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t0(a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(f11 int, f12 int);
@@ -5254,6 +5258,8 @@ CREATE TABLE t1(a1 int);
 INSERT INTO t1 VALUES (1),(2);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t1);
 1
 1
@@ -5270,6 +5276,8 @@ ERROR 21000: Subquery returns more than 1 row
 EXECUTE stmt ;
 ERROR 21000: Subquery returns more than 1 row
 SET SESSION sql_mode=@old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
@@ -5281,6 +5289,8 @@ CREATE TABLE t2(a1 int);
 INSERT INTO t2 VALUES (3);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT 1 FROM t1 WHERE 1 < SOME (SELECT 2 FROM t2);
 1
 1
@@ -5296,6 +5306,8 @@ SELECT 1 FROM t1 WHERE 1 < SOME (SELECT a1 FROM t2);
 1
 1
 SET SESSION sql_mode=@old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1, t2;
 #
 # Bug#12763207 - ASSERT IN SUBSELECT::SINGLE_VALUE_TRANSFORMER
@@ -5304,6 +5316,8 @@ create table t2(i int);
 insert into t2 values(0);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE VIEW v1 AS  
 SELECT 'f' FROM t2 UNION SELECT 'x' FROM t2
 ;
@@ -5319,6 +5333,8 @@ WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 )
 ;
 pk
 SET SESSION sql_mode=@old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t2, t1;
 drop view v1;
 End of 5.0 tests.
@@ -5535,6 +5551,8 @@ a
 1
 2
 SET @@sql_mode='ansi';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
 ERROR HY000: Invalid use of group function
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;

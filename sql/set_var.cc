@@ -19,6 +19,7 @@
 
 #include "hash.h"                // HASH
 #include "auth_common.h"         // SUPER_ACL
+#include "derror.h"              // ER_THD
 #include "log.h"                 // sql_print_warning
 #include "mysqld.h"              // system_charset_info
 #include "sql_class.h"           // THD

@@ -35,6 +35,10 @@
 #include "sql_plugin_ref.h"
 #include "current_thd.h"
 #include "psi_memory_key.h"
+#include "sql_class.h"
+#include "field.h"
+#include "mysqld.h"             // opt_log_syslog_enable
+#include "derror.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -518,6 +522,20 @@ int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
 }
 
 
+File_query_log::File_query_log(enum_log_table_type log_type)
+  : m_log_type(log_type), name(NULL), write_error(false), log_open(false)
+{
+  memset(&log_file, 0, sizeof(log_file));
+  mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
+#ifdef HAVE_PSI_INTERFACE
+  if (log_type == QUERY_LOG_GENERAL)
+    m_log_file_key= key_file_general_log;
+  else if (log_type == QUERY_LOG_SLOW)
+    m_log_file_key= key_file_slow_log;
+#endif
+}
+
+
 bool File_query_log::open()
 {
   File file= -1;
@@ -870,7 +888,7 @@ bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
 
   need_close= true;
 
-  if (log_table_intact.check(table_list.table, &general_log_table_def))
+  if (log_table_intact.check(thd, table_list.table, &general_log_table_def))
     goto err;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
@@ -995,7 +1013,7 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
 
   need_close= true;
 
-  if (log_table_intact.check(table_list.table, &slow_query_log_table_def))
+  if (log_table_intact.check(thd, table_list.table, &slow_query_log_table_def))
     goto err;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
@@ -1213,6 +1231,24 @@ bool Log_to_file_event_handler::log_general(THD *thd, ulonglong event_utime,
                                                sql_text, sql_text_len);
   thd->pop_internal_handler();
   return retval;
+}
+
+
+bool Query_logger::is_log_table_enabled(enum_log_table_type log_type) const
+{
+  if (log_type == QUERY_LOG_SLOW)
+    return (opt_slow_log && (log_output_options & LOG_TABLE));
+  else if (log_type == QUERY_LOG_GENERAL)
+    return (opt_general_log && (log_output_options & LOG_TABLE));
+  DBUG_ASSERT(false);
+  return false;                             /* make compiler happy */
+}
+
+
+void Query_logger::init()
+{
+  file_log_handler= new Log_to_file_event_handler; // Causes mutex init
+  mysql_rwlock_init(key_rwlock_LOCK_logger, &LOCK_logger);
 }
 
 

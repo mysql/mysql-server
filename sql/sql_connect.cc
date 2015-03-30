@@ -25,6 +25,7 @@
 #include "m_string.h"                   // my_stpcpy
 #include "probes_mysql.h"               // MYSQL_CONNECTION_START
 #include "auth_common.h"                // SUPER_ACL
+#include "derror.h"                     // ER_THD
 #include "hostname.h"                   // Host_errors
 #include "log.h"                        // sql_print_information
 #include "psi_memory_key.h"
@@ -495,8 +496,7 @@ static int check_connection(THD *thd)
 {
   uint connect_errors= 0;
   int auth_rc;
-  NET *net= &thd->net;
-
+  NET *net= thd->get_protocol_classic()->get_net();
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
 
@@ -658,7 +658,8 @@ static int check_connection(THD *thd)
   }
   vio_keepalive(net->vio, TRUE);
 
-  if (thd->packet.alloc(thd->variables.net_buffer_length))
+  if (thd->get_protocol_classic()->get_packet()->alloc(
+      thd->variables.net_buffer_length))
   {
     /*
       Important note:
@@ -675,7 +676,7 @@ static int check_connection(THD *thd)
     return 1; /* The error is set by alloc(). */
   }
 
-  auth_rc= acl_authenticate(thd, 0);
+  auth_rc= acl_authenticate(thd, COM_CONNECT);
   if (auth_rc == 0 && connect_errors != 0)
   {
     /*
@@ -708,30 +709,32 @@ static int check_connection(THD *thd)
 
 static bool login_connection(THD *thd)
 {
-  NET *net= &thd->net;
   int error;
   DBUG_ENTER("login_connection");
   DBUG_PRINT("info", ("login_connection called by thread %u",
                       thd->thread_id()));
 
   /* Use "connect_timeout" value during connection phase */
-  my_net_set_read_timeout(net, connect_timeout);
-  my_net_set_write_timeout(net, connect_timeout);
+  thd->get_protocol_classic()->set_read_timeout(connect_timeout);
+  thd->get_protocol_classic()->set_write_timeout(connect_timeout);
 
   error= check_connection(thd);
-  thd->protocol->end_statement();
+  thd->send_statement_status();
 
   if (error)
   {           // Wrong permissions
 #ifdef _WIN32
-    if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
+    if (vio_type(thd->get_protocol_classic()->get_vio()) ==
+        VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
-  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
-  my_net_set_write_timeout(net, thd->variables.net_write_timeout);
+  thd->get_protocol_classic()->set_read_timeout(
+    thd->variables.net_read_timeout);
+  thd->get_protocol_classic()->set_write_timeout(
+    thd->variables.net_write_timeout);
   DBUG_RETURN(0);
 }
 
@@ -745,7 +748,7 @@ static bool login_connection(THD *thd)
 
 void end_connection(THD *thd)
 {
-  NET *net= &thd->net;
+  NET *net= thd->get_protocol_classic()->get_net();
   plugin_thdvar_cleanup(thd, thd->m_enable_plugins);
 
   /*
@@ -785,10 +788,11 @@ void end_connection(THD *thd)
 
 static void prepare_new_connection_state(THD* thd)
 {
+  NET *net= thd->get_protocol_classic()->get_net();
   Security_context *sctx= thd->security_context();
 
-  if (thd->client_capabilities & CLIENT_COMPRESS)
-    thd->net.compress=1;        // Use compression
+  if (thd->get_protocol()->has_client_capability(CLIENT_COMPRESS))
+    net->compress=1;        // Use compression
 
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
@@ -810,7 +814,6 @@ static void prepare_new_connection_state(THD* thd)
     {
       Host_errors errors;
       ulong packet_length;
-      NET *net= &thd->net;
       LEX_CSTRING sctx_user= sctx->user();
 
       sql_print_warning(ER_DEFAULT(ER_NEW_ABORTING_CONNECTION),
@@ -837,7 +840,7 @@ static void prepare_new_connection_state(THD* thd)
                  sctx->host_or_ip().str, "init_connect command failed");
 
       thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
-      thd->protocol->end_statement();
+      thd->send_statement_status();
       thd->killed = THD::KILL_CONNECTION;
       errors.m_init_connect= 1;
       inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
@@ -901,7 +904,7 @@ void close_connection(THD *thd, uint sql_errno)
 
 bool thd_is_connection_alive(THD *thd)
 {
-  NET *net= &thd->net;
+  NET *net= thd->get_protocol_classic()->get_net();
   if (!net->error &&
       net->vio != 0 &&
       !(thd->killed == THD::KILL_CONNECTION))

@@ -120,7 +120,7 @@ xa recover;
 CONNECTION default;
 xa prepare 'testa','testb'; 
 xa recover;
---Error ER_XAER_NOTA
+--Error ER_XAER_RMFAIL
 xa commit 'testb',0x2030405060,11;
 xa commit 'testa','testb';
 

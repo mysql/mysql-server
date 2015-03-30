@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 
+#include "decimal.h"                            // E_DEC_OOM
 #include "my_base.h"                            // ha_storage_media
 #include "my_compare.h"                         // portable_sizeof_char_ptr
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
@@ -516,7 +517,14 @@ private:
                                     phisically stored in the database*/
 };
 
-class Field
+class Proto_field
+{
+public:
+  virtual bool send_binary(Protocol *protocol)= 0;
+  virtual bool send_text(Protocol *protocol)= 0;
+};
+
+class Field: public Proto_field
 {
   Field(const Item &);				/* Prevent use of these */
   void operator=(Field &);
@@ -593,10 +601,10 @@ public:
   const char	**table_name, *field_name;
   LEX_STRING	comment;
   /* Field is part of the following keys */
-  key_map key_start;                /* Keys that starts with this field */
-  key_map part_of_key;              /* All keys that includes this field */
-  key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
-  key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
+  Key_map key_start;                /* Keys that starts with this field */
+  Key_map part_of_key;              /* All keys that includes this field */
+  Key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
+  Key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
   /* 
     We use three additional unireg types for TIMESTAMP to overcome limitation 
     of current binary format of .frm file. We'd like to be able to support 
@@ -1299,6 +1307,7 @@ public:
     return str;
   }
   virtual bool send_binary(Protocol *protocol);
+  virtual bool send_text(Protocol *protocol);
 
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -2569,7 +2578,7 @@ public:
                  enum utype unireg_check_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field(ptr_arg,
-           len_arg + ((dec= normalize_dec(dec_arg)) ? dec + 1 : 0),
+           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            null_ptr_arg, null_bit_arg,
            unireg_check_arg, field_name_arg)
     { flags|= BINARY_FLAG; }
@@ -2583,7 +2592,7 @@ public:
   Field_temporal(bool maybe_null_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field((uchar *) 0, 
-           len_arg + ((dec= normalize_dec(dec_arg)) ? dec + 1 : 0),
+           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            maybe_null_arg ? (uchar *) "" : 0, 0,
            NONE, field_name_arg)
     { flags|= BINARY_FLAG; }
@@ -4155,6 +4164,12 @@ class Send_field :public Sql_alloc {
   ulong length;
   uint charsetnr, flags, decimals;
   enum_field_types type;
+  /*
+    TRUE <=> source item is an Item_field. Needed to workaround lack of
+    architecture in legacy Protocol_text implementation. Needed only for
+    Protocol_classic and descendants.
+  */
+  bool field;
   Send_field() {}
 };
 
@@ -4287,22 +4302,73 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
 
 #define MTYP_TYPENR(type) (type & 127)	/* Remove bits from type */
 
-#define f_is_dec(x)		((x) & FIELDFLAG_DECIMAL)
-#define f_is_num(x)		((x) & FIELDFLAG_NUMBER)
-#define f_is_zerofill(x)	((x) & FIELDFLAG_ZEROFILL)
-#define f_is_packed(x)		((x) & FIELDFLAG_PACK)
-#define f_packtype(x)		(((x) >> FIELDFLAG_PACK_SHIFT) & 15)
-#define f_decimals(x)		((uint8) (((x) >> FIELDFLAG_DEC_SHIFT) & FIELDFLAG_MAX_DEC))
-#define f_is_alpha(x)		(!f_is_num(x))
-#define f_is_binary(x)          ((x) & FIELDFLAG_BINARY) // 4.0- compatibility
-#define f_is_enum(x)            (((x) & (FIELDFLAG_INTERVAL | FIELDFLAG_NUMBER)) == FIELDFLAG_INTERVAL)
-#define f_is_bitfield(x)        (((x) & (FIELDFLAG_BITFIELD | FIELDFLAG_NUMBER)) == FIELDFLAG_BITFIELD)
-#define f_is_blob(x)		(((x) & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB)
-#define f_is_geom(x)		(((x) & (FIELDFLAG_GEOM | FIELDFLAG_NUMBER)) == FIELDFLAG_GEOM)
-#define f_is_equ(x)		((x) & (1+2+FIELDFLAG_PACK+31*256))
-#define f_settype(x)		(((int) x) << FIELDFLAG_PACK_SHIFT)
-#define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
-#define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)
-#define f_bit_as_char(x)        ((x) & FIELDFLAG_TREAT_BIT_AS_CHAR)
+inline int f_is_dec(int x)
+{
+  return (x & FIELDFLAG_DECIMAL);
+}
+inline int f_is_num(int x)
+{
+  return (x & FIELDFLAG_NUMBER);
+}
+inline int f_is_zerofill(int x)
+{
+  return (x & FIELDFLAG_ZEROFILL);
+}
+inline int f_is_packed(int x)
+{
+  return (x & FIELDFLAG_PACK);
+}
+inline int f_packtype(int x)
+{
+  return ((x >> FIELDFLAG_PACK_SHIFT) & 15);
+}
+inline uint8 f_decimals(int x)
+{
+  return ((uint8) ((x >> FIELDFLAG_DEC_SHIFT) & FIELDFLAG_MAX_DEC));
+}
+inline int f_is_alpha(int x)
+{
+  return (!f_is_num(x));
+}
+inline int f_is_binary(int x)
+{
+  return (x & FIELDFLAG_BINARY); // 4.0- compatibility
+}
+inline int f_is_enum(int x)
+{
+  return ((x & (FIELDFLAG_INTERVAL | FIELDFLAG_NUMBER)) == FIELDFLAG_INTERVAL);
+}
+inline int f_is_bitfield(int x)
+{
+  return ((x & (FIELDFLAG_BITFIELD | FIELDFLAG_NUMBER)) == FIELDFLAG_BITFIELD);
+}
+inline int f_is_blob(int x)
+{
+  return ((x & (FIELDFLAG_BLOB | FIELDFLAG_NUMBER)) == FIELDFLAG_BLOB);
+}
+inline int f_is_geom(int x)
+{
+  return ((x & (FIELDFLAG_GEOM | FIELDFLAG_NUMBER)) == FIELDFLAG_GEOM);
+}
+inline int f_is_equ(int x)
+{
+  return (x & (1+2+FIELDFLAG_PACK+31*256));
+}
+inline int f_settype(int x)
+{
+  return (x << FIELDFLAG_PACK_SHIFT);
+}
+inline int f_maybe_null(int x)
+{
+  return (x & FIELDFLAG_MAYBE_NULL);
+}
+inline int f_no_default(int x)
+{
+  return (x & FIELDFLAG_NO_DEFAULT);
+}
+inline int f_bit_as_char(int x)
+{
+  return (x & FIELDFLAG_TREAT_BIT_AS_CHAR);
+}
 
 #endif /* FIELD_INCLUDED */

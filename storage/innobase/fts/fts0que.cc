@@ -1410,12 +1410,6 @@ fts_query_union(
 		return(query->error);
 	}
 
-	if (query->index->parser != NULL
-	    && *token->f_str == '%') {
-		/* A parser plugin may not filter '%' out. */
-		return(DB_SUCCESS);
-	}
-
 	fts_query_cache(query, token);
 
 	/* Setup the callback args for filtering and

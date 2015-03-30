@@ -18,6 +18,7 @@
 #include "rpl_info_factory.h"
 #include "log.h"
 #include "mysqld_thd_manager.h"
+#include "mysqld.h"                             // glob_hostname mysqld_port ..
 
 
 /*

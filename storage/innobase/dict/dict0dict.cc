@@ -505,6 +505,12 @@ dict_table_close(
 
 	--table->n_ref_count;
 
+	/* Intrinsic table is not added to dictionary cache so skip other
+	cache specific actions. */
+	if (dict_table_is_intrinsic(table)) {
+		return;
+	}
+
 	/* Force persistent stats re-read upon next open of the table
 	so that FLUSH TABLE can be used to forcibly fetch stats from disk
 	if they have been manually modified. We reset table->stat_initialized
@@ -518,12 +524,6 @@ dict_table_close(
 	}
 
 	MONITOR_DEC(MONITOR_TABLE_REFERENCE);
-
-	/* Intrinsic table is not added to dictionary table list
-	so skip the next section that try to do that. */
-	if (dict_table_is_intrinsic(table)) {
-		return;
-	}
 
 	ut_ad(dict_lru_validate());
 
@@ -1443,24 +1443,22 @@ dict_table_move_from_lru_to_non_lru(
 	table->can_be_evicted = FALSE;
 }
 
-/** Looks for an index with the given id given a table instance.
-@param[in]	table	table instance
-@param[in]	id	index id
-@return index or NULL */
-dict_index_t*
+/** Look up an index in a table.
+@param[in]	table	table
+@param[in]	id	index identifier
+@return index
+@retval NULL if not found */
+static
+const dict_index_t*
 dict_table_find_index_on_id(
 	const dict_table_t*	table,
-	index_id_t		id)
+	const index_id_t&	id)
 {
-	dict_index_t*	index;
-
-	for (index = dict_table_get_first_index(table);
+	for (const dict_index_t* index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
-
-		if (id == index->id) {
-			/* Found */
-
+		if (index->space == id.m_space_id
+		    && index->id == id.m_index_id) {
 			return(index);
 		}
 	}
@@ -1468,29 +1466,22 @@ dict_table_find_index_on_id(
 	return(NULL);
 }
 
-/**********************************************************************//**
-Looks for an index with the given id. NOTE that we do not reserve
-the dictionary mutex: this function is for emergency purposes like
-printing info of a corrupt database page!
-@return index or NULL if not found in cache */
-dict_index_t*
-dict_index_find_on_id_low(
-/*======================*/
-	index_id_t	id)	/*!< in: index id */
+/** Look up an index.
+@param[in]	id	index identifier
+@return index or NULL if not found */
+const dict_index_t*
+dict_index_find(
+	const index_id_t&	id)
 {
-	dict_table_t*	table;
+	const dict_table_t*	table;
 
-	/* This can happen if the system tablespace is the wrong page size */
-	if (dict_sys == NULL) {
-		return(NULL);
-	}
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 	     table != NULL;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
-
-		dict_index_t*	index = dict_table_find_index_on_id(table, id);
-
+		const dict_index_t* index = dict_table_find_index_on_id(
+			table, id);
 		if (index != NULL) {
 			return(index);
 		}
@@ -1499,9 +1490,8 @@ dict_index_find_on_id_low(
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
 	     table != NULL;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
-
-		dict_index_t*	index = dict_table_find_index_on_id(table, id);
-
+		const dict_index_t* index = dict_table_find_index_on_id(
+			table, id);
 		if (index != NULL) {
 			return(index);
 		}
@@ -2237,8 +2227,7 @@ is_ord_part:
 
 			/* We only store the needed prefix length in undo log */
 			if (max_prefix) {
-			     ut_ad(dict_table_get_format(table)
-				   >= UNIV_FORMAT_B);
+			     ut_ad(dict_table_has_atomic_blobs(table));
 
 				max_size = ut_min(max_prefix, max_size);
 			}
@@ -2595,28 +2584,20 @@ too_big:
 	testcase that shows an index that can be created but
 	cannot be updated. */
 
-	switch (dict_table_get_format(table)) {
-	case UNIV_FORMAT_A:
+	if (!dict_table_has_atomic_blobs(table)) {
 		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
 		prefixes of externally stored columns locally within
 		the record.  There are no special considerations for
 		the undo log record size. */
 		goto undo_size_ok;
-
-	case UNIV_FORMAT_B:
-		/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED,
-		column prefix indexes require that prefixes of
-		externally stored columns are written to the undo log.
-		This may make the undo log record bigger than the
-		record on the B-tree page.  The maximum size of an
-		undo log record is the page size.  That must be
-		checked for below. */
-		break;
-
-#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
-# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
-#endif
 	}
+
+	/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED, column
+	prefix indexes require that prefixes of externally stored
+	columns are written to the undo log.  This may make the undo
+	log record bigger than the record on the B-tree page.  The
+	maximum size of an undo log record is the page size.  That
+	must be checked for below. */
 
 	for (i = 0; i < n_ord; i++) {
 		const dict_field_t*	field
@@ -2816,8 +2797,9 @@ dict_index_remove_from_cache_low(
 
 	/* The index is being dropped, remove any compression stats for it. */
 	if (!lru_evict && DICT_TF_GET_ZIP_SSIZE(index->table->flags)) {
+		index_id_t	id(index->space, index->id);
 		mutex_enter(&page_zip_stat_per_index_mutex);
-		page_zip_stat_per_index.erase(index->id);
+		page_zip_stat_per_index.erase(id);
 		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 
@@ -4431,7 +4413,6 @@ dict_create_foreign_constraints_low(
 	const CHARSET_INFO*	cs,
 	const char*		sql_string,
 	const char*		name,
-	dict_table_t*		handler,
 	ibool			reject_fks)
 {
 	dict_table_t*	table			= NULL;
@@ -4460,25 +4441,21 @@ dict_create_foreign_constraints_low(
 	dict_foreign_set	local_fk_set;
 	dict_foreign_set_free	local_fk_set_free(local_fk_set);
 
-	ut_ad(!srv_read_only_mode || handler);
-	ut_ad(mutex_own(&dict_sys->mutex) || handler);
+	ut_ad(!srv_read_only_mode);
+	ut_ad(mutex_own(&dict_sys->mutex));
 
-	if (handler == NULL) {
-		table = dict_table_get_low(name);
+	table = dict_table_get_low(name);
 
-		if (table == NULL) {
-			mutex_enter(&dict_foreign_err_mutex);
-			dict_foreign_error_report_low(ef, name);
-			fprintf(ef,
-				"Cannot find the table in the internal"
-				" data dictionary of InnoDB.\n"
-				"Create table statement:\n%s\n", sql_string);
-			mutex_exit(&dict_foreign_err_mutex);
+	if (table == NULL) {
+		mutex_enter(&dict_foreign_err_mutex);
+		dict_foreign_error_report_low(ef, name);
+		fprintf(ef,
+			"Cannot find the table in the internal"
+			" data dictionary of InnoDB.\n"
+			"Create table statement:\n%s\n", sql_string);
+		mutex_exit(&dict_foreign_err_mutex);
 
-			return(DB_ERROR);
-		}
-	} else {
-		table = handler;
+		return(DB_ERROR);
 	}
 
 	/* First check if we are actually doing an ALTER TABLE, and in that
@@ -5058,7 +5035,6 @@ fields than mentioned in the constraint.
 				database id the database of parameter name
 @param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
-@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.
@@ -5069,7 +5045,6 @@ dict_create_foreign_constraints(
 	const char*		sql_string,
 	size_t			sql_length,
 	const char*		name,
-	dict_table_t*		handler,
 	ibool			reject_fks)
 {
 	char*		str;
@@ -5083,8 +5058,8 @@ dict_create_foreign_constraints(
 	heap = mem_heap_create(10000);
 
 	err = dict_create_foreign_constraints_low(
-		trx, heap, innobase_get_charset(trx->mysql_thd), str, name,
-		handler, reject_fks);
+		trx, heap, innobase_get_charset(trx->mysql_thd),
+		str, name, reject_fks);
 
 	mem_heap_free(heap);
 	ut_free(str);
@@ -5221,45 +5196,6 @@ syntax_error:
 }
 
 /*==================== END OF FOREIGN KEY PROCESSING ====================*/
-
-/**********************************************************************//**
-Returns an index object if it is found in the dictionary cache.
-Assumes that dict_sys->mutex is already being held.
-@return index, NULL if not found */
-dict_index_t*
-dict_index_get_if_in_cache_low(
-/*===========================*/
-	index_id_t	index_id)	/*!< in: index id */
-{
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	return(dict_index_find_on_id_low(index_id));
-}
-
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/**********************************************************************//**
-Returns an index object if it is found in the dictionary cache.
-@return index, NULL if not found */
-dict_index_t*
-dict_index_get_if_in_cache(
-/*=======================*/
-	index_id_t	index_id)	/*!< in: index id */
-{
-	dict_index_t*	index;
-
-	if (dict_sys == NULL) {
-		return(NULL);
-	}
-
-	mutex_enter(&dict_sys->mutex);
-
-	index = dict_index_get_if_in_cache_low(index_id);
-
-	mutex_exit(&dict_sys->mutex);
-
-	return(index);
-}
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
@@ -6839,7 +6775,7 @@ dict_tf_to_fsp_flags(
 	ut_ad(!page_size.is_compressed() || has_atomic_blobs);
 
 	/* General tablespaces that are not compressed do not get the
-	flags for dynamic row format (POST_ANTELOPE & ATOMIC_BLOBS) */
+	flags for dynamic row format (ATOMIC_BLOBS) */
 	if (is_shared && !page_size.is_compressed()) {
 		has_atomic_blobs = false;
 	}
@@ -6916,3 +6852,52 @@ dict_tablespace_is_empty(
 	return(!found);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/** Determine the extent size (in pages) for the given table
+@param[in]	table	the table whose extent size is being
+			calculated.
+@return extent size in pages (256, 128 or 64) */
+ulint
+dict_table_extent_size(
+	const dict_table_t*	table)
+{
+	const ulint	mb_1 = 1024 * 1024;
+	const ulint	mb_2 = 2 * mb_1;
+	const ulint	mb_4 = 4 * mb_1;
+
+	page_size_t	page_size = dict_table_page_size(table);
+	ulint	pages_in_extent = FSP_EXTENT_SIZE;
+
+	if (page_size.is_compressed()) {
+
+		ulint	disk_page_size	= page_size.physical();
+
+		switch (disk_page_size) {
+		case 1024:
+			pages_in_extent = mb_1/1024;
+			break;
+		case 2048:
+			pages_in_extent = mb_1/2048;
+			break;
+		case 4096:
+			pages_in_extent = mb_1/4096;
+			break;
+		case 8192:
+			pages_in_extent = mb_1/8192;
+			break;
+		case 16384:
+			pages_in_extent = mb_1/16384;
+			break;
+		case 32768:
+			pages_in_extent = mb_2/32768;
+			break;
+		case 65536:
+			pages_in_extent = mb_4/65536;
+			break;
+		default:
+			ut_ad(0);
+		}
+	}
+
+	return(pages_in_extent);
+}

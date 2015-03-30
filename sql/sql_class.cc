@@ -29,7 +29,9 @@
 #include "connection_handler_manager.h"      // Connection_handler_manager
 #include "current_thd.h"
 #include "debug_sync.h"                      // DEBUG_SYNC
+#include "derror.h"                          // ER_THD
 #include "lock.h"                            // mysql_lock_abort_for_thread
+#include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
 #include "psi_memory_key.h"
@@ -40,6 +42,7 @@
 #include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_audit.h"                       // mysql_audit_free_thd
 #include "sql_base.h"                        // close_temporary_tables
+#include "sql_cache.h"                       // query_cache
 #include "sql_callback.h"                    // MYSQL_CALLBACK
 #include "sql_handler.h"                     // mysql_ha_cleanup
 #include "sql_parse.h"                       // is_update_query
@@ -278,31 +281,6 @@ THD::Attachable_trx::~Attachable_trx()
   }
 }
 
-/****************************************************************************
-** User variables
-****************************************************************************/
-// static
-user_var_entry* user_var_entry::create(THD *thd,
-                                       const Name_string &name,
-                                       const CHARSET_INFO *cs)
-{
-  if (check_column_name(name.ptr()))
-  {
-    my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
-    return NULL;
-  }
-
-  user_var_entry *entry;
-  size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
-    (name.length() + 1) + extra_size;
-  if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
-                                           size, MYF(MY_WME |
-                                                     ME_FATALERROR))))
-    return NULL;
-  entry->init(thd, name, cs);
-  return entry;
-}
-
 
 extern "C" uchar *get_var_key(user_var_entry *entry, size_t *length,
                               my_bool not_used __attribute__((unused)))
@@ -314,171 +292,6 @@ extern "C" uchar *get_var_key(user_var_entry *entry, size_t *length,
 extern "C" void free_user_var(user_var_entry *entry)
 {
   entry->destroy();
-}
-
-bool Key_part_spec::operator==(const Key_part_spec& other) const
-{
-  return length == other.length &&
-         !my_strcasecmp(system_charset_info, field_name.str,
-                        other.field_name.str);
-}
-
-/**
-  Construct an (almost) deep copy of this key. Only those
-  elements that are known to never change are not copied.
-  If out of memory, a partial copy is returned and an error is set
-  in THD.
-*/
-
-Key::Key(const Key &rhs, MEM_ROOT *mem_root)
-  :type(rhs.type),
-  key_create_info(rhs.key_create_info),
-  columns(rhs.columns, mem_root),
-  name(rhs.name),
-  generated(rhs.generated)
-{
-  list_copy_and_replace_each_value(columns, mem_root);
-}
-
-/**
-  Construct an (almost) deep copy of this foreign key. Only those
-  elements that are known to never change are not copied.
-  If out of memory, a partial copy is returned and an error is set
-  in THD.
-*/
-
-Foreign_key::Foreign_key(const Foreign_key &rhs, MEM_ROOT *mem_root)
-  :Key(rhs, mem_root),
-  ref_db(rhs.ref_db),
-  ref_table(rhs.ref_table),
-  ref_columns(rhs.ref_columns, mem_root),
-  delete_opt(rhs.delete_opt),
-  update_opt(rhs.update_opt),
-  match_opt(rhs.match_opt)
-{
-  list_copy_and_replace_each_value(ref_columns, mem_root);
-}
-
-/*
-  Test if a foreign key (= generated key) is a prefix of the given key
-  (ignoring key name, key type and order of columns)
-
-  NOTES:
-    This is only used to test if an index for a FOREIGN KEY exists
-
-  IMPLEMENTATION
-    We only compare field names
-
-  RETURN
-    0	Generated key is a prefix of other key
-    1	Not equal
-*/
-
-bool foreign_key_prefix(Key *a, Key *b)
-{
-  /* Ensure that 'a' is the generated key */
-  if (a->generated)
-  {
-    if (b->generated && a->columns.elements > b->columns.elements)
-      swap_variables(Key*, a, b);               // Put shorter key in 'a'
-  }
-  else
-  {
-    if (!b->generated)
-      return TRUE;                              // No foreign key
-    swap_variables(Key*, a, b);                 // Put generated key in 'a'
-  }
-
-  /* Test if 'a' is a prefix of 'b' */
-  if (a->columns.elements > b->columns.elements)
-    return TRUE;                                // Can't be prefix
-
-  List_iterator<Key_part_spec> col_it1(a->columns);
-  List_iterator<Key_part_spec> col_it2(b->columns);
-  const Key_part_spec *col1, *col2;
-
-#ifdef ENABLE_WHEN_INNODB_CAN_HANDLE_SWAPED_FOREIGN_KEY_COLUMNS
-  while ((col1= col_it1++))
-  {
-    bool found= 0;
-    col_it2.rewind();
-    while ((col2= col_it2++))
-    {
-      if (*col1 == *col2)
-      {
-        found= TRUE;
-	break;
-      }
-    }
-    if (!found)
-      return TRUE;                              // Error
-  }
-  return FALSE;                                 // Is prefix
-#else
-  while ((col1= col_it1++))
-  {
-    col2= col_it2++;
-    if (!(*col1 == *col2))
-      return TRUE;
-  }
-  return FALSE;                                 // Is prefix
-#endif
-}
-
-/**
-  @brief  validate
-    Check if the foreign key options are compatible with columns
-    on which the FK is created.
-
-  @param table_fields         List of columns 
-
-  @return
-    false   Key valid
-  @return
-    true   Key invalid
- */
-bool Foreign_key::validate(List<Create_field> &table_fields)
-{
-  Create_field  *sql_field;
-  Key_part_spec *column;
-  List_iterator<Key_part_spec> cols(columns);
-  List_iterator<Create_field> it(table_fields);
-  DBUG_ENTER("Foreign_key::validate");
-  while ((column= cols++))
-  {
-    it.rewind();
-    while ((sql_field= it++) &&
-           my_strcasecmp(system_charset_info,
-                         column->field_name.str,
-                         sql_field->field_name)) {}
-    if (!sql_field)
-    {
-      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
-      DBUG_RETURN(TRUE);
-    }
-    if (type == KEYTYPE_FOREIGN && sql_field->gcol_info)
-    {
-      if (delete_opt == FK_OPTION_SET_NULL)
-      {
-        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
-                 "ON DELETE SET NULL");
-        DBUG_RETURN(TRUE);
-      }
-      if (update_opt == FK_OPTION_SET_NULL)
-      {
-        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
-                 "ON UPDATE SET NULL");
-        DBUG_RETURN(TRUE);
-      }
-      if (update_opt == FK_OPTION_CASCADE)
-      {
-        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
-                 "ON UPDATE CASCADE");
-        DBUG_RETURN(TRUE);
-      }
-    }
-  }
-  DBUG_RETURN(FALSE);
 }
 
 
@@ -558,31 +371,6 @@ void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
 partition_info *thd_get_work_part_info(THD *thd)
 {
   return thd->work_part_info;
-}
-
-
-/**
-  Implementation of Drop_table_error_handler::handle_condition().
-  The reason in having this implementation is to silence technical low-level
-  warnings during DROP TABLE operation. Currently we don't want to expose
-  the following warnings during DROP TABLE:
-    - Some of table files are missed or invalid (the table is going to be
-      deleted anyway, so why bother that something was missed);
-    - A trigger associated with the table does not have DEFINER (One of the
-      MySQL specifics now is that triggers are loaded for the table being
-      dropped. So, we may have a warning that trigger does not have DEFINER
-      attribute during DROP TABLE operation).
-
-  @return true if the condition is handled.
-*/
-bool Drop_table_error_handler::handle_condition(THD *thd,
-                                                uint sql_errno,
-                                                const char* sqlstate,
-                                                Sql_condition::enum_severity_level *level,
-                                                const char* msg)
-{
-  return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
-          sql_errno == ER_TRG_NO_DEFINER);
 }
 
 
@@ -708,7 +496,7 @@ THD::THD(bool enable_plugins)
   cuted_fields= 0L;
   m_sent_row_count= 0L;
   limit_found_rows= 0;
-  is_operating_gtid_table= false;
+  is_operating_gtid_table_implicitly= false;
   m_row_count_func= -1;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
@@ -736,7 +524,6 @@ THD::THD(bool enable_plugins)
   mysql_audit_init_thd(this);
   net.vio=0;
 #endif
-  client_capabilities= 0;                       // minimalistic client
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= 0;
   m_release_resources_done= false;
@@ -775,11 +562,11 @@ THD::THD(bool enable_plugins)
   sp_func_cache= NULL;
 
   /* Protocol */
-  protocol= &protocol_text;			// Default protocol
+  m_protocol= &protocol_text;			// Default protocol
   protocol_text.init(this);
   protocol_binary.init(this);
+  protocol_text.set_client_capabilities(0); // minimalistic client
 
-  tablespace_op= false;
   substitute_null_with_insert_id = FALSE;
 
   /*
@@ -1026,7 +813,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)
     got_warning= true;
 
-  query_cache.abort(&query_cache_tls);
+  query_cache.abort(this, &query_cache_tls);
 
   Diagnostics_area *da= get_stmt_da();
   if (level == Sql_condition::SL_ERROR)
@@ -1236,21 +1023,23 @@ void THD::cleanup_connection(void)
 */
 void THD::cleanup(void)
 {
+  Transaction_ctx *trn_ctx= get_transaction();
+  XID_STATE *xs= trn_ctx->xid_state();
+
   DBUG_ENTER("THD::cleanup");
   DBUG_ASSERT(cleanup_done == 0);
 
   killed= KILL_CONNECTION;
   session_tracker.deinit();
-#ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
-  if (transaction.xid_state.has_state(XA_STATE::XA_PREPARED))
+  if (trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED))
   {
-#error xid_state in the cache should be replaced by the allocated value
+    transaction_cache_detach(trn_ctx);
   }
-#endif
+  else
   {
-    get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
+    xs->set_state(XID_STATE::XA_NOTR);
     trans_rollback(this);
-    transaction_cache_delete(get_transaction());
+    transaction_cache_delete(trn_ctx);
   }
 
   locked_tables_list.unlock_locked_tables(this);
@@ -1288,7 +1077,7 @@ void THD::cleanup(void)
     commit the current transaction coordinator after executing cleanup
     actions.
    */
-  if (tc_log)
+  if (tc_log && !trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED))
     tc_log->commit(this, true);
 
   /*
@@ -1324,11 +1113,10 @@ void THD::release_resources()
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
-  if (net.vio)
+  if (get_protocol_classic()->get_vio())
   {
-    vio_delete(net.vio);
-    net_end(&net);
-    net.vio= NULL;
+    vio_delete(get_protocol_classic()->get_vio());
+    get_protocol_classic()->end_net();
   }
 #endif
 
@@ -1578,9 +1366,10 @@ void THD::disconnect()
   shutdown_active_vio();
 
   /* Disconnect even if a active vio is not associated. */
-  if (net.vio != vio && net.vio != NULL)
+  if (get_protocol_classic()->get_vio() != vio &&
+      get_protocol_classic()->vio_ok())
   {
-    vio_shutdown(net.vio);
+    m_protocol->shutdown();
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -1978,8 +1767,8 @@ int THD::send_explain_fields(Query_result *result)
   item->maybe_null=1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
   item->maybe_null= 1;
-  return (result->send_result_set_metadata(field_list,
-                                           Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
+  return (result->send_result_set_metadata(field_list, Protocol::SEND_NUM_ROWS |
+                                           Protocol::SEND_EOF));
 }
 
 void THD::shutdown_active_vio()
@@ -2093,732 +1882,6 @@ sql_exchange::sql_exchange(const char *name, bool flag,
 bool sql_exchange::escaped_given(void)
 {
   return field.escaped != &default_escaped;
-}
-
-
-Query_result::Query_result()
-  : thd(current_thd), unit(NULL), estimated_rowcount(0)
-{ }
-
-
-bool Query_result_send::send_result_set_metadata(List<Item> &list, uint flags)
-{
-  bool res;
-  if (!(res= thd->protocol->send_result_set_metadata(&list, flags)))
-    is_result_set_started= 1;
-  return res;
-}
-
-void Query_result_send::abort_result_set()
-{
-  DBUG_ENTER("Query_result_send::abort_result_set");
-
-  if (is_result_set_started && thd->sp_runtime_ctx)
-  {
-    /*
-      We're executing a stored procedure, have an open result
-      set and an SQL exception condition. In this situation we
-      must abort the current statement, silence the error and
-      start executing the continue/exit handler if one is found.
-      Before aborting the statement, let's end the open result set, as
-      otherwise the client will hang due to the violation of the
-      client/server protocol.
-    */
-    thd->sp_runtime_ctx->end_partial_result_set= TRUE;
-  }
-  DBUG_VOID_RETURN;
-}
-
-
-/* Send data to client. Returns 0 if ok */
-
-bool Query_result_send::send_data(List<Item> &items)
-{
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("Query_result_send::send_data");
-
-  if (unit->offset_limit_cnt)
-  {						// using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(FALSE);
-  }
-
-  /*
-    We may be passing the control from mysqld to the client: release the
-    InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
-    by thd
-  */
-  ha_release_temporary_latches(thd);
-
-  protocol->prepare_for_resend();
-  if (protocol->send_result_set_row(&items))
-  {
-    protocol->remove_last_row();
-    DBUG_RETURN(TRUE);
-  }
-
-  thd->inc_sent_row_count(1);
-
-  if (thd->vio_ok())
-    DBUG_RETURN(protocol->write());
-
-  DBUG_RETURN(0);
-}
-
-bool Query_result_send::send_eof()
-{
-  /* 
-    We may be passing the control from mysqld to the client: release the
-    InnoDB adaptive hash S-latch to avoid thread deadlocks if it was reserved
-    by thd 
-  */
-  ha_release_temporary_latches(thd);
-
-  /* 
-    Don't send EOF if we're in error condition (which implies we've already
-    sent or are sending an error)
-  */
-  if (thd->is_error())
-    return TRUE;
-  ::my_eof(thd);
-  is_result_set_started= 0;
-  return FALSE;
-}
-
-
-/************************************************************************
-  Handling writing to file
-************************************************************************/
-
-void Query_result_to_file::send_error(uint errcode,const char *err)
-{
-  my_message(errcode, err, MYF(0));
-  if (file > 0)
-  {
-    (void) end_io_cache(&cache);
-    mysql_file_close(file, MYF(0));
-    /* Delete file on error */
-    mysql_file_delete(key_select_to_file, path, MYF(0));
-    file= -1;
-  }
-}
-
-
-bool Query_result_to_file::send_eof()
-{
-  int error= MY_TEST(end_io_cache(&cache));
-  if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error())
-    error= true;
-
-  if (!error)
-  {
-    ::my_ok(thd,row_count);
-  }
-  file= -1;
-  return error;
-}
-
-
-void Query_result_to_file::cleanup()
-{
-  /* In case of error send_eof() may be not called: close the file here. */
-  if (file >= 0)
-  {
-    (void) end_io_cache(&cache);
-    mysql_file_close(file, MYF(0));
-    file= -1;
-  }
-  path[0]= '\0';
-  row_count= 0;
-}
-
-
-Query_result_to_file::~Query_result_to_file()
-{
-  if (file >= 0)
-  {					// This only happens in case of error
-    (void) end_io_cache(&cache);
-    mysql_file_close(file, MYF(0));
-    file= -1;
-  }
-}
-
-/***************************************************************************
-** Export of select to textfile
-***************************************************************************/
-
-/*
-  Create file with IO cache
-
-  SYNOPSIS
-    create_file()
-    thd			Thread handle
-    path		File name
-    exchange		Excange class
-    cache		IO cache
-
-  RETURN
-    >= 0 	File handle
-   -1		Error
-*/
-
-
-static File create_file(THD *thd, char *path, sql_exchange *exchange,
-			IO_CACHE *cache)
-{
-  File file;
-  uint option= MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
-
-  if (!dirname_length(exchange->file_name))
-  {
-    strxnmov(path, FN_REFLEN-1, mysql_real_data_home,
-             thd->db().str ? thd->db().str : "",
-             NullS);
-    (void) fn_format(path, exchange->file_name, path, "", option);
-  }
-  else
-    (void) fn_format(path, exchange->file_name, mysql_real_data_home, "", option);
-
-  if (!is_secure_file_path(path))
-  {
-    /* Write only allowed to dir or subdir specified by secure_file_priv */
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
-    return -1;
-  }
-
-  if (!access(path, F_OK))
-  {
-    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
-    return -1;
-  }
-  /* Create the file world readable */
-  if ((file= mysql_file_create(key_select_to_file,
-                               path, 0666, O_WRONLY|O_EXCL, MYF(MY_WME))) < 0)
-    return file;
-#ifdef HAVE_FCHMOD
-  (void) fchmod(file, 0666);			// Because of umask()
-#else
-  (void) chmod(path, 0666);
-#endif
-  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME)))
-  {
-    mysql_file_close(file, MYF(0));
-    /* Delete file on error, it was just created */
-    mysql_file_delete(key_select_to_file, path, MYF(0));
-    return -1;
-  }
-  return file;
-}
-
-
-int Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
-{
-  bool blob_flag=0;
-  bool string_results= FALSE, non_string_results= FALSE;
-  unit= u;
-  if (strlen(exchange->file_name) + NAME_LEN >= FN_REFLEN)
-    strmake(path,exchange->file_name,FN_REFLEN-1);
-
-  write_cs= exchange->cs ? exchange->cs : &my_charset_bin;
-
-  if ((file= create_file(thd, path, exchange, &cache)) < 0)
-    return 1;
-  /* Check if there is any blobs in data */
-  {
-    List_iterator_fast<Item> li(list);
-    Item *item;
-    while ((item=li++))
-    {
-      if (item->max_length >= MAX_BLOB_WIDTH)
-      {
-	blob_flag=1;
-	break;
-      }
-      if (item->result_type() == STRING_RESULT)
-        string_results= TRUE;
-      else
-        non_string_results= TRUE;
-    }
-  }
-  if (exchange->field.escaped->numchars() > 1 ||
-      exchange->field.enclosed->numchars() > 1)
-  {
-    my_error(ER_WRONG_FIELD_TERMINATORS, MYF(0));
-    return TRUE;
-  }
-  if (exchange->field.escaped->length() > 1 ||
-      exchange->field.enclosed->length() > 1 ||
-      !my_isascii(exchange->field.escaped->ptr()[0]) ||
-      !my_isascii(exchange->field.enclosed->ptr()[0]) ||
-      !exchange->field.field_term->is_ascii() ||
-      !exchange->line.line_term->is_ascii() ||
-      !exchange->line.line_start->is_ascii())
-  {
-    /*
-      Current LOAD DATA INFILE recognizes field/line separators "as is" without
-      converting from client charset to data file charset. So, it is supposed,
-      that input file of LOAD DATA INFILE consists of data in one charset and
-      separators in other charset. For the compatibility with that [buggy]
-      behaviour SELECT INTO OUTFILE implementation has been saved "as is" too,
-      but the new warning message has been added:
-
-        Non-ASCII separator arguments are not fully supported
-    */
-    push_warning(thd, Sql_condition::SL_WARNING,
-                 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
-                 ER_THD(thd, WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
-  }
-  field_term_length=exchange->field.field_term->length();
-  field_term_char= field_term_length ?
-                   (int) (uchar) (*exchange->field.field_term)[0] : INT_MAX;
-  if (!exchange->line.line_term->length())
-    exchange->line.line_term=exchange->field.field_term;// Use this if it exists
-  field_sep_char= (exchange->field.enclosed->length() ?
-                  (int) (uchar) (*exchange->field.enclosed)[0] :
-                  field_term_char);
-  if (exchange->field.escaped->length() && (exchange->escaped_given() ||
-      !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
-    escape_char= (int) (uchar) (*exchange->field.escaped)[0];
-  else
-    escape_char= -1;
-  is_ambiguous_field_sep= MY_TEST(strchr(ESCAPE_CHARS, field_sep_char));
-  is_unsafe_field_sep= MY_TEST(strchr(NUMERIC_CHARS, field_sep_char));
-  line_sep_char= (exchange->line.line_term->length() ?
-                 (int) (uchar) (*exchange->line.line_term)[0] : INT_MAX);
-  if (!field_term_length)
-    exchange->field.opt_enclosed=0;
-  if (!exchange->field.enclosed->length())
-    exchange->field.opt_enclosed=1;                     // A little quicker loop
-  fixed_row_size= (!field_term_length && !exchange->field.enclosed->length() &&
-		   !blob_flag);
-  if ((is_ambiguous_field_sep && exchange->field.enclosed->is_empty() &&
-       (string_results || is_unsafe_field_sep)) ||
-      (exchange->field.opt_enclosed && non_string_results &&
-       field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
-  {
-    push_warning(thd, Sql_condition::SL_WARNING,
-                 ER_AMBIGUOUS_FIELD_TERM, ER_THD(thd, ER_AMBIGUOUS_FIELD_TERM));
-    is_ambiguous_field_term= TRUE;
-  }
-  else
-    is_ambiguous_field_term= FALSE;
-
-  return 0;
-}
-
-
-#define NEED_ESCAPING(x) ((int) (uchar) (x) == escape_char    || \
-                          (enclosed ? (int) (uchar) (x) == field_sep_char      \
-                                    : (int) (uchar) (x) == field_term_char) || \
-                          (int) (uchar) (x) == line_sep_char  || \
-                          !(x))
-
-bool Query_result_export::send_data(List<Item> &items)
-{
-
-  DBUG_ENTER("Query_result_export::send_data");
-  char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
-  char cvt_buff[MAX_FIELD_WIDTH];
-  String cvt_str(cvt_buff, sizeof(cvt_buff), write_cs);
-  bool space_inited=0;
-  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
-  tmp.length(0);
-
-  if (unit->offset_limit_cnt)
-  {						// using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
-  }
-  row_count++;
-  Item *item;
-  size_t used_length=0;
-  uint items_left=items.elements;
-  List_iterator_fast<Item> li(items);
-
-  if (my_b_write(&cache,(uchar*) exchange->line.line_start->ptr(),
-		 exchange->line.line_start->length()))
-    goto err;
-  while ((item=li++))
-  {
-    Item_result result_type=item->result_type();
-    bool enclosed = (exchange->field.enclosed->length() &&
-                     (!exchange->field.opt_enclosed ||
-                      result_type == STRING_RESULT));
-    res=item->str_result(&tmp);
-    if (res && !my_charset_same(write_cs, res->charset()) &&
-        !my_charset_same(write_cs, &my_charset_bin))
-    {
-      const char *well_formed_error_pos;
-      const char *cannot_convert_error_pos;
-      const char *from_end_pos;
-      const char *error_pos;
-      size_t bytes;
-      uint64 estimated_bytes=
-        ((uint64) res->length() / res->charset()->mbminlen + 1) *
-        write_cs->mbmaxlen + 1;
-      set_if_smaller(estimated_bytes, UINT_MAX32);
-      if (cvt_str.mem_realloc((uint32) estimated_bytes))
-      {
-        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32) estimated_bytes);
-        goto err;
-      }
-
-      bytes= well_formed_copy_nchars(write_cs, (char *) cvt_str.ptr(),
-                                     cvt_str.alloced_length(),
-                                     res->charset(), res->ptr(), res->length(),
-                                     UINT_MAX32, // copy all input chars,
-                                                 // i.e. ignore nchars parameter
-                                     &well_formed_error_pos,
-                                     &cannot_convert_error_pos,
-                                     &from_end_pos);
-      error_pos= well_formed_error_pos ? well_formed_error_pos
-                                       : cannot_convert_error_pos;
-      if (error_pos)
-      {
-        char printable_buff[32];
-        convert_to_printable(printable_buff, sizeof(printable_buff),
-                             error_pos, res->ptr() + res->length() - error_pos,
-                             res->charset(), 6);
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                            ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                            "string", printable_buff,
-                            item->item_name.ptr(), static_cast<long>(row_count));
-      }
-      else if (from_end_pos < res->ptr() + res->length())
-      { 
-        /*
-          result is longer than UINT_MAX32 and doesn't fit into String
-        */
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            WARN_DATA_TRUNCATED,
-                            ER_THD(thd, WARN_DATA_TRUNCATED),
-                            item->full_name(), static_cast<long>(row_count));
-      }
-      cvt_str.length(bytes);
-      res= &cvt_str;
-    }
-    if (res && enclosed)
-    {
-      if (my_b_write(&cache,(uchar*) exchange->field.enclosed->ptr(),
-		     exchange->field.enclosed->length()))
-	goto err;
-    }
-    if (!res)
-    {						// NULL
-      if (!fixed_row_size)
-      {
-	if (escape_char != -1)			// Use \N syntax
-	{
-	  null_buff[0]=escape_char;
-	  null_buff[1]='N';
-	  if (my_b_write(&cache,(uchar*) null_buff,2))
-	    goto err;
-	}
-	else if (my_b_write(&cache,(uchar*) "NULL",4))
-	  goto err;
-      }
-      else
-      {
-	used_length=0;				// Fill with space
-      }
-    }
-    else
-    {
-      if (fixed_row_size)
-	used_length=min<size_t>(res->length(),item->max_length);
-      else
-	used_length=res->length();
-      if ((result_type == STRING_RESULT || is_unsafe_field_sep) &&
-           escape_char != -1)
-      {
-        char *pos, *start, *end;
-        bool escape_4_bytes= false;
-        int in_escapable_4_bytes= 0;
-        const CHARSET_INFO *res_charset= res->charset();
-        const CHARSET_INFO *character_set_client=
-          thd->variables.character_set_client;
-        bool check_following_byte= (res_charset == &my_charset_bin) &&
-                                    character_set_client->
-                                    escape_with_backslash_is_dangerous;
-        /*
-          The judgement of mbmaxlenlen == 2 is for gb18030 only.
-          Since there are several charsets with mbmaxlen == 4,
-          so we have to use mbmaxlenlen == 2 here, which is only true
-          for gb18030 currently.
-        */
-        DBUG_ASSERT(character_set_client->mbmaxlen == 2 ||
-                    my_mbmaxlenlen(character_set_client) == 2 ||
-                    !character_set_client->escape_with_backslash_is_dangerous);
-	for (start=pos=(char*) res->ptr(),end=pos+used_length ;
-	     pos != end ;
-	     pos++)
-	{
-          bool need_escape= false;
-	  if (use_mb(res_charset))
-	  {
-	    int l;
-	    if ((l=my_ismbchar(res_charset, pos, end)))
-	    {
-	      pos += l-1;
-	      continue;
-	    }
-	  }
-
-          /*
-            Special case when dumping BINARY/VARBINARY/BLOB values
-            for the clients with character sets big5, cp932, gbk, sjis
-            and gb18030, which can have the escape character
-            (0x5C "\" by default) as the second byte of a multi-byte sequence.
-
-            The escape character had better be single-byte character,
-            non-ASCII characters are not prohibited, but not fully supported.
-
-            If
-            - pos[0] is a valid multi-byte head (e.g 0xEE) and
-            - pos[1] is 0x00, which will be escaped as "\0",
-
-            then we'll get "0xEE + 0x5C + 0x30" in the output file.
-
-            If this file is later loaded using this sequence of commands:
-
-            mysql> create table t1 (a varchar(128)) character set big5;
-            mysql> LOAD DATA INFILE 'dump.txt' INTO TABLE t1;
-
-            then 0x5C will be misinterpreted as the second byte
-            of a multi-byte character "0xEE + 0x5C", instead of
-            escape character for 0x00.
-
-            To avoid this confusion, we'll escape the multi-byte
-            head character too, so the sequence "0xEE + 0x00" will be
-            dumped as "0x5C + 0xEE + 0x5C + 0x30".
-
-            Note, in the condition below we only check if
-            mbcharlen is equal to 2, because there are no
-            character sets with mbmaxlen longer than 2
-            and with escape_with_backslash_is_dangerous set.
-            DBUG_ASSERT before the loop makes that sure.
-
-            But gb18030 is an exception. First of all, 2-byte codes
-            would be affected by the issue above without doubt.
-            Then, 4-byte gb18030 codes would be affected as well.
-
-            Supposing the input is GB+81358130, and the
-            field_term_char is set to '5', escape char is 0x5C by default.
-            When we come to the first byte 0x81, if we don't escape it but
-            escape the second byte 0x35 as it's the field_term_char,
-            we would get 0x81 0x5C 0x35 0x81 0x30 for the gb18030 character.
-            That would be the same issue as mentioned above.
-
-            Also, if we just escape the leading 2 bytes, we would get
-            0x5C 0x81 0x5C 0x35 0x81 0x30 in this case.
-            The reader of this sequence would assume that 0x81 0x30
-            is the starting of a new gb18030 character, which would
-            result in further confusion.
-
-            Once we find any byte of the 4-byte gb18030 character should
-            be escaped, we have to escape all the 4 bytes.
-            So for GB+81358130, we will get:
-            0x5C 0x81 0x5C 0x35 0x5C 0x81 0x30
-
-            The byte 0x30 shouldn't be escaped(no matter it's the second
-            or fourth byte in the sequence), since '\0' would be treated
-            as 0x00, which is not what we expect. And 0x30 would be treated as
-            an ASCII char when we read it, which is correct.
-          */
-
-          DBUG_ASSERT(in_escapable_4_bytes >= 0);
-          if (in_escapable_4_bytes > 0)
-          {
-            DBUG_ASSERT(check_following_byte);
-            /* We should escape or not escape all the 4 bytes. */
-            need_escape= escape_4_bytes;
-          }
-          else if (NEED_ESCAPING(*pos))
-          {
-            need_escape= true;
-            if (my_mbmaxlenlen(character_set_client) == 2 &&
-                my_mbcharlen_ptr(character_set_client, pos, end) == 4)
-            {
-              in_escapable_4_bytes= 4;
-              escape_4_bytes= true;
-            }
-          }
-          else if (check_following_byte)
-          {
-             int len= my_mbcharlen_ptr(character_set_client, pos, end);
-             if (len == 2 && pos + 1 < end && NEED_ESCAPING(pos[1]))
-               need_escape= true;
-             else if (len == 4 && my_mbmaxlenlen(character_set_client) == 2 &&
-                      pos + 3 < end)
-             {
-               in_escapable_4_bytes= 4;
-               escape_4_bytes= (NEED_ESCAPING(pos[1]) ||
-                                NEED_ESCAPING(pos[2]) ||
-                                NEED_ESCAPING(pos[3]));
-               need_escape= escape_4_bytes;
-             }
-          }
-          /* Mark how many coming bytes should be escaped, only for gb18030 */
-          if (in_escapable_4_bytes > 0)
-          {
-            in_escapable_4_bytes--;
-            /*
-             Note that '0' (0x30) in the middle of a 4-byte sequence
-             can't be escaped. Please read more details from above comments.
-             2-byte codes won't be affected by this issue.
-            */
-            if (pos[0] == 0x30)
-              need_escape= false;
-          }
-
-          if (need_escape &&
-              /*
-               Don't escape field_term_char by doubling - doubling is only
-               valid for ENCLOSED BY characters:
-              */
-              (enclosed || !is_ambiguous_field_term ||
-               (int) (uchar) *pos != field_term_char))
-          {
-	    char tmp_buff[2];
-            tmp_buff[0]= ((int) (uchar) *pos == field_sep_char &&
-                          is_ambiguous_field_sep) ?
-                          field_sep_char : escape_char;
-	    tmp_buff[1]= *pos ? *pos : '0';
-	    if (my_b_write(&cache,(uchar*) start,(uint) (pos-start)) ||
-		my_b_write(&cache,(uchar*) tmp_buff,2))
-	      goto err;
-	    start=pos+1;
-	  }
-	}
-
-        /* Assert that no escape mode is active here */
-        DBUG_ASSERT(in_escapable_4_bytes == 0);
-
-	if (my_b_write(&cache,(uchar*) start,(uint) (pos-start)))
-	  goto err;
-      }
-      else if (my_b_write(&cache,(uchar*) res->ptr(),used_length))
-	goto err;
-    }
-    if (fixed_row_size)
-    {						// Fill with space
-      if (item->max_length > used_length)
-      {
-	/* QQ:  Fix by adding a my_b_fill() function */
-	if (!space_inited)
-	{
-	  space_inited=1;
-	  memset(space, ' ', sizeof(space));
-	}
-	size_t length=item->max_length-used_length;
-	for (; length > sizeof(space) ; length-=sizeof(space))
-	{
-	  if (my_b_write(&cache,(uchar*) space,sizeof(space)))
-	    goto err;
-	}
-	if (my_b_write(&cache,(uchar*) space,length))
-	  goto err;
-      }
-    }
-    if (res && enclosed)
-    {
-      if (my_b_write(&cache, (uchar*) exchange->field.enclosed->ptr(),
-                     exchange->field.enclosed->length()))
-        goto err;
-    }
-    if (--items_left)
-    {
-      if (my_b_write(&cache, (uchar*) exchange->field.field_term->ptr(),
-                     field_term_length))
-        goto err;
-    }
-  }
-  if (my_b_write(&cache,(uchar*) exchange->line.line_term->ptr(),
-		 exchange->line.line_term->length()))
-    goto err;
-  DBUG_RETURN(0);
-err:
-  DBUG_RETURN(1);
-}
-
-
-/***************************************************************************
-** Dump of query to a binary file
-***************************************************************************/
-
-
-int Query_result_dump::prepare(List<Item> &list __attribute__((unused)),
-                               SELECT_LEX_UNIT *u)
-{
-  unit= u;
-  return (int) ((file= create_file(thd, path, exchange, &cache)) < 0);
-}
-
-
-bool Query_result_dump::send_data(List<Item> &items)
-{
-  List_iterator_fast<Item> li(items);
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
-  tmp.length(0);
-  Item *item;
-  DBUG_ENTER("Query_result_dump::send_data");
-
-  if (unit->offset_limit_cnt)
-  {						// using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
-  }
-  if (row_count++ > 1) 
-  {
-    my_error(ER_TOO_MANY_ROWS, MYF(0));
-    goto err;
-  }
-  while ((item=li++))
-  {
-    res=item->str_result(&tmp);
-    if (!res)					// If NULL
-    {
-      if (my_b_write(&cache,(uchar*) "",1))
-	goto err;
-    }
-    else if (my_b_write(&cache,(uchar*) res->ptr(),res->length()))
-    {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno,
-               my_strerror(errbuf, sizeof(errbuf), my_errno));
-      goto err;
-    }
-  }
-  DBUG_RETURN(0);
-err:
-  DBUG_RETURN(1);
-}
-
-
-/***************************************************************************
-  Dump of select to variables
-***************************************************************************/
-
-int Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
-{
-  unit= u;
-
-  if (var_list.elements != list.elements)
-  {
-    my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
-    return 1;
-  }
-
-  return 0;
-}
-
-
-bool Query_dumpvar::check_simple_select() const
-{
-  my_error(ER_SP_BAD_CURSOR_SELECT, MYF(0));
-  return TRUE;
 }
 
 
@@ -3143,6 +2206,25 @@ void THD::set_status_var_init()
   memset(&status_var, 0, sizeof(status_var));
 }
 
+void THD::send_kill_message() const
+{
+  int err= killed_errno();
+  if (err && !get_stmt_da()->is_set())
+  {
+    if ((err == KILL_CONNECTION) && !connection_events_loop_aborted())
+      err = KILL_QUERY;
+    /*
+      KILL is fatal because:
+      - if a condition handler was allowed to trap and ignore a KILL, one
+      could create routines which the DBA could not kill
+      - INSERT/UPDATE IGNORE should fail: if KILL arrives during
+      JOIN::optimize(), statement cannot possibly run as its caller expected
+      => "OK" would be misleading the caller.
+    */
+    my_error(err, MYF(ME_FATALERROR));
+  }
+}
+
 
 /****************************************************************************
   Handling of open and locked tables states.
@@ -3421,7 +2503,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->examined_row_count= m_examined_row_count;
   backup->sent_row_count= m_sent_row_count;
   backup->cuted_fields=     cuted_fields;
-  backup->client_capabilities= client_capabilities;
+  backup->client_capabilities= m_protocol->get_client_capabilities();
   backup->savepoints= get_transaction()->m_savepoints;
   backup->first_successful_insert_id_in_prev_stmt= 
     first_successful_insert_id_in_prev_stmt;
@@ -3440,7 +2522,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
     mysql_bin_log.start_union_events(this, this->query_id);
 
   /* Disable result sets */
-  client_capabilities &= ~CLIENT_MULTI_RESULTS;
+  get_protocol_classic()->remove_client_capability(CLIENT_MULTI_RESULTS);
   in_sub_stmt|= new_state;
   m_examined_row_count= 0;
   m_sent_row_count= 0;
@@ -3490,7 +2572,9 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     backup->first_successful_insert_id_in_cur_stmt;
   limit_found_rows= backup->limit_found_rows;
   set_sent_row_count(backup->sent_row_count);
-  client_capabilities= backup->client_capabilities;
+  DBUG_ASSERT(m_protocol->type() == Protocol::PROTOCOL_TEXT ||
+              m_protocol->type() == Protocol::PROTOCOL_BINARY);
+  get_protocol_classic()->set_client_capabilities(backup->client_capabilities);
 
   /*
     If we've left sub-statement mode, reset the fatal error flag.
@@ -3925,3 +3009,108 @@ void THD::parse_error_at(const YYLTYPE &location, const char *s)
                   s ? s : ER_THD(this, ER_SYNTAX_ERROR), err.ptr(), lineno);
 }
 
+bool THD::send_result_metadata(List<Item> *list, uint flags)
+{
+  DBUG_ENTER("send_result_metadata");
+  List_iterator_fast<Item> it(*list);
+  Item *item;
+  uchar buff[MAX_FIELD_WIDTH];
+  String tmp((char *) buff, sizeof(buff), &my_charset_bin);
+
+  if (m_protocol->start_result_metadata(list->elements, flags,
+          variables.character_set_results))
+    goto err;
+
+#ifdef EMBEDDED_LIBRARY                  // bootstrap file handling
+    if(!mysql)
+      DBUG_RETURN(false);
+#endif
+
+  while ((item= it++))
+  {
+    Send_field field;
+    item->make_field(&field);
+#ifndef EMBEDDED_LIBRARY
+    m_protocol->start_row();
+    if (m_protocol->send_field_metadata(&field,
+            item->charset_for_protocol()))
+      goto err;
+    if (flags & Protocol::SEND_DEFAULTS)
+      item->send(m_protocol, &tmp);
+    if (m_protocol->end_row())
+      DBUG_RETURN(true);
+#else
+      if(m_protocol->send_field_metadata(&field, item->charset_for_protocol()))
+        goto err;
+      if (flags & Protocol::SEND_DEFAULTS)
+        get_protocol_classic()->send_string_metadata(item->val_str(&tmp));
+#endif
+  }
+
+  DBUG_RETURN(m_protocol->end_result_metadata());
+
+  err:
+  my_error(ER_OUT_OF_RESOURCES, MYF(0));        /* purecov: inspected */
+  DBUG_RETURN(1);                               /* purecov: inspected */
+}
+
+bool THD::send_result_set_row(List<Item> *row_items)
+{
+  char buffer[MAX_FIELD_WIDTH];
+  String str_buffer(buffer, sizeof (buffer), &my_charset_bin);
+  List_iterator_fast<Item> it(*row_items);
+
+  DBUG_ENTER("send_result_set_row");
+
+  for (Item *item= it++; item; item= it++)
+  {
+    if (item->send(m_protocol, &str_buffer) || is_error())
+      DBUG_RETURN(true);
+    /*
+      Reset str_buffer to its original state, as it may have been altered in
+      Item::send().
+    */
+    str_buffer.set(buffer, sizeof(buffer), &my_charset_bin);
+  }
+  DBUG_RETURN(false);
+}
+
+void THD::send_statement_status()
+{
+  DBUG_ENTER("send_statement_status");
+  DBUG_ASSERT(!get_stmt_da()->is_sent());
+  bool error= false;
+  Diagnostics_area *da= get_stmt_da();
+
+  /* Can not be true, but do not take chances in production. */
+  if (da->is_sent())
+    DBUG_VOID_RETURN;
+
+  switch (da->status())
+  {
+    case Diagnostics_area::DA_ERROR:
+      /* The query failed, send error to log and abort bootstrap. */
+      error= m_protocol->send_error(
+              da->mysql_errno(), da->message_text(), da->returned_sqlstate());
+          break;
+    case Diagnostics_area::DA_EOF:
+      error= m_protocol->send_eof(
+              server_status, da->last_statement_cond_count());
+          break;
+    case Diagnostics_area::DA_OK:
+      error= m_protocol->send_ok(
+              server_status, da->last_statement_cond_count(),
+              da->affected_rows(), da->last_insert_id(), da->message_text());
+          break;
+    case Diagnostics_area::DA_DISABLED:
+      break;
+    case Diagnostics_area::DA_EMPTY:
+    default:
+      DBUG_ASSERT(0);
+          error= m_protocol->send_ok(server_status, 0, 0, 0, NULL);
+          break;
+  }
+  if (!error)
+    da->set_is_sent(true);
+  DBUG_VOID_RETURN;
+}

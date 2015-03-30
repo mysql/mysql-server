@@ -22,6 +22,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
 
+/* "innodb_file_per_table" tablespace name  is reserved by InnoDB in order
+to explicitly create a file_per_table tablespace for the table. */
+extern const char reserved_file_per_table_space_name[];
+
+/* "innodb_system" tablespace name is reserved by InnoDB for the system tablespace
+which uses space_id 0 and stores extra types of system pages like UNDO
+and doublewrite. */
+extern const char reserved_system_space_name[];
+
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
 struct innodb_idx_translate_t {
@@ -81,7 +90,7 @@ public:
 
 	uint max_supported_key_part_length() const;
 
-	const key_map* keys_to_use_for_scanning();
+	const Key_map* keys_to_use_for_scanning();
 
 	int open(const char *name, int mode, uint test_if_locked);
 
@@ -584,7 +593,7 @@ extern const char reserved_file_per_table_space_name[];
 @return true if the table is intended to use a file_per_table tablespace. */
 UNIV_INLINE
 bool
-target_is_file_per_table(
+tablespace_is_file_per_table(
 	const HA_CREATE_INFO*	create_info)
 {
 	return(create_info->tablespace != NULL
@@ -597,10 +606,11 @@ target_is_file_per_table(
 @return true if the table will use an existing shared general tablespace. */
 UNIV_INLINE
 bool
-target_is_shared_space(
+tablespace_is_shared_space(
 	const HA_CREATE_INFO*	create_info)
 {
 	return(create_info->tablespace != NULL
+	       && create_info->tablespace[0] != '\0'
 	       && (0 != strcmp(create_info->tablespace,
 			       reserved_file_per_table_space_name)));
 }
@@ -631,8 +641,7 @@ public:
 		char*		table_name,
 		char*		temp_path,
 		char*		remote_path,
-		char*		tablespace,
-		bool		file_per_table)
+		char*		tablespace)
 	:m_thd(thd),
 	m_form(form),
 	m_create_info(create_info),
@@ -640,19 +649,14 @@ public:
 	m_temp_path(temp_path),
 	m_remote_path(remote_path),
 	m_tablespace(tablespace),
-	m_file_per_table(file_per_table)
-	{
-		/* Note whether this table will be created using a shared,
-		general or system tablespace. */
-		m_use_shared_space = target_is_shared_space(m_create_info);
+	m_innodb_file_per_table(srv_file_per_table)
+	{}
 
-		/* DATA DIRECTORY must have m_file_per_table but cannot be
-		used with TEMPORARY tables. */
-		m_use_data_dir =
-			m_file_per_table
-			&& ((m_create_info->data_file_name != NULL)
-			&& !(m_create_info->options & HA_LEX_CREATE_TMP_TABLE));
-	}
+	/** Initialize the object. */
+	int initialize();
+
+	/** Set m_tablespace_type. */
+	void set_tablespace_type(bool table_being_altered_is_file_per_table);
 
 	/** Create the internal innodb table. */
 	int create_table();
@@ -676,12 +680,9 @@ public:
 	/** Validate TABLESPACE option. */
 	bool create_option_tablespace_is_valid();
 
-	/** Parses the table name into normal name and either temp path or
-	remote path if needed.*/
-	int parse_table_name(const char*	name);
-
 	/** Prepare to create a table. */
 	int prepare_create_table(const char*		name);
+
 	void allocate_trx();
 
 	/** Determines InnoDB table flags.
@@ -707,8 +708,10 @@ public:
 	/** Return table name. */
 	const char* table_name() const
 	{ return(m_table_name); }
+
 	THD* thd() const
 	{ return(m_thd); }
+
 	inline bool is_intrinsic_temp_table() const
 	{
 		/* DICT_TF2_INTRINSIC implies DICT_TF2_TEMPORARY */
@@ -731,6 +734,12 @@ public:
 		ibool           set_lower_case);
 
 private:
+	/** Parses the table name into normal name and either temp path or
+	remote path if needed.*/
+	int
+	parse_table_name(
+		const char*	name);
+
 	/** Create the internal innodb table definition. */
 	int create_table_def();
 
@@ -761,8 +770,18 @@ private:
 	/** Tablespace name or zero length-string. */
 	char*		m_tablespace;
 
-	/** Using file per table. */
-	bool		m_file_per_table;
+	/** Local copy of srv_file_per_table. */
+	bool		m_innodb_file_per_table;
+
+	/** Allow file_per_table for this table either because:
+	1) the setting innodb_file_per_table=on,
+	2) it was explicitly requested by tablespace=innodb_file_per_table.
+	3) the table being altered is currently file_per_table */
+	bool		m_allow_file_per_table;
+
+	/** After all considerations, this shows whether we will actually
+	create a table and tablespace using file-per-table. */
+	bool		m_use_file_per_table;
 
 	/** Using DATA DIRECTORY */
 	bool		m_use_data_dir;
@@ -912,17 +931,6 @@ innobase_release_temporary_latches(
 @param[in,out]	thd	MySQL thread handler.
 @return reference to transaction pointer */
 trx_t*& thd_to_trx(THD*	thd);
-
-/** Check if transaction is started.
-@param[in]	trx	Transaction.
-@return true if transaction is in state started */
-inline
-bool
-trx_is_started(
-	trx_t*	trx)
-{
-	return(trx->state != TRX_STATE_NOT_STARTED);
-}
 
 /** Converts an InnoDB error code to a MySQL error code.
 Also tells to MySQL about a possible transaction rollback inside InnoDB caused

@@ -2,6 +2,8 @@
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -64,6 +66,8 @@ engine = <engine_to_be_tested>;
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/t4.txt' into table t11;
 SET sql_mode = default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
 FUNCTION, ALTER PROCEDURE, ALTER FUNCTION, DROP PROCEDURE, DROP FUNCTION, SHOW
@@ -21637,7 +21641,7 @@ insert into temp_table values(a);
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
 set @@sql_mode = 'traditional';
 Warnings:
-Warning	3090	Setting sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be made read-only in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CALL sp2 ();
 SELECT * from temp_table;
 f1
@@ -21657,6 +21661,8 @@ check for *high_not_precedence* server sql mode
 --------------------------------------------------------------------------------
 DROP PROCEDURE IF EXISTS sp3;
 set @@sql_mode = 'high_not_precedence';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE sp3()
 BEGIN
 declare a int signed;

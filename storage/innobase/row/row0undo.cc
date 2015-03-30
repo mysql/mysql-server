@@ -200,11 +200,10 @@ row_undo_search_clust_to_pcur(
 		ut_ad(row_get_rec_trx_id(rec, clust_index, offsets)
 		      == node->trx->id);
 
-		if (dict_table_get_format(node->table) >= UNIV_FORMAT_B) {
-			/* In DYNAMIC or COMPRESSED format, there is
-			no prefix of externally stored columns in the
-			clustered index record. Build a cache of
-			column prefixes. */
+		if (dict_table_has_atomic_blobs(node->table)) {
+			/* There is no prefix of externally stored
+			columns in the clustered index record. Build a
+			cache of column prefixes. */
 			ext = &node->ext;
 		} else {
 			/* REDUNDANT and COMPACT formats store a local

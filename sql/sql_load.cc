@@ -20,6 +20,7 @@
 
 #include "sql_load.h"
 
+#include "mysqld.h"                             // mysql_real_data_home
 #include "psi_memory_key.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"          // fill_record_n_invoke_before_triggers
@@ -39,6 +40,7 @@
 #include "sql_show.h"
 #include "item_timefunc.h"  // Item_func_now_local
 #include "rpl_rli.h"     // Relay_log_info
+#include "derror.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -267,8 +269,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (table_list->is_merged())
   {
-    if (table_list->effective_with_check &&
-        table_list->prepare_check_option(thd))
+    if (table_list->prepare_check_option(thd))
       DBUG_RETURN(TRUE);
 
     if (handle_duplicates == DUP_REPLACE &&
@@ -359,7 +360,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (info.add_function_default_columns(table, table->write_set))
     DBUG_RETURN(TRUE);
 
-  prepare_triggers_for_insert_stmt(table);
+  prepare_triggers_for_insert_stmt(thd, table);
 
   uint tot_length=0;
   bool use_blobs= 0, use_vars= 0;
@@ -398,7 +399,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #ifndef EMBEDDED_LIBRARY
   if (read_file_from_client)
   {
-    (void)net_request_file(&thd->net,ex->file_name);
+    (void)net_request_file(thd->get_protocol_classic()->get_net(),
+                           ex->file_name);
     file = -1;
   }
   else

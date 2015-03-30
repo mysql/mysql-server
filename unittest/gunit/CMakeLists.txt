@@ -277,6 +277,7 @@ SET(TESTS
   mysys_my_write
   nullable
   opt_recperkey
+  partitioned_rwlock
   prealloced_array
   priority_queue
   sql_list

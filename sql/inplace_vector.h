@@ -1,7 +1,7 @@
 #ifndef INPLACE_VECTOR_INCLUDED
 #define INPLACE_VECTOR_INCLUDED
 
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,9 +19,8 @@
 
 /* This file defines the Inplace_vector class template. */
 
-#include "my_config.h"
+#include "my_global.h"
 #include <vector>
-#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
 

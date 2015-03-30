@@ -2271,6 +2271,12 @@ public:
   }
 
 
+  bool empty() const
+  {
+    return size() == 0;
+  }
+
+
   const_reference back() const
   {
     set_bg_adapter(true);
@@ -2672,6 +2678,7 @@ void Gis_wkb_vector<T>::clear()
   }
 
   DBUG_ASSERT(m_geo_vect && get_geotype() != Geometry::wkb_polygon);
+
   // Keep the component vector because this object can be reused again.
   const void *ptr= get_ptr();
   set_bg_adapter(true);

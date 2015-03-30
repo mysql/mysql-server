@@ -21,7 +21,7 @@
 
 class Create_field;
 class Item;
-class Key;
+class Key_spec;
 class String;
 struct TABLE_LIST;
 
@@ -204,6 +204,12 @@ public:
   // Set for adding/altering virtual generated columns
   static const uint ALTER_VIRTUAL_GCOLUMN       = 1L << 29;
 
+  // Set for discarding the tablespace
+  static const uint ALTER_DISCARD_TABLESPACE    = 1L << 30;
+
+  // Set for importing the tablespace
+  static const uint ALTER_IMPORT_TABLESPACE     = 1L << 31;
+
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
   /**
@@ -248,7 +254,7 @@ public:
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.
   List<Alter_column>            alter_list;
   // List of keys, used by both CREATE and ALTER TABLE.
-  List<Key>                     key_list;
+  List<Key_spec>                key_list;
   // Keys to be renamed.
   List<Alter_rename_key>        alter_rename_key_list;
   // List of columns, used by both CREATE and ALTER TABLE.
@@ -475,19 +481,10 @@ public:
 class Sql_cmd_discard_import_tablespace : public Sql_cmd_common_alter_table
 {
 public:
-  enum enum_tablespace_op_type
-  {
-    DISCARD_TABLESPACE, IMPORT_TABLESPACE
-  };
-
-  Sql_cmd_discard_import_tablespace(enum_tablespace_op_type tablespace_op_arg)
-    : m_tablespace_op(tablespace_op_arg)
+  Sql_cmd_discard_import_tablespace()
   {}
 
   bool execute(THD *thd);
-
-private:
-  const enum_tablespace_op_type m_tablespace_op;
 };
 
 #endif

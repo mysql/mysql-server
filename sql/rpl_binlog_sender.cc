@@ -17,13 +17,14 @@
 #include "rpl_binlog_sender.h"
 
 #include "debug_sync.h"              // debug_sync_set_action
+#include "derror.h"                  // ER_THD
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
+#include "mysqld.h"                  // global_system_variables ...
 #include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
 #include "rpl_handler.h"             // RUN_HOOK
 #include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
 #include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
 #include "sql_class.h"               // THD
-#include "current_thd.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -42,7 +43,9 @@ const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
 Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
                              my_off_t start_pos,
                              Gtid_set *exclude_gtids, uint32 flag)
-  : m_thd(thd), m_packet(thd->packet), m_start_file(start_file),
+  : m_thd(thd),
+    m_packet(*thd->get_protocol_classic()->get_packet()),
+    m_start_file(start_file),
     m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
     m_using_gtid_protocol(exclude_gtids != NULL),
     m_check_previous_gtid_event(exclude_gtids != NULL),
@@ -308,7 +311,7 @@ my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
     DBUG_EXECUTE_IF("wait_after_binlog_EOF",
                     {
                       const char act[]= "now wait_for signal.rotate_finished no_clear_event";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                      DBUG_ASSERT(!debug_sync_set_action(m_thd,
                                                          STRING_WITH_LEN(act)));
                     };);
   }
@@ -384,7 +387,7 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                     {
                       if (event_type == binary_log::XID_EVENT)
                       {
-                        net_flush(&thd->net);
+                        thd->get_protocol_classic()->flush_net();
                         const char act[]=
                           "now "
                           "wait_for signal.continue";
@@ -498,7 +501,7 @@ bool Binlog_sender::check_event_type(Log_event_type type,
                       };);
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
-              ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+              ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -514,7 +517,7 @@ bool Binlog_sender::check_event_type(Log_event_type type,
     {
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
-              ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+              ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -533,7 +536,7 @@ bool Binlog_sender::check_event_type(Log_event_type type,
     {
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
-              ER_THD(current_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+              ER_THD(m_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -564,8 +567,6 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
       DBUG_RETURN(m_exclude_gtid->contains_gtid(gtid));
     }
   case binary_log::ROTATE_EVENT:
-    DBUG_RETURN(false);
-  case binary_log::VIEW_CHANGE_EVENT:
     DBUG_RETURN(false);
   }
   DBUG_RETURN(in_exclude_group);
@@ -683,11 +684,22 @@ int Binlog_sender::check_start_file()
     global_sid_lock->wrlock();
     const rpl_sid &server_sid= gtid_state->get_server_sid();
     rpl_sidno subset_sidno= slave_sid_map->sid_to_sidno(server_sid);
-    if (!m_exclude_gtid->is_subset_for_sid(gtid_state->get_executed_gtids(),
-                                                gtid_state->get_server_sidno(),
-                                                subset_sidno))
+    Gtid_set
+      gtid_executed_and_owned(gtid_state->get_executed_gtids()->get_sid_map());
+
+    // gtids = executed_gtids & owned_gtids
+    if (gtid_executed_and_owned.add_gtid_set(gtid_state->get_executed_gtids())
+        != RETURN_STATUS_OK)
     {
-      errmsg= ER_THD(current_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
+      DBUG_ASSERT(0);
+    }
+    gtid_state->get_owned_gtids()->get_gtids(gtid_executed_and_owned);
+
+    if (!m_exclude_gtid->is_subset_for_sid(&gtid_executed_and_owned,
+                                           gtid_state->get_server_sidno(),
+                                           subset_sidno))
+    {
+      errmsg= ER_THD(m_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;
@@ -720,7 +732,7 @@ int Binlog_sender::check_start_file()
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid))
     {
-      errmsg= ER_THD(current_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+      errmsg= ER_THD(m_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;
@@ -1041,7 +1053,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   DBUG_EXECUTE_IF("dump_thread_before_read_event",
                   {
                     const char act[]= "now wait_for signal.continue no_clear_event";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                    DBUG_ASSERT(!debug_sync_set_action(m_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
 
@@ -1108,7 +1120,8 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos)
 
 inline int Binlog_sender::flush_net()
 {
-  if (DBUG_EVALUATE_IF("simulate_flush_error", 1, net_flush(&m_thd->net)))
+  if (DBUG_EVALUATE_IF("simulate_flush_error", 1,
+      m_thd->get_protocol_classic()->flush_net()))
   {
     set_unknow_error("failed on flush_net()");
     return 1;
@@ -1125,8 +1138,9 @@ inline int Binlog_sender::send_packet()
   // We should always use the same buffer to guarantee that the reallocation
   // logic is not broken.
   if (DBUG_EVALUATE_IF("simulate_send_error", true,
-                       my_net_write(&m_thd->net, (uchar*) m_packet.ptr(),
-                                    m_packet.length())))
+                       my_net_write(
+                         m_thd->get_protocol_classic()->get_net(),
+                         (uchar*) m_packet.ptr(), m_packet.length())))
   {
     set_unknow_error("Failed on my_net_write()");
     DBUG_RETURN(1);
@@ -1171,7 +1185,7 @@ inline int Binlog_sender::after_send_hook(const char *log_file,
     semisync after_send_event hook doesn't return and error when net error
     happens.
   */
-  if (m_thd->net.error != 0)
+  if (m_thd->get_protocol_classic()->get_net()->last_errno != 0)
   {
     set_unknow_error("Found net error");
     return 1;

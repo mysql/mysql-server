@@ -20,6 +20,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_db.h"
 
+#include "mysqld.h"                      // lower_case_table_names ...
 #include "psi_memory_key.h"
 #include "sql_cache.h"                   // query_cache_*
 #include "lock.h"                        // lock_schema_name
@@ -39,6 +40,7 @@
 #include "log.h"
 #include "binlog.h"                             // mysql_bin_log
 #include "log_event.h"
+#include "derror.h"
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -889,7 +891,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
 
     ha_drop_database(path);
     tmp_disable_binlog(thd);
-    query_cache.invalidate(db.str);
+    query_cache.invalidate(thd, db.str);
     (void) sp_drop_db_routines(thd, db.str); /* @todo Do not ignore errors */
 #ifndef EMBEDDED_LIBRARY
     Events::drop_schema_events(thd, db.str);
@@ -1817,8 +1819,10 @@ bool mysql_upgrade_db(THD *thd, const LEX_CSTRING &old_db)
       table_str.length= filename_to_tablename(file->name,
                                               tname, sizeof(tname)-1);
       table_str.str= (char*) sql_memdup(tname, table_str.length + 1);
-      Table_ident *old_ident= new Table_ident(thd, old_db, table_str, 0);
-      Table_ident *new_ident= new Table_ident(thd, new_db, table_str, 0);
+      Table_ident *old_ident= new Table_ident(thd->get_protocol(),
+                                              old_db, table_str, 0);
+      Table_ident *new_ident= new Table_ident(thd->get_protocol(),
+                                              new_db, table_str, 0);
       if (!old_ident || !new_ident ||
           !sl->add_table_to_list(thd, old_ident, NULL,
                                  TL_OPTION_UPDATING, TL_IGNORE,

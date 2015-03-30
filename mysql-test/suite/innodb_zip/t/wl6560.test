@@ -230,7 +230,6 @@ drop table t1;
 set innodb_strict_mode = off;
 --disable_warnings
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
 create temporary table t (
 	i int)
 	engine = innodb row_format = compressed;
@@ -249,8 +248,8 @@ set global innodb_file_per_table = 1;
 create temporary table t (
 	i int)
 	engine = innodb row_format = compressed key_block_size = 8;
---replace_regex /[0-9]+/NUMBER/
-show warnings;
+# Do not show warnings, because the key_block_size=8 only leads
+# to a warning with innodb_page_size=4k.
 drop table t;
 #
 create temporary table t (
@@ -263,15 +262,13 @@ show warnings;
 --list_files $MYSQL_TMP_DIR/ *.ibd
 drop table t;
 #
-set innodb_strict_mode = on;
---error ER_ILLEGAL_HA
 create temporary table t (
 	i int)
 	engine = innodb row_format = dynamic;
 --replace_regex /[0-9]+/NUMBER/
 show warnings;
+drop table t;
 #
-set global innodb_file_format = 'Barracuda';
 set innodb_strict_mode = off;
 create temporary table t (
 	i int)

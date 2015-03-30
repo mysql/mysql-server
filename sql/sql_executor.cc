@@ -30,14 +30,17 @@
 #include "item_sum.h"         // Item_sum
 #include "key.h"              // key_cmp
 #include "log.h"              // sql_print_error
+#include "filesort.h"         // Filesort
+#include "opt_range.h"        // QUICK_SELECT_I
 #include "opt_trace.h"        // Opt_trace_object
 #include "psi_memory_key.h"
+#include "query_result.h"     // Query_result
 #include "sql_base.h"         // fill_record
-#include "sql_derived.h"      // mysql_derived_materialize
 #include "sql_join_buffer.h"  // st_cache_field
 #include "sql_optimizer.h"    // JOIN
 #include "sql_show.h"         // get_schema_tables_result
 #include "sql_tmp_table.h"    // create_tmp_table
+#include "mysqld.h"           // stage_executing
 
 #include <algorithm>
 using std::max;
@@ -83,6 +86,15 @@ static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
+
+
+void Temp_table_param::cleanup(void)
+{
+  delete [] copy_field;
+  copy_field= NULL;
+  copy_field_end= NULL;
+}
+
 
 /**
   Execute select, executor entry point.
@@ -675,7 +687,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
       {
         Field *field= item_field->field;
         JOIN_TAB *stat= field->table->reginfo.join_tab;
-        key_map possible_keys= field->key_start;
+        Key_map possible_keys= field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);
         stat[0].const_keys.merge(possible_keys);
         stat[0].keys().merge(possible_keys);
@@ -910,13 +922,16 @@ do_select(JOIN *join)
         item->no_rows_in_result();
 
       // Mark tables as containing only NULL values
-      join->clear();
+      if (join->clear())
+        error= NESTED_LOOP_ERROR;
+      else
+      {
+        if (!join->having_cond || join->having_cond->val_int())
+          rc= join->select_lex->query_result()->send_data(*join->fields);
 
-      if (!join->having_cond || join->having_cond->val_int())
-        rc= join->select_lex->query_result()->send_data(*join->fields);
-
-      if (save_nullinfo)
-        restore_const_null_info(join, save_nullinfo);
+        if (save_nullinfo)
+          restore_const_null_info(join, save_nullinfo);
+      }
     }
     /*
       An error can happen when evaluating the conds 
@@ -1498,20 +1513,20 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
       */
       QEP_TAB *first_unmatched= &QEP_AT(qep_tab, first_unmatched);
       /*
-        Mark that a match for current outer table is found.
-        This activates push down conditional predicates attached
-        to the all inner tables of the outer join.
+        Mark that a match for the current row of the outer table is found.
+        This activates WHERE clause predicates attached the inner tables of
+        the outer join.
       */
       first_unmatched->found= true;
       for (QEP_TAB *tab= first_unmatched; tab <= qep_tab; tab++)
       {
-        /* Check all predicates that has just been activated. */
         /*
+          Check all predicates that have just been activated.
+
           Actually all predicates non-guarded by first_unmatched->found
           will be re-evaluated again. It could be fixed, but, probably,
           it's not worth doing now.
-        */
-        /*
+
           not_exists_optimize has been created from a
           condition containing 'is_null'. This 'is_null'
           predicate is still present on any 'tab' with
@@ -1607,8 +1622,6 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
         found= false;
     }
 
-    qep_tab->found_match= true;
-
     /*
       It was not just a return to lower loop level when one
       of the newly activated predicates is evaluated as false
@@ -1621,7 +1634,9 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
     if (found)
     {
       enum enum_nested_loop_state rc;
-      /* A match from join_tab is found for the current partial join. */
+      // A match is found for the current partial join prefix.
+      qep_tab->found_match= true;
+
       rc= (*qep_tab->next_select)(join, qep_tab+1, 0);
       join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (rc != NESTED_LOOP_OK)
@@ -2356,7 +2371,7 @@ join_init_quick_read_record(QEP_TAB *tab)
       (tab->table()->file->inited != handler::NONE))
       tab->table()->file->ha_index_or_rnd_end();
 
-  key_map needed_reg_dummy;
+  Key_map needed_reg_dummy;
   QUICK_SELECT_I *old_qck= tab->quick();
   QUICK_SELECT_I *qck;
   DEBUG_SYNC(thd, "quick_not_created");
@@ -2858,7 +2873,8 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
          join->qep_tab[0].quick_optim()->is_loose_index_scan()))
     {
       // Copy non-aggregated fields when loose index scan is used.
-      copy_fields(&join->tmp_table_param);
+      if (copy_fields(&join->tmp_table_param, join->thd))
+        DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     }
     // Use JOIN's HAVING for the case of tableless SELECT.
     if (join->having_cond && join->having_cond->val_int() == 0)
@@ -2989,7 +3005,8 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
               item->no_rows_in_result();
 
             // Mark tables as containing only NULL values
-            join->clear();
+            if (join->clear())
+              DBUG_RETURN(NESTED_LOOP_ERROR);        /* purecov: inspected */
 	  }
 	  if (join->having_cond && join->having_cond->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
@@ -3048,7 +3065,8 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
         This branch is executed also for cursors which have finished their
         fetch limit - the reason for ok_code.
       */
-      copy_fields(&join->tmp_table_param);
+      if (copy_fields(&join->tmp_table_param, join->thd))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       join->group_sent= false;
@@ -3275,7 +3293,8 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   if (!end_of_records)
   {
     Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
-    copy_fields(tmp_tbl);
+    if (copy_fields(tmp_tbl, join->thd))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
     if (copy_funcs(tmp_tbl->items_to_copy, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
 
@@ -3337,7 +3356,9 @@ end_update(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
 
   Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
   join->found_records++;
-  copy_fields(tmp_tbl);	// Groups are copied twice.
+  if (copy_fields(tmp_tbl, join->thd))	// Groups are copied twice.
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+      
   /* Make a key of group index */
   if (table->hash_field)
   {
@@ -3470,7 +3491,8 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
             item->no_rows_in_result();
 
           // Mark tables as containing only NULL values
-          join->clear();
+          if (join->clear())
+            DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         copy_sum_funcs(join->sum_funcs,
                        join->sum_funcs_end[send_group_parts]);
@@ -3505,11 +3527,12 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
     }
     if (idx < (int) join->send_group_parts)
     {
-      copy_fields(tmp_tbl);
+      if (copy_fields(tmp_tbl, join->thd))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
       if (copy_funcs(tmp_tbl->items_to_copy, join->thd))
-	DBUG_RETURN(NESTED_LOOP_ERROR);
+        DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
-	DBUG_RETURN(NESTED_LOOP_ERROR);
+        DBUG_RETURN(NESTED_LOOP_ERROR);
       DBUG_RETURN(NESTED_LOOP_OK);
     }
   }
@@ -4231,10 +4254,11 @@ err2:
 
   This is done at the start of a new group so that we can retrieve
   these later when the group changes.
+  @returns false if OK, true on error.
 */
 
-void
-copy_fields(Temp_table_param *param)
+bool
+copy_fields(Temp_table_param *param, const THD *thd)
 {
   Copy_field *ptr=param->copy_field;
   Copy_field *end=param->copy_field_end;
@@ -4246,8 +4270,11 @@ copy_fields(Temp_table_param *param)
 
   List_iterator_fast<Item> it(param->copy_funcs);
   Item_copy *item;
-  while ((item = (Item_copy*) it++))
-    item->copy();
+  bool is_error= thd->is_error();
+  while (!is_error && (item= (Item_copy*) it++))
+    is_error= item->copy(thd);
+
+  return is_error;
 }
 
 

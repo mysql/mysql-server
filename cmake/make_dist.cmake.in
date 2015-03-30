@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -96,6 +96,11 @@ IF(NOT GIT_EXECUTABLE)
        ${CMAKE_BINARY_DIR}/sql_yacc.cc COPY_ONLY)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
        ${CMAKE_BINARY_DIR}/sql_yacc.h COPY_ONLY)
+    #
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
+       ${CMAKE_BINARY_DIR}/sql_hints.yy.cc COPY_ONLY)
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
+       ${CMAKE_BINARY_DIR}/sql_hints.yy.h COPY_ONLY)
 
     IF(CMAKE_GENERATOR MATCHES "Makefiles")
     # make clean
@@ -112,6 +117,13 @@ IF(NOT GIT_EXECUTABLE)
        ${CMAKE_BINARY_DIR}/sql/sql_yacc.h COPY_ONLY)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.cc)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.h)
+    #
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_hints.yy.cc
+       ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc COPY_ONLY)
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_hints.yy.h
+       ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h COPY_ONLY)
+    FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_hints.yy.cc)
+    FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_hints.yy.h)
   ENDIF()
 
   EXECUTE_PROCESS(
@@ -133,15 +145,11 @@ CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h
    ${PACKAGE_DIR}/sql/sql_yacc.h COPYONLY)
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
    ${PACKAGE_DIR}/sql/sql_yacc.cc COPYONLY)
-
-# Copy spec files
-SET(SPECFILENAME "mysql.${VERSION}.spec")
-IF("${VERSION}" MATCHES "-ndb-")
-  STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
-  SET(SPECFILENAME "mysql-cluster-${NDBVERSION}.spec")
-ENDIF()
-CONFIGURE_FILE(${CMAKE_BINARY_DIR}/support-files/${SPECFILENAME}
-   ${PACKAGE_DIR}/support-files/${SPECFILENAME} COPYONLY)
+#
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
+   ${PACKAGE_DIR}/sql/sql_hints.yy.h COPYONLY)
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
+   ${PACKAGE_DIR}/sql/sql_hints.yy.cc COPYONLY)
 
 # Add documentation, if user has specified where to find them
 IF(MYSQL_DOCS_LOCATION)

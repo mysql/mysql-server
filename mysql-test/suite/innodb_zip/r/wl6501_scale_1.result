@@ -20,34 +20,27 @@ set i = i + 1;
 end while;
 end|
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create table tNUMBER
 (i int, cNUMBER char(NUMBER), cNUMBER char(NUMBER),
 index cNUMBER_idx(cNUMBER))
 engine=innodb row_format=compact
 key_block_size=NUMBER;
 Warnings:
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER unless ROW_FORMAT=COMPRESSED.
 create table t2
 (i int, c1 char(100), c2 char(100),
 index c1_idx(c1))
 engine=innodb row_format=compact
 key_block_size=16;
 Warnings:
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16 unless ROW_FORMAT=COMPRESSED.
 create temporary table t3
 (i int, c1 char(100), c2 char(100),
 index c1_idx(c1))
 engine=innodb row_format=compact
 key_block_size=16;
 Warnings:
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16 unless ROW_FORMAT=COMPRESSED.
 select count(*) from t1;
 count(*)
 0
@@ -115,9 +108,6 @@ drop table t2;
 drop table t3;
 drop procedure populate;
 drop procedure populate_small;
-set global innodb_file_format = Barracuda;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;
 set innodb_strict_mode=OFF;
 create procedure populate()
@@ -141,9 +131,6 @@ set i = i + 1;
 end while;
 end|
 set global innodb_file_per_table = 1;
-set global innodb_file_format = 'Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create table tNUMBER
 (i int, cNUMBER char(NUMBER), cNUMBER char(NUMBER),
 index cNUMBER_idx(cNUMBER))
@@ -226,9 +213,6 @@ drop table t2;
 drop table t3;
 drop procedure populate;
 drop procedure populate_small;
-set global innodb_file_format = Barracuda;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;
 set innodb_strict_mode=OFF;
 create procedure populate()
@@ -252,9 +236,6 @@ set i = i + 1;
 end while;
 end|
 set global innodb_file_per_table = 0;
-set global innodb_file_format = 'Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 create table tNUMBER
 (i int, cNUMBER char(NUMBER), cNUMBER char(NUMBER),
 index cNUMBER_idx(cNUMBER))
@@ -262,7 +243,6 @@ engine=innodb row_format=compact
 key_block_size=NUMBER;
 Warnings:
 Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 create table t2
 (i int, c1 char(100), c2 char(100),
@@ -271,7 +251,6 @@ engine=innodb row_format=compact
 key_block_size=16;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
 create temporary table t3
 (i int, c1 char(100), c2 char(100),
@@ -280,7 +259,6 @@ engine=innodb row_format=compact
 key_block_size=16;
 Warnings:
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
 select count(*) from t1;
 count(*)
@@ -349,7 +327,4 @@ drop table t2;
 drop table t3;
 drop procedure populate;
 drop procedure populate_small;
-set global innodb_file_format = Barracuda;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.8/en/innodb-file-format.html
 set global innodb_file_per_table = 1;

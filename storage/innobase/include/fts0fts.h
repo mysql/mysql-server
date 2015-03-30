@@ -100,6 +100,31 @@ those defined in mysql file ft_global.h */
 #define FTS_OPTIMIZE_THRESHOLD		10000000
 
 #define FTS_DOC_ID_MAX_STEP		10000
+
+/** Maximum possible Fulltext word length */
+#define FTS_MAX_WORD_LEN		HA_FT_MAXBYTELEN
+
+/** Maximum possible Fulltext word length (in characters) */
+#define FTS_MAX_WORD_LEN_IN_CHAR	HA_FT_MAXCHARLEN
+
+/** Number of columns in FTS AUX Tables */
+#define FTS_DELETED_TABLE_NUM_COLS	1
+#define FTS_CONFIG_TABLE_NUM_COLS	2
+#define FTS_AUX_INDEX_TABLE_NUM_COLS	5
+
+/** DELETED_TABLE(doc_id BIGINT UNSIGNED) */
+#define FTS_DELETED_TABLE_COL_LEN	8
+/** CONFIG_TABLE(key CHAR(50), value CHAR(200)) */
+#define FTS_CONFIG_TABLE_KEY_COL_LEN	50
+#define FTS_CONFIG_TABLE_VALUE_COL_LEN	200
+
+#define FTS_INDEX_WORD_LEN		FTS_MAX_WORD_LEN
+#define FTS_INDEX_FIRST_DOC_ID_LEN	8
+#define FTS_INDEX_LAST_DOC_ID_LEN	8
+#define FTS_INDEX_DOC_COUNT_LEN		4
+/* BLOB COLUMN, 0 means VARIABLE SIZE */
+#define FTS_INDEX_ILIST_LEN		0
+
 /** Variable specifying the FTS parallel sort degree */
 extern ulong		fts_sort_pll_degree;
 
@@ -275,7 +300,7 @@ struct fts_table_t {
 
 	table_id_t	table_id;	/*!< The table id */
 
-	index_id_t	index_id;	/*!< The index id */
+	space_index_t	index_id;	/*!< The index id */
 
 	const char*	suffix;		/*!< The suffix of the fts auxiliary
 					table name, can be NULL, not used
@@ -377,12 +402,6 @@ extern ulong		fts_min_token_size;
 /** Whether the total memory used for FTS cache is exhausted, and we will
 need a sync to free some memory */
 extern bool		fts_need_sync;
-
-/** Maximum possible Fulltext word length */
-#define FTS_MAX_WORD_LEN		HA_FT_MAXBYTELEN
-
-/** Maximum possible Fulltext word length (in characters) */
-#define FTS_MAX_WORD_LEN_IN_CHAR	HA_FT_MAXCHARLEN
 
 /** Variable specifying the table that has Fulltext index to display its
 content through information schema table */
