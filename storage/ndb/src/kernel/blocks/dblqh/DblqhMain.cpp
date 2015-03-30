@@ -17136,19 +17136,19 @@ void Dblqh::readSrLastFileLab(Signal* signal)
     jam();
     initGciInLogFileRec(signal, logPartPtr.p->noLogFiles);
   }//if
-  releaseLogpage(signal);
   /* ------------------------------------------------------------------------
    *    NOW WE HAVE FOUND THE LAST LOG FILE. WE ALSO NEED TO FIND THE LAST
    *    MBYTE THAT WAS LAST WRITTEN BEFORE THE SYSTEM CRASH.
    * ------------------------------------------------------------------------ */
   logPartPtr.p->lastLogfile = logFilePtr.i;
   /**
-   * We read page 1 in the first MByte since we don't invalidate page 0 in
-   * a log file, so we can't trust this page to have a correct log lap number.
+   * It is safe to read page 0 of the first MByte since we always ensure that
+   * this page is up to date before we update current file number in page 0
+   * of file 0. Given that we already have page 0 read, we can now call
+   * readSrLastMbyteLab immediately, no need to reread page 0.
    */
-  readSinglePage(signal, 1);
-  lfoPtr.p->lfoState = LogFileOperationRecord::READ_SR_LAST_MBYTE;
   logFilePtr.p->currentMbyte = 0;
+  readSrLastMbyteLab(signal);
   return;
 }//Dblqh::readSrLastFileLab()
 
