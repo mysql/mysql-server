@@ -217,33 +217,10 @@ count(*)
 "=========================== Waits user 1"
 EVENT_NAME
 idle
-EVENT_NAME
-wait/synch/mutex/sql/LOCK_plugin
-wait/synch/mutex/sql/LOCK_plugin
-wait/synch/rwlock/sql/LOGGER::LOCK_logger
-wait/synch/mutex/sql/LOG::LOCK_log
-wait/io/file/sql/query_log
-wait/synch/mutex/sql/THD::LOCK_query_plan
-wait/synch/mutex/sql/LOCK_transaction_cache
-wait/synch/mutex/sql/THD::LOCK_query_plan
-wait/io/socket/sql/client_connection
-wait/synch/mutex/sql/THD::LOCK_thd_query
-EVENT_NAME
-wait/io/socket/sql/client_connection
-wait/synch/mutex/sql/THD::LOCK_thd_data
-wait/synch/mutex/sql/THD::LOCK_thd_query
-wait/synch/mutex/sql/LOCK_plugin
-wait/synch/mutex/sql/LOCK_plugin
-wait/synch/mutex/sql/LOCK_plugin
-wait/synch/rwlock/sql/LOGGER::LOCK_logger
-wait/synch/mutex/sql/LOG::LOCK_log
-wait/io/file/sql/query_log
-wait/synch/mutex/sql/THD::LOCK_query_plan
-wait/synch/mutex/sql/LOCK_transaction_cache
-wait/synch/mutex/sql/THD::LOCK_query_plan
-wait/io/socket/sql/client_connection
-wait/synch/mutex/sql/THD::LOCK_thd_query
-idle
+has_waits
+1
+has_waits
+1
 "=========================== Waits user 2"
 EVENT_NAME
 idle
