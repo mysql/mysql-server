@@ -1271,11 +1271,6 @@ int ReplSemiSyncMaster::resetMaster()
   rpl_semi_sync_master_trx_wait_time = 0;
   rpl_semi_sync_master_net_wait_num = 0;
   rpl_semi_sync_master_net_wait_time = 0;
-  if ( !is_on() && active_tranxs_ && active_tranxs_->is_empty())
-  {
-    delete active_tranxs_;
-    active_tranxs_ = NULL;
-  }
 
   unlock();
 
