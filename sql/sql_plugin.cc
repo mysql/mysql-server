@@ -55,6 +55,9 @@ using std::max;
 static PSI_memory_key key_memory_plugin_ref;
 #endif
 
+volatile int32 num_pre_parse_plugins= 0;
+volatile int32 num_post_parse_plugins= 0;
+
 static PSI_memory_key key_memory_plugin_mem_root;
 static PSI_memory_key key_memory_plugin_init_tmp;
 static PSI_memory_key key_memory_plugin_int_mem_root;
@@ -955,6 +958,12 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         {
           init_alloc_root(key_memory_plugin_int_mem_root,
                           &tmp_plugin_ptr->mem_root, 4096, 4096);
+
+          if (plugin->type == MYSQL_REWRITE_PRE_PARSE_PLUGIN)
+            my_atomic_add32(&num_pre_parse_plugins, 1);
+          if (plugin->type == MYSQL_REWRITE_POST_PARSE_PLUGIN)
+            my_atomic_add32(&num_post_parse_plugins, 1);
+
           DBUG_RETURN(FALSE);
         }
         tmp_plugin_ptr->state= PLUGIN_IS_FREED;
@@ -1029,6 +1038,12 @@ static void plugin_del(st_plugin_int *plugin)
   restore_pluginvar_names(plugin->system_vars);
   plugin_vars_free_values(plugin->system_vars);
   my_hash_delete(&plugin_hash[plugin->plugin->type], (uchar*)plugin);
+
+  if (plugin->plugin->type == MYSQL_REWRITE_PRE_PARSE_PLUGIN)
+    my_atomic_add32(&num_pre_parse_plugins, -1);
+  if (plugin->plugin->type == MYSQL_REWRITE_POST_PARSE_PLUGIN)
+    my_atomic_add32(&num_post_parse_plugins, -1);
+
   if (plugin->plugin_dl)
     plugin_dl_del(&plugin->plugin_dl->dl);
   plugin->state= PLUGIN_IS_FREED;

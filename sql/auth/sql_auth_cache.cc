@@ -2778,7 +2778,8 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
   Update the security context when updating the user
 
   Helper function.
-  Update only if the security context is pointing to the same user.
+  Update only if the security context is pointing to the same user and
+  the user is not a proxied user for a different proxy user.
   And return true if the update happens (i.e. we're operating on the
   user account of the current user).
   Normalize the names for a safe compare.
@@ -2795,6 +2796,12 @@ update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr, bool expired)
   const char *acl_user= acl_user_ptr->user;
   const char *sctx_user= sctx->priv_user().str;
   const char *sctx_host= sctx->priv_host().str;
+
+  /* If the user is connected as a proxied user, verify against proxy user */
+  if (sctx->proxy_user().str && *sctx->proxy_user().str != '\0')
+  {
+    sctx_user = sctx->user().str;
+  }
 
   if (!acl_host)
     acl_host= "";
