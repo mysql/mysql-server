@@ -1991,7 +1991,6 @@ void THD::cleanup_after_query()
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
     binlog_accessed_db_names= NULL;
-    m_trans_fixed_log_file= NULL;
 
     if (gtid_mode > 0)
       gtid_post_statement_checks(this);
@@ -2009,6 +2008,14 @@ void THD::cleanup_after_query()
       auto_inc_intervals_forced.empty();
 #endif
   }
+
+  /*
+    In case of stored procedures, stored functions, triggers and events
+    m_trans_fixed_log_file will not be set to NULL. The memory will be reused.
+  */
+  if (!sp_runtime_ctx)
+    m_trans_fixed_log_file= NULL;
+
   /*
     Forget the binlog stmt filter for the next query.
     There are some code paths that:
