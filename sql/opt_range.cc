@@ -6577,11 +6577,21 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 
   param->cond= cond;
 
-  switch (cond_func->functype()) {
+  /*
+    Notice that all fields that are outer references are const during
+    the execution and should not be considered for range analysis like
+    fields coming from the local query block are.
+  */
+  switch (cond_func->functype())
+  {
   case Item_func::BETWEEN:
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
+  {
+    Item *const arg_left= cond_func->arguments()[0];
+
+    if (!(arg_left->used_tables() & OUTER_REF_TABLE_BIT) &&
+        arg_left->real_item()->type() == Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
+      field_item= (Item_field*) arg_left->real_item();
       ftree= get_full_func_mm_tree(param, field_item, cond_func, NULL, inv);
     }
 
@@ -6591,9 +6601,12 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     */
     for (uint i= 1 ; i < cond_func->arg_count ; i++)
     {
-      if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM)
+      Item *const arg= cond_func->arguments()[i];
+
+      if (!(arg->used_tables() & OUTER_REF_TABLE_BIT) &&
+          arg->real_item()->type() == Item::FIELD_ITEM)
       {
-        field_item= (Item_field*) (cond_func->arguments()[i]->real_item());
+        field_item= (Item_field*) arg->real_item();
         SEL_TREE *tmp=
           get_full_func_mm_tree(param, field_item, cond_func,
                                 reinterpret_cast<Item*>(i), inv);
@@ -6615,16 +6628,18 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 
     ftree = tree_and(param, ftree, tree);
     break;
+  } // end case Item_func::BETWEEN
+
   case Item_func::IN_FUNC:
   {
-    Item_func_in *func=(Item_func_in*) cond_func;
-    if (func->key_item()->real_item()->type() != Item::FIELD_ITEM &&
-        func->key_item()->real_item()->type() != Item::ROW_ITEM)
+    Item *const predicand= ((Item_func_in*) cond_func)->key_item()->real_item();
+    if (predicand->type() != Item::FIELD_ITEM &&
+        predicand->type() != Item::ROW_ITEM)
       DBUG_RETURN(NULL);
-    Item *predicand= func->key_item()->real_item();
     ftree= get_full_func_mm_tree(param, predicand, cond_func, NULL, inv);
     break;
-  }
+  } // end case Item_func::IN_FUNC
+
   case Item_func::MULT_EQUAL_FUNC:
   {
     Item_equal *item_equal= (Item_equal *) cond;    
@@ -6646,13 +6661,17 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     
     dbug_print_tree("tree_returned", ftree, param);
     DBUG_RETURN(ftree);
-  }
+  } // end case Item_func::MULT_EQUAL_FUNC
+
   default:
+  {
+    Item *const arg_left= cond_func->arguments()[0];
 
     DBUG_ASSERT (!ftree);
-    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
+    if (!(arg_left->used_tables() & OUTER_REF_TABLE_BIT) &&
+        arg_left->real_item()->type() == Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
+      field_item= (Item_field*) arg_left->real_item();
       value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : NULL;
       ftree= get_full_func_mm_tree(param, field_item, cond_func, value, inv);
     }
@@ -6672,14 +6691,18 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
       call to get_full_func_mm_tree() with reversed operands (see
       below) may succeed.
      */
+    Item *arg_right;
     if (!ftree && cond_func->have_rev_func() &&
-        cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM)
+        (arg_right= cond_func->arguments()[1]) &&
+        !(arg_right->used_tables() & OUTER_REF_TABLE_BIT) &&
+        arg_right->real_item()->type() == Item::FIELD_ITEM)
     {
-      field_item= (Item_field*) (cond_func->arguments()[1]->real_item());
-      value= cond_func->arguments()[0];
+      field_item= (Item_field*) arg_right->real_item();
+      value= arg_left;
       ftree= get_full_func_mm_tree(param, field_item, cond_func, value, inv);
     }
-  }
+  }  // end case default
+  }  // end switch
 
   dbug_print_tree("tree_returned", ftree, param);
   DBUG_RETURN(ftree);

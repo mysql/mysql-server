@@ -356,6 +356,9 @@ extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
 
+/* Checksum algorithm used for the redo log file blocks */
+extern ulong	srv_log_checksum_algorithm;
+
 extern double	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;

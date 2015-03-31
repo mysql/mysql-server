@@ -16,26 +16,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/**
-  RAII class for column privilege checking
-*/
-class Column_privilege_tracker
-{
-public:
-  Column_privilege_tracker(THD *thd, ulong privilege)
-  : thd(thd), saved_privilege(thd->want_privilege)
-  {
-    thd->want_privilege= privilege;
-  }
-  ~Column_privilege_tracker()
-  {
-    thd->want_privilege= saved_privilege;
-  }
-private:
-  THD *const thd;
-  const ulong saved_privilege;
-};
+#include "my_global.h"
 
+class Item;
+class Item_in_subselect;
+class THD;
+struct TABLE;
+struct TABLE_LIST;
+typedef class st_select_lex SELECT_LEX;
+typedef struct st_order ORDER;
+template <typename Element_type> class Bounds_checked_array;
+typedef Bounds_checked_array<Item*> Ref_ptr_array;
+template <class T> class List;
 
 /** @file Name resolution functions */
 

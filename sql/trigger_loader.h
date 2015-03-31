@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,12 +19,16 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-#include "sql_list.h"
-
-struct TABLE;
+#include "my_global.h"
+#include "mysql/mysql_lex_string.h"         // LEX_STRING
 
 class THD;
 class Trigger;
+struct TABLE;
+typedef struct st_mem_root MEM_ROOT;
+typedef struct st_mysql_lex_string LEX_STRING;
+template <class T> class List;
+
 
 class Trigger_loader
 {

@@ -1223,6 +1223,8 @@ fil_names_write_if_was_clean(
 	return(was_clean);
 }
 
+extern volatile bool	recv_recovery_on;
+
 /** During crash recovery, open a tablespace if it had not been opened
 yet, to get valid size and flags.
 @param[in,out]	space	tablespace */

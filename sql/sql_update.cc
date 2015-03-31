@@ -36,6 +36,7 @@
 #include "psi_memory_key.h"
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // open_tables_for_query
+#include "sql_cache.h"                // query_cache
 #include "sql_optimizer.h"            // build_equal_items
 #include "sql_resolver.h"             // setup_order
 #include "sql_select.h"               // free_underlaid_joins

@@ -16,18 +16,20 @@
 #include "xa.h"
 
 #include "hash.h"               // HASH
-#include "sql_class.h"          // THD
-#include "psi_memory_key.h"
 #include "mysql/plugin.h"       // MYSQL_XIDDATASIZE
-#include "mysqld.h"             // server_id
-#include "transaction.h"        // trans_begin, trans_rollback
 #include "debug_sync.h"         // DEBUG_SYNC
-#include "log.h"                // tc_log
+#include "derror.h"             // ER_DEFAULT
+#include "handler.h"            // handlerton
+#include "log.h"                // sql_print_information
+#include "mysqld.h"             // server_id
+#include "psi_memory_key.h"     // key_memory_XID
+#include "sql_class.h"          // THD
 #include "sql_plugin.h"         // plugin_foreach
+#include "transaction.h"        // trans_begin, trans_rollback
+
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
-#include "binlog.h"
-#include "derror.h"
+
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"

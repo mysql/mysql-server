@@ -1990,7 +1990,6 @@ public:
   bool 	     got_warning;       /* Set on call to push_warning() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
-  bool       tablespace_op;     /* This is true in DISCARD/IMPORT TABLESPACE */
 
   /** Current SP-runtime context. */
   sp_rcontext *sp_runtime_ctx;
@@ -3660,6 +3659,27 @@ private:
 
   /// The arena state to be restored.
   Query_arena m_backup;
+};
+
+
+/**
+  RAII class for column privilege checking
+*/
+class Column_privilege_tracker
+{
+public:
+  Column_privilege_tracker(THD *thd, ulong privilege)
+  : thd(thd), saved_privilege(thd->want_privilege)
+  {
+    thd->want_privilege= privilege;
+  }
+  ~Column_privilege_tracker()
+  {
+    thd->want_privilege= saved_privilege;
+  }
+private:
+  THD *const thd;
+  const ulong saved_privilege;
 };
 
 

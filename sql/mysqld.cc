@@ -1001,6 +1001,7 @@ static unsigned long openssl_id_function();
 char *des_key_file;
 #ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
+SSL *ssl_acceptor;
 #endif
 #endif /* HAVE_OPENSSL */
 
@@ -1423,7 +1424,7 @@ void clean_up(bool print_message)
   acl_free(1);
   grant_free();
 #endif
-  query_cache.destroy();
+  query_cache.destroy(NULL);
   hostname_cache_free();
   item_func_sleep_free();
   lex_free();       /* Free some memory */
@@ -3581,6 +3582,9 @@ static int init_ssl()
       /* Check if CA certificate is self signed */
       if (warn_self_signed_ca())
         return 1;
+      /* create one SSL that we can use to read information from */
+      if (!(ssl_acceptor= SSL_new(ssl_acceptor_fd->ssl_context)))
+        return 1;
     }
   }
   else
@@ -3607,6 +3611,8 @@ static void end_ssl()
 #ifndef EMBEDDED_LIBRARY
   if (ssl_acceptor_fd)
   {
+    if (ssl_acceptor)
+      SSL_free(ssl_acceptor);
     free_vio_ssl_acceptor_fd(ssl_acceptor_fd);
     ssl_acceptor_fd= 0;
   }
@@ -3834,7 +3840,7 @@ static void init_server_query_cache()
   query_cache.set_min_res_unit(query_cache_min_res_unit);
   query_cache.init();
 	
-  set_cache_size= query_cache.resize(query_cache_size);
+  set_cache_size= query_cache.resize(NULL, query_cache_size);
   if (set_cache_size != query_cache_size)
   {
     sql_print_warning(ER_DEFAULT(ER_WARN_QC_RESIZE), query_cache_size,
@@ -6578,10 +6584,9 @@ static int
 show_ssl_get_server_not_before(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if(thd->get_protocol()->get_ssl())
+  if (ssl_acceptor_fd)
   {
-    SSL *ssl= thd->get_protocol()->get_ssl();
-    X509 *cert= SSL_get_certificate(ssl);
+    X509 *cert= SSL_get_certificate(ssl_acceptor);
     ASN1_TIME *not_before= X509_get_notBefore(cert);
 
     var->value= my_asn1_time_to_string(not_before, buff,
@@ -6611,10 +6616,9 @@ static int
 show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_CHAR;
-  if(thd->get_protocol()->get_ssl())
+  if (ssl_acceptor_fd)
   {
-    SSL *ssl= thd->get_protocol()->get_ssl();
-    X509 *cert= SSL_get_certificate(ssl);
+    X509 *cert= SSL_get_certificate(ssl_acceptor);
     ASN1_TIME *not_after= X509_get_notAfter(cert);
 
     var->value= my_asn1_time_to_string(not_after, buff,

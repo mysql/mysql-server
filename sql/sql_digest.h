@@ -16,9 +16,13 @@
 #ifndef SQL_DIGEST_H
 #define SQL_DIGEST_H
 
+#include "my_global.h"
+#include "my_md5_size.h"       // MD5_HASH_SIZE
+
 #include <string.h>
-#include "sql_string.h"
-#include "my_md5.h"
+
+class String;
+
 
 #define MAX_DIGEST_STORAGE_SIZE (1024*1024)
 

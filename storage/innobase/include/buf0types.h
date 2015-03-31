@@ -100,6 +100,24 @@ enum srv_checksum_algorithm_t {
 						when reading */
 };
 
+inline
+bool
+is_checksum_strict(srv_checksum_algorithm_t algo)
+{
+	return(algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32
+	       || algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
+	       || algo == SRV_CHECKSUM_ALGORITHM_STRICT_NONE);
+}
+
+inline
+bool
+is_checksum_strict(ulint algo)
+{
+	return(algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32
+	       || algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
+	       || algo == SRV_CHECKSUM_ALGORITHM_STRICT_NONE);
+}
+
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */
 /** Zip shift value for the smallest page size */

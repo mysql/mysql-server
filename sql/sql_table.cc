@@ -5676,33 +5676,9 @@ err:
   DBUG_RETURN(res);
 }
 
-
-/**
-  Class utilizing RAII for correct set/reset of the
-  THD::tablespace_op flag. The destructor will reset
-  the flag when a stack allocated instance goes out
-  of scope.
- */
-
-class Tablespace_op_flag_handler
-{
-private:
-  THD *m_thd;
-public:
-  Tablespace_op_flag_handler(THD *thd): m_thd(thd)
-  {
-    m_thd->tablespace_op= true;
-  }
-  ~Tablespace_op_flag_handler()
-  {
-    m_thd->tablespace_op= false;
-  }
-};
-
 /* table_list should contain just one table */
 int mysql_discard_or_import_tablespace(THD *thd,
-                                       TABLE_LIST *table_list,
-                                       bool discard)
+                                       TABLE_LIST *table_list)
 {
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   int error;
@@ -5714,13 +5690,6 @@ int mysql_discard_or_import_tablespace(THD *thd,
   */
 
   THD_STAGE_INFO(thd, stage_discard_or_import_tablespace);
-
-  /*
-    Set thd->tablespace_op, and reset it when the variable leaves scope.
-    We set this flag so that ha_innobase::open and ::external_lock() do
-    not complain when we lock the table
-  */
-  Tablespace_op_flag_handler set_tablespace_op(thd);
 
   /*
     Adjust values of table-level and metadata which was set in parser
@@ -5781,6 +5750,21 @@ int mysql_discard_or_import_tablespace(THD *thd,
     DBUG_RETURN(-1);
   }
 
+  /*
+    The parser sets a flag in the thd->lex->alter_info struct to indicate
+    whether this is DISCARD or IMPORT. The flag is used for two purposes:
+
+    1. To submit the appropriate parameter to the SE to indicate which
+       operation is to be performed (see the source code below).
+    2. To implement a callback function (the plugin API function
+       'thd_tablespace_op()') allowing the SEs supporting these
+       operations to check if we are doing a DISCARD or IMPORT, in order to
+       suppress errors otherwise being thrown when opening tables with a
+       missing tablespace.
+  */
+
+  bool discard= (thd->lex->alter_info.flags &
+                 Alter_info::ALTER_DISCARD_TABLESPACE);
   error= table_list->table->file->ha_discard_or_import_tablespace(discard);
 
   THD_STAGE_INFO(thd, stage_end);

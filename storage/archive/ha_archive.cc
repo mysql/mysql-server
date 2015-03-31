@@ -1594,8 +1594,7 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
     */
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
-        && !thd_tablespace_op(thd))
+         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd))
       lock_type = TL_WRITE_ALLOW_WRITE;
 
     /* 

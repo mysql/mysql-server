@@ -28,7 +28,6 @@
 
 #include "my_bit.h"              // my_count_bits
 #include "abstract_query_plan.h" // Join_plan
-#include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "derror.h"              // ER_THD
 #include "item_sum.h"            // Item_sum
@@ -38,6 +37,7 @@
 #include "opt_range.h"           // QUICK_SELECT_I
 #include "opt_trace.h"           // Opt_trace_object
 #include "sql_base.h"            // init_ftfuncs
+#include "sql_cache.h"           // query_cache
 #include "sql_join_buffer.h"     // JOIN_CACHE
 #include "sql_parse.h"           // check_stack_overrun
 #include "sql_planner.h"         // calculate_condition_filter
@@ -78,7 +78,7 @@ static bool pull_out_semijoin_tables(JOIN *join);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit);
 static Item *
-make_cond_for_table_from_pred(Item *root_cond, Item *cond,
+make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
                               bool exclude_expensive_cond);
 static bool
@@ -324,7 +324,7 @@ JOIN::optimize()
       if (where_cond && !thd->lex->describe)
       {
         Item *table_independent_conds=
-          make_cond_for_table(where_cond, PSEUDO_TABLE_BITS, 0, 0);
+          make_cond_for_table(thd, where_cond, PSEUDO_TABLE_BITS, 0, 0);
         DBUG_EXECUTE("where",
                      print_where(table_independent_conds,
                                  "where after opt_sum_query()",
@@ -8145,7 +8145,7 @@ bool JOIN::attach_join_conditions(plan_idx last_tab)
       Add the constant part of the join condition to the first inner table
       of the outer join.
     */
-    Item *cond= make_cond_for_table(join_cond, const_table_map,
+    Item *cond= make_cond_for_table(thd, join_cond, const_table_map,
                                     (table_map) 0, false);
     if (cond)
     {
@@ -8186,7 +8186,8 @@ bool JOIN::attach_join_conditions(plan_idx last_tab)
         prefix_tables|= RAND_TABLE_BIT;
         added_tables|= RAND_TABLE_BIT;
       }
-      cond= make_cond_for_table(join_cond, prefix_tables, added_tables, false);
+      cond= make_cond_for_table(thd, join_cond, prefix_tables,
+                                added_tables, false);
       if (cond == NULL)
         continue;
       /*
@@ -8560,15 +8561,16 @@ bool JOIN::cache_const_exprs()
 */
 
 Item *
-make_cond_for_table(Item *cond, table_map tables, table_map used_table,
+make_cond_for_table(THD *thd, Item *cond, table_map tables,
+                    table_map used_table,
                     bool exclude_expensive_cond)
 {
-  return make_cond_for_table_from_pred(cond, cond, tables, used_table,
+  return make_cond_for_table_from_pred(thd, cond, cond, tables, used_table,
                                        exclude_expensive_cond);
 }
 
 static Item *
-make_cond_for_table_from_pred(Item *root_cond, Item *cond,
+make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
                               bool exclude_expensive_cond)
 {
@@ -8597,7 +8599,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       Item *item;
       while ((item= li++))
       {
-        Item *fix= make_cond_for_table_from_pred(root_cond, item, 
+        Item *fix= make_cond_for_table_from_pred(thd, root_cond, item,
                                                  tables, used_table,
                                                  exclude_expensive_cond);
         if (fix)
@@ -8609,7 +8611,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       case 1:
         return new_cond->argument_list()->head();
       default:
-        if (new_cond->fix_fields(current_thd, NULL))
+        if (new_cond->fix_fields(thd, NULL))
           return NULL;
         return new_cond;
       }
@@ -8623,14 +8625,14 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       Item *item;
       while ((item= li++))
       {
-        Item *fix= make_cond_for_table_from_pred(root_cond, item,
+        Item *fix= make_cond_for_table_from_pred(thd, root_cond, item,
                                                  tables, 0L,
                                                  exclude_expensive_cond);
 	if (!fix)
           return NULL;                        // Always true
 	new_cond->argument_list()->push_back(fix);
       }
-      if (new_cond->fix_fields(current_thd, NULL))
+      if (new_cond->fix_fields(thd, NULL))
         return NULL;
       return new_cond;
     }
@@ -8745,7 +8747,7 @@ static bool make_join_select(JOIN *join, Item *cond)
   */
   Item *const_cond= NULL;
   if (cond)
-    const_cond= make_cond_for_table(cond, join->const_table_map,
+    const_cond= make_cond_for_table(thd, cond, join->const_table_map,
                                     (table_map) 0, true);
 
   // Add conditions added by add_not_null_conds()
@@ -8803,7 +8805,7 @@ static bool make_join_select(JOIN *join, Item *cond)
       Item *tmp= NULL;
 
       if (cond)
-        tmp= make_cond_for_table(cond,used_tables,current_map, 0);
+        tmp= make_cond_for_table(thd, cond, used_tables, current_map, 0);
       /* Add conditions added by add_not_null_conds(). */
       if (tab->condition() && and_conditions(&tmp, tab->condition()))
         DBUG_RETURN(true);
@@ -8844,8 +8846,8 @@ static bool make_join_select(JOIN *join, Item *cond)
 	  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
               first_inner == NO_PLAN_IDX)
           {
-            Item *push_cond= 
-              make_cond_for_table(tmp, tab->table_ref->map(),
+            Item *push_cond=
+              make_cond_for_table(thd, tmp, tab->table_ref->map(),
                                   tab->table_ref->map(), 0);
             if (push_cond)
             {
@@ -9816,7 +9818,7 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
            thd->substitute_null_with_insert_id))
       {
-	query_cache.abort(&thd->query_cache_tls);
+	query_cache.abort(thd, &thd->query_cache_tls);
 	Item *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int(NAME_STRING("last_insert_id()"),

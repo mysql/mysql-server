@@ -24,7 +24,6 @@
 #include "key.h"                             // key_rec_cmp
 #include "sql_class.h"                       // THD
 #include "myisam.h"                          // MI_MAX_MSG_BUF
-#include "current_thd.h"
 #include "derror.h"
 
 // In sql_class.cc:

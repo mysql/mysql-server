@@ -18,6 +18,7 @@
 #include "parse_tree_nodes.h"
 #include "item_cmpfunc.h"          // Item_func_eq
 #include "mysqld.h"                // using_udf_functions
+#include "sp_pcontext.h"           // sp_pcontext
 
 /**
   Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.

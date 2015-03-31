@@ -14,23 +14,28 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
 #include "trigger_loader.h"
-#include "mysqld.h"       // key_file_trn global_system_variables
-#include "sql_class.h"
-#include "sp_head.h"      // sp_name
-#include "sql_base.h"     // is_equal(LEX_STRING, LEX_STRING)
-#include "sql_table.h"    // build_table_filename()
-#include <mysys_err.h>    // EE_OUTOFMEMORY
+
+#include "m_string.h"     // C_STRING_WITH_LEN
+#include "mysqld_error.h" // ER_*
+#include "current_thd.h"  // current_thd
+#include "derror.h"       // ER_THD
+#include "mysqld.h"       // key_file_trn
 #include "parse_file.h"   // File_option
-#include "trigger.h"
-#include "current_thd.h"
-#include "derror.h"
+#include "sql_base.h"     // is_equal(LEX_STRING, LEX_STRING)
+#include "sql_class.h"    // THD
+#include "sql_error.h"    // Sql_condition
+#include "sql_list.h"     // List
+#include "sql_string.h"   // String
+#include "sql_table.h"    // build_table_filename
+#include "table.h"        // TABLE_LIST
+#include "trigger.h"      // Trigger
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
 #include "mysql/psi/mysql_sp.h"
+
 
 ///////////////////////////////////////////////////////////////////////////
 

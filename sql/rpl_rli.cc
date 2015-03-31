@@ -577,23 +577,26 @@ int Relay_log_info::init_relay_log_pos(const char* log,
           describes the whole relay log; indeed, one can have this sequence
           (starting from position 4):
           Format_desc (of slave)
+          Previous-GTIDs (of slave IO thread)
           Rotate (of master)
           Format_desc (of master)
           So the Format_desc which really describes the rest of the relay log
-          is the 3rd event (it can't be further than that, because we rotate
+          is the 4rd event (it can't be further than that, because we rotate
           the relay log when we queue a Rotate event from the master).
           But what describes the Rotate is the first Format_desc.
           So what we do is:
           go on searching for Format_description events, until you exceed the
-          position (argument 'pos') or until you find another event than Rotate
-          or Format_desc.
+          position (argument 'pos') or until you find another event than
+          Previous-GTIDs, Rotate or Format_desc.
         */
       }
       else
       {
         DBUG_PRINT("info",("found event of another type=%d",
                            ev->get_type_code()));
-        look_for_description_event= (ev->get_type_code() == binary_log::ROTATE_EVENT);
+        look_for_description_event=
+          (ev->get_type_code() == binary_log::ROTATE_EVENT ||
+           ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT);
         delete ev;
       }
     }

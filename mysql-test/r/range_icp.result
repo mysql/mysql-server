@@ -3294,4 +3294,51 @@ col_int_key
 DROP TABLE t1;
 SET tmp_table_size=@old_tmp_table_size;
 SET sql_mode = default;
+#
+# Bug#19585938 Crash in get_full_func_mm_tree with null
+#              item_field->table_ref
+#
+CREATE TABLE t1(id INTEGER, col1 INTEGER, col2 INTEGER, PRIMARY KEY(id));
+INSERT INTO t1 VALUES (1,2,3), (3,2,1);
+SELECT (SELECT 1
+FROM t1
+WHERE SUM(1) < id
+) AS c
+FROM t1
+GROUP BY col1;
+c
+1
+SELECT (SELECT 1
+FROM t1
+WHERE id > SUM(1)
+) AS c
+FROM t1
+GROUP BY col1;
+c
+1
+SELECT (SELECT 1
+FROM t1
+WHERE SUM(1) BETWEEN id AND id+1
+) AS c
+FROM t1
+GROUP BY col1;
+c
+1
+SELECT (SELECT 1
+FROM t1
+WHERE id BETWEEN SUM(1) AND SUM(5)
+) AS c
+FROM t1
+GROUP BY col1;
+c
+1
+SELECT (SELECT 1
+FROM t1
+WHERE SUM(1) BETWEEN COUNT(*) AND id
+) AS c
+FROM t1
+GROUP BY col1;
+c
+1
+DROP TABLE t1;
 set optimizer_switch=default;

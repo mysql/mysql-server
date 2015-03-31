@@ -17,14 +17,12 @@
 #ifndef XA_H_INCLUDED
 #define XA_H_INCLUDED
 
-#include "my_global.h"        // ulonglong
-#include "sql_cmd.h"          // enum_sql_command, Sql_cmd
-#include "mysql/plugin.h"     // MYSQL_XIDDATASIZE
-#include "mysqld.h"           // server_id
-#include "sql_cmd.h"
+#include "my_global.h"
+#include "sql_cmd.h"          // Sql_cmd
 #include "sql_plugin_ref.h"   // plugin_ref
+#include "xa_aux.h"           // serialize_xid
+
 #include <string.h>
-#include "xa_aux.h"
 
 class Protocol;
 class THD;

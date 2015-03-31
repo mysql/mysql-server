@@ -44,6 +44,8 @@ Created 3/14/2011 Jimmy Yang
 #include "handler.h"
 #include "mysqld_thd_manager.h"
 #include "current_thd.h"
+#include "mysqld.h"
+#include "sql_cache.h"
 
 #include "log_event.h"
 #include "innodb_config.h"

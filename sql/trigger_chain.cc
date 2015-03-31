@@ -15,18 +15,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
-#include "sql_class.h"
-#include "my_bitmap.h"
-
 #include "trigger_chain.h"
-#include "table_trigger_dispatcher.h"
-#include "table.h"
-#include "sql_list.h"
-#include "trigger_loader.h"
-#include "trigger.h"
-#include "sp_head.h"                  // sp_head::mark_used_trigger_fields
+
+#include "mysqld_error.h"             // ER_*
 #include "mysqld.h"                   // table_alias_charset
+#include "sp_head.h"                  // sp_head
+#include "table.h"                    // GRANT_INFO
+#include "trigger.h"                  // Trigger
 
 
 /**

@@ -29,6 +29,7 @@
 #include "mysqld.h"       // trust_function_creators
 #include "sp_cache.h"     // sp_cache_invalidate
 #include "sp_head.h"      // Stored_program_creation_ctx
+#include "sp_pcontext.h"  // sp_pcontext
 #include "sql_base.h"     // close_thread_tables
 #include "sql_db.h"       // get_default_db_collation
 #include "sql_parse.h"    // parse_sql

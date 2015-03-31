@@ -19,6 +19,18 @@
 
 /* This file defines structures needed by udf functions */
 
+#include "my_global.h"
+#include "mysql_com.h"               // Item_result
+#include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "sql_alloc.h"               // Sql_alloc
+
+class Item;
+class Item_result_field;
+class my_decimal;
+class String;
+typedef struct st_mysql_lex_string LEX_STRING;
+
+
 enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};
 
 typedef void (*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);
@@ -44,8 +56,6 @@ typedef struct st_udf_func
   Udf_func_add func_add;
   ulong usage_count;
 } udf_func;
-
-class Item_result_field;
 
 class udf_handler :public Sql_alloc
 {

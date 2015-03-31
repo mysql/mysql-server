@@ -25,6 +25,7 @@
 #include "log.h"
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "sql_class.h"                      // THD
+#include "sql_cache.h"                      // query_cache
 
 
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)

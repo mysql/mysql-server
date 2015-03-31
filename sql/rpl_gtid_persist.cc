@@ -787,7 +787,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
                       {
                         const char act[]= "now signal compression_failed";
                         DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                        DBUG_ASSERT(!debug_sync_set_action(thd,
                                                            STRING_WITH_LEN(act)));
                       };);
     }

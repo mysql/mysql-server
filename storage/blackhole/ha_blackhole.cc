@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -209,8 +209,7 @@ THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
     */
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
-        && !thd_tablespace_op(thd))
+         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd))
       lock_type = TL_WRITE_ALLOW_WRITE;
 
     /*

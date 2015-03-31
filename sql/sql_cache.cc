@@ -396,14 +396,13 @@ using std::max;
   only if the thread has a associated THD session.
 */
 #if defined(ENABLED_DEBUG_SYNC)
-#define QC_DEBUG_SYNC(name)               \
+#define QC_DEBUG_SYNC(thd, name)          \
   do {                                    \
-    THD *thd= current_thd;                \
     if (thd)                              \
       DEBUG_SYNC(thd, name);              \
   } while (0)
 #else
-#define QC_DEBUG_SYNC(name)
+#define QC_DEBUG_SYNC(thd, name)
 #endif
 
 
@@ -487,6 +486,7 @@ static char *make_cache_key(THD *thd,
   effect by another thread. This enables a quick path in execution to skip waits
   when the outcome is known.
 
+  @param thd         Thread handle
   @param use_timeout TRUE if the lock can abort because of a timeout.
 
   @note use_timeout is optional and default value is FALSE.
@@ -496,10 +496,9 @@ static char *make_cache_key(THD *thd,
    @retval TRUE The locking attempt failed
 */
 
-bool Query_cache::try_lock(bool use_timeout)
+bool Query_cache::try_lock(THD *thd, bool use_timeout)
 {
   bool interrupt= FALSE;
-  THD *thd= current_thd;
   Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::try_lock");
 
@@ -566,9 +565,8 @@ bool Query_cache::try_lock(bool use_timeout)
   It is used by all methods which flushes or destroys the whole cache.
  */
 
-void Query_cache::lock_and_suspend(void)
+void Query_cache::lock_and_suspend(THD *thd)
 {
-  THD *thd= current_thd;
   Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::lock_and_suspend");
 
@@ -595,9 +593,8 @@ void Query_cache::lock_and_suspend(void)
   It is used by all methods which invalidates one or more tables.
  */
 
-void Query_cache::lock(void)
+void Query_cache::lock(THD *thd)
 {
-  THD *thd= current_thd;
   Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::lock");
 
@@ -619,12 +616,11 @@ void Query_cache::lock(void)
   Set the query cache to UNLOCKED and signal waiting threads.
 */
 
-void Query_cache::unlock(void)
+void Query_cache::unlock(THD *thd)
 {
   DBUG_ENTER("Query_cache::unlock");
   mysql_mutex_lock(&structure_guard_mutex);
 #ifndef DBUG_OFF
-  THD *thd= current_thd;
   if (thd)
     DBUG_ASSERT(m_cache_lock_thread_id == thd->thread_id());
 #endif
@@ -938,7 +934,7 @@ void query_cache_insert(const char *packet, ulong length,
   if (!thd)
     return;
 
-  query_cache.insert(&thd->query_cache_tls,
+  query_cache.insert(thd, &thd->query_cache_tls,
                      packet, length,
                      pkt_nr);
 }
@@ -949,7 +945,7 @@ void query_cache_insert(const char *packet, ulong length,
 */
 
 void
-Query_cache::insert(Query_cache_tls *query_cache_tls,
+Query_cache::insert(THD *thd, Query_cache_tls *query_cache_tls,
                     const char *packet, ulong length,
                     unsigned pkt_nr)
 {
@@ -959,9 +955,9 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
   if (is_disabled() || query_cache_tls->first_query_block == NULL)
     DBUG_VOID_RETURN;
 
-  QC_DEBUG_SYNC("wait_in_query_cache_insert");
+  QC_DEBUG_SYNC(thd, "wait_in_query_cache_insert");
 
-  if (try_lock())
+  if (try_lock(thd))
     DBUG_VOID_RETURN;
 
   Query_cache_block *query_block = query_cache_tls->first_query_block;
@@ -971,7 +967,7 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
       We lost the writer and the currently processed query has been
       invalidated; there is nothing left to do.
     */
-    unlock();
+    unlock(thd);
     DBUG_VOID_RETURN;
   }
   BLOCK_LOCK_WR(query_block);
@@ -986,7 +982,7 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
     still need structure_guard_mutex to free the query, and therefore unlock
     it later in this function.
   */
-  if (!append_result_data(&result, length, (uchar*) packet,
+  if (!append_result_data(thd, &result, length, (uchar*) packet,
                           query_block))
   {
     DBUG_PRINT("warning", ("Can't append data"));
@@ -996,7 +992,7 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
     query_cache.free_query(query_block);
     query_cache.refused++;
     // append_result_data no success => we need unlock
-    unlock();
+    unlock(thd);
     DBUG_VOID_RETURN;
   }
 
@@ -1011,16 +1007,15 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
 
 
 void
-Query_cache::abort(Query_cache_tls *query_cache_tls)
+Query_cache::abort(THD *thd, Query_cache_tls *query_cache_tls)
 {
   DBUG_ENTER("query_cache_abort");
-  THD *thd= current_thd;
 
   /* See the comment on double-check locking usage above. */
   if (is_disabled() || query_cache_tls->first_query_block == NULL)
     DBUG_VOID_RETURN;
 
-  if (try_lock())
+  if (try_lock(thd))
     DBUG_VOID_RETURN;
 
   /*
@@ -1039,7 +1034,7 @@ Query_cache::abort(Query_cache_tls *query_cache_tls)
     DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
   }
 
-  unlock();
+  unlock(thd);
 
   DBUG_VOID_RETURN;
 }
@@ -1058,7 +1053,7 @@ void Query_cache::end_of_result(THD *thd)
 
   if (thd->killed || thd->is_error())
   {
-    abort(&thd->query_cache_tls);
+    abort(thd, &thd->query_cache_tls);
     DBUG_VOID_RETURN;
   }
 
@@ -1066,11 +1061,11 @@ void Query_cache::end_of_result(THD *thd)
   DBUG_ASSERT(thd->get_stmt_da()->is_eof());
 
 #ifdef EMBEDDED_LIBRARY
-  insert(query_cache_tls, (char*)thd,
+  insert(thd, query_cache_tls, (char*)thd,
                      emb_count_querycache_size(thd), 0);
 #endif
 
-  if (try_lock())
+  if (try_lock(thd))
     DBUG_VOID_RETURN;
 
   query_block= query_cache_tls->first_query_block;
@@ -1100,7 +1095,7 @@ void Query_cache::end_of_result(THD *thd)
       */
       DBUG_ASSERT(0);
       free_query(query_block);
-      unlock();
+      unlock(thd);
       DBUG_VOID_RETURN;
     }
     last_result_block= header->result()->prev;
@@ -1119,13 +1114,13 @@ void Query_cache::end_of_result(THD *thd)
     DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
   }
 
-  unlock();
+  unlock(thd);
   DBUG_VOID_RETURN;
 }
 
 void query_cache_invalidate_by_MyISAM_filename(const char *filename)
 {
-  query_cache.invalidate_by_MyISAM_filename(filename);
+  query_cache.invalidate_by_MyISAM_filename(current_thd, filename);
 }
 
 
@@ -1191,7 +1186,7 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
 }
 
 
-ulong Query_cache::resize(ulong query_cache_size_arg)
+ulong Query_cache::resize(THD *thd, ulong query_cache_size_arg)
 {
   ulong new_query_cache_size;
   DBUG_ENTER("Query_cache::resize");
@@ -1199,7 +1194,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
 			query_cache_size_arg));
   DBUG_ASSERT(initialized);
 
-  lock_and_suspend();
+  lock_and_suspend(thd);
 
   /*
     Wait for all readers and writers to exit. When the list of all queries
@@ -1234,7 +1229,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   if (new_query_cache_size)
     DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
 
-  unlock();
+  unlock(thd);
   DBUG_RETURN(new_query_cache_size);
 }
 
@@ -1353,11 +1348,11 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       The 'TRUE' parameter indicate that the lock is allowed to timeout
 
     */
-    if (try_lock(TRUE))
+    if (try_lock(thd, TRUE))
       DBUG_VOID_RETURN;
     if (query_cache_size == 0)
     {
-      unlock();
+      unlock(thd);
       DBUG_VOID_RETURN;
     }
     DUMP(this);
@@ -1365,7 +1360,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     if (ask_handler_allowance(thd, tables_used))
     {
       refused++;
-      unlock();
+      unlock(thd);
       DBUG_VOID_RETURN;
     }
 
@@ -1374,7 +1369,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     char *cache_key= make_cache_key(thd, thd->query(), &flags, &tot_length);
     if (cache_key == NULL)
     {
-      unlock();
+      unlock(thd);
       DBUG_VOID_RETURN;
     }
 
@@ -1402,17 +1397,17 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 	  DBUG_PRINT("qcache", ("insertion in query hash"));
 	  header->unlock_n_destroy();
 	  free_memory_block(query_block);
-          unlock();
+          unlock(thd);
 	  goto end;
 	}
-	if (!register_all_tables(query_block, tables_used, local_tables))
+	if (!register_all_tables(thd, query_block, tables_used, local_tables))
 	{
 	  refused++;
 	  DBUG_PRINT("warning", ("tables list including failed"));
 	  my_hash_delete(&queries, (uchar *) query_block);
 	  header->unlock_n_destroy();
 	  free_memory_block(query_block);
-          unlock();
+          unlock(thd);
 	  goto end;
 	}
 	double_linked_list_simple_include(query_block, &queries_blocks);
@@ -1422,7 +1417,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 	header->writer(&thd->query_cache_tls);
 	header->tables_type(tables_type);
 
-        unlock();
+        unlock(thd);
 
 	// init_n_lock make query block locked
 	BLOCK_UNLOCK_WR(query_block);
@@ -1431,7 +1426,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       {
 	// We have not enough memory to store query => do nothing
 	refused++;
-        unlock();
+        unlock(thd);
 	DBUG_PRINT("warning", ("Can't allocate query"));
       }
     }
@@ -1439,7 +1434,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     {
       // Another thread is processing the same query => do nothing
       refused++;
-      unlock();
+      unlock(thd);
       DBUG_PRINT("qcache", ("Another thread process same query"));
     }
   }
@@ -1610,7 +1605,7 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
 
     The 'TRUE' parameter indicate that the lock is allowed to timeout
   */
-  if (try_lock(TRUE))
+  if (try_lock(thd, TRUE))
     goto err;
 
   if (query_cache_size == 0)
@@ -1762,7 +1757,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
         DBUG_PRINT("qcache",
                    ("Temporary table detected: '%s.%s'",
                     tmptable->s->db.str, tmptable->s->table_name.str));
-        unlock();
+        unlock(thd);
         /*
           We should not store result of this query because it contain
           temporary tables => assign following variable to make check
@@ -1783,7 +1778,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       DBUG_PRINT("qcache",
 		 ("probably no SELECT access to %s.%s =>  return to normal processing",
 		  table_list.db, table_list.alias));
-      unlock();
+      unlock(thd);
       thd->lex->safe_to_cache_query=0;		// Don't try to cache this
       BLOCK_UNLOCK_RD(query_block);
       DBUG_RETURN(-1);				// Privilege error
@@ -1845,7 +1840,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
   move_to_query_list_end(query_block);
   hits++;
-  unlock();
+  unlock(thd);
 
   /*
     Send cached result to client
@@ -1906,7 +1901,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   DBUG_RETURN(1);				// Result sent to client
 
 err_unlock:
-  unlock();
+  unlock(thd);
 err:
   MYSQL_QUERY_CACHE_MISS(const_cast<char*>(thd->query().str));
   DBUG_RETURN(0);				// Query was not cached
@@ -1974,13 +1969,12 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
   DBUG_VOID_RETURN;
 }
 
-void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
+void Query_cache::invalidate(THD *thd, CHANGED_TABLE_LIST *tables_used)
 {
   DBUG_ENTER("Query_cache::invalidate (changed table list)");
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next)
   {
     THD_STAGE_INFO(thd, stage_invalidating_query_cache_entries_table_list);
@@ -2003,13 +1997,12 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
   NOTE
     can be used only for opened tables
 */
-void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
+void Query_cache::invalidate_locked_for_write(THD *thd, TABLE_LIST *tables_used)
 {
   DBUG_ENTER("Query_cache::invalidate_locked_for_write");
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next_local)
   {
     THD_STAGE_INFO(thd, stage_invalidating_query_cache_entries_table);
@@ -2065,7 +2058,7 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
    Remove all cached queries that uses the given database.
 */
 
-void Query_cache::invalidate(const char *db)
+void Query_cache::invalidate(THD *thd, const char *db)
 {
   
   DBUG_ENTER("Query_cache::invalidate (db)");
@@ -2077,9 +2070,7 @@ void Query_cache::invalidate(const char *db)
     Lock the query cache and queue all invalidation attempts to avoid
     the risk of a race between invalidation, cache inserts and flushes.
   */
-  lock();
-
-  THD *thd= current_thd;
+  lock(thd);
 
   if (query_cache_size > 0)
   {
@@ -2133,13 +2124,13 @@ void Query_cache::invalidate(const char *db)
       } while (restart);
     } // end if( tables_blocks )
   }
-  unlock();
+  unlock(thd);
 
   DBUG_VOID_RETURN;
 }
 
 
-void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
+void Query_cache::invalidate_by_MyISAM_filename(THD *thd, const char *filename)
 {
   DBUG_ENTER("Query_cache::invalidate_by_MyISAM_filename");
 
@@ -2147,7 +2138,6 @@ void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
   char key[MAX_DBKEY_LENGTH];
   size_t db_length;
   size_t key_length= filename_2_table_key(key, filename, &db_length);
-  THD *thd= current_thd;
   invalidate_table(thd,(uchar *)key, key_length);
   DBUG_EXECUTE("check_querycache", check_integrity(LOCK_WHILE_CHECKING););
   DBUG_VOID_RETURN;
@@ -2155,24 +2145,24 @@ void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
 
   /* Remove all queries from cache */
 
-void Query_cache::flush()
+void Query_cache::flush(THD *thd)
 {
   DBUG_ENTER("Query_cache::flush");
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  QC_DEBUG_SYNC("wait_in_query_cache_flush1");
+  QC_DEBUG_SYNC(thd, "wait_in_query_cache_flush1");
 
-  lock_and_suspend();
+  lock_and_suspend(thd);
   if (query_cache_size > 0)
   {
     DUMP(this);
-    flush_cache();
+    flush_cache(thd);
     DUMP(this);
   }
 
   DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
-  unlock();
+  unlock(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -2187,7 +2177,7 @@ void Query_cache::flush()
 
 */
 
-void Query_cache::pack(ulong join_limit, uint iteration_limit)
+void Query_cache::pack(THD *thd, ulong join_limit, uint iteration_limit)
 {
   DBUG_ENTER("Query_cache::pack");
 
@@ -2198,12 +2188,12 @@ void Query_cache::pack(ulong join_limit, uint iteration_limit)
     If the entire qc is being invalidated we can bail out early
     instead of waiting for the lock.
   */
-  if (try_lock())
+  if (try_lock(thd))
     DBUG_VOID_RETURN;
 
   if (query_cache_size == 0)
   {
-    unlock();
+    unlock(thd);
     DBUG_VOID_RETURN;
   }
 
@@ -2213,12 +2203,12 @@ void Query_cache::pack(ulong join_limit, uint iteration_limit)
     pack_cache();
   } while ((++i < iteration_limit) && join_results(join_limit));
 
-  unlock();
+  unlock(thd);
   DBUG_VOID_RETURN;
 }
 
 
-void Query_cache::destroy()
+void Query_cache::destroy(THD *thd)
 {
   DBUG_ENTER("Query_cache::destroy");
   if (!initialized)
@@ -2228,9 +2218,9 @@ void Query_cache::destroy()
   else
   {
     /* Underlying code expects the lock. */
-    lock_and_suspend();
+    lock_and_suspend(thd);
     free_cache();
-    unlock();
+    unlock(thd);
 
     mysql_cond_destroy(&COND_cache_status_changed);
     mysql_mutex_destroy(&structure_guard_mutex);
@@ -2500,9 +2490,9 @@ void Query_cache::free_cache()
   state could have been changed, and should not be relied on.
 */
 
-void Query_cache::flush_cache()
+void Query_cache::flush_cache(THD *thd)
 {
-  QC_DEBUG_SYNC("wait_in_query_cache_flush2");
+  QC_DEBUG_SYNC(thd, "wait_in_query_cache_flush2");
 
   my_hash_reset(&queries);
   while (queries_blocks != 0)
@@ -2690,7 +2680,7 @@ Query_cache::write_block_data(size_t data_len, uchar* data,
 
 
 my_bool
-Query_cache::append_result_data(Query_cache_block **current_block,
+Query_cache::append_result_data(THD *thd, Query_cache_block **current_block,
 				ulong data_len, uchar* data,
 				Query_cache_block *query_block)
 {
@@ -2708,7 +2698,7 @@ Query_cache::append_result_data(Query_cache_block **current_block,
   if (*current_block == 0)
   {
     DBUG_PRINT("qcache", ("allocated first result data block %lu", data_len));
-    DBUG_RETURN(write_result_data(current_block, data_len, data, query_block,
+    DBUG_RETURN(write_result_data(thd, current_block, data_len, data, query_block,
 				  Query_cache_block::RES_BEG));
   }
   Query_cache_block *last_block = (*current_block)->prev;
@@ -2738,7 +2728,7 @@ Query_cache::append_result_data(Query_cache_block **current_block,
     DBUG_PRINT("qcache", ("allocate new block for %lu bytes",
 			data_len-last_block_free_space));
     Query_cache_block *new_block = 0;
-    success = write_result_data(&new_block, data_len-last_block_free_space,
+    success = write_result_data(thd, &new_block, data_len-last_block_free_space,
 				(uchar*)(((uchar*)data)+last_block_free_space),
 				query_block,
 				Query_cache_block::RES_CONT);
@@ -2752,7 +2742,7 @@ Query_cache::append_result_data(Query_cache_block **current_block,
   else
   {
     // It is success (nobody can prevent us write data)
-    unlock();
+    unlock(thd);
   }
 
   // Now finally write data to the last block
@@ -2768,7 +2758,8 @@ Query_cache::append_result_data(Query_cache_block **current_block,
 }
 
 
-my_bool Query_cache::write_result_data(Query_cache_block **result_block,
+my_bool Query_cache::write_result_data(THD *thd,
+                                       Query_cache_block **result_block,
 				       ulong data_len, uchar* data,
 				       Query_cache_block *query_block,
 				       Query_cache_block::block_type type)
@@ -2790,7 +2781,7 @@ my_bool Query_cache::write_result_data(Query_cache_block **result_block,
   if (success)
   {
     // It is success (nobody can prevent us write data)
-    unlock();
+    unlock(thd);
     uint headers_len = (ALIGN_SIZE(sizeof(Query_cache_block)) +
 			ALIGN_SIZE(sizeof(Query_cache_result)));
 #ifndef EMBEDDED_LIBRARY
@@ -2952,14 +2943,14 @@ void Query_cache::invalidate_table(THD *thd, uchar * key, size_t key_length)
     Lock the query cache and queue all invalidation attempts to avoid
     the risk of a race between invalidation, cache inserts and flushes.
   */
-  lock();
+  lock(thd);
 
   DEBUG_SYNC(thd, "wait_in_query_cache_invalidate2");
 
   if (query_cache_size > 0)
     invalidate_table_internal(thd, key, key_length);
 
-  unlock();
+  unlock(thd);
 }
 
 
@@ -3023,7 +3014,7 @@ Query_cache::invalidate_query_block_list(THD *thd,
 */
 
 TABLE_COUNTER_TYPE
-Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
+Query_cache::register_tables_from_list(THD *thd, TABLE_LIST *tables_used,
                                        TABLE_COUNTER_TYPE counter,
                                        Query_cache_block_table *block_table)
 {
@@ -3052,7 +3043,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
       /*
         There are not callback function for for VIEWs
       */
-      if (!insert_table(key_length, key, block_table,
+      if (!insert_table(thd, key_length, key, block_table,
                         tables_used->view_db.length + 1,
                         HA_CACHE_TBL_NONTRANSACT, 0, 0))
         DBUG_RETURN(0);
@@ -3071,7 +3062,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
                   (ulong) tables_used->table->s->table_cache_key.length,
                   (ulong) tables_used->table->s->table_cache_key.str));
 
-      if (!insert_table(tables_used->table->s->table_cache_key.length,
+      if (!insert_table(thd, tables_used->table->s->table_cache_key.length,
                         tables_used->table->s->table_cache_key.str,
                         block_table,
                         tables_used->db_length,
@@ -3100,7 +3091,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
           /*
             There are not callback function for for MyISAM, and engine data
           */
-          if (!insert_table(key_length, key, block_table,
+          if (!insert_table(thd, key_length, key, block_table,
                             db_length,
                             tables_used->table->file->table_cache_type(),
                             0, 0))
@@ -3122,7 +3113,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
     tables_arg		Not used ?
 */
 
-my_bool Query_cache::register_all_tables(Query_cache_block *block,
+my_bool Query_cache::register_all_tables(THD *thd, Query_cache_block *block,
 					 TABLE_LIST *tables_used,
 					 TABLE_COUNTER_TYPE tables_arg)
 {
@@ -3133,7 +3124,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 
   Query_cache_block_table *block_table = block->table(0);
 
-  n= register_tables_from_list(tables_used, 0, block_table);
+  n= register_tables_from_list(thd, tables_used, 0, block_table);
 
   if (n==0)
   {
@@ -3156,7 +3147,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 */
 
 my_bool
-Query_cache::insert_table(size_t key_len, const char *key,
+Query_cache::insert_table(THD *thd, size_t key_len, const char *key,
                           Query_cache_block_table *node,
                           size_t db_length, uint8 cache_type,
                           qc_engine_callback callback,
@@ -3165,8 +3156,6 @@ Query_cache::insert_table(size_t key_len, const char *key,
   DBUG_ENTER("Query_cache::insert_table");
   DBUG_PRINT("qcache", ("insert table node 0x%lx, len %zu",
                         (ulong)node, key_len));
-
-  THD *thd= current_thd;
 
   Query_cache_block *table_block= 
     (Query_cache_block *) my_hash_search(&tables, (uchar*) key, key_len);

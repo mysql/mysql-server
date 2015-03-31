@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,11 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "sql_list.h"                 // Sql_alloc, List, List_iterator
-#include "sql_cmd.h"                  // Sql_cmd
-#include "sql_class.h"                // Diagnostics_area
-#include "sql_get_diagnostics.h"      // Sql_cmd_get_diagnostics
+#include "sql_get_diagnostics.h"
+
+#include "sql_class.h"                // THD
+#include "sql_error.h"                // Diagnostics_area
+#include "sql_list.h"                 // List_iterator
 #include "sp_rcontext.h"              // sp_rcontext
+
 
 /**
   Execute this GET DIAGNOSTICS statement.

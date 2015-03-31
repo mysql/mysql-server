@@ -34,6 +34,7 @@
 #include "myisam.h"                          // TT_USEFRM
 #include "mysqld.h"                          // key_file_misc
 #include "derror.h"                          // ER_THD
+#include "sql_cache.h"                       // query_cache
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

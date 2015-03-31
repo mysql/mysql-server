@@ -39,6 +39,7 @@
 #include "psi_memory_key.h"
 #include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
+#include "sp_pcontext.h"                    // sp_pcontext
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_class.h"                      // THD
 #include "sql_db.h"                         // check_db_dir_existence

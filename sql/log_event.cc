@@ -10860,7 +10860,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     for (uint i=0 ;  ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
 
-    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
   }
 
   TABLE* 

@@ -3379,7 +3379,7 @@ end_with_restore_list:
     else
     {
       if (thd->variables.query_cache_wlock_invalidate)
-        query_cache.invalidate_locked_for_write(first_table);
+        query_cache.invalidate_locked_for_write(thd, first_table);
       my_ok(thd);
     }
     break;
@@ -5034,18 +5034,23 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
 
+  int32 num_preparse= my_atomic_load32(&num_pre_parse_plugins);
+  int32 num_postparse= my_atomic_load32(&num_post_parse_plugins);
+
   thd->m_parser_state= parser_state;
-  invoke_pre_parse_rewrite_plugins(thd);
+  if (num_preparse > 0)
+    invoke_pre_parse_rewrite_plugins(thd);
   thd->m_parser_state= NULL;
 
-  enable_digest_if_any_plugin_needs_it(thd, parser_state);
+  if (num_postparse > 0)
+    enable_digest_if_any_plugin_needs_it(thd, parser_state);
 
   if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     LEX *lex= thd->lex;
 
     bool err= parse_sql(thd, parser_state, NULL);
-    if (!err)
+    if (num_postparse > 0 && !err)
       err= invoke_post_parse_rewrite_plugins(thd, false);
 
     const char *found_semicolon= parser_state->m_lip.found_semicolon;
@@ -5213,7 +5218,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
-      query_cache.abort(&thd->query_cache_tls);
+      query_cache.abort(thd, &thd->query_cache_tls);
     }
 
     THD_STAGE_INFO(thd, stage_freeing_items);

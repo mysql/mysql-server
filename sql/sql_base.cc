@@ -41,7 +41,6 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"
 #include "sql_prepare.h"   // Reprepare_observer
-#include "sql_resolver.h"  // Column_privilege_tracker
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -5070,7 +5069,7 @@ lock_table_names(THD *thd,
   //          not lock. We also skip this phase if we are within the context
   //          of a FLUSH TABLE WITH READ LOCK or FLUSH TABLE FOR EXPORT
   //          statement, indicated by the MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK flag.
-  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !thd->tablespace_op)
+  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !thd_tablespace_op(thd))
   {
     MDL_request_list mdl_tablespace_requests;
 
@@ -9473,7 +9472,7 @@ int setup_ftfuncs(SELECT_LEX *select_lex)
 
   while ((ftf= li++))
   {
-    if (ftf->fix_index())
+    if (ftf->table_ref && ftf->fix_index())
       return 1;
     lj.rewind();
 

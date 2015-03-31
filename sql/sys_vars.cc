@@ -54,6 +54,7 @@
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
 #include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql_cache.h"                   // query_cache
 #include "sql_locale.h"                  // my_locale_by_number
 #include "sql_parse.h"                   // killall_non_super_threads
 #include "sql_show.h"                    // opt_ignore_db_dirs
@@ -1570,7 +1571,7 @@ static bool check_ftb_syntax(sys_var *self, THD *thd, set_var *var)
 }
 static bool query_cache_flush(sys_var *self, THD *thd, enum_var_type type)
 {
-  query_cache.flush();
+  query_cache.flush(thd);
   return false;
 }
 /// @todo make SESSION_VAR (usability enhancement and a fix for a race condition)
@@ -2986,7 +2987,7 @@ static Sys_var_enum Sys_thread_handling(
 
 static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
-  ulong new_cache_size= query_cache.resize(query_cache_size);
+  ulong new_cache_size= query_cache.resize(thd, query_cache_size);
   /*
      Note: query_cache_size is a global variable reflecting the
      requested cache size. See also query_cache_size_arg

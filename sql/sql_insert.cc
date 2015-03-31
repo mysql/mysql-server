@@ -30,7 +30,8 @@
 #include "rpl_rli.h"                  // Relay_log_info
 #include "rpl_slave.h"                // rpl_master_has_bug
 #include "sql_base.h"                 // setup_fields
-#include "sql_resolver.h"             // Column_privilege_tracker
+#include "sql_cache.h"                // query_cache
+#include "sql_resolver.h"             // validate_gc_assignment
 #include "sql_select.h"               // free_underlaid_joins
 #include "sql_show.h"                 // store_create_info
 #include "sql_table.h"                // quick_rm_table
@@ -39,7 +40,6 @@
 #include "sql_view.h"                 // check_key_in_view
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"              // trans_commit_stmt
-#include "sql_resolver.h"             // validate_gc_assignment
 #include "partition_info.h"           // partition_info
 #include "probes_mysql.h"             // MYSQL_INSERT_START
 

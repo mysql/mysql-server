@@ -25,7 +25,6 @@
 #include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
 #include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
 #include "sql_class.h"               // THD
-#include "current_thd.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -312,7 +311,7 @@ my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
     DBUG_EXECUTE_IF("wait_after_binlog_EOF",
                     {
                       const char act[]= "now wait_for signal.rotate_finished no_clear_event";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                      DBUG_ASSERT(!debug_sync_set_action(m_thd,
                                                          STRING_WITH_LEN(act)));
                     };);
   }
@@ -502,7 +501,7 @@ bool Binlog_sender::check_event_type(Log_event_type type,
                       };);
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
-              ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+              ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -518,7 +517,7 @@ bool Binlog_sender::check_event_type(Log_event_type type,
     {
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
-              ER_THD(current_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+              ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -537,7 +536,7 @@ bool Binlog_sender::check_event_type(Log_event_type type,
     {
       char buf[MYSQL_ERRMSG_SIZE];
       sprintf(buf,
-              ER_THD(current_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+              ER_THD(m_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
               log_file, log_pos);
       set_fatal_error(buf);
       return true;
@@ -700,7 +699,7 @@ int Binlog_sender::check_start_file()
                                            gtid_state->get_server_sidno(),
                                            subset_sidno))
     {
-      errmsg= ER_THD(current_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
+      errmsg= ER_THD(m_thd, ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;
@@ -733,7 +732,7 @@ int Binlog_sender::check_start_file()
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid))
     {
-      errmsg= ER_THD(current_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+      errmsg= ER_THD(m_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;
@@ -1054,7 +1053,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   DBUG_EXECUTE_IF("dump_thread_before_read_event",
                   {
                     const char act[]= "now wait_for signal.continue no_clear_event";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                    DBUG_ASSERT(!debug_sync_set_action(m_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
 
