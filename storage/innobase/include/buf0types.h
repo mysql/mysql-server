@@ -136,7 +136,7 @@ public:
 	/** Constructor. */
 	buf_stat_per_index_t()
 	{
-		m_store = UT_NEW(ut_lock_free_hash_t(),
+		m_store = UT_NEW(ut_lock_free_hash_t(1024),
 				 mem_key_buf_stat_per_index_t);
 	}
 

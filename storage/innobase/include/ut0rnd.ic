@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -137,6 +137,7 @@ ut_hash_ulint(
 
 	return(key % table_size);
 }
+#endif /* UNIV_INNOCHECKSUM */
 
 /*************************************************************//**
 Folds a 64-bit integer.
@@ -151,6 +152,7 @@ ut_fold_ull(
 				  (ulint) (d >> 32)));
 }
 
+#ifndef UNIV_INNOCHECKSUM
 /*************************************************************//**
 Folds a character string ending in the null character.
 @return folded value */

@@ -29,6 +29,68 @@ Created Mar 16, 2015 Vasil Dimov
 #include "univ.i"
 
 #include "os0atomic.h" /* os_compare_and_swap_ulint() */
+#include "ut0new.h" /* UT_NEW*(), UT_DELETE*() */
+#include "ut0rnd.h" /* ut_fold_ull() */
+
+/* Enable this to implement a stats gathering inside ut_lock_free_hash_t.
+It may cause significant performance slowdown. */
+#define UT_HASH_IMPLEMENT_PRINT_STATS
+
+/** An interface class to a basic hash table, that ut_lock_free_hash_t is. */
+class ut_hash_interface_t {
+public:
+	/** The value that is returned when the searched for key is not
+	found. */
+	static const uintptr_t	NOT_FOUND = UINTPTR_MAX;
+
+	/** Destructor. */
+	virtual
+	~ut_hash_interface_t()
+	{
+	}
+
+	/** Get the value mapped to a given key.
+	@param[in]	key	key to look for
+	@return the value that corresponds to key or NOT_FOUND. */
+	virtual
+	uintptr_t
+	get(
+		uintptr_t	key) const = 0;
+
+	/** Set the value for a given key, either inserting a new (key, val)
+	tuple or overwriting an existent value.
+	@param[in]	key	key whose value to set
+	@param[in]	val	value to be set */
+	virtual
+	void
+	set(
+		uintptr_t	key,
+		uintptr_t	val) = 0;
+
+	/** Increment the value for a given key with 1 or insert a new tuple
+	(key, 1).
+	@param[in]	key	key whose value to increment or insert as 1 */
+	virtual
+	void
+	inc(
+		uintptr_t	key) = 0;
+
+	/** Decrement the value of a given key with 1 or do nothing if a
+	tuple with the given key is not found.
+	@param[in]	key	key whose value to decrement */
+	virtual
+	void
+	dec(
+		uintptr_t	key) = 0;
+
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	/** Print statistics about how much searches have been done on the hash
+	and how many collisions. */
+	virtual
+	void
+	print_stats() = 0;
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+};
 
 /** A node in a linked list of arrays. The pointer to the next node is
 atomically set (CAS) when a next element is allocated. */
@@ -91,7 +153,12 @@ public:
 		nothing. */
 		if (!os_compare_and_swap_ulint(
 				reinterpret_cast<ulint*>(&m_next),
-				static_cast<ulint>(NULL),
+				/* C++11 does not allow
+				static_cast<ulint>(NULL)
+				while pre-C++11 does not allow
+				reinterpret_cast<ulint>(NULL). The typecast
+				below satisfies both. */
+				(ulint) NULL,
 				reinterpret_cast<ulint>(next))) {
 			/* Somebody just did that. */
 			UT_DELETE(next);
@@ -115,22 +182,30 @@ private:
 and the value are of type uintptr_t.
 Assumption: basic reads and writes to uintptr_t are atomic.
 */
-class ut_lock_free_hash_t {
+class ut_lock_free_hash_t : public ut_hash_interface_t {
 public:
-	/** The value that is returned when the searched for key is not
-	found. */
-	static const uintptr_t	NOT_FOUND = UINTPTR_MAX;
-
-	/** Constructor. Not thread safe. */
-	ut_lock_free_hash_t()
+	/** Constructor. Not thread safe.
+	@param[in]	initial_size	number of elements to allocate
+	initially. Must be a power of 2. */
+	explicit
+	ut_lock_free_hash_t(
+		size_t	initial_size)
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	:
+	m_n_search(0),
+	m_n_search_iterations(0)
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 	{
 		const key_val_t	initializer = {
 			UNUSED /* key */,
 			NOT_FOUND /* val */
 		};
 
+		ut_a(ut_is_2pow(initial_size));
+
 		m_data = UT_NEW(
-			ut_lock_free_list_node_t<key_val_t>(1024, initializer),
+			ut_lock_free_list_node_t<key_val_t>(initial_size,
+							    initializer),
 			mem_key_buf_stat_per_index_t);
 
 		/* Confirm that the keys are aligned (which also means that
@@ -245,6 +320,23 @@ public:
 		}
 	}
 
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	/** Print statistics about how much searches have been done on the hash
+	and how many collisions. */
+	void
+	print_stats()
+	{
+		ib::info() << "Lock free hash usage stats:";
+		ib::info() << "number of searches: " << m_n_search;
+		ib::info() << "number of search iterations: "
+			<< m_n_search_iterations;
+		if (m_n_search != 0) {
+			ib::info() << "average iterations per search: "
+				<< (double) m_n_search_iterations / m_n_search;
+		}
+	}
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
 private:
 	/** A key==UNUSED designates that this cell in the array is empty. */
 	static const uintptr_t	UNUSED = UINTPTR_MAX;
@@ -260,7 +352,7 @@ private:
 
 	/** A hash function used to map a key to its suggested position in the
 	array. A linar search to the right is done after this position to find
-	the tuple with the given key or find a tuple with key=UNUSED which
+	the tuple with the given key or find a tuple with key==UNUSED which
 	means that the key is not present in the array.
 	@param[in]	key	key to map into a position
 	@return a position (index) in the array where the tuple is guessed
@@ -268,12 +360,16 @@ private:
 	size_t
 	guess_position(
 		uintptr_t	key,
-		size_t		array_size) const
+		size_t		arr_size) const
 	{
 		/* Implement a better hashing function to map
-		[0, UINTPTR_MAX] -> [0, array_size - 1] if this one turns
+		[0, UINTPTR_MAX] -> [0, arr_size - 1] if this one turns
 		out to generate too many collisions. */
-		return(static_cast<size_t>(key) % array_size);
+
+		/* arr_size is a power of 2. */
+		return(static_cast<size_t>(
+				ut_fold_ull(key) & (arr_size - 1)
+		));
 	}
 
 	/** Get the array cell of a key from a given array.
@@ -287,12 +383,27 @@ private:
 		size_t		arr_size,
 		uintptr_t	key) const
 	{
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+		/* The atomic operation gives correct results, but has
+		a _huge_ performance impact. */
+		os_atomic_increment_ulint(&m_n_search, 1);
+		/* The unprotected operation gives a significant skew, but
+		has almost no performance impact. */
+		//++m_n_search;
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
 		const size_t	start = guess_position(key, arr_size);
 		const size_t	end = start + arr_size;
 
 		for (size_t i = start; i < end; i++) {
 
-			const size_t	cur_pos = i % arr_size;
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+			os_atomic_increment_ulint(&m_n_search_iterations, 1);
+			//++m_n_search_iterations;
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
+			/* arr_size is a power of 2. */
+			const size_t	cur_pos = i & (arr_size - 1);
 			key_val_t*	cur_tuple = &arr[cur_pos];
 			const uintptr_t	cur_key = cur_tuple->m_key;
 
@@ -343,6 +454,11 @@ private:
 		size_t		arr_size,
 		uintptr_t	key)
 	{
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+		os_atomic_increment_ulint(&m_n_search, 1);
+		//++m_n_search;
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
 		const size_t	start = guess_position(key, arr_size);
 		const size_t	end = start + arr_size;
 
@@ -352,7 +468,13 @@ private:
 
 		for (size_t i = start; i < end; i++) {
 
-			const size_t	cur_pos = i % arr_size;
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+			os_atomic_increment_ulint(&m_n_search_iterations, 1);
+			//++m_n_search_iterations;
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
+			/* arr_size is a power of 2. */
+			const size_t	cur_pos = i & (arr_size - 1);
 			key_val_t*	cur_tuple = &arr[cur_pos];
 			const uintptr_t	cur_key = cur_tuple->m_key;
 
@@ -420,6 +542,14 @@ private:
 
 	/** Storage for the (key, val) tuples. */
 	ut_lock_free_list_node_t<key_val_t>*	m_data;
+
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	/** Number of searches performed in this hash. */
+	mutable ulint				m_n_search;
+
+	/** Number of elements processed for all searches. */
+	mutable ulint				m_n_search_iterations;
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 };
 
 #endif /* ut0lock_free_hash_h */

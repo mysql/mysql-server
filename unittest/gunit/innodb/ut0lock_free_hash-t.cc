@@ -18,6 +18,30 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
+/* Enable TEST_STD_MAP or TEST_STD_UNORDERED_MAP below to perf test std::map
+or std::unordered_map instead of the InnoDB lock free hash. */
+
+/*
+#define TEST_STD_MAP
+*/
+
+/* To test this, compile with -std=c++11 */
+/*
+#define TEST_STD_UNORDERED_MAP
+*/
+
+#if defined(TEST_STD_MAP) && defined(TEST_STD_UNORDERED_MAP)
+#error Both TEST_STD_MAP and TEST_STD_UNORDERED_MAP are defined.
+#endif /* TEST_STD_MAP && TEST_STD_UNORDERED_MAP */
+
+#ifdef TEST_STD_UNORDERED_MAP
+#include <unordered_map>
+#endif /* TEST_STD_UNORDERED_MAP */
+
+#ifdef TEST_STD_MAP
+#include <map>
+#endif /* TEST_STD_MAP */
+
 #define __STDC_LIMIT_MACROS
 
 #include <gtest/gtest.h>
@@ -35,6 +59,106 @@
 extern SysMutex	thread_mutex;
 
 namespace innodb_lock_free_hash_unittest {
+
+#if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
+class simple_hash_t : public ut_hash_interface_t {
+public:
+#ifdef TEST_STD_MAP
+	typedef std::map<uintptr_t, uintptr_t>			map_t;
+#else
+	typedef std::unordered_map<uintptr_t, uintptr_t>	map_t;
+#endif
+
+	/** Constructor. */
+	simple_hash_t()
+	{
+		m_map_latch.init("simple_hash_t latch", __FILE__, __LINE__);
+	}
+
+	/** Destructor. */
+	~simple_hash_t()
+	{
+		m_map_latch.destroy();
+	}
+
+	uintptr_t
+	get(
+		uintptr_t	key) const
+	{
+		m_map_latch.enter(0, 0, __FILE__, __LINE__);
+
+		map_t::const_iterator	it = m_map.find(key);
+
+		uintptr_t	val;
+
+		if (it != m_map.end()) {
+			val = it->second;
+		} else {
+			val = NOT_FOUND;
+		}
+
+		m_map_latch.exit();
+
+		return(val);
+	}
+
+	void
+	set(
+		uintptr_t	key,
+		uintptr_t	val)
+	{
+		m_map_latch.enter(0, 0, __FILE__, __LINE__);
+
+		m_map[key] = val;
+
+		m_map_latch.exit();
+	}
+
+	void
+	inc(
+		uintptr_t	key)
+	{
+		m_map_latch.enter(0, 0, __FILE__, __LINE__);
+
+		map_t::iterator	it = m_map.find(key);
+
+		if (it != m_map.end()) {
+			++it->second;
+		} else {
+			m_map.insert(map_t::value_type(key, 1));
+		}
+
+		m_map_latch.exit();
+	}
+
+	void
+	dec(
+		uintptr_t	key)
+	{
+		m_map_latch.enter(0, 0, __FILE__, __LINE__);
+
+		map_t::iterator	it = m_map.find(key);
+
+		if (it != m_map.end()) {
+			ut_a(it->second > 0);
+			it->second--;
+		}
+
+		m_map_latch.exit();
+	}
+
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	void
+	print_stats()
+	{
+	}
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
+private:
+	map_t				m_map;
+	mutable OSBasicMutex<NoPolicy>	m_map_latch;
+};
+#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
 /** Generate a key to use in the (key, value) tuples.
 @param[in]	i		some sequential number
@@ -68,7 +192,7 @@ val_from_i(
 @param[in]	key_extra_bits	extra bits to use for key generation */
 void
 hash_insert(
-	ut_lock_free_hash_t*	hash,
+	ut_hash_interface_t*	hash,
 	uintptr_t		n_elements,
 	uintptr_t		key_extra_bits)
 {
@@ -83,7 +207,7 @@ hash_insert(
 @param[in]	key_extra_bits	extra bits that were given to hash_insert() */
 void
 hash_check_inserted(
-	const ut_lock_free_hash_t*	hash,
+	const ut_hash_interface_t*	hash,
 	uintptr_t			n_elements,
 	uintptr_t			key_extra_bits)
 {
@@ -96,26 +220,34 @@ hash_check_inserted(
 
 TEST(ut0lock_free_hash, single_threaded)
 {
-	ut_lock_free_hash_t*	hash = new ut_lock_free_hash_t();
+#if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
+	ut_hash_interface_t*	hash = new simple_hash_t();
+#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+	ut_hash_interface_t*	hash = new ut_lock_free_hash_t(1048576);
+#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
-	const uintptr_t	n_elements = 700;
+	const uintptr_t	n_elements = 16 * 1024;
 
 	hash_insert(hash, n_elements, 0);
 
 	hash_check_inserted(hash, n_elements, 0);
 
-	/* Increment the values of some and decrement of others. */
-	for (uintptr_t i = 0; i < n_elements; i++) {
+	const size_t	n_iter = 512;
 
-		const bool	should_inc = i % 2 == 0;
-		const uintptr_t	key = key_gen(i, 0);
+	for (size_t it = 0; it < n_iter; it++) {
+		/* Increment the values of some and decrement of others. */
+		for (uintptr_t i = 0; i < n_elements; i++) {
 
-		/* Inc/dec from 0 to 9 times, depending on 'i'. */
-		for (uintptr_t j = 0; j < i % 10; j++) {
-			if (should_inc) {
-				hash->inc(key);
-			} else {
-				hash->dec(key);
+			const bool	should_inc = i % 2 == 0;
+			const uintptr_t	key = key_gen(i, 0);
+
+			/* Inc/dec from 0 to 9 times, depending on 'i'. */
+			for (uintptr_t j = 0; j < i % 10; j++) {
+				if (should_inc) {
+					hash->inc(key);
+				} else {
+					hash->dec(key);
+				}
 			}
 		}
 	}
@@ -124,7 +256,7 @@ TEST(ut0lock_free_hash, single_threaded)
 	for (uintptr_t i = 0; i < n_elements; i++) {
 
 		const bool	was_inc = i % 2 == 0;
-		const uintptr_t	delta = i % 10;
+		const uintptr_t	delta = (i % 10) * n_iter;
 
 		ASSERT_EQ(val_from_i(i) + (was_inc ? delta : -delta),
 			  hash->get(key_gen(i, 0)));
@@ -134,7 +266,7 @@ TEST(ut0lock_free_hash, single_threaded)
 }
 
 /** Global hash, edited from many threads concurrently. */
-ut_lock_free_hash_t*	global_hash;
+ut_hash_interface_t*	global_hash;
 
 /** Number of common tuples (edited by all threads) to insert into the hash. */
 static const uintptr_t	N_COMMON = 512;
@@ -160,7 +292,7 @@ DECLARE_THREAD(thread)(
 
 	hash_insert(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
 
-	const uintptr_t	n_iter = 64;
+	const uintptr_t	n_iter = 512;
 
 	for (uintptr_t i = 0; i < n_iter; i++) {
 		for (uintptr_t j = 0; j < N_COMMON; j++) {
@@ -202,7 +334,11 @@ TEST(ut0lock_free_hash, multi_threaded)
 	sync_check_init();
 	os_thread_init();
 
-	global_hash = new ut_lock_free_hash_t();
+#if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
+	global_hash = new simple_hash_t();
+#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+	global_hash = new ut_lock_free_hash_t(1024 * 16);
+#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
 	hash_insert(global_hash, N_COMMON, 0);
 
@@ -222,6 +358,10 @@ TEST(ut0lock_free_hash, multi_threaded)
 	mutex_exit(&thread_mutex);
 
 	hash_check_inserted(global_hash, N_COMMON, 0);
+
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	global_hash->print_stats();
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 
 	delete global_hash;
 
