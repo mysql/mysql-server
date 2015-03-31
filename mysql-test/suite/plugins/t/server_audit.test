@@ -95,7 +95,26 @@ select 2;
 /*! select 2*/;
 /*comment*/ select 2;
 drop table t1;
+set global server_audit_events='query_dcl';
+create table t1(id int);
+insert into t1 values (1), (2);
+select * from t1;
+CREATE USER u1 IDENTIFIED BY 'pwd-123';
+GRANT ALL ON sa_db TO u2 IDENTIFIED BY "pwd-321";
+SET PASSWORD FOR u1 = PASSWORD('pwd 098');
+CREATE USER u3 IDENTIFIED BY '';
+drop user u1, u2, u3;
+select 2;
+(select 2);
+/*! select 2*/;
+/*comment*/ select 2;
+drop table t1;
 set global server_audit_events='';
+
+set global server_audit_query_log_limit= 15;
+select (1), (2), (3), (4);
+select 'A', 'B', 'C', 'D';
+set global server_audit_query_log_limit= 1024;
 drop database sa_db;
 
 set global server_audit_file_path='.';
