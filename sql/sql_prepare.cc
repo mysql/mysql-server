@@ -106,7 +106,7 @@ When one supplies long data for a placeholder:
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
 #include "binlog.h"
 #include "sql_audit.h"          // mysql_global_audit_mask
-
+#include "sql_plugin.h"
 
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
@@ -3255,7 +3255,10 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   digest.reset(token_array, max_digest_length);
   thd->m_digest= &digest;
 
-  enable_digest_if_any_plugin_needs_it(thd, &parser_state);
+  int32 num_postparse= my_atomic_load32(&num_post_parse_plugins);
+
+  if (num_postparse > 0)
+    enable_digest_if_any_plugin_needs_it(thd, &parser_state);
 #ifndef EMBEDDED_LIBRARY
   if (is_any_audit_plugin_active(thd))
     parser_state.m_input.m_compute_digest= true;
@@ -3267,7 +3270,8 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
 
   if (!error)
   { // We've just created the statement maybe there is a rewrite
-    invoke_post_parse_rewrite_plugins(thd, true);
+    if (num_postparse > 0)
+      invoke_post_parse_rewrite_plugins(thd, true);
     error= init_param_array(this);
   }
 

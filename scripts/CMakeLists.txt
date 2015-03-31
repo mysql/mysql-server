@@ -166,6 +166,61 @@ ELSE()
     "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 ENDIF()
 
+# Add trailing whitespace, before substitution below.
+SET(CFLAGS "${CFLAGS} ")
+SET(CXXFLAGS "${CXXFLAGS} ")
+
+SET(REPLACE_OPTIONS
+  "-DDBUG_OFF "
+  "-DEXTRA_DEBUG "
+  "-DHAVE_VALGRIND "
+  "-DSAFE_MUTEX "
+  "-fPIC "
+  "-fno-inline "
+  "-fno-strict-aliasing "
+  "-fstack-protector-strong "
+  "-grecord-gcc-switches "
+  "-ip "
+  "-mp "
+  "-pipe "
+  "-restrict "
+  "-unroll2 "
+)
+
+# Note sequence of -W options here, most specific first.
+SET(REPLACE_REGEX_OPTIONS
+  "-Wp,[-=_A-Za-z0-9]*"
+  "-Werror=[-A-Za-z]*"
+  "-W[-A-Za-z]*"
+  "--param=[-=a-z0-9]*"
+  "-DMY_PTHREAD_FASTMUTEX[=0-9]*"
+  "-O[0-9]"
+  "-march=[-A-Za-z0-9]*"
+  "-mcpu=[-A-Za-z0-9]*"
+  "-mtune=[-A-Za-z0-9]*"
+  "-specs=[-A-Za-z0-9/]*"
+  "-xO[0-9]"
+)
+
+FOREACH(option ${REPLACE_REGEX_OPTIONS})
+  STRING(REGEX REPLACE "${option}" "" CFLAGS   "${CFLAGS}")
+  STRING(REGEX REPLACE "${option}" "" CXXFLAGS "${CXXFLAGS}")
+ENDFOREACH()
+
+FOREACH(option ${REPLACE_OPTIONS})
+  STRING(REPLACE "${option}" " " CFLAGS   "${CFLAGS}")
+  STRING(REPLACE "${option}" " " CXXFLAGS "${CXXFLAGS}")
+ENDFOREACH()
+STRING(REPLACE "-fexceptions " " " CFLAGS "${CFLAGS}")
+
+# Finally: strip away whitespace.
+STRING(REGEX REPLACE "[ ]+" " " CFLAGS   "${CFLAGS}")
+STRING(REGEX REPLACE "[ ]+" " " CXXFLAGS "${CXXFLAGS}")
+STRING(REGEX REPLACE "^[ ]+" "" CFLAGS   "${CFLAGS}")
+STRING(REGEX REPLACE "^[ ]+" "" CXXFLAGS "${CXXFLAGS}")
+STRING(REGEX REPLACE "[ ]+$" "" CFLAGS   "${CFLAGS}")
+STRING(REGEX REPLACE "[ ]+$" "" CXXFLAGS "${CXXFLAGS}")
+
 IF(UNIX)
   # FIND_PROC and CHECK_PID are used by mysqld_safe
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
