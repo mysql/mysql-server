@@ -61,7 +61,7 @@ extern SysMutex	thread_mutex;
 namespace innodb_lock_free_hash_unittest {
 
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
-class simple_hash_t : public ut_hash_interface_t {
+class std_hash_t : public ut_hash_interface_t {
 public:
 #ifdef TEST_STD_MAP
 	typedef std::map<uintptr_t, uintptr_t>			map_t;
@@ -70,13 +70,13 @@ public:
 #endif
 
 	/** Constructor. */
-	simple_hash_t()
+	std_hash_t()
 	{
-		m_map_latch.init("simple_hash_t latch", __FILE__, __LINE__);
+		m_map_latch.init("std_hash_t latch", __FILE__, __LINE__);
 	}
 
 	/** Destructor. */
-	~simple_hash_t()
+	~std_hash_t()
 	{
 		m_map_latch.destroy();
 	}
@@ -221,7 +221,7 @@ hash_check_inserted(
 TEST(ut0lock_free_hash, single_threaded)
 {
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
-	ut_hash_interface_t*	hash = new simple_hash_t();
+	ut_hash_interface_t*	hash = new std_hash_t();
 #else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 	ut_hash_interface_t*	hash = new ut_lock_free_hash_t(1048576);
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
@@ -335,7 +335,7 @@ TEST(ut0lock_free_hash, multi_threaded)
 	os_thread_init();
 
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
-	global_hash = new simple_hash_t();
+	global_hash = new std_hash_t();
 #else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 	global_hash = new ut_lock_free_hash_t(1024 * 16);
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
