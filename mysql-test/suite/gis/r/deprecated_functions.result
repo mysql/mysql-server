@@ -588,7 +588,7 @@ Warnings:
 Warning	1287	'ENDPOINT' is deprecated and will be removed in a future release. Please use ST_ENDPOINT instead
 SELECT ST_AsText(Envelope(ST_GeomFromText(@point_1)));
 ST_AsText(Envelope(ST_GeomFromText(@point_1)))
-POLYGON((11 14,11 14,11 14,11 14,11 14))
+POINT(11 14)
 Warnings:
 Warning	1287	'ENVELOPE' is deprecated and will be removed in a future release. Please use ST_ENVELOPE instead
 SELECT ST_AsText(ExteriorRing(ST_GeomFromText(@polygon)));
