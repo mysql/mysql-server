@@ -83,8 +83,8 @@ TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
 TARGET_LINK_LIBRARIES(mysqladmin mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.c)
-SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
+MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.cc)
+SET_SOURCE_FILES_PROPERTIES(mysqlslap.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
