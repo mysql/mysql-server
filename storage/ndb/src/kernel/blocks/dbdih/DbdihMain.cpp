@@ -2405,6 +2405,9 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
     infoEvent("DIH : Denied request for start permission from %u "
               "while LCP Master takeover in progress.",
               nodeId);
+    g_eventLogger->info("DIH : Denied request for start permission from %u "
+                        "while LCP Master takeover in progress.",
+                        nodeId);
     signal->theData[0] = nodeId;
     signal->theData[1] = StartPermRef::ZNODE_START_DISALLOWED_ERROR;
     sendSignal(retRef, GSN_START_PERMREF, signal, 2, JBB);
@@ -2423,6 +2426,7 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
   if (!getAllowNodeStart(nodeId))
   {
     jam();
+    g_eventLogger->info("Rejecting attempt to start node %u", nodeId);
 ref:
     signal->theData[0] = nodeId;
     signal->theData[1] = StartPermRef::ZNODE_START_DISALLOWED_ERROR;
@@ -2525,12 +2529,19 @@ void Dbdih::startInfoReply(Signal* signal, Uint32 nodeId)
   }
   else
   {
+    /**
+     * Failure of START_INFO protocol, another node wasn't ready to
+     * start this node, some part of handling a previous node failure
+     * hadn't completed yet. The node will have to wait a bit more.
+     * We need to restore the state such that the retry is possible.
+     */
     jam();
     StartPermRef * ref = (StartPermRef*)&signal->theData[0];
     ref->startingNodeId = c_nodeStartMaster.startNode;
     ref->errorCode = c_nodeStartMaster.startInfoErrorCode;
     sendSignal(calcDihBlockRef(c_nodeStartMaster.startNode), 
 	       GSN_START_PERMREF, signal, StartPermRef::SignalLength, JBB);
+    setNodeStatus(c_nodeStartMaster.startNode, NodeRecord::DEAD);
     nodeResetStart(signal);
   }//if
 }//Dbdih::startInfoReply()
@@ -4182,12 +4193,56 @@ void Dbdih::execSTART_INFOREQ(Signal* signal)
     ndbrequire(getNodeStatus(startNode) == NodeRecord::STARTING);
   } else {
     jam();
-    ndbrequire(getNodeStatus(startNode) == NodeRecord::DEAD);
+    if (getNodeStatus(startNode) == NodeRecord::STARTING)
+    {
+      /**
+       * The master is sending out a new START_INFOREQ, obviously some
+       * other node wasn't ready to start it yet, we are still ready.
+       * We will report this fact without any additional state changes.
+       */
+      jam();
+      NodeRecordPtr nodePtr;
+      nodePtr.i = startNode;
+      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+      ndbrequire(nodePtr.p->nodeRecoveryStatus ==
+                 NodeRecord::NODE_GETTING_PERMIT);
+      ndbrequire(getAllowNodeStart(startNode));
+
+      StartInfoConf * c = (StartInfoConf*)&signal->theData[0];
+      c->sendingNodeId = cownNodeId;
+      c->startingNodeId = startNode;
+      sendSignal(cmasterdihref, GSN_START_INFOCONF, signal,
+	         StartInfoConf::SignalLength, JBB);
+      return;
+    }
+    else
+    {
+      jam();
+      ndbrequire(getNodeStatus(startNode) == NodeRecord::DEAD);
+    }
   }//if
   if ((!getAllowNodeStart(startNode)) ||
       (c_nodeStartSlave.nodeId != 0) ||
       (ERROR_INSERTED(7124))) {
     jam();
+    if (!getAllowNodeStart(startNode))
+    {
+      jam();
+      g_eventLogger->info("Not allowed to start now for node %u", startNode);
+    }
+    else if (c_nodeStartSlave.nodeId != 0)
+    {
+      jam();
+      g_eventLogger->info("INCL_NODEREQ protocol still ongoing node = %u"
+                          " c_nodeStartSlave.nodeId = %u",
+                          startNode,
+                          c_nodeStartSlave.nodeId);
+    }
+    else
+    {
+      jam();
+      g_eventLogger->info("ERROR INSERT 7124");
+    }
     StartInfoRef *const ref =(StartInfoRef*)&signal->theData[0];
     ref->startingNodeId = startNode;
     ref->sendingNodeId = cownNodeId;
@@ -4199,6 +4254,7 @@ void Dbdih::execSTART_INFOREQ(Signal* signal)
   setNodeStatus(startNode, NodeRecord::STARTING);
   if (req->typeStart == NodeState::ST_INITIAL_NODE_RESTART) {
     jam();
+    g_eventLogger->info("Started invalidation of node %u", startNode);
     setAllowNodeStart(startNode, false);
     invalidateNodeLCP(signal, startNode, 0);
   } else {
@@ -10354,6 +10410,54 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
 }//Dbdih::masterGcpConfFromFailedLab()
 
 void
+Dbdih::handle_send_continueb_invalidate_node_lcp(Signal *signal)
+{
+  if (ERROR_INSERTED(7204))
+  {
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 3);
+  }
+  else if (ERROR_INSERTED(7245))
+  {
+    if (isMaster())
+    {
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 3);
+    }
+    else
+    {
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 3000, 3);
+    }
+  }
+  else if (ERROR_INSERTED(7246))
+  {
+    /**
+     * This error injection supports a special test case where we
+     * delay node 1 and 2 more than other nodes to ensure that we
+     * get some nodes that reply with START_INFOCONF and some that
+     * reply with START_INFOREF to get the code tested for the case
+     * some nodes reply with START_INFOREF and some with START_INFOCONF.
+     */
+    if (isMaster())
+    {
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 3);
+    }
+    else if (cownNodeId == Uint32(1) ||
+             (refToNode(cmasterdihref) == Uint32(1) &&
+              cownNodeId == Uint32(2)))
+    {
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 5000, 3);
+    }
+    else
+    {
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 8000, 3);
+    }
+  }
+  else
+  {
+    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  }
+}
+
+void
 Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, Uint32 tableId)
 {
   jamEntry();
@@ -10371,11 +10475,14 @@ Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, Uint32 tableId)
        * Ready with entire loop
        * Return to master
        */
-      if (ERROR_INSERTED(7204))
+      if (ERROR_INSERTED(7204) ||
+          ERROR_INSERTED(7245) ||
+          ERROR_INSERTED(7246))
       {
         CLEAR_ERROR_INSERT_VALUE;
       }
       setAllowNodeStart(nodeId, true);
+      g_eventLogger->info("Completed invalidation of node %u", nodeId);
       if (getNodeStatus(nodeId) == NodeRecord::STARTING) {
         jam();
         if (!isMaster())
@@ -10481,14 +10588,8 @@ Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, TabRecordPtr tabPtr)
   signal->theData[1] = nodeId;
   signal->theData[2] = tabPtr.i;
 
-  if (ERROR_INSERTED(7204))
-  {
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 3);
-  }
-  else
-  {
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
-  }
+  handle_send_continueb_invalidate_node_lcp(signal);
+
   return;
 }//Dbdih::invalidateNodeLCP()
 
@@ -19554,14 +19655,8 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     signal->theData[0] = DihContinueB::ZINVALIDATE_NODE_LCP;
     signal->theData[1] = tabPtr.p->tabRemoveNode;
     signal->theData[2] = tabPtr.i + 1;
-    if (ERROR_INSERTED(7204))
-    {
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 3);
-    }
-    else
-    {
-      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
-    }
+
+    handle_send_continueb_invalidate_node_lcp(signal);
     return;
   case TabRecord::US_COPY_TAB_REQ:
     jam();

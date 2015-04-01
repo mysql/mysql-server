@@ -1386,6 +1386,15 @@ NdbEventBuffer::~NdbEventBuffer()
     array[j].~Gci_container();
   }
 
+  // Return EventBufData lists to free list in a nice way
+  // before actual deallocation using m_allocated_data.
+  if(!m_complete_data.m_data.is_empty())
+    free_list(m_complete_data.m_data);
+  if(!m_available_data.is_empty())
+    free_list(m_available_data);
+  if(!m_used_data.is_empty())
+    free_list(m_used_data);
+
   for (j= 0; j < m_allocated_data.size(); j++)
   {
     unsigned sz= m_allocated_data[j]->sz;
@@ -1419,6 +1428,19 @@ NdbEventBuffer::add_op()
 {
   if(m_active_op_count == 0)
   {
+    // Return EventBufData to free list and release GCI ops before clearing.
+    for(unsigned i = 0; i < m_active_gci.size(); i++)
+    {
+      Gci_container& bucket = (Gci_container&)m_active_gci[i];
+      if (!bucket.m_data.is_empty())
+      {
+        free_list(bucket.m_data);
+      }
+    }
+    if (!m_complete_data.m_data.is_empty())
+    {
+      free_list(m_complete_data.m_data);
+    }
     init_gci_containers();
   }
   m_active_op_count++;
@@ -3781,6 +3803,8 @@ NdbEventBuffer::free_list(EventBufData_list &list)
 
   list.m_head = list.m_tail = NULL;
   list.m_count = list.m_sz = 0;
+
+  list.~EventBufData_list(); // free gci ops
 }
 
 void EventBufData_list::append_list(EventBufData_list *list, Uint64 gci)
@@ -3797,6 +3821,9 @@ void EventBufData_list::append_list(EventBufData_list *list, Uint64 gci)
   m_tail= list->m_tail;
   m_count+= list->m_count;
   m_sz+= list->m_sz;
+
+  list->m_head = list->m_tail = NULL;
+  list->m_count = list->m_sz = 0;
 }
 
 void

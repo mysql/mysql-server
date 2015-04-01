@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -71,14 +71,15 @@ NdbOut& NdbOut::endline()
 {
   isHex = 0; // Reset hex to normal, if user forgot this
   m_out->println("%s", "");
-  if (m_autoflush)
-    m_out->flush();
-  return *this;
+  return flushline(false);
 }
 
-NdbOut& NdbOut::flushline()
+NdbOut& NdbOut::flushline(bool force)
 {
-  m_out->flush();
+  if (force || m_autoflush)
+  {
+    m_out->flush();
+  }
   return *this;
 }
 
@@ -163,8 +164,11 @@ NdbOut::println(const char * fmt, ...)
   char buf[1000];
   
   va_start(ap, fmt);
-  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  *this << buf << endl;
+  size_t len = BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  if (len > sizeof(buf) - 2) len = sizeof(buf) - 2;
+  memcpy(&buf[len], "\n", 2);
+  *this << buf;
+  flushline(false);
   va_end(ap);
 }
 
@@ -187,8 +191,11 @@ vndbout_c(const char * fmt, va_list ap)
   }
 
   char buf[1000];
-  BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
-  ndbout << buf << endl;
+  size_t len = BaseString::vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+  if (len > sizeof(buf) - 2) len = sizeof(buf) - 2;
+  memcpy(&buf[len], "\n", 2);
+  ndbout << buf;
+  ndbout.flushline(false);
 }
 
 extern "C"
