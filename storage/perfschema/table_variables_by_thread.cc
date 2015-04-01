@@ -95,9 +95,6 @@ void table_variables_by_thread::reset_position(void)
 
 int table_variables_by_thread::rnd_init(bool scan)
 {
-  if (show_compatibility_56)
-    return 0;
-
   /*
     Build array of SHOW_VARs from system variable hash prior to materializing
     threads in rnd_next() or rnd_pos().
@@ -120,9 +117,6 @@ int table_variables_by_thread::rnd_init(bool scan)
 
 int table_variables_by_thread::rnd_next(void)
 {
-  if (show_compatibility_56)
-    return HA_ERR_END_OF_FILE;
-
   /* If system variable hash changes, exit with warning. */ // TODO: Issue warning
   if (!m_context->versions_match())
     return HA_ERR_END_OF_FILE;
@@ -156,9 +150,6 @@ int table_variables_by_thread::rnd_next(void)
 int
 table_variables_by_thread::rnd_pos(const void *pos)
 {
-  if (show_compatibility_56)
-    return HA_ERR_RECORD_DELETED;
-
   /* If system variable hash changes, do nothing. */
   if (!m_context->versions_match())
     return HA_ERR_RECORD_DELETED;

@@ -6913,30 +6913,6 @@ void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
                       old_name, new_name);
 }
 
-/**
-  Issue a deprecation warning for SHOW commands with a WHERE clause.
-*/
-void push_show_where_warning(THD *thd, enum enum_var_type option_type, bool status)
-{
-  const char *old_name;
-  const char *new_name;
-  if (option_type == OPT_GLOBAL)
-  {
-    old_name= (status ? "SHOW GLOBAL STATUS WHERE" : "SHOW GLOBAL VARIABLES WHERE");
-    new_name= (status ? "SHOW GLOBAL STATUS [LIKE]" : "SHOW GLOBAL VARIABLES [LIKE]");
-  }
-  else
-  {
-    old_name= (status ? "SHOW SESSION STATUS WHERE" : "SHOW SESSION VARIABLES WHERE");
-    new_name= (status ? "SHOW SESSION STATUS [LIKE]" : "SHOW SESSION VARIABLES [LIKE]");
-  }
-
-  push_warning_printf(thd, Sql_condition::SL_WARNING,
-                      ER_WARN_DEPRECATED_SYNTAX,
-                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
-                      old_name, new_name);
-}
-
 int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
@@ -6965,16 +6941,9 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     option_type= OPT_SESSION;
   }
 
-  /* Issue deprecation warning. */
-  if (lex->sql_command == SQLCOM_SHOW_VARIABLES)
-  {
-    if (cond != NULL)
-    {
-      push_show_where_warning(thd, option_type, false);
-    }
-  }
 #ifndef EMBEDDED_LIBRARY
-  else
+  /* Issue deprecation warning. */
+  if (lex->sql_command != SQLCOM_SHOW_VARIABLES)
   {
     push_select_warning(thd, option_type, false);
   }
@@ -7033,16 +7002,9 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     tmp1= &thd->status_var;
   }
 
-  /* Issue deprecation warning. */
-  if (lex->sql_command == SQLCOM_SHOW_STATUS)
-  {
-    if (cond != NULL)
-    {
-      push_show_where_warning(thd, option_type, true);
-    }
-  }
 #ifndef EMBEDDED_LIBRARY
-  else
+  /* Issue deprecation warning. */
+  if (lex->sql_command != SQLCOM_SHOW_STATUS)
   {
     push_select_warning(thd, option_type, true);
   }
