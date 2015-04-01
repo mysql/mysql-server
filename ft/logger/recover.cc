@@ -109,7 +109,8 @@ int tokuft_recovery_trace = 0;                    // turn on recovery tracing, d
 #endif
 
 // time in seconds between recovery progress reports
-#define TOKUDB_RECOVERY_PROGRESS_TIME 15
+#define TOKUFT_RECOVERY_PROGRESS_TIME 15
+time_t tokuft_recovery_progress_time = TOKUFT_RECOVERY_PROGRESS_TIME;
 
 enum ss {
     BACKWARD_NEWER_CHECKPOINT_END = 1,
@@ -323,14 +324,12 @@ static int recover_env_init (RECOVER_ENV renv,
 }
 
 static void recover_env_cleanup (RECOVER_ENV renv) {
-    int r;
-
     invariant_zero(renv->fmap.filenums->size());
     file_map_destroy(&renv->fmap);
 
     if (renv->destroy_logger_at_end) {
         toku_logger_close_rollback(renv->logger);
-        r = toku_logger_close(&renv->logger);
+        int r = toku_logger_close(&renv->logger);
         assert(r == 0);
     } else {
         toku_logger_write_log_files(renv->logger, true);
@@ -747,6 +746,36 @@ static int toku_recover_backward_xbegin (struct logtype_xbegin *UU(l), RECOVER_E
     return 0;
 }
 
+struct toku_txn_progress_extra {
+    time_t tlast;
+    LSN lsn;
+    const char *type;
+    TXNID_PAIR xid;
+    uint64_t last_total;
+};
+
+static void toku_recover_txn_progress(TOKU_TXN_PROGRESS txn_progress, void *extra) {
+    toku_txn_progress_extra *txn_progress_extra = static_cast<toku_txn_progress_extra *>(extra);
+    if (txn_progress_extra->last_total == 0)
+        txn_progress_extra->last_total = txn_progress->entries_total;
+    else
+        assert(txn_progress_extra->last_total == txn_progress->entries_total);
+    time_t tnow = time(NULL);
+    if (tnow - txn_progress_extra->tlast >= tokuft_recovery_progress_time) {
+        txn_progress_extra->tlast = tnow;
+        fprintf(stderr, "%.24s TokuFT ", ctime(&tnow));
+        if (txn_progress_extra->lsn.lsn != 0)
+            fprintf(stderr, "lsn %" PRIu64 " ", txn_progress_extra->lsn.lsn);
+        fprintf(stderr, "%s xid %" PRIu64 ":%" PRIu64 " ",
+                txn_progress_extra->type, txn_progress_extra->xid.parent_id64, txn_progress_extra->xid.child_id64);
+        fprintf(stderr, "%" PRIu64 "/%" PRIu64 " ",
+                txn_progress->entries_processed, txn_progress->entries_total);
+        if (txn_progress->entries_total > 0)
+            fprintf(stderr, "%.0f%% ", ((double) txn_progress->entries_processed / (double) txn_progress->entries_total) * 100.0);
+        fprintf(stderr, "\n");
+    }
+}
+
 static int toku_recover_xcommit (struct logtype_xcommit *l, RECOVER_ENV renv) {
     // find the transaction by transaction id
     TOKUTXN txn = NULL;
@@ -754,8 +783,8 @@ static int toku_recover_xcommit (struct logtype_xcommit *l, RECOVER_ENV renv) {
     assert(txn!=NULL);
 
     // commit the transaction
-    int r = toku_txn_commit_with_lsn(txn, true, l->lsn,
-                                 NULL, NULL);
+    toku_txn_progress_extra extra = { time(NULL), l->lsn, "commit", l->xid };
+    int r = toku_txn_commit_with_lsn(txn, true, l->lsn, toku_recover_txn_progress, &extra);
     assert(r == 0);
 
     // close the transaction
@@ -797,7 +826,8 @@ static int toku_recover_xabort (struct logtype_xabort *l, RECOVER_ENV renv) {
     assert(txn!=NULL);
 
     // abort the transaction
-    r = toku_txn_abort_with_lsn(txn, l->lsn, NULL, NULL);
+    toku_txn_progress_extra extra = { time(NULL), l->lsn, "abort", l->xid };
+    r = toku_txn_abort_with_lsn(txn, l->lsn, toku_recover_txn_progress, &extra);
     assert(r == 0);
 
     // close the transaction
@@ -1299,7 +1329,6 @@ static int is_txn_unprepared(TOKUTXN txn, void* extra) {
     return 0;
 }
 
-
 static int find_an_unprepared_txn (RECOVER_ENV renv, TOKUTXN *txnp) {
     TOKUTXN txn = nullptr;
     int r = toku_txn_manager_iter_over_live_root_txns(
@@ -1324,6 +1353,7 @@ static int call_prepare_txn_callback_iter(TOKUTXN txn, void* extra) {
 }
 
 static void recover_abort_live_txn(TOKUTXN txn) {
+    fprintf(stderr, "%s %" PRIu64 "\n", __FUNCTION__, txn->txnid.parent_id64);
     // recursively abort all children first
     if (txn->child != NULL) {
         recover_abort_live_txn(txn->child);
@@ -1331,7 +1361,8 @@ static void recover_abort_live_txn(TOKUTXN txn) {
     // sanity check that the recursive call successfully NULLs out txn->child
     invariant(txn->child == NULL);
     // abort the transaction
-    int r = toku_txn_abort_txn(txn, NULL, NULL);
+    toku_txn_progress_extra extra = { time(NULL), ZERO_LSN, "abort live", txn->txnid };
+    int r = toku_txn_abort_txn(txn, toku_recover_txn_progress, &extra);
     assert(r == 0);
     
     // close the transaction
@@ -1449,9 +1480,10 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         // trace progress
         if ((i % 1000) == 0) {
             tnow = time(NULL);
-            if (tnow - tlast >= TOKUDB_RECOVERY_PROGRESS_TIME) {
+            if (tnow - tlast >= tokuft_recovery_progress_time) {
                 thislsn = toku_log_entry_get_lsn(le);
-                fprintf(stderr, "%.24s TokuFT recovery scanning backward from %" PRIu64 " at %" PRIu64 " (%s)\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn, recover_state(renv));
+                fprintf(stderr, "%.24s TokuFT recovery scanning backward from %" PRIu64 " at %" PRIu64 " (%s)\n",
+                        ctime(&tnow), lastlsn.lsn, thislsn.lsn, recover_state(renv));
                 tlast = tnow;
             }
         }
@@ -1480,16 +1512,18 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
     assert(le);
     thislsn = toku_log_entry_get_lsn(le);
     tnow = time(NULL);
-    fprintf(stderr, "%.24s TokuFT recovery starts scanning forward to %" PRIu64 " from %" PRIu64 " left %" PRIu64 " (%s)\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn, lastlsn.lsn - thislsn.lsn, recover_state(renv));
+    fprintf(stderr, "%.24s TokuFT recovery starts scanning forward to %" PRIu64 " from %" PRIu64 " left %" PRIu64 " (%s)\n",
+            ctime(&tnow), lastlsn.lsn, thislsn.lsn, lastlsn.lsn - thislsn.lsn, recover_state(renv));
 
     for (unsigned i=0; 1; i++) {
 
         // trace progress
         if ((i % 1000) == 0) {
             tnow = time(NULL);
-            if (tnow - tlast >= TOKUDB_RECOVERY_PROGRESS_TIME) {
+            if (tnow - tlast >= tokuft_recovery_progress_time) {
                 thislsn = toku_log_entry_get_lsn(le);
-                fprintf(stderr, "%.24s TokuFT recovery scanning forward to %" PRIu64 " at %" PRIu64 " left %" PRIu64 " (%s)\n", ctime(&tnow), lastlsn.lsn, thislsn.lsn, lastlsn.lsn - thislsn.lsn, recover_state(renv));
+                fprintf(stderr, "%.24s TokuFT recovery scanning forward to %" PRIu64 " at %" PRIu64 " left %" PRIu64 " (%s)\n",
+                        ctime(&tnow), lastlsn.lsn, thislsn.lsn, lastlsn.lsn - thislsn.lsn, recover_state(renv));
                 tlast = tnow;
             }
         }
