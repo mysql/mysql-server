@@ -8577,16 +8577,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   THD_STAGE_INFO(thd, stage_setup);
   if (!(alter_info->flags & ~(Alter_info::ALTER_RENAME |
                               Alter_info::ALTER_KEYS_ONOFF)) &&
-#ifndef MCP_BUG16021021
-      (alter_info->requested_algorithm !=
-       Alter_info::ALTER_TABLE_ALGORITHM_COPY ||
-       // Allow for all exclusive rename to avoid copying
-      (alter_info->flags & Alter_info::ALTER_RENAME &&
-       !(alter_info->flags & ~Alter_info::ALTER_RENAME))) &&
-#else
       alter_info->requested_algorithm !=
       Alter_info::ALTER_TABLE_ALGORITHM_COPY &&
-#endif
       !table->s->tmp_table) // no need to touch frm
   {
     // This requires X-lock, no other lock levels supported.
