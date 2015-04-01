@@ -445,6 +445,17 @@ ORDER BY alias1.col_time_key, alias1.col_datetime_key, alias1.pk ASC;
 field1	field2
 NULL	0
 DROP TABLE A,C;
+#
+# Bug#20797941: WL8149:ASSERTION `!TABLE ||
+#  (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET
+# 
+CREATE TABLE t(a int, b int as(a+1));
+INSERT INTO t(a) values(1),(2);
+SELECT * FROM t ORDER BY b;
+a	b
+1	2
+2	3
+DROP TABLE t;
 SET optimizer_switch='derived_merge=default';
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

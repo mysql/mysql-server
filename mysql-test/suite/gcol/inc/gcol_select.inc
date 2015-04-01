@@ -331,3 +331,12 @@ COUNT( DISTINCT alias2 . col_varchar_nokey ) AS field2
 FROM ( A AS alias1 , C AS alias2 )
 ORDER BY alias1.col_time_key, alias1.col_datetime_key, alias1.pk ASC;
 DROP TABLE A,C;
+
+--echo #
+--echo # Bug#20797941: WL8149:ASSERTION `!TABLE ||
+--echo #  (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET
+--echo # 
+CREATE TABLE t(a int, b int as(a+1));
+INSERT INTO t(a) values(1),(2);
+SELECT * FROM t ORDER BY b;
+DROP TABLE t;
