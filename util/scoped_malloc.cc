@@ -145,6 +145,9 @@ namespace toku {
         }
 
         void destroy() {
+#if TOKU_SCOPED_MALLOC_DEBUG
+            printf("%s %p %p\n", __FUNCTION__, this, m_stack);
+#endif
             if (m_stack != NULL) {
                 toku_free(m_stack);
                 m_stack = NULL;
@@ -167,13 +170,17 @@ namespace toku {
         static void destroy_and_deregister(void *key) {
             invariant_notnull(key);
             tl_stack *st = reinterpret_cast<tl_stack *>(key);
-            st->destroy();
 
+            size_t n = 0;
             toku_mutex_lock(&global_stack_set_mutex);
-            invariant_notnull(global_stack_set);
-            size_t n = global_stack_set->erase(st);
-            invariant(n == 1);
+            if (global_stack_set) {
+                n = global_stack_set->erase(st);
+            }
             toku_mutex_unlock(&global_stack_set_mutex);
+
+            if (n == 1) {
+                st->destroy(); // destroy the stack if this function erased it from the set.  otherwise, somebody else destroyed it.
+            }
         }
 
         // Allocate 'size' bytes and return a pointer to the first byte
@@ -244,6 +251,11 @@ void toku_scoped_malloc_init(void) {
 }
 
 void toku_scoped_malloc_destroy(void) {
+    toku_scoped_malloc_destroy_key();
+    toku_scoped_malloc_destroy_set();
+}
+
+void toku_scoped_malloc_destroy_set(void) {
     toku_mutex_lock(&toku::global_stack_set_mutex);
     invariant_notnull(toku::global_stack_set);
     // Destroy any tl_stacks that were registered as thread locals but did not
@@ -254,10 +266,11 @@ void toku_scoped_malloc_destroy(void) {
         (*i)->destroy();
     }
     delete toku::global_stack_set;
+    toku::global_stack_set = nullptr;
     toku_mutex_unlock(&toku::global_stack_set_mutex);
+}
 
-    // We're deregistering the destructor key here. When this thread exits,
-    // the tl_stack destructor won't get called, so we need to do that first.
+void toku_scoped_malloc_destroy_key(void) {
     int r = pthread_key_delete(toku::tl_stack_destroy_pthread_key);
     invariant_zero(r);
 }

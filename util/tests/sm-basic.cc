@@ -1,6 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-
+#ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -86,72 +86,42 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#pragma once
+// test that basic scoped malloc works with a thread
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+#ident "Copyright (c) 2015 Tokutek Inc.  All rights reserved."
+#include <toku_portability.h>
+#include <toku_assert.h>
+#include <toku_pthread.h>
+#include <util/scoped_malloc.h>
 
-
-#include <string.h>
-
-namespace toku {
-
-    class scoped_malloc {
-    public:
-        // Memory is allocated from thread-local storage if available, otherwise from malloc(3).
-        scoped_malloc(const size_t size);
-
-        ~scoped_malloc();
-
-        void *get() const {
-            return m_buf;
+static void sm_test(void) {
+    toku::scoped_malloc a(1);
+    {
+        toku::scoped_malloc b(2);
+        {
+            toku::scoped_malloc c(3);
         }
+    }
+}
 
-    private:
-        // Non-copyable
-        scoped_malloc();
+static void *sm_test_f(void *arg) {
+    sm_test();
+    return arg;
+}
 
-        const size_t m_size;
-        const bool m_local;
-        void *const m_buf;
-    };
+int main(void) {
+    toku_scoped_malloc_init();
 
-    class scoped_calloc : public scoped_malloc {
-    public:
-        // A scoped malloc whose bytes are initialized to zero, as in calloc(3)
-        scoped_calloc(const size_t size) :
-            scoped_malloc(size) {
-            memset(scoped_malloc::get(), 0, size);
-        }
-    };
+    // run the test
+    toku_pthread_t tid;
+    int r;
+    r = toku_pthread_create(&tid, NULL, sm_test_f, NULL);
+    assert_zero(r);
+    void *ret;
+    r = toku_pthread_join(tid, &ret);
+    assert_zero(r);
 
-    class scoped_malloc_aligned : public scoped_malloc {
-    public:
-        scoped_malloc_aligned(const size_t size, const size_t alignment) :
-            scoped_malloc(size + alignment) {
-            invariant(size >= alignment);
-            invariant(alignment > 0);
-            const uintptr_t addr = reinterpret_cast<uintptr_t>(scoped_malloc::get());
-            const uintptr_t aligned_addr = (addr + alignment) - (addr % alignment);
-            invariant(aligned_addr < addr + size + alignment);
-            m_aligned_buf = reinterpret_cast<char *>(aligned_addr);
-        }
+    toku_scoped_malloc_destroy();
 
-        void *get() const {
-            return m_aligned_buf;
-        }
-
-    private:
-        void *m_aligned_buf;
-    };
-
-} // namespace toku
-
-void toku_scoped_malloc_init(void);
-
-void toku_scoped_malloc_destroy(void);
-
-void toku_scoped_malloc_destroy_set(void);
-
-void toku_scoped_malloc_destroy_key(void);
-
+    return 0;
+}
