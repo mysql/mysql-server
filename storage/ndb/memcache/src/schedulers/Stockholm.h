@@ -43,12 +43,13 @@
 class Scheduler_stockholm : public Scheduler {
 public:
   Scheduler_stockholm() {};
-  ~Scheduler_stockholm() {};
+  ~Scheduler_stockholm();
   void init(int threadnum, const scheduler_options *options);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);
   void prepare(NdbTransaction *, NdbTransaction::ExecType, NdbAsynchCallback, 
                workitem *, prepare_flags);
+  void close(NdbTransaction *, workitem *);
   void release(workitem *);
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
