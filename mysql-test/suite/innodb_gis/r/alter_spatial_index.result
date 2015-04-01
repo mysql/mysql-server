@@ -651,7 +651,7 @@ SHOW INDEX FROM child;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 child	1	idx2	1	parent_id	A	0	32	NULL		SPATIAL		
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
-ERROR HY000: Cannot add foreign key constraint
+ERROR 42000: BLOB/TEXT column 'parent_id' used in key specification without a key length
 DROP table child,parent;
 create table t1 (c1 int) engine=innodb;
 insert into t1 values(NULL);
