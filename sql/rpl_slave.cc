@@ -4865,6 +4865,14 @@ log space");
         if (event_buf[EVENT_TYPE_OFFSET] == WRITE_ROWS_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
+      /*
+        After event is flushed to relay log file, memory used
+        by thread's mem_root is not required any more.
+        Hence adding free_root(thd->mem_root,...) to do the
+        cleanup, otherwise a long running IO thread can
+        cause OOM error.
+      */
+      free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
     }
   }
 
