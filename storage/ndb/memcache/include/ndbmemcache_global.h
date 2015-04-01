@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2011, Oracle and/or its affiliates. All rights
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
 reserved.
 
 This program is free software; you can redistribute it and/or
@@ -61,8 +61,7 @@ typedef enum {
   op_failed,
   op_bad_key,
   op_overflow,
-  op_async_prepared,
-  op_async_sent
+  op_prepared,
 } op_status_t;
 
 

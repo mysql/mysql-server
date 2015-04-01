@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -22,22 +22,24 @@
 
 #include "ndbmemcache_global.h"
 #include <memcached/types.h>
-
 #include "thread_identifier.h"
 
 
-typedef struct {
+typedef struct scheduler_options_st {
   int nthreads;                /* number of worker threads */
   int max_clients;             /* maximum number of client connections */
   const char * config_string;  /* scheduler-specific configuration string */
 } scheduler_options;       
 
+typedef enum {
+  YIELD = 0,
+  RESCHEDULE = 1,
+} prepare_flags;
 
 #ifdef __cplusplus
 
 /* Forward declarations */
 class Configuration;
-class workitem;
 
 /* Scheduler is an interface */
 
@@ -48,7 +50,12 @@ protected:
 public:
   /* Public Interface */
   Scheduler() {};
-  
+
+  /* Static class method calls prepare on a workitem */
+  static void execute(NdbTransaction *, NdbTransaction::ExecType, 
+                      NdbAsynchCallback, struct workitem *, 
+                      prepare_flags flags=YIELD);
+ 
   /** init() is the called from the main thread, 
       after configuration has been read. 
       threadnum: which thread this scheduler will eventually attach to 
@@ -65,16 +72,14 @@ public:
       an Ndb object for the operation and send the workitem to be executed. */ 
   virtual ENGINE_ERROR_CODE schedule(workitem *) = 0;
 
-  /** Before an NDB callback function completes, it must call either 
-      reschedule() or yield().  yield() indicates that work is comlpete. */
-  virtual void yield(workitem *) const = 0;
-
-  /** Before an NDB callback function completes, it must call either 
-      reschedule() or yield(). reschedule() indicates to that the workitem 
-      requires the scheduler to send & poll an additional operation. */
-  virtual void reschedule(workitem *) const = 0;
+  /** prepare() is a callback into the scheduler, and wraps whatever set of Ndb
+        asynch execute calls is appropriate for the scheduler. 
+        It is called from Scheduler::execute().  */
+  virtual void prepare(NdbTransaction *, 
+                       NdbTransaction::ExecType, NdbAsynchCallback, 
+                       workitem *, prepare_flags flags) = 0;
  
-  /** release() is called from the NDB Engine thread after an operation has
+     /** release() is called from the NDB Engine thread after an operation has
       completed.  It allows the scheduler to release any resources (such as
       the Ndb object) that were allocated in schedule(). */
   virtual void release(workitem *) = 0;
@@ -93,7 +98,8 @@ public:
       perform the online configuration change, it should return false.
    */
   virtual bool global_reconfigure(Configuration *new_config) = 0;
-    
+
+                      
 };
 #endif
 
