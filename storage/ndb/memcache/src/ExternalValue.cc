@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@
 #include <my_config.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <NdbApi.hpp>
 
 #include "workitem.h"
 #include "NdbInstance.h"
@@ -137,7 +138,7 @@ op_status_t ExternalValue::do_write(workitem *item) {
     /* In this case we need to create an object, but then delete it on error */
     ExternalValue *ext_val = new ExternalValue(item);
     op_status_t r = ext_val->do_insert();
-    if(r != op_async_prepared)
+    if(r != op_prepared)
       delete ext_val;
     return r;
   }
@@ -176,8 +177,8 @@ op_status_t ExternalValue::do_read_header(workitem *item,
   }
   
   item->next_step = (void *) the_next_step;
-  tx->executeAsynchPrepare(NdbTransaction::NoCommit, the_callback, (void *) item);
-  return op_async_prepared;
+  Scheduler::execute(tx, NdbTransaction::NoCommit, the_callback, item);
+  return op_prepared;
 }
 
 
@@ -239,9 +240,8 @@ void ExternalValue::append_after_read(NdbTransaction *tx, workitem *item) {
     if(! r) return item->ext_val->append(); 
   }
 
-  item->pipeline->scheduler->reschedule(item);
-  tx->executeAsynchPrepare(NdbTransaction::NoCommit, 
-                           callback_ext_parts_read, (void *) item);
+  Scheduler::execute(tx, NdbTransaction::NoCommit, 
+                     callback_ext_parts_read, item, RESCHEDULE);
 }
 
 
@@ -296,8 +296,8 @@ void ExternalValue::worker_read_external(Operation &op,
     wqitem->math_flags = 0;
   
   readParts();
-  wqitem->pipeline->scheduler->reschedule(wqitem);
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_ext_parts_read, (void *) wqitem);
+  Scheduler::execute(tx, NdbTransaction::Commit, 
+                     callback_ext_parts_read, wqitem, RESCHEDULE);
 }
 
 
@@ -332,8 +332,8 @@ bool ExternalValue::Spec::readFromHeader(Operation &op) {
 
 inline void ExternalValue::finalize_write() {
   wqitem->next_step = (void *) worker_finalize_write;
-  wqitem->pipeline->scheduler->reschedule(wqitem);
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
+  Scheduler::execute(tx, NdbTransaction::Commit, 
+                     callback_main, wqitem, RESCHEDULE);
 }
 
 
@@ -342,8 +342,9 @@ op_status_t ExternalValue::do_insert() {
     return op_overflow;
   
   wqitem->next_step = (void *) worker_finalize_write;
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
-  return op_async_prepared;  
+  
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem);
+  return op_prepared;  
 }
 
 
@@ -774,8 +775,8 @@ void ExternalValue::append() {
   hdr_op.updateTuple(tx);
   
   wqitem->next_step = (void *) finalize_append;
-  wqitem->pipeline->scheduler->reschedule(wqitem);
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
+  Scheduler::execute(tx, NdbTransaction::Commit, 
+                     callback_main, wqitem, RESCHEDULE);
 }
 
 
@@ -857,8 +858,8 @@ void delete_after_header_read(NdbTransaction *tx, workitem *wqitem) {
   }
   op.deleteTuple(tx);
   
-  wqitem->pipeline->scheduler->reschedule(wqitem);
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
+  Scheduler::execute(tx, NdbTransaction::Commit, 
+                     callback_main, wqitem, RESCHEDULE);
 }
 
 
