@@ -3844,8 +3844,14 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           foreign_key_prefix(key, key2) returns 0 if key or key2, or both, is
           'generated', and a generated key is a prefix of the other key.
           Then we do not need the generated shorter key.
+
+          KEYTYPE_SPATIAL and KEYTYPE_FULLTEXT cannot be used as
+          supporting keys for foreign key constraints even if the
+          generated key is prefix of such a key.
         */
         if ((key2->type != KEYTYPE_FOREIGN &&
+             key2->type != KEYTYPE_SPATIAL &&
+             key2->type != KEYTYPE_FULLTEXT &&
              key2->name.str != ignore_key &&
              !foreign_key_prefix(key, key2)))
         {
