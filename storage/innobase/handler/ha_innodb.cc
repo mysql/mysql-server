@@ -1186,17 +1186,22 @@ thd_start_time_in_secs(
 	return(ulint(ut_time()));
 }
 
-/******************************************************************//**
-Save some CPU by testing the value of srv_thread_concurrency in inline
-functions.
-@param[in/out]	prebuilt	row prebuilt handler */
+/** Enter InnoDB engine after checking the max number of user threads
+allowed, else the thread is put into sleep.
+@param[in,out]	prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_enter_innodb(
 	row_prebuilt_t*	prebuilt)
 {
-	trx_t*	trx	= prebuilt->trx;
+	/* We rely on server to do external_lock(F_UNLCK) to reset the
+	srv_conc.n_active counter. Since there are no locks on instrinsic
+	tables, we should skip this for intrinsic temporary tables. */
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return;
+	}
 
+	trx_t*	trx	= prebuilt->trx;
 	if (srv_thread_concurrency) {
 		if (trx->n_tickets_to_enter_innodb > 0) {
 
@@ -1219,15 +1224,21 @@ innobase_srv_conc_enter_innodb(
 	}
 }
 
-/******************************************************************//**
-Note that the thread wants to leave InnoDB only if it doesn't have
+/** Note that the thread wants to leave InnoDB only if it doesn't have
 any spare tickets.
-@param[in/out]	m_prebuilt	row prebuilt handler */
+@param[in,out]	m_prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_exit_innodb(
 	row_prebuilt_t*	prebuilt)
 {
+	/* We rely on server to do external_lock(F_UNLCK) to reset the
+	srv_conc.n_active counter. Since there are no locks on instrinsic
+	tables, we should skip this for intrinsic temporary tables. */
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return;
+	}
+
 	trx_t*			trx = prebuilt->trx;
 	btrsea_sync_check	check(trx->has_search_latch);
 
