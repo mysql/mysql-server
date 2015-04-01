@@ -882,15 +882,6 @@ ALTER TABLE time_zone_name ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition_type ENGINE=InnoDB STATS_PERSISTENT=0;
 
---
--- Add timestamp and expiry columns
---
-
-ALTER TABLE user ADD password_last_changed timestamp NULL;
-UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','sha256_password') and password_last_changed is NULL;
-
-ALTER TABLE user ADD password_lifetime smallint unsigned NULL;
-
 # Move any distributed grant tables back to NDB after upgrade
 SET @cmd="ALTER TABLE mysql.user ENGINE=NDB";
 SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
