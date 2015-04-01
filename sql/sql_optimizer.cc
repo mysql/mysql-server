@@ -752,9 +752,15 @@ void JOIN::set_plan_state(enum_plan_state plan_state_arg)
   }
 
   DEBUG_SYNC(thd, "before_set_plan");
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+
+  // If SQLCOM_END, no thread is explaining our statement anymore.
+  const bool need_lock= thd->query_plan.get_command() != SQLCOM_END;
+
+  if (need_lock)
+    thd->lock_query_plan();
   plan_state= plan_state_arg;
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  if (need_lock)
+    thd->unlock_query_plan();
 }
 
 

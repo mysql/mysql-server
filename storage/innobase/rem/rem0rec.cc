@@ -877,8 +877,17 @@ rec_get_converted_size_comp_prefix_low(
 
 			ut_ad(len <= fixed_len);
 
-			ut_ad(!mbmaxlen || len >= mbminlen
-			      * (fixed_len / mbmaxlen));
+			if (dict_index_is_spatial(index)) {
+				ut_ad(type->mtype == DATA_SYS_CHILD
+				      || !mbmaxlen
+				      || len >= mbminlen * (fixed_len
+							    / mbmaxlen));
+			} else {
+				ut_ad(type->mtype != DATA_SYS_CHILD);
+				ut_ad(!mbmaxlen
+				      || len >= mbminlen * (fixed_len
+							    / mbmaxlen));
+			}
 
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
