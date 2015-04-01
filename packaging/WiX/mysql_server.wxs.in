@@ -28,7 +28,7 @@
     
     <Package Id='*'
        Keywords='Installer'
-       Description="@PRODUCT_NAME@"
+       Description="@PRODUCT_DESCRIPTION@"
        Manufacturer='@MANUFACTURER@'
        InstallerVersion='200'
        Languages='1033'
