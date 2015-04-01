@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,6 +46,11 @@ FIND_LIBRARY(WIX_DUTIL_LIBRARY
 
 MESSAGE(STATUS "Found: ${WIX_WCAUTIL_LIBRARY}")
 MESSAGE(STATUS "Found: ${WIX_DUTIL_LIBRARY}")
+
+IF("${VERSION}" MATCHES "-ndb-")
+  MESSAGE(STATUS "This is Cluster build, turning on extra custom actions")
+  ADD_DEFINITIONS(-DCLUSTER_EXTRA_CUSTOM_ACTIONS)
+ENDIF()
 
 ADD_VERSION_INFO(wixca SHARED WIXCA_SOURCES)
 ADD_LIBRARY(wixca SHARED EXCLUDE_FROM_ALL ${WIXCA_SOURCES})
