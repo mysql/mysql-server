@@ -2112,7 +2112,8 @@ void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
   if ((type() != SUM_FUNC_ITEM && with_sum_func) ||
       (type() == FUNC_ITEM &&
        (((Item_func *) this)->functype() == Item_func::ISNOTNULLTEST_FUNC ||
-        ((Item_func *) this)->functype() == Item_func::TRIG_COND_FUNC)))
+        ((Item_func *) this)->functype() == Item_func::TRIG_COND_FUNC)) ||
+      type() == ROW_ITEM)
   {
     /* Will split complicated items and ignore simple ones */
     split_sum_func(thd, ref_pointer_array, fields);

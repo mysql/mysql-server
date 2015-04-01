@@ -5692,6 +5692,28 @@ err:
 }
 
 
+/**
+  Class utilizing RAII for correct set/reset of the
+  THD::tablespace_op flag. The destructor will reset
+  the flag when a stack allocated instance goes out
+  of scope.
+ */
+
+class Tablespace_op_flag_handler
+{
+private:
+  THD *m_thd;
+public:
+  Tablespace_op_flag_handler(THD *thd): m_thd(thd)
+  {
+    m_thd->tablespace_op= true;
+  }
+  ~Tablespace_op_flag_handler()
+  {
+    m_thd->tablespace_op= false;
+  }
+};
+
 /* table_list should contain just one table */
 int mysql_discard_or_import_tablespace(THD *thd,
                                        TABLE_LIST *table_list,
@@ -5708,11 +5730,13 @@ int mysql_discard_or_import_tablespace(THD *thd,
 
   THD_STAGE_INFO(thd, stage_discard_or_import_tablespace);
 
- /*
-   We set this flag so that ha_innobase::open and ::external_lock() do
-   not complain when we lock the table
- */
-  thd->tablespace_op= true;
+  /*
+    Set thd->tablespace_op, and reset it when the variable leaves scope.
+    We set this flag so that ha_innobase::open and ::external_lock() do
+    not complain when we lock the table
+  */
+  Tablespace_op_flag_handler set_tablespace_op(thd);
+
   /*
     Adjust values of table-level and metadata which was set in parser
     for the case general ALTER TABLE.
@@ -5725,7 +5749,6 @@ int mysql_discard_or_import_tablespace(THD *thd,
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
   {
     /* purecov: begin inspected */
-    thd->tablespace_op= false;
     DBUG_RETURN(-1);
     /* purecov: end */
   }
@@ -5770,7 +5793,6 @@ int mysql_discard_or_import_tablespace(THD *thd,
                                            MDL_EXCLUSIVE,
                                            thd->variables.lock_wait_timeout))
   {
-    thd->tablespace_op= false;
     DBUG_RETURN(-1);
   }
 
@@ -5802,8 +5824,6 @@ err:
   {
     table_list->table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
-
-  thd->tablespace_op= false;
 
   if (error == 0)
   {

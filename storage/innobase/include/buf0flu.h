@@ -327,6 +327,13 @@ NOTE: The calling thread is not allowed to own any latches on pages! */
 void
 buf_flush_sync_all_buf_pools(void);
 /*==============================*/
+
+/** Request IO burst and wake page_cleaner up.
+@param[in]	lsn_limit	upper limit of LSN to be flushed */
+void
+buf_flush_request_force(
+	lsn_t	lsn_limit);
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

@@ -1895,7 +1895,7 @@ void THD::release_resources()
 #endif
 
   /* modification plan for UPDATE/DELETE should be freed. */
-  DBUG_ASSERT(!query_plan.get_plan());
+  DBUG_ASSERT(query_plan.get_modification_plan() == NULL);
   mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
   mysql_mutex_lock(&LOCK_thd_query);
@@ -4568,16 +4568,41 @@ void THD::time_out_user_resource_limits()
 }
 
 
+#ifndef DBUG_OFF
+void THD::Query_plan::assert_plan_is_locked_if_other() const
+{
+  if (current_thd != thd)
+    mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+}
+#endif
+
 void THD::Query_plan::set_query_plan(enum_sql_command sql_cmd,
                                      LEX *lex_arg, bool ps)
 {
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+  DBUG_ASSERT(current_thd == thd);
+
+  // No need to grab mutex for repeated (SQLCOM_END, NULL, false).
+  if (sql_command == sql_cmd &&
+      lex == lex_arg &&
+      is_ps == ps)
+  {
+    return;
+  }
+
+  thd->lock_query_plan();
   sql_command= sql_cmd;
   lex= lex_arg;
   is_ps= ps;
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  thd->unlock_query_plan();
 }
 
+
+void THD::Query_plan::set_modification_plan(Modification_plan *plan_arg)
+{
+  DBUG_ASSERT(current_thd == thd);
+  mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+  modification_plan= plan_arg;
+}
 
 /**
   Push an error message into MySQL diagnostic area with line

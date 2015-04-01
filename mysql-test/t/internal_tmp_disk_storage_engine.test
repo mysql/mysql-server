@@ -1,6 +1,8 @@
 --echo #
 --echo # wl#6711:User can choose tmp table engine between MyISAM and InnoDB
 --echo #
+# In order to support innodb_limit_optimistic_insert_debug
+--source include/have_debug.inc
 # In order to make the output of explain json-format stable
 --source include/have_innodb_16k.inc
 # Contains several strange queries with GROUP BY, so:
@@ -1322,6 +1324,19 @@ insert into t1 values ('2015-01-01','a',linestring(point(1,1),point(2,2)));
 select distinct nullif(a,b) as c from t1 z order by z.c;
 set names default, sql_mode=default;
 drop table t1;
+
+--echo #
+--echo # Bug#20752543 INNODB:FAILING ASSERTION:FLAGS & BUF_PAGE_PRINT_NO_CRASH
+--echo #
+SET @old_big_tables=@@big_tables;
+SET big_tables=on;
+set @old_limit_optimistic_insert_debug= @@innodb_limit_optimistic_insert_debug;
+set global innodb_limit_optimistic_insert_debug=2;
+select 1 as a union all select 1 union all select 2 union select 1 union all
+select 2;
+set big_tables= @old_big_tables;
+set global innodb_limit_optimistic_insert_debug=
+                      @old_limit_optimistic_insert_debug;
 
 #============================end && cleanup======================= 
 SET GLOBAL innodb_large_prefix=default;
