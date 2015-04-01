@@ -20059,6 +20059,15 @@ Dblqh::invalidateLogAfterLastGCI(Signal* signal)
      *   Invalidate backwards until head...
      */
 
+    g_eventLogger->info("Start invalidating: Part %u, Head: file: %u,"
+                        " page: %u, Last invalidate: file: %u,"
+                        " page: %u",
+                        logPartPtr.p->logPartNo,
+                        logPartPtr.p->headFileNo,
+                        logPartPtr.p->headPageNo,
+                        logPartPtr.p->invalidateFileNo,
+                        logPartPtr.p->invalidatePageNo - 1);
+
     // Fall through...
   case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES:
     jam();

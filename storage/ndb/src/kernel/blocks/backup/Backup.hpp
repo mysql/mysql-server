@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -583,6 +583,7 @@ public:
   static const int CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS = 40;
   
   Uint64 m_monitor_words_written;
+  Uint32 m_periods_passed_in_monitor_period;
   NDB_TICKS m_monitor_snapshot_start;
 
   /**

@@ -6531,6 +6531,7 @@ int ha_ndbcluster::end_bulk_delete()
                        &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
+      m_rows_deleted = 0;
       DBUG_RETURN(ndb_err(trans));
     }
     THD *thd= table->in_use;
@@ -8797,11 +8798,31 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
         rbwr is on, thus the transaction has already been
         committed in exec_bulk_update() or end_bulk_delete()
       */
-      DBUG_PRINT("info", ("autocommit+rbwr, transaction already comitted"));
-      if (trans->commitStatus() != NdbTransaction::Committed)
+      DBUG_PRINT("info", ("autocommit+rbwr, transaction already committed"));
+      const NdbTransaction::CommitStatusType commitStatus = trans->commitStatus();
+      
+      if(commitStatus == NdbTransaction::Committed)
       {
-        sql_print_error("found uncomitted autocommit+rbwr transaction, "
-                        "commit status: %d", trans->commitStatus());
+        /* Already committed transaction to save roundtrip */
+        DBUG_ASSERT(get_thd_ndb(current_thd)->m_error == FALSE);
+      }
+      else if(commitStatus == NdbTransaction::Aborted)
+      {
+        /* Commit failed before transaction was started */ 
+        DBUG_ASSERT(get_thd_ndb(current_thd)->m_error == TRUE);
+      }
+      else if(commitStatus == NdbTransaction::NeedAbort)
+      {
+        /* Commit attempt failed and rollback is needed */
+        res = -1; 
+        
+      }
+      else
+      {
+        /* Commit was never attempted - this should not be possible */
+        DBUG_ASSERT(commitStatus == NdbTransaction::Started || commitStatus == NdbTransaction::NotStarted);
+        sql_print_error("found uncommitted autocommit+rbwr transaction, "
+                        "commit status: %d", commitStatus);
         abort();
       }
     }
@@ -12255,6 +12276,59 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
   DBUG_RETURN(ret);
 }
 
+
+/**
+   @brief Check the given directory for any remaining NDB related
+          leftovers and try to remove them.
+
+   @param path The path of the directory to check
+
+   @note This function is called only when all tables which mysqld or NDB
+         knew about has been removed. Thus anything left behind can be
+         safely removed.
+*/
+
+static void
+ndbcluster_drop_database_leftovers(const char* path)
+{
+  DBUG_ENTER("ndbcluster_drop_database_leftovers");
+  MY_DIR* dirp;
+  if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))))
+  {
+    // The database directory didn't exist, crash in debug since
+    // something is obviously wrong
+    DBUG_ASSERT(false);
+    DBUG_VOID_RETURN;
+  }
+
+  for (uint i= 0; i < dirp->number_off_files; i++)
+  {
+    FILEINFO* file= dirp->dir_entry + i;
+    DBUG_PRINT("info", ("found: '%s'", file->name));
+
+    char* extension= fn_ext(file->name);
+    DBUG_PRINT("info", ("extension: '%s'", extension));
+    if (strcmp(extension, ha_ndb_ext))
+      continue;
+
+    char file_path[FN_REFLEN];
+    strxmov(file_path, path, "/", file->name, NullS);
+    DBUG_PRINT("info", ("Found leftover .ndb file '%s'! Try to delete it.",
+                        file_path));
+    if (my_delete_with_symlink(file_path, MYF(0)))
+    {
+      // Failed to delete the file. Ignore it since the DROP DATABASE
+      // will report an error later when it tries to delete the directory
+      DBUG_PRINT("error", ("Delete of of '%s' failed, my_errno: %d",
+                           file_path, my_errno));
+    }
+  }
+
+  my_dirend(dirp);
+  DBUG_VOID_RETURN;
+}
+
+
 static void ndbcluster_drop_database(handlerton *hton, char *path)
 {
   THD *thd= current_thd;
@@ -12267,6 +12341,20 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   }
 
   ndbcluster_drop_database_impl(thd, path);
+
+  /*
+    At this point the mysqld has looped over all the tables it knew
+    about in the database and dropped them one by one. The above call
+    to 'ndbcluster_drop_database_impl' has dropped any NDB tables in
+    the database which mysqld didn't know about(this could potentially
+    happen if there was a "local" table with same name). This means that
+    the database directory should be free of anything NDB related.
+    Double check to make sure nothing is left behind and remove any
+    leftovers(which according to BUG#44529 could happen after for
+    example a failed ALTER TABLE).
+  */
+  ndbcluster_drop_database_leftovers(path);
+
   char db[FN_REFLEN];
   ha_ndbcluster::set_dbname(path, db);
   uint32 table_id= 0, table_version= 0;
