@@ -137,6 +137,8 @@ DynArr256Pool::DynArr256Pool()
   m_memroot = 0;
   m_inuse_nodes = 0;
   m_pg_count = 0;
+  m_used = 0;
+  m_usedHi = 0;
 }
 
 void
@@ -199,7 +201,7 @@ static const Uint32 g_max_sizes[5] = { 0, 256, 65536, 16777216, 4294967295U };
  * sz = 4     = 256^4 - 4 level
  */
 Uint32 *
-DynArr256::get(Uint32 pos) const
+DynArr256::get_dirty(Uint32 pos) const
 {
   Uint32 sz = m_head.m_sz;
   Uint32 ptrI = m_head.m_ptr_i;
@@ -211,9 +213,6 @@ DynArr256::get(Uint32 pos) const
     return 0;
   }
   
-#ifdef VM_TRACE
-  require((m_head.m_sz > 0) && (pos <= m_head.m_high_pos));
-#endif
 #ifdef DA256_USE_PX
   Uint32 px[4] = { (pos >> 24) & 255, 
 		   (pos >> 16) & 255, 
@@ -303,7 +302,7 @@ DynArr256::set(Uint32 pos)
     ptrI = * retVal;
   } 
   
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
   if (pos > m_head.m_high_pos)
     m_head.m_high_pos = pos;
 #endif
@@ -512,7 +511,7 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
         assert((iter.m_pos & ~(0xffffffff << (8 * (m_head.m_sz - iter.m_sz)))) == 0);
         iter.m_pos --;
       }
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
       if (iter.m_pos < m_head.m_high_pos)
         m_head.m_high_pos = iter.m_pos;
 #endif
@@ -694,6 +693,11 @@ DynArr256Pool::seize()
           ((DA256Free*)(page->m_nodes + page->last_free()))->m_prev_free = RNIL;
         }
       }
+
+      m_used++;
+      if (m_used < m_usedHi)
+        m_usedHi = m_used;
+
       return (ff << DA256_BITS) | idx;
     }
   }
@@ -769,6 +773,8 @@ DynArr256Pool::release(Uint32 ptrI)
       ptr->m_next_free = ((DA256Free*)(page->m_nodes + last_free))->m_next_free;
       ptr->m_prev_free = ((DA256Free*)(page->m_nodes + last_free))->m_prev_free;
     }
+    assert(m_used);
+    m_used--;
     return;
   }
   require(false);

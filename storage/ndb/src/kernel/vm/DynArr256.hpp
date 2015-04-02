@@ -55,6 +55,9 @@ public:
     
   const Info getInfo() const;
                
+  Uint32 getUsed()   { return m_used; }  // # entries currently seized
+  Uint32 getUsedHi() { return m_usedHi;} // high water mark for getUsed()
+
 protected:
   Uint32 m_type_id;
   Uint32 m_first_free;
@@ -66,6 +69,8 @@ protected:
   Uint64 m_inuse_nodes;
   // Number of pages (DA256Page) allocated.
   Uint32 m_pg_count;  
+  Uint32 m_used;
+  Uint32 m_usedHi;
 
 private:
   Uint32 seize();
@@ -79,7 +84,7 @@ public:
   {
     friend class DynArr256;
   public:
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     Head() { m_ptr_i = RNIL; m_sz = 0; m_no_of_nodes = 0; m_high_pos = 0; }
 #else
     Head() { m_ptr_i = RNIL; m_sz = 0; m_no_of_nodes = 0; }
@@ -100,7 +105,7 @@ public:
     Uint32 m_sz;
     // Number of DA256Nodes allocated.
     Int32 m_no_of_nodes;
-#ifdef VM_TRACE
+#if defined VM_TRACE || defined ERROR_INSERT
     Uint32 m_high_pos;
 #endif
   };
@@ -110,7 +115,8 @@ public:
   
   Uint32* set(Uint32 pos);
   Uint32* get(Uint32 pos) const ;
-  
+  Uint32* get_dirty(Uint32 pos) const ;
+
   struct ReleaseIterator
   {
     Uint32 m_sz;
@@ -147,6 +153,17 @@ Uint32 DynArr256::trim(Uint32 pos, ReleaseIterator& iter)
   return truncate(pos, iter, NULL);
 }
 
+inline
+Uint32 * DynArr256::get(Uint32 pos) const
+{
+#if defined VM_TRACE || defined ERROR_INSERT
+  // In debug this function will abort if used
+  // with pos not already mapped by call to set.
+  // Use get_dirty if return NULL is wanted instead.
+  require((m_head.m_sz > 0) && (pos <= m_head.m_high_pos));
+#endif
+  return get_dirty(pos);
+}
 
 #undef JAM_FILE_ID
 

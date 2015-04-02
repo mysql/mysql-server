@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,6 +96,35 @@
 #define MAX_KEY_SIZE_IN_WORDS 1023
 #define MAX_FRM_DATA_SIZE 6000
 #define MAX_NULL_BITS 4096
+
+/*
+ * Suma block sorts data changes of tables in buckets.
+ * Sumas in a node group shares a number of buckets, which is the
+ * factorial of the number of replicas, to ensure balance in any
+ * node failure situations.
+ */
+#define MAX_SUMA_BUCKETS_PER_NG     24 /* factorial of MAX_REPLICAS */
+
+/*
+ * At any time, one Suma is responsible for streaming bucket data
+ * to its subscribers, each bucket uses its own stream aka
+ * subscriptions data stream.
+ *
+ * Note that each subscriber receives filtered data from the
+ * stream depending on which objects it subscribes on.
+ *
+ * A stream sending data from a bucket will have a 16-bit identifier
+ * with two parts.  The lower 8 bit determines a non zero stream
+ * group.  The upper 8 bit determines an identifier with that group.
+ *
+ * Stream group identifiers range from 1 to MAX_SUB_DATA_STREAM_GROUPS.
+ * Stream identifier within a group range from 0 to MAX_SUB_DATA_STREAMS_PER_GROUP - 1.
+ * Stream identifier zero is reserved to not identify any stream.
+ */
+#define MAX_SUB_DATA_STREAMS (MAX_SUB_DATA_STREAMS_PER_GROUP * MAX_SUB_DATA_STREAM_GROUPS)
+#define MAX_SUB_DATA_STREAM_GROUPS      (MAX_NDB_NODES-1)
+#define MAX_SUB_DATA_STREAMS_PER_GROUP  (MAX_SUMA_BUCKETS_PER_NG / MAX_REPLICAS)
+
 /*
  * Fragmentation data are Uint16, first two are #replicas,
  * and #fragments, then for each fragment, first log-part-id

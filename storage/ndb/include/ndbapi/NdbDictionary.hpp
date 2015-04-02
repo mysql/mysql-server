@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1440,6 +1440,9 @@ public:
       TE_NODE_FAILURE=1<<10, ///< Node failed
       TE_SUBSCRIBE   =1<<11, ///< Node subscribes
       TE_UNSUBSCRIBE =1<<12, ///< Node unsubscribes
+      TE_EMPTY         =1<<15, ///< Empty epoch from data nodes
+      TE_INCONSISTENT  =1<<21, ///< MISSING_DATA (buffer overflow) at data node
+      TE_OUT_OF_MEMORY =1<<22, ///< Buffer overflow in event buffer
       TE_ALL=0xFFFF         ///< Any/all event on table (not relevant when 
                             ///< events are received)
     };
@@ -1460,7 +1463,10 @@ public:
       _TE_SUBSCRIBE=11,
       _TE_UNSUBSCRIBE=12,
       _TE_NUL=13, // internal (e.g. INS o DEL within same GCI)
-      _TE_ACTIVE=14 // internal (node becomes active)
+      _TE_ACTIVE=14, // internal (node becomes active)
+      _TE_EMPTY=15,
+      _TE_INCONSISTENT=21,
+      _TE_OUT_OF_MEMORY=22
     };
 #endif
     /**
@@ -1668,7 +1674,9 @@ public:
     */
     RecMysqldShrinkVarchar= 0x1,
     /* Use the mysqld record format for bitfields, only used inside mysqld. */
-    RecMysqldBitfield= 0x2
+    RecMysqldBitfield= 0x2,
+    /* Use the column specific flags from RecordSpecification. */
+    RecPerColumnFlags= 0x4
   };
   struct RecordSpecification {
     /*
@@ -1707,6 +1715,31 @@ public:
     */
     Uint32 nullbit_byte_offset;
     /* NULL bit, 0-7. Not used for columns that are not NULLable. */
+    Uint32 nullbit_bit_in_byte;
+    /*
+      Column specific flags
+      Used only when RecPerColumnFlags is enabled
+    */
+    enum ColumnFlags
+    {
+      /*
+        Skip reading/writing overflow bits in bitmap
+        Used for MySQLD char(0) column
+        Used only with RecMysqldBitfield flag
+      */
+      BitColMapsNullBitOnly= 0x1
+    };
+    Uint32 column_flags;
+  };
+
+  /*
+    First version of RecordSpecification
+    Maintained here for backward compatibility reasons.
+  */
+  struct RecordSpecification_v1 {
+    const Column *column;
+    Uint32 offset;
+    Uint32 nullbit_byte_offset;
     Uint32 nullbit_bit_in_byte;
   };
 

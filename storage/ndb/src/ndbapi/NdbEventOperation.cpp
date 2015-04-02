@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +21,8 @@
 #include <portlib/NdbMem.h>
 #include "NdbEventOperationImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 NdbEventOperation::NdbEventOperation(Ndb *theNdb,const char* eventName) 
   : m_impl(* new NdbEventOperationImpl(*this,theNdb,eventName))
@@ -120,9 +121,15 @@ bool NdbEventOperation::tableRangeListChanged() const
 }
 
 Uint64
-NdbEventOperation::getGCI() const
+NdbEventOperation::getEpoch() const
 {
   return m_impl.getGCI();
+}
+
+Uint64
+NdbEventOperation::getGCI() const
+{
+  return getEpoch();
 }
 
 Uint32
@@ -144,9 +151,47 @@ NdbEventOperation::getTransId() const
 }
 
 NdbDictionary::Event::TableEvent
+NdbEventOperation::getEventType2() const
+{
+  return m_impl.getEventType2();
+}
+
+bool
+NdbEventOperation::isEmptyEpoch()
+{
+  return m_impl.isEmptyEpoch();
+}
+
+bool
+NdbEventOperation::isErrorEpoch(NdbDictionary::Event::TableEvent *error_type)
+{
+  return m_impl.isErrorEpoch(error_type);
+}
+
+NdbDictionary::Event::TableEvent
 NdbEventOperation::getEventType() const
 {
-  return m_impl.getEventType();
+  NdbDictionary::Event::TableEvent type = getEventType2();
+  /**
+   * Since this is called after nextEvent() returns a valid operation,
+   * and nextEvent() does not return a valid operation
+   * for exceptional event data
+   *  (nextEvent removes TE_EMPTY from the event queue,
+   *   it does not return a valid operation for TE_INCONSIS,
+   *   it crashes at TE_OUT_OF_MEMORY),
+   * getEventType should not see the new event types, unless getEventType
+   * is called after nextEvent2().
+   * Following assert will ensure that.
+   */
+
+  if (type >= NdbDictionary::Event::TE_EMPTY)
+  {
+    g_eventLogger->error("Ndb::getEventType: Found exceptional event type 0x%x. Use methods either from the old event API or from the new API. Do not mix.", type);
+  }
+
+  // event types >= TE_EMPTY are the new exceptional ones
+  assert(type < NdbDictionary::Event::TE_EMPTY);
+  return type;
 }
 
 void
@@ -224,4 +269,14 @@ NdbEventOperation::NdbEventOperation(NdbEventOperationImpl& impl)
 const struct NdbError & 
 NdbEventOperation::getNdbError() const {
   return m_impl.getNdbError();
+}
+
+void
+NdbEventOperation::setAllowEmptyUpdate(bool allow) {
+  m_impl.m_allow_empty_update = allow;
+}
+
+bool
+NdbEventOperation::getAllowEmptyUpdate() {
+  return m_impl.m_allow_empty_update;
 }

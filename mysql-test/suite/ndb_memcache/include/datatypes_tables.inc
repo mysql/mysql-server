@@ -14,7 +14,7 @@ set default_storage_engine = ndbcluster;
 CREATE TABLE tt001 (mkey char(20) not null primary key, sval char(20));
 CREATE TABLE tt002 (mkey varchar(32) not null primary key, sval varchar(32));
 CREATE TABLE tt003 (mkey year not null primary key, sval year);
-CREATE TABLE tt004 (mkey timestamp not null primary key, sval timestamp);
+CREATE TABLE tt004 (mkey timestamp not null primary key, sval timestamp NULL);
 CREATE TABLE tt005 (mkey binary(20) not null primary key, sval binary(20));
 CREATE TABLE tt006 (mkey varbinary(32) not null primary key, sval varbinary(32));
 CREATE TABLE tt007 (mkey float not null primary key, sval float);

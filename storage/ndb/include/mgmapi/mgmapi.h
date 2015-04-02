@@ -1109,6 +1109,11 @@ extern "C" {
    * Attempt to retrieve next log event and will fill in the supplied
    * struct dst
    *
+   * Note that the category value returned by this variant is missing
+   * an offset of CFG_MIN_LOGLEVEL.
+   * ndb_logevent_get_next2() should be used to get the correct category
+   * value.
+   *
    * @param dst Pointer to struct to fill in event information
    * @param timeout_in_milliseconds Timeout for waiting for event
    *
@@ -1119,6 +1124,23 @@ extern "C" {
   int ndb_logevent_get_next(const NdbLogEventHandle,
 			    struct ndb_logevent *dst,
 			    unsigned timeout_in_milliseconds);
+
+  /**
+   * Attempt to retrieve next log event and will fill in the supplied
+   * struct dst
+   * This variant returns the correct category value, while the
+   * previous variant returned a category value missing an offset.
+   *
+   * @param dst Pointer to struct to fill in event information
+   * @param timeout_in_milliseconds Timeout for waiting for event
+   *
+   * @return     >0 if event exists, 0 no event (timed out), or -1 on error.
+   *
+   * @note Return value <=0 will leave dst untouched
+   */
+  int ndb_logevent_get_next2(const NdbLogEventHandle,
+                             struct ndb_logevent *dst,
+                             unsigned timeout_in_milliseconds);
 
   /**
    * Retrieve laterst error code

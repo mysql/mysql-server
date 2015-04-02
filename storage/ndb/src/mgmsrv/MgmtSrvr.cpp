@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1013,7 +1013,7 @@ MgmtSrvr::report_unknown_signal(SimpleSignal *signal)
  ****************************************************************************/
 
 int 
-MgmtSrvr::start(int nodeId)
+MgmtSrvr::sendSTART_ORD(int nodeId)
 {
   INIT_SIGNAL_SENDER(ss,nodeId);
   
@@ -1866,7 +1866,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                            int * stopCount, bool nostart,
                            bool initialStart, bool abort,
                            bool force,
-                           int *stopSelf)
+                           int *stopSelf,
+                           unsigned int num_secs_to_wait_for_node)
 {
   if (is_cluster_single_user())
   {
@@ -1951,7 +1952,23 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
   */
   for (unsigned i = 0; i < node_ids.size(); i++)
   {
-    (void) start(node_ids[i]);
+    unsigned int loop_count = 0;
+    do
+    {
+      int result = sendSTART_ORD(node_ids[i]);
+      if (result == SEND_OR_RECEIVE_FAILED ||
+          result == NO_CONTACT_WITH_PROCESS)
+      {
+        if (loop_count >= num_secs_to_wait_for_node)
+          break;
+        loop_count++;
+        NdbSleep_MilliSleep(1000);
+      }
+      else
+      {
+        break;
+      }
+    } while (1);
   }
   return 0;
 }
@@ -1961,7 +1978,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
  */
 
 int MgmtSrvr::restartDB(bool nostart, bool initialStart,
-                        bool abort, int * stopCount)
+                        bool abort, int * stopCount,
+                        unsigned int num_secs_to_wait_for_node)
 {
   NodeBitmask nodes;
 
@@ -2024,7 +2042,18 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
     if (!nodes.get(nodeId))
       continue;
     int result;
-    result = start(nodeId);
+    unsigned int loop_count = 0;
+    do
+    {
+      result = sendSTART_ORD(nodeId);
+      if (result != SEND_OR_RECEIVE_FAILED &&
+          result != NO_CONTACT_WITH_PROCESS)
+        break;
+      if (loop_count >= num_secs_to_wait_for_node)
+        break;
+      NdbSleep_MilliSleep(1000);
+      loop_count++;
+    } while (1);
     g_eventLogger->debug("Started node %d with result %d", nodeId, result);
     /**
      * Errors from this call are deliberately ignored.
@@ -3215,6 +3244,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
                             enum ndb_mgm_node_type type,
                             Uint32 timeout_ms)
 {
+  bool first_attempt = true;
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
 
@@ -3260,6 +3290,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
       const AllocNodeIdConf * const conf =
         CAST_CONSTPTR(AllocNodeIdConf, signal->getDataPtr());
 #endif
+      g_eventLogger->info("Alloc node id %u succeeded", free_node_id);
       return 0;
     }
     case GSN_ALLOC_NODEID_REF:
@@ -3273,6 +3304,8 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
           The data nodes haven't decided who is the president (yet)
           and thus can't allocate nodeids -> return "no contact"
         */
+        g_eventLogger->info("Alloc node id %u failed, no new president yet",
+                            free_node_id);
         return NO_CONTACT_WITH_DB_NODES;
       }
 
@@ -3286,6 +3319,13 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
 	  nodeId = 0;
         if (ref->errorCode != AllocNodeIdRef::NotMaster)
         {
+          if (first_attempt)
+          {
+            first_attempt = false;
+            g_eventLogger->info("Alloc node id %u failed with error code %u, will retry",
+                                free_node_id,
+                                ref->errorCode);
+          }
           /* sleep for a while (100ms) before retrying */
           ss.unlock();
           NdbSleep_MilliSleep(100);  
@@ -4180,21 +4220,25 @@ MgmtSrvr::getConnectionDbParameter(int node1, int node2,
 
 
 bool
-MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& msg)
+MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd,
+                              BaseString& msg,
+                              bool& close_with_reset)
 {
   DBUG_ENTER("MgmtSrvr::transporter_connect");
   TransporterRegistry* tr= theFacade->get_registry();
-  if (!tr->connect_server(sockfd, msg))
+  if (!tr->connect_server(sockfd, msg, close_with_reset))
     DBUG_RETURN(false);
 
-  /*
-    Force an update_connections() so that the
-    ClusterMgr and TransporterFacade is up to date
-    with the new connection.
-    Important for correct node id reservation handling
-  */
-  theFacade->ext_update_connections();
-
+  /**
+   * TransporterRegistry::update_connections() is responsible
+   * for doing the final step of bringing the connection into 
+   * CONNECTED state when it detects it 'isConnected()'.
+   * This is required due to all such state changes has to 
+   * be synchroniced with ::performReceive().
+   * To speed up CONNECTED detection, we request it to 
+   * happen ASAP. (There is no guarantee when it happen though)
+   */
+  theFacade->request_connection_check();
   DBUG_RETURN(true);
 }
 

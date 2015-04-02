@@ -18,16 +18,15 @@
  02110-1301  USA
  */
 
-/*global unified_debug, path, fs, assert, spi_module, harness, adapter_dir, spi_dir */
-
 "use strict";
 
 try {
   require("./suite_config.js");
 } catch(e) {} 
 
-var spi_lib = require("./lib.js"),
-    dbt     = require(path.join(spi_dir, "common", "DBTableHandler.js")),
+var path = require("path"),
+    spi_lib = require("./lib.js"),
+    dbt     = require(mynode.common.DBTableHandler),
     udebug  = unified_debug.getLogger("InsertAndDeleteIntTest.js");
 
 var dbSession = null,

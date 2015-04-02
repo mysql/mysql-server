@@ -26,6 +26,8 @@
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
 var util   = require('util'),
+    path   = require("path"),
+    child_process = require("child_process"),
     udebug = unified_debug.getLogger("MySQLDictionary.js");
 
 exports.DataDictionary = function(pooledConnection, dbConnectionPool) {
@@ -100,18 +102,25 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     udebug.log_detail('parseCreateTable: ', statement);
     var columns = [];
     var indexes = [];
+    var foreignKeys = [];
     // PRIMARY unique index must be the first index
     indexes.push({'name': 'PRIMARY PLACEHOLDER'});
     var index, indexName, usingHash;
     var result = {'name' : tableName,
         'database' : databaseName,
         'columns' : columns,
-        'indexes' : indexes};
+        'indexes' : indexes,
+        'foreignKeys': foreignKeys
+        };
     
     // split lines by '\n'
     var lines = statement.split('\n');
     var i;
+    var foreignKey, foreignKeyName, foreignKeyColumnNames, foreignKeyColumnNumbers;
+    var foreignKeyTarget, foreignKeyTargetTable, foreignKeyTargetDatabase, foreignKeyTargetWithDatabase;
+    var foreignKeyTargetColumnNames, foreignKeyTargetColumnNumbers;
     var columnNumber = 0;
+    var columnNames, indexColumnNames, indexColumnNumbers;
     var column, columnName, columnNumberIndex,
       columnTypeAndSize, columnTypeAndSizeSplit, columnSize, columnType,
       unsigned, nullable;
@@ -144,10 +153,10 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         index.isPrimaryKey = true;
         index.isUnique = true;
         index.isOrdered = true;
-        var columnNames = tokens[j];
-        var indexColumnNames = decodeIndexColumnNames(columnNames);
+        columnNames = tokens[j];
+        indexColumnNames = decodeIndexColumnNames(columnNames);
         udebug.log_detail('parseCreateTable PRIMARY indexColumnNames:', indexColumnNames);
-        var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result.columns);
+        indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result.columns);
         udebug.log_detail('parseCreateTable PRIMARY indexColumnNumbers: ', indexColumnNumbers);
         index.columnNumbers = indexColumnNumbers;
         // mark primary key index columns with 'isInPrimaryKey'
@@ -204,7 +213,44 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         break;
 
       case 'CONSTRAINT':
-        // we can ignore constraints for now
+        foreignKey = {};
+        ++j;
+        foreignKeyName = tokens[j++].split('`')[1]; // remove surrounding ticks
+        foreignKey.name = foreignKeyName;
+        // verify it is a FOREIGN KEY
+        if (tokens[j] !== 'FOREIGN') {
+          // unknown CONSTRAINT type; ignore it for now
+          udebug.log_detail('ignoring unknown CONSTRAINT type: ', tokens[j], tokens[j+1], '...');
+          break;
+        }
+        j += 1; // skip past FOREIGN
+        columnNames = tokens[j];
+        foreignKeyColumnNames = decodeIndexColumnNames(columnNames);
+        udebug.log_detail('parseCreateTable FOREIGN KEY foreignKeyColumnNames:', foreignKeyColumnNames);
+        foreignKey.columnNames = foreignKeyColumnNames;
+        j += 1; // skip past (`columnName`, ...)
+        if (tokens[j] !== 'REFERENCES') {
+          // error
+          udebug.log_detail('unexpected missing REFERENCES clause for FOREIGN KEY', tokens[j], tokens[j+1], tokens[j+2]);
+          break;
+          }
+        j += 1; // skip past REFERENCES
+        foreignKeyTargetWithDatabase = tokens[j].split('.'); // split database and table from `database`.`table`
+        if (foreignKeyTargetWithDatabase.length == 2) {
+          foreignKeyTargetDatabase = foreignKeyTargetWithDatabase[0].split('`')[1]; // remove surrounding ticks
+          foreignKeyTargetTable = foreignKeyTargetWithDatabase[1].split('`')[1]; // remove surrounding ticks
+        } else {
+          foreignKeyTargetDatabase = databaseName;
+          foreignKeyTargetTable = foreignKeyTargetWithDatabase[0].split('`')[1]; // remove surrounding ticks
+        }
+        foreignKey.targetDatabase = foreignKeyTargetDatabase;
+        foreignKey.targetTable = foreignKeyTargetTable; 
+        j += 1; // skip past target table name
+        columnNames = tokens[j];
+        foreignKeyTargetColumnNames =  decodeIndexColumnNames(columnNames);
+        udebug.log_detail('parseCreateTable REFERENCES foreignKeyTargetColumnNames:', foreignKeyTargetColumnNames);
+        foreignKey.targetColumnNames = foreignKeyTargetColumnNames;
+        foreignKeys.push(foreignKey);
         break;
 
       default:
@@ -378,10 +424,63 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
       udebug.log_detail('showCreateTable_callback.forEach metadata:', metadata);
       result = metadata;
       
-      callback(err, result);
+      callback(null, result);
     }
   };
-
   this.connection.query('show create table ' + databaseName + '.' + tableName, showCreateTable_callback);
+};
+
+
+/* SQL DDL Utilities
+*/
+exports.MetadataManager = function() {
+
+  function runSQL(connectionProperties, sqlPath, callback) {
+    /* prepend the file containing the engine.sql (ndb.sql or innodb.sql)
+       to the file containing the sql commands  */
+    var engine = "ndb";
+    if(connectionProperties.mysql_storage_engine) {
+      engine = connectionProperties.mysql_storage_engine;
+    }
+    var enginesqlPath = path.join(mynode.fs.suites_dir, engine + '.sql ');
+    var cmd = 'cat ' + enginesqlPath + ' ' + sqlPath + ' | mysql';
+    var p = connectionProperties;
+
+    function childProcess(error, stdout, stderr) {
+      udebug.log_detail('child process completed.');
+      udebug.log_detail('stdout: ' + stdout);
+      udebug.log_detail('stderr: ' + stderr);
+      if (error !== null) {
+        udebug.log('exec error: ' + error);
+      } else {
+        udebug.log_detail('exec OK');
+      }
+      if(callback) {
+        callback(error);
+      }
+    }
+
+    if(p) {
+      if(p.mysql_socket)     { cmd += " --socket=" + p.mysql_socket; }
+      else if(p.mysql_port)  { cmd += " --port=" + p.mysql_port; }
+      if(p.mysql_host)     { cmd += " -h " + p.mysql_host; }
+      if(p.mysql_user)     { cmd += " -u " + p.mysql_user; }
+      if(p.mysql_password) { cmd += " --password=" + p.mysql_password; }
+    }
+    udebug.log_detail('harness runSQL forking process...' + cmd);
+    var child = child_process.exec(cmd, childProcess);
+  }
+
+  this.createTestTables = function(connectionProperties, suiteName, callback) {
+    udebug.log("createTestTables", suiteName);
+    var sqlPath = path.join(mynode.fs.suites_dir, suiteName, 'create.sql');
+    runSQL(connectionProperties, sqlPath, callback);
+  };
+
+  this.dropTestTables = function(connectionProperties, suiteName, callback) {
+    udebug.log("dropTestTables", suiteName);
+    var sqlPath = path.join(mynode.fs.suites_dir, suiteName, 'drop.sql');
+    runSQL(connectionProperties, sqlPath, callback);
+  };
 };
 

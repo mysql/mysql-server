@@ -243,6 +243,10 @@ protected:
      */
     static const char* name() { return "START_RECREQ"; }
     StartRecReq m_req;
+    Uint32 phaseToSend;
+    Uint32 restoreFragCompletedCount;
+    Uint32 undoDDCompletedCount;
+    Uint32 execREDOLogCompletedCount;
     // pointers to START_RECREQ_2 for LGMAN, TSMAN
     enum { m_req2cnt = 2 };
     struct {
@@ -264,6 +268,7 @@ protected:
   void execSTART_RECREQ(Signal*);
   void sendSTART_RECREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execSTART_RECCONF(Signal*);
+  void execLOCAL_RECOVERY_COMP_REP(Signal*);
   void sendSTART_RECCONF(Signal*, Uint32 ssId);
 
   // GSN_START_RECREQ_2 [ sub-op, fictional gsn ]
@@ -441,13 +446,13 @@ protected:
   struct LcpRecord {
     enum {
       L_IDLE         = 0,
-      L_STARTING     = 1,
-      L_RUNNING      = 2,
-      L_COMPLETING_1 = 3,
-      L_COMPLETING_2 = 4,
-      L_COMPLETING_3 = 5
+      L_RUNNING      = 1,
+      L_COMPLETING_1 = 2,
+      L_COMPLETING_2 = 3,
+      L_COMPLETING_3 = 4
     } m_state;
     Uint32 m_lcpId;
+    Uint32 m_keepGci;
     Uint32 m_lcp_frag_ord_cnt;     // No of LCP_FRAG_ORD received
     Uint32 m_lcp_frag_rep_cnt;     // No of LCP_FRAG_REP sent
     Uint32 m_complete_outstanding; // Outstanding END_LCP_REQ

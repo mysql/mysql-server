@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1696,10 +1696,12 @@ NDBT_Tables::dropAllTables(Ndb* pNdb){
 
     const NdbDictionary::Table* tab = NDBT_Tables::getTable(i);
     if (tab == NULL){
+      g_err << "Failed to drop all tables" << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     
     if(pNdb->getDictionary()->dropTable(tab->getName()) == -1){
+      g_err << "Failed to drop a table" << endl;
       return NDBT_FAILED;
     }
   }

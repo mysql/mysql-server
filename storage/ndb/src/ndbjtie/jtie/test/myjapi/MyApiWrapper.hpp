@@ -550,12 +550,6 @@ struct MyApiWrapper {
         E::take_EE1(e);
     }
 
-    static const E::EE
-    E__deliver_EE1c( )
-    {
-        return E::deliver_EE1c();
-    }
-
     static void
     E__take_EE1c( const E::EE e )
     {

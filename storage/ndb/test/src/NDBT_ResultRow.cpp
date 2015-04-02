@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,22 +22,22 @@
 
 NDBT_ResultRow::NDBT_ResultRow(const NdbDictionary::Table& tab,
 			       char attrib_delimiter)
-  : m_table(tab)
+  : cols(0), names(NULL), data(NULL), m_ownData(false), m_table(tab)
 {
-  require(tab.getObjectStatus() == NdbDictionary::Object::Retrieved);
-
-  cols = tab.getNoOfColumns();
-  names = new char *       [cols];
-  data  = new NdbRecAttr * [cols];
-  
-  for(int i = 0; i<cols; i++){
-    names[i] = new char[255];
-    strcpy(names[i], tab.getColumn(i)->getName());
-  }  
-
   ad[0] = attrib_delimiter;
   ad[1] = 0;
-  m_ownData = false;
+
+  if (tab.getObjectStatus() == NdbDictionary::Object::Retrieved)
+  {
+    cols  = tab.getNoOfColumns();
+    names = new char *       [cols];
+    data  = new NdbRecAttr * [cols];
+  
+    for(int i = 0; i<cols; i++){
+      names[i] = new char[255];
+      strcpy(names[i], tab.getColumn(i)->getName());
+    }  
+  }
 }
 
 NDBT_ResultRow::~NDBT_ResultRow(){
