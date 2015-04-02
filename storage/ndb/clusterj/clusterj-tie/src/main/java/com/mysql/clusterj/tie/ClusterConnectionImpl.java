@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -63,14 +63,22 @@ public class ClusterConnectionImpl
     /** The node id requested for this connection; 0 for default */
     final int nodeId;
 
-    /** All dbs given out by this cluster connection */
-    private Map<Db, Object> dbs = new IdentityHashMap<Db, Object>();
+    /** The timeout value to connect to mgm */
+    final int connectTimeoutMgm;
+
+    /** All regular dbs (not dbForNdbRecord) given out by this cluster connection */
+    private Map<DbImpl, Object> dbs = new IdentityHashMap<DbImpl, Object>();
+
+    /** The DbImplForNdbRecord */
+    DbImplForNdbRecord dbForNdbRecord;
 
     /** The map of table name to NdbRecordImpl */
     private ConcurrentMap<String, NdbRecordImpl> ndbRecordImplMap = new ConcurrentHashMap<String, NdbRecordImpl>();
 
     /** The dictionary used to create NdbRecords */
     Dictionary dictionaryForNdbRecord = null;
+
+    private long[] autoIncrement;
 
     private static final String USE_SMART_VALUE_HANDLER_NAME = "com.mysql.clusterj.UseSmartValueHandler";
 
@@ -82,12 +90,15 @@ public class ClusterConnectionImpl
      * @param connectString the connect string
      * @param nodeId the node id; node id of zero means "any node"
      */
-    public ClusterConnectionImpl(String connectString, int nodeId) {
+    public ClusterConnectionImpl(String connectString, int nodeId, int connectTimeoutMgm) {
         this.connectString = connectString;
         this.nodeId = nodeId;
+        this.connectTimeoutMgm = connectTimeoutMgm;
         clusterConnection = Ndb_cluster_connection.create(connectString, nodeId);
         handleError(clusterConnection, connectString, nodeId);
-        logger.info(local.message("INFO_Create_Cluster_Connection", connectString, nodeId));
+        int timeoutError = clusterConnection.set_timeout(connectTimeoutMgm);
+        handleError(timeoutError, connectString, nodeId, connectTimeoutMgm);
+        logger.info(local.message("INFO_Create_Cluster_Connection", connectString, nodeId, connectTimeoutMgm));
     }
 
     public void connect(int connectRetries, int connectDelay, boolean verbose) {
@@ -107,12 +118,12 @@ public class ClusterConnectionImpl
                 // create a dictionary for NdbRecord
                 Ndb ndbForNdbRecord = Ndb.create(clusterConnection, database, "def");
                 handleError(ndbForNdbRecord, clusterConnection, connectString, nodeId);
-                DbImplForNdbRecord dbForNdbRecord = new DbImplForNdbRecord(this, ndbForNdbRecord);
-                dbs.put(dbForNdbRecord, null);
+                dbForNdbRecord = new DbImplForNdbRecord(this, ndbForNdbRecord);
                 dictionaryForNdbRecord = dbForNdbRecord.getNdbDictionary();
             }
         }
         DbImpl result = new DbImpl(this, ndb, maxTransactions);
+        result.initializeAutoIncrement(autoIncrement);
         dbs.put(result, null);
         return result;
     }
@@ -126,6 +137,14 @@ public class ClusterConnectionImpl
     private void checkConnection() {
         if (clusterConnection == null) {
             throw new ClusterJFatalInternalException(local.message("ERR_Cluster_Connection_Must_Not_Be_Null"));
+        }
+    }
+
+    protected static void handleError(int timeoutError, String connectString, int nodeId, int connectTimeoutMgm) {
+        if (timeoutError != 0) {
+            String message = local.message("ERR_Set_Timeout_Mgm", connectString, nodeId, connectTimeoutMgm, timeoutError);
+            logger.error(message);
+            throw new ClusterJDatastoreException(message);
         }
     }
 
@@ -171,16 +190,25 @@ public class ClusterConnectionImpl
     public void close() {
         if (clusterConnection != null) {
             logger.info(local.message("INFO_Close_Cluster_Connection", connectString, nodeId));
-            for (NdbRecordImpl ndbRecord: ndbRecordImplMap.values()) {
-                ndbRecord.releaseNdbRecord();
+            for (DbImpl db: dbs.keySet()) {
+                // mark all dbs as closing so no more transactions will start
+                db.closing();
             }
-            ndbRecordImplMap.clear();
+            dbForNdbRecord.closing();
             if (dbs.size() != 0) {
                 Map<Db, Object> dbsToClose = new IdentityHashMap<Db, Object>(dbs);
                 for (Db db: dbsToClose.keySet()) {
                     db.close();
                 }
             }
+            for (NdbRecordImpl ndbRecord: ndbRecordImplMap.values()) {
+                ndbRecord.releaseNdbRecord();
+            }
+            if (dbForNdbRecord != null) {
+                dbForNdbRecord.close();
+                dbForNdbRecord = null;
+            }
+            ndbRecordImplMap.clear();
             Ndb_cluster_connection.delete(clusterConnection);
             clusterConnection = null;
         }
@@ -210,6 +238,7 @@ public class ClusterConnectionImpl
      * @return the NdbRecordImpl for the table
      */
     protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
+        dbForNdbRecord.assertOpen("ClusterConnectionImpl.getCachedNdbRecordImpl for table");
         String tableName = storeTable.getName();
         // find the NdbRecordImpl in the global cache
         NdbRecordImpl result = ndbRecordImplMap.get(tableName);
@@ -258,6 +287,7 @@ public class ClusterConnectionImpl
      * @return the NdbRecordImpl for the index
      */
     protected NdbRecordImpl getCachedNdbRecordImpl(Index storeIndex, Table storeTable) {
+        dbForNdbRecord.assertOpen("ClusterConnectionImpl.getCachedNdbRecordImpl for index");
         String recordName = storeTable.getName() + "+" + storeIndex.getInternalName();
         // find the NdbRecordImpl in the global cache
         NdbRecordImpl result = ndbRecordImplMap.get(recordName);
@@ -330,5 +360,9 @@ public class ClusterConnectionImpl
     public NdbRecordOperationImpl newNdbRecordOperationImpl(DbImpl db, Table storeTable) {
         return new NdbRecordOperationImpl(this, db, storeTable);
     }
-            
+
+    public void initializeAutoIncrement(long[] autoIncrement) {
+        this.autoIncrement = autoIncrement;
+    }
+
 }

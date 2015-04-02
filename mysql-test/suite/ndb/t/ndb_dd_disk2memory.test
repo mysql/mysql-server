@@ -12,11 +12,6 @@
 
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
---enable_warnings
-
 ############ Test Setup Section #############
 -- echo **** Test Setup Section ****
 
@@ -214,13 +209,14 @@ CREATE TABLE test.t2 (
 
 
 let $1=20;
-disable_query_log;
+--disable_query_log
 while ($1)
 {
  eval insert into test.t1 values($1, $1+1, $1+2000000000, "aaa$1", 34.2, '4:3:2', '2006-1-1', '1971-5-28 16:55:03', "bbbbbbbbbbbbb$1", "binary data");
  eval insert into test.t2 values($1+2, $1+3, $1+3000000000, "aaa$1", 35.2, '4:3:2', '2006-1-1', '1971-5-28 16:55:03', "bbbbbbbbbbbbb$1", "binary data");
  dec $1;
 }
+--enable_query_log
 
 ALTER TABLE test.t1 ADD INDEX (a2), ADD INDEX (a3), ADD INDEX (a8);
 ALTER TABLE test.t2 ADD INDEX (b2), ADD INDEX (b3), ADD INDEX (b8);
@@ -273,9 +269,15 @@ INSERT INTO test.t2(infoID, shipcode) VALUES
 
 SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 
 WHERE t1.infoID=t2.infoID order by email, shipcode;
+
+# Change sql_mode to allow the two queries below
+# which uses "DISTINCT with an ORDER BY on column which
+# is not in the select list"
+--source include/turn_off_only_full_group_by.inc
 SELECT DISTINCTROW email FROM test.t1 ORDER BY dateentered DESC;
 SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 
 WHERE test.t1.infoID=test.t2.infoID ORDER BY dateentered DESC;
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 DROP TABLE test.t1,test.t2;
 

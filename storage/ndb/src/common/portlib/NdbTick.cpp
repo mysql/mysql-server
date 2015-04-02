@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #define NANOSEC_PER_MICROSEC  1000
 
 Uint64 NdbDuration::tick_frequency = 0;
-static bool isMontonic = true;
+static bool isMonotonic = true;
 static bool isInited = false;
 
 
@@ -62,7 +62,7 @@ void NdbTick_Init()
   /**
    * Fall through: Fallback to use CLOCK_REALTIME.
    */
-  isMontonic = false;
+  isMonotonic = false;
   NdbTick_clk_id = CLOCK_REALTIME;
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
@@ -109,14 +109,14 @@ void NdbTick_Init()
   NdbDuration::tick_frequency = MICROSEC_PER_SEC;
 
   /* gettimeofday() is not guaranteed to be monotonic */
-  isMontonic = false;
+  isMonotonic = false;
 #endif
 }
 
 bool NdbTick_IsMonotonic()
 {
   assert(isInited);
-  return isMontonic;
+  return isMonotonic;
 }
 
 const NDB_TICKS NdbTick_getCurrentTicks(void)

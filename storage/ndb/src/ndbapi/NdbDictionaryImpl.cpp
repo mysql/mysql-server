@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2395,7 +2395,14 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     }
     DBUG_PRINT("info", ("node %d", node));
     if(node == 0){
-      m_error.code= 4009;
+      if (getTransporter()->is_cluster_completely_unavailable())
+      {
+        m_error.code= 4009;
+      }
+      else
+      {
+        m_error.code = 4035;
+      }
       DBUG_RETURN(-1);
     }
     int res = (ptr ? 
@@ -6230,7 +6237,14 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
     PollGuard poll_guard(* m_impl);
     Uint16 aNodeId = getTransporter()->get_an_alive_node();
     if (aNodeId == 0) {
-      m_error.code= 4009;
+      if (getTransporter()->is_cluster_completely_unavailable())
+      {
+        m_error.code= 4009;
+      }
+      else
+      {
+        m_error.code = 4035;
+      }
       return -1;
     }
     NodeInfo info = m_impl->getNodeInfo(aNodeId).m_info;
@@ -6392,7 +6406,14 @@ NdbDictInterface::forceGCPWait(int type)
       PollGuard pg(* m_impl);
       Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
-        m_error.code= 4009;
+        if (getTransporter()->is_cluster_completely_unavailable())
+        {
+          m_error.code= 4009;
+        }
+        else
+        {
+          m_error.code = 4035;
+        }
         return -1;
       }
       if (m_impl->sendSignal(&tSignal, aNodeId) != 0)
@@ -6427,7 +6448,14 @@ NdbDictInterface::forceGCPWait(int type)
       m_impl->lock();
       Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
-        m_error.code= 4009;
+        if (getTransporter()->is_cluster_completely_unavailable())
+        {
+          m_error.code= 4009;
+        }
+        else
+        {
+          m_error.code = 4035;
+        }
         m_impl->unlock();
         return -1;
       }
@@ -6784,6 +6812,24 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
     Uint64 elementByteLength= col->getSizeInBytes();
     Uint64 nullLength= col->getNullable() ? 1 : 0;
 
+    /*
+     Validate column flags
+     1. Check if the column_flag has any invalid values
+     2. If the BitColMapsNullBitOnly flag is enabled, RecMysqldBitfield
+        should have been enabled and the column length should be 1
+    */
+    if((flags & NdbDictionary::RecPerColumnFlags) &&
+       (recSpec[rs].column_flags &
+           ~NdbDictionary::RecordSpecification::BitColMapsNullBitOnly) &&
+       ((recSpec[rs].column_flags &
+            NdbDictionary::RecordSpecification::BitColMapsNullBitOnly) &&
+         !((col->getLength() == 1) &&
+           (flags & NdbDictionary::RecMysqldBitfield))))
+    {
+      m_error.code= 4556;
+      return false;
+    }
+
     /* Blobs 'data' just occupies the size of an NdbBlob ptr */
     const NdbDictionary::Column::Type type= col->getType();
     const bool isBlob= 
@@ -6798,16 +6844,26 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
     if ((type == NdbDictionary::Column::Bit) &&
         (flags & NdbDictionary::RecMysqldBitfield))
     {
-      /* MySQLD Bit format puts 'fractional' part of bit types 
-       * in with the null bits - so there's 1 optional Null 
-       * bit followed by n (max 7) databits, at position 
-       * given by the nullbit offsets.  Then the rest of
-       * the bytes go at the normal offset position.
-       */
-      Uint32 bitLength= col->getLength();
-      Uint32 fractionalBits= bitLength % 8;
-      nullLength+= fractionalBits;
-      elementByteLength= bitLength / 8;
+      if((flags & NdbDictionary::RecPerColumnFlags) &&
+         (recSpec[rs].column_flags &
+            NdbDictionary::RecordSpecification::BitColMapsNullBitOnly))
+      {
+        /* skip counting overflow bits */
+        elementByteLength = 0;
+      }
+      else
+      {
+        /* MySQLD Bit format puts 'fractional' part of bit types 
+         * in with the null bits - so there's 1 optional Null 
+         * bit followed by n (max 7) databits, at position 
+         * given by the nullbit offsets.  Then the rest of
+         * the bytes go at the normal offset position.
+         */
+        Uint32 bitLength= col->getLength();
+        Uint32 fractionalBits= bitLength % 8;
+        nullLength+= fractionalBits;
+        elementByteLength= bitLength / 8;
+      }
     }
 
     /* Does the element itself have any bytes?
@@ -7173,6 +7229,13 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
         recCol->nullbit_byte_offset= recSpec->nullbit_byte_offset;
         recCol->nullbit_bit_in_byte= recSpec->nullbit_bit_in_byte;
       }
+      if ((flags & NdbDictionary::RecPerColumnFlags) &&
+          (recSpec->column_flags &
+             NdbDictionary::RecordSpecification::BitColMapsNullBitOnly))
+      {
+        /* Bitfield maps only null bit values. No overflow bits*/
+        recCol->flags|= NdbRecord::BitFieldMapsNullBitOnly;
+      }
     }
   }
   else
@@ -7188,38 +7251,29 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
 }
 
 /**
- * createRecord
+ * createRecordInternal
  * Create an NdbRecord object using the table implementation and
  * RecordSpecification array passed.
  * The table pointer may be a proper table, or the underlying
  * table of an Index.  In any case, it is assumed that is is a
  * global table object, which may be safely shared between
  * multiple threads.  The responsibility for ensuring that it is
- * a global object rests with the caller
+ * a global object rests with the caller. Called internally by
+ * the createRecord method
  */
 NdbRecord *
-NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
-                                const NdbDictionary::RecordSpecification *recSpec,
-                                Uint32 length,
-                                Uint32 elemSize,
-                                Uint32 flags,
-                                bool defaultRecord)
+NdbDictionaryImpl::createRecordInternal(const NdbTableImpl *table,
+                                        const NdbDictionary::RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags,
+                                        bool defaultRecord)
 {
   NdbRecord *rec= NULL;
   Uint32 numKeys, tableNumKeys, numIndexDistrKeys, min_distkey_prefix_length;
   Uint32 oldAttrId;
   bool isIndex;
   Uint32 i;
-
-  /*
-    In later versions we can use elemSize to provide backwards
-    compatibility if we extend the RecordSpecification structure.
-  */
-  if (elemSize != sizeof(NdbDictionary::RecordSpecification))
-  {
-    m_error.code= 4289;
-    return NULL;
-  }
 
   if (!validateRecordSpec(recSpec, length, flags))
   {
@@ -7270,10 +7324,10 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
      5. An extra int array attrId_indexes (length max attrId)
   */
   const Uint32 ndbRecBytes= sizeof(NdbRecord);
-  const Uint32 colArrayBytes= (length-1)*sizeof(NdbRecord::Attr);
+  const Uint32 colArrayBytes= length*sizeof(NdbRecord::Attr);
   const Uint32 tableKeyMapBytes= tableNumKeys*sizeof(Uint32);
   const Uint32 tableDistKeyMapBytes= tableNumDistKeys*sizeof(Uint32);
-  const Uint32 attrIdMapBytes= attrId_indexes_length*sizeof(int);
+  const Uint32 attrIdMapBytes= (attrId_indexes_length + 1)*sizeof(int);
   rec= (NdbRecord *)calloc(1, ndbRecBytes +
                               colArrayBytes +
                               tableKeyMapBytes + 
@@ -7296,8 +7350,16 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                                 colArrayBytes + 
                                 tableKeyMapBytes + 
                                 tableDistKeyMapBytes);
-  for (i = 0; i < attrId_indexes_length; i++)
+  /**
+   * We overallocate one word of attribute index words. This is to be able
+   * to speed up receive_packed_ndbrecord by reading ahead, the value we read
+   * there will never be used, but to ensure we don't crash because of it we
+   * allocate a word and set it to -1.
+   */
+  for (i = 0; i < (attrId_indexes_length + 1); i++)
+  {
     attrId_indexes[i] = -1;
+  }
 
   rec->table= table;
   rec->tableId= table->m_id;
@@ -7451,6 +7513,78 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   return NULL;
 }
 
+/**
+ * createRecord
+ * Create an NdbRecord object using the table implementation and
+ * RecordSpecification array passed.
+ * The table pointer may be a proper table, or the underlying
+ * table of an Index.  In any case, it is assumed that is is a
+ * global table object, which may be safely shared between
+ * multiple threads.  The responsibility for ensuring that it is
+ * a global object rests with the caller. Method validates the
+ * version of the sent RecordSpecification instance, maps it to
+ * a newer version if necessary and internally calls
+ * createRecordInternal to do the processing
+ */
+NdbRecord *
+NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
+                                const NdbDictionary::RecordSpecification *recSpec,
+                                Uint32 length,
+                                Uint32 elemSize,
+                                Uint32 flags,
+                                bool defaultRecord)
+{
+  NdbDictionary::RecordSpecification *newRecordSpec = NULL;
+
+  /* Check if recSpec is an instance of the newer version */
+  if (elemSize != sizeof(NdbDictionary::RecordSpecification))
+  {
+    if(elemSize == sizeof(NdbDictionary::RecordSpecification_v1))
+    {
+      /*
+        Older RecordSpecification in use.
+        Map it to an instance of newer version.
+      */
+      const NdbDictionary::RecordSpecification_v1* oldRecordSpec =
+          (const NdbDictionary::RecordSpecification_v1*) recSpec;
+
+      newRecordSpec =(NdbDictionary::RecordSpecification*)
+                      NdbMem_Allocate(length *
+                        sizeof(NdbDictionary::RecordSpecification));
+      if(newRecordSpec == NULL)
+      {
+        m_error.code= 4000;
+        return NULL;
+      }
+      for (Uint32 i= 0; i < length; i++)
+      {
+        /* map values from older version to newer version */
+        newRecordSpec[i].column = oldRecordSpec[i].column;
+        newRecordSpec[i].offset = oldRecordSpec[i].offset;
+        newRecordSpec[i].nullbit_byte_offset =
+            oldRecordSpec[i].nullbit_byte_offset;
+        newRecordSpec[i].nullbit_bit_in_byte =
+            oldRecordSpec[i].nullbit_bit_in_byte;
+        newRecordSpec[i].column_flags = 0;
+      }
+      recSpec = &newRecordSpec[0];
+    }
+    else
+    {
+      m_error.code= 4289;
+      return NULL;
+    }
+  }
+  NdbRecord *ndbRec = createRecordInternal(table,
+                                           recSpec,
+                                           length,
+                                           elemSize,
+                                           flags,
+                                           defaultRecord);
+  NdbMem_Free((void*)newRecordSpec);
+  return ndbRec;
+}
+
 void
 NdbRecord::copyMask(Uint32 *dst, const unsigned char *src) const
 {
@@ -7491,7 +7625,8 @@ NdbRecord::Attr::get_mysqld_bitfield(const char *src_row, char *dst_buffer) cons
   Uint32 fractional_bitcount= remaining_bits % 8;
 
   /* Copy fractional bits, if any. */
-  if (fractional_bitcount > 0)
+  if (fractional_bitcount > 0 &&
+      !(flags & BitFieldMapsNullBitOnly))
   {
     Uint32 fractional_shift= nullbit_bit_in_byte + ((flags & IsNullable) != 0);
     Uint32 fractional_bits= (unsigned char)(src_row[nullbit_byte_offset]);
@@ -7549,7 +7684,8 @@ NdbRecord::Attr::put_mysqld_bitfield(char *dst_row, const char *src_buffer) cons
   }
 
   /* Copy fractional bits, if any. */
-  if (remaining_bits > 0)
+  if (remaining_bits > 0 &&
+      !(flags & BitFieldMapsNullBitOnly))
   {
     Uint32 shift= nullbit_bit_in_byte + ((flags & IsNullable) != 0);
     Uint32 mask= ((1 << remaining_bits) - 1) << shift;
@@ -8531,32 +8667,36 @@ NdbDictInterface::parseHashMapInfo(NdbHashMapImpl &dst,
   SimplePropertiesLinearReader it(data, len);
 
   SimpleProperties::UnpackStatus status;
-  DictHashMapInfo::HashMap hm; hm.init();
-  status = SimpleProperties::unpack(it, &hm,
+  DictHashMapInfo::HashMap* hm = new DictHashMapInfo::HashMap();
+  hm->init();
+  status = SimpleProperties::unpack(it, hm,
                                     DictHashMapInfo::Mapping,
                                     DictHashMapInfo::MappingSize,
                                     true, true);
 
   if(status != SimpleProperties::Eof){
+    delete hm;
     return CreateFilegroupRef::InvalidFormat;
   }
 
-  dst.m_name.assign(hm.HashMapName);
-  dst.m_id= hm.HashMapObjectId;
-  dst.m_version = hm.HashMapVersion;
+  dst.m_name.assign(hm->HashMapName);
+  dst.m_id= hm->HashMapObjectId;
+  dst.m_version = hm->HashMapVersion;
 
   /**
    * pack is stupid...and requires bytes!
    * we store shorts...so divide by 2
    */
-  hm.HashMapBuckets /= sizeof(Uint16);
+  hm->HashMapBuckets /= sizeof(Uint16);
 
   dst.m_map.clear();
-  for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
+  for (Uint32 i = 0; i<hm->HashMapBuckets; i++)
   {
-    dst.m_map.push_back(hm.HashMapValues[i]);
+    dst.m_map.push_back(hm->HashMapValues[i]);
   }
 
+  delete hm;
+  
   return 0;
 }
 
@@ -8565,33 +8705,38 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
                                  NdbDictObjectImpl* obj,
                                  Uint32 flags)
 {
-  DictHashMapInfo::HashMap hm; hm.init();
-  BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName), 
-                       "%s", src.getName());
-  hm.HashMapBuckets = src.getMapLen();
-  for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
   {
-    assert(NdbHashMapImpl::getImpl(src).m_map[i] <= NDB_PARTITION_MASK);
-    hm.HashMapValues[i] = NdbHashMapImpl::getImpl(src).m_map[i];
+    DictHashMapInfo::HashMap* hm = new DictHashMapInfo::HashMap(); 
+    hm->init();
+    BaseString::snprintf(hm->HashMapName, sizeof(hm->HashMapName), 
+                         "%s", src.getName());
+    hm->HashMapBuckets = src.getMapLen();
+    for (Uint32 i = 0; i<hm->HashMapBuckets; i++)
+    {
+      assert(NdbHashMapImpl::getImpl(src).m_map[i] <= NDB_PARTITION_MASK);
+      hm->HashMapValues[i] = NdbHashMapImpl::getImpl(src).m_map[i];
+    }
+    
+    /**
+     * pack is stupid...and requires bytes!
+     * we store shorts...so multiply by 2
+     */
+    hm->HashMapBuckets *= sizeof(Uint16);
+    SimpleProperties::UnpackStatus s;
+    UtilBufferWriter w(m_buffer);
+    s = SimpleProperties::pack(w,
+                               hm,
+                               DictHashMapInfo::Mapping,
+                               DictHashMapInfo::MappingSize, true);
+    
+    if(s != SimpleProperties::Eof)
+    {
+      abort();
+    }
+    
+    delete hm;
   }
-
-  /**
-   * pack is stupid...and requires bytes!
-   * we store shorts...so multiply by 2
-   */
-  hm.HashMapBuckets *= sizeof(Uint16);
-  SimpleProperties::UnpackStatus s;
-  UtilBufferWriter w(m_buffer);
-  s = SimpleProperties::pack(w,
-                             &hm,
-                             DictHashMapInfo::Mapping,
-                             DictHashMapInfo::MappingSize, true);
-
-  if(s != SimpleProperties::Eof)
-  {
-    abort();
-  }
-
+  
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber = GSN_CREATE_HASH_MAP_REQ;
@@ -9080,17 +9225,24 @@ NdbDictionaryImpl::beginSchemaTrans(bool retry711)
   }
   // TODO real transId
   m_tx.m_transId = rand();
-  m_tx.m_state = NdbDictInterface::Tx::Started;
-  m_tx.m_error.code = 0;
   if (m_tx.m_transId == 0)
     m_tx.m_transId = 1;
+
+  m_tx.m_state = NdbDictInterface::Tx::NotStarted;
+  m_tx.m_error.code = 0;
+  m_tx.m_transKey = 0;
+
   int ret = m_receiver.beginSchemaTrans(retry711);
   if (ret == -1) {
-    m_tx.m_state = NdbDictInterface::Tx::NotStarted;
+    assert(m_tx.m_state == NdbDictInterface::Tx::NotStarted);
     DBUG_RETURN(-1);
   }
   DBUG_PRINT("info", ("transId: %x transKey: %x",
                       m_tx.m_transId, m_tx.m_transKey));
+
+  assert(m_tx.m_state == NdbDictInterface::Tx::Started);
+  assert(m_tx.m_error.code == 0);
+  assert(m_tx.m_transKey != 0);
   DBUG_RETURN(0);
 }
 
@@ -9241,7 +9393,7 @@ NdbDictInterface::endSchemaTrans(Uint32 flags)
   req->flags = flags;
 
   int errCodes[] = {
-    SchemaTransBeginRef::NotMaster,
+    SchemaTransEndRef::NotMaster,
     0
   };
   int ret = dictSignal(
@@ -9266,6 +9418,8 @@ NdbDictInterface::execSCHEMA_TRANS_BEGIN_CONF(const NdbApiSignal * signal,
   const SchemaTransBeginConf* conf=
     CAST_CONSTPTR(SchemaTransBeginConf, signal->getDataPtr());
   assert(m_tx.m_transId == conf->transId);
+  assert(m_tx.m_state == Tx::NotStarted);
+  m_tx.m_state = Tx::Started;
   m_tx.m_transKey = conf->transKey;
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
@@ -9321,6 +9475,13 @@ NdbDictInterface::execSCHEMA_TRANS_END_REP(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::SCHEMA_TRANS_END_REP");
   const SchemaTransEndRep* rep =
     CAST_CONSTPTR(SchemaTransEndRep, signal->getDataPtr());
+
+  if (m_tx.m_state != Tx::Started)
+  {
+    // Ignore TRANS_END_REP if Txn was never started
+    DBUG_VOID_RETURN;
+  }
+
   (rep->errorCode == 0) ?
     m_tx.m_state = Tx::Committed
     :

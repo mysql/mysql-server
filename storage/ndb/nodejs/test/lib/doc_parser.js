@@ -18,9 +18,8 @@
  02110-1301  USA
 */
 
-/*global fs unified_debug */
-
-var udebug = unified_debug.getLogger("doc_parser.js");
+var udebug = unified_debug.getLogger("doc_parser.js"),
+    fs = require("fs");
 
 /* Returns a list of function definitions 
 */

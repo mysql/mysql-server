@@ -62,9 +62,13 @@ table_id	table_name	comment
 15	membership	membership
 16	dict_obj_info	Dictionary object info
 17	frag_mem_use	Per fragment space information
+18	disk_write_speed_base	Actual speed of disk writes per LDM thread, base data
+19	disk_write_speed_aggregate	Actual speed of disk writes per LDM thread, aggregate data
+20	frag_operations	Per fragment operational information
+21	restart_info	Times of restart phases in seconds and current state
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-18
+22
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -82,11 +86,15 @@ table_id	table_name	comment
 15	membership	membership
 16	dict_obj_info	Dictionary object info
 17	frag_mem_use	Per fragment space information
+18	disk_write_speed_base	Actual speed of disk writes per LDM thread, base data
+19	disk_write_speed_aggregate	Actual speed of disk writes per LDM thread, aggregate data
+20	frag_operations	Per fragment operational information
+21	restart_info	Times of restart phases in seconds and current state
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
 COUNT(*)
-324
+484
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -103,7 +111,10 @@ table_id	table_name
 8	counters
 16	dict_obj_info
 10	diskpagebuffer
+19	disk_write_speed_aggregate
+18	disk_write_speed_base
 17	frag_mem_use
+20	frag_operations
 6	logbuffers
 5	logspaces
 15	membership
@@ -111,6 +122,7 @@ table_id	table_name
 14	operations
 3	pools
 7	resources
+21	restart_info
 0	tables
 2	test
 11	threadblocks
@@ -170,6 +182,10 @@ table_id
 15
 16
 17
+18
+19
+20
+21
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -402,6 +418,79 @@ os_ru_nivcsw	bigint(20) unsigned	YES		NULL
 select count(*) > 0 block_name from threadstat;
 block_name
 1
+
+desc disk_write_speed_aggregate;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+backup_lcp_speed_last_sec	bigint(20) unsigned	YES		NULL	
+redo_speed_last_sec	bigint(20) unsigned	YES		NULL	
+backup_lcp_speed_last_10sec	bigint(20) unsigned	YES		NULL	
+redo_speed_last_10sec	bigint(20) unsigned	YES		NULL	
+std_dev_backup_lcp_speed_last_10sec	bigint(20) unsigned	YES		NULL	
+std_dev_redo_speed_last_10sec	bigint(20) unsigned	YES		NULL	
+backup_lcp_speed_last_60sec	bigint(20) unsigned	YES		NULL	
+redo_speed_last_60sec	bigint(20) unsigned	YES		NULL	
+std_dev_backup_lcp_speed_last_60sec	bigint(20) unsigned	YES		NULL	
+std_dev_redo_speed_last_60sec	bigint(20) unsigned	YES		NULL	
+slowdowns_due_to_io_lag	bigint(20) unsigned	YES		NULL	
+slowdowns_due_to_high_cpu	bigint(20) unsigned	YES		NULL	
+disk_write_speed_set_to_min	bigint(20) unsigned	YES		NULL	
+current_target_disk_write_speed	bigint(20) unsigned	YES		NULL	
+select count(*) from disk_write_speed_aggregate;
+count(*)
+8
+
+desc disk_write_speed_base;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+millis_ago	bigint(20) unsigned	YES		NULL	
+millis_passed	bigint(20) unsigned	YES		NULL	
+backup_lcp_bytes_written	bigint(20) unsigned	YES		NULL	
+redo_bytes_written	bigint(20) unsigned	YES		NULL	
+target_disk_write_speed	bigint(20) unsigned	YES		NULL	
+select node_id from disk_write_speed_base group by node_id, thr_no;
+node_id
+1
+1
+1
+1
+2
+2
+2
+2
+
+select count(*) from disk_write_speed_aggregate_node;
+count(*)
+2
+
+desc restart_info;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+node_restart_status	varchar(256)	YES		NULL	
+node_restart_status_int	int(10) unsigned	YES		NULL	
+secs_to_complete_node_failure	int(10) unsigned	YES		NULL	
+secs_to_allocate_node_id	int(10) unsigned	YES		NULL	
+secs_to_include_in_heartbeat_protocol	int(10) unsigned	YES		NULL	
+secs_until_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
+secs_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
+secs_to_get_start_permitted	int(10) unsigned	YES		NULL	
+secs_to_wait_for_lcp_for_copy_meta_data	int(10) unsigned	YES		NULL	
+secs_to_copy_meta_data	int(10) unsigned	YES		NULL	
+secs_to_include_node	int(10) unsigned	YES		NULL	
+secs_starting_node_to_request_local_recovery	int(10) unsigned	YES		NULL	
+secs_for_local_recovery	int(10) unsigned	YES		NULL	
+secs_restore_fragments	int(10) unsigned	YES		NULL	
+secs_undo_disk_data	int(10) unsigned	YES		NULL	
+secs_exec_redo_log	int(10) unsigned	YES		NULL	
+secs_index_rebuild	int(10) unsigned	YES		NULL	
+secs_to_synchronize_starting_node	int(10) unsigned	YES		NULL	
+secs_wait_lcp_for_restart	int(10) unsigned	YES		NULL	
+secs_wait_subscription_handover	int(10) unsigned	YES		NULL	
+total_restart_secs	int(10) unsigned	YES		NULL	
+select * from restart_info;
+node_id	node_restart_status	node_restart_status_int	secs_to_complete_node_failure	secs_to_allocate_node_id	secs_to_include_in_heartbeat_protocol	secs_until_wait_for_ndbcntr_master	secs_wait_for_ndbcntr_master	secs_to_get_start_permitted	secs_to_wait_for_lcp_for_copy_meta_data	secs_to_copy_meta_data	secs_to_include_node	secs_starting_node_to_request_local_recovery	secs_for_local_recovery	secs_restore_fragments	secs_undo_disk_data	secs_exec_redo_log	secs_index_rebuild	secs_to_synchronize_starting_node	secs_wait_lcp_for_restart	secs_wait_subscription_handover	total_restart_secs
 
 desc cluster_transactions;
 Field	Type	Null	Key	Default	Extra
@@ -752,4 +841,459 @@ drop view check_l2pmap_pools;
 drop view sum_per_tab;
 drop view pool_sum;
 drop view frag_sum;
+
+create view frag_ops as select 
+  if(type in ('Ordered index', 'Unique hash index'), 
+    substring(fq_name from 1+locate('/', fq_name, 9)), 
+    if(fq_name like '%BLOB%', left(fq_name, locate('_', fq_name)), fq_name)) 
+    as fq_name,
+  parent_fq_name,
+  type,
+  count(fragment_num) as frag_count,
+  sum(tot_key_reads) as tot_key_reads, 
+  sum(tot_key_inserts) as tot_key_inserts, 
+  sum(tot_key_updates) as tot_key_updates, 
+  sum(tot_key_writes) as tot_key_writes, 
+  sum(tot_key_deletes) as tot_key_deletes, 
+  sum(tot_key_refs) as tot_key_refs, 
+  # Attrinfo for read operations is a bit longer when running with embedded 
+  # mysqld, which is why we do the rounding below. 
+  round(log2(1+sum(tot_key_attrinfo_bytes))) as log_tot_key_attrinfo_bytes,
+  sum(tot_key_keyinfo_bytes) as tot_key_keyinfo_bytes,
+  sum(tot_key_prog_bytes) as tot_key_prog_bytes,
+  sum(tot_key_inst_exec) as tot_key_inst_exec,
+  sum(tot_key_bytes_returned) as tot_key_bytes_returned,
+  sum(tot_frag_scans) as tot_frag_scans, 
+  sum(tot_scan_rows_examined) as tot_scan_rows_examined, 
+  sum(tot_scan_rows_returned) as tot_scan_rows_returned, 
+  sum(tot_scan_bytes_returned) as tot_scan_bytes_returned, 
+  sum(tot_scan_prog_bytes) as tot_scan_prog_bytes,
+  sum(tot_scan_bound_bytes) as tot_scan_bound_bytes,
+  sum(tot_scan_inst_exec) as tot_scan_inst_exec, 
+  sum(conc_frag_scans) as conc_frag_scans,
+  sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
+  sum(tot_commits) as tot_commits
+  from ndbinfo.operations_per_fragment
+  where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%'
+  group by table_id, type, operations_per_fragment.fq_name, parent_fq_name
+  order by table_id;
+
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  t text not null,
+  primary key (b,a)
+) engine=ndbcluster
+partition by key(b,a) partitions 8;
+
+create unique index ix1 on t1(d) using hash;
+
+create table numbers(
+  i int
+);
+
+insert into numbers values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+insert into t1 select x1.i+x2.i*10, 1, 1+x1.i+x2.i*10, 1+x1.i+x2.i*10,
+  repeat('x', 512)
+  from numbers as x1, numbers as x2;
+
+drop table numbers;
+
+create table t2 (
+  a int, 
+  b int, 
+  primary key(a) using hash)
+engine = ndb 
+partition by key(a) partitions 8;
+
+insert into t2 values (1, 2);
+insert into t2 values (2, 3);
+insert into t2 values (3, 1);
+
+select * from frag_ops;;
+fq_name	ndbinfo/def/t1
+parent_fq_name	NULL
+type	User table
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	200
+tot_key_updates	200
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	16
+tot_key_keyinfo_bytes	3200
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	24
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	64
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	400
+fq_name	ndbinfo/def/NDB$BLOB_
+parent_fq_name	ndbinfo/def/t1
+type	User table
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	200
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	16
+tot_key_keyinfo_bytes	2400
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	0
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	0
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	200
+fq_name	PRIMARY
+parent_fq_name	ndbinfo/def/t1
+type	Ordered index
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	0
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	0
+tot_key_keyinfo_bytes	0
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	0
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	0
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	0
+fq_name	ix1$unique
+parent_fq_name	ndbinfo/def/t1
+type	Unique hash index
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	200
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	12
+tot_key_keyinfo_bytes	800
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	0
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	0
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	200
+fq_name	ndbinfo/def/t2
+parent_fq_name	NULL
+type	User table
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	6
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	7
+tot_key_keyinfo_bytes	24
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	8
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	32
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	6
+explain select count(*) from t1 where d<10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	ix1	NULL	NULL	NULL	100	33.33	Using where with pushed condition (`ndbinfo`.`t1`.`d` < 10)
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t1` where (`ndbinfo`.`t1`.`d` < 10)
+select count(*) from t1 where d<10;
+count(*)
+9
+
+explain select count(*) from t1 where b=1 and a<10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	8	NULL	3	100.00	Using where with pushed condition ((`ndbinfo`.`t1`.`b` = 1) and (`ndbinfo`.`t1`.`a` < 10)); Using MRR
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t1` where ((`ndbinfo`.`t1`.`b` = 1) and (`ndbinfo`.`t1`.`a` < 10))
+select count(*) from t1 where b=1 and a<10;
+count(*)
+10
+
+explain select * from t1 where b=1 and a = -5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p4	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `ndbinfo`.`t1`.`a` AS `a`,`ndbinfo`.`t1`.`b` AS `b`,`ndbinfo`.`t1`.`c` AS `c`,`ndbinfo`.`t1`.`d` AS `d`,`ndbinfo`.`t1`.`t` AS `t` from `ndbinfo`.`t1` where ((`ndbinfo`.`t1`.`a` = -(5)) and (`ndbinfo`.`t1`.`b` = 1))
+select * from t1 where b=1 and a = -5;
+a	b	c	d	t
+
+insert into t1 values (1,1,1,1,'');
+ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+
+replace t1 values (-1,-1,-1,-1,'');
+replace t1 values (1,1,5,500,'');
+
+update t1 set d = -d, t = repeat('a', 300) where b=1 and a > 90;
+
+delete from t1 where a%30=0;
+
+explain select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	97	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	ndbinfo.x1.c	1	100.00	Child of 'x1' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t1` `x1` join `ndbinfo`.`t1` `x2` where (`ndbinfo`.`x2`.`b` = `ndbinfo`.`x1`.`c`)
+select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
+count(*)
+1
+
+select 
+  if ((select version() like '%debug'),
+      sum(tot_qd_frag_scans),
+      4) as tot_qd_frag_scans
+  from ndbinfo.operations_per_fragment
+  where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%';
+tot_qd_frag_scans
+4
+
+select * from frag_ops;;
+fq_name	ndbinfo/def/t1
+parent_fq_name	NULL
+type	User table
+frag_count	16
+tot_key_reads	19
+tot_key_inserts	205
+tot_key_updates	236
+tot_key_writes	0
+tot_key_deletes	10
+tot_key_refs	4
+log_tot_key_attrinfo_bytes	16
+tot_key_keyinfo_bytes	3760
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	4220
+tot_frag_scans	56
+tot_scan_rows_examined	306
+tot_scan_rows_returned	215
+tot_scan_bytes_returned	7116
+tot_scan_prog_bytes	288
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	305
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	450
+fq_name	ndbinfo/def/NDB$BLOB_
+parent_fq_name	ndbinfo/def/t1
+type	User table
+frag_count	16
+tot_key_reads	1
+tot_key_inserts	218
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	28
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	16
+tot_key_keyinfo_bytes	2964
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	268
+tot_frag_scans	0
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	0
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	246
+fq_name	PRIMARY
+parent_fq_name	ndbinfo/def/t1
+type	Ordered index
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	0
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	0
+tot_key_keyinfo_bytes	0
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	80
+tot_scan_rows_examined	20
+tot_scan_rows_returned	20
+tot_scan_bytes_returned	588
+tot_scan_prog_bytes	768
+tot_scan_bound_bytes	9888
+tot_scan_inst_exec	58
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	0
+fq_name	ix1$unique
+parent_fq_name	ndbinfo/def/t1
+type	Unique hash index
+frag_count	16
+tot_key_reads	3
+tot_key_inserts	222
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	28
+tot_key_refs	3
+log_tot_key_attrinfo_bytes	12
+tot_key_keyinfo_bytes	1012
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	0
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	0
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	250
+fq_name	ndbinfo/def/t2
+parent_fq_name	NULL
+type	User table
+frag_count	16
+tot_key_reads	0
+tot_key_inserts	6
+tot_key_updates	0
+tot_key_writes	0
+tot_key_deletes	0
+tot_key_refs	0
+log_tot_key_attrinfo_bytes	7
+tot_key_keyinfo_bytes	24
+tot_key_prog_bytes	0
+tot_key_inst_exec	0
+tot_key_bytes_returned	0
+tot_frag_scans	8
+tot_scan_rows_examined	0
+tot_scan_rows_returned	0
+tot_scan_bytes_returned	0
+tot_scan_prog_bytes	32
+tot_scan_bound_bytes	0
+tot_scan_inst_exec	0
+conc_frag_scans	0
+conc_qd_frag_scans	0
+tot_commits	6
+explain select count(*)
+from t2 as tx, t2 as ty
+where tx.a in (1,3,5)
+and ty.a = tx.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tx	p2,p3,p7	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition ((`ndbinfo`.`tx`.`a` in (1,3,5)) and (`ndbinfo`.`tx`.`b` is not null)); Using MRR
+1	SIMPLE	ty	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	ndbinfo.tx.b	1	100.00	Child of 'tx' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t2` `tx` join `ndbinfo`.`t2` `ty` where ((`ndbinfo`.`ty`.`a` = `ndbinfo`.`tx`.`b`) and (`ndbinfo`.`tx`.`a` in (1,3,5)))
+
+create table save_counters as select * from frag_ops;
+
+select count(*)
+from t2 as tx, t2 as ty
+where tx.a in (1,3,5)
+and ty.a = tx.b;
+count(*)
+2
+
+create view changes as select 
+new.fq_name,
+new.parent_fq_name,
+new.type,
+new.frag_count,
+new.tot_key_reads - old.tot_key_reads,
+new.tot_key_inserts - old.tot_key_inserts,
+new.tot_key_updates - old.tot_key_updates,
+new.tot_key_writes - old.tot_key_writes,
+new.tot_key_deletes - old.tot_key_deletes,
+new.tot_key_refs - old.tot_key_refs,
+new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes,
+new.tot_key_keyinfo_bytes - old.tot_key_keyinfo_bytes,
+new.tot_key_prog_bytes - old.tot_key_prog_bytes,
+new.tot_key_inst_exec - old.tot_key_inst_exec,
+new.tot_key_bytes_returned - old.tot_key_bytes_returned,
+new.tot_frag_scans - old.tot_frag_scans,
+new.tot_scan_rows_examined - old.tot_scan_rows_examined,
+new.tot_scan_rows_returned - old.tot_scan_rows_returned,
+new.tot_scan_bytes_returned - old.tot_scan_bytes_returned,
+new.tot_scan_prog_bytes - old.tot_scan_prog_bytes,
+new.tot_scan_bound_bytes - old.tot_scan_bound_bytes,
+new.tot_scan_inst_exec - old.tot_scan_inst_exec,
+new.tot_commits  - old.tot_commits
+from frag_ops as new, save_counters as old
+where new.fq_name=old.fq_name and new.fq_name like '%t2';
+
+select * from changes;
+fq_name	ndbinfo/def/t2
+parent_fq_name	NULL
+type	User table
+frag_count	16
+new.tot_key_reads - old.tot_key_reads	5
+new.tot_key_inserts - old.tot_key_inserts	0
+new.tot_key_updates - old.tot_key_updates	0
+new.tot_key_writes - old.tot_key_writes	0
+new.tot_key_deletes - old.tot_key_deletes	0
+new.tot_key_refs - old.tot_key_refs	1
+new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes	2
+new.tot_key_keyinfo_bytes - old.tot_key_keyinfo_bytes	20
+new.tot_key_prog_bytes - old.tot_key_prog_bytes	168
+new.tot_key_inst_exec - old.tot_key_inst_exec	7
+new.tot_key_bytes_returned - old.tot_key_bytes_returned	88
+new.tot_frag_scans - old.tot_frag_scans	0
+new.tot_scan_rows_examined - old.tot_scan_rows_examined	0
+new.tot_scan_rows_returned - old.tot_scan_rows_returned	0
+new.tot_scan_bytes_returned - old.tot_scan_bytes_returned	0
+new.tot_scan_prog_bytes - old.tot_scan_prog_bytes	0
+new.tot_scan_bound_bytes - old.tot_scan_bound_bytes	0
+new.tot_scan_inst_exec - old.tot_scan_inst_exec	0
+new.tot_commits  - old.tot_commits	0
+
+drop view changes;
+drop table save_counters;
+drop view frag_ops;
+drop table t1;
+drop table t2;
 

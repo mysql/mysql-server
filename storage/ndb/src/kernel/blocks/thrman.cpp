@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 #include "thrman.hpp"
 #include <mt.hpp>
 #include <signaldata/DbinfoScan.hpp>
-#include <NdbGetRUsage.h>
 
 #include <EventLogger.hpp>
 
@@ -32,6 +31,12 @@ Thrman::Thrman(Block_context & ctx, Uint32 instanceno) :
   BLOCK_CONSTRUCTOR(Thrman);
 
   addRecSignal(GSN_DBINFO_SCANREQ, &Thrman::execDBINFO_SCANREQ);
+  addRecSignal(GSN_CONTINUEB, &Thrman::execCONTINUEB);
+  addRecSignal(GSN_GET_CPU_USAGE_REQ, &Thrman::execGET_CPU_USAGE_REQ);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Thrman::execREAD_CONFIG_REQ);
+  addRecSignal(GSN_STTOR, &Thrman::execSTTOR);
+
+  current_cpu_load = 90;
 }
 
 Thrman::~Thrman()
@@ -39,6 +44,142 @@ Thrman::~Thrman()
 }
 
 BLOCK_FUNCTIONS(Thrman)
+
+void Thrman::execREAD_CONFIG_REQ(Signal *signal)
+{
+  jamEntry();
+
+  /* Receive signal */
+  const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
+  Uint32 ref = req->senderRef;
+  Uint32 senderData = req->senderData;
+
+  /* Send return signal */
+  ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(ref, GSN_READ_CONFIG_CONF, signal,
+             ReadConfigConf::SignalLength, JBB);
+}
+
+void
+Thrman::execSTTOR(Signal *signal)
+{
+  jamEntry();
+
+  const Uint32 startPhase  = signal->theData[1];
+
+  switch (startPhase) {
+  case 1:
+    Ndb_GetRUsage(&last_rusage);
+    prev_cpu_usage_check = NdbTick_getCurrentTicks();
+    sendNextCONTINUEB(signal);
+    break;
+  default:
+    ndbrequire(false);
+  }
+  sendSTTORRY(signal);
+}
+
+void
+Thrman::sendSTTORRY(Signal* signal)
+{
+  signal->theData[0] = 0;
+  signal->theData[3] = 1;
+  signal->theData[4] = 255; // No more start phases from missra
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : THRMAN_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
+}
+
+void
+Thrman::execCONTINUEB(Signal *signal)
+{
+  ndbrequire(signal->theData[0] == ZCONTINUEB_MEASURE_CPU_USAGE);
+  measure_cpu_usage();
+  sendNextCONTINUEB(signal);
+}
+
+void
+Thrman::sendNextCONTINUEB(Signal *signal)
+{
+  signal->theData[0] = ZCONTINUEB_MEASURE_CPU_USAGE;
+  sendSignalWithDelay(reference(),
+                      GSN_CONTINUEB,
+                      signal,
+                      1000,
+                      1);
+}
+
+void
+Thrman::measure_cpu_usage(void)
+{
+  struct ndb_rusage curr_rusage;
+  Uint64 elapsed_micros;
+
+  Uint64 user_micros;
+  Uint64 kernel_micros;
+  Uint64 total_micros;
+
+  /**
+   * Start by making a new CPU usage measurement. After that we will
+   * measure how much time has passed since last measurement and from
+   * this we can calculate a percentage of CPU usage that this thread
+   * has had for the last second or so.
+   */
+  int res = Ndb_GetRUsage(&curr_rusage);
+  if (res != 0)
+  {
+#ifdef DEBUG_CPU_USAGE
+    ndbout << "res = " << -res << endl;
+#endif
+  }
+  NDB_TICKS curr_time = NdbTick_getCurrentTicks();
+  if ((curr_rusage.ru_utime == 0 && curr_rusage.ru_stime == 0) ||
+      (last_rusage.ru_utime == 0 && last_rusage.ru_stime == 0))
+  {
+    /**
+     * We lack at least one valid measurement to make any conclusions.
+     * We set CPU usage to 90 as the default value.
+     */
+    current_cpu_load = default_cpu_load;
+  }
+  else
+  {
+
+    elapsed_micros = NdbTick_Elapsed(prev_cpu_usage_check,
+                                     curr_time).microSec();
+
+    user_micros = curr_rusage.ru_utime - last_rusage.ru_utime;
+    kernel_micros = curr_rusage.ru_stime - last_rusage.ru_stime;
+    total_micros = user_micros + kernel_micros;
+
+    if (elapsed_micros != 0)
+    {
+      /* Handle errors in time measurements */
+      current_cpu_load = (total_micros * 100) / elapsed_micros;
+    }
+    if (current_cpu_load > 100)
+    {
+      /* Handle errors in time measurements */
+      current_cpu_load = 100;
+    }
+  }
+#ifdef DEBUG_CPU_USAGE
+  if (current_cpu_load != 0)
+  {
+    ndbout << "CPU usage is now " << current_cpu_load << "%";
+    ndbout << " in instance " << instance() << endl;
+  }
+#endif
+  last_rusage = curr_rusage;
+  prev_cpu_usage_check = curr_time;
+}
+
+void
+Thrman::execGET_CPU_USAGE_REQ(Signal *signal)
+{
+  signal->theData[0] = current_cpu_load;
+}
 
 void
 Thrman::execDBINFO_SCANREQ(Signal* signal)
@@ -98,7 +239,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
     row.write_uint64(NdbTick_CurrentMillisecond());
 
     struct ndb_rusage os_rusage;
-    Ndb_GetRUSage(&os_rusage);
+    Ndb_GetRUsage(&os_rusage);
     row.write_uint64(os_rusage.ru_utime);
     row.write_uint64(os_rusage.ru_stime);
     row.write_uint64(os_rusage.ru_minflt);

@@ -119,6 +119,7 @@ public:
   virtual bool has_temp_error();
   virtual bool createSystable(const TableS & table);
   virtual bool table_compatible_check(TableS & tableS);
+  virtual bool check_blobs(TableS & tableS); 
   virtual bool column_compatible_check(const char* tableName,
                                        const NDBCOL* backupCol, 
                                        const NDBCOL* dbCol);
@@ -137,6 +138,7 @@ public:
   bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
   Uint32 map_ng(Uint32 ng);
   bool translate_frm(NdbDictionary::Table *table);
+  bool isMissingTable(const TableS& table);
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
                                          const NDBCOL &new_col);
@@ -147,6 +149,8 @@ public:
   static AttrConvType check_compat_char_to_text(const NDBCOL &old_col,
                                                 const NDBCOL &new_col);
   static AttrConvType check_compat_text_to_char(const NDBCOL &old_col,
+                                                const NDBCOL &new_col);
+  static AttrConvType check_compat_text_to_text(const NDBCOL &old_col,
                                                 const NDBCOL &new_col);
   static AttrConvType check_compat_promotion(const NDBCOL &old_col,
                                              const NDBCOL &new_col);

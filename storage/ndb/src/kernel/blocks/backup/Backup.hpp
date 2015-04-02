@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@
 #include <Array.hpp>
 #include <Mutex.hpp>
 
+#include "../dblqh/Dblqh.hpp"
+
 #define JAM_FILE_ID 474
 
 
@@ -50,7 +52,8 @@ public:
   Backup(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Backup();
   BLOCK_DEFINES(Backup);
-  
+ 
+  class Dblqh* c_lqh;
 protected:
 
   void execSTTOR(Signal* signal);
@@ -112,6 +115,7 @@ protected:
    */
   void execDIH_SCAN_TAB_CONF(Signal* signal);
   void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
+  void execCHECK_NODE_RESTARTCONF(Signal*);
 
   /**
    * FS signals
@@ -537,12 +541,14 @@ public:
     Uint32 m_maxWriteSize;
     Uint32 m_lcp_buffer_size;
     
-    Uint32 m_disk_write_speed_sr;
-    Uint32 m_disk_write_speed;
+    Uint64 m_disk_write_speed_min;
+    Uint64 m_disk_write_speed_max;
+    Uint64 m_disk_write_speed_max_other_node_restart;
+    Uint64 m_disk_write_speed_max_own_restart;
     Uint32 m_disk_synch_size;
     Uint32 m_diskless;
     Uint32 m_o_direct;
-    Uint32   m_compressed_backup;
+    Uint32 m_compressed_backup;
     Uint32 m_compressed_lcp;
   };
   
@@ -559,15 +565,106 @@ public:
   /*
     Variables that control checkpoint to disk speed
   */
-  Uint32 m_curr_disk_write_speed;
-  Uint32 m_words_written_this_period;
-  Uint32 m_overflow_disk_write;
+  bool m_is_any_node_restarting;
+  bool m_node_restart_check_sent;
+  bool m_our_node_started;
+  Uint64 m_curr_disk_write_speed;
+  Uint64 m_words_written_this_period;
+  Uint64 m_overflow_disk_write;
   Uint32 m_reset_delay_used;
   NDB_TICKS m_reset_disk_speed_time;
+
+  /**
+   * We check the use of disk write speed limits every 100 milliseconds. The
+   * speed check parameters is also in words, so this means to get the current
+   * speed in bytes per second we need to multiply with 40.
+   */
   static const int  DISK_SPEED_CHECK_DELAY = 100;
+  static const int CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS = 40;
   
   Uint64 m_monitor_words_written;
+  Uint32 m_periods_passed_in_monitor_period;
   NDB_TICKS m_monitor_snapshot_start;
+
+  /**
+   * A number of statistical variables that keep track of
+   * various events and how often they happen.
+   */
+  Uint64 slowdowns_due_to_io_lag;
+  Uint64 slowdowns_due_to_high_cpu;
+  Uint64 disk_write_speed_set_to_min;
+
+  /**
+   * Variables used to keep stats on disk write speeds for
+   * reporting in checkpoint_speed ndbinfo table.
+   * We keep the last 60 seconds of stats and use this to
+   * calculate various aggregates reported in the ndbinfo
+   * table.
+   *
+   * The idea is that next_disk_write_speed_report specifies
+   * the next entry to fill in a speed report into. The
+   * last_disk_write_speed_report points to the oldest one
+   * that we have written so far. At first we write into
+   * index 0, so in the beginning is last_disk_write_speed_report
+   * equal to 0 and next_disk_write_speed_report is pointing to
+   * the next one to write into. When we write into the last
+   * entry (index = 60) then we have written in all entries and
+   * we move the last forward. After that we will always have
+   * last one ahead of next. Since this means that the next
+   * to write isn't available (although it isn't written yet)
+   * we have 61 entries in the array to cover 60 seconds of
+   * time.
+   */
+#define DISK_WRITE_SPEED_REPORT_SIZE 61
+
+#define MILLIS_IN_A_SECOND 1000
+#define MILLIS_ADJUST_FOR_EARLY_REPORT 20
+  struct DiskWriteSpeedReport
+  {
+    Uint64 backup_lcp_bytes_written;
+    Uint64 redo_bytes_written;
+    Uint64 target_disk_write_speed;
+    Uint64 millis_passed;
+  };
+  DiskWriteSpeedReport disk_write_speed_rep[DISK_WRITE_SPEED_REPORT_SIZE];
+  Uint32 last_disk_write_speed_report;
+  Uint32 next_disk_write_speed_report;
+
+  /**
+   * Methods used in control of checkpoint speed
+   */
+  void handle_overflow(void);
+  void calculate_next_delay(const NDB_TICKS curr_time);
+  void monitor_disk_write_speed(const NDB_TICKS curr_time,
+                                const Uint64 millisPassed);
+  void adjust_disk_write_speed_down(int adjust_speed);
+  void adjust_disk_write_speed_up(int adjust_speed);
+  void calculate_disk_write_speed(Signal *signal);
+  void send_next_reset_disk_speed_counter(Signal *signal);
+
+  void restore_disk_write_speed_numbers(void);
+  void calculate_real_disk_write_speed_parameters(void);
+  Uint64 get_new_speed_val32(Signal *signal);
+  Uint64 get_new_speed_val64(Signal *signal);
+
+  /**
+   * Methods used in ndbinfo reporting of checkpoint speed.
+   */
+  void report_disk_write_speed_report(Uint64 bytes_written_this_period,
+                                      Uint64 millis_passed);
+  Uint32 get_disk_write_speed_record(Uint32 start_index);
+  Uint64 calculate_millis_since_finished(Uint32 start_index);
+  void calculate_disk_write_speed_seconds_back(Uint32 seconds_back,
+                                       Uint64 & millis_passed,
+                                       Uint64 & backup_lcp_bytes_written,
+                                       Uint64 & redo_bytes_written);
+  void calculate_std_disk_write_speed_seconds_back(Uint32 seconds_back,
+                             Uint64 millis_passed_total,
+                             Uint64 backup_lcp_bytes_written_total,
+                             Uint64 redo_bytes_written_total,
+                             Uint64 & std_dev_backup_lcp_in_bytes_per_sec,
+                             Uint64 & std_dev_redo_in_bytes_per_sec);
+
 
   STATIC_CONST(NO_OF_PAGES_META_FILE = 
 	       (2*MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) / 

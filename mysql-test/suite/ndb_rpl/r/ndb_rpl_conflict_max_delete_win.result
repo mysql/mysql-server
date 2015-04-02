@@ -42,18 +42,8 @@ a	b	c	d
 1	Master t2 c=2	2	1
 2	Master t2 c=2	2	12
 3	Master t2 c=2	2	123
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -74,18 +64,8 @@ a	b	c	d
 1	Master t2 c=2	2	1
 2	Master t2 c=2	2	12
 3	Master t2 a=3 at c=3	3	123
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -100,18 +80,8 @@ select * from t1 order by a, d;
 a	b	X	d
 select * from t2 order by a, d;
 a	b	c	d
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -133,18 +103,8 @@ insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
 insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
 commit;
 *** slave - check conflict info, no conflicts yet
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -187,18 +147,10 @@ update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
 delete from t2 where a = 4;
 commit;
 *** slave - check conflict info, there should be some
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 3
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -235,18 +187,10 @@ update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
 update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
 commit;
 *** slave - check conflict info, change depends on calling test
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 3
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -305,18 +249,8 @@ a	b	c	d
 1	Master t2 c=2	2	1
 2	Master t2 c=2	2	12
 3	Master t2 c=2	2	123
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -337,18 +271,8 @@ a	b	c	d
 1	Master t2 c=2	2	1
 2	Master t2 c=2	2	12
 3	Master t2 a=3 at c=3	3	123
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -363,18 +287,8 @@ select * from t1 order by a, d;
 a	b	X	d
 select * from t2 order by a, d;
 a	b	c	d
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -396,18 +310,8 @@ insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
 insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
 commit;
 *** slave - check conflict info, no conflicts yet
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -450,18 +354,10 @@ update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
 delete from t2 where a = 4;
 commit;
 *** slave - check conflict info, there should be some
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 3
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -498,18 +394,10 @@ update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
 update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
 commit;
 *** slave - check conflict info, change depends on calling test
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 3
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -571,18 +459,8 @@ a	b	c	d
 1	Master t2 c=2	2	1
 2	Master t2 c=2	2	12
 3	Master t2 c=2	2	123
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -603,18 +481,8 @@ a	b	c	d
 1	Master t2 c=2	2	1
 2	Master t2 c=2	2	12
 3	Master t2 a=3 at c=3	3	123
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -629,18 +497,8 @@ select * from t1 order by a, d;
 a	b	X	d
 select * from t2 order by a, d;
 a	b	c	d
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -662,18 +520,8 @@ insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
 insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
 commit;
 *** slave - check conflict info, no conflicts yet
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -716,18 +564,10 @@ update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
 delete from t2 where a = 4;
 commit;
 *** slave - check conflict info, there should be some
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 3
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -764,18 +604,10 @@ update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
 update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
 commit;
 *** slave - check conflict info, change depends on calling test
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 3
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -836,18 +668,10 @@ a	b	c	d
 1	Master t2 c=2	2	1
 2	Master t2 c=2	2	12
 3	Master t2 c=2	2	123
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 3
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -874,18 +698,10 @@ a	b	c	d
 1	Master t2 c=2	2	1
 2	Master t2 c=2	2	12
 3	Master t2 a=3 at c=3	3	123
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 4
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -908,18 +724,10 @@ select * from t1 order by a, d;
 a	b	X	d
 select * from t2 order by a, d;
 a	b	c	d
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 4
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	1	#	#
@@ -949,18 +757,8 @@ insert into t2 values (3, "Master t2 a=3 at c=10", 10, '111222333');
 insert into t2 values (4, "Master t2 a=4 at c=10", 10, '111222333');
 commit;
 *** slave - check conflict info, no conflicts yet
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Conflict algorithm counter diff :
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 SELECT * FROM `t1$EX` ORDER BY a, d;
@@ -1003,18 +801,10 @@ update t2 set b="Master t2 a=3 at c=11", c=11 where a=3;
 delete from t2 where a = 4;
 commit;
 *** slave - check conflict info, there should be some
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 3
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	5	#	#
@@ -1051,18 +841,10 @@ update t2 set b="Master t2 a=2 at c=13", c=13 where a=2;
 update t2 set b="Master t2 a=3 at c=13", c=13 where a=3;
 commit;
 *** slave - check conflict info, change depends on calling test
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_old FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_OLD";
-VARIABLE_VALUE-@init_ndb_conflict_fn_old
-0
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_MAX_DEL_WIN";
-VARIABLE_VALUE-@init_ndb_conflict_fn_max_del_win
+Conflict algorithm counter diff :
+ndb_conflict_fn_max_del_win
 6
-SELECT VARIABLE_VALUE-@init_ndb_conflict_fn_epoch FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT_FN_EPOCH";
-VARIABLE_VALUE-@init_ndb_conflict_fn_epoch
-0
+Exception table contents
 SELECT server_id, master_server_id, master_epoch, count, a, d FROM `t1$EX` ORDER BY server_id, master_server_id, master_epoch, count;
 server_id	master_server_id	master_epoch	count	a	d
 2	1	#	5	#	#
@@ -1105,7 +887,7 @@ insert into t1 values (3, "Master row 3 at X=1", 1, "3:1");
 Show update missing timestamp column causes slave failure
 update t1 set b='Blah' where a=1 and d="1:1";
 call mtr.add_suppression(".*missing info necessary for conflict detection.*");
-call mtr.add_suppression(".*Slave SQL: Could not execute.*rows event on table.*");
+call mtr.add_suppression(".*Slave SQL for channel '': Could not execute.*rows event on table.*");
 call mtr.add_suppression(".*error 1610.*");
 Wait for slave to choke on that event.
 include/wait_for_slave_sql_error.inc [errno=1296]

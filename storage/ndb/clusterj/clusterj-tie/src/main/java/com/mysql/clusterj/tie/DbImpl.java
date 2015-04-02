@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanOptions;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.store.ClusterTransaction;
 import com.mysql.clusterj.core.store.Table;
 
@@ -88,6 +89,12 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** The ClusterConnection */
     private ClusterConnectionImpl clusterConnection;
 
+    /** This db is closing */
+    private boolean closing = false;
+
+    /** The ClusterTransaction */
+    private ClusterTransaction clusterTransaction;
+
     /** The number of IndexBound created */
     private int numberOfIndexBoundCreated;
 
@@ -112,6 +119,15 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** The number of ScanOptions deleted */
     private int numberOfScanOptionsDeleted;
 
+    /** The autoincrement batch size */
+    private int autoIncrementBatchSize;
+
+    /** The autoincrement step */
+    private long autoIncrementStep;
+
+    /** The autoincrement start */
+    private long autoIncrementStart;
+
     public DbImpl(ClusterConnectionImpl clusterConnection, Ndb ndb, int maxTransactions) {
         this.clusterConnection = clusterConnection;
         this.ndb = ndb;
@@ -120,6 +136,16 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         ndbDictionary = ndb.getDictionary();
         handleError(ndbDictionary, ndb);
         this.dictionary = new DictionaryImpl(ndbDictionary, clusterConnection);
+    }
+
+    protected void assertOpen(String where) {
+        if (closing || ndb == null) {
+            throw new ClusterJUserException(local.message("ERR_Db_Is_Closing", where));
+        }
+    }
+
+    protected void closing() {
+        closing = true;
     }
 
     public void close() {
@@ -140,6 +166,13 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
             logger.warn("numberOfScanOptionsCreated " + numberOfScanOptionsCreated + 
                     " != numberOfScanOptionsDeleted " + numberOfScanOptionsDeleted);
         }
+        if (clusterTransaction != null) {
+            if (clusterTransaction.isEnlisted()) {
+                throw new ClusterJUserException(local.message("ERR_Cannot_close_active_transaction")); 
+            }
+            clusterTransaction.close();
+            clusterTransaction = null;
+        }
         if (ndb != null) {
             Ndb.delete(ndb);
             ndb = null;
@@ -156,7 +189,9 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public ClusterTransaction startTransaction(String joinTransactionId) {
-        return new ClusterTransactionImpl(clusterConnection, this, ndbDictionary, joinTransactionId);
+        assertOpen("startTransaction");
+        clusterTransaction = new ClusterTransactionImpl(clusterConnection, this, ndbDictionary, joinTransactionId);
+        return clusterTransaction;
     }
 
     protected void handleError(int returnCode, Ndb ndb) {
@@ -459,6 +494,30 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     public void delete(ScanOptions scanOptions) {
         ++numberOfScanOptionsDeleted;
         ScanOptions.delete(scanOptions);
+    }
+
+    /** Get the autoincrement value for the table. This method is called from NdbRecordOperationImpl.insert
+     * to get the next autoincrement value.
+     */
+    public long getAutoincrementValue(Table table) {
+        long autoIncrementValue;
+        // get a new autoincrement value
+        long[] ret = new long[] {0L, autoIncrementBatchSize, autoIncrementStep, autoIncrementStart};
+        int returnCode = ndb.getAutoIncrementValue(((TableImpl)table).ndbTable, ret,
+                autoIncrementBatchSize, autoIncrementStep, autoIncrementStart);
+        handleError(returnCode, ndb);
+        autoIncrementValue = ret[0];
+        if (logger.isDetailEnabled()) {
+            logger.detail("getAutoIncrementValue(...batchSize: " + autoIncrementBatchSize +
+                " step: " + autoIncrementStep + " start: " + autoIncrementStart + ") returned " + autoIncrementValue);
+        }
+        return autoIncrementValue;
+    }
+
+    public void initializeAutoIncrement(long[] autoIncrement) {
+        this.autoIncrementBatchSize = (int)autoIncrement[0];
+        this.autoIncrementStep = autoIncrement[1];
+        this.autoIncrementStart = autoIncrement[2];
     }
 
 }

@@ -29,6 +29,10 @@
 --echo Clean up tables used in the JUnit tests.
 DROP TABLE a;
 DROP TABLE allprimitives;
+DROP TABLE autopkint;
+DROP TABLE autopkbigint;
+DROP TABLE autopksmallint;
+DROP TABLE autopktinyint;
 DROP TABLE b0;
 DROP TABLE bigintegertypes;
 DROP TABLE binarypk;
@@ -42,6 +46,7 @@ DROP TABLE cassandra_string;
 DROP TABLE charsetbig5;
 DROP TABLE charsetlatin1;
 DROP TABLE charsetsjis;
+DROP TABLE charsetswedishutf8;
 DROP TABLE charsetutf8;
 DROP TABLE conversation_summary;
 DROP TABLE datetimetypes;

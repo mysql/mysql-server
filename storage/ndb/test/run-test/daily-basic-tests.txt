@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -976,6 +976,14 @@ args: -n Bug44065
 #cmd: testNdbApi
 #args: -n Bug44065_org
 #
+max-time: 1000
+cmd: testNdbApi
+args: -n RecordSpecificationBackwardCompatibility
+
+max-time: 500
+cmd: testNdbApi
+args: -n DeleteClusterConnectionWhileUsed T1
+
 max-time: 500
 cmd: testInterpreter
 args: T1 
@@ -1150,6 +1158,10 @@ args: -n Bug12598496 T1
 max-time: 1000
 cmd: test_event
 args: -n Bug18703871 T1
+#
+max-time: 1000
+cmd: test_event
+args: -n Apiv2EmptyEpochs T1
 
 #
 max-time: 600
@@ -1874,10 +1886,10 @@ args: -n Bug57057 T1
 #
 # Refresh tuple
 # Bug18408692 added on 17.04.2014
-#max-time: 300
-#cmd: testBasic
-#args: -n RefreshTuple T6 D1
-#
+max-time: 300
+cmd: testBasic
+args: -n RefreshTuple T6 D1
+
 max-time: 300
 cmd: testIndex
 args: -n RefreshWithOrderedIndex T2 D2
@@ -1932,6 +1944,10 @@ args: -n NdbClusterConnectSR T1
 max-time: 1800
 cmd: testNdbApi
 args: -n TestFragmentedSend T1
+
+max-time: 1800
+cmd: testNdbApi
+args: -n SchemaObjectOwnerCheck T1
 
 max-time: 300
 cmd: testNodeRestart
@@ -2055,7 +2071,7 @@ args: -n CreateDropError T1
 # Bug18408672 added on 17.04.2014
 #max-time : 300
 #cmd: testFK
-#args: -n TransError T1
+#args: -n TransError T1 T15
 #
 max-time : 300
 cmd: testFK
@@ -2101,7 +2117,26 @@ max-time : 600
 cmd: testNodeRestart
 args: -n Bug18044717 T1
 
+max-time : 600
+cmd: testNodeRestart
+args: -n GCPStopFalsePositive T1
+
 max-time: 600
 cmd: atrt-testBackup
 args: -n Bug17882305 T1
 
+max-time: 600
+cmd: atrt-testBackup
+args: -n Bug19202654 T1
+
+max-time : 600
+cmd: testNodeRestart
+args: -n DeleteRestart T1
+
+max-time : 600
+cmd: testBasic
+args: -n AccCommitOrder T1
+
+max-time: 1200
+cmd: test_event
+args: -n EmptyUpdates T1

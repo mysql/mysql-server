@@ -52,15 +52,11 @@ var tableHandlers = {
       }
     },
     'b': {
-      insertSQL: 'INSERT INTO b(id, cint, clong, cfloat, cdouble) VALUES (?,?,?,?,?)',
+      insertSQL: 'INSERT INTO b(id) VALUES (?)',
       createInsertParameterList: function(object) {
         var result = [];
         result.push(object.id);
-        result.push(object.cint);
-        result.push(object.clong);
-        result.push(object.cfloat);
-        result.push(object.cdouble);
-        return result;
+          return result;
       },
       deleteSQL: 'DELETE FROM b WHERE id = ?',
       createDeleteParameterList: function(object) {
@@ -70,7 +66,7 @@ var tableHandlers = {
           return [object.id];
         } else throw new Error('createFindParameterList parameter must be number or object');
       },
-      findSQL: 'SELECT id, cint, clong, cfloat, cdouble FROM b WHERE id = ?',
+      findSQL: 'SELECT id, cvarbinary_def FROM b WHERE id = ?',
       createFindParameterList: function(object) {
         if (typeof(object) === 'number') {
           return [object];

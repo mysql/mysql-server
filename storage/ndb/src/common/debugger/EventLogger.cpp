@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -474,15 +474,35 @@ void getTextNR_CopyDict(QQQQ) {
   //-----------------------------------------------------------------------
   // REPORT Node Restart completed copy of dictionary information.
   //-----------------------------------------------------------------------
-  BaseString::snprintf(m_text, m_text_len, 
-		       "Node restart completed copy of dictionary information");
+  if (len == 2)
+  {
+    BaseString::snprintf(m_text, m_text_len, 
+		         "Node restart completed copy of dictionary information"
+                         " to Node %u",
+                         theData[1]);
+  }
+  else
+  {
+    BaseString::snprintf(m_text, m_text_len, 
+		         "Node restart completed copy of dictionary information");
+  }
 }
 void getTextNR_CopyDistr(QQQQ) {
   //-----------------------------------------------------------------------
   // REPORT Node Restart completed copy of distribution information.
   //-----------------------------------------------------------------------
-  BaseString::snprintf(m_text, m_text_len, 
-		       "Node restart completed copy of distribution information");
+  if (len == 2)
+  {
+    BaseString::snprintf(m_text, m_text_len, 
+		   "Node restart completed copy of distribution information"
+                       " to Node %u",
+                       theData[1]);
+  }
+  else
+  {
+    BaseString::snprintf(m_text, m_text_len, 
+		   "Node restart completed copy of distribution information");
+  }
 }
 void getTextNR_CopyFragsStarted(QQQQ) {
   //-----------------------------------------------------------------------
@@ -659,7 +679,11 @@ void getTextTransporterError(QQQQ) {
     //TE_SHM_IPC_PERMANENT = 0x21
     {TE_SHM_IPC_PERMANENT,"Shm ipc Permanent error"},
     //TE_SCI_UNABLE_TO_CLOSE_CHANNEL = 0x22
-    {TE_SCI_UNABLE_TO_CLOSE_CHANNEL,"Unable to close the sci channel and the resources allocated"}
+    {TE_SCI_UNABLE_TO_CLOSE_CHANNEL, "Unable to close the sci channel and the resources allocated"},
+    //TE_UNSUPPORTED_BYTE_ORDER = 0x23 | TE_DO_DISCONNECT
+    {TE_UNSUPPORTED_BYTE_ORDER, "Error found in message (unsupported byte order)"},
+    //TE_COMPRESSED_UNSUPPORTED = 0x24 | TE_DO_DISCONNECT
+    {TE_COMPRESSED_UNSUPPORTED, "Error found in message (unsupported feature compressed)"},
   };
 
   lenth = sizeof(TransporterErrorString)/sizeof(struct myTransporterError);

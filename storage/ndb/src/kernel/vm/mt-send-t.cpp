@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -162,7 +162,7 @@ struct Consumer
 
   void init() {}
 
-  struct thr_spin_lock<8> m_send_lock;
+  struct thr_spin_lock m_send_lock;
   unsigned m_force_send;
   unsigned val[MAX_THREADS];
 
@@ -177,16 +177,14 @@ struct Consumer
   void forceConsume(unsigned D);
 };
 
-struct Consumer_pad
+struct MY_ALIGNED(NDB_CL) Consumer_pad
 {
   Consumer c;
-  char pad[NDB_CL_PADSZ(sizeof(Consumer))];
 };
 
-struct Thread_pad
+struct MY_ALIGNED(NDB_CL) Thread_pad
 {
   Thread t;
-  char pad[NDB_CL_PADSZ(sizeof(Thread))];
 };
 
 /**

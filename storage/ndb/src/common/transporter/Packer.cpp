@@ -21,6 +21,9 @@
 #include <TransporterRegistry.hpp>
 #include <TransporterCallback.hpp>
 #include <RefConvert.hpp>
+#include "BaseString.hpp"
+#include "EventLogger.hpp"
+#include "BlockNumbers.h"
 
 #ifdef ERROR_INSERT
 Uint32 MAX_RECEIVED_SIGNALS = 1024;
@@ -28,12 +31,215 @@ Uint32 MAX_RECEIVED_SIGNALS = 1024;
 #define MAX_RECEIVED_SIGNALS 1024
 #endif
 
-static
-void dump_corrupt_message(const char file[], unsigned line, const Uint32 * msg, size_t len)
+extern EventLogger* g_eventLogger;
+
+void
+TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned line,
+                          TransporterReceiveHandle & recvHandle,
+                          Uint32 * readPtr,
+                          size_t sizeInWords,
+                          NodeId remoteNodeId,
+                          IOState state,
+                          TransporterError errorCode)
 {
-  ndbout << "ERROR: " << file << ": " << line << ": Corrupt message detected!" << endl;
-  ndbout << "-- Message --" << endl;
-  ndbout.hexdump(msg, len) << flush;
+  report_error(remoteNodeId, errorCode);
+
+  char msg[MAX_LOG_MESSAGE_SIZE];
+  const size_t sz = sizeof(msg);
+  Uint32 nextMsgOffset = Protocol6::getMessageLength(*readPtr);
+  if (sizeInWords >= nextMsgOffset)
+  {
+    nextMsgOffset = 0;
+  }
+
+  {
+    size_t offs = 0;
+    ssize_t nb;
+    nb = BaseString::snprintf(msg + offs, sz - offs, "%s: %u: ", file, line);
+    if (nb < 0) goto log_it;
+    offs += nb;
+
+    // Get error message for errorCode
+    LogLevel::EventCategory cat;
+    Uint32 threshold;
+    Logger::LoggerLevel severity;
+    EventLogger::EventTextFunction textF;
+    EventLoggerBase::event_lookup(NDB_LE_TransporterError,
+                                  cat, threshold, severity, textF);
+    Uint32 TE_words[3] = {0, remoteNodeId, errorCode};
+    g_eventLogger->getText(msg + offs, sz - offs, textF, TE_words, 3);
+    nb = strlen(msg + offs);
+    if (nb < 0) goto log_it;
+    offs += nb;
+
+    const bool bad_data = recvHandle.m_bad_data_transporters.get(remoteNodeId);
+    nb = BaseString::snprintf(msg + offs, sz - offs,
+                  "\n"
+                  "PerformState %u: IOState %u: bad_data %u\n"
+                  "ptr %p: size %u bytes\n",
+                  performStates[remoteNodeId], state, bad_data,
+                  readPtr, (unsigned)(sizeInWords * 4));
+    if (nb < 0) goto log_it;
+    offs += nb;
+    size_t reserve;
+    if (!nextMsgOffset)
+    {
+      // If next message wont be dumped, print as much as possible
+      // from start of buffer.
+      reserve = 0;
+    }
+    else
+    {
+      // Keep some space for dumping next message, about 10 words
+      // plus 6 preceding words.
+      reserve = 200;
+    }
+    nb = BaseString::hexdump(msg + offs, sz - offs - reserve, readPtr, sizeInWords);
+    if (nb < 0) goto log_it;
+    offs += nb;
+    if (nextMsgOffset)
+    {
+      // Always print some words preceding next message. But assume
+      // at least 60 words will be printed for current message.
+      if (nextMsgOffset > 60)
+      {
+        nb = BaseString::snprintf(msg + offs, sz - offs,
+                  "Before next ptr %p\n",
+                  readPtr + nextMsgOffset - 6);
+        if (nb < 0) goto log_it;
+        offs += nb;
+        nb = BaseString::hexdump(msg + offs, sz - offs, readPtr + nextMsgOffset - 6, 6);
+        offs += nb;
+      }
+      // Dump words for next message.
+      nb = BaseString::snprintf(msg + offs, sz - offs,
+                    "Next ptr %p\n",
+                    readPtr + nextMsgOffset);
+      if (nb < 0) goto log_it;
+      offs += nb;
+      nb = BaseString::hexdump(msg + offs, sz - offs, readPtr + nextMsgOffset, sizeInWords - nextMsgOffset);
+      if (nb < 0) goto log_it;
+      offs += nb;
+    }
+  }
+
+log_it:
+  g_eventLogger->error("%s", msg);
+  recvHandle.m_bad_data_transporters.set(remoteNodeId);
+}
+
+static
+inline
+bool
+unpack_one(Uint32* (&readPtr), Uint32* eodPtr,
+           Uint8 (&prio), SignalHeader (&signalHeader), Uint32* (&signalData), LinearSectionPtr ptr[],
+           TransporterError (&errorCode))
+{
+  Uint32 word1 = readPtr[0];
+  Uint32 word2 = readPtr[1];
+  Uint32 word3 = readPtr[2];
+
+  if (unlikely(!Protocol6::verifyByteOrder(word1, MY_OWN_BYTE_ORDER)))
+  {
+    errorCode = TE_UNSUPPORTED_BYTE_ORDER;
+    return false;
+  }
+
+  if (unlikely(Protocol6::getCompressed(word1))){
+    errorCode = TE_COMPRESSED_UNSUPPORTED;
+    return false;
+  }
+
+  const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
+
+  if(unlikely(messageLen32 == 0 ||
+              messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2))){
+    DEBUG("Message Size = " << messageLen32 << " words");
+    errorCode = TE_INVALID_MESSAGE_LENGTH;
+    return false;
+  }//if
+
+  if (unlikely(eodPtr < readPtr + messageLen32)) {
+    errorCode = TE_NO_ERROR;
+    return false;
+  }//if
+
+  if(unlikely(Protocol6::getCheckSumIncluded(word1))){
+    const Uint32 tmpLen = messageLen32 - 1;
+    const Uint32 checkSumSent     = readPtr[tmpLen];
+    const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
+
+    if(unlikely(checkSumComputed != checkSumSent)){
+      errorCode = TE_INVALID_CHECKSUM;
+      return false;
+    }//if
+  }//if
+
+  signalData = &readPtr[3];
+
+  readPtr     += messageLen32;
+
+  Protocol6::createSignalHeader(&signalHeader, word1, word2, word3);
+
+  prio = Protocol6::getPrio(word1);
+
+  if(Protocol6::getSignalIdIncluded(word1) == 0){
+    signalHeader.theSendersSignalId = ~0;
+  } else {
+    signalHeader.theSendersSignalId = * signalData;
+    signalData ++;
+  }//if
+  signalHeader.theSignalId= ~0;
+
+  Uint32 * sectionPtr = signalData + signalHeader.theLength;
+  Uint32 * sectionData = sectionPtr + signalHeader.m_noOfSections;
+  for(Uint32 i = 0; i<signalHeader.m_noOfSections; i++){
+    Uint32 sz = * sectionPtr;
+    ptr[i].sz = sz;
+    ptr[i].p = sectionData;
+
+    sectionPtr ++;
+    sectionData += sz;
+  }
+
+  if(Protocol6::getCheckSumIncluded(word1))
+  {
+    sectionData ++;
+  }
+  if (sectionData != readPtr)
+  {
+    readPtr -= messageLen32;
+    errorCode = TE_INVALID_MESSAGE_LENGTH;
+    return false;
+  }
+
+  /* check of next message if possible before delivery */
+  if (eodPtr > readPtr)
+  { // check next message word1
+    Uint32 word1 = *readPtr;
+    // check byte order
+    if (unlikely(!Protocol6::verifyByteOrder(word1, MY_OWN_BYTE_ORDER)))
+    {
+      errorCode = TE_UNSUPPORTED_BYTE_ORDER;
+      return false;
+    }
+    if (unlikely(Protocol6::getCompressed(word1)))
+    {
+      errorCode = TE_COMPRESSED_UNSUPPORTED;
+      return false;
+    }
+    // check message size
+    const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
+    if (unlikely(messageLen32 == 0 ||
+                messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2)))
+    {
+      DEBUG("Message Size = " << messageLenBytes);
+      errorCode = TE_INVALID_MESSAGE_LENGTH;
+      return false;
+    }//if
+  }
+
+  return true;
 }
 
 Uint32
@@ -42,218 +248,74 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
                             Uint32 sizeOfData,
                             NodeId remoteNodeId,
                             IOState state,
-			    bool & stopReceiving)
+                            bool & stopReceiving)
 {
   assert(stopReceiving == false);
+  // If bad data detected in  previous run
+  // skip all further data
+  if (unlikely(recvHandle.m_bad_data_transporters.get(remoteNodeId)))
+  {
+    return sizeOfData;
+  }
+
+  Uint8 prio;
   SignalHeader signalHeader;
+  Uint32* signalData;
   LinearSectionPtr ptr[3];
+  TransporterError errorCode = TE_NO_ERROR;
   
-  Uint32 usedData   = 0;
+  Uint32* const sodPtr = readPtr;
+  Uint32* const eodPtr = readPtr + (sizeOfData >> 2);
   Uint32 loop_count = 0; 
   bool doStopReceiving = false;
  
   if(likely(state == NoHalt || state == HaltOutput)){
-    while ((sizeOfData >= 4 + sizeof(Protocol6)) &&
+    while ((eodPtr >= readPtr + (1 + (sizeof(Protocol6) >> 2))) &&
            (loop_count < MAX_RECEIVED_SIGNALS) &&
-	   doStopReceiving == false) {
-      Uint32 word1 = readPtr[0];
-      Uint32 word2 = readPtr[1];
-      Uint32 word3 = readPtr[2];
+	   doStopReceiving == false &&
+           unpack_one(readPtr, eodPtr, prio, signalHeader, signalData, ptr, errorCode)) {
       loop_count++;
-      
-#if 0
-      if(Protocol6::getByteOrder(word1) != MY_OWN_BYTE_ORDER){
-	//Do funky stuff
-      }
-#endif
-
-      const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
-      const Uint32 messageLenBytes = ((Uint32)messageLen32) << 2;
-
-      if(unlikely(messageLenBytes == 0 ||
-                  messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE)){
-        DEBUG("Message Size = " << messageLenBytes);
-	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
-        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-        return usedData;
-      }//if
-      
-      if (unlikely(sizeOfData < messageLenBytes)) {
-	break;
-      }//if
-      
-      if(unlikely(Protocol6::getCheckSumIncluded(word1))){
-	const Uint32 tmpLen = messageLen32 - 1;
-	const Uint32 checkSumSent     = readPtr[tmpLen];
-	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
-	
-	if(unlikely(checkSumComputed != checkSumSent)){
-	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
-          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-          return usedData;
-	}//if
-      }//if
-      
-#if 0
-      if(Protocol6::getCompressed(word1)){
-	//Do funky stuff
-      }//if
-#endif
-      
-      Uint32 * signalData = &readPtr[3];
-
-      readPtr     += messageLen32;
-      sizeOfData  -= messageLenBytes;
-      usedData    += messageLenBytes;
-
-      Protocol6::createSignalHeader(&signalHeader, word1, word2, word3);
       
       Uint32 sBlockNum = signalHeader.theSendersBlockRef;
       sBlockNum = numberToRef(sBlockNum, remoteNodeId);
       signalHeader.theSendersBlockRef = sBlockNum;
       
-      Uint8 prio = Protocol6::getPrio(word1);
-      
-      if(Protocol6::getSignalIdIncluded(word1) == 0){
-	signalHeader.theSendersSignalId = ~0;
-      } else {
-	signalHeader.theSendersSignalId = * signalData;
-	signalData ++;
-      }//if
-      signalHeader.theSignalId= ~0;
-      
-      Uint32 * sectionPtr = signalData + signalHeader.theLength;
-      Uint32 * sectionData = sectionPtr + signalHeader.m_noOfSections;
-      for(Uint32 i = 0; i<signalHeader.m_noOfSections; i++){
-	Uint32 sz = * sectionPtr;
-	ptr[i].sz = sz;
-	ptr[i].p = sectionData;
-	
-	sectionPtr ++;
-	sectionData += sz;
-      }
-
-      if(Protocol6::getCheckSumIncluded(word1))
-      {
-        sectionData ++;
-      }
-      if (sectionData != readPtr)
-      {
-        report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
-        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-        return usedData;
-      }
       doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
     }//while
-
-    stopReceiving = doStopReceiving;
-    return usedData;
   } else {
     /** state = HaltIO || state == HaltInput */
 
-    while ((sizeOfData >= 4 + sizeof(Protocol6)) &&
+    while ((eodPtr >= readPtr + (1 + (sizeof(Protocol6) >> 2))) &&
            (loop_count < MAX_RECEIVED_SIGNALS) &&
-	   doStopReceiving == false) {
-      Uint32 word1 = readPtr[0];
-      Uint32 word2 = readPtr[1];
-      Uint32 word3 = readPtr[2];
+	   doStopReceiving == false &&
+           unpack_one(readPtr, eodPtr, prio, signalHeader, signalData, ptr, errorCode)) {
       loop_count++;
-      
-#if 0
-      if(Protocol6::getByteOrder(word1) != MY_OWN_BYTE_ORDER){
-	//Do funky stuff
-      }//if
-#endif
-      
-      const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
-      const Uint32 messageLenBytes = ((Uint32)messageLen32) << 2;
-      if(unlikely(messageLenBytes == 0 ||
-                  messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE)){
-	DEBUG("Message Size = " << messageLenBytes);
-	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
-        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-        return usedData;
-      }//if
-      
-      if (unlikely(sizeOfData < messageLenBytes)) {
-	break;
-      }//if
-      
-      if(unlikely(Protocol6::getCheckSumIncluded(word1))){
-	const Uint32 tmpLen = messageLen32 - 1;
-	const Uint32 checkSumSent     = readPtr[tmpLen];
-	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
-	
-	if(unlikely(checkSumComputed != checkSumSent)){
-	  
-	  //theTransporters[remoteNodeId]->disconnect();
-	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
-          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-          return usedData;
-	}//if
-      }//if
-      
-#if 0
-      if(Protocol6::getCompressed(word1)){
-	//Do funky stuff
-      }//if
-#endif
-      Uint32 * signalData = &readPtr[3];
-      
-      readPtr     += messageLen32;
-      sizeOfData  -= messageLenBytes;
-      usedData    += messageLenBytes;
 
-      Protocol6::createSignalHeader(&signalHeader, word1, word2, word3);
-      
       Uint32 rBlockNum = signalHeader.theReceiversBlockNumber;
 
-      if(rBlockNum == 252){
+      if(rBlockNum == QMGR){
 	Uint32 sBlockNum = signalHeader.theSendersBlockRef;
 	sBlockNum = numberToRef(sBlockNum, remoteNodeId);
 	signalHeader.theSendersBlockRef = sBlockNum;
-	
-	Uint8 prio = Protocol6::getPrio(word1);
-	
-	if(Protocol6::getSignalIdIncluded(word1) == 0){
-	  signalHeader.theSendersSignalId = ~0;
-	} else {
-	  signalHeader.theSendersSignalId = * signalData;
-	  signalData ++;
-	}//if
-	
-	Uint32 * sectionPtr = signalData + signalHeader.theLength;
-	Uint32 * sectionData = sectionPtr + signalHeader.m_noOfSections;
-	for(Uint32 i = 0; i<signalHeader.m_noOfSections; i++){
-	  Uint32 sz = * sectionPtr;
-	  ptr[i].sz = sz;
-	  ptr[i].p = sectionData;
-	  
-	  sectionPtr ++;
-	  sectionData += sz;
-	}
 
-        if(Protocol6::getCheckSumIncluded(word1))
-        {
-          sectionData ++;
-        }
-        if (sectionData != readPtr)
-        {
-          report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
-          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-          return usedData;
-        }
 	doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
       }//if
     }//while
-    
-    stopReceiving = doStopReceiving;
-    return usedData;
   }//if
+
+  if (errorCode != TE_NO_ERROR)
+  {
+    dump_and_report_bad_message(__FILE__, __LINE__,
+            recvHandle, readPtr, eodPtr - readPtr, remoteNodeId, state,
+            errorCode);
+  }
+
+  stopReceiving = doStopReceiving;
+  return (readPtr - sodPtr) * sizeof(Uint32);
 }
 
 Uint32 *
@@ -262,189 +324,71 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
                             Uint32 * eodPtr,
                             NodeId remoteNodeId,
                             IOState state,
-			    bool & stopReceiving) {
+                            bool & stopReceiving)
+{
   assert(stopReceiving == false);
-  SignalHeader signalHeader;
-  LinearSectionPtr ptr[3];
-  Uint32 loop_count = 0;
-  bool doStopReceiving = false;
-  if(state == NoHalt || state == HaltOutput){
-    while ((readPtr < eodPtr) && (loop_count < MAX_RECEIVED_SIGNALS) && doStopReceiving == false) {
-      Uint32 word1 = readPtr[0];
-      Uint32 word2 = readPtr[1];
-      Uint32 word3 = readPtr[2];
-      loop_count++; 
-#if 0
-      if(Protocol6::getByteOrder(word1) != MY_OWN_BYTE_ORDER){
-	//Do funky stuff
-      }
-#endif
-      
-      const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
-      
-      if(unlikely(messageLen32 == 0 || 
-                  messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2)))
-      {
-        DEBUG("Message Size(words) = " << messageLen32);
-	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
-        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-        return readPtr;
-      }//if
-      
-      if(unlikely(Protocol6::getCheckSumIncluded(word1))){
-	const Uint32 tmpLen = messageLen32 - 1;
-	const Uint32 checkSumSent     = readPtr[tmpLen];
-	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
-	
-	if(unlikely(checkSumComputed != checkSumSent)){
-	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
-          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-	  return readPtr;
-	}//if
-      }//if
-      
-#if 0
-      if(Protocol6::getCompressed(word1)){
-	//Do funky stuff
-      }//if
-#endif
-      Uint32 * signalData = &readPtr[3];
-      
-      readPtr += messageLen32;
 
-      Protocol6::createSignalHeader(&signalHeader, word1, word2, word3);
+  // If bad data detected in previous run
+  // skip all further data
+  if (unlikely(recvHandle.m_bad_data_transporters.get(remoteNodeId)))
+  {
+    return eodPtr;
+  }
+
+  Uint8 prio;
+  SignalHeader signalHeader;
+  Uint32* signalData;
+  LinearSectionPtr ptr[3];
+  TransporterError errorCode = TE_NO_ERROR;
+  
+  Uint32 loop_count = 0; 
+  bool doStopReceiving = false;
+ 
+  if(likely(state == NoHalt || state == HaltOutput)){
+    while ((eodPtr >= readPtr + (1 + (sizeof(Protocol6) >> 2))) &&
+           (loop_count < MAX_RECEIVED_SIGNALS) &&
+	   doStopReceiving == false &&
+           unpack_one(readPtr, eodPtr, prio, signalHeader, signalData, ptr, errorCode)) {
+      loop_count++;
       
       Uint32 sBlockNum = signalHeader.theSendersBlockRef;
       sBlockNum = numberToRef(sBlockNum, remoteNodeId);
       signalHeader.theSendersBlockRef = sBlockNum;
       
-      Uint8 prio = Protocol6::getPrio(word1);
-      
-      if(Protocol6::getSignalIdIncluded(word1) == 0){
-	signalHeader.theSendersSignalId = ~0;
-      } else {
-	signalHeader.theSendersSignalId = * signalData;
-	signalData ++;
-      }//if
-
-      Uint32 * sectionPtr = signalData + signalHeader.theLength;
-      Uint32 * sectionData = sectionPtr + signalHeader.m_noOfSections;
-      for(Uint32 i = 0; i<signalHeader.m_noOfSections; i++){
-	Uint32 sz = * sectionPtr;
-	ptr[i].sz = sz;
-	ptr[i].p = sectionData;
-	
-	sectionPtr ++;
-	sectionData += sz;
-      }
-      
-      if(Protocol6::getCheckSumIncluded(word1))
-      {
-        sectionData ++;
-      }
-      if (sectionData != readPtr)
-      {
-        report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
-        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-        return readPtr;
-      }
       doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
     }//while
   } else {
     /** state = HaltIO || state == HaltInput */
 
-    while ((readPtr < eodPtr) && (loop_count < MAX_RECEIVED_SIGNALS) && doStopReceiving == false) {
-      Uint32 word1 = readPtr[0];
-      Uint32 word2 = readPtr[1];
-      Uint32 word3 = readPtr[2];
-      loop_count++; 
-#if 0
-      if(Protocol6::getByteOrder(word1) != MY_OWN_BYTE_ORDER){
-	//Do funky stuff
-      }//if
-#endif
-      
-      const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
-      if(unlikely(messageLen32 == 0 || 
-         messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2)))
-      {
-	DEBUG("Message Size(words) = " << messageLen32);
-	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
-        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-        return readPtr;
-      }//if
-      
-      if(unlikely(Protocol6::getCheckSumIncluded(word1))){
-	const Uint32 tmpLen = messageLen32 - 1;
-	const Uint32 checkSumSent     = readPtr[tmpLen];
-	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
-	
-	if(unlikely(checkSumComputed != checkSumSent)){
-	  
-	  //theTransporters[remoteNodeId]->disconnect();
-	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
-          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-	  return readPtr;
-	}//if
-      }//if
-      
-#if 0
-      if(Protocol6::getCompressed(word1)){
-	//Do funky stuff
-      }//if
-#endif
-      Uint32 * signalData = &readPtr[3];
-	
-      readPtr += messageLen32;
-      
-      Protocol6::createSignalHeader(&signalHeader, word1, word2, word3);
-      
+    while ((eodPtr >= readPtr + (1 + (sizeof(Protocol6) >> 2))) &&
+           (loop_count < MAX_RECEIVED_SIGNALS) &&
+	   doStopReceiving == false &&
+           unpack_one(readPtr, eodPtr, prio, signalHeader, signalData, ptr, errorCode)) {
+      loop_count++;
+
       Uint32 rBlockNum = signalHeader.theReceiversBlockNumber;
-      
+
       if(rBlockNum == 252){
 	Uint32 sBlockNum = signalHeader.theSendersBlockRef;
 	sBlockNum = numberToRef(sBlockNum, remoteNodeId);
 	signalHeader.theSendersBlockRef = sBlockNum;
-	
-	Uint8 prio = Protocol6::getPrio(word1);
-	
-	if(Protocol6::getSignalIdIncluded(word1) == 0){
-	  signalHeader.theSendersSignalId = ~0;
-	} else {
-	  signalHeader.theSendersSignalId = * signalData;
-	  signalData ++;
-	}//if
-	
-	Uint32 * sectionPtr = signalData + signalHeader.theLength;
-	Uint32 * sectionData = sectionPtr + signalHeader.m_noOfSections;
-	for(Uint32 i = 0; i<signalHeader.m_noOfSections; i++){
-	  Uint32 sz = * sectionPtr;
-	  ptr[i].sz = sz;
-	  ptr[i].p = sectionData;
-	  
-	  sectionPtr ++;
-	  sectionData += sz;
-	}
 
-        if(Protocol6::getCheckSumIncluded(word1))
-        {
-          sectionData ++;
-        }
-        if (sectionData != readPtr)
-        {
-          report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
-          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
-          return readPtr;
-        }
 	doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
       }//if
-      
     }//while
   }//if
+
+  if (errorCode != TE_NO_ERROR)
+  {
+    dump_and_report_bad_message(__FILE__, __LINE__,
+            recvHandle, readPtr, eodPtr - readPtr, remoteNodeId, state,
+            errorCode);
+  }
+
   stopReceiving = doStopReceiving;
   return readPtr;
 }

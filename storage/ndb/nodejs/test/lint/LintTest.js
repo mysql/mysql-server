@@ -18,10 +18,11 @@
  02110-1301  USA
  */
 
-/*global fs,util,harness,path,adapter_dir,suites_dir,spi_doc_dir */
-
 "use strict";
 
+var path = require("path");
+var fs = require("fs");
+var util = require("util");
 var skipTests = false;
 var jslint, linter, lintName;
 var haveJsLint = false;
@@ -48,15 +49,10 @@ var jslintOptions = {
   "eqeq"      : true,     // allow ==
   "bitwise"   : true,
   "predef"    :  
-    [ /* globals, from Adapter/adapter_config.js */
-      "path" , "fs" , "assert" , "util"  , "unified_debug" , 
-      "adapter_dir" , "parent_dir" , "api_dir" , "spi_dir" , 
-      "spi_doc_dir" , "api_doc_dir", "build_dir", "converters_dir", 
-      "spi_module", "api_module", "udebug_module", 
-      /* globals from test/driver.js */
-      "suites_dir", "harness", "mynode", "adapter",
+    [ /* globals from test/driver.js */
+      "unified_debug", "harness", "mynode", "adapter",
       /* globals commonly defined in test suites: */
-      "fail_openSession"      
+      "fail_openSession", "sqlCreate", "sqlDrop"      
     ]
 };
 
@@ -176,6 +172,8 @@ var smokeTest = new harness.SmokeTest("jslint smoke test");
 smokeTest.run = function runLintSmokeTest() {
   if(skipTests) {
     this.fail("jslint is not available");
+  } else if (typeof linter !== 'function') {
+    this.fail("incompatible jslint");
   }
   else {
     this.pass();
@@ -186,22 +184,27 @@ exports.tests.push(smokeTest);
 
 // ****** SOURCES FILES TO CHECK ********** //
 
-checkDirectory(adapter_dir, "impl/common");
-checkDirectory(adapter_dir, "impl/mysql");
-checkDirectory(adapter_dir, "impl/ndb");
-checkDirectory(adapter_dir, "api");
+checkDirectory(mynode.fs.adapter_dir, "impl/common");
+checkDirectory(mynode.fs.adapter_dir, "impl/mysql");
+checkDirectory(mynode.fs.adapter_dir, "impl/ndb");
+checkDirectory(mynode.fs.adapter_dir, "api");
 
-checkFile(suites_dir, "lint", "LintTest.js");
-checkFile(suites_dir, "", "driver.js");
-checkFile(suites_dir, "lib", "harness.js");
-checkDirectory(suites_dir, "spi");
-checkDirectory(suites_dir, "integraltypes");
-checkDirectory(suites_dir, "stringtypes");
-checkDirectory(suites_dir, "autoincrement");
-// checkDirectory(suites_dir, "multidb");  
-checkDirectory(suites_dir, "t_basic");
+checkFile(mynode.fs.suites_dir, "lint", "LintTest.js");
+checkFile(mynode.fs.suites_dir, "", "driver.js");
+checkFile(mynode.fs.suites_dir, "lib", "harness.js");
+checkFile(mynode.fs.suites_dir, "", "utilities.js");
 
-checkDirectory(parent_dir, "samples/tweet");
+checkDirectory(mynode.fs.suites_dir, "spi");
+checkDirectory(mynode.fs.suites_dir, "numerictypes");
+checkDirectory(mynode.fs.suites_dir, "stringtypes");
+checkDirectory(mynode.fs.suites_dir, "autoincrement");
+checkDirectory(mynode.fs.suites_dir, "multidb");
+checkDirectory(mynode.fs.suites_dir, "t_basic");
+checkDirectory(mynode.fs.suites_dir, "composition");
+checkDirectory(mynode.fs.suites_dir, "freeform");
+
+checkDirectory(mynode.fs.samples_dir, "loader", "lib");
+checkDirectory(mynode.fs.samples_dir, "tweet");
 
 /**** ERRORS TO IGNORE:
    ignore(filename, startpos, message) 
@@ -225,13 +228,10 @@ ignore("LintTest.js",14,"Expected a conditional expression and instead saw an as
 ignore("TableMapping.js",3,"The body of a for in should be wrapped in an if statement to filter unwanted properties from the prototype.");
 ignore("stats.js",13,"Expected '{' and instead saw 'r'.");
 ignore("MySQLDictionary.js",7,"Missing 'break' after 'case'.");
+
 ignore("UserContext.js", 33, "Unexpected \'\\.\'.");
-ignore("UserContext.js", 5, "Unexpected \'else\' after \'return\'.");
-ignore("UserContext.js", 5, "Unexpected \'else\' after \'return\'.");
 ignore("UserContext.js", 7, "Confusing use of \'!\'.");
-ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
-ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
-ignore("UserContext.js", 7, "Unexpected \'else\' after \'return\'.");
+
 ignore("NdbTransactionHandler.js", 32, "Expected \'{\' and instead saw \'scans\'.");
 ignore("NdbScanFilter.js", 34, "Expected \'{\' and instead saw \'return\'.");
 
@@ -245,7 +245,7 @@ ignore("SmokeTest.js", 10, "Expected \'{\' and instead saw \'test\'.");
 ignore("CharsetTest.js", 27, "Missing \'new\'.");
 ignore("CharsetTest.js", 26, "Missing \'new\'.", 14);
 
-//integraltypes
+//numerictypes
 ignore("QueryKeywordTest.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 ignore("lib.js", 95, "Expected \'String\' and instead saw \'\'\'\'.");
 
@@ -263,3 +263,7 @@ ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
 ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
 ignore("UpdateTest.js", 8, "Don't make functions within a loop.");
 ignore("UpdateTest.js", 10, "Don't make functions within a loop.");
+
+// multidb
+ignore("ConnectTest.js", 42,  "Unexpected \'\\.\'.");
+ignore("ConnectTest.js", 42,  "Unexpected \'\\.\'.");

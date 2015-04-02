@@ -127,7 +127,14 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode, Uint32 instance)
 #endif
     theError.code = 4006;
   } else {
-    theError.code = 4009;
+    if (theImpl->m_transporter_facade->is_cluster_completely_unavailable())
+    {
+      theError.code = 4009;
+    }
+    else
+    {
+      theError.code = 4035;
+    }
   }//if
   DBUG_RETURN(NULL);
 }
@@ -356,7 +363,14 @@ Ndb::waitUntilReady(int timeout)
   if (theImpl->m_ndb_cluster_connection.wait_until_ready
       (timeout-secondsCounter,30) < 0)
   {
-    theError.code = 4009;
+    if (theImpl->m_transporter_facade->is_cluster_completely_unavailable())
+    {
+      theError.code = 4009;
+    }
+    else
+    {
+      theError.code = 4035;
+    }
     DBUG_RETURN(-1);
   }
 
@@ -1252,51 +1266,76 @@ Ndb::getTupleIdFromNdb(const NdbTableImpl* table,
   5,15,25,35,...  
 */
   DBUG_ENTER("Ndb::getTupleIdFromNdb");
+  DBUG_PRINT("info", ("range.first_id=%llu, last_id=%llu, highest_seen=%llu "
+                      "tupleId = %llu, cacheSize=%u step=%llu start=%llu",
+                      range.m_first_tuple_id,
+                      range.m_last_tuple_id,
+                      range.m_highest_seen,
+                      tupleId,
+                      cacheSize,
+                      step,
+                      start));
+
   /*
-   Check if the next value can be taken from the pre-fetched
-   sequence.
+    If start value is greater than step it is ignored
   */
-  if (range.m_first_tuple_id != range.m_last_tuple_id &&
-      range.m_first_tuple_id + step <= range.m_last_tuple_id)
+  Uint64 offset = (start > step) ? 1 : start;
+
+  if (range.m_first_tuple_id != range.m_last_tuple_id)
   {
-    assert(range.m_first_tuple_id < range.m_last_tuple_id);
-    range.m_first_tuple_id += step; 
-    tupleId = range.m_first_tuple_id;
-    DBUG_PRINT("info", ("Next cached value %lu", (ulong) tupleId));
+    /**
+     * Range is valid and has span
+     * Determine next value *after* m_first_tuple_id
+     * meeting start and step constraints, then see
+     * if it is inside the cached range.
+     * m_first_tuple_id start may not meet the constraints 
+     * (if there was a manual insert)
+     * c.f. handler.cc compute_next_insert_id()
+     */
+    assert(step > 0);
+    assert(range.m_first_tuple_id >= offset);
+    Uint64 desiredNextVal = 0;
+    Uint64 numStepsTaken = ((range.m_first_tuple_id - offset) /
+                            step);
+    desiredNextVal = ((numStepsTaken + 1) * step) + offset;
+    DBUG_PRINT("info", ("desiredNextVal = %llu", desiredNextVal));
+
+    if (desiredNextVal <= range.m_last_tuple_id)
+    {
+      DBUG_PRINT("info", ("Next value from cache %lu", (ulong) tupleId));
+      assert(range.m_first_tuple_id < range.m_last_tuple_id);
+      range.m_first_tuple_id = tupleId = desiredNextVal; 
+      DBUG_RETURN(0);
+    }
   }
-  else
-  {
-    /*
-      If start value is greater than step it is ignored
-     */
-    Uint64 offset = (start > step) ? 1 : start;
+  
+  /*
+    Pre-fetch a number of values depending on cacheSize
+  */
+  if (cacheSize == 0)
+    cacheSize = 1;
+  
+  DBUG_PRINT("info", ("reading %u values from database", (uint)cacheSize));
+  /*
+   * reserve next cacheSize entries in db.  adds cacheSize to NEXTID
+   * and returns first tupleId in the new range. If tupleId's are
+   * incremented in steps then multiply the cacheSize with step size.
+   */
+  Uint64 opValue = cacheSize * step;
+  
+  if (opTupleIdOnNdb(table, range, opValue, 0) == -1)
+    DBUG_RETURN(-1);
+  DBUG_PRINT("info", ("Next value fetched from database %lu", (ulong) opValue));
+  DBUG_PRINT("info", ("Increasing %lu by offset %lu, increment  is %lu", 
+                      (ulong) (ulong) opValue, (ulong) offset, (ulong) step));
+  Uint64 current, next;
+  Uint64 div = ((Uint64) (opValue + step - offset)) / step;
+  next = div * step + offset;
+  current = (next < step) ? next : next - step;
+  tupleId = (opValue <= current) ? current : next;
+  DBUG_PRINT("info", ("Returning %lu", (ulong) tupleId));
+  range.m_first_tuple_id = tupleId;
 
-    /*
-      Pre-fetch a number of values depending on cacheSize
-     */
-    if (cacheSize == 0)
-      cacheSize = 1;
-
-    DBUG_PRINT("info", ("reading %u values from database", (uint)cacheSize));
-    /*
-     * reserve next cacheSize entries in db.  adds cacheSize to NEXTID
-     * and returns first tupleId in the new range. If tupleId's are
-     * incremented in steps then multiply the cacheSize with step size.
-     */
-    Uint64 opValue = cacheSize * step;
-
-    if (opTupleIdOnNdb(table, range, opValue, 0) == -1)
-      DBUG_RETURN(-1);
-    DBUG_PRINT("info", ("Next value fetched from database %lu", (ulong) opValue));
-    DBUG_PRINT("info", ("Increasing %lu by offset %lu, increment  is %lu", (ulong) (ulong) opValue, (ulong) offset, (ulong) step));
-    Uint64 current, next;
-    Uint64 div = ((Uint64) (opValue + step - offset)) / step;
-    next = div * step + offset;
-    current = (next < step) ? next : next - step;
-    tupleId = (opValue <= current) ? current : next;
-    DBUG_PRINT("info", ("Returning %lu", (ulong) tupleId));
-    range.m_first_tuple_id = tupleId;
-  }
   DBUG_RETURN(0);
 }
 
@@ -1465,6 +1504,12 @@ Ndb::setTupleIdInNdb(const NdbTableImpl* table,
                      TupleIdRange & range, Uint64 tupleId, bool modify)
 {
   DBUG_ENTER("Ndb::setTupleIdInNdb");
+  DBUG_PRINT("info", ("range first : %llu, last : %llu, tupleId : %llu "
+                      "modify %u",
+                      range.m_first_tuple_id,
+                      range.m_last_tuple_id,
+                      tupleId,
+                      modify));
   if (modify)
   {
     if (checkTupleIdInNdb(range, tupleId))
@@ -1480,6 +1525,11 @@ Ndb::setTupleIdInNdb(const NdbTableImpl* table,
           DBUG_PRINT("info", 
                      ("Setting next auto increment cached value to %lu",
                       (ulong)tupleId));  
+          DBUG_PRINT("info", 
+                     ("Range.m_first = %llu, m_last=%llu, m_highest_seen=%llu",
+                      range.m_first_tuple_id,
+                      range.m_last_tuple_id,
+                      range.m_highest_seen));
           DBUG_RETURN(0);
         }
       }
@@ -2042,6 +2092,28 @@ Ndb::set_eventbuf_max_alloc(unsigned sz)
   }
 }
 
+unsigned Ndb::get_eventbuffer_free_percent()
+{
+  return theEventBuffer->get_eventbuffer_free_percent();
+}
+
+int
+Ndb::set_eventbuffer_free_percent(unsigned free)
+{
+  if (free < 1 || free > 99)
+  {
+    theError.code = 4123;
+    return -1;
+  }
+  theEventBuffer->set_eventbuffer_free_percent(free);
+  return 0;
+}
+
+void Ndb::get_event_buffer_memory_usage(EventBufferMemoryUsage& usage)
+{
+  theEventBuffer->get_event_buffer_memory_usage(usage);
+}
+
 NdbEventOperation* Ndb::createEventOperation(const char* eventName)
 {
   DBUG_ENTER("Ndb::createEventOperation");
@@ -2085,9 +2157,32 @@ NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
 }
 
 int
+Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
+{
+  return theEventBuffer->pollEvents2(aMillisecondNumber, highestQueuedEpoch);
+}
+
+void
+Ndb::printOverflowErrorAndExit()
+{
+  g_eventLogger->error("Ndb Event Buffer : 0x%x %s",
+                       getReference(), getNdbObjectName());
+  g_eventLogger->error("Ndb Event Buffer : Event buffer out of memory.");
+  g_eventLogger->error("Ndb Event Buffer : Fatal error.");
+  Uint32 maxalloc = get_eventbuf_max_alloc();
+  if (maxalloc != 0)
+  {
+    // limited memory is allocated for event buffer, give recommendation
+    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %u).", maxalloc);
+  }
+  g_eventLogger->error("Ndb Event Buffer : Consider using the new API.");
+  exit(-1);
+}
+
+int
 Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 {
-  return theEventBuffer->pollEvents(aMillisecondNumber, latestGCI);
+  return pollEvents2(aMillisecondNumber, latestGCI);
 }
 
 int
@@ -2099,9 +2194,35 @@ Ndb::flushIncompleteEvents(Uint64 gci)
   return ret;
 }
 
+NdbEventOperation *Ndb::nextEvent2()
+{
+  return theEventBuffer->nextEvent2();
+}
+
 NdbEventOperation *Ndb::nextEvent()
 {
-  return theEventBuffer->nextEvent();
+  NdbDictionary::Event::TableEvent errType;
+
+  // Remove the event data from the head
+  NdbEventOperation *op = nextEvent2();
+
+  while (op)
+  {
+    if (op->isErrorEpoch(&errType))
+    {
+      if (errType ==  NdbDictionary::Event::TE_INCONSISTENT)
+        return NULL;
+
+      if (errType ==  NdbDictionary::Event::TE_OUT_OF_MEMORY)
+        printOverflowErrorAndExit();
+    }
+
+    if (!op->isEmptyEpoch())
+      break; // return non-empty epoch
+
+    op = nextEvent2(); // remove empty epoch and check the next one
+  }
+  return op;
 }
 
 bool
@@ -2117,7 +2238,7 @@ Ndb::isConsistentGCI(Uint64 gci)
 }
 
 const NdbEventOperation*
-Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
+Ndb::getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types)
 {
   NdbEventOperationImpl* op =
     theEventBuffer->getGCIEventOperations(iter, event_types);
@@ -2126,9 +2247,24 @@ Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
   return NULL;
 }
 
-Uint64 Ndb::getLatestGCI()
+const NdbEventOperation*
+Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
+{
+  return getNextEventOpInEpoch2(iter, event_types);
+  /*
+   * No event operation is added to gci_ops list for exceptional event data.
+   * So it is not possible to get them in event_types. No check needed.
+   */
+}
+
+Uint64 Ndb::getHighestQueuedEpoch()
 {
   return theEventBuffer->getLatestGCI();
+}
+
+Uint64 Ndb::getLatestGCI()
+{
+  return getHighestQueuedEpoch();
 }
 
 void Ndb::setReportThreshEventGCISlip(unsigned thresh)

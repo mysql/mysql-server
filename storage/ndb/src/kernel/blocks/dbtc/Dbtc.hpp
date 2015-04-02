@@ -96,6 +96,7 @@
 #define ZGET_ATTRBUF_ERROR 217 // Also Scan
 #define ZGET_DATAREC_ERROR 218
 #define ZMORE_AI_IN_TCKEYREQ_ERROR 220
+#define ZTOO_MANY_FIRED_TRIGGERS 221
 #define ZCOMMITINPROGRESS 230
 #define ZROLLBACKNOTALLOWED 232
 #define ZNO_FREE_TC_CONNECTION 233 // Also Scan
@@ -117,6 +118,7 @@
 #define ZNODE_SHUTDOWN_IN_PROGRESS 280
 #define ZCLUSTER_SHUTDOWN_IN_PROGRESS 281
 #define ZWRONG_STATE 282
+#define ZINCONSISTENT_TRIGGER_STATE 293
 #define ZCLUSTER_IN_SINGLEUSER_MODE 299
 
 #define ZDROP_TABLE_IN_PROGRESS 283
@@ -126,6 +128,7 @@
 #define ZINDEX_CORRUPT_ERROR 287
 #define ZSCAN_FRAGREC_ERROR 291
 #define ZMISSING_TRIGGER_DATA 240
+#define ZINCONSISTENT_INDEX_USE 4349
 
 // ----------------------------------------
 // Seize error
@@ -795,7 +798,17 @@ public:
       UintR commitAckMarker;
     };
 
-    Uint32 no_commit_ack_markers;
+    /** 
+     * num_commit_ack_markers
+     *
+     * Number of operations sent by this transaction 
+     * to LQH with their CommitAckMarker flag set.
+     *
+     * Includes marked operations currently in-progress and 
+     * those which prepared successfully, 
+     * Excludes failed operations (LQHKEYREF)
+     */
+    Uint32 num_commit_ack_markers;
     Uint32 m_write_count;
     ReturnSignal returnsignal;
     AbortState abortState;
@@ -809,9 +822,6 @@ public:
       TF_DEFERRED_CONSTRAINTS = 16, // check constraints in deferred fashion
       TF_DEFERRED_UK_TRIGGERS = 32, // trans has deferred UK triggers
       TF_DEFERRED_FK_TRIGGERS = 64, // trans has deferred FK triggers
-
-      TF_DEFERRED_TRIGGERS    = (32 + 64),
-
       TF_DISABLE_FK_CONSTRAINTS = 128,
 
       TF_END = 0
@@ -980,8 +990,8 @@ public:
     Uint16 lqhInstanceKey;
     
     // Trigger data
-    UintR noFiredTriggers;      // As reported by lqhKeyConf
-    UintR noReceivedTriggers;   // FIRE_TRIG_ORD
+    UintR numFiredTriggers;      // As reported by lqhKeyConf
+    UintR numReceivedTriggers;   // FIRE_TRIG_ORD
     UintR triggerExecutionCount;// No of outstanding op due to triggers
     UintR savedState[LqhKeyConf::SignalLength];
     /**
@@ -1709,10 +1719,10 @@ private:
                         const Uint32 *src, 
                         Uint32 len);
   bool receivedAllINDXATTRINFO(TcIndexOperation* indexOp);
-  bool  saveTRANSID_AI(Signal* signal,
-		       TcIndexOperation* indexOp, 
-                       const Uint32 *src,
-                       Uint32 len);
+  Uint32 saveTRANSID_AI(Signal* signal,
+                        TcIndexOperation* indexOp, 
+                        const Uint32 *src,
+                        Uint32 len);
   bool receivedAllTRANSID_AI(TcIndexOperation* indexOp);
   void readIndexTable(Signal* signal, 
 		      ApiConnectRecord* regApiPtr,
@@ -1959,6 +1969,8 @@ private:
   UintR ctcTimer;
   UintR cDbHbInterval;
 
+  Uint32 c_lqhkeyconf_direct_sent;
+
   Uint64 tcheckGcpId;
 
   // Montonically increasing counters
@@ -2185,12 +2197,13 @@ private:
   RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
   void execTC_COMMIT_ACK(Signal* signal);
-  void sendRemoveMarkers(Signal*, CommitAckMarker *);
+  void sendRemoveMarkers(Signal*, CommitAckMarker *, Uint32);
   void sendRemoveMarker(Signal* signal, 
 			NodeId nodeId,
                         Uint32 instanceKey,
 			Uint32 transid1, 
-			Uint32 transid2);
+			Uint32 transid2,
+                        Uint32 removed_by_fail_api);
   void removeMarkerForFailedAPI(Signal* signal, NodeId nodeId, Uint32 bucket);
 
   bool getAllowStartTransaction(NodeId nodeId, Uint32 table_single_user_mode) const {
