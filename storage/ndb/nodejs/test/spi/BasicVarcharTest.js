@@ -18,9 +18,6 @@
  02110-1301  USA
  */
 
-/*global mynode, unified_debug, path, fs, assert, spi_module, harness, 
-         adapter_dir, spi_dir, api_dir
-*/
 "use strict";
 
 try {
@@ -28,9 +25,10 @@ try {
 } catch(e) {} 
 
 var spi_lib = require("./lib.js");
-var dbtablehandler = require(path.join(spi_dir, "common", "DBTableHandler.js"));
+var assert = require("assert");
+var dbtablehandler = require(mynode.common.DBTableHandler);
 var udebug = unified_debug.getLogger("BasicVarcharTest.js");
-var TableMapping = require(path.join(api_dir, "TableMapping")).TableMapping;
+var TableMapping = require(mynode.api.TableMapping).TableMapping;
 
 var dbSession = null;
 var table = null;

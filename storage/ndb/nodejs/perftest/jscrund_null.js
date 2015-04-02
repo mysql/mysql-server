@@ -20,10 +20,10 @@
 
 'use strict';
 
-var spi            = require('../Adapter/impl/SPI.js'),
-    adapter        = require(path.join(build_dir, "ndb_adapter.node")).ndb,
+var path           = require("path"),
+    spi            = require(mynode.spi),
+    adapter        = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")).ndb,
     os             = require('os'),
-    unified_debug  = require('../Adapter/api/unified_debug.js'),
     udebug         = unified_debug.getLogger('jscrund_null.js');
 
 function implementation() {

@@ -40,11 +40,15 @@ static const int VERIFY_PACKED_RECEIVE = 1;
 #else
 static const int VERIFY_PACKED_RECEIVE = 0;
 #endif
-static const int LQH_RECEIVE_TYPES = ((1 << ZCOMMIT) + (1 << ZCOMPLETE) + 
-                                      (1 << ZLQHKEYCONF) + (1 << ZREMOVE_MARKER) +
+static const int LQH_RECEIVE_TYPES = ((1 << ZCOMMIT) +
+                                      (1 << ZCOMPLETE) + 
+                                      (1 << ZLQHKEYCONF) +
+                                      (1 << ZREMOVE_MARKER) +
                                       (1 << ZFIRE_TRIG_REQ));
-static const int TC_RECEIVE_TYPES = ((1 << ZCOMMITTED) + (1 << ZCOMPLETED) +
-                                     (1 << ZLQHKEYCONF) + (1 << ZFIRE_TRIG_CONF));
+static const int TC_RECEIVE_TYPES = ((1 << ZCOMMITTED) +
+                                     (1 << ZCOMPLETED) +
+                                     (1 << ZLQHKEYCONF) +
+                                     (1 << ZFIRE_TRIG_CONF));
 
 class PackedSignal {
 public:

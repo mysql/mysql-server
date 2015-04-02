@@ -92,7 +92,7 @@ insert into test.t1 values (3 + 6, repeat('E', 1000));
 insert into test.t1 values (2 + 6, repeat('E', 1000));
 insert into test.t1 values (1 + 6, repeat('E', 1000));
 call mtr.add_suppression("NDB Slave : SQL thread stopped as applying epoch .*");
-call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]
@@ -139,7 +139,7 @@ insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
 call mtr.add_suppression("NDB Slave : SQL thread stopped as attempted to reapply already committed epoch .*");
-call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]
@@ -185,7 +185,7 @@ insert into test.t1 values (3, repeat('E', 1000));
 insert into test.t1 values (2, repeat('E', 1000));
 insert into test.t1 values (1, repeat('E', 1000));
 call mtr.add_suppression("NDB Slave : SQL thread stopped as attempting to apply new epoch .*");
-call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 Check that slave stopped with an error
 include/wait_for_slave_sql_error.inc [errno=1296]

@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-/*global unified_debug */
-
 "use strict";
 
 var userContext = require("./UserContext.js"),
@@ -34,6 +32,7 @@ function Session(index, sessionFactory, dbSession) {
   this.dbSession.index = index;
   this.closed = false;
   this.tx = new transaction.Transaction(this);
+  this.projections = {};
 }
 
 

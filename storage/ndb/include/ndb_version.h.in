@@ -867,4 +867,71 @@ ndbd_multi_tc_instance_takeover(Uint32 x)
   }
   return 1;
 }
+
+/**
+ * Support for more parallel fragment LCPs
+ */
+#define NDBD_EXTRA_PARALLEL_FRAG_LCP NDB_MAKE_VERSION(7,4,1)
+
+/**
+ * Support for PAUSE LCPs
+ */
+#define NDBD_SUPPORT_PAUSE_LCP NDB_MAKE_VERSION(7,4,3)
+
+/**
+ * Support for Node Recovery Status module, including sending
+ * END_TOREP.
+ */
+#define NDBD_NODE_RECOVERY_STATUS_VERSION NDB_MAKE_VERSION(7,4,3)
+
+/**
+ * Support for removing EMPTY_LCP_REQ protocol in master takeover
+ */
+#define NDBD_EMPTY_LCP_NOT_NEEDED NDB_MAKE_VERSION(7,4,3)
+
+/**
+ * Support for multiple take over threads per node group in parallel
+ * in master node.
+ */
+#define NDBD_SUPPORT_PARALLEL_SYNCH NDB_MAKE_VERSION(7,4,3)
+
+#define NDBD_ISOLATE_ORD_72 NDB_MAKE_VERSION(7,2,19)
+#define NDBD_ISOLATE_ORD_73 NDB_MAKE_VERSION(7,3,8)
+#define NDBD_ISOLATE_ORD_74 NDB_MAKE_VERSION(7,4,3)
+
+
+static
+inline
+int
+ndbd_isolate_ord(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 2)
+    {
+      return 0;
+    }
+    else if (minor == 2)
+    {
+      return x >= NDBD_ISOLATE_ORD_72;
+    }
+    else if (minor == 3)
+    {
+      return x >= NDBD_ISOLATE_ORD_73;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_ISOLATE_ORD_74;
+    }
+  }
+  return 1;
+}
+
 #endif

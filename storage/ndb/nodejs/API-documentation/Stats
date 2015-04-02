@@ -66,56 +66,15 @@
 /********* WRITING APPLICATION-LEVEL STATISTICS **********/
 
 /**
- * To write statistics, obtain a StatWriter for a particular domain, and then
- * use the writer's incr(), set(), and push() methods.
- *
- */
+ * To maintain statistics, a module keeps its own statistics object,
+ * and registers that object with the stats module.
  
-/** Get a stats writer for a domain.
+/** Register statistics for a domain.
  *  IMMEDIATE
  *
- *  The domain is specified as an array literal
  *  EXAMPLES:
- *    var stats = stats_module.get_writer(["app"]);
- *    var stats = stats_module.get_writer(["app","user_connections"]);
- *
- *    stats.incr(["created"]);
- *    stats.incr(["get","cached"]);
- *    stats.set(["login"],"enabled");
- *    stats.push(["users"], current_user);
- */
-  getWriter([ domain ]);
-
-
-/*** StatWriter methods ***/
-  
-/** Coerce the value at domain to a Number, then set it to 1 (if new) 
- *  or increment it (if existing).
- *  The domain is specified as an array literal.
- *  A single-part domain can alternately be given as a string
- *  IMMEDIATE
- * 
- */
- statWriter.incr(domain);
- 
- 
-/** Set the current value at "domain" to "value".
- *  IMMEDIATE
- *  The domain is specified as an array literal.
- *  A single-part domain can alternately be given as a string
+ *    stats_module.register(my_stats, "app");
+ *    stats_module.register(module_stats, "app","sub_module_1");
  *
  */
- statWriter.set(domain, value);
-
-
-/** Coerce the value at "domain" to an Array, then push value to it.
- *  IMMEDIATE
- *  The domain is specified as an array literal.
- *  A single-part domain can alternately be given as a string
- *
- *  Note that pop(), etc. are missing; to access the array directly, use query() 
- *  to fetch it.
- *
- */
- statWriter.push(domain, value);
-
+  register(stats_container, domain_part, ... );

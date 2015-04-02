@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,17 +44,18 @@ void Dbdih::initData()
   for(i = 0; i<MAX_NDB_NODES; i++){
     new (&nodeRecord[i]) NodeRecord();
   }
-  
-  c_takeOverPool.setSize(MAX_NDB_NODES);
+  Uint32 max_takeover_threads = MAX(MAX_NDB_NODES,
+                                    ZMAX_TAKE_OVER_THREADS);
+  c_takeOverPool.setSize(max_takeover_threads);
   {
     Ptr<TakeOverRecord> ptr;
-    while (c_activeTakeOverList.seizeFirst(ptr))
+    while (c_masterActiveTakeOverList.seizeFirst(ptr))
     {
       new (ptr.p) TakeOverRecord;
     }
-    while (c_activeTakeOverList.first(ptr))
+    while (c_masterActiveTakeOverList.first(ptr))
     {
-      releaseTakeOver(ptr);
+      releaseTakeOver(ptr, true);
     }
   }
   
@@ -74,6 +75,7 @@ void Dbdih::initData()
   c_set_initial_start_flag = FALSE;
   c_sr_wait_to = false;
   c_2pass_inr = false;
+  c_handled_master_take_over_copy_gci = 0;
   
   c_lcpTabDefWritesControl.init(MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
 }//Dbdih::initData()
@@ -105,9 +107,7 @@ void Dbdih::initRecords()
                                   sizeof(PageRecord), 
                                   cpageFileSize);
 
-  replicaRecord = (ReplicaRecord*)allocRecord("ReplicaRecord",
-                                              sizeof(ReplicaRecord), 
-                                              creplicaFileSize);
+  c_replicaRecordPool.setSize(creplicaFileSize);
 
   tabRecord = (TabRecord*)allocRecord("TabRecord",
                                               sizeof(TabRecord), 
@@ -134,12 +134,46 @@ void Dbdih::initRecords()
 
 Dbdih::Dbdih(Block_context& ctx):
   SimulatedBlock(DBDIH, ctx),
+  c_queued_lcp_frag_rep(c_replicaRecordPool),
   c_activeTakeOverList(c_takeOverPool),
+  c_queued_for_start_takeover_list(c_takeOverPool),
+  c_queued_for_commit_takeover_list(c_takeOverPool),
+  c_active_copy_threads_list(c_takeOverPool),
+  c_completed_copy_threads_list(c_takeOverPool),
+  c_masterActiveTakeOverList(c_takeOverPool),
   c_waitGCPProxyList(waitGCPProxyPool),
   c_waitGCPMasterList(waitGCPMasterPool),
   c_waitEpochMasterList(waitGCPMasterPool)
 {
   BLOCK_CONSTRUCTOR(Dbdih);
+
+  c_mainTakeOverPtr.i = RNIL;
+  c_mainTakeOverPtr.p = 0;
+  c_activeThreadTakeOverPtr.i = RNIL;
+  c_activeThreadTakeOverPtr.p = 0;
+
+  /* Node Recovery Status Module signals */
+  addRecSignal(GSN_ALLOC_NODEID_REP, &Dbdih::execALLOC_NODEID_REP);
+  addRecSignal(GSN_INCL_NODE_HB_PROTOCOL_REP,
+               &Dbdih::execINCL_NODE_HB_PROTOCOL_REP);
+  addRecSignal(GSN_NDBCNTR_START_WAIT_REP,
+               &Dbdih::execNDBCNTR_START_WAIT_REP);
+  addRecSignal(GSN_NDBCNTR_STARTED_REP,
+               &Dbdih::execNDBCNTR_STARTED_REP);
+  addRecSignal(GSN_SUMA_HANDOVER_COMPLETE_REP,
+               &Dbdih::execSUMA_HANDOVER_COMPLETE_REP);
+  addRecSignal(GSN_END_TOREP, &Dbdih::execEND_TOREP);
+  addRecSignal(GSN_LOCAL_RECOVERY_COMP_REP,
+               &Dbdih::execLOCAL_RECOVERY_COMP_REP);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbdih::execDBINFO_SCANREQ);
+  /* End Node Recovery Status Module signals */
+
+  /* LCP Pause module */
+  addRecSignal(GSN_PAUSE_LCP_REQ, &Dbdih::execPAUSE_LCP_REQ);
+  addRecSignal(GSN_PAUSE_LCP_CONF, &Dbdih::execPAUSE_LCP_CONF);
+  addRecSignal(GSN_FLUSH_LCP_REP_REQ, &Dbdih::execFLUSH_LCP_REP_REQ);
+  addRecSignal(GSN_FLUSH_LCP_REP_CONF, &Dbdih::execFLUSH_LCP_REP_CONF);
+  /* End LCP Pause module */
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbdih::execDUMP_STATE_ORD);
   addRecSignal(GSN_NDB_TAMPER, &Dbdih::execNDB_TAMPER, true);
@@ -251,6 +285,9 @@ Dbdih::Dbdih(Block_context& ctx):
 
   addRecSignal(GSN_CHECKNODEGROUPSREQ, &Dbdih::execCHECKNODEGROUPSREQ);
 
+  addRecSignal(GSN_CHECK_NODE_RESTARTREQ,
+               &Dbdih::execCHECK_NODE_RESTARTREQ);
+
   addRecSignal(GSN_BLOCK_COMMIT_ORD,
 	       &Dbdih::execBLOCK_COMMIT_ORD);
   addRecSignal(GSN_UNBLOCK_COMMIT_ORD,
@@ -320,7 +357,6 @@ Dbdih::Dbdih(Block_context& ctx):
   fileRecord = 0;
   fragmentstore = 0;
   pageRecord = 0;
-  replicaRecord = 0;
   tabRecord = 0;
   createReplicaRecord = 0;
   nodeGroupRecord = 0;
@@ -363,10 +399,6 @@ Dbdih::~Dbdih()
   deallocRecord((void **)&pageRecord, "PageRecord",
                 sizeof(PageRecord), 
                 cpageFileSize);
-  
-  deallocRecord((void **)&replicaRecord, "ReplicaRecord",
-                sizeof(ReplicaRecord), 
-                creplicaFileSize);
   
   deallocRecord((void **)&tabRecord, "TabRecord",
                 sizeof(TabRecord), 

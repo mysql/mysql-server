@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,12 +89,6 @@
 #define ZWRONG_FAILURE_NUMBER_ERROR 302
 #define ZWRONG_START_NODE_ERROR 303
 #define ZNO_REPLICA_FOUND_ERROR 304
-
-// --------------------------------------
-// Codes from LQH
-// --------------------------------------
-#define ZNODE_FAILURE_ERROR 400
-
 
 /*#########*/
 /* PHASES  */
@@ -307,6 +301,7 @@ public:
     Uint32 nextReplicaNode;
     Uint32 nodeCount;
     Uint32 activeTakeOver; // Which node...
+    Uint32 activeTakeOverCount;
     Uint32 m_next_log_part;
     Uint32 nodegroupIndex;
     Uint32 m_ref_count;
@@ -323,9 +318,18 @@ public:
     NF_LCP_TAKE_OVER = 4
   };
   
-  struct NodeRecord {
-    NodeRecord();
-    
+  struct NodeRecord
+  {
+    /**
+     * Removed the constructor method and replaced it with the method
+     * initNodeRecord. The problem with the constructor method is that
+     * in debug compiled code it will initialise the entire object to
+     * zero. This didn't play well at all with the node recovery status
+     * which is used from the start of the node until it dies, so it
+     * should not be initialised when DIH finds it appropriate to
+     * initialise it. One could also long-term separate the two functions
+     * into two separate objects.
+     */
     enum NodeStatus {
       NOT_IN_CLUSTER = 0,
       ALIVE = 1,
@@ -334,6 +338,99 @@ public:
       DYING = 4,
       DEAD = 5
     };      
+
+    /**
+     * The NodeRecoveryStatus variable and all the timers connected to this
+     * status is used for two purposes. The first purpose is for a NDBINFO
+     * table that the master node will use to be able to specify the times
+     * a node restart has spent in the various node restart phases.
+     *
+     * This will help both the users and the developers to understand where
+     * the node restart is spending time.
+     *
+     * In addition the timers are also used to estimate how much more time
+     * the node will need before reaching the next wait for local checkpoint
+     * (LCP). Starting LCPs with good timing is crucial to shorten the waits
+     * for LCPs by the starting nodes. We want to wait with starting LCPs
+     * to ensure that as many nodes as possible are handled in between
+     * LCPs as possible. At the same time we cannot block LCP execution for
+     * any extended period since it will jeopardize the future stability of
+     * the cluster.
+     */
+    enum NodeRecoveryStatus
+    {
+      /* No valid state or node not defined in cluster */
+      NOT_DEFINED_IN_CLUSTER = 0,
+
+      /* There is state for no information about restarts. */
+      NODE_NOT_RESTARTED_YET = 1,
+
+      /* Node failure states are used in all nodes. */
+      NODE_FAILED = 2,
+      NODE_FAILURE_COMPLETED = 3,
+
+      /* The first set of states are only used in master nodes. */
+      ALLOCATED_NODE_ID = 4,
+      INCLUDED_IN_HB_PROTOCOL = 5,
+      NDBCNTR_START_WAIT = 6,
+      NDBCNTR_STARTED = 7,
+      START_PERMITTED = 8,
+      WAIT_LCP_TO_COPY_DICT = 9,
+      COPY_DICT_TO_STARTING_NODE = 10,
+      INCLUDE_NODE_IN_LCP_AND_GCP = 11,
+      LOCAL_RECOVERY_STARTED = 12,
+      RESTORE_FRAG_COMPLETED = 13,
+      UNDO_DD_COMPLETED = 14,
+      EXECUTE_REDO_LOG_COMPLETED = 15,
+      COPY_FRAGMENTS_STARTED = 16,
+      WAIT_LCP_FOR_RESTART = 17,
+      WAIT_SUMA_HANDOVER = 18,
+      RESTART_COMPLETED = 19,
+
+      /* There is a set of states used in non-master nodes as well. */
+      NODE_GETTING_PERMIT = 20,
+      NODE_GETTING_INCLUDED = 21,
+      NODE_GETTING_SYNCHED = 22,
+      NODE_IN_LCP_WAIT_STATE = 23,
+      NODE_ACTIVE = 24
+    };
+
+    /**
+     * We need to ensure that we don't pause the node when the master node
+     * asks for it in case the node is already dead. We check this by
+     * by verifying that the node is in the state NODE_GETTING_PERMIT in
+     * in the non-master nodes. Since we do not yet maintain the
+     * nodeRecoveryStatus in all restart situations we temporarily
+     * put this into a separate variable that we maintain separately.
+     * TODO: We should use nodeRecoveryStatus when we maintain this
+     * state in all types of starts.
+     */
+    bool is_pausable;
+    NodeRecoveryStatus nodeRecoveryStatus;
+    NDB_TICKS nodeFailTime;
+    NDB_TICKS nodeFailCompletedTime;
+    NDB_TICKS allocatedNodeIdTime;
+    NDB_TICKS includedInHBProtocolTime;
+    NDB_TICKS ndbcntrStartWaitTime;
+    NDB_TICKS ndbcntrStartedTime;
+    NDB_TICKS startPermittedTime;
+    NDB_TICKS waitLCPToCopyDictTime;
+    NDB_TICKS copyDictToStartingNodeTime;
+    NDB_TICKS includeNodeInLCPAndGCPTime;
+    NDB_TICKS startDatabaseRecoveryTime;
+    NDB_TICKS startUndoDDTime;
+    NDB_TICKS startExecREDOLogTime;
+    NDB_TICKS startBuildIndexTime;
+    NDB_TICKS copyFragmentsStartedTime;
+    NDB_TICKS waitLCPForRestartTime;
+    NDB_TICKS waitSumaHandoverTime;
+    NDB_TICKS restartCompletedTime;
+
+    NDB_TICKS nodeGettingPermitTime;
+    NDB_TICKS nodeGettingIncludedTime;
+    NDB_TICKS nodeGettingSynchedTime;
+    NDB_TICKS nodeInLCPWaitStateTime;
+    NDB_TICKS nodeActiveTime;
 
     struct FragmentCheckpointInfo {
       Uint32 tableId;
@@ -348,7 +445,12 @@ public:
     bool allowNodeStart;
     bool m_inclDihLcp;
     Uint8 copyCompleted; // 0 = NO :-), 1 = YES, 2 = yes, first WAITING
-
+   
+    /**
+     * Used by master as part of running LCPs to keep track of fragments
+     * that have started checkpoints and fragments that have been queued
+     * for LCP execution.
+     */
     FragmentCheckpointInfo startedChkpt[MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE];
     FragmentCheckpointInfo queuedChkpt[MAX_QUEUED_FRAG_CHECKPOINTS_PER_NODE];
 
@@ -426,7 +528,7 @@ public:
     /* THE FREE LIST OR IT REFERS TO THE NEXT IN A LIST OF REPLICAS ON A    */
     /* FRAGMENT.                                                            */
     /* -------------------------------------------------------------------- */
-    Uint32 nextReplica;
+    Uint32 nextPool;
 
     /* -------------------------------------------------------------------- */
     /*       THE NODE ID WHERE THIS REPLICA IS STORED.                      */
@@ -440,6 +542,32 @@ public:
       Uint32 lcpIdStarted;   // Started or queued
       Uint32 m_restorable_gci;
     };
+
+    /**
+     * Information needed to put the LCP_FRAG_REP into a queue and avoid
+     * sending the information onwards to all the other nodes in the
+     * cluster. We use a doubly linked list to support removal from
+     * queue due to drop table.
+     *
+     * By queueing in the local DIH we can make it appear as if the LCP
+     * is paused from the point of view of all the DIH blocks in the cluster.
+     *
+     * In the DBLQH the LCP is continuing unabated as long as there are
+     * fragments queued to execute LCPs on. The purpose of this pause support
+     * is to be able to copy the meta data without having to wait for the
+     * current LCP to be fully completed. Instead we can copy it while we are
+     * pausing the LCP reporting. This gives a possibility to provide
+     * new node with a snapshot of the metadata from the master node
+     * without having to stop the progress with the LCP execution.
+     */
+    Uint32 nextList;
+    Uint32 prevList;
+    Uint32 repMaxGciStarted;
+    Uint32 repMaxGciCompleted;
+    Uint32 fragId;
+    Uint32 tableId;
+    /* lcpNo == nextLcp, checked at queueing */
+    /* nodeId == procNode */
 
     /* -------------------------------------------------------------------- */
     /* THIS VARIABLE SPECIFIES WHAT THE STATUS OF THE LOCAL CHECKPOINT IS.IT*/
@@ -467,6 +595,9 @@ public:
     Uint8 lcpOngoingFlag;
   };
   typedef Ptr<ReplicaRecord> ReplicaRecordPtr;
+
+  ArrayPool<ReplicaRecord> c_replicaRecordPool;
+  DLFifoList<ReplicaRecord> c_queued_lcp_frag_rep;
 
   /*************************************************************************
    * TAB_DESCRIPTOR IS A DESCRIPTOR OF THE LOCATION OF THE FRAGMENTS BELONGING
@@ -623,7 +754,10 @@ public:
       ,TO_START_LOGGING = 14        // Enabling logging on all fragments
       ,TO_SL_COPY_ACTIVE = 15       // Start logging: Copy active (local)
       ,TO_SL_UPDATE_FRAG_STATE = 16 // Start logging: Create Frag (dist)
-      ,TO_END_TO = 17               // Waiting for master (EBND_TOREQ)
+      ,TO_END_TO = 17               // Waiting for master (END_TOREQ)
+      ,TO_QUEUED_UPDATE_BEFORE_STORED = 18 //Queued
+      ,TO_QUEUED_UPDATE_BEFORE_COMMIT = 19  //Queued
+      ,TO_QUEUED_SL_UPDATE_FRAG_STATE = 20  //Queued
     };
 
     /**
@@ -639,7 +773,18 @@ public:
       ,TO_MUTEX_AFTER_SWITCH_REPLICA = 6
       ,TO_WAIT_LCP = 7             // No locks, waiting for LCP
     };
-    
+    /**
+     * For node restarts we use a number of parallel take over records
+     * such that we can copy fragments from several LDM instances in
+     * parallel. Each thread will take care of a subset of LDM
+     * instances provided by knowing the number of instances and
+     * our thread id. For each replica we will then check if
+     * replica_instance_id % m_number_of_copy_threads == m_copy_thread_id.
+     */
+    Uint32 m_copy_thread_id;
+    Uint32 m_number_of_copy_threads;
+    Uint32 m_copy_threads_completed;
+
     Uint32 m_flags;       // 
     Uint32 m_senderRef;   // Who requested START_COPYREQ
     Uint32 m_senderData;  // Data of sender
@@ -703,7 +848,54 @@ public:
 private:
   friend class SimulatedBlock;
   BLOCK_DEFINES(Dbdih);
-  
+
+  /**
+   * Methods used in Node Recovery Status module
+   * -------------------------------------------
+   */
+  void execDBINFO_SCANREQ(Signal *);
+  void execALLOC_NODEID_REP(Signal *);
+  void execINCL_NODE_HB_PROTOCOL_REP(Signal *);
+  void execNDBCNTR_START_WAIT_REP(Signal *);
+  void execNDBCNTR_STARTED_REP(Signal *);
+  void execSUMA_HANDOVER_COMPLETE_REP(Signal *);
+  void execEND_TOREP(Signal *signal);
+  void execLOCAL_RECOVERY_COMP_REP(Signal *signal);
+
+  void sendEND_TOREP(Signal *signal, Uint32 startNodeId);
+  bool check_stall_lcp_start(void);
+  void check_node_not_restarted_yet(NodeRecordPtr nodePtr);
+  void setNodeRecoveryStatus(Uint32 nodeId,
+                             NodeRecord::NodeRecoveryStatus new_status);
+  void setNodeRecoveryStatusInitial(NodeRecordPtr nodePtr);
+  void initNodeRecoveryTimers(NodeRecordPtr nodePtr);
+  void initNodeRecoveryStatus();
+  void initNodeRecord(NodeRecordPtr);
+  bool check_for_too_long_wait(Uint64 &lcp_max_wait_time,
+                               Uint64 &lcp_stall_time,
+                               NDB_TICKS now);
+  void check_all_node_recovery_timers(void);
+  bool check_node_recovery_timers(Uint32 nodeId);
+  void calculate_time_remaining(Uint32 nodeId,
+                                NDB_TICKS state_start_time,
+                                NDB_TICKS now,
+                                NodeRecord::NodeRecoveryStatus state,
+                                Uint32 *node_waited_for,
+                                Uint64 *time_since_state_start,
+                                NodeRecord::NodeRecoveryStatus *max_status);
+  void calculate_most_recent_node(Uint32 nodeId,
+                          NDB_TICKS state_start_time,
+                          NodeRecord::NodeRecoveryStatus state,
+                          Uint32 *most_recent_node,
+                          NDB_TICKS *most_recent_start_time,
+                          NodeRecord::NodeRecoveryStatus *most_recent_state);
+  const char* get_status_str(NodeRecord::NodeRecoveryStatus status);
+  void fill_row_with_node_restart_status(NodeRecordPtr nodePtr,
+                                         Ndbinfo::Row &row);
+  void write_zero_columns(Ndbinfo::Row &row, Uint32 num_rows);
+  void handle_before_master(NodeRecordPtr nodePtr, Ndbinfo::Row &row);
+  /* End methods for Node Recovery Status module */
+
   void execDUMP_STATE_ORD(Signal *);
   void execNDB_TAMPER(Signal *);
   void execDEBUG_SIG(Signal *);
@@ -762,6 +954,14 @@ private:
 
   void execDIH_GET_TABINFO_REQ(Signal*);
 
+  /**
+   * A number of functions used to find out if any node is currently is
+   * restarting.
+   */
+  void execCHECK_NODE_RESTARTREQ(Signal*);
+  void check_node_in_restart(Signal*, BlockReference, Uint32);
+  void sendCHECK_NODE_RESTARTCONF(Signal*, BlockReference, Uint32);
+
   int handle_invalid_lcp_no(const struct LcpFragRep*, ReplicaRecordPtr);
   void execLCP_FRAG_REP(Signal *);
   void execLCP_COMPLETE_REP(Signal *);
@@ -773,16 +973,171 @@ private:
   void lcpFragmentMutex_locked(Signal* signal, Uint32, Uint32);
   void master_lcp_fragmentMutex_locked(Signal* signal, Uint32, Uint32);
 
-  MutexHandle2<DIH_SWITCH_PRIMARY_MUTEX> c_switchPrimaryMutexHandle;
-  void switchPrimaryMutex_locked(Signal* signal, Uint32, Uint32);
-  void switchPrimaryMutex_unlocked(Signal* signal, Uint32, Uint32);
-  void check_force_lcp(Ptr<TakeOverRecord> takeOverPtr);
-
   void switch_primary_stop_node(Signal* signal, Uint32, Uint32);
 
-  void updateToReq_fragmentMutex_locked(Signal*, Uint32, Uint32);
-
+  MutexHandle2<DIH_SWITCH_PRIMARY_MUTEX> c_switchPrimaryMutexHandle;
   MutexHandle2<DIH_FRAGMENT_INFO> c_fragmentInfoMutex_lcp;
+
+  /* LCP Pausing module start */
+  void execFLUSH_LCP_REP_REQ(Signal*);
+  void execFLUSH_LCP_REP_CONF(Signal*);
+  void execPAUSE_LCP_REQ(Signal*);
+  void execPAUSE_LCP_CONF(Signal*);
+
+  void sendPAUSE_LCP_REQ(Signal*, bool pause);
+  bool check_if_lcp_idle(void);
+  void pause_lcp(Signal *signal,
+                 Uint32 startNode,
+                 BlockReference sender_ref);
+  void unpause_lcp(Signal *signal,
+                   Uint32 startNode,
+                   BlockReference sender_ref,
+                   PauseLcpReq::PauseAction pauseAction);
+  void check_for_pause_action(Signal *signal,
+                              StartLcpReq::PauseStart pauseStart);
+  void end_pause(Signal *signal, PauseLcpReq::PauseAction pauseAction);
+  void stop_pause(Signal *signal);
+  void handle_node_failure_in_pause(Signal *signal);
+  void dequeue_lcp_rep(Signal*);
+  void start_copy_meta_data(Signal*);
+  void start_lcp(Signal*);
+  bool check_if_pause_lcp_possible(void);
+  void start_lcp_before_mutex(Signal*);
+  void queue_lcp_frag_rep(Signal *signal, LcpFragRep *lcpReport);
+  void queue_lcp_complete_rep(Signal *signal, Uint32 lcpId);
+  void init_lcp_pausing_module(void);
+  bool check_pause_state_sanity(void);
+  void check_pause_state_lcp_idle(void);
+
+  /**
+   * This is only true when an LCP is running and it is running with
+   * support for PAUSE LCP (all DIH nodes support it). Actually this
+   * is set when we have passed the START_LCP_REQ step. After this
+   * step we release the fragment info mutex if we can use the pause
+   * lcp protocol with all nodes.
+   */
+  bool c_lcp_runs_with_pause_support; /* Master state */
+  bool c_old_node_waiting_for_lcp_end; /* Master state */
+
+  /**
+   * This is the state in the master that keeps track of where the master is 
+   * in the PAUSE LCP process. We can follow two different tracks in the
+   * state traversal.
+   *
+   * 1) When the starting node is included into the LCP as part of PAUSE LCP
+   *    handling. This is the expected outcome after pausing. The LCP didn't
+   *    complete while we were pausing. We need to be included into the LCP
+   *    here to ensure that the LCP state in the starting node is kept up to
+   *    date during the rest of the LCP.
+   *
+   * PAUSE_LCP_IDLE -> PAUSE_LCP_REQUESTED
+   * PAUSE_LCP_REQUESTED -> PAUSE_START_LCP_INCLUSION
+   * PAUSE_START_LCP_INCLUSION -> PAUSE_IN_LCP_COPY_META_DATA
+   * PAUSE_IN_LCP_COPY_META_DATA -> PAUSE_COMPLETE_LCP_INCLUSION
+   * PAUSE_COMPLETE_LCP_INCLUSION -> PAUSE_IN_LCP_UNPAUSE
+   * PAUSE_IN_LCP_UNPAUSE -> PAUSE_LCP_IDLE
+   *
+   * 2) When the starting node isn't included into the LCP as part of PAUSE
+   *    LCP handling. While we were pausing the LCP completed. Thus no need
+   *    to include the new node into the LCP since no more updates of the
+   *    LCP state will happen after the pause.
+   *
+   * PAUSE_LCP_IDLE -> PAUSE_LCP_REQUESTED
+   * PAUSE_LCP_REQUESTED -> PAUSE_NOT_IN_LCP_COPY_META_DATA
+   * PAUSE_NOT_IN_LCP_COPY_META_DATA -> PAUSE_NOT_IN_LCP_UNPAUSE
+   * PAUSE_NOT_IN_LCP_UNPAUSE -> PAUSE_LCP_IDLE
+   */
+  enum PauseLCPState
+  {
+    PAUSE_LCP_IDLE = 0,
+    PAUSE_LCP_REQUESTED = 1,
+    /* States to handle inclusion in LCP. */
+    PAUSE_START_LCP_INCLUSION = 2,
+    PAUSE_IN_LCP_COPY_META_DATA = 3,
+    PAUSE_COMPLETE_LCP_INCLUSION = 4,
+    PAUSE_IN_LCP_UNPAUSE = 5,
+    /* States to handle not included in LCP */
+    PAUSE_NOT_IN_LCP_COPY_META_DATA = 6,
+    PAUSE_NOT_IN_LCP_UNPAUSE = 7
+  };
+  PauseLCPState c_pause_lcp_master_state;
+
+  /**
+   * Bitmask of nodes that we're expecting a PAUSE_LCP_CONF response from.
+   * This bitmask is cleared if the starting node dies (or for that matter
+   * if any node dies since this will cause the starting node to also fail).
+   * The PAUSE_LCP_REQ_Counter is only used in the master node.
+   */
+  SignalCounter c_PAUSE_LCP_REQ_Counter; /* Master state */
+
+  /**
+   * We need to keep track of the LQH nodes that participated in the PAUSE
+   * LCP request to ensure that we unpause the same set of nodes in the
+   * unpause request. If the LCP completes between as part of the pause
+   * request phase, then the m_participatingLQH bitmap will be cleared and
+   * we need this bitmap also to unpause the participants even if the
+   * LCP has completed to ensure that the pause state is reset. This variable
+   * is used to make sure that we retain this bitmap independent of what
+   * happens with the LCP.
+   */
+  NdbNodeBitmask c_pause_participants;
+
+  /**
+   * This variable states which is the node starting up that requires a
+   * pause of the LCP to copy the meta data during an ongoing LCP.
+   * If the node fails this variable is set to RNIL to indicate we no
+   * longer need to worry about signals handling this pause.
+   *
+   * This is also the state variable that says that pause lcp is ongoing
+   * in this participant.
+   */
+  Uint32 c_pause_lcp_start_node;
+
+  bool is_pause_for_this_node(Uint32 node)
+  {
+    return (node == c_pause_lcp_start_node);
+  }
+
+  /**
+   * When is_lcp_paused is true then c_dequeue_lcp_rep_ongoing is false.
+   * When is_lcp_paused is false then c_dequeue_lcp_rep_ongoing is true
+   * until we have dequeued all queued requests. Requests will be
+   * queued as long as either of them are true to ensure that we keep
+   * the order of signals.
+   */
+  bool is_lcp_paused()
+  {
+    return (c_pause_lcp_start_node != RNIL);
+  }
+  bool c_dequeue_lcp_rep_ongoing;
+
+  /**
+   * Last LCP id we heard LCP_COMPLETE_REP from local LQH. We record this
+   * to ensure we only get one LCP_COMPLETE_REP per LCP from our local
+   * LQH.
+   */
+  Uint32 c_last_id_lcp_complete_rep;
+  bool c_queued_lcp_complete_rep;
+
+  /**
+   * As soon as we have some LCP_FRAG_REP or LCP_COMPLETE_REP queued, this
+   * variable gives us the lcp Id of the paused LCP.
+   */
+  Uint32 c_lcp_id_paused;
+
+  /**
+   * We set the LCP Id when receiving COPY_TABREQ to be used in the
+   * updateLcpInfo routine.
+   */
+  Uint32 c_lcp_id_while_copy_meta_data; /* State in starting node */
+
+  /**
+   * A bitmap for outstanding FLUSH_LCP_REP_REQ messages to know
+   * when all nodes have sent their reply. This bitmap is used in all nodes
+   * that receive the PAUSE_LCP_REQ request.
+   */
+  SignalCounter c_FLUSH_LCP_REP_REQ_Counter;
+  /* LCP Pausing module end   */
 
   void execBLOCK_COMMIT_ORD(Signal *);
   void execUNBLOCK_COMMIT_ORD(Signal *);
@@ -883,7 +1238,6 @@ private:
   void sendMASTER_LCPCONF(Signal * signal, Uint32 fromLine);
   void sendSTART_RECREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_INFOREQ(Signal *, Uint32 nodeId, Uint32);
-  void sendSTART_TOREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTOP_ME_REQ(Signal *, Uint32 nodeId, Uint32);
   void sendTC_CLOPSIZEREQ(Signal *, Uint32 nodeId, Uint32);
   void sendTCGETOPSIZEREQ(Signal *, Uint32 nodeId, Uint32);
@@ -895,16 +1249,9 @@ private:
   
   void sendCopyTable(Signal *, CopyTableNode* ctn,
                      BlockReference ref, Uint32 reqinfo);
-  void sendUpdateFragStateReq(Signal *,
-                              Uint32 startGci,
-                              Uint32 storedType,
-                              Uint32 takeOverPtr);
   void sendDihfragreq(Signal *,
                       TabRecordPtr regTabPtr,
                       Uint32 fragId);
-
-  void sendStartTo(Signal* signal, TakeOverRecordPtr);
-  void sendUpdateTo(Signal* signal, TakeOverRecordPtr);
 
   void sendStartFragreq(Signal *,
                         TabRecordPtr regTabPtr,
@@ -925,7 +1272,7 @@ private:
 // Methods for LCP functionality
 //------------------------------------
   void checkKeepGci(TabRecordPtr, Uint32, Fragmentstore*, Uint32);
-  void checkLcpStart(Signal *, Uint32 lineNo);
+  void checkLcpStart(Signal *, Uint32 lineNo, Uint32 delay);
   void checkStartMoreLcp(Signal *, Uint32 nodeId);
   bool reportLcpCompletion(const struct LcpFragRep *);
   void sendLCP_COMPLETE_REP(Signal *);
@@ -1015,7 +1362,12 @@ private:
   void readFragment(RWFragment* rf, FragmentstorePtr regFragptr);
   Uint32 readPageWord(RWFragment* rf);
   void readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr);
-  void readReplicas(RWFragment* rf, FragmentstorePtr regFragptr);
+  void readReplicas(RWFragment* rf,
+                    TabRecord *regTabPtr,
+                    FragmentstorePtr regFragptr);
+  void updateLcpInfo(TabRecord *regTabPtr,
+                     Fragmentstore *regFragPtr,
+                     ReplicaRecord *regReplicaPtr);
   void readRestorableGci(Signal *, FileRecordPtr regFilePtr);
   void readTabfile(Signal *, TabRecord* tab, FileRecordPtr regFilePtr);
   void writeFragment(RWFragment* wf, FragmentstorePtr regFragptr);
@@ -1069,7 +1421,7 @@ private:
   void tableUpdateLab(Signal *, TabRecordPtr regTabPtr);
   void checkLcpCompletedLab(Signal *);
   void initLcpLab(Signal *, Uint32 masterRef, Uint32 tableId);
-  void startGcpLab(Signal *, Uint32 aWaitTime);
+  void startGcpLab(Signal *);
   void checkGcpStopLab(Signal *);
   void MASTER_GCPhandling(Signal *, Uint32 failedNodeId);
   void MASTER_LCPhandling(Signal *, Uint32 failedNodeId);
@@ -1092,7 +1444,7 @@ private:
   void nodeRestartPh2Lab2(Signal *);
   void initGciFilesLab(Signal *);
   void dictStartConfLab(Signal *);
-  void nodeDictStartConfLab(Signal *);
+  void nodeDictStartConfLab(Signal *, Uint32 nodeId);
   void ndbStartReqLab(Signal *, BlockReference ref);
   void nodeRestartStartRecConfLab(Signal *);
   void dihCopyCompletedLab(Signal *);
@@ -1121,6 +1473,8 @@ private:
   void failedNodeSynchHandling(Signal *, NodeRecordPtr failedNodePtr);
   void checkCopyTab(Signal*, NodeRecordPtr failedNodePtr);
 
+  Uint32 compute_max_failure_time();
+  void setGCPStopTimeouts();
   void initCommonData();
   void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
 
@@ -1164,7 +1518,9 @@ private:
 //------------------------------------
   void allocStoredReplica(FragmentstorePtr regFragptr,
                           ReplicaRecordPtr& newReplicaPtr,
-                          Uint32 nodeId);
+                          Uint32 nodeId,
+                          Uint32 fragId,
+                          Uint32 tableId);
   Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
                          const Fragmentstore * fragPtr,
                          Uint32 nodes[]);
@@ -1179,7 +1535,6 @@ private:
                     Uint32 startGci,
                     Uint32 stopGci);
   void initFragstore(FragmentstorePtr regFragptr);
-  void insertBackup(FragmentstorePtr regFragptr, Uint32 nodeId);
   void insertfraginfo(FragmentstorePtr regFragptr,
                       Uint32 noOfBackups,
                       Uint32* nodeArray);
@@ -1234,39 +1589,9 @@ private:
   void initTable(TabRecordPtr regTabPtr);
   void initTableFile(TabRecordPtr regTabPtr);
   void releaseTable(TabRecordPtr tabPtr);
-  bool findTakeOver(Ptr<TakeOverRecord> & ptr, Uint32 failedNodeId);
+
   void handleTakeOverMaster(Signal *, Uint32 takeOverPtr);
   void handleTakeOverNewMaster(Signal *, Uint32 takeOverPtr);
-
-//------------------------------------
-// TakeOver Record specific methods
-//------------------------------------
-  void releaseTakeOver(TakeOverRecordPtr);
-  void abortTakeOver(Signal*, TakeOverRecordPtr);
-  bool anyActiveTakeOver();
-  void checkToCopy();
-  void checkToCopyCompleted(Signal *);
-  bool checkToInterrupted(TakeOverRecordPtr& regTakeOverptr);
-  Uint32 getStartNode(Uint32 takeOverPtr);
-
-//------------------------------------
-// Methods for take over functionality
-//------------------------------------
-  void changeNodeGroups(Uint32 startNode, Uint32 nodeTakenOver);
-  void endTakeOver(Uint32 takeOverPtr);
-  
-  void systemRestartTakeOverLab(Signal *);
-  void startTakeOver(Signal *,
-                     Uint32 startNode,
-                     Uint32 toNode,
-                     const struct StartCopyReq*);
-  void startNextCopyFragment(Signal *, Uint32 takeOverPtr);
-  void toCopyFragLab(Signal *, Uint32 takeOverPtr);
-  void toStartCopyFrag(Signal *, TakeOverRecordPtr);
-  void startHsAddFragConfLab(Signal *);
-  void prepareSendUpdateFragStateReq(Signal *, Uint32 takeOverPtr);
-  void toCopyCompletedLab(Signal *, TakeOverRecordPtr regTakeOverptr);
-  void takeOverCompleted(Uint32 aNodeId);
 
 //------------------------------------
 // Node Record specific methods
@@ -1289,11 +1614,6 @@ private:
   void setNodeCopyCompleted(Uint32 nodeId, bool newState);
   Uint32 getNodeGroup(Uint32 nodeId) const;
   bool checkNodeAlive(Uint32 nodeId);
-
-  void nr_start_fragments(Signal*, TakeOverRecordPtr);
-  void nr_start_fragment(Signal*, TakeOverRecordPtr, ReplicaRecordPtr);
-  void nr_run_redo(Signal*, TakeOverRecordPtr);
-  void nr_start_logging(Signal*, TakeOverRecordPtr);
 
   void getTabInfo(Signal*);
   void getTabInfo_send(Signal*, TabRecordPtr);
@@ -1344,8 +1664,260 @@ private:
   TabRecord *tabRecord;
   Uint32 ctabFileSize;
 
+  /**
+   * Methods and variables used to control the node restart phase where a
+   * node gets the data back from an alive node. This has two parts, one
+   * part in the master node which controls that certain critical data is
+   * only updated one at a time. The other part is in the starting node
+   * where there is one thread for each parallel fragment copy process.
+   *
+   * There is also a set of signals used for the take over processes.
+   *
+   * START_FRAGREQ
+   * Before performing the actual copy phase the starting node needs
+   * information about all fragments to start. This signal is sent from the
+   * from the starting nodes DBDIH to the starting nodes DBLQH and to the
+   * actual instance that will handle the fragment replica.
+   *
+   * START_RECREQ/CONF:
+   * This is sent from the starting node to all LDM instances to tell them
+   * that they have now received all START_FRAGREQ, no more will be sent. After
+   * receiving this signal the LDM instances can start reading the fragments
+   * from disk and applying the REDO log to get them as up to date as possible
+   * before we start the copy phase. One could also rebuild the ordered
+   * indexes here.
+   *
+   * START_TOREQ/CONF/REF:
+   * This is sent from the starting node to allocate a take over record in the
+   * master node. This is sent once at the start of the take over processing.
+   *
+   * UPDATE_TOREQ/CONF/REF:
+   * This is sent from a starting node to inform the master of a step forward
+   * in the copy process. In some of those phases it means acquiring the global
+   * cluster mutex on updating fragment state, in some phases it means
+   * releasing the same mutex. Also the global switch primary replica mutex
+   * can be acquired and released in certain phases.
+   * 
+   * This is sent once before UPDATE_FRAGSTATEREQ/CONF and once after for each
+   * fragment replica that the starting node will take over.
+   *
+   * UPDATE_FRAGSTATEREQ/CONF/REF:
+   * This signal is sent to all nodes from starting node informing them of a
+   * new replica entering a certain fragment. After the CONF has been received
+   * we're sure that all transactions will involve this new node when updating
+   * this fragment. We have a distribution key that can be used to verify if a
+   * particular transaction have included the node in its transaction.
+   *
+   * This is sent once per fragment replica the starting node is taking over.
+   *
+   * PREPARE_COPY_FRAGREQ/CONF/REF:
+   * This is sent from starting node to the LDM instance in starting node
+   * asking for the maxPage value. Once per fragment replica to take over.
+   *
+   * COPY_FRAGREQ/CONF/REF:
+   * This is sent to the copying node with the maxPage value. This will start
+   * a scan in the copying node and copying over all records that have a newer
+   * GCI than the one already restored from an LCP (the maxPage is also
+   * somehow involved in this decision).
+   * This signal relates to copying one fragment and is done after updating the
+   * fragment state to ensure that all future transactions will involve the
+   * node as well. There is another fragment state update performed after this
+   * copy is completed.
+   *
+   * Sent once per fragment replica the starting node is taking over.
+   *
+   * COPY_ACTIVEREQ/CONF/REF:
+   * This tells the starting node that the fragment replica is now copied over
+   * and is in an active state.
+   *
+   * Sent per fragment replica the starting node is taking over.
+   *
+   * END_TOREQ/CONF/REF:
+   * This is sent from the starting node to the master node. The response can
+   * take a long time since it involves waiting for the proper LCP to complete
+   * to ensure that the node is fully recoverable even on its own without other
+   * nodes to assist it. For this to happen the node requires a complete
+   * LCP to happen which started after we completed the copying of all
+   * fragments and where the new node was part of the LCP.
+   *
+   * This is sent only once at the end of the take over process.
+   * Multiple nodes can be in the take over process at the same time.
+   *
+   * CONTINUEB:
+   * This signal is used a lot to control execution in the local DIH block.
+   * It is used to start parallel threads and to ensure that we don't
+   * execute for too long without giving other threads a chance to execute
+   * or other signals to the DIH block.
+   *
+   * Variable descriptions
+   * ---------------------
+   *
+   * We have a pool of take over records used by the master for
+   * handling parallel node recoveries. We also use the same pool
+   * in starting nodes to keep one main take over record and then
+   * one record for each parallel thread that we can copy from in
+   * parallel.
+   *
+   * Then for each thread that takes over we keep one record.
+   * These records are always in one list.
+   *
+   * All threads are scanning fragments to find a fragment replica that needs
+   * take over. When they discover one they try to update the fragment replica
+   * state on the master (start takeover), which requires that they
+   * temporarily become the activeThread. If this succeeds they are placed in
+   * the activeThread variable. If it isn't successful they are placed into the
+   * c_queued_for_start_takeover_list. When the global fragment replica state
+   * update is completed, the list is checked to see if a queued thread should
+   * become the activeThread. Then COPY_FRAGREQ is sent and the thread is
+   * placed on the c_active_copy_instance_list. When start take over phase is
+   * completed one starts the next take over from the list and sends off
+   * COPY_FRAGREQ whereafter it is placed in the c_active_copy_thread_list.
+   *
+   * When the copy phase is completed the take over record is removed
+   * from the c_active_copy_thread_list and one tries to become
+   * the active thread. If it isn't successful the take over record
+   * is placed into the c_queued_for_end_takeover_list. When the
+   * active thread is done it gets a new record from either the
+   * c_queued_for_start_takeover_list or from
+   * c_queued_for_commit_takeover_list. c_queued_for_commit_takeover_list has
+   * higher priority. Finally when there is no more fragments to find
+   * for a certain thread after ending the takeover of a fragment
+   * the record is placed into the c_completed_copy_thread_list.
+   * When all threads are placed into this list then all threads are
+   * done with the copy phase.
+   *
+   * Finally we start up the phase where we activate the REDO log.
+   * During this phase the records are placed into the
+   * c_active_copy_thread_list. When a thread is completed with
+   * this phase the take over record is released. When all threads
+   * are completed we are done with this parallelisation phase and the
+   * node copying phase is completed whereafter we can also release the
+   * main take over record.
+   *
+   * c_takeOverPool:
+   * This is the pool of records used by both master and starting
+   * node.
+   * 
+   * c_mainTakeOverPtr:
+   * This is the main record used by the starting node.
+   *
+   * c_queued_for_start_takeover_list:
+   * A takeover thread is ready to copy a fragment, but has to wait until
+   * another thread is ready with its master communication before
+   * proceeding.
+   *
+   * c_queued_for_commit_takeover_list:
+   * A takeover thread is ready to complete the copy of a fragment, it has to
+   * wait a while since there is another thread currently communicating with
+   * the master node.
+   *
+   * These two are queues, so we implement them as a Single Linked List,
+   * FIFO queue, this means a SLFifoList.
+   *
+   * c_max_take_over_copy_threads:
+   * The is the limit on the number of threads to use. Effectively the
+   * parallelisation can never be higher than the number of LDM instances
+   * that are used in the cluster.
+   *
+   * c_active_copy_threads_list:
+   * Takeover threads are placed into this list while they are actively
+   * copying a fragment at this point in time. We need to take things out
+   * of this list in any order, so we need Double Linked List.
+   *
+   * c_activeTakeOverList:
+   * While scannning fragments to find a fragment that our thread is
+   * responsible for, we are placed into this list. This list handling
+   * is on the starting node.
+   * 
+   * This list is also used on the master node to keep track of node
+   * take overs.
+   *
+   * c_completed_copy_threads_list:
+   * This is a list where an thread is placed after completing the first
+   * phase of scanning for fragments to copy. Some threads will be done
+   * with this very quickly if we have more threads scanning than we have
+   * LDM instances in the cluster. After completing the second phase where
+   * we change state of ongoing transactions we release the thread.
+   *
+   * c_activeThreadTakeOverPtr:
+   * This is the pointer to the currently active thread using the master
+   * node to update the fragment state.
+   *
+   */
+#define ZTAKE_OVER_THREADS 16
+#define ZMAX_TAKE_OVER_THREADS 64
+  Uint32 c_max_takeover_copy_threads;
+
   ArrayPool<TakeOverRecord> c_takeOverPool;
   DLList<TakeOverRecord> c_activeTakeOverList;
+  SLFifoList<TakeOverRecord> c_queued_for_start_takeover_list;
+  SLFifoList<TakeOverRecord> c_queued_for_commit_takeover_list;
+  DLList<TakeOverRecord> c_active_copy_threads_list;
+  DLList<TakeOverRecord> c_completed_copy_threads_list;
+  TakeOverRecordPtr c_mainTakeOverPtr;
+  TakeOverRecordPtr c_activeThreadTakeOverPtr;
+
+  /* List used in takeover handling in master part. */
+  DLList<TakeOverRecord> c_masterActiveTakeOverList;
+
+
+//-----------------------------------------------------
+// TakeOver Record specific methods, starting node part
+//-----------------------------------------------------
+  void startTakeOver(Signal *,
+                     Uint32 startNode,
+                     Uint32 toNode,
+                     const struct StartCopyReq*);
+
+  void startNextCopyFragment(Signal *, Uint32 takeOverPtr);
+  void toCopyFragLab(Signal *, Uint32 takeOverPtr);
+  void toStartCopyFrag(Signal *, TakeOverRecordPtr);
+  void toCopyCompletedLab(Signal *, TakeOverRecordPtr regTakeOverptr);
+
+  void nr_start_fragments(Signal*, TakeOverRecordPtr);
+  void nr_start_fragment(Signal*, TakeOverRecordPtr, ReplicaRecordPtr);
+  void nr_run_redo(Signal*, TakeOverRecordPtr);
+  void nr_start_logging(Signal*, TakeOverRecordPtr);
+
+  bool check_takeover_thread(TakeOverRecordPtr takeOverPtr,
+                             FragmentstorePtr fragPtr,
+                             Uint32 fragmentReplicaInstanceKey);
+  void send_continueb_start_next_copy(Signal *signal,
+                                      TakeOverRecordPtr takeOverPtr);
+  void init_takeover_thread(TakeOverRecordPtr takeOverPtr,
+                            TakeOverRecordPtr mainTakeOverPtr,
+                            Uint32 number_of_threads,
+                            Uint32 thread_id);
+  void start_next_takeover_thread(Signal *signal);
+  void start_thread_takeover_logging(Signal *signal);
+  void send_continueb_nr_start_logging(Signal *signal,
+                                       TakeOverRecordPtr takeOverPtr);
+  bool thread_takeover_completed(Signal *signal,
+                                 TakeOverRecordPtr takeOverPtr);
+  bool thread_takeover_copy_completed(Signal *signal,
+                                      TakeOverRecordPtr takeOverPtr);
+  void release_take_over_threads(void);
+  void check_take_over_completed_correctly(void);
+
+  void sendStartTo(Signal* signal, TakeOverRecordPtr);
+  void sendUpdateTo(Signal* signal, TakeOverRecordPtr);
+  void sendUpdateFragStateReq(Signal *,
+                              Uint32 startGci,
+                              Uint32 storedType,
+                              TakeOverRecordPtr takeOverPtr);
+
+  void releaseTakeOver(TakeOverRecordPtr takeOverPtr, bool from_master);
+
+//-------------------------------------------------
+// Methods for take over functionality, master part
+//-------------------------------------------------
+  void switchPrimaryMutex_locked(Signal* signal, Uint32, Uint32);
+  void switchPrimaryMutex_unlocked(Signal* signal, Uint32, Uint32);
+  void check_force_lcp(Ptr<TakeOverRecord> takeOverPtr);
+  void abortTakeOver(Signal*, TakeOverRecordPtr);
+  void updateToReq_fragmentMutex_locked(Signal*, Uint32, Uint32);
+  bool findTakeOver(Ptr<TakeOverRecord> & ptr, Uint32 failedNodeId);
+  void insertBackup(FragmentstorePtr regFragptr, Uint32 nodeId);
 
   /*
     2.4  C O M M O N    S T O R E D    V A R I A B L E S
@@ -1554,6 +2126,14 @@ private:
       lcpStatusUpdatedPlace = line;
     }
 
+    /**
+     * State of stalling LCPs for node restarts
+     */
+    Uint32 lcpStallStart;  /* Has started stalling lcp start */
+    NDB_TICKS lastLogTime; /* Last time we logged state of stall */
+    NDB_TICKS m_start_lcp_check_time; /* Time of stalling started */
+    Uint32 stall_node_waiting_for; /* The node we've logged about waiting for */
+
     Uint32 lcpStart;
     Uint32 lcpStopGcp; 
     Uint32 keepGci;      /* USED TO CALCULATE THE GCI TO KEEP AFTER A LCP  */
@@ -1658,7 +2238,9 @@ private:
     Uint32 minTableId;
     Uint32 minFragId;
     Uint32 failedNodeId;
+    bool use_empty_lcp;
   } c_lcpMasterTakeOverState;
+  bool check_if_empty_lcp_needed(void);
   
   Uint16 cmasterNodeId;
 
@@ -1688,6 +2270,13 @@ private:
   Uint32 cnoReplicas;
 
   bool cwaitLcpSr;
+
+  /**
+   * After a node failure we want to increase the disk checkpoint speed until
+   * we have completed the current ongoing node failure. We also increase the
+   * checkpoint speed when we know that a node restart is ongoing.
+   */
+  bool c_increase_lcp_speed_after_nf;
   /**
    * Available nodegroups (ids) (length == cnoOfNodeGroups)
    *   use to support nodegroups 2,4,6 (not just consequtive nodegroup ids)
@@ -1844,6 +2433,7 @@ private:
    * When a node comes up without filesystem
    *   we have to clear all LCP for that node
    */
+  void handle_send_continueb_invalidate_node_lcp(Signal *signal);
   void invalidateNodeLCP(Signal *, Uint32 nodeId, Uint32 tableId);
   void invalidateNodeLCP(Signal *, Uint32 nodeId, TabRecordPtr);
 
@@ -1961,6 +2551,18 @@ private:
   Uint32 getMinVersion() const;
 
   bool c_2pass_inr;
+
+  /* Max LCP parallelism is node (version) specific */
+  Uint8 getMaxStartedFragCheckpointsForNode(Uint32 nodeId) const;
+  
+  void isolateNodes(Signal* signal,
+                    Uint32 delayMillis,
+                    const NdbNodeBitmask& victims);
+
+  NodeId c_handled_master_take_over_copy_gci;
+
+  bool handle_master_take_over_copy_gci(Signal *signal,
+                                        NodeId newMasterNodeId);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

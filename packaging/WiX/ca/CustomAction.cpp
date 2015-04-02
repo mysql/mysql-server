@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <wcautil.h>
 #include <string.h>
 #include <strsafe.h>
+#include <direct.h>
 
 /*
  * Search the registry for a service whose ImagePath starts
@@ -127,6 +128,81 @@ int remove_service(TCHAR *installdir, int check_only) {
 	return done;
 }
 
+#ifdef CLUSTER_EXTRA_CUSTOM_ACTIONS
+UINT RunProcess(TCHAR *AppName, TCHAR *CmdLine, TCHAR * WorkDir)
+{
+    PROCESS_INFORMATION processInformation;
+    STARTUPINFO startupInfo;
+    memset(&processInformation, 0, sizeof(processInformation));
+    memset(&startupInfo, 0, sizeof(startupInfo));
+    startupInfo.cb = sizeof(startupInfo);
+
+    BOOL result;
+	UINT er = ERROR_SUCCESS;
+	
+    TCHAR tempCmdLine[MAX_PATH * 2];  //Needed since CreateProcessW may change the contents of CmdLine
+	
+	wcscpy_s(tempCmdLine, MAX_PATH *2, TEXT("\""));
+	wcscat_s(tempCmdLine, MAX_PATH *2, AppName);
+	wcscat_s(tempCmdLine, MAX_PATH *2, TEXT("\" \""));
+	wcscat_s(tempCmdLine, MAX_PATH *2, CmdLine);
+	wcscat_s(tempCmdLine, MAX_PATH *2, TEXT("\""));
+
+	result = ::CreateProcess(AppName, tempCmdLine, NULL, NULL, FALSE, NORMAL_PRIORITY_CLASS, NULL, WorkDir, &startupInfo, &processInformation);
+
+    if (result == 0)
+    {
+		WcaLog(LOGMSG_STANDARD, "CreateProcess = %ls %ls failed", AppName, CmdLine);
+		er= ERROR_CANT_ACCESS_FILE;
+    }
+    else
+    {
+		WcaLog(LOGMSG_STANDARD, "CreateProcess = %ls %ls waiting to finish", AppName, CmdLine);
+        WaitForSingleObject( processInformation.hProcess, INFINITE );
+        CloseHandle( processInformation.hProcess );
+        CloseHandle( processInformation.hThread );
+		WcaLog(LOGMSG_STANDARD, "CreateProcess = %ls %ls finished", AppName, CmdLine);
+    }
+	
+	return er;
+}
+
+UINT mccPostInstall(MSIHANDLE hInstall) {
+	HRESULT hr = S_OK;
+	UINT er = ERROR_SUCCESS;
+
+	hr = WcaInitialize(hInstall, "MccPostInstall");
+	ExitOnFailure(hr, "Failed to initialize");
+
+	WcaLog(LOGMSG_STANDARD, "Initialized.");
+
+    TCHAR INSTALLDIR[1024];
+    DWORD INSTALLDIR_size = sizeof(INSTALLDIR);
+	TCHAR path[MAX_PATH * 2];
+	TCHAR param[MAX_PATH * 2];
+	
+	if(MsiGetPropertyW(hInstall, TEXT("CustomActionData"), INSTALLDIR, &INSTALLDIR_size) == ERROR_SUCCESS) {
+	
+		WcaLog(LOGMSG_STANDARD, "INSTALLDIR = %ls", INSTALLDIR);
+		
+		// C:\Program Files (x86)\MySQL\MySQL Cluster 7.2\share\mcc
+		wcscpy_s(path, MAX_PATH * 2, INSTALLDIR);
+		wcscat_s(path, MAX_PATH * 2, TEXT("\\share\\mcc\\Python\\python.exe"));
+
+		wcscpy_s(param, MAX_PATH * 2, INSTALLDIR);
+		wcscat_s(param, MAX_PATH * 2, TEXT("\\share\\mcc\\post-install.py"));
+
+		er = RunProcess(path, param, NULL);
+		
+	} else {
+		er = ERROR_CANT_ACCESS_FILE;
+	}
+
+LExit:
+	return WcaFinalize(er);
+}
+#endif
+
 UINT wrap(MSIHANDLE hInstall, char *name, int check_only) {
 	HRESULT hr = S_OK;
 	UINT er = ERROR_SUCCESS;
@@ -166,6 +242,15 @@ UINT __stdcall TestService(MSIHANDLE hInstall)
 	return wrap(hInstall, "TestService", 1);
 }
 
+UINT __stdcall RunPostInstall(MSIHANDLE hInstall)
+{
+#ifdef CLUSTER_EXTRA_CUSTOM_ACTIONS
+	return mccPostInstall(hInstall);
+#else
+	return ERROR_SUCCESS;
+#endif
+}
+
 /* DllMain - Initialize and cleanup WiX custom action utils */
 extern "C" BOOL WINAPI DllMain(
 	__in HINSTANCE hInst,
@@ -186,3 +271,4 @@ extern "C" BOOL WINAPI DllMain(
 
 	return TRUE;
 }
+

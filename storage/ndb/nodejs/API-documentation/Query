@@ -143,24 +143,50 @@
  */
  function between(Object parameterOrLiteral, Object parameterOrLiteral);
 
+/** isNull represents null comparison of a property.
+ * @return QueryPredicate
+ * IMMEDIATE
+ */
+ function isNull();
+
+/** isNotNull represents not-null comparison of a property.
+ * @return QueryPredicate
+ * IMMEDIATE
+ */
+ function isNotNull();
+
 /** QueryPredicate represents the result of comparing a query field to a
  * parameter. QueryPredicate can be used as the filter for a query or can be
- * combined with other QueryPredicates using boolean functions 'and', 'or', 
- * and unary function 'not'.
+ * combined with other QueryPredicates using functions 'and', 'or', 
+ * 'andNot', 'orNot', and 'not'.
  */
  function QueryPredicate();
 
-/** and represents the and condition joining this QueryPredicate with another.
+/** and represents the 'and' condition joining this QueryPredicate with another.
  * @return QueryPredicate
  * IMMEDIATE
  */
  function and(QueryPredicate other);
 
-/** or represents the or condition joining this QueryPredicate with another.
+/** andNot represents the 'and' condition joining this QueryPredicate with
+ * the negation of another.
+ * @return QueryPredicate
+ * IMMEDIATE
+ */
+ function andNot(QueryPredicate other);
+
+/** or represents the 'or' condition joining this QueryPredicate with another.
  * @return QueryPredicate
  * IMMEDIATE
  */
  function or(QueryPredicate other);
+
+/** orNot represents the 'or' condition joining this QueryPredicate with
+ * the negation of another.
+ * @return QueryPredicate
+ * IMMEDIATE
+ */
+ function orNot(QueryPredicate other);
 
 /** not represents the negation of this QueryPredicate.
  * @return QueryPredicate

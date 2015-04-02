@@ -125,7 +125,7 @@ server_id
 2
 4
 select
-count(1)
+@result:=count(1)
 from
 information_schema.global_status,
 mysql.ndb_apply_status
@@ -135,7 +135,7 @@ and
 variable_name='Ndb_slave_max_replicated_epoch'
     and
 variable_value = epoch;
-count(1)
+@result:=count(1)
 1
 Now make a new Cluster A change and see that the Max Replicated Epoch advances
 once it has propagated

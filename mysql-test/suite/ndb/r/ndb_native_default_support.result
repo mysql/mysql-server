@@ -1516,6 +1516,8 @@ Bug#55121 error 839 'Illegal null attribute' from NDB for fields with default va
 Ensure that Ndb handler doesn't expect native defaults for Blobs.
 set @save_sql_mode = @@session.sql_mode;
 set sql_mode=STRICT_TRANS_TABLES;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 fid smallint(6) unsigned NOT NULL DEFAULT '0',
 f01 text NOT NULL,
@@ -1525,6 +1527,8 @@ PRIMARY KEY (fid)
 ) engine=ndb;
 ERROR 42000: BLOB/TEXT column 'f03' can't have a default value
 set sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 fid smallint(6) unsigned NOT NULL DEFAULT '0',
 f01 text NOT NULL,

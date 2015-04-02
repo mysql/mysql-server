@@ -20,8 +20,7 @@
 
 "use strict";
 
-var spi     = require(spi_module),
-    spi_lib = require("./lib.js");
+var spi_lib = require("./lib.js");
 
 try {
   require("./suite_config.js");

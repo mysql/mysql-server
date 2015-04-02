@@ -21,6 +21,7 @@
 #include <ndb_limits.h>
 #include <ndb_version.h>
 #include <SimpleProperties.hpp>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateTable.hpp>
@@ -105,6 +106,7 @@ static BlockInfo ALL_BLOCKS[] = {
   ,{ RESTORE_REF,1 ,     0,     0 }
   ,{ DBINFO_REF, 1 ,     0,     0 }
   ,{ DBSPJ_REF,  1 ,     0,     0 }
+  ,{ THRMAN_REF, 1 ,     0,     0 }
 };
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
@@ -130,7 +132,8 @@ static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   LGMAN_REF,
   PGMAN_REF,
   RESTORE_REF,
-  DBSPJ_REF
+  DBSPJ_REF,
+  THRMAN_REF
 };
 
 /*******************************/
@@ -241,6 +244,15 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     }
 
     jamEntry();
+
+    if (ERROR_INSERTED(1004))
+    {
+      jam();
+      g_eventLogger->info("NDBCNTR not shutting down due to GCP stop");
+      return;
+    }
+    CRASH_INSERTION(1005);
+
     break;
   }
   case SystemError::CopyFragRefError:
@@ -756,6 +768,11 @@ the next node can only receive CNTR_START_CONF after the previous starting
 node have completed copying the metadata and releasing the metadata locks and
 locks on DIH info, that happens below in STTOR phase 5.
 
+So in a rolling restart it is quite common that the first node will get
+CNTR_START_CONF and then instead get blocked on the DICT lock waiting for
+an LCP to complete. The other nodes starting up in parallel will instead
+wait on CNTR_START_CONF since only one node at a time can pass this.
+
 After receiving CNTR_START_CONF, NDBCNTR continues by running NDB_STTOR
 phase 1. Here DBLQH initialises the node records, it starts a reporting
 service. It does also initialise the data about the REDO log, this also
@@ -785,8 +802,9 @@ metadata informatiom.
 The reason for locking is that all meta data and distribution info is fully
 replicated. So we need to lock this information while we are copying the data
 from the master node to the starting node. While we retain this lock we cannot
-change meta data and also we cannot update distribution information while
-running local checkpoints.
+change meta data through meta data transactions. Before copying the meta data
+later we also need to ensure no local checkpoint is running since this also
+updates the distribution information.
 
 After locking this we need to request permission to start the node from the
 master node. The request for permission to start the node is handled by the
@@ -1655,8 +1673,17 @@ void Ndbcntr::startPhase2Lab(Signal* signal)
 
   DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
   req->senderRef = reference();
-  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
-             DihRestartReq::SignalLength, JBB);
+  if (ERROR_INSERTED(1021))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
+                        30000, DihRestartReq::SignalLength);
+  }
+  else
+  {
+    sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
+               DihRestartReq::SignalLength, JBB);
+  }
   return;
 }//Ndbcntr::startPhase2Lab()
 
@@ -2011,11 +2038,25 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal){
 
   const bool startInProgress = !c_start.m_starting.isclear();
 
-  if((starting && startInProgress) || (startInProgress && !parallellNR)){
+  if ((starting && startInProgress) || (startInProgress && !parallellNR))
+  {
     jam();
-    // We're already starting together with a bunch of nodes
-    // Let this node wait...
-    return;
+    /**
+     * We're already starting together with a bunch of nodes
+     * Let this node wait...
+     *
+     * We will report the wait to DBDIH to keep track of waiting times in
+     * the restart. We only report when a node restart is ongoing (that is
+     * we are not starting ourselves).
+     */
+    if (!starting)
+    {
+      NdbcntrStartWaitRep *rep = (NdbcntrStartWaitRep*)signal->getDataPtrSend();
+      rep->nodeId = nodeId;
+      EXECUTE_DIRECT(DBDIH, GSN_NDBCNTR_START_WAIT_REP, signal,
+                     NdbcntrStartWaitRep::SignalLength);
+      return;
+    }
   }
   
   if(starting){
@@ -2066,15 +2107,20 @@ Ndbcntr::startWaitingNodes(Signal * signal){
   ndbrequire(nodeId != c_start.m_waiting.NotFound);
 
   NodeState::StartType nrType = NodeState::ST_NODE_RESTART;
+  const char *start_type_str = "node restart";
   if(c_start.m_withoutLog.get(nodeId))
   {
     jam();
     nrType = NodeState::ST_INITIAL_NODE_RESTART;
+    start_type_str = "initial node restart";
   }
   
   /**
    * Let node perform restart
    */
+  infoEvent("Start node: %u using %s as part of system restart",
+            nodeId, start_type_str);
+
   CntrStartConf * conf = (CntrStartConf*)signal->getDataPtrSend();
   conf->noStartNodes = 1;
   conf->startType = nrType;
@@ -2085,6 +2131,16 @@ Ndbcntr::startWaitingNodes(Signal * signal){
   c_startedNodes.copyto(NdbNodeBitmask::Size, conf->startedNodes);
   sendSignal(Tref, GSN_CNTR_START_CONF, signal, 
 	     CntrStartConf::SignalLength, JBB);
+
+  /**
+   * A node restart is ongoing where we are master and we just accepted this
+   * node to proceed with his node restart. Inform DBDIH about this event in
+   * the node restart.
+   */
+  NdbcntrStartedRep *rep = (NdbcntrStartedRep*)signal->getDataPtrSend();
+  rep->nodeId = nodeId;
+  EXECUTE_DIRECT(DBDIH, GSN_NDBCNTR_STARTED_REP, signal,
+                 NdbcntrStartedRep::SignalLength);
 
   c_start.m_waiting.clear(nodeId);
   c_start.m_withLog.clear(nodeId);
@@ -2219,7 +2275,15 @@ Ndbcntr::trySystemRestart(Signal* signal){
   c_startedNodes.copyto(NdbNodeBitmask::Size, conf->startedNodes);
   
   ndbrequire(c_start.m_lastGciNodeId == getOwnNodeId());
-  
+ 
+  infoEvent("System Restart: master node: %u, num starting: %u, gci: %u",
+            conf->noStartNodes,
+            conf->masterNodeId,
+            conf->startGci);
+  char buf[100];
+  infoEvent("CNTR_START_CONF: started: %s", c_startedNodes.getText(buf));
+  infoEvent("CNTR_START_CONF: starting: %s", c_start.m_starting.getText(buf));
+
   NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
   sendSignal(rg, GSN_CNTR_START_CONF, signal, CntrStartConf::SignalLength,JBB);
   
@@ -2316,6 +2380,14 @@ void Ndbcntr::ph4BLab(Signal* signal)
     sendNdbSttor(signal);
     return;
   }//if
+  if (ERROR_INSERTED(1010))
+  {
+    /* Just delay things for 10 seconds */
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_NDB_STTORRY, signal,
+                        10000, 1);
+    return;
+  }
   g_eventLogger->info("NDB start phase 3 completed");
   if ((ctypeOfStart == NodeState::ST_NODE_RESTART) ||
       (ctypeOfStart == NodeState::ST_INITIAL_NODE_RESTART))
@@ -2442,9 +2514,9 @@ void Ndbcntr::execNDB_STARTCONF(Signal* signal)
        * Some nodes has been "excluded" from SR
        */
       char buf0[100], buf1[100];
-      ndbout_c("execNDB_STARTCONF: changing from %s to %s",
-               c_start.m_starting.getText(buf0),
-               tmp.getText(buf1));
+      g_eventLogger->info("execNDB_STARTCONF: changing from %s to %s",
+                          c_start.m_starting.getText(buf0),
+                          tmp.getText(buf1));
       
       NdbNodeBitmask waiting = c_start.m_starting;
       waiting.bitANDC(tmp);
@@ -2859,6 +2931,11 @@ Ndbcntr::wait_sp_rep(Signal* signal)
       c_start.m_wait_sp[node] = 0;
     }
   }
+
+  char buf[100];
+  g_eventLogger->info("Grant nodes to start phase: %u, nodes: %s",
+                      min,
+                      grantnodes.getText(buf));
 
   NodeReceiverGroup rg(NDBCNTR, grantnodes);
   CntrWaitRep * conf = (CntrWaitRep*)signal->getDataPtrSend();
@@ -3854,7 +3931,7 @@ void Ndbcntr::sendNdbSttor(Signal* signal)
 /*---------------------------------------------------------------------------*/
 // JUST SEND THE SIGNAL
 /*---------------------------------------------------------------------------*/
-void Ndbcntr::sendSttorry(Signal* signal) 
+void Ndbcntr::sendSttorry(Signal* signal, Uint32 delayed)
 {
   signal->theData[3] = ZSTART_PHASE_1;
   signal->theData[4] = ZSTART_PHASE_2;
@@ -3866,7 +3943,12 @@ void Ndbcntr::sendSttorry(Signal* signal)
   signal->theData[9] = ZSTART_PHASE_8;
   signal->theData[10] = ZSTART_PHASE_9;
   signal->theData[11] = ZSTART_PHASE_END;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 12, JBB);
+  if (delayed == 0)
+  {
+    sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 12, JBB);
+    return;
+  }
+  sendSignalWithDelay(NDBCNTR_REF, GSN_STTORRY, signal, delayed, 12);
 }//Ndbcntr::sendSttorry()
 
 void
@@ -3970,6 +4052,7 @@ Ndbcntr::execRESUME_REQ(Signal* signal){
   NodeState newState(NodeState::SL_STARTED);		  
   updateNodeState(signal, newState);
   c_stopRec.stopReq.senderRef=0;
+  send_node_started_rep(signal);
 }
 
 void
@@ -4233,6 +4316,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   {
     NodeState newState(NodeState::SL_STARTED); 
     cntr.updateNodeState(signal, newState);
+    cntr.send_node_started_rep(signal);
   }
 
   signal->theData[0] = NDB_LE_NDBStopAborted;
@@ -4931,7 +5015,7 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
             case NodeState::ST_SYSTEM_RESTART:
             {
               g_eventLogger->info("Phase 8 enabled foreign keys and waited for"
-                                  "all nodes to complete start");
+                        "all nodes to complete start up to this point");
               break;
             }
             default:
@@ -4939,6 +5023,7 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
           }
           break;
         case 9:
+          g_eventLogger->info("Phase 9 enabled APIs to start connecting");
           break;
         case 101:
           g_eventLogger->info("Phase 101 was used by SUMA to take over"
@@ -4981,10 +5066,18 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
   
   NodeState newState(NodeState::SL_STARTED);
   cntr.updateNodeState(signal, newState);
+  cntr.send_node_started_rep(signal);
 
   NodeReceiverGroup rg(NDBCNTR, cntr.c_clusterNodes);
   signal->theData[0] = cntr.getOwnNodeId();
   cntr.sendSignal(rg, GSN_CNTR_START_REP, signal, 1, JBB);
+}
+
+void
+Ndbcntr::send_node_started_rep(Signal *signal)
+{
+  signal->theData[0] = getOwnNodeId();
+  sendSignal(QMGR_REF, GSN_NODE_STARTED_REP, signal, 1, JBB);
 }
 
 void

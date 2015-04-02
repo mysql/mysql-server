@@ -125,8 +125,7 @@ void vperror(const char *fmt, ...) {
     perror(buf);
 }
 
-#ifndef HAVE_HTONLL
-static uint64_t mc_swap64(uint64_t in) {
+uint64_t mc_swap64(uint64_t in) {
 #ifndef WORDS_BIGENDIAN
     /* Little endian, flip the bytes around until someone makes a faster/better
     * way to do this. */
@@ -142,13 +141,4 @@ static uint64_t mc_swap64(uint64_t in) {
     return in;
 #endif
 }
-
-uint64_t ntohll(uint64_t val) {
-   return mc_swap64(val);
-}
-
-uint64_t htonll(uint64_t val) {
-   return mc_swap64(val);
-}
-#endif
 
