@@ -1613,11 +1613,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
-    if (packet_length < 1)
-    {
-      my_error(ER_MALFORMED_PACKET, MYF(0));
-      break;
-    }
     status_var_increment(thd->status_var.com_other);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
@@ -1628,7 +1623,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       packet[0].
     */
     enum mysql_enum_shutdown_level level;
-    if (!thd->is_valid_time())
+    if (packet_length == 0 || !thd->is_valid_time())
       level= SHUTDOWN_DEFAULT;
     else
       level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
