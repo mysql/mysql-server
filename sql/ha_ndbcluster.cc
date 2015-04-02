@@ -3797,7 +3797,7 @@ ha_ndbcluster::log_exclusive_read(const NdbRecord *key_rec,
                 m_thd_ndb->trans->getNdbError().message);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_EXCEPTIONS_WRITE_ERROR,
-                        ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                        ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
     /*
       By returning -1 the caller (pk_unique_index_read_key) will return
       NULL and error on transaction object will be returned.
@@ -3836,7 +3836,7 @@ ha_ndbcluster::scan_log_exclusive_read(NdbScanOperation *cursor,
                 m_thd_ndb->trans->getNdbError().message);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_EXCEPTIONS_WRITE_ERROR,
-                        ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                        ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
     DBUG_RETURN(-1);
   }
 
