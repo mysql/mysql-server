@@ -4,13 +4,11 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 Setup circular replication
-@slave_server_id:=(variable_value+0)
-3
+SLAVE_SERVER_ID: 3
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-@master_server_id:=(variable_value+0)
-1
+MASTER_SERVER_ID: 1
 Setup ndb_replication and t1 exceptions table
 Populate ndb_replication table as necessary
 create table test.t1 (
@@ -32,7 +30,7 @@ commit;
 Capturing session epoch from Master
 Show that last_conflict_epoch is 0
 Variable_name	Value
-Ndb_slave_last_conflict_epoch	0
+Ndb_conflict_last_conflict_epoch	0
 Restart Secondary->Primary replication
 Check that max_replicated_epoch is 
 still < the saved session epoch

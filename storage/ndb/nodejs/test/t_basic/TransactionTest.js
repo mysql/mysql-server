@@ -76,7 +76,13 @@ t2.run = function() {
       if (!err) {
         testCase.fail(new Error('t2 Active transaction should not allow begin.'));
       } else {
-        testCase.pass();
+        tx.rollback(function(err) {
+          if (err) {
+            testCase.fail(new Error('t2 Active transaction should allow rollback.'));
+          } else {
+            testCase.pass();
+          }
+        });
       }
     });
   });
@@ -114,8 +120,14 @@ t3.run = function() {
       if (!err) {
         testCase.fail(new Error('t3 Rollback only transaction should not allow begin.'));
       } else {
-        testCase.pass();
-      }
+        tx.rollback(function(err) {
+          if (err) {
+            testCase.fail(new Error('t3 Rollback only transaction should allow rollback.'));
+          } else {
+            testCase.pass();
+          }
+        });
+     }
     });
   });
 };

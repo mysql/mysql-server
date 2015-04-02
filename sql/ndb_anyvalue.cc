@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,19 @@
    Bits from opt_server_id_bits to 30 may carry other data
    so we ignore them when reading/setting AnyValue.
 
+   The idea with supporting 'other data' is to allow NdbApi 
+   users to tag their NdbApi operations in some way that can
+   be picked up at NdbApi event receivers, *without* interacting
+   badly with / disabling normal binlogging and replication.
+   
+   To achieve this, we have a variable sized mask of bits in the
+   *middle* of the AnyValue word which can be used to mask out
+   the user data for the purpose of the MySQL Server.
+   
+   A better future approach would be to support > 1 tag word
+   per operation.
+
+
    332        21        10        0
    10987654321098765432109876543210
    roooooooooooooooooooooooosssssss
@@ -37,6 +50,29 @@
        At least 7 bits will be available
        for serverid or reserved codes
 
+   Implications : 
+     Reserved codes can use values between
+     0x80000000 and 0x8000007f inclusive
+     (256 values).
+     0x8000007f was always the 'nologging'
+     code, so the others have started 
+     'counting' down from there
+
+   Examples :
+     opt_server_id_bits= 31
+      - ServerIds can be up to 2^31-1
+      - No user-specific data supported
+      - Reserved codes look like :
+        0x8000007f etc...
+
+     opt_server_id_bits= 7
+      - ServerIds can be up to 2^7-1
+      - User specific data can be up to 2^24-1
+      - ServerIds have 0 top bit, 24 user bits, then 
+        the serverid
+      - Reserved codes have 1 top bit, 24 user bits (prob
+        not used much), then the bottom lsbs of the 
+        reserved code.
 */
 
 #include <my_global.h>
@@ -47,6 +83,13 @@ extern ulong opt_server_id_mask;
 #define NDB_ANYVALUE_RESERVED_MASK  0x8000007f
 
 #define NDB_ANYVALUE_NOLOGGING_CODE 0x8000007f
+
+#define NDB_ANYVALUE_REFRESH_OP_CODE 0x8000007e
+#define NDB_ANYVALUE_REFLECT_OP_CODE 0x8000007d
+#define NDB_ANYVALUE_READ_OP_CODE    0x8000007c
+
+/* Next reserved code : 0x8000007c */
+
 
 #ifndef DBUG_OFF
 void dbug_ndbcluster_anyvalue_set_userbits(Uint32& anyValue)
@@ -76,6 +119,42 @@ bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue)
 void ndbcluster_anyvalue_set_nologging(Uint32& anyValue)
 {
   anyValue |= NDB_ANYVALUE_NOLOGGING_CODE;
+}
+
+bool ndbcluster_anyvalue_is_refresh_op(Uint32 anyValue)
+{
+  return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
+          NDB_ANYVALUE_REFRESH_OP_CODE);
+}
+
+void ndbcluster_anyvalue_set_refresh_op(Uint32& anyValue)
+{
+  anyValue &= ~NDB_ANYVALUE_RESERVED_MASK;
+  anyValue |= NDB_ANYVALUE_REFRESH_OP_CODE;
+}
+
+bool ndbcluster_anyvalue_is_read_op(Uint32 anyValue)
+{
+  return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
+          NDB_ANYVALUE_READ_OP_CODE);
+}
+
+void ndbcluster_anyvalue_set_read_op(Uint32& anyValue)
+{
+  anyValue &= ~NDB_ANYVALUE_RESERVED_MASK;
+  anyValue |= NDB_ANYVALUE_READ_OP_CODE;
+}
+
+bool ndbcluster_anyvalue_is_reflect_op(Uint32 anyValue)
+{
+  return ((anyValue & NDB_ANYVALUE_RESERVED_MASK) ==
+          NDB_ANYVALUE_REFLECT_OP_CODE);
+}
+
+void ndbcluster_anyvalue_set_reflect_op(Uint32& anyValue)
+{
+  anyValue &= ~NDB_ANYVALUE_RESERVED_MASK;
+  anyValue |= NDB_ANYVALUE_REFLECT_OP_CODE;
 }
 
 void ndbcluster_anyvalue_set_normal(Uint32& anyValue)

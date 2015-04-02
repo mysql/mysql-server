@@ -112,6 +112,8 @@ struct Protocol6 {
   static Uint32 getPrio            (const Uint32 & word1);
   static Uint32 getMessageLength   (const Uint32 & word1);
 
+  static bool verifyByteOrder       (const Uint32 & word1, Uint32 byteOrder);
+
   static void setByteOrder       (Uint32 & word1, Uint32 byteOrder);
   static void setCompressed      (Uint32 & word1, Uint32 compressed);
   static void setSignalIdIncluded(Uint32 & word1, Uint32 signalId);
@@ -195,6 +197,16 @@ inline
 Uint32
 Protocol6::getPrio(const Uint32 & word1){
   return (word1 & WORD1_PRIO_MASK) >> WORD1_PRIO_SHIFT;
+}
+
+inline
+bool
+Protocol6::verifyByteOrder(const Uint32 & word1, Uint32 byteOrder)
+{
+  Uint32 tmp = byteOrder;
+  tmp |= (tmp << 7);
+  tmp |= (tmp << 24);
+  return (word1 & WORD1_BYTEORDER_MASK) == tmp;
 }
 
 inline

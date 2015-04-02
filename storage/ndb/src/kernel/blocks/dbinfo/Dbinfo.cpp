@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
 
 Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL,
                            TRIX, DBTUX, DBDICT, CMVMI, DBLQH, LGMAN,
-                           PGMAN, DBSPJ, THRMAN, TRPMAN, QMGR, 0};
+                           PGMAN, DBSPJ, THRMAN, TRPMAN, QMGR, DBDIH, 0};
 
 Dbinfo::Dbinfo(Block_context& ctx) :
   SimulatedBlock(DBINFO, ctx)

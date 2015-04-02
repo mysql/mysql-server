@@ -58,7 +58,25 @@ public:
   NdbImpl(Ndb_cluster_connection *, Ndb&);
   ~NdbImpl();
 
-  int send_event_report(bool has_lock, Uint32 *data, Uint32 length);
+  int send_event_report(bool is_poll_owner, Uint32 *data, Uint32 length);
+  int send_dump_state_all(Uint32 *dumpStateCodeArray, Uint32 len);
+  void set_TC_COMMIT_ACK_immediate(bool flag);
+private:
+  /**
+   * Implementation methods for
+   * send_event_report
+   * send_dump_state_all
+   */
+  void init_dump_state_signal(NdbApiSignal *aSignal,
+                              Uint32 *dumpStateCodeArray,
+                              Uint32 len);
+  int send_to_nodes(NdbApiSignal *aSignal,
+                    bool is_poll_owner,
+                    bool send_to_all);
+  int send_to_node(NdbApiSignal *aSignal,
+                   Uint32 tNode,
+                   bool is_poll_owner);
+public:
 
   Ndb &m_ndb;
   Ndb * m_next_ndb_object, * m_prev_ndb_object;
@@ -191,6 +209,13 @@ public:
   Ndb_free_list_t<NdbTransaction> theConIdleList; 
 
   /**
+   * For some test cases it is necessary to flush out the TC_COMMIT_ACK
+   * immediately since we immediately will check that the commit ack
+   * marker resource is released.
+   */
+  bool send_TC_COMMIT_ACK_immediate_flag;
+
+  /**
    * trp_client interface
    */
   virtual void trp_deliver_signal(const NdbApiSignal*,
@@ -217,6 +242,12 @@ public:
                            const LinearSectionPtr ptr[3], Uint32 secs);
   int sendFragmentedSignal(NdbApiSignal*, Uint32 nodeId,
                            const GenericSectionPtr ptr[3], Uint32 secs);
+  void* int2void(Uint32 val);
+  static NdbReceiver* void2rec(void* val);
+  static NdbTransaction* void2con(void* val);
+  static NdbOperation* void2rec_op(void* val);
+  static NdbIndexOperation* void2rec_iop(void* val);
+  NdbTransaction* lookupTransactionFromOperation(const TcKeyConf* conf);
 };
 
 #ifdef VM_TRACE
@@ -236,38 +267,45 @@ public:
 
 inline
 void *
-Ndb::int2void(Uint32 val){
-  return theImpl->theNdbObjectIdMap.getObject(val);
+NdbImpl::int2void(Uint32 val)
+{
+  return theNdbObjectIdMap.getObject(val);
 }
 
 inline
-NdbReceiver *
-Ndb::void2rec(void* val){
+NdbReceiver*
+NdbImpl::void2rec(void* val)
+{
   return (NdbReceiver*)val;
 }
 
 inline
-NdbTransaction *
-Ndb::void2con(void* val){
+NdbTransaction*
+NdbImpl::void2con(void* val)
+{
   return (NdbTransaction*)val;
 }
 
 inline
 NdbOperation*
-Ndb::void2rec_op(void* val){
+NdbImpl::void2rec_op(void* val)
+{
   return (NdbOperation*)(void2rec(val)->getOwner());
 }
 
 inline
 NdbIndexOperation*
-Ndb::void2rec_iop(void* val){
+NdbImpl::void2rec_iop(void* val)
+{
   return (NdbIndexOperation*)(void2rec(val)->getOwner());
 }
 
 inline 
 NdbTransaction * 
-NdbReceiver::getTransaction() const {
-  switch(getType()){
+NdbReceiver::getTransaction(ReceiverType type) const
+{
+  switch(type)
+  {
   case NDB_UNINITIALIZED:
     assert(false);
     return NULL;

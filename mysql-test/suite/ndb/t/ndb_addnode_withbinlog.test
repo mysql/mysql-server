@@ -1,0 +1,51 @@
+-- source include/have_multi_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+--connection server2
+--echo Starting up background churn to create
+--echo concurrent binlogging activity
+create table background_noise (a int primary key, b varchar(100)) engine=ndb;
+insert into background_noise values
+(1, repeat("BJC",33)),
+(2, repeat("BJC",33)),
+(3, repeat("BJC",33)),
+(4, repeat("BJC",33)),
+(5, repeat("BJC",33)),
+(6, repeat("BJC",33)),
+(7, repeat("BJC",33)),
+(8, repeat("BJC",33)),
+(9, repeat("BJC",33)),
+(10, repeat("BJC",33));
+
+delimiter %;
+create procedure busy(iterations int)
+begin
+  set @i=0;
+  repeat
+    update test.background_noise set b=repeat("SSSG", 25);
+    update test.background_noise set b=repeat("YSFMMOT", 9);
+    set @i = @i + 1;
+  until @i = iterations
+  end repeat;
+end%
+
+delimiter ;%
+
+--send call busy(10000);
+--connection server1
+
+--echo Call the normal ndb_addnode test
+
+# Pending fix to bug#19912988 NDB : ONLINE REORG RELATED ROW CHANGES ARE BINLOGGED
+--let $DISABLE_BLOB_REORG=1;  
+
+--source suite/ndb/t/ndb_addnode.test
+
+--connection server2
+--echo Waiting for background noise to end
+--reap
+
+DROP TABLE background_noise;
+DROP PROCEDURE busy;
+
+--connection server1

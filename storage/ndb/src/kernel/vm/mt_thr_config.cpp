@@ -157,10 +157,10 @@ computeThreadConfig(Uint32 MaxNoOfExecutionThreads,
     { 17, 8, 4, 1, 2 },
     { 18, 8, 4, 2, 2 },
     { 19, 8, 5, 2, 2 },
-    { 20, 8, 5, 2, 3 },
-    { 21, 8, 5, 3, 3 },
-    { 22, 8, 6, 3, 3 },
-    { 23, 8, 7, 3, 3 },
+    { 20, 10, 4, 2, 2 },
+    { 21, 10, 5, 2, 2 },
+    { 22, 10, 5, 2, 3 },
+    { 23, 10, 6, 2, 3 },
     { 24, 12, 5, 2, 3 },
     { 25, 12, 6, 2, 3 },
     { 26, 12, 6, 3, 3 },
@@ -177,14 +177,14 @@ computeThreadConfig(Uint32 MaxNoOfExecutionThreads,
     { 37, 16, 10, 4, 5 },
     { 38, 16, 11, 4, 5 },
     { 39, 16, 11, 5, 5 },
-    { 40, 16, 12, 5, 5 },
-    { 41, 16, 12, 5, 6 },
-    { 42, 16, 13, 5, 6 },
-    { 43, 16, 13, 6, 6 },
-    { 44, 16, 14, 6, 6 },
-    { 45, 16, 14, 6, 7 },
-    { 46, 16, 15, 6, 7 },
-    { 47, 16, 15, 7, 7 },
+    { 40, 20, 10, 4, 4 },
+    { 41, 20, 10, 4, 5 },
+    { 42, 20, 11, 4, 5 },
+    { 43, 20, 11, 5, 5 },
+    { 44, 20, 12, 5, 5 },
+    { 45, 20, 12, 5, 6 },
+    { 46, 20, 13, 5, 6 },
+    { 47, 20, 13, 6, 6 },
     { 48, 24, 12, 5, 5 },
     { 49, 24, 12, 5, 6 },
     { 50, 24, 13, 5, 6 },
@@ -579,15 +579,17 @@ THRConfig::do_validate()
   }
 
   /**
-   * LDM can be 1 2 4 6 8 12 16 24 32
+   * LDM can be 1 2 4 6 8 10 12 16 20 24 32
    */
   if (m_threads[T_LDM].size() != 1 &&
       m_threads[T_LDM].size() != 2 &&
       m_threads[T_LDM].size() != 4 &&
       m_threads[T_LDM].size() != 6 &&
       m_threads[T_LDM].size() != 8 &&
+      m_threads[T_LDM].size() != 10 &&
       m_threads[T_LDM].size() != 12 &&
       m_threads[T_LDM].size() != 16 &&
+      m_threads[T_LDM].size() != 20 &&
       m_threads[T_LDM].size() != 24 &&
       m_threads[T_LDM].size() != 32)
   {
@@ -1574,20 +1576,20 @@ define_num_threads_per_type(Uint32 max_no_exec_threads,
     case 4:
     case 6:
     case 8:
+    case 10:
     case 12:
     case 16:
+    case 20:
     case 24:
     case 32:
-      break;
-    case 10:
-      num_lqh_threads = 8;
       break;
     case 14:
       num_lqh_threads = 12;
       break;
-    case 18:
-    case 20:
     case 22:
+      num_lqh_threads = 20;
+      break;
+    case 18:
       num_lqh_threads = 16;
       break;
     case 26:

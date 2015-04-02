@@ -74,11 +74,19 @@ Ndb_api_wait_scan_result_count_slave	#
 Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#
+Ndb_conflict_epoch_delete_delete_count	#
 Ndb_conflict_fn_epoch	#
+Ndb_conflict_fn_epoch2	#
+Ndb_conflict_fn_epoch2_trans	#
 Ndb_conflict_fn_epoch_trans	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_max_del_win	#
 Ndb_conflict_fn_old	#
+Ndb_conflict_last_conflict_epoch	#
+Ndb_conflict_last_stable_epoch	#
+Ndb_conflict_reflected_op_discard_count	#
+Ndb_conflict_reflected_op_prepare_count	#
+Ndb_conflict_refresh_op_count	#
 Ndb_conflict_trans_conflict_commit_count	#
 Ndb_conflict_trans_detect_iter_count	#
 Ndb_conflict_trans_reject_count	#
@@ -100,7 +108,6 @@ Ndb_pushed_queries_executed	#
 Ndb_pushed_reads	#
 Ndb_scan_count	#
 Ndb_schema_locks_count	#
-Ndb_slave_last_conflict_epoch	#
 Ndb_slave_max_replicated_epoch	#
 Ndb_sorted_scan_count	#
 SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
@@ -115,6 +122,7 @@ ndb_cluster_connection_pool	#
 ndb_connectstring	#
 ndb_deferred_constraints	#
 ndb_distribution	#
+ndb_eventbuffer_free_percent	#
 ndb_eventbuffer_max_alloc	#
 ndb_extra_logging	#
 ndb_force_send	#
@@ -125,6 +133,8 @@ ndb_log_apply_status	#
 ndb_log_bin	#
 ndb_log_binlog_index	#
 ndb_log_empty_epochs	#
+ndb_log_empty_update	#
+ndb_log_exclusive_reads	#
 ndb_log_orig	#
 ndb_log_transaction_id	#
 ndb_log_update_as_write	#
@@ -1021,9 +1031,10 @@ drop table t1;
 create table
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
 primary key) engine=ndb;
-ERROR HY000: Got error 1059 'Unknown error code' from NDBCLUSTER
+ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 show warnings;
 Level	Code	Message
 Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
-Error	1296	Got error 1059 'Unknown error code' from NDBCLUSTER
+Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
+Error	1031	Table storage engine for 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' doesn't have this option
 End of 5.1 tests

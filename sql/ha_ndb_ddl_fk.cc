@@ -2072,13 +2072,13 @@ ha_ndbcluster::get_foreign_key_create_info()
 
     fk_string.append(",");
     fk_string.append("\n ");
-    fk_string.append("CONSTRAINT `");
+    fk_string.append(" CONSTRAINT `");
     {
       char db_and_name[FN_LEN+1];
       const char * name = fk_split_name(db_and_name, fk.getName());
       fk_string.append(name);
     }
-    fk_string.append("` FOREIGN KEY(");
+    fk_string.append("` FOREIGN KEY (");
 
     {
       bool first= true;

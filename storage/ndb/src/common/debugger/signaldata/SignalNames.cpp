@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_DIHNDBTAMPER,           "DIHNDBTAMPER" }
   ,{ GSN_KEYINFO,                "KEYINFO" }
   ,{ GSN_KEYINFO20,              "KEYINFO20" }
-  ,{ GSN_KEYINFO20_R,              "KEYINFO20_R" }
+  ,{ GSN_KEYINFO20_R,            "KEYINFO20_R" }
   ,{ GSN_NODE_FAILREP,           "NODE_FAILREP" }
   ,{ GSN_READCONF,               "READCONF" }
   ,{ GSN_SCAN_NEXTREQ,           "SCAN_NEXTREQ" }
@@ -438,6 +438,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_DROP_TRIG_CONF,         "DROP_TRIG_CONF" }
   ,{ GSN_DROP_TRIG_REF,          "DROP_TRIG_REF" }
   ,{ GSN_FIRE_TRIG_ORD,          "FIRE_TRIG_ORD" }
+  ,{ GSN_FIRE_TRIG_ORD_L,        "FIRE_TRIG_ORD_L" }
   ,{ GSN_TRIG_ATTRINFO,          "TRIG_ATTRINFO" }
 
   ,{ GSN_CREATE_INDX_REQ,        "CREATE_INDX_REQ" }
@@ -630,6 +631,11 @@ const GsnName SignalNames [] = {
   ,{ GSN_LCP_PREPARE_REF,  "LCP_PREPARE_REF" }
   ,{ GSN_LCP_PREPARE_CONF, "LCP_PREPARE_CONF" }
 
+  ,{ GSN_CHECK_NODE_RESTARTREQ,  "CHECK_NODE_RESTARTREQ" }
+  ,{ GSN_CHECK_NODE_RESTARTCONF, "CHECK_NODE_RESTARTCONF" }
+
+  ,{ GSN_GET_CPU_USAGE_REQ, "GET_CPU_USAGE_REQ" }
+
   /* DICT LOCK */
   ,{ GSN_DICT_LOCK_REQ,          "DICT_LOCK_REQ" }
   ,{ GSN_DICT_LOCK_CONF,         "DICT_LOCK_CONF" }
@@ -802,5 +808,19 @@ const GsnName SignalNames [] = {
   ,{ GSN_BUILD_FK_IMPL_REQ, "BUILD_FK_IMPL_REQ" }
   ,{ GSN_BUILD_FK_IMPL_REF, "BUILD_FK_IMPL_REF" }
   ,{ GSN_BUILD_FK_IMPL_CONF, "BUILD_FK_IMPL_CONF" }
+  ,{ GSN_NODE_STARTED_REP, "NODE_STARTED_REP" }
+  ,{ GSN_PAUSE_LCP_REQ, "PAUSE_LCP_REQ" }
+  ,{ GSN_PAUSE_LCP_CONF, "PAUSE_LCP_CONF" }
+  ,{ GSN_FLUSH_LCP_REP_REQ, "FLUSH_LCP_REP_REQ" }
+  ,{ GSN_FLUSH_LCP_REP_CONF, "FLUSH_LCP_REP_CONF" }
+  ,{ GSN_ALLOC_NODEID_REP, "ALLOC_NODEID_REP" }
+  ,{ GSN_INCL_NODE_HB_PROTOCOL_REP, "INCL_NODE_HB_PROTOCOL_REP" }
+  ,{ GSN_NDBCNTR_START_WAIT_REP, "NDBCNTR_START_WAIT_REP" }
+  ,{ GSN_NDBCNTR_STARTED_REP, "NDBCNTR_STARTED_REP" }
+  ,{ GSN_SUMA_HANDOVER_COMPLETE_REP, "SUMA_HANDOVER_COMPLETE_REP" }
+  ,{ GSN_END_TOREP, "END_TOREP" }
+  ,{ GSN_LOCAL_RECOVERY_COMP_REP, "LOCAL_RECOVERY_COMP_REP" }
+  ,{ GSN_CANCEL_SUBSCRIPTION_REQ, "CANCEL_SUBSCRIPTION_REQ" }
+  ,{ GSN_ISOLATE_ORD, "ISOLATE_ORD" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

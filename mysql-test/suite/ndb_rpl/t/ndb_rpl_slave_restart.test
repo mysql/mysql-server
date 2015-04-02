@@ -53,7 +53,7 @@ connection server2;
 # update is actually in the server2 binlog
 set SQL_LOG_BIN=0;
 insert into t2 values (1);
--- source include/show_binlog_events2.inc
+-- source include/show_binlog_events.inc
 set SQL_LOG_BIN=1;
 --replace_result $the_epoch <the_epoch>
 --disable_query_log

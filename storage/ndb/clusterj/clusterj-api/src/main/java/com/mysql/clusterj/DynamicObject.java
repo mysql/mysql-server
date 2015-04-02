@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,5 +47,15 @@ public abstract class DynamicObject {
 
     public Boolean found() {
         return delegate.found();
+    }
+
+    protected void finalize() throws Throwable {
+        try {
+            if (delegate != null) {
+                delegate.release();
+            }
+        } finally {
+            super.finalize();
+        }
     }
 }

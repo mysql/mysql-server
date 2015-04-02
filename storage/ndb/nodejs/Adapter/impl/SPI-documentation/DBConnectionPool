@@ -61,3 +61,18 @@ DBConnectionPool(Properties connectionProperties);
    @param converterObject is as defined in Converter
 */
   registerTypeConverter(typeName, converterObject);
+
+/* getTableMetadata
+   ASYNC.
+   Get metadata for a table. Return a TableMetadata object.
+   @param databaseName database name
+   @param tableName table name
+   @param DBSession if null, get a session just for this function
+*/
+   getTableMetadata(databaseName, tableName, DBSession, function(err, TableMetadata) callback)
+ 
+/* createTable
+   ASYNC.
+   Creates a table based on a table mapping.
+*/
+  createTable(tableMapping, function(err) callback);

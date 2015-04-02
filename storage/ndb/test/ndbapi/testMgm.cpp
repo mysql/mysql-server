@@ -2912,6 +2912,22 @@ int runTestBug45497(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+bool isCategoryValid(struct ndb_logevent* le)
+{
+  switch (le->category)
+  {
+  case NDB_MGM_EVENT_CATEGORY_BACKUP:
+  case NDB_MGM_EVENT_CATEGORY_STARTUP:
+  case NDB_MGM_EVENT_CATEGORY_NODE_RESTART:
+  case NDB_MGM_EVENT_CATEGORY_CONNECTION:
+  case NDB_MGM_EVENT_CATEGORY_STATISTIC:
+  case NDB_MGM_EVENT_CATEGORY_CHECKPOINT:
+    return true;
+  default:
+    return false;
+  }
+}
+
 int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbMgmd mgmd;
@@ -2934,6 +2950,10 @@ int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
     ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
   if (!le_handle)
     return NDBT_FAILED;
+  NdbLogEventHandle le_handle2 = 
+    ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
+  if (!le_handle2)
+    return NDBT_FAILED;
  
   for(int l=0; l<loops; l++)
   {
@@ -2944,40 +2964,65 @@ int runTestBug16723708(NDBT_Context* ctx, NDBT_Step* step)
                                   &le_event,
                                   2000);
     g_info << "ndb_log_event_get_next returned " << r << endl;
-  
-    result = NDBT_FAILED;
-    if (r == 0)
+    
+    struct ndb_logevent le_event2;
+    int r2 = ndb_logevent_get_next2(le_handle2,
+                                    &le_event2,
+                                    2000);
+    g_info << "ndb_log_event_get_next2 returned " << r2 << endl;
+    
+    result = NDBT_OK;
+    if ((r == 0) || (r2 == 0))
     {
       // Got timeout
-      g_info << "ndb_logevent_get_next returned timeout" << endl;
-      result = NDBT_OK;
+      g_info << "ndb_logevent_get_next[2] returned timeout" << endl;
     }
     else
     {
       if(r>0)
       {
-        switch(le_event.category)
+        g_info << "next() ndb_logevent type : " << le_event.type 
+               << " category : " << le_event.category 
+               << " " << ndb_mgm_get_event_category_string(le_event.category)
+               << endl;
+        if (isCategoryValid(&le_event))
         {
-          case NDB_MGM_EVENT_CATEGORY_BACKUP:
-          case NDB_MGM_EVENT_CATEGORY_STARTUP:
-          case NDB_MGM_EVENT_CATEGORY_NODE_RESTART:
-          case NDB_MGM_EVENT_CATEGORY_CONNECTION:
-          case NDB_MGM_EVENT_CATEGORY_STATISTIC:
-          case NDB_MGM_EVENT_CATEGORY_CHECKPOINT:
-            result = NDBT_OK;
-            break;
-          default:
-            g_err << "ERROR: invalid logevent category" << endl;
-            break;
-        };
+          g_err << "ERROR: ndb_logevent_get_next() returned valid category! "
+                << le_event.category << endl;
+          result = NDBT_FAILED;
+        }
       }
-      if(r<0) 
+      else
+      {
         g_err << "ERROR: ndb_logevent_get_next returned error: "
               << r << endl;
+      }
+      
+      if(r2>0)
+      {        
+        g_info << "next2() ndb_logevent type : " << le_event2.type 
+               << " category : " << le_event2.category 
+               << " " << ndb_mgm_get_event_category_string(le_event2.category)
+               << endl;
+
+        if (!isCategoryValid(&le_event2))
+        {
+          g_err << "ERROR: ndb_logevent_get_next2() returned invalid category! "
+                << le_event2.category << endl;
+          result = NDBT_FAILED;
+        }
+      }
+      else
+      {
+        g_err << "ERROR: ndb_logevent_get_next2 returned error: "
+              << r << endl;
+        result = NDBT_FAILED;
+      }
     }
     if(result == NDBT_FAILED)
       break;
   }
+  ndb_mgm_destroy_logevent_handle(&le_handle2);
   ndb_mgm_destroy_logevent_handle(&le_handle);
 
   return result;
