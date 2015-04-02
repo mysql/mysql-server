@@ -134,6 +134,14 @@ Ndb::~Ndb()
   DBUG_ENTER("Ndb::~Ndb()");
   DBUG_PRINT("enter",("this: 0x%lx", (long) this));
 
+  if (theImpl == NULL)
+  {
+    /* Help users find their bugs */
+    g_eventLogger->warning("Deleting Ndb-object @%p which is already deleted?",
+                           this);
+    DBUG_VOID_RETURN;
+  }
+
   if (m_sys_tab_0)
     getDictionary()->removeTableGlobal(*m_sys_tab_0, 0);
 
@@ -163,11 +171,14 @@ Ndb::~Ndb()
   theImpl->close();
 
   delete theEventBuffer;
+  theEventBuffer = NULL;
 
   releaseTransactionArrays();
 
   delete []theConnectionArray;
+  theConnectionArray = NULL;
   delete []theConnectionArrayLast;
+  theConnectionArrayLast = NULL;
   if(theCommitAckSignal != NULL){
     delete theCommitAckSignal; 
     theCommitAckSignal = NULL;
@@ -176,6 +187,7 @@ Ndb::~Ndb()
   theImpl->m_ndb_cluster_connection.unlink_ndb_object(this);
 
   delete theImpl;
+  theImpl = NULL;
 
 #ifdef POORMANSPURIFY
 #ifdef POORMANSGUI
@@ -200,6 +212,7 @@ NdbWaiter::NdbWaiter(trp_client* clnt)
 
 NdbWaiter::~NdbWaiter()
 {
+  m_clnt = NULL;
 }
 
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
@@ -216,7 +229,8 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     theWaiter(this),
     wakeHandler(0),
     m_ev_op(0),
-    customData(0)
+    customData(0),
+    send_TC_COMMIT_ACK_immediate_flag(false)
 {
   int i;
   for (i = 0; i < MAX_NDB_NODES; i++) {
@@ -249,5 +263,10 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 
 NdbImpl::~NdbImpl()
 {
+  m_next_ndb_object = NULL;
+  m_prev_ndb_object = NULL;
+  theWaiter = NULL;
+  wakeHandler = NULL;
+  m_ev_op = NULL;
 }
 

@@ -755,6 +755,30 @@ create table datetimetypes (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists autopkbigint;
+create table autopkbigint (
+  id bigint primary key auto_increment,
+  val bigint
+) ENGINE=ndb;
+
+drop table if exists autopkint;
+create table autopkint (
+  id int primary key auto_increment,
+  val int
+) ENGINE=ndb;
+
+drop table if exists autopksmallint;
+create table autopksmallint (
+  id smallint primary key auto_increment,
+  val smallint
+) ENGINE=ndb;
+
+drop table if exists autopktinyint;
+create table autopktinyint (
+  id tinyint primary key auto_increment,
+  val tinyint
+) ENGINE=ndb;
+
 drop table if exists longintstringix;
 create table longintstringix (
  id int(11) not null,

@@ -19,8 +19,24 @@ create table if not exists binary_test (
   id int not null PRIMARY KEY,
   bin_fix BINARY(20),
   bin_var VARBINARY(200),
-  bin_var_long VARBINARY(2000)
+  bin_var_long VARBINARY(2000),
+  bin_lob BLOB
+);
+
+create table if not exists text_blob_test ( 
+  id int not null primary key,
+  blob_col BLOB,
+  text_col TEXT character set utf8
+);
+
+create table if not exists text_charset_test (
+  id int not null primary key,
+  ascii_text TEXT character set ascii,
+  latin1_text TEXT character set latin1,
+  utf16_text TEXT character set utf16
 );
 
 delete from charset_test;
 delete from binary_test;
+delete from text_blob_test;
+delete from text_charset_test;

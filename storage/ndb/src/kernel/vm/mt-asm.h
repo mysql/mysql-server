@@ -101,6 +101,37 @@ extern  int xcng(volatile unsigned * addr, int val);
 extern void cpu_pause();
 #endif
 
+#elif defined(__powerpc__)
+#define NDB_HAVE_MB
+#define NDB_HAVE_RMB
+#define NDB_HAVE_WMB
+#define NDB_HAVE_READ_BARRIER_DEPENDS
+#define NDB_HAVE_XCNG
+
+#define mb() asm volatile("lwsync;" ::: "memory")
+#define rmb() asm volatile("lwsync;" ::: "memory")
+#define wmb() asm volatile("lwsync;" ::: "memory")
+#define read_barrier_depends() do {} while(0)
+
+static
+inline
+int
+xcng(volatile unsigned * addr, int val)
+{
+  int prev;
+
+  asm volatile ( "lwsync;\n"
+		 "1: lwarx   %0,0,%2;"
+		 "   stwcx.  %3,0,%2;"
+		 "   bne-    1b;"
+		 "isync;"
+		 : "=&r" (prev), "+m" (*(volatile unsigned int *)addr)
+		 : "r" (addr), "r" (val)
+		 : "cc", "memory");
+
+  return prev;
+}
+
 #else
 #define NDB_NO_ASM "Unsupported architecture (gcc)"
 #endif

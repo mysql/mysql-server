@@ -258,6 +258,7 @@ int NdbCondition_Destroy(struct NdbCondition* p_cond)
     return 1;
 
   result = native_cond_destroy(&p_cond->cond);
+  memset(p_cond, 0xff, sizeof(struct NdbCondition));
   free(p_cond);
 
   return 0;

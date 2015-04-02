@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ trp_client::trp_client()
 {
   m_mutex = NdbMutex_Create();
 
+  m_locked_for_poll = false;
   m_send_nodes_cnt = 0;
   m_send_buffers = new TFBuffer[MAX_NODES];
 }
@@ -38,9 +39,12 @@ trp_client::~trp_client()
 
   close();
   NdbCondition_Destroy(m_poll.m_condition);
+  m_poll.m_condition = NULL;
   NdbMutex_Destroy(m_mutex);
+  m_mutex = NULL;
 
   assert(m_send_nodes_cnt == 0);
+  assert(m_locked_for_poll == false);
   delete [] m_send_buffers;
 }
 
@@ -156,7 +160,7 @@ trp_client::do_forceSend(int val)
       TFBuffer* b = m_send_buffers + n;
       TFBufferGuard g0(* b);
       m_facade->flush_and_send_buffer(n, b);
-      bzero(b, sizeof(* b));
+      b->clear();
     }
     m_send_nodes_cnt = 0;
     m_send_nodes_mask.clear();
@@ -241,6 +245,35 @@ trp_client::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
   return NULL;
 }
 
+/**
+ * This is the implementation used by the NDB API. I update the
+ * current send buffer size every time a thread gets the send mutex and
+ * links their buffers to the common pool of buffers. I recalculate the
+ * buffer size also every time a send to the node has been completed.
+ *
+ * The values we read here are read unprotected, the idea is that the
+ * value reported from here should only used for guidance. So it should
+ * only implement throttling, it should not completely stop send activities,
+ * merely delay it. So the harm in getting an inconsistent view of data
+ * should not be high. Also we expect measures of slowing down to occur
+ * at a fairly early stage, so not close to when the buffers are filling up.
+ */
+void
+trp_client::getSendBufferLevel(NodeId node, SB_LevelType &level)
+{
+  Uint32 current_send_buffer_size = m_facade->get_current_send_buffer_size(node);
+  Uint64 tot_send_buffer_size =
+    m_facade->m_send_buffer.get_total_send_buffer_size();
+  Uint64 tot_used_send_buffer_size =
+    m_facade->m_send_buffer.get_total_used_send_buffer_size();
+  calculate_send_buffer_level(current_send_buffer_size,
+                              tot_send_buffer_size,
+                              tot_used_send_buffer_size,
+                              0,
+                              level);
+  return;
+}
+
 Uint32
 trp_client::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
 {
@@ -269,7 +302,7 @@ trp_client::flush_send_buffers()
     TFBuffer* b = m_send_buffers + node;
     TFBufferGuard g0(* b);
     m_facade->flush_send_buffer(node, b);
-    bzero(b, sizeof(* b));
+    b->clear();
   }
 
   m_send_nodes_cnt = 0;

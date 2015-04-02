@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1304,7 +1304,7 @@ MgmApiSession::start(Parser<MgmApiSession>::Context &,
 
   args.get("node", &node);
   
-  int result = m_mgmsrv.start(node);
+  int result = m_mgmsrv.sendSTART_ORD(node);
 
   m_output->println("start reply");
   if(result != 0)
@@ -1321,7 +1321,7 @@ MgmApiSession::startAll(Parser<MgmApiSession>::Context &,
   int started = 0;
 
   while(m_mgmsrv.getNextNodeId(&node, NDB_MGM_NODE_TYPE_NDB))
-    if(m_mgmsrv.start(node) == 0)
+    if(m_mgmsrv.sendSTART_ORD(node) == 0)
       started++;
 
   m_output->println("start reply");
@@ -1774,15 +1774,18 @@ void
 MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 				   Properties const &args)
 {
+  bool close_with_reset = true;
   BaseString errormsg;
-  if (!m_mgmsrv.transporter_connect(m_socket, errormsg))
+  if (!m_mgmsrv.transporter_connect(m_socket, errormsg, close_with_reset))
   {
     // Connection not allowed or failed
     g_eventLogger->warning("Failed to convert connection "
                            "from '%s' to transporter: %s",
                            name(),
                            errormsg.c_str());
-    // Close the socket to indicate failure to other side
+    // Close the socket to indicate failure to client
+    ndb_socket_close(m_socket, close_with_reset);
+    my_socket_invalidate(&m_socket); // Already closed
   }
   else
   {

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,14 +18,14 @@
  02110-1301  USA
  */
 
-/*global unified_debug */
-
 "use strict";
 
 var session     = require("./Session.js"),
     udebug      = unified_debug.getLogger("SessionFactory.js"),  
     userContext = require("./UserContext.js"),
-    util        = require("util");
+    util        = require("util"),
+    Db          = require("./Db.js");
+
 
 var SessionFactory = function(key, dbConnectionPool, properties, mappings, delete_callback) {
   this.key = key;
@@ -36,11 +36,14 @@ var SessionFactory = function(key, dbConnectionPool, properties, mappings, delet
   this.sessions = [];
   this.tableHandlers = {};
   this.tableMetadatas = {};
+  this.tableMappings  = {}; // mappings for tables
 };
 
 SessionFactory.prototype.inspect = function() {
+  var numberOfMappings = this.mappings? this.mappings.length: 0;
+  var numberOfSessions = this.sessions? this.sessions.length: 0;
   return "[[API SessionFactory with key:" + this.key + ", " + 
-  this.mappings.length + " mappings, " + this.sessions.length + " sessions.]]\n";
+  numberOfMappings + " mappings, " + numberOfSessions + " sessions.]]\n";
 };
 
 //openSession(Function(Object error, Session session, ...) callback, ...);
@@ -78,15 +81,25 @@ SessionFactory.prototype.allocateSessionSlot = function() {
 
 
 /** Get metadata for a table.
+ * @param dbName the name of the database
  * @param tableName the name of the table
  * @param callback
  */
 SessionFactory.prototype.getTableMetadata = function() {
-  var context = new userContext.UserContext(arguments, 2, 2, null, this);
+  var context = new userContext.UserContext(arguments, 3, 2, null, this);
   // delegate to context for execution
   return context.getTableMetadata();
 };
 
+/** Create table for a table mapping.
+ * @param tableMapping
+ * @param user_callback
+ * @return promise
+ */
+SessionFactory.prototype.createTable = function(tableMapping, user_callback) {
+  var context = new userContext.UserContext(arguments, 2, 1, null, this);
+  return context.createTable();
+};
 
 SessionFactory.prototype.close = function(user_callback) {
   var self = this;
@@ -104,7 +117,7 @@ SessionFactory.prototype.close = function(user_callback) {
   }
     
   function closeConnection() {
-    udebug.log_detail('closeConnection calling mynode.delete_callback for key', self.key,
+    if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('closeConnection calling mynode.delete_callback for key', self.key,
         'database', self.properties.database);
     self.delete_callback(self.key, self.properties.database, closeOnConnectionClose);
   }
@@ -157,5 +170,24 @@ SessionFactory.prototype.registerTypeConverter = function(type, converter) {
   return this.dbConnectionPool.registerTypeConverter(type, converter);
 };
 
+/** Get a proxy for a db object similar to "easy to use" api.
+ * 
+ * @param db_name optional database name to use
+ * @return db
+ */
+SessionFactory.prototype.db = function(db_name) {
+  return new Db(this, db_name);
+};
+
+/** Associate a table mapping with a table name. This is used for cases where users
+ * prefer to use their own table mapping and possibly specify forward mapping meta.
+ * This function is immediate.
+ */
+SessionFactory.prototype.mapTable = function(tableMapping) {
+  var database = tableMapping.database || this.properties.database;
+  var qualifiedTableName = database + '.' + tableMapping.table;
+  this.tableMappings[qualifiedTableName] = tableMapping;
+  udebug.log('mapTable', util.inspect(tableMapping), this.properties, qualifiedTableName);
+};
 
 exports.SessionFactory = SessionFactory;

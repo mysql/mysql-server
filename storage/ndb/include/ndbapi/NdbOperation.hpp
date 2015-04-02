@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@ class NdbOperation
 {
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class Ndb;
+  friend class NdbImpl;
   friend class NdbTransaction;
   friend class NdbScanOperation;
   friend class NdbScanReceiver;
@@ -1117,7 +1118,7 @@ protected:
 //--------------------------------------------------------------
 // Initialise after allocating operation to a transaction		      
 //--------------------------------------------------------------
-  int init(const class NdbTableImpl*, NdbTransaction* aCon, bool useRec);
+  int init(const class NdbTableImpl*, NdbTransaction* aCon);
   void initInterpreter();
 
   NdbOperation(Ndb* aNdb, Type aType = PrimaryKeyAccess);	
@@ -1299,6 +1300,7 @@ protected:
   int	 receiveTCKEYREF(const NdbApiSignal*);
 
   int	 checkMagicNumber(bool b = true); // Verify correct object
+  static Uint32 getMagicNumber() { return (Uint32)0xABCDEF01; }
 
   int    checkState_TransId(const NdbApiSignal* aSignal);
 
@@ -1564,7 +1566,7 @@ NdbOperation::checkMagicNumber(bool b)
 #ifndef NDB_NO_DROPPED_SIGNAL
   (void)b;  // unused param in this context
 #endif
-  if (theMagicNumber != 0xABCDEF01){
+  if (theMagicNumber != getMagicNumber()){
 #ifdef NDB_NO_DROPPED_SIGNAL
     if(b) abort();
 #endif
@@ -1633,7 +1635,7 @@ inline
 const NdbRecAttr*
 NdbOperation::getFirstRecAttr() const 
 {
-  return theReceiver.theFirstRecAttr;
+  return theReceiver.m_firstRecAttr;
 }
 
 /******************************************************************************

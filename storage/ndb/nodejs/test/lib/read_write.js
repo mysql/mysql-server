@@ -22,6 +22,7 @@
 
 var udebug = unified_debug.getLogger("lib/read_write.js");
 var mysql = require("mysql");
+var util = require("util");
 
 /** This is the test for data conversions. It reads using one implementation
  * (either a mysql-js adapter or a sql driver) and writes using an

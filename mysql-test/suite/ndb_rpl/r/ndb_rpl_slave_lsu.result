@@ -77,7 +77,7 @@ log_bin	ON
 show variables like 'log_slave_updates';
 Variable_name	Value
 log_slave_updates	OFF
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE bug45756_master_logged_1 (a int) engine = NDB
 master-bin.000001	#	Query	1	#	BEGIN

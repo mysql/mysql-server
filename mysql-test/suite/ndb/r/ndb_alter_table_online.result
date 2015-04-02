@@ -53,7 +53,7 @@ ndb_show_tables completed.....
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 ADD c INT;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
 
 ndb_show_tables completed.....
 
@@ -84,7 +84,7 @@ ndb_show_tables completed.....
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 ADD c INT;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
 
 ndb_show_tables completed.....
 
@@ -268,16 +268,16 @@ ndb_show_tables completed.....
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
-ALTER TABLE t1 ADD c TIMESTAMP DEFAULT 0;
+ALTER TABLE t1 ADD c TIMESTAMP DEFAULT '2014-11-27 22:45:17';
 INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
 SELECT * FROM t1 ORDER BY a;
 a	b	c
-1	1	0000-00-00 00:00:00
+1	1	2014-11-27 22:45:17
 2	2	2007-09-19 18:46:02
 UPDATE t1 SET c = '2007-10-22 16:35:06' where a = 2;
 SELECT * FROM t1 ORDER BY a;
 a	b	c
-1	1	0000-00-00 00:00:00
+1	1	2014-11-27 22:45:17
 2	2	2007-10-22 16:35:06
 DROP TABLE t1;
 *******************************
@@ -475,31 +475,31 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 *******************************
 ALTER TABLE t1 algorithm=inplace, ADD c FLOAT;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
 *******************************
 * Add column d as nullable DOUBLE
 *******************************
 ALTER TABLE t1 algorithm=inplace, ADD d DOUBLE UNSIGNED;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable on-line ADD COLUMN
 *******************************
 * Add column e as nullable DECIMAL
 *******************************
 ALTER TABLE t1 algorithm=inplace, ADD e DECIMAL(5,2);
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'e' to DYNAMIC to enable on-line ADD COLUMN
 *******************************
 * Add column f as nullable DATETIME
 *******************************
 ALTER TABLE t1 algorithm=inplace, ADD f DATETIME;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'f' to DYNAMIC to enable on-line ADD COLUMN
 *******************************
 * Add column g as nullable BINARY
 *******************************
 ALTER TABLE t1 ADD g BINARY(4);
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'g' to DYNAMIC to enable on-line ADD COLUMN
 
 ndb_show_tables completed.....
 

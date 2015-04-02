@@ -34,13 +34,15 @@ col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
 col6 int not null, to_be_deleted int)  ENGINE=ndbcluster;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	10	Dynamic	0	#	#	#	0	#	1	#	#	#	latin1_swedish_ci	NULL		#
+t1	ndbcluster	10	Dynamic	0	#	#	#	0	#	1	#	#	#	latin1_swedish_ci	NULL	partitioned	#
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t1 values
 (0,4,3,5,"PENDING",1,7),(NULL,4,3,5,"PENDING",1,7),(31,4,3,5,"PENDING",1,7), (7,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7), (100,4,3,5,"PENDING",1,7), (99,4,3,5,"PENDING",1,7), (8,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	10	Dynamic	9	#	#	#	0	#	102	#	#	#	latin1_swedish_ci	NULL		#
+t1	ndbcluster	10	Dynamic	9	#	#	#	0	#	102	#	#	#	latin1_swedish_ci	NULL	partitioned	#
 select * from t1 order by col1;
 col1	col2	col3	col4	col5	col6	to_be_deleted
 0	4	3	5	PENDING	1	7
@@ -60,7 +62,7 @@ change column col2 fourth varchar(30) not null after col3,
 modify column col6 int not null first;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	10	Dynamic	9	#	#	#	0	#	102	#	#	#	latin1_swedish_ci	NULL		#
+t1	ndbcluster	10	Dynamic	9	#	#	#	0	#	102	#	#	#	latin1_swedish_ci	NULL	partitioned	#
 select * from t1 order by col1;
 col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 1	0	3	4	5		PENDING		0000-00-00 00:00:00
@@ -75,7 +77,7 @@ col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 insert into t1 values (2, NULL,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	ndbcluster	10	Dynamic	10	#	#	#	0	#	103	#	#	#	latin1_swedish_ci	NULL		#
+t1	ndbcluster	10	Dynamic	10	#	#	#	0	#	103	#	#	#	latin1_swedish_ci	NULL	partitioned	#
 select * from t1 order by col1;
 col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
 1	0	3	4	5		PENDING		0000-00-00 00:00:00
@@ -133,6 +135,8 @@ a	b
 0	1
 17	18
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter table  t1 modify column a int not null auto_increment;
 SET SQL_MODE='';
 select * from t1 order by a;
@@ -298,7 +302,7 @@ a	b
 6	203
 alter table t2 add c int;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
 insert into t2 (b) values (301),(302),(303);
 select * from t2 where a = 9;
 a	b	c
@@ -546,4 +550,37 @@ DROP TABLESPACE ts1
 ENGINE ndb;
 DROP LOGFILE GROUP lg1
 ENGINE = ndb;
+#test alter table add column with partion by and comment clause
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB;
+ALTER TABLE t1 ADD value INT NULL, COMMENT='comment1' PARTITION BY KEY(id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `value` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='comment1'
+/*!50100 PARTITION BY KEY (id) */
+DROP TABLE t1;
+#test alter table with and without ENGINE clause
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB;
+ALTER TABLE t1 ENGINE=NDB PARTITION BY KEY(id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (id) */
+DROP TABLE t1;
+CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB;
+ALTER TABLE t1 PARTITION BY KEY(id);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (id) */
+DROP TABLE t1;
 End of 5.1 tests

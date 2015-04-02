@@ -260,14 +260,15 @@ list(const char * tabname,
       exit(0);
 }
 
-static const char* _dbname = "TEST_DB";
+static const char* _dbname = 0;
+static const char* _tabname = 0;
 static int _loops;
 static int _type;
 
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_show_tables"),
-  { "database", 'd', "Name of database table is in",
+  { "database", 'd', "Name of database table is in. Requires table-name in argument",
     (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "loops", 'l', "loops",
@@ -290,7 +291,7 @@ static struct my_option my_long_options[] =
 
 static void short_usage_sub(void)
 {
-  ndb_short_usage_sub(NULL);
+  ndb_short_usage_sub("[table-name]");
 }
 
 static void usage()
@@ -300,7 +301,6 @@ static void usage()
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  const char* _tabname;
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
   ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
   int ho_error;
@@ -310,7 +310,17 @@ int main(int argc, char** argv){
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
-  _tabname = argv[0];
+  if(_dbname && argc==0) {
+    ndbout << "-d option given without table name." << endl;
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
+  if (argc>0)
+      _tabname = argv[0];
+  if (argc > 1) {
+    ndbout << "Wrong Argument" << endl;
+    ndbout << "Please use the option --help for usage." << endl;
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
 
   ndb_cluster_connection = new Ndb_cluster_connection(opt_ndb_connectstring,
                                                       opt_ndb_nodeid);
@@ -325,10 +335,19 @@ int main(int argc, char** argv){
   if (ndb_cluster_connection->wait_until_ready(30,0) < 0)
     fatal("Cluster nodes not ready in 30 seconds.");
 
-  ndb = new Ndb(ndb_cluster_connection, _dbname);
+  ndb = new Ndb(ndb_cluster_connection);
   if (ndb->init() != 0)
     fatal("init");
+  if (_dbname == 0 && _tabname != 0)
+    _dbname = "TEST_DB";
+  ndb->setDatabaseName(_dbname);
   dic = ndb->getDictionary();
+  if( argc >0){
+    if(!dic->getTable(_tabname)){
+      ndbout << _tabname << ": not found -" << dic->getNdbError() << endl;
+      return NDBT_ProgramExit(NDBT_FAILED);
+    }
+  }
   for (int i = 0; _loops == 0 || i < _loops; i++) {
     list(_tabname, (NdbDictionary::Object::Type)_type);
   }

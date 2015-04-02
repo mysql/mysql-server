@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,10 @@ extern "C" void NdbMutex_SysEnd();
 extern "C" void NdbCondition_initialize();
 extern "C" int NdbThread_Init();
 extern "C" void NdbThread_End();
+extern "C" void Ndb_GetRUsage_Init();
+extern "C" void Ndb_GetRUsage_End();
+extern "C" int NdbLockCpu_Init();
+extern "C" void NdbLockCpu_End();
 
 extern void NdbTick_Init();
 extern void NdbOut_Init();
@@ -61,6 +65,8 @@ ndb_init_internal()
   NdbTick_Init();
   NdbCondition_initialize();
   NdbThread_Init();
+  Ndb_GetRUsage_Init();
+  NdbLockCpu_Init();
 }
 
 int
@@ -100,6 +106,8 @@ ndb_end_internal()
   if (g_eventLogger)
     destroy_event_logger(&g_eventLogger);
 
+  Ndb_GetRUsage_End();
+  NdbLockCpu_End();
   NdbThread_End();
   NdbMutex_SysEnd();
 }

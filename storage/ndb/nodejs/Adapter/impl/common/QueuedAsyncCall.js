@@ -21,6 +21,7 @@
 "use strict";
 
 var udebug = unified_debug.getLogger("QueuedAsyncCall.js"),
+    assert = require("assert"),
     serial = 1;
 
 /* Sometimes, some set of async calls have to be serialized, in some context.
@@ -56,13 +57,13 @@ function QueuedAsyncCall(queue, mainCallback) {
       //
       var thisCall, nextCall, postCallback;
       thisCall = queue.shift();  // Our own QueuedAsyncCall
-      udebug.log(thisCall.description, "has returned");
+      udebug.log_detail(thisCall.description, "has returned");
  
       /* Note the next queued async call.
          This must be done before the preCallback, because recursion is tricky.
       */
       if(queue.length) {
-        udebug.log("Next queued:", queue[0].description);
+        udebug.log_detail("Next queued:", queue[0].description);
         nextCall = queue[0];
       }      
       /* Run the user's pre-callback function */
