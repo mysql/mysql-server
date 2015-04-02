@@ -19931,6 +19931,49 @@ static void test_bug17512527()
 
 
 /**
+   BUG#20810928: CANNOT SHUTDOWN MYSQL USING JDBC DRIVER
+*/
+static void test_bug20810928()
+{
+  MYSQL *l_mysql;
+  int rc;
+  uint error_code;
+
+  myheader("test_bug20810928");
+
+  /* initialize the server user */
+  rc= mysql_query(mysql,
+                  "CREATE USER bug20810928@localhost IDENTIFIED BY 'bug20810928'");
+  myquery(rc);
+
+  /* prepare the connection */
+  l_mysql= mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  l_mysql= mysql_real_connect(l_mysql, opt_host, "bug20810928",
+                              "bug20810928", "test", opt_port,
+                              opt_unix_socket, 0);
+
+  /*
+    Try the 0 length shutdown command.
+    Should fail with the right error code to avoid server restart.
+  */
+  rc= simple_command(l_mysql, COM_SHUTDOWN, NULL, 0, 0);
+  DIE_UNLESS(rc != 0);
+
+  /* check if it's the right error */
+  error_code= mysql_errno(l_mysql);
+  DIE_UNLESS(error_code == ER_SPECIFIC_ACCESS_DENIED_ERROR);
+
+  mysql_close(l_mysql);
+
+  /* clean up the server user */
+  rc= mysql_query(mysql, "DROP USER bug20810928@localhost");
+  myquery(rc);
+}
+
+
+/**
    WL#8016: Parser for optimizer hints
 */
 static void test_wl8016()
@@ -20178,6 +20221,7 @@ static void test_bug20645725()
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
+
 
 /**
    BUG#19894382 - SERVER SIDE PREPARED STATEMENTS LEADS TO POTENTIAL OFF-BY-SECOND
@@ -20549,6 +20593,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug17309863", test_bug17309863},
 #endif
   { "test_bug17512527", test_bug17512527},
+  { "test_bug20810928", test_bug20810928 },
   { "test_wl8016", test_wl8016},
   { "test_bug20645725", test_bug20645725 },
   { "test_bug19894382", test_bug19894382},
