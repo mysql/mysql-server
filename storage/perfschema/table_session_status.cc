@@ -96,7 +96,7 @@ int table_session_status::rnd_init(bool scan)
     return 0;
 
  /* Build a cache of all status variables for this thread. */
-  m_status_cache.materialize_session(current_thd);
+  m_status_cache.materialize_all(current_thd);
 
   /* Record the current number of status variables to detect subsequent changes. */
   ulonglong status_version= m_status_cache.get_status_array_version();

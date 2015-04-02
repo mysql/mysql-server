@@ -233,6 +233,11 @@ public:
   int materialize_global();
 
   /**
+    Build cache of GLOBAL and SESSION variables for a non-instrumented thread.
+  */
+  int materialize_all(THD *thd);
+
+  /**
     Build cache of SESSION variables for a non-instrumented thread.
   */
   int materialize_session(THD *thd);
@@ -350,6 +355,7 @@ private:
   virtual bool do_initialize_global(void) { return true; }
   virtual bool do_initialize_session(void) { return true; }
   virtual int do_materialize_global(void) { return 1; }
+  virtual int do_materialize_all(THD *thd) { return 1; }
   virtual int do_materialize_session(THD *thd) { return 1; }
   virtual int do_materialize_session(PFS_thread *) { return 1; }
   virtual int do_materialize_session(PFS_thread *, uint index) { return 1; }
@@ -475,6 +481,21 @@ int PFS_variable_cache<Var_type>::materialize_global()
 }
 
 /**
+  Build cache of GLOBAL and SESSION variables for a non-instrumented thread.
+*/
+template <class Var_type>
+int PFS_variable_cache<Var_type>::materialize_all(THD *unsafe_thd)
+{
+  if (!unsafe_thd)
+    return 1;
+
+  if (is_materialized(unsafe_thd))
+    return 0;
+
+  return do_materialize_all(unsafe_thd);
+}
+
+/**
   Build cache of SESSION variables for a non-instrumented thread.
 */
 template <class Var_type>
@@ -542,11 +563,13 @@ public:
 
 private:
   /* Build SHOW_var array. */
-  bool init_show_var_array(enum_var_type scope);
+  bool init_show_var_array(enum_var_type scope, bool strict);
   bool do_initialize_session(void);
 
   /* Global */
   int do_materialize_global(void);
+  /* Global and Session - THD */
+  int do_materialize_all(THD* thd);
   /* Session - THD */
   int do_materialize_session(THD* thd);
   /* Session -  PFS_thread */
@@ -596,6 +619,8 @@ private:
   bool do_initialize_session(void);
 
   int do_materialize_global(void);
+  /* Global and Session - THD */
+  int do_materialize_all(THD* thd);
   int do_materialize_session(THD *thd);
   int do_materialize_session(PFS_thread *thread);
   int do_materialize_session(PFS_thread *thread, uint index) { return 0; }
@@ -605,16 +630,16 @@ private:
   void (*m_sum_client_status)(PFS_client *pfs_client, System_status_var *status_totals);
 
   /* Build SHOW_VAR array from external source. */
-  bool init_show_var_array(enum_var_type scope);
+  bool init_show_var_array(enum_var_type scope, bool strict);
 
   /* Recursively expand nested SHOW_VAR arrays. */
-  void expand_show_var_array(const SHOW_VAR *show_var_array, const char *prefix);
+  void expand_show_var_array(const SHOW_VAR *show_var_array, const char *prefix, bool strict);
 
   /* Exclude unwanted variables from the query. */
-  bool filter_show_var(const SHOW_VAR *show_var);
+  bool filter_show_var(const SHOW_VAR *show_var, bool strict);
 
   /* Check the variable scope against the query scope. */
-  bool match_scope(SHOW_SCOPE variable_scope);
+  bool match_scope(SHOW_SCOPE variable_scope, bool strict);
 
   /* Exclude specific status variables by name or prefix. */
   bool filter_by_name(const SHOW_VAR *show_var);
@@ -630,7 +655,7 @@ private:
 
   /* Build the list of status variables from SHOW_VAR array. */
   void manifest(THD *thd, const SHOW_VAR *show_var_array,
-                System_status_var *status_var_array, const char *prefix, bool nested_array);
+                System_status_var *status_var_array, const char *prefix, bool nested_array, bool strict);
 };
 
 /* Callback functions to sum status variables for a given user, host or account. */

@@ -30,22 +30,20 @@ Warnings:
 Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
 
 # STEP 1-3
-# EMPTY, NO WARNINGS (not available in 5.6 mode)
-select *
+insert into test.sanity
+select "5.6", "P_S.GLOBAL_VARIABLES", variable_name
 from performance_schema.global_variables;
-VARIABLE_NAME	VARIABLE_VALUE
 
 # STEP 1-4
-# EMPTY, NO WARNINGS (not available in 5.6 mode)
-select *
-from performance_schema.variables_by_thread;
-THREAD_ID	VARIABLE_NAME	VARIABLE_VALUE
+insert into test.sanity
+select "5.6", "P_S.VARIABLES_BY_THREAD", variable_name
+from performance_schema.variables_by_thread
+where thread_id = @my_tid;
 
 # STEP 1-5
-# EMPTY, NO WARNINGS (not available in 5.6 mode)
-select *
+insert into test.sanity
+select "5.6", "P_S.SESSION_VARIABLES", variable_name
 from performance_schema.session_variables;
-VARIABLE_NAME	VARIABLE_VALUE
 
 # STEP 1-6
 insert into test.sanity
@@ -248,7 +246,22 @@ insert into test.sanity values
 ;
 
 ================================================================================
-TEST 1
+TEST 1A
+Present in 5.6 P_S.GLOBAL_VARIABLES (1-3)
+Missing in 5.6 I_S.GLOBAL_VARIABLES (1-1)
+================================================================================
+select * from test.sanity
+where show_mode = "5.6"
+  and source = "P_S.GLOBAL_VARIABLES"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.6"
+    and source = "I_S.GLOBAL_VARIABLES")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 1B
 Present in 5.7 P_S.GLOBAL_VARIABLES (2-3)
 Missing in 5.6 I_S.GLOBAL_VARIABLES (1-1)
 ================================================================================
@@ -263,7 +276,23 @@ order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 
 ================================================================================
-TEST 2
+TEST 2A
+Present in 5.6 I_S.GLOBAL_VARIABLES (1-1)
+Missing in 5.6 P_S.GLOBAL_VARIABLES (1-3)
+================================================================================
+select * from test.sanity
+where show_mode = "5.6"
+  and source = "I_S.GLOBAL_VARIABLES"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.6"
+    and source = "P_S.GLOBAL_VARIABLES")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.GLOBAL_VARIABLES	SQL_LOG_BIN
+
+================================================================================
+TEST 2B
 Present in 5.6 I_S.GLOBAL_VARIABLES (1-1)
 Missing in 5.7 P_S.GLOBAL_VARIABLES (2-3)
 ================================================================================
@@ -279,7 +308,22 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 5.6	I_S.GLOBAL_VARIABLES	SQL_LOG_BIN
 
 ================================================================================
-TEST 3
+TEST 3A
+Present in 5.6 P_S.SESSION_VARIABLES (1-5)
+Missing in 5.6 I_S.SESSION_VARIABLES (1-2)
+================================================================================
+select * from test.sanity
+where show_mode = "5.6"
+  and source = "P_S.SESSION_VARIABLES"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.6"
+    and source = "I_S.SESSION_VARIABLES")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 3B
 Present in 5.7 P_S.SESSION_VARIABLES (2-5)
 Missing in 5.6 I_S.SESSION_VARIABLES (1-2)
 ================================================================================
@@ -294,42 +338,134 @@ order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 
 ================================================================================
-TEST 4
+TEST 4A
 Present in 5.6 I_S.SESSION_VARIABLES (1-2)
-Missing in 5.7 P_S.SESSION_VARIABLES (2-5)
-EXPECT NOTHING WHEN SELECTING KNOWN GLOBAL VARIABLES (2-14)
+Missing in 5.6 P_S.SESSION_VARIABLES (1-5)
 ================================================================================
 select * from test.sanity
 where show_mode = "5.6"
   and source = "I_S.SESSION_VARIABLES"
   and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
-where show_mode = "JUNK: GLOBAL-ONLY"
-    and source = "I_S.SESSION_VARIABLES")
-and upper(variable_name) not in (
+where show_mode = "5.6"
+    and source = "P_S.SESSION_VARIABLES")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 4B
+Present in 5.6 I_S.SESSION_VARIABLES (1-2)
+Missing in 5.7 P_S.SESSION_VARIABLES (2-5)
+================================================================================
+select * from test.sanity
+where show_mode = "5.6"
+  and source = "I_S.SESSION_VARIABLES"
+  and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
 where show_mode = "5.7"
     and source = "P_S.SESSION_VARIABLES")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
-5.6	I_S.SESSION_VARIABLES	CHECK_PROXY_USERS
-5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
-5.6	I_S.SESSION_VARIABLES	INNODB_LOG_CHECKSUM_ALGORITHM
-5.6	I_S.SESSION_VARIABLES	MYSQL_NATIVE_PASSWORD_PROXY_USERS
-5.6	I_S.SESSION_VARIABLES	SHA256_PASSWORD_PROXY_USERS
 
 ================================================================================
-TEST 5
-System variables that should NOT be present in 5.7 P_S.SESSION_VARIABLES (2-5)
-EXPECT NOTHING WHEN SELECTING KNOWN GLOBAL VARIABLES (2-14)
+TEST 5A
+Present in 5.6 P_S.VARIABLES_BY_THREAD (1-4)
+Missing in 5.6 I_S.SESSION_VARIABLES (1-2)
+================================================================================
+select * from test.sanity
+where show_mode = "5.6"
+  and source = "P_S.VARIABLES_BY_THREAD"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.6"
+    and source = "I_S.SESSION_VARIABLES")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 5B
+Present in 5.7 P_S.VARIABLES_BY_THREAD (2-4)
+Missing in 5.6 I_S.SESSION_VARIABLES (1-2)
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
-  and source = "P_S.SESSION_VARIABLES"
-  and upper(variable_name) in (
+  and source = "P_S.VARIABLES_BY_THREAD"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.6"
+    and source = "I_S.SESSION_VARIABLES")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 5C
+Present in 5.6 I_S.SESSION_VARIABLES (1-2)
+Missing in 5.6 P_S.VARIABLES_BY_THREAD (1-4)
+EXPECT NOTHING BESIDE KNOWN GLOBAL VARIABLES (2-14)
+================================================================================
+select * from test.sanity
+where show_mode = "5.6"
+  and source = "I_S.SESSION_VARIABLES"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.6"
+    and source = "P_S.VARIABLES_BY_THREAD")
+and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
 where show_mode = "JUNK: GLOBAL-ONLY"
     and source = "I_S.SESSION_VARIABLES")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
+
+================================================================================
+TEST 5D
+Present in 5.6 I_S.SESSION_VARIABLES (1-2)
+Missing in 5.7 P_S.VARIABLES_BY_THREAD (2-5)
+EXPECT NOTHING BESIDE KNOWN GLOBAL VARIABLES (2-14)
+================================================================================
+select * from test.sanity
+where show_mode = "5.6"
+  and source = "I_S.SESSION_VARIABLES"
+  and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.7"
+    and source = "P_S.VARIABLES_BY_THREAD")
+and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where show_mode = "JUNK: GLOBAL-ONLY"
+    and source = "I_S.SESSION_VARIABLES")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_VARIABLES	GTID_EXECUTED
+
+================================================================================
+TEST 5E
+KNOWN GLOBAL VARIABLES (2-14)
+Expect missing in 5.6 P_S.VARIABLES_BY_THREAD (1-4)
+================================================================================
+select * from test.sanity
+where show_mode = "JUNK: GLOBAL-ONLY"
+  and source = "I_S.SESSION_VARIABLES"
+  and upper(variable_name) in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.6"
+    and source = "P_S.VARIABLES_BY_THREAD")
+order by show_mode, source, variable_name;
+SHOW_MODE	SOURCE	VARIABLE_NAME
+
+================================================================================
+TEST 5F
+KNOWN GLOBAL VARIABLES (2-14)
+Expect missing in 5.7 P_S.VARIABLES_BY_THREAD (2-5)
+================================================================================
+select * from test.sanity
+where show_mode = "JUNK: GLOBAL-ONLY"
+  and source = "I_S.SESSION_VARIABLES"
+  and upper(variable_name) in (
+select upper(variable_name) from test.sanity
+where show_mode = "5.7"
+    and source = "P_S.VARIABLES_BY_THREAD")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 
@@ -371,15 +507,18 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 
 ================================================================================
 TEST 8
+KNOWN SESSION-ONLY (2-16)
+KNOWN COM COUNTERS (2-16A)
+KNOWN SLAVE-ONLY (2-16B)
 Status variables that should NOT be present in 5.7 P_S.GLOBAL_STATUS (2-8)
-EXPECT NOTHING WHEN SELECTING KNOWN SESSION-ONLY AND COM COUNTERS (2-16 & 2-16A)
+EXPECT NOTHING
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
   and source = "P_S.GLOBAL_STATUS"
   and upper(variable_name) in (
 select upper(variable_name) from test.sanity
-where (show_mode = "JUNK: SESSION-ONLY" or show_mode = "JUNK: COM COUNTER")
+where (show_mode = "JUNK: SESSION-ONLY" or show_mode = "JUNK: COM COUNTER" or show_mode = "JUNK: SLAVE-ONLY")
 and source = "I_S.GLOBAL_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
@@ -404,14 +543,14 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 TEST 10
 Present in 5.6 I_S.SESSION_STATUS (1-7)
 Missing in 5.7 P_S.SESSION_STATUS (2-10)
-EXPECT NOTHING AFTER REMOVING KNOWN GLOBAL-ONLY, COM COUNTERS AND SLAVE-ONLY (2-15 & 2-15A & 2-15B)
+EXPECT NOTHING AFTER REMOVING KNOWN COM COUNTERS AND SLAVE-ONLY (2-15A & 2-15B)
 ================================================================================
 select * from test.sanity
 where show_mode = "5.6"
   and source = "I_S.SESSION_STATUS"
   and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
-where (show_mode = "JUNK: GLOBAL-ONLY" or show_mode = "JUNK: COM COUNTER" or show_mode = "JUNK: SLAVE-ONLY")
+where (show_mode = "JUNK: COM COUNTER" or show_mode = "JUNK: SLAVE-ONLY")
 and source = "I_S.SESSION_STATUS")
 and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
@@ -422,15 +561,17 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 
 ================================================================================
 TEST 11
+KNOWN COM COUNTERS (2-15A)
+KNOWN SLAVE-ONLY (2-15B)
 Status variables that should NOT be present in 5.7 P_S.SESSION_STATUS (2-10)
-EXPECT NOTHING WHEN SELECTING KNOWN GLOBAL-ONLY AND COM COUNTERS (2-15 & 2-15A)
+EXPECT NOTHING
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
   and source = "P_S.SESSION_STATUS"
   and upper(variable_name) in (
 select upper(variable_name) from test.sanity
-where (show_mode = "JUNK: GLOBAL-ONLY" or show_mode = "JUNK: COM COUNTER")
+where (show_mode = "JUNK: COM COUNTER" or show_mode = "JUNK: SLAVE-ONLY")
 and source = "I_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
@@ -439,7 +580,7 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 TEST 12
 Present in 5.7 P_S.SESSION_STATUS (2-10)
 Missing in 5.7 P_S.STATUS_BY_THREAD
-EXPECT NOTHING
+EXPECT NOTHING AFTER REMOVING KNOWN GLOBAL-ONLY (2-15)
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
@@ -448,6 +589,10 @@ where show_mode = "5.7"
 select upper(variable_name) from test.sanity
 where show_mode = "5.7"
     and source = "P_S.STATUS_BY_THREAD")
+and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where (show_mode = "JUNK: GLOBAL-ONLY")
+and source = "I_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
 
@@ -471,7 +616,9 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 TEST 14
 Present in 5.7 P_S.SESSION_STATUS (2-10)
 Missing in 5.7 P_S.STATUS_BY_ACCOUNT
-EXPECT NOTHING AFTER REMOVING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
+EXPECT NOTHING AFTER REMOVING
+- KNOWN GLOBAL-ONLY (2-15)
+- STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
@@ -480,6 +627,10 @@ where show_mode = "5.7"
 select upper(variable_name) from test.sanity
 where show_mode = "JUNK"
     and source = "NO AGGREGATE")
+and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where (show_mode = "JUNK: GLOBAL-ONLY")
+and source = "I_S.SESSION_STATUS")
 and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
 where show_mode = "5.7"
@@ -491,16 +642,12 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 TEST 15
 Present in 5.7 P_S.STATUS_BY_ACCOUNT
 Missing in 5.7 P_S.SESSION_STATUS (2-10)
-EXPECT NOTHING AFTER REMOVING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
+EXPECT NOTHING
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
   and source = "P_S.STATUS_BY_ACCOUNT"
   and upper(variable_name) not in (
-select upper(variable_name) from test.sanity
-where show_mode = "JUNK"
-    and source = "NO AGGREGATE")
-and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
 where show_mode = "5.7"
     and source = "P_S.SESSION_STATUS")
@@ -509,8 +656,8 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 
 ================================================================================
 TEST 16
+KNOWN STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 Status variables that should NOT be present in 5.7 P_S.STATUS_BY_ACCOUNT
-EXPECT NOTHING WHEN SELECTING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 ================================================================================
 select * from performance_schema.status_by_account
 where upper(variable_name) in (
@@ -524,7 +671,9 @@ USER	HOST	VARIABLE_NAME	VARIABLE_VALUE
 TEST 17
 Present in 5.7 P_S.SESSION_STATUS (2-10)
 Missing in 5.7 P_S.STATUS_BY_USER
-EXPECT NOTHING AFTER REMOVING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
+EXPECT NOTHING AFTER REMOVING
+- KNOWN GLOBAL-ONLY (2-15)
+- STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
@@ -533,6 +682,10 @@ where show_mode = "5.7"
 select upper(variable_name) from test.sanity
 where show_mode = "JUNK"
     and source = "NO AGGREGATE")
+and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where (show_mode = "JUNK: GLOBAL-ONLY")
+and source = "I_S.SESSION_STATUS")
 and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
 where show_mode = "5.7"
@@ -544,16 +697,11 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 TEST 18
 Present in 5.7 P_S.STATUS_BY_USER
 Missing in 5.7 P_S.SESSION_STATUS (2-10)
-EXPECT NOTHING AFTER REMOVING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
   and source = "P_S.STATUS_BY_USER"
   and upper(variable_name) not in (
-select upper(variable_name) from test.sanity
-where show_mode = "JUNK"
-    and source = "NO AGGREGATE")
-and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
 where show_mode = "5.7"
     and source = "P_S.SESSION_STATUS")
@@ -562,8 +710,8 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 
 ================================================================================
 TEST 19
+KNOWN STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 Status variables that should NOT be present in 5.7 P_S.STATUS_BY_USER
-EXPECT NOTHING WHEN SELECTING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 ================================================================================
 select * from performance_schema.status_by_user
 where upper(variable_name) in (
@@ -577,7 +725,9 @@ USER	VARIABLE_NAME	VARIABLE_VALUE
 TEST 20
 Present in 5.7 P_S.SESSION_STATUS (2-10)
 Missing in 5.7 P_S.STATUS_BY_HOST
-EXPECT NOTHING AFTER REMOVING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
+EXPECT NOTHING AFTER REMOVING
+- KNOWN GLOBAL-ONLY (2-15)
+- STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
@@ -586,6 +736,10 @@ where show_mode = "5.7"
 select upper(variable_name) from test.sanity
 where show_mode = "JUNK"
     and source = "NO AGGREGATE")
+and upper(variable_name) not in (
+select upper(variable_name) from test.sanity
+where (show_mode = "JUNK: GLOBAL-ONLY")
+and source = "I_S.SESSION_STATUS")
 and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
 where show_mode = "5.7"
@@ -597,16 +751,11 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 TEST 21
 Present in 5.7 P_S.STATUS_BY_HOST
 Missing in 5.7 P_S.SESSION_STATUS (2-10)
-EXPECT NOTHING AFTER REMOVING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 ================================================================================
 select * from test.sanity
 where show_mode = "5.7"
   and source = "P_S.STATUS_BY_HOST"
   and upper(variable_name) not in (
-select upper(variable_name) from test.sanity
-where show_mode = "JUNK"
-    and source = "NO AGGREGATE")
-and upper(variable_name) not in (
 select upper(variable_name) from test.sanity
 where show_mode = "5.7"
     and source = "P_S.SESSION_STATUS")
@@ -615,8 +764,8 @@ SHOW_MODE	SOURCE	VARIABLE_NAME
 
 ================================================================================
 TEST 22
+KNOWN STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 Status variables that should NOT be present in 5.7 P_S.STATUS_BY_HOST
-EXPECT NOTHING WHEN SELECTING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
 ================================================================================
 select * from performance_schema.status_by_host
 where upper(variable_name) in (
