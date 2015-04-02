@@ -2759,7 +2759,7 @@ sub setup_vardir() {
   # On some operating systems, there is a limit to the length of a
   # UNIX domain socket's path far below PATH_MAX.
   # Don't allow that to happen
-  if (check_socket_path_length("$opt_tmpdir/testsocket.sock")){
+  if (check_socket_path_length("$opt_tmpdir/mysql_testsocket.sock")){
     mtr_error("Socket path '$opt_tmpdir' too long, it would be ",
 	      "truncated and thus not possible to use for connection to ",
 	      "MySQL Server. Set a shorter with --tmpdir=<path> option");
@@ -3215,29 +3215,45 @@ sub ndbd_start {
   return;
 }
 
-
+# Start memcached with the special ndb_engine.so plugin
+# making it use NDB as backend.
 sub memcached_start {
   my ($cluster, $memcached) = @_;
 
   my $name = $memcached->name();
   mtr_verbose("memcached_start '$name'");
 
-  my $found_perl_source = my_find_file($basedir,
-     ["storage/ndb/memcache",        # source
-      "mysql-test/lib",              # install
-      "share/mysql-test/lib"],       # install
-      "memcached_path.pl", NOT_REQUIRED);
+  # Clear env used by include/have_memcached.inc
+  $ENV{'NDB_MEMCACHED_STARTED'} = 0;
 
-  mtr_verbose("Found memcache script: '$found_perl_source'");
-  $found_perl_source ne "" or return;
-
+  # Look for the ndb_engine.so memcache plugin
   my $found_so = my_find_file($bindir,
     ["storage/ndb/memcache",        # source or build
      "lib", "lib64"],               # install
-    "ndb_engine.so");
+    "ndb_engine.so", NOT_REQUIRED);
+  if ($found_so eq "")
+  {
+    # The ndb_engine memcache plugin is not a mandatory
+    # component, silently skip to start memcached if it's not
+    # found
+    mtr_verbose("Could not find the ndb_engine memcache plugin");
+    return;
+  }
   mtr_verbose("Found memcache plugin: '$found_so'");
+ 
+  # Look for the generated perl script which tells
+  # location of memcached etc.
+  my $found_perl_source = my_find_file($bindir,
+     ["storage/ndb/memcache",        # source
+      "mysql-test/lib",              # install
+      "share/mysql-test/lib"],       # install
+      "memcached_path.pl");
+  mtr_verbose("Found memcache script: '$found_perl_source'");
 
+  # Source the found perl script which tells
+  # location of memcached etc.
   require "$found_perl_source";
+
   if(! memcached_is_available())
   {
     mtr_error("Memcached not available.");
@@ -3245,15 +3261,32 @@ sub memcached_start {
   my $exe = "";
   if(memcached_is_bundled())
   {
+    # The bundled memcached has been built
+    # and made part of the package, find where
+    # it ended up and use it.
     $exe = my_find_bin($bindir,
-    ["libexec", "sbin", "bin", "storage/ndb/memcache/extra/memcached"],
-    "memcached", NOT_REQUIRED);
+      ["libexec",
+       "sbin",
+       "bin",
+       "storage/ndb/memcache/extra/memcached"],
+      "memcached");
+    mtr_verbose("Found bundled memcached '$exe'");
   }
   else
   {
+    # External memcached has been used to build ndb_engine.so
+    # The path to that memcached has been hardcoded in
+    # memcached_path.pl, use that path.
+    # This requires same machine as build or memcached
+    # also installed in same location as when it was built.
     $exe = get_memcached_exe_path();
+    if ($exe eq "" or ! -x $exe)
+    {
+      mtr_error("Failed to find memcached binary '$exe'");
+    }
+    mtr_verbose("Using memcached binary '$exe'");
   }
-  $exe ne "" or mtr_error("Failed to find memcached.");
+
 
   my $args;
   mtr_init_args(\$args);
@@ -3290,6 +3323,9 @@ sub memcached_start {
   mtr_verbose("Started $proc");
 
   $memcached->{proc} = $proc;
+  
+  # Set env used by include/have_memcached.inc
+  $ENV{'NDB_MEMCACHED_STARTED'} = 1;
 
   return;
 }

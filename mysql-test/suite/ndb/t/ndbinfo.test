@@ -229,6 +229,17 @@ select distinct block_name from threadblocks order by 1;
 desc threadstat;
 select count(*) > 0 block_name from threadstat;
 
+desc disk_write_speed_aggregate;
+select count(*) from disk_write_speed_aggregate;
+
+desc disk_write_speed_base;
+select node_id from disk_write_speed_base group by node_id, thr_no;
+
+select count(*) from disk_write_speed_aggregate_node;
+
+desc restart_info;
+select * from restart_info;
+
 desc cluster_transactions;
 desc server_transactions;
 desc cluster_operations;
@@ -353,7 +364,7 @@ let $t1_id = query_get_value(select @t1_id as id, id, 1);
 
 # Create som views that we reuse after modifying t1 below.
 # This one sums usage counts for all fragments of each table.
-# Some values, such as fixed_elem_free_rows and fixed_elem_count for ordered 
+# Some values, such as fixed_elem_free_count and fixed_elem_count for ordered 
 # indexes may vary depending on the number of fragments and other factors. 
 # These are therefore not returned directly, but used in calculations that 
 # should provide stable results.
@@ -368,9 +379,9 @@ if (type="Ordered index",
     sum(fixed_elem_count)) as fixed_elem_count,
 max(fixed_elem_size_bytes) as fixed_elem_size_bytes,
 round(sum(fixed_elem_alloc_bytes/fixed_elem_size_bytes)
-  /sum(fixed_elem_count+fixed_elem_free_rows),1) as fixed_elem_alloc_ok,
+  /sum(fixed_elem_count+fixed_elem_free_count),1) as fixed_elem_alloc_ok,
 sum(fixed_elem_free_bytes/fixed_elem_size_bytes) = 
-   sum(fixed_elem_free_rows) as fixed_elem_free_bytes_ok,
+   sum(fixed_elem_free_count) as fixed_elem_free_bytes_ok,
 sum(var_elem_count) as var_elem_count,
 sum(var_elem_alloc_bytes) >= sum(var_elem_free_bytes) as var_bytes_ok
 from ndbinfo.memory_per_fragment
@@ -475,5 +486,196 @@ drop view check_l2pmap_pools;
 drop view sum_per_tab;
 drop view pool_sum;
 drop view frag_sum; 
+
+# ################################
+# Test operations_per_fragment table.
+# ################################
+
+# Create a view that sums counters across all fragments, so that results
+# will not depend on endianness.
+# Observe that operations_per_fragment.fq_name, parent_fq_name, type are all
+# functionally dependent on 'table_id', but since this cannot be deduced from
+# the schema, they are all included in the 'group by' clause.
+create view frag_ops as select 
+  if(type in ('Ordered index', 'Unique hash index'), 
+    substring(fq_name from 1+locate('/', fq_name, 9)), 
+    if(fq_name like '%BLOB%', left(fq_name, locate('_', fq_name)), fq_name)) 
+    as fq_name,
+  parent_fq_name,
+  type,
+  count(fragment_num) as frag_count,
+  sum(tot_key_reads) as tot_key_reads, 
+  sum(tot_key_inserts) as tot_key_inserts, 
+  sum(tot_key_updates) as tot_key_updates, 
+  sum(tot_key_writes) as tot_key_writes, 
+  sum(tot_key_deletes) as tot_key_deletes, 
+  sum(tot_key_refs) as tot_key_refs, 
+  # Attrinfo for read operations is a bit longer when running with embedded 
+  # mysqld, which is why we do the rounding below. 
+  round(log2(1+sum(tot_key_attrinfo_bytes))) as log_tot_key_attrinfo_bytes,
+  sum(tot_key_keyinfo_bytes) as tot_key_keyinfo_bytes,
+  sum(tot_key_prog_bytes) as tot_key_prog_bytes,
+  sum(tot_key_inst_exec) as tot_key_inst_exec,
+  sum(tot_key_bytes_returned) as tot_key_bytes_returned,
+  sum(tot_frag_scans) as tot_frag_scans, 
+  sum(tot_scan_rows_examined) as tot_scan_rows_examined, 
+  sum(tot_scan_rows_returned) as tot_scan_rows_returned, 
+  sum(tot_scan_bytes_returned) as tot_scan_bytes_returned, 
+  sum(tot_scan_prog_bytes) as tot_scan_prog_bytes,
+  sum(tot_scan_bound_bytes) as tot_scan_bound_bytes,
+  sum(tot_scan_inst_exec) as tot_scan_inst_exec, 
+  sum(conc_frag_scans) as conc_frag_scans,
+  sum(conc_qd_frag_scans) as conc_qd_frag_scans, 
+  sum(tot_commits) as tot_commits
+  from ndbinfo.operations_per_fragment
+  where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%'
+  group by table_id, type, operations_per_fragment.fq_name, parent_fq_name
+  order by table_id;
+
+
+# Create and populate test tables.
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  t text not null,
+  primary key (b,a)
+) engine=ndbcluster
+partition by key(b,a) partitions 8;
+
+create unique index ix1 on t1(d) using hash;
+
+
+# A helper table for populating t1.
+create table numbers(
+  i int
+); 
+
+insert into numbers values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+insert into t1 select x1.i+x2.i*10, 1, 1+x1.i+x2.i*10, 1+x1.i+x2.i*10,
+  repeat('x', 512)
+  from numbers as x1, numbers as x2;
+
+drop table numbers;
+
+create table t2 (
+  a int, 
+  b int, 
+  primary key(a) using hash)
+engine = ndb 
+partition by key(a) partitions 8;
+
+insert into t2 values (1, 2);
+insert into t2 values (2, 3);
+insert into t2 values (3, 1);
+
+# Check counters before the test queries.
+--query_vertical select * from frag_ops;
+
+# Do a table scan with a pushed condition.
+explain select count(*) from t1 where d<10;
+select count(*) from t1 where d<10;
+
+# Do an index scan.
+explain select count(*) from t1 where b=1 and a<10;
+select count(*) from t1 where b=1 and a<10;
+
+# Do a PK read.
+explain select * from t1 where b=1 and a = -5;
+select * from t1 where b=1 and a = -5;
+
+# Try to insert a duplicate key.
+--error ER_DUP_ENTRY
+insert into t1 values (1,1,1,1,'');
+
+# Use replace to generate PK write operations.
+replace t1 values (-1,-1,-1,-1,'');
+replace t1 values (1,1,5,500,'');
+
+# Do update and delete.
+update t1 set d = -d, t = repeat('a', 300) where b=1 and a > 90;
+
+delete from t1 where a%30=0;
+
+# This error insert causes the next index scan from SPJ to be queued on node 2.
+# This command may fail if error inserts is not available on this build,
+# therefore we permit return code 255.
+--error 0,255
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "2 error 5084" >> $NDB_TOOLS_OUTPUT
+
+# Do a pushed query that starts multiple index scans on each t1 fragment.
+# That way the first scan (on node 2) will be queued until the next finishes.
+explain select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
+select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
+
+# Check number of queued scans. Test for debug build
+# to handle builds without error inserts (i.e. non-debug builds).
+select 
+  if ((select version() like '%debug'),
+      sum(tot_qd_frag_scans),
+      4) as tot_qd_frag_scans
+  from ndbinfo.operations_per_fragment
+  where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%';
+
+# Check how these operations changed the counters. 
+--query_vertical select * from frag_ops;
+
+# This query should give PK read operations with an interpreted program.
+# (Multi-range read mapped to PK reads.)
+explain select count(*)
+from t2 as tx, t2 as ty
+where tx.a in (1,3,5)
+and ty.a = tx.b;
+
+# The 'explain' above triggers an implicit 'analyze table'. That increments
+# operations_per_fragment counters in a way that is endian-dependent.
+# We therefore save the current values of the counters to isolate the 
+# effect of the query below.
+create table save_counters as select * from frag_ops;
+
+select count(*)
+from t2 as tx, t2 as ty
+where tx.a in (1,3,5)
+and ty.a = tx.b;
+
+create view changes as select 
+new.fq_name,
+new.parent_fq_name,
+new.type,
+new.frag_count,
+new.tot_key_reads - old.tot_key_reads,
+new.tot_key_inserts - old.tot_key_inserts,
+new.tot_key_updates - old.tot_key_updates,
+new.tot_key_writes - old.tot_key_writes,
+new.tot_key_deletes - old.tot_key_deletes,
+new.tot_key_refs - old.tot_key_refs,
+new.log_tot_key_attrinfo_bytes - old.log_tot_key_attrinfo_bytes,
+new.tot_key_keyinfo_bytes - old.tot_key_keyinfo_bytes,
+new.tot_key_prog_bytes - old.tot_key_prog_bytes,
+new.tot_key_inst_exec - old.tot_key_inst_exec,
+new.tot_key_bytes_returned - old.tot_key_bytes_returned,
+new.tot_frag_scans - old.tot_frag_scans,
+new.tot_scan_rows_examined - old.tot_scan_rows_examined,
+new.tot_scan_rows_returned - old.tot_scan_rows_returned,
+new.tot_scan_bytes_returned - old.tot_scan_bytes_returned,
+new.tot_scan_prog_bytes - old.tot_scan_prog_bytes,
+new.tot_scan_bound_bytes - old.tot_scan_bound_bytes,
+new.tot_scan_inst_exec - old.tot_scan_inst_exec,
+new.tot_commits  - old.tot_commits
+from frag_ops as new, save_counters as old
+where new.fq_name=old.fq_name and new.fq_name like '%t2';
+
+--query_vertical select * from changes
+
+
+
+# Drop test views and tables.
+drop view changes;
+drop table save_counters;
+drop view frag_ops;
+drop table t1;
+drop table t2;
 
 --source ndbinfo_drop.inc

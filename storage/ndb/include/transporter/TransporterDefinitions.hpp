@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,6 +46,16 @@ enum TransporterType {
   tt_TCP_TRANSPORTER = 1,
   tt_SCI_TRANSPORTER = 2,
   tt_SHM_TRANSPORTER = 3
+};
+
+enum SB_LevelType
+{
+  SB_NO_RISK_LEVEL = 0,
+  SB_LOW_LEVEL = 1,
+  SB_MEDIUM_LEVEL = 2,
+  SB_HIGH_LEVEL = 3,
+  SB_RISK_LEVEL = 4,
+  SB_CRITICAL_LEVEL = 5
 };
 
 /**
@@ -389,6 +399,25 @@ enum TransporterError {
 
   /* Used 0x21 */
   /* Used 0x22 */
+
+  /**
+   * TE_UNSUPPORTED_BYTE_ORDER
+   *
+   *   Error found in message (byte order)
+   *
+   * Recommended behavior: setPerformState(PerformDisonnect)
+   */
+  , TE_UNSUPPORTED_BYTE_ORDER = 0x23 | TE_DO_DISCONNECT
+
+  /**
+   * TE_COMPRESSED_UNSUPPORTED
+   *
+   *   Error found in message (compressed flag)
+   *
+   * Recommended behavior: setPerformState(PerformDisonnect)
+   */
+  , TE_COMPRESSED_UNSUPPORTED = 0x24 | TE_DO_DISCONNECT
+
 };
 
 #endif // Define of TransporterDefinitions_H

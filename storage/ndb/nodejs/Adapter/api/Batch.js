@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -17,8 +17,6 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
-
-/*global unified_debug */
 
 "use strict";
 
@@ -46,7 +44,7 @@ exports.Batch.prototype.clear = function() {
   // clear all operations from the batch
   // if any pending operations, synchronously call each callback with an error
   // the transaction state is unchanged
-  udebug.log_detail('Batch.clear with operationContexts.length ' + this.operationContexts.length);
+  if(udebug.is_detail()) if(udebug.is_debug()) udebug.log('Batch.clear with operationContexts.length ' + this.operationContexts.length);
   // for each context, extract the operation and clear it
   this.operationContexts.forEach(function(context) {
     // first, mark the context as cleared so if getTableHandler returns during a user callback,
@@ -166,5 +164,9 @@ exports.Batch.prototype.execute = function() {
 exports.Batch.prototype.isBatch = function() {
   this.assertOpen();
   return true;
+};
+
+exports.Batch.prototype.getOperationCount = function() {
+  return this.operationContexts.length;
 };
 

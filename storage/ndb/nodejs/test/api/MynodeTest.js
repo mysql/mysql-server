@@ -18,15 +18,18 @@
  02110-1301  USA
  */
 
-var doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
+"use strict";
+
+var path = require("path");
+var doc_parser  = require(path.join(mynode.fs.suites_dir, "lib", "doc_parser"));
 
 var t1 = new harness.ConcurrentTest("PublicFunctions");
 t1.run = function() {
-  var docFile = path.join(api_doc_dir, "Mynode");
+  var docFile = path.join(mynode.fs.api_doc_dir, "Mynode");
   var functionList = doc_parser.listFunctions(docFile);
   var tester = new doc_parser.ClassTester(mynode, "Mynode");
   tester.test(functionList, t1);
   return true;
-}
+};
 
 module.exports.tests = [t1];

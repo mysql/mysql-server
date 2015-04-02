@@ -132,15 +132,21 @@ SELECT * FROM test.t1 ORDER BY a1;
 
 #### Try to ALTER from Cluster Disk Data to InnoDB
 
-CREATE TABLESPACE inno_ts ADD DATAFILE 'inno_ts.ibd' ENGINE = InnoDB;
-ALTER TABLE test.t1 TABLESPACE inno_ts ENGINE=InnoDB;
+# Create tablespace in Innodb with same name as in NDB
+# since the ALTER from NDB to Innodb will try to ALTER the table
+# into a tablespace with same name in InnoDB
+CREATE TABLESPACE ts ADD DATAFILE 'ts_innodb.ibd' ENGINE=Innodb;
+
+ALTER TABLE test.t1 ENGINE=InnoDB;
 SHOW CREATE TABLE test.t1;
 SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
-DROP TABLESPACE inno_ts;
 SHOW CREATE TABLE test.t1;
 # Check column storage
 source show_attributes.inc;
+
+# Drop the tablespace created in InnoDB
+DROP TABLESPACE ts ENGINE = Innodb;
 
 #### Try to ALTER from Cluster Disk Data to MyISAM
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -237,6 +237,7 @@ public:
   static BaseString getPrettyText(unsigned size, const Uint32 data[]);
   static BaseString getPrettyTextShort(unsigned size, const Uint32 data[]);
 
+  static size_t hexdump(char * buf, size_t len, const Uint32 * wordbuf, size_t numwords);
 private:
   char* m_chr;
   unsigned m_len;

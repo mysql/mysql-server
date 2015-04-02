@@ -212,13 +212,13 @@ fid	ST_IsEmpty(g)
 121	0
 SELECT fid, ST_AsText(ST_Envelope(g)) FROM gis_geometry ORDER by fid;
 fid	ST_AsText(ST_Envelope(g))
-101	POLYGON((10 10,10 10,10 10,10 10,10 10))
-102	POLYGON((20 10,20 10,20 10,20 10,20 10))
-103	POLYGON((20 20,20 20,20 20,20 20,20 20))
-104	POLYGON((10 20,10 20,10 20,10 20,10 20))
+101	POINT(10 10)
+102	POINT(20 10)
+103	POINT(20 20)
+104	POINT(10 20)
 105	POLYGON((0 0,10 0,10 10,0 10,0 0))
 106	POLYGON((10 10,20 10,20 20,10 20,10 10))
-107	POLYGON((10 10,40 10,40 10,10 10,10 10))
+107	LINESTRING(10 10,40 10)
 108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 109	POLYGON((0 0,50 0,50 50,0 50,0 0))
 110	POLYGON((0 0,30 0,30 30,0 30,0 0))
@@ -226,7 +226,7 @@ fid	ST_AsText(ST_Envelope(g))
 112	POLYGON((1 1,21 1,21 21,1 21,1 1))
 113	POLYGON((3 6,4 6,4 10,3 10,3 6))
 114	POLYGON((10 0,16 0,16 48,10 48,10 0))
-115	POLYGON((10 0,10 0,10 48,10 48,10 0))
+115	LINESTRING(10 0,10 48)
 116	POLYGON((1 2,21 2,21 8,1 8,1 2))
 117	POLYGON((28 0,84 0,84 42,28 42,28 0))
 118	POLYGON((28 0,84 0,84 42,28 42,28 0))
@@ -399,10 +399,10 @@ MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g)
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 first	second	w	c	o	e	d	t	i	r
-120	120	1	1	0	1	0	1	1	0
+120	120	1	1	0	1	0	0	1	0
 120	121	0	0	1	0	0	0	1	0
 121	120	0	0	1	0	0	0	1	0
-121	121	1	1	0	1	0	1	1	0
+121	121	1	1	0	1	0	0	1	0
 explain extended SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
@@ -441,7 +441,7 @@ gc	geometrycollection	YES		NULL
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'fid' to DYNAMIC to enable on-line ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment
@@ -534,30 +534,36 @@ SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRwithin       FROM t1 a1 JOIN
 MBRwithin
 big,center
 SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
 MBRoverlaps
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @horiz1) GROUP BY a1.name;
 MBRoverlaps
 SELECT MBROverlaps(@horiz1, @vert1) FROM DUAL;
 MBROverlaps(@horiz1, @vert1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @horiz2) FROM DUAL;
 MBROverlaps(@horiz1, @horiz2)
-1
+NULL
 SELECT MBROverlaps(@horiz1, @horiz3) FROM DUAL;
 MBROverlaps(@horiz1, @horiz3)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point1) FROM DUAL;
 MBROverlaps(@horiz1, @point1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point2) FROM DUAL;
 MBROverlaps(@horiz1, @point2)
-0
+NULL
 DROP TABLE t1;
 End of 5.0 tests
 set @@optimizer_switch = 'engine_condition_pushdown=on';
@@ -773,13 +779,13 @@ fid	ST_IsEmpty(g)
 121	0
 SELECT fid, ST_AsText(ST_Envelope(g)) FROM gis_geometry ORDER by fid;
 fid	ST_AsText(ST_Envelope(g))
-101	POLYGON((10 10,10 10,10 10,10 10,10 10))
-102	POLYGON((20 10,20 10,20 10,20 10,20 10))
-103	POLYGON((20 20,20 20,20 20,20 20,20 20))
-104	POLYGON((10 20,10 20,10 20,10 20,10 20))
+101	POINT(10 10)
+102	POINT(20 10)
+103	POINT(20 20)
+104	POINT(10 20)
 105	POLYGON((0 0,10 0,10 10,0 10,0 0))
 106	POLYGON((10 10,20 10,20 20,10 20,10 10))
-107	POLYGON((10 10,40 10,40 10,10 10,10 10))
+107	LINESTRING(10 10,40 10)
 108	POLYGON((10 10,20 10,20 20,10 20,10 10))
 109	POLYGON((0 0,50 0,50 50,0 50,0 0))
 110	POLYGON((0 0,30 0,30 30,0 30,0 0))
@@ -787,7 +793,7 @@ fid	ST_AsText(ST_Envelope(g))
 112	POLYGON((1 1,21 1,21 21,1 21,1 1))
 113	POLYGON((3 6,4 6,4 10,3 10,3 6))
 114	POLYGON((10 0,16 0,16 48,10 48,10 0))
-115	POLYGON((10 0,10 0,10 48,10 48,10 0))
+115	LINESTRING(10 0,10 48)
 116	POLYGON((1 2,21 2,21 8,1 8,1 2))
 117	POLYGON((28 0,84 0,84 42,28 42,28 0))
 118	POLYGON((28 0,84 0,84 42,28 42,28 0))
@@ -960,10 +966,10 @@ MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g)
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 first	second	w	c	o	e	d	t	i	r
-120	120	1	1	0	1	0	1	1	0
+120	120	1	1	0	1	0	0	1	0
 120	121	0	0	1	0	0	0	1	0
 121	120	0	0	1	0	0	0	1	0
-121	121	1	1	0	1	0	1	1	0
+121	121	1	1	0	1	0	0	1	0
 explain extended SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
@@ -1002,7 +1008,7 @@ gc	geometrycollection	YES		NULL
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'fid' to DYNAMIC to enable on-line ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment
@@ -1095,29 +1101,35 @@ SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS MBRwithin       FROM t1 a1 JOIN
 MBRwithin
 big,center
 SET @vert1   = ST_GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @horiz1  = ST_GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @horiz2 = ST_GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @horiz3 = ST_GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @point1 = ST_GeomFromText('POLYGON ((0 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SET @point2 = ST_GeomFromText('POLYGON ((-2 0))');
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @vert1) GROUP BY a1.name;
 MBRoverlaps
 SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS MBRoverlaps FROM t1 a1 WHERE MBROverlaps(a1.square, @horiz1) GROUP BY a1.name;
 MBRoverlaps
 SELECT MBROverlaps(@horiz1, @vert1) FROM DUAL;
 MBROverlaps(@horiz1, @vert1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @horiz2) FROM DUAL;
 MBROverlaps(@horiz1, @horiz2)
-1
+NULL
 SELECT MBROverlaps(@horiz1, @horiz3) FROM DUAL;
 MBROverlaps(@horiz1, @horiz3)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point1) FROM DUAL;
 MBROverlaps(@horiz1, @point1)
-0
+NULL
 SELECT MBROverlaps(@horiz1, @point2) FROM DUAL;
 MBROverlaps(@horiz1, @point2)
-0
+NULL
 DROP TABLE t1;
 End of 5.0 tests

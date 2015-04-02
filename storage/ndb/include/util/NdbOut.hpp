@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -73,7 +73,7 @@ public:
   NdbOut& operator<<(float);
   NdbOut& operator<<(double);
   NdbOut& endline(void);
-  NdbOut& flushline(void);
+  NdbOut& flushline(bool force=true);
   NdbOut& setHexFormat(int _format);
   NdbOut& hexdump(const Uint32 * words, size_t count);  
 

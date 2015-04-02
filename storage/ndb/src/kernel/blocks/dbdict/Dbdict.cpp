@@ -33,6 +33,7 @@
 #include <AttributeHeader.hpp>
 #include <KeyDescriptor.hpp>
 #include <Checksum.hpp>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/DictSchemaInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/DropTabFile.hpp>
@@ -20428,9 +20429,24 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   if (ord->lockType == DictLockReq::SumaStartMe ||
       ord->lockType == DictLockReq::SumaHandOver)
   {
+    Uint32 nodeId = refToNode(ord->senderRef);
     jam();
-    g_eventLogger->info("clearing SumaStartMe dict lock for %u", refToNode(ord->senderRef));
-    c_sub_startstop_lock.clear(refToNode(ord->senderRef));
+    g_eventLogger->info("clearing SumaStartMe dict lock for %u", nodeId);
+    c_sub_startstop_lock.clear(nodeId);
+
+    if (ord->lockType == DictLockReq::SumaHandOver)
+    {
+      /**
+       * Inform the master DIH that the SUMA handover is now completed, this
+       * is the very last phase of the node recovery. This code is only
+       * executed in the master node.
+       */
+      SumaHandoverCompleteRep *rep =
+        (SumaHandoverCompleteRep*)signal->getDataPtrSend();
+      rep->nodeId = nodeId;
+      EXECUTE_DIRECT(DBDIH, GSN_SUMA_HANDOVER_COMPLETE_REP, signal,
+                     SumaHandoverCompleteRep::SignalLength);
+    }
     return;
   }
 
@@ -20856,12 +20872,15 @@ void Dbdict::check_takeover_replies(Signal* signal)
             ndbout_c("New master locked transaction %u", trans_key);
 #endif
           }
+          trans_ptr.p->m_nodes.clear();
           trans_ptr.p->m_rollforward_op = -1;
           trans_ptr.p->m_rollforward_op_state = SchemaOp::OS_COMPLETED;
           trans_ptr.p->m_rollback_op = 0;
           trans_ptr.p->m_rollback_op_state = SchemaOp::OS_INITIAL;
           trans_ptr.p->m_lowest_trans_state = SchemaTrans::TS_ENDING;
           trans_ptr.p->m_highest_trans_state = SchemaTrans::TS_INITIAL;
+          trans_ptr.p->check_partial_rollforward = false;
+          trans_ptr.p->ressurected_op = false;
         }
 
         trans_ptr.p->m_isMaster = true;
@@ -21012,6 +21031,12 @@ void Dbdict::check_takeover_replies(Signal* signal)
 #ifdef VM_TRACE
         ndbout_c("Node %u had %u operations, master has %u",i , nodePtr.p->takeOverConf.op_count, masterNodePtr.p->takeOverConf.op_count);
 #endif
+
+        /** BEWARE:
+         * 'takeOverConf' is not valid if a node replied TAKEOVER_REF,
+         * in that case node was cleared from 'masterNodePtr.p->m_nodes'.
+         */
+        ndbassert(masterNodePtr.p->m_nodes.get(i));
         if (nodePtr.p->takeOverConf.op_count == 0)
         {
           if (SchemaTrans::weight(trans_ptr.p->m_state)
@@ -21037,43 +21062,8 @@ void Dbdict::check_takeover_replies(Signal* signal)
             // Is this possible??
           }
         }
-        else if (nodePtr.p->takeOverConf.op_count <
-                 masterNodePtr.p->takeOverConf.op_count)
-        {
-          jam();
-          /*
-              Operation is missing on slave
-          */
-          if (SchemaTrans::weight(trans_ptr.p->m_state) <
-              SchemaTrans::weight(SchemaTrans::TS_PREPARING))
-          {
-            /*
-              Last parsed operation is missing on slave, skip it
-              when aborting parse.
-            */
-            jam();
-#ifdef VM_TRACE
-            ndbout_c("Node %u did not have all operations for transaction %u, skip > %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.highest_op);
-#endif
-            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
-            nodePtr.p->start_op = nodePtr.p->takeOverConf.highest_op;
-            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.highest_op_state;
-          }
-          else
-          {
-            /*
-              Slave has already ended some operations
-            */
-            jam();
-#ifdef VM_TRACE
-            ndbout_c("Node %u did not have all operations for transaction %u, skip < %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.lowest_op);
-#endif
-            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
-            nodePtr.p->start_op = nodePtr.p->takeOverConf.lowest_op;
-            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.lowest_op_state;
-          }
-        }
-        else if (nodePtr.p->takeOverConf.op_count >
+        else if (!masterNodePtr.p->m_nodes.get(c_masterNodeId) ||
+                 nodePtr.p->takeOverConf.op_count >
                  masterNodePtr.p->takeOverConf.op_count)
         {
           /*
@@ -21109,6 +21099,7 @@ void Dbdict::check_takeover_replies(Signal* signal)
 #ifdef VM_TRACE
                 ndbout_c("Created missing operation %u, on new master", missing_op_ptr.p->op_key);
 #endif
+                ndbassert(masterNodePtr.p->m_nodes.get(c_masterNodeId));
                 missing_op_ptr.p->m_state = nodePtr.p->takeOverConf.highest_op_state;
                 masterNodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
                 masterNodePtr.p->start_op = masterNodePtr.p->takeOverConf.highest_op;
@@ -21165,6 +21156,44 @@ void Dbdict::check_takeover_replies(Signal* signal)
               assert(false);
             }
             continue;
+          }
+        }
+        else if (nodePtr.p->takeOverConf.op_count <
+                 masterNodePtr.p->takeOverConf.op_count)
+        {
+          jam();
+          ndbassert(masterNodePtr.p->m_nodes.get(c_masterNodeId));
+
+          /*
+              Operation is missing on slave
+          */
+          if (SchemaTrans::weight(trans_ptr.p->m_state) <
+              SchemaTrans::weight(SchemaTrans::TS_PREPARING))
+          {
+            /*
+              Last parsed operation is missing on slave, skip it
+              when aborting parse.
+            */
+            jam();
+#ifdef VM_TRACE
+            ndbout_c("Node %u did not have all operations for transaction %u, skip > %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.highest_op);
+#endif
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLBACK;
+            nodePtr.p->start_op = nodePtr.p->takeOverConf.highest_op;
+            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.highest_op_state;
+          }
+          else
+          {
+            /*
+              Slave has already ended some operations
+            */
+            jam();
+#ifdef VM_TRACE
+            ndbout_c("Node %u did not have all operations for transaction %u, skip < %u", i, trans_ptr.p->trans_key, nodePtr.p->takeOverConf.lowest_op);
+#endif
+            nodePtr.p->recoveryState = NodeRecord::RS_PARTIAL_ROLLFORWARD;
+            nodePtr.p->start_op = nodePtr.p->takeOverConf.lowest_op;
+            nodePtr.p->start_op_state = nodePtr.p->takeOverConf.lowest_op_state;
           }
         }
       }
@@ -27663,17 +27692,26 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
       break;
     }
 
-    if (c_takeOverInProgress)
+    if (!localTrans)
     {
-      /**
-       * There is a dict takeover in progress. There may thus another
-       * transaction that should be rolled backward or forward before we
-       * can allow another transaction to start.
-       */
-      jam();
-      setError(error, SchemaTransBeginRef::Busy, __LINE__);
-      break;
+      ndbassert(getOwnNodeId() == c_masterNodeId);
+      NodeRecordPtr masterNodePtr;
+      c_nodes.getPtr(masterNodePtr, c_masterNodeId);
+
+      if (masterNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+      {
+        jam();
+        /**
+         * There is a dict takeover in progress. There may thus be another
+         * transaction that should be rolled backward or forward before we
+         * can allow another transaction to start.
+         * (Multiple concurrent schema transactions are not supported)
+         */
+        setError(error, SchemaTransBeginRef::Busy, __LINE__);
+        break;
+      }
     }
+    ndbassert(!c_takeOverInProgress);
 
     if (!check_ndb_versions() && !localTrans)
     {
@@ -27853,8 +27891,14 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
   SchemaTransPtr trans_ptr;
   ErrorInfo error;
   do {
-    findSchemaTrans(trans_ptr, trans_key);
-    if (trans_ptr.isNull()) {
+    const bool localTrans = (requestInfo & DictSignal::RF_LOCAL_TRANS);
+    if (getOwnNodeId() != c_masterNodeId && !localTrans) {
+      jam();
+      setError(error, SchemaTransEndRef::NotMaster, __LINE__);
+      break;
+    }
+
+    if (!findSchemaTrans(trans_ptr, trans_key)) {
       jam();
       setError(error, SchemaTransEndRef::InvalidTransKey, __LINE__);
       break;
@@ -27866,42 +27910,9 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
       break;
     }
 
-    bool localTrans = (trans_ptr.p->m_requestInfo & DictSignal::RF_LOCAL_TRANS);
+    const bool localTrans2 =
+      (trans_ptr.p->m_requestInfo & DictSignal::RF_LOCAL_TRANS);
 
-    if (getOwnNodeId() != c_masterNodeId && !localTrans) {
-      jam();
-      // future when MNF is handled
-      //ndbassert(false);
-      setError(error, SchemaTransEndRef::NotMaster, __LINE__);
-      break;
-    }
-
-    if (c_takeOverInProgress)
-    {
-      /**
-       * There is a dict takeover in progress, and the transaction may thus
-       * be in an inconsistent state. Therefore we cannot process this request
-       * now.
-       */
-      jam();
-      setError(error, SchemaTransEndRef::Busy, __LINE__);
-      break;
-    }
-#ifdef MARTIN
-    ndbout_c("Dbdict::execSCHEMA_TRANS_END_REQ: trans %u, state %u", trans_ptr.i, trans_ptr.p->m_state);
-#endif
-
-    //XXX Check state
-
-    if (hasError(trans_ptr.p->m_error))
-    {
-      jam();
-      ndbassert(false);
-      setError(error, SchemaTransEndRef::InvalidTransState, __LINE__);
-      break;
-    }
-
-    bool localTrans2 = requestInfo & DictSignal::RF_LOCAL_TRANS;
     if (localTrans != localTrans2)
     {
       jam();
@@ -27909,6 +27920,37 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
       setError(error, SchemaTransEndRef::InvalidTransState, __LINE__);
       break;
     }
+
+    if (!localTrans)
+    {
+      ndbassert(getOwnNodeId() == c_masterNodeId);
+      NodeRecordPtr masterNodePtr;
+      c_nodes.getPtr(masterNodePtr, c_masterNodeId);
+
+      if (masterNodePtr.p->nodeState == NodeRecord::NDB_MASTER_TAKEOVER)
+      {
+        jam();
+        /**
+         * There is a dict takeover in progress.
+         * Transaction might be in an inconsistent state where its fate 
+         * has not been decided yet. When takeover eventually completes,
+         * it will ::sendTransClientReply() which will inform the client
+         * about the fate of the Txn in a TRANS_END_REP.
+         * For now we don't send any reply, and let the client wait for
+         * TRANS_END_REP.
+         */
+        return;
+      }
+    }
+
+#ifdef MARTIN
+    ndbout_c("Dbdict::execSCHEMA_TRANS_END_REQ: trans %u, state %u", trans_ptr.i, trans_ptr.p->m_state);
+#endif
+
+    // Assert that we are not in an inconsistent/incomplete state
+    ndbassert(!hasError(trans_ptr.p->m_error));
+    ndbassert(!c_takeOverInProgress);
+    ndbassert(trans_ptr.p->m_counter.done());
 
     trans_ptr.p->m_clientState = TransClient::EndReq;
 

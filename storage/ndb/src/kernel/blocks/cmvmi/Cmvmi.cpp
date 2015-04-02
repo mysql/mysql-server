@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@
 #include <NdbSleep.h>
 #include <SafeCounter.hpp>
 #include <SectionReader.hpp>
+#include <vm/WatchDog.hpp>
 
 #define JAM_FILE_ID 380
 
@@ -108,6 +109,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
                &Cmvmi::execCANCEL_SUBSCRIPTION_REQ);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Cmvmi::execDUMP_STATE_ORD);
+  addRecSignal(GSN_TC_COMMIT_ACK, &Cmvmi::execTC_COMMIT_ACK);
 
   addRecSignal(GSN_TESTSIG, &Cmvmi::execTESTSIG);
   addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
@@ -1063,6 +1065,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         globalTransporterRegistry.do_connect(i);
       }
     }
+    g_eventLogger->info("First START_ORD executed to connect MGM servers");
 
     globalData.theStartLevel = NodeState::SL_CMVMI;
     sendSignal(QMGR_REF, GSN_START_ORD, signal, 1, JBA);
@@ -1072,7 +1075,6 @@ Cmvmi::execSTART_ORD(Signal* signal) {
   if(globalData.theStartLevel == NodeState::SL_CMVMI)
   {
     jam();
-    
     globalData.theStartLevel  = NodeState::SL_STARTING;
     globalData.theRestartFlag = system_started;
     /**
@@ -1080,7 +1082,17 @@ Cmvmi::execSTART_ORD(Signal* signal) {
      *
      * Do Restart
      */
-    
+    if (signal->getSendersBlockRef() == 0)
+    {
+      jam();
+      g_eventLogger->info("Received second START_ORD as part of normal start");
+    }
+    else
+    {
+      jam();
+      g_eventLogger->info("Received second START_ORD from node %u",
+                          refToNode(signal->getSendersBlockRef()));
+    }
     // Disconnect all nodes as part of the system restart. 
     // We need to ensure that we are starting up
     // without any connected nodes.   
@@ -1092,12 +1104,14 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
+    g_eventLogger->info("Disconnect all non-MGM servers");
 
     CRASH_INSERTION(9994);
     
     /**
      * Start running startphases
      */
+    g_eventLogger->info("Start excuting the start phases");
     sendSignal(NDBCNTR_REF, GSN_START_ORD, signal, 1, JBA);  
     return;
   }
@@ -1330,6 +1344,19 @@ cmp_event_buf(const void * ptr0, const void * ptr1)
 static Uint32 f_free_segments[32];
 static Uint32 f_free_segment_pos = 0;
 #endif
+
+/**
+ * TC_COMMIT_ACK is routed through CMVMI to ensure correct signal order
+ * when sending DUMP_STATE_ORD to DBTC while TC_COMMIT_ACK is also
+ * being in transit.
+ */
+void
+Cmvmi::execTC_COMMIT_ACK(Signal* signal)
+{
+  jamEntry();
+  BlockReference ref = signal->theData[2];
+  sendSignal(ref, GSN_TC_COMMIT_ACK, signal, 2, JBB);
+}
 
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)
@@ -1699,24 +1726,23 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     sendSignal(reference(), GSN_TESTSIG, signal, numArgs, JBB);
   }
 
-#ifdef ERROR_INSERT
-  if (arg == 9000 || arg == 9002)
+  if (arg == DumpStateOrd::CmvmiSetKillerWatchdog)
   {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-  if (arg == 9001)
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
+    bool val = true;
+    if (signal->length() >= 2)
+    {
+      val = (signal->theData[1] != 0);
+    }
+    globalEmulatorData.theWatchDog->setKillSwitch(val);
+    return;
   }
 
+#ifdef ERROR_INSERT
   if (arg == 9004 && signal->getLength() == 2)
   {
     SET_ERROR_INSERT_VALUE(9004);
 
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
+    /* Actual handling of dump code moved to TRPMAN */
   }
 #endif
 
@@ -1743,41 +1769,6 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     ndbrequire(handle.done());
   }
 #endif
-#endif
-
-#ifdef ERROR_INSERT
-  /* <Target NodeId> dump 9992 <NodeId list>
-   * On Target NodeId, block receiving signals from NodeId list
-   *
-   * <Target NodeId> dump 9993 <NodeId list>
-   * On Target NodeId, resume receiving signals from NodeId list
-   *
-   * <Target NodeId> dump 9991
-   * On Target NodeId, resume receiving signals from any blocked node
-   *
-   *
-   * See also code in QMGR for blocking receive from nodes based
-   * on HB roles.
-   *
-   */
-  if((arg == 9993) ||  /* Unblock recv from nodeid */
-     (arg == 9992))    /* Block recv from nodeid */
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-
-  if (arg == 9990) /* Block recv from all ndbd matching pattern */
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
-
-  if (arg == 9991) /* Unblock recv from all blocked */
-  {
-    // Migrated to TRPMAN
-    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
-  }
 #endif
 
   if (arg == 9999)

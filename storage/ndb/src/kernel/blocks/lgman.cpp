@@ -208,6 +208,7 @@ Lgman::execSTTOR(Signal* signal)
   Uint32 startPhase = signal->theData[1];
   switch (startPhase) {
   case 1:
+    jam();
     m_tup = globalData.getBlock(DBTUP);
     ndbrequire(m_tup != 0);
     break;
@@ -352,7 +353,7 @@ Lgman::execNODE_FAILREP(Signal* signal)
 
 void
 Lgman::execDUMP_STATE_ORD(Signal* signal){
-  jamEntry();
+  jamNoBlock();  /* Due to bug#20135976 */
   if (signal->theData[0] == 12001 || signal->theData[0] == 12002)
   {
     char tmp[1024];
@@ -580,6 +581,17 @@ Lgman::execDBINFO_SCANREQ(Signal *signal)
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
+/**
+ * Create a new LOGFILE GROUP. This can either happen as part of DICT creating
+ * object for the first time or it could happen as part of a restart. We
+ * set the state to LG_ONLINE when it is created for the first time and set
+ * it to LG_STARTING in case where we are restarting and will need the
+ * logfile group to execute the UNDO log on the disk data parts.
+ *
+ * We currently have a limit on only creating one log file group, so the
+ * list of log file groups is always empty or contains one element in the
+ * list.
+ */
 void
 Lgman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
   jamEntry();
@@ -630,6 +642,7 @@ Lgman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
          NodeState::ST_INITIAL_NODE_RESTART)||
         getNodeState().getSystemRestartInProgress())
     {
+      jam();
       ptr.p->m_state = Logfile_group::LG_STARTING;
     }
     
@@ -660,23 +673,28 @@ Lgman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
   DropFilegroupImplReq req = *(DropFilegroupImplReq*)signal->getDataPtr();  
   do 
   {
+    jam();
     Ptr<Logfile_group> ptr;
     if (!m_logfile_group_hash.find(ptr, req.filegroup_id))
     {
+      jam();
       errorCode = DropFilegroupImplRef::NoSuchFilegroup;
       break;
     }
     
     if (ptr.p->m_version != req.filegroup_version)
     {
+      jam();
       errorCode = DropFilegroupImplRef::InvalidFilegroupVersion;
       break;
     }
     
     switch(req.requestInfo){
     case DropFilegroupImplReq::Prepare:
+      jam();
       break;
     case DropFilegroupImplReq::Commit:
+      jam();
       m_logfile_group_list.remove(ptr);
       ptr.p->m_state |= Logfile_group::LG_DROPPING;
       signal->theData[0] = LgmanContinueB::DROP_FILEGROUP;
@@ -686,6 +704,7 @@ Lgman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
       sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
       return;
     case DropFilegroupImplReq::Abort:
+      jam();
       break;
     default:
       ndbrequire(false);
@@ -694,6 +713,7 @@ Lgman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
   
   if (errorCode)
   {
+    jam();
     DropFilegroupImplRef* ref = 
       (DropFilegroupImplRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -704,6 +724,7 @@ Lgman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
   }
   else
   {
+    jam();
     DropFilegroupImplConf* conf = 
       (DropFilegroupImplConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
@@ -756,6 +777,19 @@ Lgman::drop_filegroup_drop_files(Signal* signal,
 	     DropFilegroupImplConf::SignalLength, JBB);
 }
 
+/**
+ * Request to create/open a file as part of a log group. This is performed
+ * as part of a metadata transaction. This means that we start by opening
+ * or creating the file and then responding back to DBDICT. If DICT decides
+ * to commit it sends a new request with commit flag and likewise if it
+ * decides to abort it will send a new CREATE_FILE_IMPL_REQ signal, but with
+ * a abort flag.
+ *
+ * If the file is created as part of creating a new log file group or extending
+ * an existing log file group, then the file needs to be created. When this
+ * happens as part of a restart, it is sufficient to open the file since the
+ * file already exists.
+ */
 void
 Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
 {
@@ -818,6 +852,7 @@ Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
       return;
     }
     default: // prepare
+      jam();
       break;
     }
     
@@ -886,16 +921,19 @@ Lgman::open_file(Signal* signal, Ptr<Undofile> ptr,
   req->fileFlags |= FsOpenReq::OM_SYNC;
   switch(requestInfo){
   case CreateFileImplReq::Create:
+    jam();
     req->fileFlags |= FsOpenReq::OM_CREATE_IF_NONE;
     req->fileFlags |= FsOpenReq::OM_INIT;
     ptr.p->m_state = Undofile::FS_CREATING;
     break;
   case CreateFileImplReq::CreateForce:
+    jam();
     req->fileFlags |= FsOpenReq::OM_CREATE;
     req->fileFlags |= FsOpenReq::OM_INIT;
     ptr.p->m_state = Undofile::FS_CREATING;
     break;
   case CreateFileImplReq::Open:
+    jam();
     req->fileFlags |= FsOpenReq::OM_CHECK_SIZE;
     ptr.p->m_state = Undofile::FS_OPENING;
     break;
@@ -1012,8 +1050,14 @@ Lgman::find_file_by_id(Ptr<Undofile>& ptr,
 {
   Local_undofile_list list(m_file_pool, head);
   for(list.first(ptr); !ptr.isNull(); list.next(ptr))
+  {
+    jam();
     if(ptr.p->m_file_id == id)
+    {
+      jam();
       return true;
+    }
+  }
   return false;
 }
 
@@ -1036,20 +1080,28 @@ Lgman::create_file_commit(Signal* signal,
     meta.remove(ptr);
     if(!first)
     {
+      jam();
       /**
        * Add log file next after current head
        */
       Ptr<Undofile> curr;
       m_file_pool.getPtr(curr, lg_ptr.p->m_file_pos[HEAD].m_ptr_i);
       if(free_list.next(curr))
+      {
+        jam();
         free_list.insertBefore(ptr, curr);
+      }
       else
+      {
+        jam();
         free_list.addLast(ptr);
+      }
 
       ptr.p->m_state = Undofile::FS_ONLINE | Undofile::FS_EMPTY;
     }
     else
     {
+      jam();
       /**
        * First file isn't empty as it can be written to at any time
        */
@@ -1064,6 +1116,7 @@ Lgman::create_file_commit(Signal* signal,
   }
   else
   {
+    jam();
     ptr.p->m_state = Undofile::FS_SORTING;
   }
   
@@ -1089,7 +1142,7 @@ Lgman::create_file_commit(Signal* signal,
     lg_ptr.p->m_next_reply_ptr_i = ptr.i;
   }
 
-  validate_logfile_group(lg_ptr, "create_file_commit");
+  validate_logfile_group(lg_ptr, "create_file_commit", jamBuffer());
 
   CreateFileImplConf* conf= (CreateFileImplConf*)signal->getDataPtr();
   conf->senderData = senderData;
@@ -1105,6 +1158,7 @@ Lgman::create_file_abort(Signal* signal,
 {
   if (ptr.p->m_fd == RNIL)
   {
+    jam();
     ((FsConf*)signal->getDataPtr())->userPointer = ptr.i;
     execFSCLOSECONF(signal);
     return;
@@ -1215,6 +1269,7 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
       m_ctx.m_mm.alloc_pages(RG_DISK_OPERATIONS, &ptrI, &cnt, 1);
       if (cnt)
       {
+        jam();
 	Buffer_idx range;
 	range.m_ptr_i= ptrI;
 	range.m_idx = cnt;
@@ -1234,6 +1289,7 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
       }
       else
       {
+        jam();
 	break;
       }
     }
@@ -1241,6 +1297,7 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
 
   if(pages)
   {
+    jam();
     /* Could not allocate all of the requested memory.
      * So release that already allocated.
      */
@@ -1284,6 +1341,7 @@ Lgman::init_logbuffer_pointers(Ptr<Logfile_group> ptr)
   Uint32 pages= range.m_idx;
   while(map.next(it))
   {
+    jam();
     tmp[0] = *it.data;
     ndbrequire(map.next(it));
     tmp[1] = *it.data;
@@ -1294,27 +1352,38 @@ Lgman::init_logbuffer_pointers(Ptr<Logfile_group> ptr)
     ptr.p->m_free_buffer_words = pages * File_formats::UNDO_PAGE_WORDS;
 }
 
+/**
+ * Cannot use jam on this method since it is used before jam buffers
+ * have been properly set up.
+ */
 Uint32
-Lgman::compute_free_file_pages(Ptr<Logfile_group> ptr)
+Lgman::compute_free_file_pages(Ptr<Logfile_group> ptr,
+                               EmulatedJamBuffer *jamBuf)
 {
   Buffer_idx head= ptr.p->m_file_pos[HEAD];
   Buffer_idx tail= ptr.p->m_file_pos[TAIL];
   Uint32 pages = 0;
   if (head.m_ptr_i == tail.m_ptr_i && head.m_idx < tail.m_idx)
   {
+    thrjam(jamBuf);
     pages += tail.m_idx - head.m_idx;
   }
   else
   {
+    thrjam(jamBuf);
     Ptr<Undofile> file;
     m_file_pool.getPtr(file, head.m_ptr_i);
     Local_undofile_list list(m_file_pool, ptr.p->m_files);
     
     do 
     {
+      thrjam(jamBuf);
       pages += (file.p->m_file_size - head.m_idx - 1);
       if(!list.next(file))
+      {
+        thrjam(jamBuf);
 	list.first(file);
+      }
       head.m_idx = 0;
     } while(file.i != tail.m_ptr_i);
     
@@ -1337,6 +1406,7 @@ Lgman::free_logbuffer_memory(Ptr<Logfile_group> ptr)
   map.first(it);
   while(!it.isNull())
   {
+    jam();
     tmp[0] = *it.data;
     ndbrequire(map.next(it));
     tmp[1] = *it.data;
@@ -1379,7 +1449,10 @@ Logfile_client::Logfile_client(SimulatedBlock* block,
   m_logfile_group_id= logfile_group_id;
   D("client ctor " << bno << "/" << ino);
   if (m_lock)
+  {
+    jamBlock(block);
     m_lgman->client_lock(m_block, 0);
+  }
 }
 
 Logfile_client::~Logfile_client()
@@ -1400,8 +1473,10 @@ Logfile_client::sync_lsn(Signal* signal,
   Ptr<Lgman::Logfile_group> ptr;
   if(m_lgman->m_logfile_group_list.first(ptr))
   {
+    jamBlock(m_client_block);
     if(ptr.p->m_last_synced_lsn >= lsn)
     {
+      jamBlock(m_client_block);
       return 1;
     }
     
@@ -1413,7 +1488,10 @@ Logfile_client::sync_lsn(Signal* signal,
       
       empty= list.isEmpty();
       if (!list.seizeLast(wait))
+      {
+        jamBlock(m_client_block);
 	return -1;
+      }
       
       wait.p->m_block= m_block;
       wait.p->m_sync_lsn= lsn;
@@ -1426,7 +1504,8 @@ Logfile_client::sync_lsn(Signal* signal,
     
     if(ptr.p->m_last_sync_req_lsn < lsn && 
        ! (ptr.p->m_state & Lgman::Logfile_group::LG_FORCE_SYNC_THREAD))
-    { 
+    {
+      jamBlock(m_client_block);
       ptr.p->m_state |= Lgman::Logfile_group::LG_FORCE_SYNC_THREAD;
       signal->theData[0] = LgmanContinueB::FORCE_LOG_SYNC;
       signal->theData[1] = ptr.i;
@@ -1437,6 +1516,7 @@ Logfile_client::sync_lsn(Signal* signal,
     }
     return 0;
   }
+  jamBlock(m_client_block);
   return -1;
 }
 
@@ -1450,6 +1530,7 @@ Lgman::force_log_sync(Signal* signal,
 
   if(ptr.p->m_last_sync_req_lsn < force_lsn)
   {
+    jam();
     /**
      * Do force
      */
@@ -1459,6 +1540,7 @@ Lgman::force_log_sync(Signal* signal,
     Uint32 free= File_formats::UNDO_PAGE_WORDS - pos.m_idx;
     if(pos.m_idx) // don't flush empty page...
     {
+      jam();
       Uint64 lsn= ptr.p->m_last_lsn - 1;
       
       File_formats::Undofile::Undo_page* undo= 
@@ -1475,9 +1557,9 @@ Lgman::force_log_sync(Signal* signal,
       ptr.p->m_free_file_words -= free;
       ptr.p->m_free_buffer_words -= free;
       
-      validate_logfile_group(ptr, "force_log_sync");
+      validate_logfile_group(ptr, "force_log_sync", jamBuffer());
 
-      next_page(ptr.p, PRODUCER);
+      next_page(ptr.p, PRODUCER, jamBuffer());
       ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = 0;
     }
   }
@@ -1488,6 +1570,7 @@ Lgman::force_log_sync(Signal* signal,
   if(max_req_lsn > force_lsn && 
      max_req_lsn > ptr.p->m_last_sync_req_lsn)
   {
+    jam();
     ndbrequire(ptr.p->m_state & Lgman::Logfile_group::LG_FORCE_SYNC_THREAD);
     signal->theData[0] = LgmanContinueB::FORCE_LOG_SYNC;
     signal->theData[1] = ptr.i;
@@ -1509,6 +1592,7 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 
   if(list.isEmpty())
   {
+    jam();
     return;
   }
 
@@ -1519,6 +1603,7 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 
   if(waiter.p->m_sync_lsn <= ptr.p->m_last_synced_lsn)
   {
+    jam();
     removed= true;
     Uint32 block = waiter.p->m_block;
     CallbackPtr & callback = waiter.p->m_callback;
@@ -1530,6 +1615,7 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   
   if(removed && !list.isEmpty())
   {
+    jam();
     ptr.p->m_state |= Logfile_group::LG_SYNC_WAITERS_THREAD;
     signal->theData[0] = LgmanContinueB::PROCESS_LOG_SYNC_WAITERS;
     signal->theData[1] = ptr.i;
@@ -1537,13 +1623,16 @@ Lgman::process_log_sync_waiters(Signal* signal, Ptr<Logfile_group> ptr)
   }
   else
   {
+    jam();
     ptr.p->m_state &= ~(Uint32)Logfile_group::LG_SYNC_WAITERS_THREAD;
   }
 }
 
 
 Uint32*
-Lgman::get_log_buffer(Ptr<Logfile_group> ptr, Uint32 sz)
+Lgman::get_log_buffer(Ptr<Logfile_group> ptr,
+                      Uint32 sz,
+                      EmulatedJamBuffer *jamBuf)
 {
   GlobalPage *page;
   page=m_shared_page_pool.getPtr(ptr.p->m_pos[PRODUCER].m_current_pos.m_ptr_i);
@@ -1556,12 +1645,14 @@ Lgman::get_log_buffer(Ptr<Logfile_group> ptr, Uint32 sz)
   if(sz <= free)
   {
 next:
+    thrjam(jamBuf);
     // fits this page wo/ problem
     ndbrequire(total_free >= sz);
     ptr.p->m_free_buffer_words = total_free - sz;
     ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = pos + sz;
     return ((File_formats::Undofile::Undo_page*)page)->m_data + pos;
   }
+  thrjam(jamBuf);
   
   /**
    * It didn't fit page...fill page with a NOOP log entry
@@ -1579,28 +1670,32 @@ next:
   ndbrequire(ptr.p->m_free_file_words >= free);
   ptr.p->m_free_file_words -= free;
 
-  validate_logfile_group(ptr, "get_log_buffer");
+  validate_logfile_group(ptr, "get_log_buffer", jamBuf);
   
   pos= 0;
   assert(total_free >= free);
   total_free -= free;
-  page= m_shared_page_pool.getPtr(next_page(ptr.p, PRODUCER));
+  page= m_shared_page_pool.getPtr(next_page(ptr.p, PRODUCER, jamBuf));
   goto next;
 }
 
 Uint32 
-Lgman::next_page(Logfile_group* ptrP, Uint32 i)
+Lgman::next_page(Logfile_group* ptrP,
+                 Uint32 i,
+                 EmulatedJamBuffer *jamBuf)
 {
   Uint32 page_ptr_i= ptrP->m_pos[i].m_current_pos.m_ptr_i;
   Uint32 left_in_range= ptrP->m_pos[i].m_current_page.m_idx;
   if(left_in_range > 0)
   {
+    thrjam(jamBuf);
     ptrP->m_pos[i].m_current_page.m_idx = left_in_range - 1;
     ptrP->m_pos[i].m_current_pos.m_ptr_i = page_ptr_i + 1;
     return page_ptr_i + 1;
   }
   else
   {
+    thrjam(jamBuf);
     Lgman::Page_map map(m_data_buffer_pool, ptrP->m_buffer_pages);
     Uint32 pos= (ptrP->m_pos[i].m_current_page.m_ptr_i + 2) % map.getSize();
     Lgman::Page_map::Iterator it;
@@ -1623,7 +1718,8 @@ Lgman::next_page(Logfile_group* ptrP, Uint32 i)
 }
 
 int
-Logfile_client::get_log_buffer(Signal* signal, Uint32 sz, 
+Logfile_client::get_log_buffer(Signal* signal,
+                               Uint32 sz, 
 			       SimulatedBlock::CallbackPtr* callback)
 {
   sz += 2; // lsn
@@ -1632,11 +1728,13 @@ Logfile_client::get_log_buffer(Signal* signal, Uint32 sz,
   Ptr<Lgman::Logfile_group> ptr;
   if(m_lgman->m_logfile_group_hash.find(ptr, key))
   {
+    jamBlock(m_client_block);
     Uint32 callback_buffer = ptr.p->m_callback_buffer_words;
     Uint32 free_buffer = ptr.p->m_free_buffer_words;
     if (free_buffer >= (sz + callback_buffer + FREE_BUFFER_MARGIN) &&
         ptr.p->m_log_buffer_waiters.isEmpty())
     {
+      jamBlock(m_client_block);
       ptr.p->m_callback_buffer_words = callback_buffer + sz;
       return 1;
     }
@@ -1650,6 +1748,7 @@ Logfile_client::get_log_buffer(Signal* signal, Uint32 sz,
       empty= list.isEmpty();
       if (!list.seizeFirst(wait))
       {
+        jamBlock(m_client_block);
 	return -1;
       }      
 
@@ -1657,9 +1756,9 @@ Logfile_client::get_log_buffer(Signal* signal, Uint32 sz,
       wait.p->m_block= m_block;
       memcpy(&wait.p->m_callback, callback,sizeof(SimulatedBlock::CallbackPtr));
     }
-
     return 0;
   }
+  jamBlock(m_client_block);
   return -1;
 }
 
@@ -1708,8 +1807,6 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 #endif
     if (! (ptr.p->m_state & Logfile_group::LG_DROPPING))
     {
-      jam();
-
       if (ptr.p->m_log_buffer_waiters.isEmpty() || pos.m_idx == 0)
       {
         jam();
@@ -1738,10 +1835,11 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	
 	Uint32 free= File_formats::UNDO_PAGE_WORDS - pos.m_idx;
 
-	ndbout_c("force flush %d %d outstanding: %u isEmpty(): %u",
-                 pos.m_idx, ptr.p->m_free_buffer_words,
-                 ptr.p->m_outstanding_fs,
-                 ptr.p->m_log_buffer_waiters.isEmpty());
+	g_eventLogger->info("LGMAN: force flush %d %d outstanding: %u"
+                            " isEmpty(): %u",
+                            pos.m_idx, ptr.p->m_free_buffer_words,
+                            ptr.p->m_outstanding_fs,
+                            ptr.p->m_log_buffer_waiters.isEmpty());
 	
 	ndbrequire(pos.m_idx); // don't flush empty page...
 	Uint64 lsn= ptr.p->m_last_lsn - 1;
@@ -1760,9 +1858,9 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	ptr.p->m_free_file_words -= free;
 	ptr.p->m_free_buffer_words -= free;
          
-	validate_logfile_group(ptr, "force_log_flush");
+	validate_logfile_group(ptr, "force_log_flush", jamBuffer());
 	
-	next_page(ptr.p, PRODUCER);
+	next_page(ptr.p, PRODUCER, jamBuffer());
 	ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = 0;
 	producer = ptr.p->m_pos[PRODUCER];
 	// break through
@@ -1781,7 +1879,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
   while(!(consumer.m_current_page == producer.m_current_page) && !full)
   {
     jam();
-    validate_logfile_group(ptr, "before flush log");
+    validate_logfile_group(ptr, "before flush log", jamBuffer());
 
     Uint32 cnt; // pages written
     Uint32 page= consumer.m_current_pos.m_ptr_i;
@@ -1790,8 +1888,6 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
       /**
        * In same range
        */
-      jam();
-
       if(producer.m_current_pos.m_ptr_i > page)
       {
         /**
@@ -1823,7 +1919,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	   *   move to next
 	   */
 	  ptr.p->m_pos[CONSUMER].m_current_page.m_idx= 0;
-	  next_page(ptr.p, CONSUMER);
+	  next_page(ptr.p, CONSUMER, jamBuffer());
 	  consumer = ptr.p->m_pos[CONSUMER];
  	}
 	else
@@ -1852,7 +1948,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 	 *   move to next
 	 */
 	ptr.p->m_pos[CONSUMER].m_current_page.m_idx= 0;
-	next_page(ptr.p, CONSUMER);
+	next_page(ptr.p, CONSUMER, jamBuffer());
 	consumer = ptr.p->m_pos[CONSUMER];
       }
       else
@@ -1869,13 +1965,14 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
 
     tot += cnt;
     if(cnt)
-      validate_logfile_group(ptr, " after flush_log");
+      validate_logfile_group(ptr, " after flush_log", jamBuffer());
   }
 
   ptr.p->m_pos[CONSUMER]= consumer;
   
   if (! (ptr.p->m_state & Logfile_group::LG_DROPPING))
   {
+    jam();
     signal->theData[0] = LgmanContinueB::FLUSH_LOG;
     signal->theData[1] = ptr.i;
     signal->theData[2] = 0;
@@ -1883,6 +1980,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
   }
   else
   {
+    jam();
     ptr.p->m_state &= ~(Uint32)Logfile_group::LG_FLUSH_THREAD;
   }
 }
@@ -1949,6 +2047,7 @@ Lgman::process_log_buffer_waiters(Signal* signal, Ptr<Logfile_group> ptr)
 void
 Lgman::execCALLBACK_ACK(Signal* signal)
 {
+  jamEntry();
   BlockReference senderRef = signal->getSendersBlockRef();
   BlockNumber senderBlock = refToMain(senderRef);
 
@@ -2000,10 +2099,12 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
 
   if(!(head.m_ptr_i == tail.m_ptr_i && head.m_idx < tail.m_idx))
   {
+    jam();
     max= sz - head.m_idx;
   }
   else
   {
+    jam();
     max= tail.m_idx - head.m_idx;
   }
 
@@ -2078,15 +2179,19 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
       jam();
       files.first(next);
     }
-    ndbout_c("changing file from %d to %d", filePtr.i, next.i);
+    g_eventLogger->info("LGMAN: changing file from %d to %d",
+                        filePtr.i,
+                        next.i);
     filePtr.p->m_state |= Undofile::FS_MOVE_NEXT;
     next.p->m_state &= ~(Uint32)Undofile::FS_EMPTY;
 
     head.m_idx= 0;
     head.m_ptr_i= next.i;
     ptr.p->m_file_pos[HEAD] = head;
-    if(max < pages)
+    if (max < pages)
+    {
       max += write_log_pages(signal, ptr, pageId + max, pages - max);
+    }
   }
   
   assert(max);
@@ -2121,12 +2226,14 @@ Lgman::execFSWRITECONF(Signal* signal)
   
   if(lg_ptr.p->m_next_reply_ptr_i == ptr.i)
   {
+    jam();
     Uint32 tot= 0;
     Uint64 lsn = 0;
     {
       Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
       while(cnt && ! (ptr.p->m_state & Undofile::FS_OUTSTANDING))
       {
+        jam();
 	Uint32 state= ptr.p->m_state;
 	Uint32 pages= ptr.p->m_online.m_outstanding;
 	ndbrequire(pages);
@@ -2138,7 +2245,10 @@ Lgman::execFSWRITECONF(Signal* signal)
 	lsn = ptr.p->m_online.m_lsn;
 	
 	if((state & Undofile::FS_MOVE_NEXT) && !files.next(ptr))
+        {
+          jam();
 	  files.first(ptr);
+        }
       }
     }
     
@@ -2150,20 +2260,22 @@ Lgman::execFSWRITECONF(Signal* signal)
 
     if(! (lg_ptr.p->m_state & Logfile_group::LG_SYNC_WAITERS_THREAD))
     {
+      jam();
       process_log_sync_waiters(signal, lg_ptr);
     }
 
     if(! (lg_ptr.p->m_state & Logfile_group::LG_WAITERS_THREAD))
     {
+      jam();
       process_log_buffer_waiters(signal, lg_ptr);
     }
   }
   else
   {
-    ndbout_c("miss matched writes");
+    jam();
+    g_eventLogger->info("LGMAN: miss matched writes");
   }
   client_unlock(number(), __LINE__);
-  
   return;
 }
 
@@ -2202,6 +2314,7 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
   
   if(!ptr.isNull() && ptr.p->m_last_lsn)
   {
+    jamBlock(client_block);
     Uint32 undo[3];
     undo[0] = lcp_id;
     undo[1] = (table_id << 16) | frag_id;
@@ -2215,15 +2328,21 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
 #endif
        )
     {
+      jamBlock(client_block);
       undo[2] |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
-      Uint32 *dst= get_log_buffer(ptr, sizeof(undo) >> 2);
+      Uint32 *dst= get_log_buffer(ptr,
+                                  sizeof(undo) >> 2,
+                                  client_block->jamBuffer());
       memcpy(dst, undo, sizeof(undo));
       ndbrequire(ptr.p->m_free_file_words >= (sizeof(undo) >> 2));
       ptr.p->m_free_file_words -= (sizeof(undo) >> 2);
     }
     else
     {
-      Uint32 *dst= get_log_buffer(ptr, (sizeof(undo) >> 2) + 2);      
+      jamBlock(client_block);
+      Uint32 *dst= get_log_buffer(ptr,
+                                  (sizeof(undo) >> 2) + 2,
+                                  client_block->jamBuffer());      
       * dst++ = (Uint32)(last_lsn >> 32);
       * dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
       memcpy(dst, undo, sizeof(undo));
@@ -2233,18 +2352,21 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
     ptr.p->m_last_lcp_lsn = last_lsn;
     m_last_lsn = ptr.p->m_last_lsn = last_lsn + 1;
 
-    validate_logfile_group(ptr, "execLCP_FRAG_ORD");
+    validate_logfile_group(ptr, "execLCP_FRAG_ORD", client_block->jamBuffer());
   }
   
   while(!ptr.isNull())
   {
+    jamBlock(client_block);
     if (ptr.p->m_last_lsn)
-    {
+    { 
+      jamBlock(client_block);
       /**
        * First LCP_FRAGORD for each LCP, sets tail pos
        */
       if(m_latest_lcp != lcp_id)
       {
+        jamBlock(client_block);
 	ptr.p->m_tail_pos[0] = ptr.p->m_tail_pos[1];
 	ptr.p->m_tail_pos[1] = ptr.p->m_tail_pos[2];
 	ptr.p->m_tail_pos[2] = ptr.p->m_file_pos[HEAD];
@@ -2260,13 +2382,13 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
     }
     m_logfile_group_list.next(ptr);
   }
-  
   m_latest_lcp = lcp_id;
 }
 
 void
 Lgman::execEND_LCP_REQ(Signal* signal)
 {
+  jamEntry();
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   ndbrequire(m_latest_lcp == req->backupId);
   m_end_lcp_senderdata = req->senderData;
@@ -2276,12 +2398,15 @@ Lgman::execEND_LCP_REQ(Signal* signal)
   bool wait= false;
   while(!ptr.isNull())
   {
+    jam();
     Uint64 lcp_lsn = ptr.p->m_last_lcp_lsn;
     if(ptr.p->m_last_synced_lsn < lcp_lsn)
     {
+      jam();
       wait= true;
       if(signal->getSendersBlockRef() != reference())
       {
+        jam();
         D("Logfile_client - execEND_LCP_REQ");
 	Logfile_client tmp(this, this, ptr.p->m_logfile_group_id);
 	Logfile_client::Request req;
@@ -2292,6 +2417,7 @@ Lgman::execEND_LCP_REQ(Signal* signal)
     }
     else
     {
+      jam();
       ptr.p->m_last_lcp_lsn = 0;
     }
     m_logfile_group_list.next(ptr);
@@ -2299,6 +2425,7 @@ Lgman::execEND_LCP_REQ(Signal* signal)
   
   if(wait)
   {
+    jam();
     return;
   }
 
@@ -2324,6 +2451,7 @@ Lgman::cut_log_tail(Signal* signal, Ptr<Logfile_group> ptr)
   bool done= true;
   if (likely(ptr.p->m_last_lsn))
   {
+    jam();
     Buffer_idx tmp= ptr.p->m_tail_pos[0];
     Buffer_idx tail= ptr.p->m_file_pos[TAIL];
     
@@ -2335,25 +2463,31 @@ Lgman::cut_log_tail(Signal* signal, Ptr<Logfile_group> ptr)
       Uint32 free;
       if(tmp.m_ptr_i == tail.m_ptr_i && tail.m_idx < tmp.m_idx)
       {
+        jam();
 	free= tmp.m_idx - tail.m_idx; 
 	ptr.p->m_free_file_words += free * File_formats::UNDO_PAGE_WORDS;
 	ptr.p->m_file_pos[TAIL] = tmp;
       }
       else
       {
+        jam();
 	free= filePtr.p->m_file_size - tail.m_idx - 1;
 	ptr.p->m_free_file_words += free * File_formats::UNDO_PAGE_WORDS;
 	
 	Ptr<Undofile> next = filePtr;
 	Local_undofile_list files(m_file_pool, ptr.p->m_files);
 	while(files.next(next) && (next.p->m_state & Undofile::FS_EMPTY))
+        {
 	  ndbrequire(next.i != filePtr.i);
+        }
 	if(next.isNull())
 	{
 	  jam();
 	  files.first(next);
 	  while((next.p->m_state & Undofile::FS_EMPTY) && files.next(next))
+          {
 	    ndbrequire(next.i != filePtr.i);
+          }
 	}
 	
 	tmp.m_idx= 0;
@@ -2362,18 +2496,19 @@ Lgman::cut_log_tail(Signal* signal, Ptr<Logfile_group> ptr)
 	done= false;      
       }
     } 
-    
-    validate_logfile_group(ptr, "cut log");
+    validate_logfile_group(ptr, "cut log", jamBuffer());
   }
   
   if (done)
   {
+    jam();
     ptr.p->m_state &= ~(Uint32)Logfile_group::LG_CUT_LOG_THREAD;
     m_logfile_group_list.next(ptr); 
   }
   
   if(!done || !ptr.isNull())
   {
+    jam();
     ptr.p->m_state |= Logfile_group::LG_CUT_LOG_THREAD;
     signal->theData[0] = LgmanContinueB::CUT_LOG_TAIL;
     signal->theData[1] = ptr.i;
@@ -2392,11 +2527,12 @@ Lgman::execSUB_GCP_COMPLETE_REP(Signal* signal)
   /**
    * Filter all logfile groups in parallell
    */
-  return; // NOT IMPLETMENT YET
+  return; // NOT IMPLEMENTED YET
   
   signal->theData[0] = LgmanContinueB::FILTER_LOG;
   while(!ptr.isNull())
   {
+    jam();
     signal->theData[1] = ptr.i;
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
     m_logfile_group_list.next(ptr);
@@ -2404,8 +2540,11 @@ Lgman::execSUB_GCP_COMPLETE_REP(Signal* signal)
 }
 
 int
-Lgman::alloc_log_space(Uint32 ref, Uint32 words)
+Lgman::alloc_log_space(Uint32 ref,
+                       Uint32 words,
+                       EmulatedJamBuffer *jamBuf)
 {
+  thrjamEntry(jamBuf);
   ndbrequire(words);
   words += 2; // lsn
   Logfile_group key;
@@ -2414,30 +2553,36 @@ Lgman::alloc_log_space(Uint32 ref, Uint32 words)
   if(m_logfile_group_hash.find(ptr, key) && 
      ptr.p->m_free_file_words >= (words + (4 * File_formats::UNDO_PAGE_WORDS)))
   {
+    thrjam(jamBuf);
     ptr.p->m_free_file_words -= words;
-    validate_logfile_group(ptr, "alloc_log_space");
+    validate_logfile_group(ptr, "alloc_log_space", jamBuf);
     return 0;
   }
   
   if(ptr.isNull())
   {
+    thrjam(jamBuf);
     return -1;
   }
-  
+  thrjam(jamBuf);
   return 1501;
 }
 
 int
-Lgman::free_log_space(Uint32 ref, Uint32 words)
+Lgman::free_log_space(Uint32 ref,
+                      Uint32 words,
+                      EmulatedJamBuffer *jamBuf)
 {
+  thrjamEntry(jamBuf);
   ndbrequire(words);
   Logfile_group key;
   key.m_logfile_group_id= ref;
   Ptr<Logfile_group> ptr;
   if(m_logfile_group_hash.find(ptr, key))
   {
+    thrjam(jamBuf);
     ptr.p->m_free_file_words += (words + 2);
-    validate_logfile_group(ptr, "free_log_space");
+    validate_logfile_group(ptr, "free_log_space", jamBuf);
     return 0;
   }
   ndbrequire(false);
@@ -2448,6 +2593,8 @@ Uint64
 Logfile_client::add_entry(const Change* src, Uint32 cnt)
 {
   Uint32 i, tot= 0;
+  jamBlock(m_client_block);
+  jamBlockLine(m_client_block, cnt);
   for(i= 0; i<cnt; i++)
   {
     tot += src[i].len;
@@ -2461,6 +2608,7 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
     Ptr<Lgman::Logfile_group> ptr;
     if(m_lgman->m_logfile_group_hash.find(ptr, key))
     {
+      jamBlock(m_client_block);
       Uint32 callback_buffer = ptr.p->m_callback_buffer_words;
       Uint64 last_lsn_filegroup= ptr.p->m_last_lsn;
       if(last_lsn_filegroup == last_lsn
@@ -2469,7 +2617,8 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 #endif
 	 )
       {
-	dst= m_lgman->get_log_buffer(ptr, tot);
+        jamBlock(m_client_block);
+	dst= m_lgman->get_log_buffer(ptr, tot, m_client_block->jamBuffer());
 	for(i= 0; i<cnt; i++)
 	{
 	  memcpy(dst, src[i].ptr, 4*src[i].len);
@@ -2477,11 +2626,16 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	}
 	* (dst - 1) |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
 	ptr.p->m_free_file_words += 2;
-	m_lgman->validate_logfile_group(ptr);
+	m_lgman->validate_logfile_group(ptr,
+                                        (const char*)0,
+                                        m_client_block->jamBuffer());
       }
       else
       {
-	dst= m_lgman->get_log_buffer(ptr, tot + 2);
+        jamBlock(m_client_block);
+	dst= m_lgman->get_log_buffer(ptr,
+                                     tot + 2,
+                                     m_client_block->jamBuffer());
 	* dst++ = (Uint32)(last_lsn >> 32);
 	* dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
 	for(i= 0; i<cnt; i++)
@@ -2498,20 +2652,53 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 
       if (unlikely(! (tot <= callback_buffer)))
       {
+        jamBlock(m_client_block);
         abort();
       }
       ptr.p->m_callback_buffer_words = callback_buffer - tot;
     }
-    
     m_lgman->m_last_lsn = ptr.p->m_last_lsn = last_lsn + 1;
-    
     return last_lsn;
   }
 }
 
+/**
+ * Start Recovery in LGMAN
+ * -----------------------
+ * Recovery in LGMAN means running the UNDO log for disk data tables.
+ * This is performed after receiving information about all tables to
+ * restore from DBDIH. It happens before executing the REDO log but
+ * after restoring the LCP that we want to use for restoring. So we
+ * have restored an old variant of the main memory data when arriving
+ * here. The disk data is at least current since the last completed
+ * LCP. It resides on disk, so no special preparatory action is needed
+ * here.
+ *
+ * We need to restore the page state of the tables as they were at the
+ * time of the start of the last completed LCP. We receive the latest
+ * completed LCP id in this signal. We do this by executing UNDO log
+ * records that roll back the state of pages by running log backwards
+ * unto the point where the LCP id was started.
+ *
+ * After this is completed we will run the REDO log to get the table
+ * into a fairly recent but consistent state.
+ *
+ * The steps preceding this in a restart is:
+ * 1) Create the log file group (if any)
+ *   This happens through the signal CREATE_FILEGROUP_IMPL_REQ
+ * 2) Create the log file(s) (if any)
+ *   This happens through the signal CREATE_FILE_IMPL_REQ
+ *   In a restart the file is only opened since it already exists.
+ *   These signals initiate the data about log file groups and
+ *   log files.
+ * So as we arrive here the files are opened and can immediately be used
+ * to read and write to. We also have set up the necessary data structures
+ * around log file groups and log files.
+ */
 void
 Lgman::execSTART_RECREQ(Signal* signal)
 {
+  jamEntry();
   m_latest_lcp = signal->theData[0];
   
   Ptr<Logfile_group> ptr;
@@ -2520,11 +2707,15 @@ Lgman::execSTART_RECREQ(Signal* signal)
   if(ptr.i != RNIL)
   {
     infoEvent("Applying undo to LCP: %d", m_latest_lcp);
-    ndbout_c("Applying undo to LCP: %d", m_latest_lcp);
+    g_eventLogger->info("LGMAN: Applying undo to LCP: %d", m_latest_lcp);
     find_log_head(signal, ptr);
     return;
   }
-  
+  /**
+   * No log file groups available in the data node. This means we're
+   * not using disk data in this data node. So we can immediately respond
+   * the execution of UNDO log for disk data is completed.
+   */
   signal->theData[0] = reference();
   sendSignal(DBLQH_REF, GSN_START_RECCONF, signal, 1, JBB);
 }
@@ -2540,6 +2731,7 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
     jam();
     /**
      * Logfile_group wo/ any files 
+     * This means we're done obviously
      */
     ptr.p->m_state &= ~(Uint32)Logfile_group::LG_STARTING;
     ptr.p->m_state |= Logfile_group::LG_ONLINE;
@@ -2561,6 +2753,7 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
   
   if(!file_ptr.isNull())
   {
+    jam();
     /**
      * Use log buffer memory when reading
      */
@@ -2587,6 +2780,7 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
   }
   else
   {
+    jam();
     /**
      * All files have read first page
      *   and m_files is sorted acording to lsn
@@ -2594,7 +2788,6 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
     ndbrequire(!ptr.p->m_files.isEmpty());
     Local_undofile_list read_files(m_file_pool, ptr.p->m_files);
     read_files.last(file_ptr);
-    
 
     /**
      * Init binary search
@@ -2653,10 +2846,12 @@ Lgman::execFSREADCONF(Signal* signal)
     
     if(lg_ptr.p->m_next_reply_ptr_i == ptr.i)
     {
+      jam();
       Uint32 tot= 0;
       Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
       while(cnt && ! (ptr.p->m_state & Undofile::FS_OUTSTANDING))
       {
+        jam();
 	Uint32 state= ptr.p->m_state;
 	Uint32 pages= ptr.p->m_online.m_outstanding;
 	ndbrequire(pages);
@@ -2666,7 +2861,10 @@ Lgman::execFSREADCONF(Signal* signal)
 	cnt--;
 	
 	if((state & Undofile::FS_MOVE_NEXT) && !files.prev(ptr))
+        {
+          jam();
 	  files.last(ptr);
+        }
       }
       
       lg_ptr.p->m_outstanding_fs = cnt;
@@ -2707,6 +2905,7 @@ Lgman::execFSREADCONF(Signal* signal)
   case Undofile::FS_OPENING:
   case Undofile::FS_EMPTY:
     jam();
+    jamLine(ptr.p->m_state);
     ndbrequire(false);
   }
 
@@ -2727,7 +2926,10 @@ Lgman::execFSREADCONF(Signal* signal)
     Ptr<Undofile> loop;  
     files.first(loop);
     while(!loop.isNull() && loop.p->m_online.m_lsn <= lsn)
+    {
+      jam();
       files.next(loop);
+    }
     
     if(loop.isNull())
     {
@@ -2739,6 +2941,7 @@ Lgman::execFSREADCONF(Signal* signal)
     }
     else
     {
+      jam();
       /**
        * Insert file in correct position in file list
        */
@@ -2778,6 +2981,7 @@ Lgman::find_log_head_in_file(Signal* signal,
 	   head, curr, last_lsn);
   if(last_lsn > file_ptr.p->m_online.m_lsn)
   {
+    jam();
     if(DEBUG_SEARCH_LOG_HEAD)
       printf("moving tail ");
     
@@ -2786,6 +2990,7 @@ Lgman::find_log_head_in_file(Signal* signal,
   }
   else
   {
+    jam();
     if(DEBUG_SEARCH_LOG_HEAD)
       printf("moving head ");
 
@@ -2794,6 +2999,7 @@ Lgman::find_log_head_in_file(Signal* signal,
   
   if(diff > 1)
   {
+    jam();
     // We need to find more pages to be sure...
     ptr.p->m_file_pos[HEAD].m_ptr_i = curr = ((head + tail) >> 1);
 
@@ -2849,6 +3055,7 @@ Lgman::find_log_head_in_file(Signal* signal,
     Local_undofile_list files(m_file_pool, ptr.p->m_files);
     if(tail == 1)
     {
+      jam();
       /**
        * HEAD is first page in a file...
        *   -> PREV should be in previous file
@@ -2856,6 +3063,7 @@ Lgman::find_log_head_in_file(Signal* signal,
       Ptr<Undofile> prev = file_ptr;
       if(!files.prev(prev))
       {
+        jam();
 	files.last(prev);
       }
       ptr.p->m_file_pos[TAIL].m_ptr_i = prev.i;
@@ -2905,10 +3113,10 @@ Lgman::init_run_undo_log(Signal* signal)
   {
     Logfile_group_list::Local tmp(m_logfile_group_pool, tmpHead);
 
-
     list.first(group);
     while (!group.isNull())
     {
+      jam();
       Ptr<Logfile_group> ptr= group;
       list.next(group);
       list.remove(ptr);
@@ -2954,13 +3162,24 @@ Lgman::init_run_undo_log(Signal* signal)
        */
       Ptr<Logfile_group> pos;
       for (tmp.first(pos); !pos.isNull(); tmp.next(pos))
+      {
+        jam();
         if (ptr.p->m_last_read_lsn >= pos.p->m_last_read_lsn)
+        {
           break;
+        }
+      }
     
       if (pos.isNull())
+      {
+        jam();
         tmp.addLast(ptr);
+      }
       else
+      {
+        jam();
         tmp.insertBefore(ptr, pos);
+      }
     
       ptr.p->m_state =
         Logfile_group::LG_EXEC_THREAD | Logfile_group::LG_READ_THREAD;
@@ -3012,6 +3231,7 @@ Lgman::read_undo_log(Signal* signal, Ptr<Logfile_group> ptr)
 
   if(producer.m_current_page.m_idx == 0)
   {
+    jam();
     /**
      * zero pages left in range -> switch range
      */
@@ -3033,6 +3253,7 @@ Lgman::read_undo_log(Signal* signal, Ptr<Logfile_group> ptr)
   if(producer.m_current_page.m_ptr_i == consumer.m_current_page.m_ptr_i &&
      producer.m_current_pos.m_ptr_i > consumer.m_current_pos.m_ptr_i)
   {
+    jam();
     Uint32 max= 
       producer.m_current_pos.m_ptr_i - consumer.m_current_pos.m_ptr_i - 1;
     ndbrequire(free >= max * File_formats::UNDO_PAGE_WORDS);
@@ -3043,6 +3264,7 @@ Lgman::read_undo_log(Signal* signal, Ptr<Logfile_group> ptr)
   } 
   else
   {
+    jam();
     Uint32 max= producer.m_current_page.m_idx;
     ndbrequire(free >= max * File_formats::UNDO_PAGE_WORDS);
     cnt= read_undo_pages(signal, ptr, producer.m_current_pos.m_ptr_i, max);
@@ -3060,9 +3282,15 @@ Lgman::read_undo_log(Signal* signal, Ptr<Logfile_group> ptr)
   signal->theData[1] = ptr.i;
 
   if(free > File_formats::UNDO_PAGE_WORDS)
+  {
+    jam();
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
   else
+  {
+    jam();
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+  }
 }
 
 Uint32
@@ -3151,11 +3379,12 @@ Lgman::read_undo_pages(Signal* signal, Ptr<Logfile_group> ptr,
     tail.m_ptr_i= prev.i;
     ptr.p->m_file_pos[TAIL] = tail;
     if(max < pages && filePtr.i != prev.i)
+    {
+      jam();
       max += read_undo_pages(signal, ptr, pageId - max, pages - max);
+    }
   }
-  
   return max;
-
 }
 
 void
@@ -3170,14 +3399,17 @@ Lgman::execute_undo_record(Signal* signal)
     Uint32 mask= type & ~(Uint32)File_formats::Undofile::UNDO_NEXT_LSN;
     switch(mask){
     case File_formats::Undofile::UNDO_END:
+      jam();
       stop_run_undo_log(signal);
       return;
     case File_formats::Undofile::UNDO_LCP:
     case File_formats::Undofile::UNDO_LCP_FIRST:
     {
       Uint32 lcp = * (ptr - len + 1);
+      jam();
       if(m_latest_lcp && lcp > m_latest_lcp)
       {
+        jam();
         if (0)
         {
 	  const Uint32 * base = ptr - len + 1;
@@ -3195,6 +3427,7 @@ Lgman::execute_undo_record(Signal* signal)
 	 (lcp == m_latest_lcp && 
 	  mask == File_formats::Undofile::UNDO_LCP_FIRST))
       {
+        jam();
 	stop_run_undo_log(signal);
 	return;
       }
@@ -3208,6 +3441,8 @@ Lgman::execute_undo_record(Signal* signal)
     case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
     case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
       {
+        jam();
+        jamLine(mask);
         Dbtup_client tup(this, m_tup);
         tup.disk_restart_undo(signal, lsn, mask, ptr - len + 1, len);
         jamEntry();
@@ -3219,7 +3454,6 @@ Lgman::execute_undo_record(Signal* signal)
   }
   signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
   sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
-  
   return;
 }
 
@@ -3251,6 +3485,7 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
     /**
      * End of log
      */
+    jam();
     pageP->m_data[0] = (File_formats::Undofile::UNDO_END << 16) | 1 ;
     pageP->m_page_header.m_page_lsn_hi = 0;
     pageP->m_page_header.m_page_lsn_lo = 0;
@@ -3268,19 +3503,20 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
   // Same page
   if(((* record) >> 16) & File_formats::Undofile::UNDO_NEXT_LSN)
   {
+    jam();
     lsn = ptr.p->m_last_read_lsn - 1;
     ndbrequire((Int64)lsn >= 0);
   }
   else
   {
     ndbrequire(pos >= 3);
+    jam();
     lsn += * (prev - 1); lsn <<= 32;
     lsn += * (prev - 0);
     len += 2;
     ndbrequire((Int64)lsn >= 0);
   }
   
-
   ndbrequire(pos >= len);
   
   if(pos == len)
@@ -3288,16 +3524,19 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
     /**
      * Switching page
      */
+    jam();
     ndbrequire(producer.m_current_pos.m_idx);
     ptr.p->m_pos[PRODUCER].m_current_pos.m_idx --;
 
     if(consumer.m_current_page.m_idx)
     {
+      jam();
       consumer.m_current_page.m_idx--;   // left in range
       consumer.m_current_pos.m_ptr_i --; // page
     }
     else
     {
+      jam();
       // 0 pages left in range...switch range
       Lgman::Page_map::Iterator it;
       Page_map map(m_data_buffer_pool, ptr.p->m_buffer_pages);
@@ -3342,10 +3581,11 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
   }
   else
   {
+    jam();
     ptr.p->m_pos[CONSUMER].m_current_pos.m_idx -= len;
   }
   
-  * this_lsn = ptr.p->m_last_read_lsn = lsn;
+  *this_lsn = ptr.p->m_last_read_lsn = lsn;
 
   /**
    * Re-sort log file groups
@@ -3353,16 +3593,26 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
   Ptr<Logfile_group> sort = ptr;
   if(m_logfile_group_list.next(sort))
   {
+    jam();
     while(!sort.isNull() && sort.p->m_last_read_lsn > lsn)
+    {
+      jam();
       m_logfile_group_list.next(sort);
+    }
     
     if(sort.i != ptr.p->nextList)
     {
       m_logfile_group_list.remove(ptr);
       if(sort.isNull())
+      {
+        jam();
         m_logfile_group_list.addLast(ptr);
+      }
       else
+      {
+        jam();
         m_logfile_group_list.insertBefore(ptr, sort);
+      }
     }
   }
   return record;
@@ -3383,6 +3633,7 @@ Lgman::stop_run_undo_log(Signal* signal)
 
     if(ptr.p->m_state & Logfile_group::LG_READ_THREAD)
     {
+      jam();
       /**
        * Thread is still running...wait for it to complete
        */
@@ -3390,10 +3641,12 @@ Lgman::stop_run_undo_log(Signal* signal)
     }
     else if(ptr.p->m_outstanding_fs)
     {
+      jam();
       outstanding = true; // a FSREADREQ is outstanding...wait for it
     }
     else if(ptr.p->m_state != Logfile_group::LG_ONLINE)
     {
+      jam();
       /**
        * Fix log TAIL
        */
@@ -3413,6 +3666,7 @@ Lgman::stop_run_undo_log(Signal* signal)
 	
 	if(pages >= diff)
 	{
+          jam();
 	  pages -= diff;
 	  Local_undofile_list files(m_file_pool, ptr.p->m_files);
 	  if(!files.next(file))
@@ -3422,6 +3676,7 @@ Lgman::stop_run_undo_log(Signal* signal)
 	}
 	else
 	{
+          jam();
 	  tail.m_idx += pages;
 	  pages= 0;
 	}
@@ -3439,6 +3694,7 @@ Lgman::stop_run_undo_log(Signal* signal)
 	m_file_pool.getPtr(file, head.m_ptr_i);
 	if (head.m_idx == file.p->m_file_size - 1)
 	{
+          jam();
 	  Local_undofile_list files(m_file_pool, ptr.p->m_files);
 	  if(!files.next(file))
 	  {
@@ -3453,7 +3709,7 @@ Lgman::stop_run_undo_log(Signal* signal)
       
       client_lock(number(), __LINE__);
       ptr.p->m_free_file_words = (Uint64)File_formats::UNDO_PAGE_WORDS * 
-	(Uint64)compute_free_file_pages(ptr);
+	(Uint64)compute_free_file_pages(ptr, jamBuffer());
       client_unlock(number(), __LINE__);
       ptr.p->m_next_reply_ptr_i = ptr.p->m_file_pos[HEAD].m_ptr_i;
       
@@ -3550,15 +3806,21 @@ Lgman::execEND_LCP_CONF(Signal* signal)
 #endif
      )
   {
+    jam();
     undo[2] |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
-    Uint32 *dst= get_log_buffer(ptr, sizeof(undo) >> 2);
+    Uint32 *dst= get_log_buffer(ptr,
+                                sizeof(undo) >> 2,
+                                jamBuffer());
     memcpy(dst, undo, sizeof(undo));
     ndbrequire(ptr.p->m_free_file_words >= (sizeof(undo) >> 2));
     ptr.p->m_free_file_words -= (sizeof(undo) >> 2);
   }
   else
   {
-    Uint32 *dst= get_log_buffer(ptr, (sizeof(undo) >> 2) + 2);      
+    jam();
+    Uint32 *dst= get_log_buffer(ptr,
+                                (sizeof(undo) >> 2) + 2,
+                                jamBuffer());      
     * dst++ = (Uint32)(last_lsn >> 32);
     * dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
     memcpy(dst, undo, sizeof(undo));
@@ -3569,7 +3831,10 @@ Lgman::execEND_LCP_CONF(Signal* signal)
 
   ptr.p->m_last_synced_lsn = last_lsn;
   while(m_logfile_group_list.next(ptr))
+  {
+    jam();
     ptr.p->m_last_synced_lsn = last_lsn;
+  }
   
   infoEvent("Flushing complete");
   g_eventLogger->info("Flushing complete");
@@ -3580,17 +3845,23 @@ Lgman::execEND_LCP_CONF(Signal* signal)
 
 #ifdef VM_TRACE
 void 
-Lgman::validate_logfile_group(Ptr<Logfile_group> ptr, const char * heading)
+Lgman::validate_logfile_group(Ptr<Logfile_group> ptr,
+                              const char * heading,
+                              EmulatedJamBuffer *jamBuf)
 {
   do 
   {
     if (ptr.p->m_file_pos[HEAD].m_ptr_i == RNIL)
+    {
+      thrjam(jamBuf);
       break;
+    }
     
-    Uint32 pages = compute_free_file_pages(ptr);
+    Uint32 pages = compute_free_file_pages(ptr, jamBuf);
     
     Uint32 group_pages = 
-      ((ptr.p->m_free_file_words + File_formats::UNDO_PAGE_WORDS - 1)/ File_formats::UNDO_PAGE_WORDS) ;
+      ((ptr.p->m_free_file_words + File_formats::UNDO_PAGE_WORDS - 1) /
+        File_formats::UNDO_PAGE_WORDS) ;
     Uint32 last = ptr.p->m_free_file_words % File_formats::UNDO_PAGE_WORDS;
     
     if(! (pages >= group_pages))

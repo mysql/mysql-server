@@ -264,8 +264,6 @@ public:
   Tsman* c_tsman;
   Lgman* c_lgman;
   Pgman* c_pgman;
-  // copy of pgman.m_ptr set after each get_page
-  Ptr<GlobalPage> m_pgman_ptr;
 
   enum CallbackIndex {
     // lgman
@@ -1569,7 +1567,8 @@ struct KeyReqStruct {
   bool            m_disable_fk_checks;
 
   Signal*         signal;
-  Uint32 no_fired_triggers;
+  Uint32 num_fired_triggers;
+  Uint32 no_exec_instructions;
   Uint32 frag_page_id;
   Uint32 hash_value;
   Uint32 gci_hi;
@@ -2640,7 +2639,8 @@ private:
   void checkDetachedTriggers(KeyReqStruct *req_struct,
                              Operationrec* regOperPtr,
                              Tablerec* regTablePtr,
-                             bool disk);
+                             bool disk,
+                             Uint32 diskPagePtrI);
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
                              DLList<TupTriggerData>& triggerList, 
@@ -2664,7 +2664,8 @@ private:
   void fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
                             Operationrec* regOperPtr,
-                            bool disk);
+                            bool disk,
+                            Uint32 diskPagePtrI);
 
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
@@ -2855,8 +2856,7 @@ private:
 			Operationrec* regOperPtr,
 			Tablerec* regTabPtr);
   
-  void send_TUPKEYREF(Signal* signal,
-                      Operationrec* regOperPtr);
+  void send_TUPKEYREF(const KeyReqStruct* req_struct);
   void early_tupkey_error(KeyReqStruct*);
 
   void printoutTuplePage(Uint32 fragid, Uint32 pageid, Uint32 printLimit);
@@ -3422,17 +3422,44 @@ private:
   void findFirstOp(OperationrecPtr&);
   bool is_rowid_lcp_scanned(const Local_key& key1,
                            const Dbtup::ScanOp& op);
-  void commit_operation(Signal*, Uint32, Uint32, Tuple_header*, PagePtr,
-			Operationrec*, Fragrecord*, Tablerec*);
-  void commit_refresh(Signal*, Uint32, Uint32, Tuple_header*, PagePtr,
-                      KeyReqStruct*, Operationrec*, Fragrecord*, Tablerec*);
+  void commit_operation(Signal*,
+                        Uint32,
+                        Uint32,
+                        Tuple_header*,
+                        PagePtr,
+			Operationrec*,
+                        Fragrecord*,
+                        Tablerec*,
+                        Ptr<GlobalPage> diskPagePtr);
+
+  void commit_refresh(Signal*,
+                      Uint32,
+                      Uint32,
+                      Tuple_header*,
+                      PagePtr,
+                      KeyReqStruct*,
+                      Operationrec*,
+                      Fragrecord*,
+                      Tablerec*,
+                      Ptr<GlobalPage> diskPagePtr);
+
   int retrieve_data_page(Signal*,
                          Page_cache_client::Request,
-                         OperationrecPtr);
+                         OperationrecPtr,
+                         Ptr<GlobalPage> &diskPagePtr);
   int retrieve_log_page(Signal*, FragrecordPtr, OperationrecPtr);
 
-  void dealloc_tuple(Signal* signal, Uint32, Uint32, Page*, Tuple_header*,
-		     KeyReqStruct*, Operationrec*, Fragrecord*, Tablerec*);
+  void dealloc_tuple(Signal* signal,
+                     Uint32,
+                     Uint32,
+                     Page*,
+                     Tuple_header*,
+                     KeyReqStruct*,
+                     Operationrec*,
+                     Fragrecord*,
+                     Tablerec*,
+                     Ptr<GlobalPage> diskPagePtr);
+
   bool store_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32,
                             bool);
   void read_extra_row_bits(Uint32, const Tablerec*, Tuple_header*, Uint32 *,
@@ -3463,7 +3490,7 @@ private:
   void check_page_map(Fragrecord*);
   bool find_page_id_in_list(Fragrecord*, Uint32 pid);
 #endif
-  void handle_lcp_keep(Signal*, Fragrecord*, ScanOp*);
+  void handle_lcp_keep(Signal*, FragrecordPtr, ScanOp*);
   void handle_lcp_keep_commit(const Local_key*,
                               KeyReqStruct *,
                               Operationrec*, Fragrecord*, Tablerec*);
