@@ -2626,7 +2626,8 @@ bool unpack_gcol_info_from_frm(THD *thd,
   */
   Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
   Query_arena backup_arena;
-  Query_arena gcol_arena(&table->mem_root, Query_arena::STMT_INITIALIZED);
+  Query_arena gcol_arena(&table->mem_root,
+                         Query_arena::STMT_CONVENTIONAL_EXECUTION);
   thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
   thd->stmt_arena= &gcol_arena;
   ulong save_old_privilege= thd->want_privilege;
