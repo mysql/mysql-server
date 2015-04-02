@@ -203,10 +203,10 @@ cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
 --remove_file $MYSQLTEST_VARDIR/tmp/ver_output
 
 --echo [4]: Test for --allow-mismatches =99
---exec $INNOCHECKSUM --allow-mismatches=99 --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
 
 --echo # Expect the fails for checksum mismatches. Print the error message.
-cat_file $SEARCH_FILE;
+--replace_regex /page id: space=[0-9]+, page number=[0-9]+/page id: space=X, page number=Y/
+--exec $INNOCHECKSUM --allow-mismatches=99 --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd 2>&1
 
 --echo [5]: Test checksum check for page: 2 to page:5
 --exec $INNOCHECKSUM  -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd

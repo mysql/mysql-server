@@ -31,7 +31,7 @@ simple headers.
 
 #include "univ.i"
 
-#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
+#if !defined UNIV_HOTBACKUP
 
 /* Forward declarations */
 class THD;
@@ -547,6 +547,6 @@ thd_requested_durability(
 	const THD* thd)	/*!< in: thread handle */
 	__attribute__((warn_unused_result));
 
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
+#endif /* !UNIV_HOTBACKUP */
 
 #endif /* HA_INNODB_PROTOTYPES_H */

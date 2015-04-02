@@ -81,6 +81,11 @@ page-type-dump                    (No default value)
 log                               (No default value)
 [4]: Test for --allow-mismatches =99
 # Expect the fails for checksum mismatches. Print the error message.
+innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
+innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
+innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
+innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
+innochecksum: innodb_checksum_algorithm is set to "strict_none" but the page [page id: space=X, page number=Y] contains a valid checksum "crc32".  Accepting the page as valid. Change innodb_checksum_algorithm to "none" to silently accept such pages or rewrite all pages so that they contain "none" checksum.
 [5]: Test checksum check for page: 2 to page:5
 [6]: Test for checksum check for only pageno.= 2
 [7]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.

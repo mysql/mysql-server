@@ -2016,9 +2016,9 @@ func_exit:
 
 		ut_ad(b->size.is_compressed());
 
-		checksum = page_zip_calc_checksum(
-			b->zip.data,
-			b->size.physical(),
+		BlockReporter	reporter = BlockReporter(
+			false, b->zip.data, b->size, false);
+		checksum = reporter.calc_zip_checksum(
 			static_cast<srv_checksum_algorithm_t>(
 				srv_checksum_algorithm));
 

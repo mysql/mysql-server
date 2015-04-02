@@ -799,7 +799,10 @@ buf_flush_update_zip_checksum(
 {
 	ut_a(size > 0);
 
-	ib_uint32_t	checksum = page_zip_calc_checksum(
+	BlockReporter	reporter = BlockReporter(
+		false, NULL, univ_page_size, false);
+
+	ib_uint32_t	checksum = reporter.calc_zip_checksum(
 		page, size,
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 
@@ -1030,13 +1033,18 @@ buf_flush_write_block_low(
 		ut_error;
 		break;
 	case BUF_BLOCK_ZIP_DIRTY:
-		frame = bpage->zip.data;
+		{
+			frame = bpage->zip.data;
+			BlockReporter	reporter = BlockReporter(
+				false, frame, bpage->size,
+				fsp_is_checksum_disabled(bpage->id.space()));
 
-		ut_a(page_zip_verify_checksum(frame, bpage->size.physical()));
+			ut_a(reporter.verify_zip_checksum());
 
-		mach_write_to_8(frame + FIL_PAGE_LSN,
-				bpage->newest_modification);
-		break;
+			mach_write_to_8(frame + FIL_PAGE_LSN,
+					bpage->newest_modification);
+			break;
+		}
 	case BUF_BLOCK_FILE_PAGE:
 		frame = bpage->zip.data;
 		if (!frame) {

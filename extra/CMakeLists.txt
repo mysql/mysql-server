@@ -110,9 +110,6 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   SET(INNOBASE_SOURCES
       ../storage/innobase/buf/buf0checksum.cc
       ../storage/innobase/ut/ut0crc32.cc
-      ../storage/innobase/ut/ut0ut.cc
-      ../storage/innobase/buf/buf0buf.cc
-      ../storage/innobase/page/page0zip.cc
       ../storage/innobase/os/os0file.cc
      )
 

@@ -528,13 +528,14 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		/* The space_id can be most anything, except -1. */
 		error_txt = "A bad Space ID was found";
-
-	} else if (buf_page_is_corrupted(
+	} else {
+		BlockReporter	reporter(
 			false, m_first_page, page_size,
-			fsp_is_checksum_disabled(m_space_id))) {
-
-		/* Look for checksum and other corruptions. */
-		error_txt = "Checksum mismatch";
+			fsp_is_checksum_disabled(m_space_id));
+		if (reporter.is_corrupted()) {
+			/* Look for checksum and other corruptions. */
+			error_txt = "Checksum mismatch";
+		}
 	}
 
 	if (error_txt != NULL) {
@@ -670,8 +671,11 @@ Datafile::find_space_id()
 			/* For noncompressed pages, the page size must be
 			equal to univ_page_size.physical(). */
 			if (page_size == univ_page_size.physical()) {
-				noncompressed_ok = !buf_page_is_corrupted(
+				BlockReporter	reporter(
 					false, page, univ_page_size, false);
+
+				noncompressed_ok =
+					!reporter.is_corrupted();
 			}
 
 			bool	compressed_ok = false;
@@ -690,8 +694,11 @@ Datafile::find_space_id()
 					page_size, univ_page_size.logical(),
 					true);
 
-				compressed_ok = !buf_page_is_corrupted(
+				BlockReporter	reporter(
 					false, page, compr_page_size, false);
+
+				compressed_ok =
+					!reporter.is_corrupted();
 			}
 
 			if (noncompressed_ok || compressed_ok) {

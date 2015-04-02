@@ -26,12 +26,6 @@ Created 1/30/1994 Heikki Tuuri
 #ifndef ut0dbg_h
 #define ut0dbg_h
 
-#ifdef UNIV_INNOCHECKSUM
-#define ut_a		assert
-#define ut_ad		assert
-#define ut_error	assert(0)
-#else /* !UNIV_INNOCHECKSUM */
-
 /* Do not include univ.i because univ.i includes this. */
 
 #include "os0thread.h"
@@ -182,7 +176,5 @@ private:
 #endif /* HAVE_SYS_TIME_H && HAVE_SYS_RESOURCE_H */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

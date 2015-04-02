@@ -90,10 +90,8 @@ support cross-platform development and expose comonly used SQL names. */
 # include <my_global.h>
 # include <my_thread.h>
 
-# ifndef UNIV_INNOCHECKSUM
 #  include <m_string.h>
 #  include <mysqld_error.h>
-# endif /* !UNIV_INNOCHECKSUM */
 #endif /* !UNIV_HOTBACKUP  */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */

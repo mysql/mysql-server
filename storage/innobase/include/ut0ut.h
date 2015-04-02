@@ -32,8 +32,6 @@ Created 1/20/1994 Heikki Tuuri
 #include <sstream>
 #include <string.h>
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "db0err.h"
 
 #ifndef UNIV_HOTBACKUP
@@ -231,8 +229,6 @@ ut_difftime(
 	ib_time_t	time2,	/*!< in: time */
 	ib_time_t	time1);	/*!< in: time */
 
-#endif /* !UNIV_INNOCHECKSUM */
-
 /** Determines if a number is zero or a power of two.
 @param[in]	n	number
 @return nonzero if n is zero or a power of two; zero otherwise */
@@ -257,8 +253,6 @@ ut_print_timestamp(
 /*===============*/
 	FILE*	file)	/*!< in: file where to print */
 	UNIV_COLD;
-
-#ifndef UNIV_INNOCHECKSUM
 
 /**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
@@ -423,8 +417,6 @@ const char*
 ut_strerr(
 /*======*/
 	dberr_t	num);	/*!< in: error number */
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #ifdef UNIV_PFS_MEMORY
 

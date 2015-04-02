@@ -2009,9 +2009,11 @@ PageConverter::validate(
 	the file. Flag as corrupt if it doesn't. Disable the check
 	for LSN in buf_page_is_corrupted() */
 
-	if (buf_page_is_corrupted(
+	BlockReporter	reporter(
 		false, page, get_page_size(),
-		fsp_is_checksum_disabled(block->page.id.space()))
+		fsp_is_checksum_disabled(block->page.id.space()));
+
+	if (reporter.is_corrupted()
 	    || (page_get_page_no(page) != offset / m_page_size.physical()
 		&& page_get_page_no(page) != 0)) {
 
