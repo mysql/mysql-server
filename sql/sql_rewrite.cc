@@ -166,21 +166,15 @@ void rewrite_user_resources(LEX *lex, String *rlb)
   }
 }
 
-void rewrite_account_lock(LEX *lex, String *rlb, bool lock_only)
+void rewrite_account_lock(LEX *lex, String *rlb)
 {
-  if (!lex->alter_password.account_locked)
+  if (lex->alter_password.account_locked)
   {
-    if (lock_only)
-    {
-      /* Do not write account enable state. */
-      return;
-    }
-
-    rlb->append(STRING_WITH_LEN(" ACCOUNT UNLOCK"));
+    rlb->append(STRING_WITH_LEN(" ACCOUNT LOCK"));
   }
   else
   {
-    rlb->append(STRING_WITH_LEN(" ACCOUNT LOCK"));
+    rlb->append(STRING_WITH_LEN(" ACCOUNT UNLOCK"));
   }
 }
 
@@ -395,7 +389,11 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb)
   else
     rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE NEVER"));
 
-  rewrite_account_lock(lex, rlb, false);
+  if (!opt_log_backward_compatible_user_definitions ||
+      lex->alter_password.update_account_locked_column)
+  {
+    rewrite_account_lock(lex, rlb);
+  }
 }
 
 /**
