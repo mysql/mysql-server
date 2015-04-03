@@ -347,5 +347,85 @@ DROP USER u1@localhost;
 DROP USER u2@localhost;
 DROP USER u3@localhost;
 
+--echo #
+--echo # Bug #20814051 CREATE USER BINLOG EVENTS INCLUDE NEW ACCOUNT KEYWORD
+--echo #
+
+--echo # test general log with log_backward_compatible_user_definitions ON
+
+SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+
+--echo # SHOW CREATE USER should always show ACCOUNT LOCK clause
+
+SET GLOBAL log_backward_compatible_user_definitions = ON;
+CREATE USER u1 IDENTIFIED BY 'pass';
+SHOW CREATE USER u1;
+ALTER USER u1 ACCOUNT LOCK;
+SHOW CREATE USER u1;
+DROP USER u1;
+
+--echo # restarting the server with log_backward_compatible_user_definitions ON
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Request shutdown
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+--exec echo "restart:--log-backward-compatible-user-definitions=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+
+# make sure we start with a clean slate. log_tables.test says this is OK.
+TRUNCATE TABLE mysql.general_log;
+
+--echo --------------- general log ---------------------------------------
+
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+
+--replace_result $MYSQLTEST_VARDIR ...
+eval SET GLOBAL general_log_file = '$MYSQLTEST_VARDIR/log/rewrite_general.log';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+
+CREATE USER u1 IDENTIFIED BY 'pass';
+CREATE USER u2 IDENTIFIED BY 'pass' ACCOUNT LOCK;
+CREATE USER u3 IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
+ALTER USER u1 IDENTIFIED BY 'pass';
+ALTER USER u1 IDENTIFIED BY 'pass' ACCOUNT LOCK;
+ALTER USER u1 IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
+
+CREATE TABLE test_log (argument TEXT);
+--replace_result $MYSQLTEST_VARDIR ...
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/rewrite_general.log'
+     INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
+
+--echo Show what is logged:
+--echo ------ rewrite ------
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+--echo ------ done ------
+
+# cleanup
+DROP USER u1, u2, u3;
+
+--remove_file $MYSQLTEST_VARDIR/log/rewrite_general.log
+
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
