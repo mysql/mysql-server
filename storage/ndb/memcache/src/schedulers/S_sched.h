@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -104,13 +104,13 @@ public:
   void init(int threadnum, const scheduler_options * sched_opts);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);
-  void yield(workitem *) const {};
-  void reschedule(workitem *) const;
+  void prepare(NdbTransaction *, NdbTransaction::ExecType, 
+               NdbAsynchCallback, workitem *, prepare_flags);
   void release(workitem *);
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
   bool global_reconfigure(Configuration *);
-  
+
 private:
   int id;
   ndb_pipeline *pipeline;

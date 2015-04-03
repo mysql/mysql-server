@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -47,8 +47,8 @@ public:
   void init(int threadnum, const scheduler_options *options);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);
-  void yield(workitem *) const;                                       // inlined
-  void reschedule(workitem *) const;                                  // inlined
+  void prepare(NdbTransaction *, NdbTransaction::ExecType, NdbAsynchCallback, 
+               workitem *, prepare_flags);
   void release(workitem *);
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
@@ -70,14 +70,6 @@ private:
     NdbInstance *nextFree;
   } cluster[MAX_CLUSTERS];
 };
-
-
-inline void Scheduler_stockholm::reschedule(workitem *item) const {
-  item->base.reschedule = 1;
-}
-
-
-inline void Scheduler_stockholm::yield(workitem *item) const { } 
 
 
 #endif

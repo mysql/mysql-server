@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -32,8 +32,8 @@
 #include <memcached/extension_loggers.h>
 
 /* NDB Memcache headers */
+#include <NdbApi.hpp>
 #include "Stockholm.h"
-#include "workitem.h"
 #include "ndb_worker.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
@@ -201,25 +201,23 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
   ENGINE_ERROR_CODE response_code;
   
   switch(op_status) {
-    case op_async_prepared:
-    case op_async_sent:
+    case op_prepared:
       workqueue_add(cluster[c].queue, newitem); // place item on queue
       response_code = ENGINE_EWOULDBLOCK;
       break;
     case op_not_supported:
       response_code = ENGINE_ENOTSUP;
       break;
-   case op_overflow:
-      response_code = ENGINE_E2BIG;  // ENGINE_FAILED ?
-      break;
-    case op_bad_key:
-      response_code = ENGINE_EINVAL;
-      break;
     case op_failed:
-    default:
       response_code = ENGINE_FAILED;
       break;
-   }
+    case op_overflow:
+      response_code = ENGINE_E2BIG;  // ENGINE_FAILED ?
+      break;
+    default:
+      DEBUG_PRINT("UNEXPECTED: op_status is %d", op_status);
+      response_code = ENGINE_FAILED;
+  }
 
   return response_code;
 }
@@ -260,6 +258,15 @@ void Scheduler_stockholm::add_stats(const char *stat_key,
     vlen = sprintf(val, "%"PRIu64, cluster[c].stats.commit_thread_vtime);
     add_stat(key, klen, val, vlen, cookie);  
   }
+}
+
+
+void Scheduler_stockholm::prepare(NdbTransaction * tx, 
+                                  NdbTransaction::ExecType execType, 
+                                  NdbAsynchCallback callback, 
+                                  workitem * item, prepare_flags flags) { 
+  tx->executeAsynchPrepare(execType, callback, (void *) item);
+  if(flags == RESCHEDULE) item->base.reschedule = 1;
 }
 
 
