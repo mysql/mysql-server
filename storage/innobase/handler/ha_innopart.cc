@@ -215,7 +215,17 @@ Ha_innopart_share::open_table_parts(
 	m_ref_count++;
 	if (m_table_parts != NULL) {
 		ut_ad(m_ref_count > 1);
-		ut_ad(m_tot_parts);
+		ut_ad(m_tot_parts > 0);
+
+		/* Increment dict_table_t reference count for all partitions */
+		mutex_enter(&dict_sys->mutex);
+		for (uint i = 0; i < m_tot_parts; i++) {
+			dict_table_t*	table = m_table_parts[i];
+			table->acquire();
+			ut_ad(table->get_ref_count() >= m_ref_count);
+		}
+		mutex_exit(&dict_sys->mutex);
+
 		return(false);
 	}
 	ut_ad(m_ref_count == 1);
@@ -366,6 +376,16 @@ Ha_innopart_share::close_table_parts()
 #endif /* DBUG_OFF */
 	m_ref_count--;
 	if (m_ref_count != 0) {
+
+		/* Decrement dict_table_t reference count for all partitions */
+		mutex_enter(&dict_sys->mutex);
+		for (uint i = 0; i < m_tot_parts; i++) {
+			dict_table_t*	table = m_table_parts[i];
+			table->release();
+			ut_ad(table->get_ref_count() >= m_ref_count);
+		}
+		mutex_exit(&dict_sys->mutex);
+
 		return;
 	}
 
