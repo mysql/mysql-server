@@ -4947,7 +4947,7 @@ ha_innobase::open(
 		ib_table = dict_table_open_on_name(
 			norm_name, FALSE, TRUE, ignore_err);
 	} else {
-		++ib_table->n_ref_count;
+		ib_table->acquire();
 		ut_ad(dict_table_is_intrinsic(ib_table));
 	}
 
@@ -10508,7 +10508,7 @@ create_table_info_t::create_table_update_dict()
 		innobase_table = dict_table_open_on_name(
 			m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 	} else {
-		++innobase_table->n_ref_count;
+		innobase_table->acquire();
 		ut_ad(dict_table_is_intrinsic(innobase_table));
 	}
 
