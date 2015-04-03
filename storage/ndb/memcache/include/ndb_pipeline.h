@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -26,10 +26,11 @@
 
 #include "workqueue.h"
 #include "ndb_engine.h"
-#include "Scheduler.h"
 
 /* This structure is used in both C and C++ code, requiring a small hack: */
+struct scheduler_options_st;
 #ifdef __cplusplus
+class Scheduler;
 #define CPP_SCHEDULER Scheduler
 #else 
 #define CPP_SCHEDULER void
@@ -110,7 +111,7 @@ ENGINE_ERROR_CODE pipeline_flush_all(ndb_pipeline *);
 /***** SCHEDULER APIS *****/
 
 /** Global initialization of scheduler, at startup time */
-void * scheduler_initialize(ndb_pipeline *, scheduler_options *);
+void * scheduler_initialize(ndb_pipeline *, struct scheduler_options_st *);
 
 /** shutdown a scheduler */
 void scheduler_shutdown(ndb_pipeline *);

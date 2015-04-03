@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -223,7 +223,7 @@ void worker_set_ext_flag(workitem *item) {
 
 /* worker_prepare_operation(): 
    Called from the scheduler. 
-   Returns true if executeAsynchPrepare() has been called on the item.
+   Returns op_prepared if Scheduler::execute() has been called on the item.
 */
 op_status_t worker_prepare_operation(workitem *newitem) {
   WorkerStep1 worker(newitem);
@@ -311,8 +311,8 @@ op_status_t WorkerStep1::do_delete() {
   }
   
   /* Prepare for execution */   
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
-  return op_async_prepared;
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem);
+  return op_prepared;
 }
 
 
@@ -456,8 +456,8 @@ op_status_t WorkerStep1::do_write() {
   }
   
   wqitem->next_step = (void *) worker_finalize_write;
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) wqitem);
-  return op_async_prepared;  
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem);
+  return op_prepared;  
 }
 
 
@@ -487,8 +487,8 @@ op_status_t WorkerStep1::do_read() {
   /* Save the workitem in the transaction and prepare for async execution */ 
   wqitem->next_step = (void *) 
     (wqitem->base.use_ext_val ? worker_check_read : worker_finalize_read);
-  tx->executeAsynchPrepare(commitflag, callback_main, (void *) wqitem);
-  return op_async_prepared;  
+  Scheduler::execute(tx, commitflag, callback_main, wqitem);
+  return op_prepared;  
 }
 
 
@@ -511,8 +511,8 @@ op_status_t WorkerStep1::do_append() {
   
   /* Save the workitem in the transaction and prepare for async execution */ 
   wqitem->next_step = (void *) worker_append;
-  tx->executeAsynchPrepare(NdbTransaction::NoCommit, callback_main, (void *) wqitem);  
-  return op_async_prepared;
+  Scheduler::execute(tx, NdbTransaction::NoCommit, callback_main, wqitem);  
+  return op_prepared;
 }
 
 
@@ -692,8 +692,8 @@ op_status_t WorkerStep1::do_math() {
     }
   }
   
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_incr, (void *) wqitem);
-  return op_async_prepared;
+  Scheduler::execute(tx,NdbTransaction::Commit, callback_incr, wqitem);
+  return op_prepared;
 }
 
 
@@ -848,7 +848,7 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
     if(wqitem->base.retries++ < 3) {       // try again:
       tx->close();
       op_status_t r = worker_prepare_operation(wqitem); 
-      if(r == op_async_prepared)
+      if(r == op_prepared)
         return;  /* retry is in progress */
       else
         wqitem->status = & status_block_misc_error;
@@ -877,8 +877,7 @@ void worker_commit(NdbTransaction *tx, workitem *item) {
   /* If the transaction has not been committed, we need to send an empty 
      execute call and commit it.  Otherwise close() will block. */
   if(tx->commitStatus() == NdbTransaction::Started) {
-    item->pipeline->scheduler->reschedule(item);
-    tx->executeAsynchPrepare(NdbTransaction::Commit, callback_close, (void *) item);    
+    Scheduler::execute(tx, NdbTransaction::Commit, callback_close, item, RESCHEDULE);
   }
   else 
     worker_close(tx, item);
@@ -902,7 +901,6 @@ void worker_close(NdbTransaction *tx, workitem *wqitem) {
     delete wqitem->ext_val;
 
   pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
-  pipeline->scheduler->yield(wqitem);
 }
 
 
@@ -970,9 +968,8 @@ void worker_append(NdbTransaction *tx, workitem *item) {
 
   if(ndb_op) {
     // Inform the scheduler that this item must be re-polled
-    item->pipeline->scheduler->reschedule(item);
     item->next_step = (void *) worker_finalize_write;
-    tx->executeAsynchPrepare(NdbTransaction::Commit, callback_main, (void *) item);
+    Scheduler::execute(tx, NdbTransaction::Commit, callback_main, item, RESCHEDULE);
   }
   else {
     /* Error case; operation has not been built */
@@ -1002,8 +999,7 @@ void delete_expired_item(workitem *wqitem, NdbTransaction *tx) {
   Operation op(wqitem);
   op.deleteTuple(tx);
   wqitem->status = & status_block_item_not_found;
-  wqitem->pipeline->scheduler->reschedule(wqitem);
-  tx->executeAsynchPrepare(NdbTransaction::Commit, callback_close, (void *) wqitem);    
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_close, wqitem, RESCHEDULE);
 }
 
 

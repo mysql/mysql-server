@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -23,6 +23,8 @@
 
 #include "memcached/types.h"
 #include "memcached/server_api.h"
+
+#include <NdbApi.hpp>
 
 #include "ExpireTime.h"
 #include "Operation.h"
