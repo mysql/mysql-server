@@ -378,7 +378,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   lex->alter_password.update_password_expired_column= acl_user->password_expired;
   lex->alter_password.use_default_password_lifetime= acl_user->use_default_password_lifetime;
   lex->alter_password.expire_after_days= acl_user->password_lifetime;
-  lex->alter_password.account_locked = acl_user->account_locked;
+  lex->alter_password.update_account_locked_column= acl_user->account_locked;
+  lex->alter_password.account_locked= acl_user->account_locked;
 
   /* send the metadata to client */
   field=new Item_string("",0,&my_charset_latin1);
