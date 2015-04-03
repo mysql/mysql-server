@@ -3364,3 +3364,45 @@ ALTER TABLE t TABLESPACE s;
 # Drop table and tablespace.
 DROP TABLE t;
 DROP TABLESPACE s ENGINE InnoDB;
+#
+# Bug#20279241 - ALTER TABLE ... CHARACTER SET UTF8, CONVERT TO
+#                CHARACTER SET LATIN1 SHOULD FAIL
+#
+CREATE TABLE t1 (f1 INT);
+# Case 1: Alter table with CHARACTER SET X, CHARACTER SET X
+#         ALTER table operation should pass.
+ALTER TABLE t1 CHARACTER SET utf8, CHARACTER SET utf8;
+# Case 2: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET X
+#         ALTER table operation should pass.
+ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+# Case 3: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET X
+#         ALTER table operation should pass.
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET utf8;
+# Case 4: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET X
+#         ALTER table operation should pass.
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+# Case 5: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y
+#         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8' and 'CHARACTER SET latin1'
+# Case 6: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET Y
+#         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET latin1;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8' and 'CHARACTER SET latin1'
+# Case 7: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET Y
+#         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8' and 'CHARACTER SET latin1'
+# Case 8: Alter table with CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
+#         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+ALTER TABLE t1 CHARACTER SET utf8 COLLATE latin1_danish_ci;
+ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
+# Case 9: Alter table with CONVERT TO CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
+#         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
+# Case 10: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y COLLATE INCORRECT_COLLATION_NAME
+#          Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+ALTER TABLE t1 CHARACTER SET latin1, CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
+DROP TABLE t1;
