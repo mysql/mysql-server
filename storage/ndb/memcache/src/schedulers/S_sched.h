@@ -31,9 +31,8 @@
 
 #include "ndbmemcache_config.h"
 #include "Scheduler.h"
-#include "KeyPrefix.h"
-#include "ConnQueryPlanSet.h"
 #include "Queue.h"
+#include "GlobalConfigManager.h"
 
 /* 
  *
@@ -57,24 +56,21 @@ public:
 
 /* The SchedulerGlobal singleton
 */ 
-class S::SchedulerGlobal {
+class S::SchedulerGlobal : public GlobalConfigManager {
+  friend class S::Cluster;
+  friend class S::Connection;
+
 public:
-  SchedulerGlobal(Configuration *);
+  SchedulerGlobal(int);
   ~SchedulerGlobal() {};
   void init(const scheduler_options *options);
   void add_stats(const char *, ADD_STAT, const void *);
-  void reconfigure(Configuration *);
   void shutdown();
   WorkerConnection ** getWorkerConnectionPtr(int thd, int cluster) const {
-    return & workerConnections[(thd * nclusters) + cluster];
+    return (WorkerConnection **) getSchedulerConfigManagerPtr(thd, cluster);
   }
 
-  Configuration *conf;
-  int generation;
-  int nthreads;
-  int nclusters;
   const char * config_string;
-  struct ndb_engine *engine;  
   Cluster ** clusters;
   
   struct {
@@ -87,7 +83,6 @@ public:
   } options;
 
 private:
-  WorkerConnection ** workerConnections;
   void parse_config_string(int threads, const char *config_string);
   bool running;
 };
@@ -100,12 +95,13 @@ private:
 class S::SchedulerWorker : public Scheduler {  
 public:  
   SchedulerWorker() {};
-  ~SchedulerWorker() {};
+  ~SchedulerWorker();
   void init(int threadnum, const scheduler_options * sched_opts);
-  void attach_thread(thread_identifier *);
+  void attach_thread(thread_identifier *) {};
   ENGINE_ERROR_CODE schedule(workitem *);
   void prepare(NdbTransaction *, NdbTransaction::ExecType, 
                NdbAsynchCallback, workitem *, prepare_flags);
+  void close(NdbTransaction *, workitem *);
   void release(workitem *);
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
@@ -187,7 +183,7 @@ private:
 
 /* For each {connection, worker} tuple there is a WorkerConnection 
 */
-class S::WorkerConnection {
+class S::WorkerConnection : public SchedulerConfigManager {
 public:
   WorkerConnection(SchedulerGlobal *, int thd_id, int cluster_id);
   ~WorkerConnection();
@@ -207,7 +203,6 @@ public:
     int max;
   } instances;
   S::Connection *conn;
-  ConnQueryPlanSet *plan_set, *old_plan_set;
   NdbInstance *freelist;
   Queue<NdbInstance> * sendqueue;
 };

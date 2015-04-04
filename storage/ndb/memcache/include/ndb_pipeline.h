@@ -107,17 +107,22 @@ void pipeline_add_stats(ndb_pipeline *, const char *key, ADD_STAT, const void *)
 /** execute a "flush_all" operation */
 ENGINE_ERROR_CODE pipeline_flush_all(ndb_pipeline *);
 
+/** free all resources */
+void ndb_pipeline_free(ndb_pipeline *);
 
 /***** SCHEDULER APIS *****/
 
 /** Global initialization of scheduler, at startup time */
-void * scheduler_initialize(ndb_pipeline *, struct scheduler_options_st *);
+bool scheduler_initialize(ndb_pipeline *, struct scheduler_options_st *);
 
 /** shutdown a scheduler */
 void scheduler_shutdown(ndb_pipeline *);
 
 /** pass a workitem to the configured scheduler, for execution */
 ENGINE_ERROR_CODE scheduler_schedule(ndb_pipeline *, struct workitem *);
+
+/** callback from scheduler when item is finished */
+void item_io_complete(struct workitem *);
 
 /** release the resources that were used by a completed operation */
 void scheduler_release(ndb_pipeline *, struct workitem *);

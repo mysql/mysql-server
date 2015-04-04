@@ -131,9 +131,10 @@ op_status_t ExternalValue::do_delete(workitem *item) {
 op_status_t ExternalValue::do_write(workitem *item) {
   uint32_t & len = item->cache_item->nbytes;
   
-  if(len > item->plan->max_value_len) 
+  if(len > item->plan->max_value_len) {
     return op_overflow;
-  
+  }
+
   if(item->base.verb == OPERATION_ADD) {
     /* In this case we need to create an object, but then delete it on error */
     ExternalValue *ext_val = new ExternalValue(item);
@@ -160,16 +161,17 @@ op_status_t ExternalValue::do_read_header(workitem *item,
   op.readColumn(COL_STORE_EXT_SIZE);
   op.readColumn(COL_STORE_CAS);
   
-  if(! setupKey(item, op))
+  if(! setupKey(item, op)) {
     return op_bad_key;
+  }
   
   workitem_allocate_rowbuffer_1(item, op.requiredBuffer());
   op.buffer = item->row_buffer_1;
   
   NdbTransaction *tx = op.startTransaction(item->ndb_instance->db);
-  if(! tx)
+  if(! tx) {
     return op_failed;
-  
+  }
   if(! op.readTuple(tx, NdbOperation::LM_Exclusive)) {
     logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
     tx->close();
@@ -177,7 +179,7 @@ op_status_t ExternalValue::do_read_header(workitem *item,
   }
   
   item->next_step = (void *) the_next_step;
-  Scheduler::execute(tx, NdbTransaction::NoCommit, the_callback, item);
+  Scheduler::execute(tx, NdbTransaction::NoCommit, the_callback, item, YIELD);
   return op_prepared;
 }
 
@@ -338,12 +340,13 @@ inline void ExternalValue::finalize_write() {
 
 
 op_status_t ExternalValue::do_insert() {
-  if(! insert()) 
+  if(! insert()) {
     return op_overflow;
-  
+  }
+
   wqitem->next_step = (void *) worker_finalize_write;
   
-  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem);
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem, YIELD);
   return op_prepared;  
 }
 
