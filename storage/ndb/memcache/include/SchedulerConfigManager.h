@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ Copyright (c) 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -17,34 +17,29 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+#ifndef NDBMEMCACHE_SCHEDULER_CONFIGMANAGER_H
+#define NDBMEMCACHE_SCHEDULER_CONFIGMANAGER_H
 
-#ifndef NDBMEMCACHE_CONNQUERYPLANSET_H
-#define NDBMEMCACHE_CONNQUERYPLANSET_H
+#include "KeyPrefix.h"
+#include "ConnQueryPlanSet.h"
 
-#ifndef __cplusplus
-#error "This file is for C++ only"
-#endif
-
-
-#include "Configuration.h"
-#include "QueryPlan.h"
-
-class ConnQueryPlanSet {
+class SchedulerConfigManager {
 public:
-  ConnQueryPlanSet(Ndb_cluster_connection *, int n_plans);
-  ~ConnQueryPlanSet();
+  SchedulerConfigManager(int thd, int cluster);
+  ~SchedulerConfigManager();
+  void configure(Configuration *);
+  const KeyPrefix * setQueryPlanInWorkitem(struct workitem *);
+  void add_stats(const char *, ADD_STAT, const void *);
 
-  void buildSetForConfiguration(const Configuration *, int cluster_id);
-  QueryPlan * getPlanForPrefix(const KeyPrefix *) const;
-  const Configuration * getConfiguration() const { return config; };
+protected:
+  int thread;
+  int cluster;
+  Ndb_cluster_connection * ndb_connection;
 
 private:
-  Ndb *db;
-  int nplans;
-  QueryPlan **plans;
-  const Configuration * config;
+  ConnQueryPlanSet * volatile current_plans;
+  ConnQueryPlanSet * old_plans;
 };
-
 
 
 #endif
