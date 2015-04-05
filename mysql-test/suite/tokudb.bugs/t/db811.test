@@ -2,6 +2,7 @@
 
 source include/have_tokudb.inc;
 source include/have_innodb.inc;
+source include/have_partition.inc;
 disable_warnings;
 drop table if exists t2,t3,t4;
 enable_warnings;
