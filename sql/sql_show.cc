@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1828,7 +1828,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       if ((tmp->vio_ok() || tmp->system_thread) &&
-          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
+          (!user || (!tmp->system_thread && tmp_sctx->user &&
+                     !strcmp(tmp_sctx->user, user))))
       {
         thread_info *thd_info= new thread_info;
 
@@ -1940,7 +1941,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       const char *val, *db;
 
       if ((!tmp->vio_ok() && !tmp->system_thread) ||
-          (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
+          (user && (tmp->system_thread || !tmp_sctx->user ||
+                    strcmp(tmp_sctx->user, user))))
         continue;
 
       restore_record(table, s->default_values);
