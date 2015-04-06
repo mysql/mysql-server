@@ -147,6 +147,7 @@ void Scheduler_stockholm::attach_thread(thread_identifier * parent) {
 
 
 void Scheduler_stockholm::shutdown() {
+  DEBUG_ENTER();
   const Configuration & conf = get_Configuration();
 
   /* Shut down the workqueues */
@@ -159,6 +160,11 @@ void Scheduler_stockholm::shutdown() {
       delete cluster[c].instances[i];
     }
   }  
+}
+
+
+Scheduler_stockholm::~Scheduler_stockholm() {
+  logger->log(LOG_WARNING, 0, "Shutdown completed.");
 }
 
 
@@ -201,27 +207,21 @@ ENGINE_ERROR_CODE Scheduler_stockholm::schedule(workitem *newitem) {
   // Build the NDB transaction
   op_status_t op_status = worker_prepare_operation(newitem);
   ENGINE_ERROR_CODE response_code;
-  
-  switch(op_status) {
-    case op_prepared:
-      workqueue_add(cluster[c].queue, newitem); // place item on queue
-      response_code = ENGINE_EWOULDBLOCK;
-      break;
-    case op_not_supported:
-      response_code = ENGINE_ENOTSUP;
-      break;
-    case op_failed:
-      response_code = ENGINE_FAILED;
-      break;
-    case op_overflow:
-      response_code = ENGINE_E2BIG;  // ENGINE_FAILED ?
-      break;
-    default:
-      DEBUG_PRINT("UNEXPECTED: op_status is %d", op_status);
-      response_code = ENGINE_FAILED;
+
+  if(op_status == op_prepared) {
+     workqueue_add(cluster[c].queue, newitem); // place item on queue
+     response_code = ENGINE_EWOULDBLOCK;
+  } else {
+    /* Status is not op_prepared, but rather some error status */
+    response_code = newitem->status->status;
   }
 
   return response_code;
+}
+
+
+void Scheduler_stockholm::close(NdbTransaction *tx, workitem *item) {
+  tx->close();
 }
 
 
@@ -307,7 +307,7 @@ void * Scheduler_stockholm::run_ndb_commit_thread(int c) {
     
     /* Now that sendPollNdb() has returned, it is OK to notify_io_complete(),
        which will trigger the worker thread to release the Ndb instance. */ 
-    pipeline->engine->server.cookie->notify_io_complete(item->cookie, ENGINE_SUCCESS);
+    item_io_complete(item);
     
     if(! (cluster[c].stats.cycles++ % STAT_INTERVAL)) 
       cluster[c].stats.commit_thread_vtime = get_thread_vtime();

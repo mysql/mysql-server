@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015 Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
 
 #if defined USE_SOLARIS_ATOMICS 
 
-int atomic_cmp_swap_int(ndbmc_atomic32_t *loc, int old, int new) {
+int atomic_cmp_swap_int(atomic_int32_t *loc, int old, int new) {
   int stored_old;
   
   membar_enter();
@@ -31,17 +31,19 @@ int atomic_cmp_swap_int(ndbmc_atomic32_t *loc, int old, int new) {
   return (stored_old == old);  
 }
 
-int atomic_cmp_swap_ptr(void * volatile *loc, void *old, void *new) {
-  void * stored_old;
-  
+void atomic_set_ptr(void * volatile * target, void *newval) {
   membar_enter();
-  stored_old = atomic_cas_ptr(loc, old, new);
+  atomic_swap_ptr(target, newval);
   membar_exit();
-  return (stored_old == old);  
 }
 
-int atomic_cmp_swap_ptr_nobarrier(volatile void **loc, void *old, void *new) {
-  return (atomic_cas_ptr(loc, old, new) == old);
+#elif defined USE_DARWIN_ATOMICS
+
+void atomic_set_ptr(void * volatile * target, void *newval) {
+  bool did_swap;
+  do {
+    did_swap = OSAtomicCompareAndSwapPtr(*target, newval, target);
+  } while (! did_swap);
 }
 
 #endif

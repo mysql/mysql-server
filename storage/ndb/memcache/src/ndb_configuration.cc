@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -30,6 +30,7 @@
 #include "debug.h"
 #include "workitem.h"
 #include "NdbInstance.h"
+#include "ndb_pipeline.h"
 #include "thread_identifier.h"
 #include "Scheduler.h"
 #include "ExternalValue.h"
@@ -135,7 +136,7 @@ bool prefetch_dictionary_objects() {
 
 
 /* This function has C linkage */
-void set_initial_cas_ids(unsigned int *hi, ndbmc_atomic32_t *lo) {
+void set_initial_cas_ids(unsigned int *hi, atomic_int32_t *lo) {
   /* Set the initial CAS for the default engine: */
   /* XXXXX disabled.  Because we're linking with the actual default engine,
      we don't have the opportunity to coordinate CAS IDs between the two
@@ -200,7 +201,7 @@ extern "C" {
   void * run_reconfig_listener_thread(void *);
 }
 
-
+// TODO: This could take a GlobalConfigManager rather than a Scheduler
 void * run_reconfig_listener_thread(void *p) {
   thread_identifier tid;
   tid.pipeline = 0;
@@ -208,8 +209,8 @@ void * run_reconfig_listener_thread(void *p) {
   set_thread_id(&tid);
   
   DEBUG_ENTER();
-  Scheduler * sched = (Scheduler *) p;
-  
+  ndb_pipeline * pipeline = (ndb_pipeline *) p;
+
   while(1) {
     int i = active_config->waitForReconfSignal(); 
     
@@ -218,7 +219,7 @@ void * run_reconfig_listener_thread(void *p) {
     }
     else if(i == 1) {
       DEBUG_PRINT("reconfiguring");
-      reconfigure(sched);
+      reconfigure(pipeline->scheduler);
     }
     else {
       DEBUG_PRINT("error (%d); exiting.", i);
@@ -230,13 +231,13 @@ void * run_reconfig_listener_thread(void *p) {
 
 
 /* This function has C linkage */
-void start_reconfig_listener(void *scheduler) {
+void start_reconfig_listener(void *pipeline) {
   DEBUG_ENTER();
   if(active_config->canReloadOnline()) {
     pthread_t thd_id;
     
     DEBUG_PRINT("Starting thread.");
-    pthread_create(& thd_id, NULL, run_reconfig_listener_thread, scheduler);
+    pthread_create(& thd_id, NULL, run_reconfig_listener_thread, pipeline);
   }
   else {
     DEBUG_PRINT("Not supported.");
