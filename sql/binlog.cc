@@ -2947,7 +2947,6 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
 #endif
    bytes_written(0), file_id(1), open_count(1),
    sync_period_ptr(sync_period), sync_counter(0),
-   m_prep_xids(0),
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
@@ -2959,6 +2958,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
     called only in main(). Doing initialization here would make it happen
     before main().
   */
+  m_prep_xids.atomic_set(0);
   memset(&log_file, 0, sizeof(log_file));
   index_file_name[0] = 0;
   memset(&index_file, 0, sizeof(index_file));
@@ -6177,11 +6177,11 @@ void MYSQL_BIN_LOG::inc_prep_xids(THD *thd)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
 #ifndef DBUG_OFF
-  int result= my_atomic_add32(&m_prep_xids, 1);
-#else
-  (void) my_atomic_add32(&m_prep_xids, 1);
-#endif
+  int result= m_prep_xids.atomic_add(1);
   DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
+#else
+  (void) m_prep_xids.atomic_add(1);
+#endif
   thd->get_transaction()->m_flags.xid_written= true;
   DBUG_VOID_RETURN;
 }
@@ -6190,7 +6190,7 @@ void MYSQL_BIN_LOG::inc_prep_xids(THD *thd)
 void MYSQL_BIN_LOG::dec_prep_xids(THD *thd)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
-  int32 result= my_atomic_add32(&m_prep_xids, -1);
+  int32 result= m_prep_xids.atomic_add(-1);
   DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
   thd->get_transaction()->m_flags.xid_written= false;
   /* If the old value was 1, it is zero now. */
