@@ -12334,20 +12334,6 @@ ha_innobase::info_low(
 				"returning various info to MySQL";
 		}
 
-		my_snprintf(path, sizeof(path), "%s/%s%s",
-			    mysql_data_home, ib_table->name.m_name, reg_ext);
-
-		unpack_filename(path,path);
-
-		/* Note that we do not know the access time of the table,
-		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
-
-		if (os_file_get_status(
-			path, &stat_info, false,
-			(dict_table_is_intrinsic(ib_table)
-			? false : srv_read_only_mode)) == DB_SUCCESS) {
-			stats.create_time = (ulong) stat_info.ctime;
-		}
 
 		stats.update_time = (ulong) ib_table->update_time;
 	}
@@ -12635,6 +12621,22 @@ ha_innobase::info_low(
 
 		if (!(flag & HA_STATUS_NO_LOCK)) {
 			dict_table_stats_unlock(ib_table, RW_S_LATCH);
+		}
+
+		my_snprintf(path, sizeof(path), "%s/%s%s",
+			    mysql_data_home, table->s->normalized_path.str,
+			    reg_ext);
+
+		unpack_filename(path,path);
+
+		/* Note that we do not know the access time of the table,
+		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
+
+		if (os_file_get_status(
+			path, &stat_info, false,
+			(dict_table_is_intrinsic(ib_table)
+			? false : srv_read_only_mode)) == DB_SUCCESS) {
+			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
 
