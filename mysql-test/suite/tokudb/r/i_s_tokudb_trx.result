@@ -1,23 +1,23 @@
 set default_storage_engine='tokudb';
 set tokudb_prelock_empty=false;
 drop table if exists t;
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 set autocommit=0;
 create table t (id int primary key);
 insert into t values (1);
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 TXN_ID_DEFAULT	CLIENT_ID_DEFAULT
 commit;
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 set autocommit=0;
 insert into t values (2);
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 TXN_ID_A	CLIENT_ID_A
 commit;
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 trx_id	trx_mysql_thread_id
 drop table t;

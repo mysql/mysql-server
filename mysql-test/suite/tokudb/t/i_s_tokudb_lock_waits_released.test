@@ -13,7 +13,7 @@ create table t (id int primary key);
 # verify that txn_a insert (1) blocks txn_b insert (1) and txn_b gets a duplicate key error
 
 # should be empty
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 select * from information_schema.tokudb_locks;
 select * from information_schema.tokudb_lock_waits;
 
@@ -41,7 +41,7 @@ select * from information_schema.tokudb_lock_waits;
 
 # should find the presence of two transactions
 replace_column 1 TRX_ID 2 MYSQL_ID;
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 
 connection conn_a;
 commit;
@@ -63,7 +63,7 @@ disconnect conn_b;
 
 # verify that the lock on the 2nd transaction has been released
 # should be be empty
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 select * from information_schema.tokudb_locks;
 select * from information_schema.tokudb_lock_waits;
 
@@ -91,7 +91,7 @@ select * from information_schema.tokudb_lock_waits;
 
 # should find the presence of two transactions
 replace_column 1 TRX_ID 2 MYSQL_ID;
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 
 connection conn_a;
 commit;
@@ -110,7 +110,7 @@ disconnect conn_b;
 
 # verify that the lock on the 2nd transaction has been released
 # should be be empty
-select * from information_schema.tokudb_trx;
+select trx_id,trx_mysql_thread_id from information_schema.tokudb_trx;
 select * from information_schema.tokudb_locks;
 select * from information_schema.tokudb_lock_waits;
 
