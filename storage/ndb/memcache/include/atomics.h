@@ -79,7 +79,7 @@ void atomic_set_ptr(void * volatile * target, void *);
 #define atomic_barrier() __sync_synchronize()
 
 #elif defined USE_SOLARIS_ATOMICS
-int atomic_cmp_swap_int(ndbmc_atomic32_t *loc, int oldvalue, int newvalue);
+int atomic_cmp_swap_int(atomic_int32_t *loc, int oldvalue, int newvalue);
 void atomic_set_ptr(void * volatile * target, void *);
 #define atomic_barrier()
 
