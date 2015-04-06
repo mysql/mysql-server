@@ -587,6 +587,7 @@ static void print_db_txn_struct (void) {
         "uint64_t (*get_client_id)(DB_TXN *)",
         "bool (*is_prepared)(DB_TXN *)",
         "DB_TXN *(*get_child)(DB_TXN *)",
+        "uint64_t (*get_start_time)(DB_TXN *)",
 	NULL};
     sort_and_dump_fields("db_txn", false, extra);
 }
@@ -786,7 +787,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
 
     printf("typedef void (*lock_timeout_callback)(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, uint64_t blocking_txnid);\n");
     printf("typedef int (*iterate_row_locks_callback)(DB **db, DBT *left_key, DBT *right_key, void *extra);\n");
-    printf("typedef int (*iterate_transactions_callback)(uint64_t txnid, uint64_t client_id, iterate_row_locks_callback cb, void *locks_extra, void *extra);\n");
+    printf("typedef int (*iterate_transactions_callback)(DB_TXN *dbtxn, iterate_row_locks_callback cb, void *locks_extra, void *extra);\n");
     printf("typedef int (*iterate_requests_callback)(DB *db, uint64_t requesting_txnid, const DBT *left_key, const DBT *right_key, uint64_t blocking_txnid, uint64_t start_time, void *extra);\n");
     print_db_env_struct();
     print_db_key_range_struct();

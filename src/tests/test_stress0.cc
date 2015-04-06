@@ -140,9 +140,11 @@ static int UU() iterate_pending_lock_requests_op(DB_TXN *UU(txn), ARG arg, void 
     return r;
 }
 
-static int iterate_txns(uint64_t txnid, uint64_t client_id,
+static int iterate_txns(DB_TXN *txn,
                         iterate_row_locks_callback iterate_locks,
                         void *locks_extra, void *extra) {
+    uint64_t txnid = txn->id64(txn);
+    uint64_t client_id = txn->get_client_id(txn);
     invariant_null(extra);
     invariant(txnid > 0);
     invariant(client_id == 0);

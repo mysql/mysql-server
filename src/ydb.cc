@@ -2500,8 +2500,7 @@ static int iter_txns_callback(TOKUTXN txn, void *extra) {
     toku_pthread_rwlock_rdlock(&info->env->i->open_dbs_rwlock);
 
     iter_txn_row_locks_callback_extra e(info->env, &db_txn_struct_i(dbtxn)->lt_map);
-    const int r = info->callback(toku_txn_get_txnid(txn).parent_id64,
-                                 toku_txn_get_client_id(txn),
+    const int r = info->callback(dbtxn,
                                  iter_txn_row_locks_callback,
                                  &e,
                                  info->extra);
