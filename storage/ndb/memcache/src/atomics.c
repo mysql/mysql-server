@@ -22,7 +22,7 @@
 
 #if defined USE_SOLARIS_ATOMICS 
 
-int atomic_cmp_swap_int(ndbmc_atomic32_t *loc, int old, int new) {
+int atomic_cmp_swap_int(atomic_int32_t *loc, int old, int new) {
   int stored_old;
   
   membar_enter();
