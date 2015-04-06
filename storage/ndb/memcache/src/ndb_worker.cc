@@ -187,7 +187,7 @@ status_block status_block_op_bad_key =
 
 
 void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {
-  /* Be careful here --  ndbmc_atomic32_t might be a signed type.
+  /* Be careful here --  atomic_int32_t might be a signed type.
      Shitfting of signed types behaves differently. */
   bool did_inc;
   uint32_t cas_lo;
