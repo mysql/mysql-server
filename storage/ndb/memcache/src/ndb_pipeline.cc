@@ -39,10 +39,11 @@
 #include "schedulers/Stockholm.h"
 #include "schedulers/S_sched.h"
 #include "schedulers/Scheduler73.h"
+#include "schedulers/Trondheim.h"
 
 #include "ndb_error_logger.h"
 
-#define DEFAULT_SCHEDULER S::SchedulerWorker
+#define DEFAULT_SCHEDULER Trondheim::Worker
 
 /* globals (exported; also used by workitem.c) */
 int workitem_class_id;
@@ -53,7 +54,6 @@ static int pool_slab_class_id;
 
 /* Handle to the memcache server API */
 static SERVER_COOKIE_API * mc_server_handle;
-
 
 /* The private internal structure of a allocation_reference */
 struct allocation_reference {
@@ -94,7 +94,7 @@ ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
     id = engine->npipelines;
     did_inc = atomic_cmp_swap_int(& engine->npipelines, id, id + 1);
   } while(did_inc == false);
-  
+
   /* Fetch the partially initialized pipeline */
   ndb_pipeline * self = (ndb_pipeline *) engine->pipelines[id];
 
@@ -131,7 +131,6 @@ ndb_pipeline * get_request_pipeline(int thd_id, struct ndb_engine *engine) {
   self->engine = engine;
   self->id = thd_id;
   self->nworkitems = 0;
-
   mc_server_handle = engine->server.cookie;
 
   /* Say hi to the alligator */
@@ -207,6 +206,10 @@ bool scheduler_initialize(ndb_pipeline *self, scheduler_options *options) {
     s = new Scheduler73::Worker;
     options->config_string = & cf[2];
   }
+  else if(!strncasecmp(cf,"trondheim", 9)) {
+    s = new Trondheim::Worker;
+    options->config_string = & cf[9];
+  }
   else {
     return false;
   }
@@ -240,7 +243,7 @@ void item_io_complete(struct workitem *item) {
   mc_server_handle->notify_io_complete(item->cookie, ENGINE_SUCCESS);
 }
 
- 
+
 /* The slab allocator API */
 
 int pipeline_get_size_class_id(size_t object_size) {
