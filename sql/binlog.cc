@@ -2941,7 +2941,7 @@ bool mysql_show_binlog_events(THD* thd)
 MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
                              enum cache_type io_cache_type_arg)
   :name(NULL), write_error(false), inited(false),
-   log_state(LOG_CLOSED), io_cache_type(io_cache_type_arg),
+   io_cache_type(io_cache_type_arg),
 #ifdef HAVE_PSI_INTERFACE
    m_key_LOCK_log(key_LOG_LOCK_log),
 #endif
@@ -2952,6 +2952,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
    relay_log_checksum_alg(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
    previous_gtid_set_relaylog(0)
 {
+  log_state.atomic_set(LOG_CLOSED);
   /*
     We don't want to initialize locks here as such initialization depends on
     safe_mutex (when using safe_mutex) which depends on MY_INIT(), which is
@@ -3292,7 +3293,7 @@ bool MYSQL_BIN_LOG::open(
                     MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     goto err;
 
-  log_state= LOG_OPENED;
+  log_state.atomic_set(LOG_OPENED);
   DBUG_RETURN(0);
 
 err:
@@ -3323,7 +3324,7 @@ err:
   end_io_cache(&log_file);
   my_free(name);
   name= NULL;
-  log_state= LOG_CLOSED;
+  log_state.atomic_set(LOG_CLOSED);
   DBUG_RETURN(1);
 }
 
@@ -4666,7 +4667,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 #endif
   }
 
-  log_state= LOG_OPENED;
+  log_state.atomic_set(LOG_OPENED);
   /*
     At every rotate memorize the last transaction counter state to use it as
     offset at logging the transaction logical timestamps.
@@ -4690,7 +4691,7 @@ err:
   end_io_cache(&index_file);
   my_free(name);
   name= NULL;
-  log_state= LOG_CLOSED;
+  log_state.atomic_set(LOG_CLOSED);
   if (binlog_error_action == ABORT_SERVER)
   {
     THD *thd= current_thd;
@@ -7366,7 +7367,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
 {					// One can't set log_type here!
   DBUG_ENTER("MYSQL_BIN_LOG::close");
   DBUG_PRINT("enter",("exiting: %d", (int) exiting));
-  if (log_state == LOG_OPENED)
+  if (log_state.atomic_get() == LOG_OPENED)
   {
 #ifdef HAVE_REPLICATION
     if ((exiting & LOG_CLOSE_STOP_EVENT) != 0)
@@ -7406,7 +7407,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
     }
 
     /* this will cleanup IO_CACHE, sync and close the file */
-    if (log_state == LOG_OPENED)
+    if (log_state.atomic_get() == LOG_OPENED)
     {
       end_io_cache(&log_file);
 
@@ -7427,7 +7428,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
       }
     }
 
-    log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
+    log_state.atomic_set((exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED);
     my_free(name);
     name= NULL;
   }
@@ -7448,7 +7449,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
-  log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
+  log_state.atomic_set((exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED);
   my_free(name);
   name= NULL;
   DBUG_VOID_RETURN;
