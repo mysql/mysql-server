@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -39,10 +39,11 @@
 #include "schedulers/Stockholm.h"
 #include "schedulers/S_sched.h"
 #include "schedulers/Scheduler73.h"
+#include "schedulers/Trondheim.h"
 
 #include "ndb_error_logger.h"
 
-#define DEFAULT_SCHEDULER S::SchedulerWorker
+#define DEFAULT_SCHEDULER Trondheim::Worker
 
 /* globals (exported; also used by workitem.c) */
 int workitem_class_id;
@@ -50,6 +51,9 @@ int workitem_actual_inline_buffer_size;
 
 /* file-scope private variables */
 static int pool_slab_class_id;
+
+/* Handle to the memcache server API */
+static SERVER_COOKIE_API * mc_server_handle;
 
 /* The private internal structure of a allocation_reference */
 struct allocation_reference {
@@ -90,7 +94,7 @@ ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
     id = engine->npipelines;
     did_inc = atomic_cmp_swap_int(& engine->npipelines, id, id + 1);
   } while(did_inc == false);
-  
+
   /* Fetch the partially initialized pipeline */
   ndb_pipeline * self = (ndb_pipeline *) engine->pipelines[id];
 
@@ -107,8 +111,7 @@ ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
   sprintf(tid->name, "worker.%d", self->id);
   set_thread_id(tid);
 
-  /* Fetch and attach the scheduler */
-  self->scheduler = (Scheduler *) engine->schedulers[self->id];
+  /* Attach the scheduler */
   self->scheduler->attach_thread(tid);
     
   return self;
@@ -128,8 +131,9 @@ ndb_pipeline * get_request_pipeline(int thd_id, struct ndb_engine *engine) {
   self->engine = engine;
   self->id = thd_id;
   self->nworkitems = 0;
-    
-  /* Say hi to the alligator */  
+  mc_server_handle = engine->server.cookie;
+
+  /* Say hi to the alligator */
   init_allocator(self);
   
   /* Create a memory pool */
@@ -139,7 +143,18 @@ ndb_pipeline * get_request_pipeline(int thd_id, struct ndb_engine *engine) {
 }
 
 
-void pipeline_add_stats(ndb_pipeline *self, 
+/* Free all the internal resources of a pipeline.
+*/
+void ndb_pipeline_free(ndb_pipeline *self) {
+  delete self->scheduler;
+  memory_pool_free(self->pool);   // frees all items created from pool
+  memory_pool_destroy(self->pool);  // frees the pool itself
+  // TODO: free() all slabs
+  free(self);
+}
+
+
+void pipeline_add_stats(ndb_pipeline *self,
                         const char *stat_key,
                         ADD_STAT add_stat, 
                         const void *cookie) {
@@ -171,7 +186,7 @@ ENGINE_ERROR_CODE pipeline_flush_all(ndb_pipeline *self) {
 
 /* The scheduler API */
 
-void * scheduler_initialize(ndb_pipeline *self, scheduler_options *options) {
+bool scheduler_initialize(ndb_pipeline *self, scheduler_options *options) {
   Scheduler *s = 0;
   const char *cf = self->engine->startup_options.scheduler;
   options->config_string = 0;
@@ -179,7 +194,7 @@ void * scheduler_initialize(ndb_pipeline *self, scheduler_options *options) {
   if(cf == 0 || *cf == 0) {
     s = new DEFAULT_SCHEDULER;
   }
-  else if(!strncasecmp(cf, "stockholm", 9)) {
+  else if(!strncasecmp(cf,"stockholm", 9)) {
     s = new Scheduler_stockholm;
     options->config_string = & cf[9];
   }
@@ -191,13 +206,18 @@ void * scheduler_initialize(ndb_pipeline *self, scheduler_options *options) {
     s = new Scheduler73::Worker;
     options->config_string = & cf[2];
   }
+  else if(!strncasecmp(cf,"trondheim", 9)) {
+    s = new Trondheim::Worker;
+    options->config_string = & cf[9];
+  }
   else {
-    return NULL;
+    return false;
   }
   
   s->init(self->id, options);
+  self->scheduler = s;
 
-  return (void *) s;
+  return true;
 }
 
 
@@ -207,7 +227,10 @@ void scheduler_shutdown(ndb_pipeline *self) {
 
 
 ENGINE_ERROR_CODE scheduler_schedule(ndb_pipeline *self, struct workitem *item) {
-  return self->scheduler->schedule(item);
+  mc_server_handle->store_engine_specific(item->cookie, item);
+  ENGINE_ERROR_CODE status = self->scheduler->schedule(item);
+  DEBUG_PRINT(" returning %d for workitem %d.%d", (int) status, self->id, item->id);
+  return status;
 }
 
 
@@ -215,6 +238,10 @@ void scheduler_release(ndb_pipeline *self, struct workitem *item) {
   self->scheduler->release(item);
 }
 
+
+void item_io_complete(struct workitem *item) {
+  mc_server_handle->notify_io_complete(item->cookie, ENGINE_SUCCESS);
+}
 
 
 /* The slab allocator API */

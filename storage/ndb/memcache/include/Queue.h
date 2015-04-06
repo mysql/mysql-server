@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -48,7 +48,7 @@ private:
   Node *tail;
   Node *nodelist;
   char *nodepool;
-  ndbmc_atomic32_t is_active;
+  atomic_int32_t is_active;
 
 public:   /* public instance variable */
 
@@ -97,13 +97,9 @@ public:   /* public interface methods */
       node_free(tmp);
     }
     /* Now add a node at the tail of the queue */
-    bool did_swap;
     Node * n = node_alloc(t);
-    Node * volatile _tail;
-    do {
-      _tail = tail;                                 /* atomic: tail->next = n */ 
-      did_swap = atomic_cmp_swap_ptr((void * volatile *) & _tail->next, 0, n);
-    } while(did_swap == false);
+    atomic_set_ptr((void * volatile *)& tail->next, n);
+    atomic_barrier();
     tail = n;
   };
   
