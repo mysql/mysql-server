@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2013, Oracle and/or its affiliates. 
+# Copyright (c) 2013, 2015, Oracle and/or its affiliates.
 # All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -94,7 +94,7 @@ sub new {
           "req_id" => 0, "min_wait" => 4,  "max_wait" => 8192, 
           "temp_errors" => 0 , "total_wait" => 0, "has_cas" => 0,
           "flags" => 0, "exptime" => 0, "get_results" => undef,
-          "get_with_cas" => 0
+          "get_with_cas" => 0, "already_failed" => 0, "last_get_len" => "unset"
         }, $pkg;
 }
 
@@ -104,13 +104,23 @@ sub new {
 sub fail {
   my $self = shift;
   my $msg = 
-      "error:       " . $self->{error} . "\n" .
-      "req_id:      " . $self->{req_id} . "\n" .
-      "temp_errors: " . $self->{temp_errors} . "\n".
-      "total_wait:  " . $self->{total_wait} . "\n";
-  while(my $extra = shift) { 
-    $msg .= $extra . "\n"; 
+      "error: "       . $self->{error}       ."\t".
+      "last_get_len: ". $self->{last_get_len}."\n".
+      "req_id: "      . $self->{req_id}      ."\t".
+      "temp_errors: " . $self->{temp_errors} ."\t".
+      "total_wait: "  . $self->{total_wait}  ."\t".
+      "protocol: "    . $self->protocol()    ."\n";
+
+  while(my $extra = shift) {
+    $msg .= $extra;
   }
+  $msg .= "\n====~~~~____~~~~====\n";
+
+  if(! $self->{already_failed}) {
+    $self->{already_failed} = 1;
+    $self->stats("log");  # hack to get memcached to flush its error log
+  }
+
   Carp::confess($msg);
 }
 
@@ -242,6 +252,11 @@ sub wait_for_config_generation {
 #  ------------------          ASCII PROTOCOL         --------------------
 #  -----------------------------------------------------------------------
 
+sub protocol {
+  return "ascii";
+}
+
+
 sub ascii_command {
   my $self = shift;
   my $packet = shift;
@@ -341,7 +356,8 @@ sub get {
   {
     $response =~ /^VALUE (\S+) (\d+) (\d+) ?(\d+)?/;
     my $result = My::Memcache::Result->new($1, $2, $4);
-    $sock->read($result->{value}, $3);   # $3 is length of value
+    $self->{last_get_len} = $3;
+    $sock->read($result->{value}, $3);
     $self->{has_cas} = 1 if($4);
     push @results, $result;
     $sock->getline();  # \r\n after value
@@ -458,6 +474,11 @@ use constant BIN_CMD_PREPEND    => 0x0F;
 use constant BIN_CMD_STAT       => 0x10;
 
 
+sub protocol {
+  return "binary";
+}
+
+
 sub error_message {
   my ($self, $code) = @_;
   my %error_messages = (
@@ -524,6 +545,7 @@ sub get_binary_response {
     $body .= $buf;
   }
   $self->{error} = $self->error_message($status);
+  $self->{last_get_len} = $body_len;
 
   # Packet structure is: header .. extras .. key .. value 
   my $cas = ($cas_hi * (2 ** 32)) + $cas_lo;
