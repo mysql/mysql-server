@@ -230,8 +230,8 @@ srv_file_check_mode(
 
 		/* Note: stat.rw_perm is only valid of files */
 
-		if (stat.type == OS_FILE_TYPE_FILE
-		    || stat.type == OS_FILE_TYPE_BLOCK) {
+		if (stat.type == OS_FILE_TYPE_FILE) {
+
 			if (!stat.rw_perm) {
 				const char*	mode = srv_read_only_mode
 					? "read" : "read-write";
@@ -1084,11 +1084,13 @@ srv_start_wait_for_purge_to_start()
 }
 
 /** Create the temporary file tablespace.
+@param[in]	create_new_db	whether we are creating a new database
 @param[in,out]	tmp_space	Shared Temporary SysTablespace
 @return DB_SUCCESS or error code. */
 static
 dberr_t
 srv_open_tmp_tablespace(
+	bool		create_new_db,
 	SysTablespace*	tmp_space)
 {
 	ulint	sum_of_new_sizes;
@@ -1125,7 +1127,7 @@ srv_open_tmp_tablespace(
 			<< tmp_space->name() << ".";
 
 	} else if ((err = tmp_space->open_or_create(
-			    true, &sum_of_new_sizes, NULL))
+			    true, create_new_db, &sum_of_new_sizes, NULL))
 		   != DB_SUCCESS) {
 
 		ib::error() << "Unable to create the shared "
@@ -1866,7 +1868,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint	sum_of_new_sizes;
 
 	err = srv_sys_space.open_or_create(
-		false, &sum_of_new_sizes, &flushed_lsn);
+		false, create_new_db, &sum_of_new_sizes, &flushed_lsn);
 
 	switch (err) {
 	case DB_SUCCESS:
@@ -2315,7 +2317,7 @@ files_checked:
 
 	/* Open temp-tablespace and keep it open until shutdown. */
 
-	err = srv_open_tmp_tablespace(&srv_tmp_space);
+	err = srv_open_tmp_tablespace(create_new_db, &srv_tmp_space);
 
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
