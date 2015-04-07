@@ -26,6 +26,68 @@
 set sql_mode='';
 set default_storage_engine=MyISAM;
 
+# Move distributed grant tables to default engine during upgrade, remember
+# which tables was moved so they can be moved back after upgrade
+SET @had_distributed_user =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'user' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.user ENGINE=MyISAM";
+SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_db =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'db' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.db ENGINE=MyISAM";
+SET @str = IF(@had_distributed_db > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_tables_priv =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'tables_priv' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=MyISAM";
+SET @str = IF(@had_distributed_tables_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_columns_priv =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'columns_priv' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=MyISAM";
+SET @str = IF(@had_distributed_columns_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_procs_priv =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'procs_priv' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
+SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=MyISAM";
+SET @str = IF(@had_distributed_procs_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @had_distributed_proxies_priv =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'proxies_priv' AND
+           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER' );
+SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=MyISAM";
+SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
 # Detect whether or not we had the Grant_priv column
@@ -820,3 +882,39 @@ ALTER TABLE time_zone_name ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE time_zone_transition_type ENGINE=InnoDB STATS_PERSISTENT=0;
 
+# Move any distributed grant tables back to NDB after upgrade
+SET @cmd="ALTER TABLE mysql.user ENGINE=NDB";
+SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.db ENGINE=NDB";
+SET @str = IF(@had_distributed_db > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=NDB";
+SET @str = IF(@had_distributed_tables_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=NDB";
+SET @str = IF(@had_distributed_columns_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=NDB";
+SET @str = IF(@had_distributed_procs_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=NDB";
+SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;

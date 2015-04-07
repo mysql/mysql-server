@@ -1,0 +1,66 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+[atrt]
+basedir = CHOOSE_dir
+baseport = 14000
+#clusters = .4node
+clusters = .2node
+fix-nodeid=1
+mt = 0
+
+[ndb_mgmd]
+
+[mysqld]
+innodb
+skip-grant-tables
+socket=mysql.sock
+default-storage-engine=myisam
+
+[client]
+protocol=tcp
+
+#[cluster_config.4node]
+[cluster_config.2node]
+ndb_mgmd = CHOOSE_host1
+#ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
+ndbd = CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host1,CHOOSE_host1
+#mysqld = CHOOSE_host1,CHOOSE_host6
+mysqld = CHOOSE_host1,CHOOSE_host4
+
+NoOfReplicas = 2
+IndexMemory = 100M 
+DataMemory = 500M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 8
+FragmentLogFileSize = 64M
+ODirect=1
+MaxNoOfAttributes=2000
+Checksum=1
+
+SharedGlobalMemory=256M
+DiskPageBufferMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:256M
+InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
+TimeBetweenWatchDogCheckInitial=60000
+
+[cluster_config.ndbd.1.2node]
+TwoPassInitialNodeRestartCopy=1
+
+[cluster_config.ndbd.3.2node]
+TwoPassInitialNodeRestartCopy=1

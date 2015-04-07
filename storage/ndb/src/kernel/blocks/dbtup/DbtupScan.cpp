@@ -295,7 +295,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
      *   So that scan state is not alterer
      *   if lcp_keep rows are found in ScanOp::First
      */
-    handle_lcp_keep(signal, fragPtr.p, scanPtr.p);
+    handle_lcp_keep(signal, fragPtr, scanPtr.p);
     return;
   }
 
@@ -446,6 +446,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
      */
     Uint32 blockNo = refToMain(scan.m_userRef);
     EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    jamEntry();
     return;
   }
   if (scan.m_state == ScanOp::Last ||
@@ -458,6 +459,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     unsigned signalLength = 3;
     Uint32 blockNo = refToMain(scan.m_userRef);
     EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    jamEntry();
     return;
   }
   ndbrequire(false);
@@ -703,7 +705,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
     /**
      * Handle lcp keep list here to, due to scanCont
      */
-    handle_lcp_keep(signal, fragPtr.p, scanPtr.p);
+    handle_lcp_keep(signal, fragPtr, scanPtr.p);
     return false;
   }
 
@@ -881,7 +883,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               // ignore result
               Page_cache_client pgman(this, c_pgman);
               pgman.get_page(signal, preq, flags);
-              m_pgman_ptr = pgman.m_ptr;
               jamEntry();
               page_no++;
             }
@@ -930,8 +931,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           safe_cast(&Dbtup::disk_page_tup_scan_callback);
         int flags = 0;
         Page_cache_client pgman(this, c_pgman);
+        Ptr<GlobalPage> pagePtr;
         int res = pgman.get_page(signal, preq, flags);
-        m_pgman_ptr = pgman.m_ptr;
+        pagePtr = pgman.m_ptr;
         jamEntry();
         if (res == 0) {
           jam();
@@ -940,7 +942,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           return false;
         }
         ndbrequire(res > 0);
-        pos.m_page = (Page*)m_pgman_ptr.p;
+        pos.m_page = (Page*)pagePtr.p;
       }
       pos.m_get = ScanPos::Get_tuple;
       continue;
@@ -1124,36 +1126,58 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   return false;
 }
 
+/**
+ * The LCP requires that some rows which are deleted during the main-memory
+ * scan of fragments with disk-data parts are included in the main-memory LCP.
+ * This is done so that during recovery, the main-memory part can be used to
+ * find the disk-data part again, so that it can be deleted during Redo
+ * application.
+ *
+ * This is implemented by copying the row content into
+ * 'undo memory' / copy tuple space, and adding it to a per-fragment
+ * 'lcp keep list', before deleting it at transaction commit time.
+ * The row content is then only reachable via the lcp keep list, and does not
+ * cause any ROWID reuse issues (899).
+ *
+ * The LCP scan treats the fragment's 'lcp keep list' as a top-priority source
+ * of rows to be included in the fragment LCP, so rows should only be kept
+ * momentarily.
+ *
+ * As these rows exist solely in DBTUP undo memory, it is not necessary to
+ * perform the normal ACC locking protocols etc, but it is necessary to prepare
+ * TUP for the coming TUPKEYREQ...
+ */
 void
 Dbtup::handle_lcp_keep(Signal* signal,
-                       Fragrecord* fragPtrP,
+                       FragrecordPtr fragPtr,
                        ScanOp* scanPtrP)
 {
   TablerecPtr tablePtr;
   tablePtr.i = scanPtrP->m_tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  ndbassert(!fragPtrP->m_lcp_keep_list_head.isNull());
-  Local_key tmp = fragPtrP->m_lcp_keep_list_head;
+  ndbassert(!fragPtr.p->m_lcp_keep_list_head.isNull());
+  Local_key tmp = fragPtr.p->m_lcp_keep_list_head;
   Uint32 * copytuple = get_copy_tuple_raw(&tmp);
-  memcpy(&fragPtrP->m_lcp_keep_list_head,
+  memcpy(&fragPtr.p->m_lcp_keep_list_head,
          copytuple+2,
          sizeof(Local_key));
 
-  if (fragPtrP->m_lcp_keep_list_head.isNull())
+  if (fragPtr.p->m_lcp_keep_list_head.isNull())
   {
     jam();
-    ndbassert(tmp.m_page_no == fragPtrP->m_lcp_keep_list_tail.m_page_no);
-    ndbassert(tmp.m_page_idx == fragPtrP->m_lcp_keep_list_tail.m_page_idx);
-    fragPtrP->m_lcp_keep_list_tail.setNull();
+    ndbassert(tmp.m_page_no == fragPtr.p->m_lcp_keep_list_tail.m_page_no);
+    ndbassert(tmp.m_page_idx == fragPtr.p->m_lcp_keep_list_tail.m_page_idx);
+    fragPtr.p->m_lcp_keep_list_tail.setNull();
   }
 
   Local_key save = tmp;
   setCopyTuple(tmp.m_page_no, tmp.m_page_idx);
+  prepareTUPKEYREQ(tmp.m_page_no, tmp.m_page_idx, fragPtr.i);
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scanPtrP->m_userPtr;
   conf->accOperationPtr = (Uint32)-1;
-  conf->fragId = fragPtrP->fragmentId;
+  conf->fragId = fragPtr.p->fragmentId;
   conf->localKey[0] = tmp.m_page_no;
   conf->localKey[1] = tmp.m_page_idx;
   conf->gci = 0;

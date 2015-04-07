@@ -205,3 +205,25 @@ SELECT COUNT(*)
 
 
 DROP TABLE t1;
+
+# Check the update with unchanged MBR optimization.
+# Create table with R-tree index.
+CREATE TABLE t1( i INT, g GEOMETRY NOT NULL, SPATIAL INDEX (g)) ENGINE=InnoDB;
+
+# Insert values.
+INSERT INTO t1 VALUES(1, LINESTRING(POINT(1,1), POINT(4, 4)));
+INSERT INTO t1 VALUES(2, LINESTRING(POINT(2,2), POINT(5, 5)));
+
+# Update value.
+UPDATE t1 SET g = LINESTRING(POINT(1,1), POINT(2,2), POINT(3,3), POINT(4,4))
+ WHERE i = 1;
+UPDATE t1 SET g = LINESTRING(POINT(1,1), POINT(2,2), POINT(3,3), POINT(8,8))
+ WHERE i = 2;
+
+
+CHECK TABLE t1;
+
+DELETE FROM t1
+ WHERE ST_CONTAINS(ST_GeomFromText('POLYGON((0 0,4 0, 4 4, 0 4, 0 0))'),g);
+
+DROP TABLE t1;

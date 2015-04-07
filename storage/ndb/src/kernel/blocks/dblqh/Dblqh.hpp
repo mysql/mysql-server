@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <DLHashTable.hpp>
 
 #include <NodeBitmask.hpp>
+#include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/LCP.hpp>
 #include <signaldata/LqhTransConf.hpp>
 #include <signaldata/CreateTab.hpp>
@@ -318,7 +319,7 @@ class Lgman;
 #define ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR 1220
 #define ZTEMPORARY_REDO_LOG_FAILURE 1221
 #define ZNO_FREE_MARKER_RECORDS_ERROR 1222
-#define ZNODE_SHUTDOWN_IN_PROGESS 1223
+#define ZNODE_SHUTDOWN_IN_PROGRESS 1223
 #define ZTOO_MANY_FRAGMENTS 1224
 #define ZTABLE_NOT_DEFINED 1225
 #define ZDROP_TABLE_IN_PROGRESS 1226
@@ -436,9 +437,7 @@ public:
   enum LcpCloseState {
     LCP_IDLE = 0,
     LCP_RUNNING = 1,       // LCP is running
-    LCP_CLOSE_STARTED = 2, // Completion(closing of files) has started
-    ACC_LCP_CLOSE_COMPLETED = 3,
-    TUP_LCP_CLOSE_COMPLETED = 4
+    LCP_CLOSE_STARTED = 2  // Completion(closing of files) has started
   };
 
   enum ExecUndoLogState {
@@ -706,9 +705,9 @@ public:
 
     typedef Bitmask<8> ScanNumberMask; // Max 255 KeyInfo20::ScanNo
     ScanNumberMask m_scanNumberMask;
-    DLList<ScanRecord>::Head m_activeScans;
-    DLFifoList<ScanRecord>::Head m_queuedScans;
-    DLFifoList<ScanRecord>::Head m_queuedTupScans;
+    DLCList<ScanRecord>::Head m_activeScans;
+    DLCFifoList<ScanRecord>::Head m_queuedScans;
+    DLCFifoList<ScanRecord>::Head m_queuedTupScans;
 
     Uint16 srLqhLognode[4];
     /**
@@ -835,6 +834,10 @@ public:
      */
     Uint16 copyNode;
     /**
+     * Instance key for fast access.
+     */
+    Uint16 lqhInstanceKey;
+    /**
      *       This variable ensures that only one copy fragment is
      *       active at a time on the fragment.
      */
@@ -882,11 +885,101 @@ public:
      * Log part
      */
     Uint32 m_log_part_ptr_i;
-
     /**
-     * Instance key for fast access.
+     * LCP_FRAG_ORD info for the c_queued_lcp_frag_ord queue.
      */
-    Uint16 lqhInstanceKey;
+    enum LcpExecutionState
+    {
+      LCP_QUEUED = 0,
+      LCP_EXECUTING = 1,
+      LCP_EXECUTED = 2
+    };
+
+    /* 
+       Usage counters. Except for m_queuedScanCount, these only count 'user' 
+       operations, i.e. those directly initiated from the ndbapi, and not
+       'internal' operations, such as those used for LCPs.
+     */
+    struct UsageStat
+    {
+      // Number of key read operations.
+      Uint64 m_readKeyReqCount;
+
+      // Number of inserts.
+      Uint64 m_insKeyReqCount;
+
+      // Number of updates.
+      Uint64 m_updKeyReqCount;
+      /*
+        Number of write operations, meaning 'update' if key exists, and 'insert'
+        otherwise.
+      */
+      Uint64 m_writeKeyReqCount;
+
+      // Number of deletes
+      Uint64 m_delKeyReqCount;
+ 
+      /*
+        Number of key operations refused by the LDM due to either:
+        - no matching key for update/delete.
+        - key exists already for insert.
+        - operation rejected by interpreted program.
+      */
+      Uint64 m_keyRefCount;
+
+      // Number of attrinfo words in key operations.
+      Uint64 m_keyReqAttrWords;
+
+      // Number of keyinfo words in key operations.
+      Uint64 m_keyReqKeyWords;
+
+      // Total size of interpeter programs for key operations.
+      Uint64 m_keyProgramWords;
+
+      // Number of interpreter instructions executed for key operations.
+      Uint64 m_keyInstructionCount;
+
+      // Number of words returned to client due to key operations.
+      Uint64 m_keyReqWordsReturned;
+
+      // Number of fragment scans requested.
+      Uint64 m_scanFragReqCount;
+
+      /*
+        The number of rows examined during scans. Some of these may have been
+        rejected by the interpreted program (i.e. a pushed condition), and 
+        thus not been returned to the client.
+      */
+      Uint64 m_scanRowsExamined;
+
+      // Number of scan rows returned to the client.
+      Uint64 m_scanRowsReturned;
+
+      // Number of words returned to client due to scans.
+      Uint64 m_scanWordsReturned;
+
+      // Total size of interpeter programs for scans.
+      Uint64 m_scanProgramWords;
+
+      // Total size of scan bounds (for ordered index scans).
+      Uint64 m_scanBoundWords;
+
+      // Number of interpreter instructions executed for scans.
+      Uint64 m_scanInstructionCount;
+
+      // Total number of scans queued (including those from internal clients.
+      Uint64 m_queuedScanCount;
+      
+      // Set all counters to zero.
+      void init()
+      {
+        memset(this, 0, sizeof *this);
+      }
+    };
+    Uint32 lcp_frag_ord_lcp_no;
+    Uint32 lcp_frag_ord_lcp_id;
+    LcpExecutionState lcp_frag_ord_state;
+    UsageStat m_useStat;
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
   
@@ -988,7 +1081,6 @@ public:
    *       checkpoint that is ongoing. This record is also used as a
    *       system restart record.
    */
-#define MAX_QUEUED_LCP_FRAGMENTS 128
   struct LcpRecord {
     LcpRecord() { m_EMPTY_LCP_REQ.clear(); }
     
@@ -1013,9 +1105,6 @@ public:
       LcpFragOrd lcpFragOrd;
     };
     FragOrd currentFragment;
-    
-    Uint32  numFragLcpsQueued;
-    FragOrd queuedFragment[MAX_QUEUED_LCP_FRAGMENTS];
     
     bool   reportEmpty;
     NdbNodeBitmask m_EMPTY_LCP_REQ;
@@ -1048,13 +1137,13 @@ public:
     /**
      * Current sum of sliding window
      */
-    Uint32 m_curr_written_bytes;
     Uint32 m_curr_elapsed_millis;
+    Uint64 m_curr_written_bytes;
 
     /**
      * Currently outstanding bytes
      */
-    Uint32 m_sum_outstanding_bytes;
+    Uint64 m_sum_outstanding_bytes;
 
     /**
      * How many times did we pass lag-threshold
@@ -1062,19 +1151,45 @@ public:
     Uint32 m_lag_cnt;
 
     /**
+     * How many seconds of writes are we lagging
+     */
+    Uint32 m_lag_in_seconds;
+
+    /**
      * bytes send during current sample
      */
-    Uint32 m_sample_sent_bytes;
+    Uint64 m_sample_sent_bytes;
 
     /**
      * bytes completed during current sample
      */
-    Uint32 m_sample_completed_bytes;
+    Uint64 m_sample_completed_bytes;
+
+    /**
+     * bytes completed since last report
+     */
+    Uint64 m_redo_written_bytes;
 
     int tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt);
     void send_io(Uint32 bytes);
     void complete_io(Uint32 bytes);
+    Uint32 get_lag_cnt()
+    {
+      return m_lag_cnt;
+    }
+    Uint32 get_lag_in_seconds()
+    {
+      return m_lag_in_seconds;
+    }
+    Uint64 get_and_reset_redo_written_bytes()
+    {
+      Uint64 redo_written_bytes = m_redo_written_bytes;
+      m_redo_written_bytes = 0;
+      return redo_written_bytes;
+    }
   };
+  bool is_ldm_instance_io_lagging();
+  Uint64 report_redo_written_bytes();
 
   /** 
    * RedoWorkStats
@@ -2150,7 +2265,7 @@ public:
     Uint32 commitAckMarker;
     union {
       Uint32 m_scan_curr_range_no;
-      UintR noFiredTriggers;
+      UintR numFiredTriggers;
     };
     Uint32 m_corrFactorLo; // For result correlation for linked operations.
     Uint32 m_corrFactorHi;
@@ -2387,6 +2502,8 @@ private:
 
   // Statement blocks
 
+  void sendLOCAL_RECOVERY_COMPLETE_REP(Signal *signal,
+                LocalRecoveryCompleteRep::PhaseIds);
   void timer_handling(Signal *signal);
   void init_acc_ptr_list(ScanRecord*);
   bool seize_acc_ptr_list(ScanRecord*, Uint32, Uint32);
@@ -2427,7 +2544,7 @@ private:
                   Uint32 fragId,
                   Uint32 nodeId,
                   Uint32 hashHi);
-  void finishScanrec(Signal* signal);
+  bool finishScanrec(Signal* signal, ScanRecordPtr &restart);
   void releaseScanrec(Signal* signal);
   void seizeScanrec(Signal* signal);
   Uint32 sendKeyinfo20(Signal* signal, ScanRecord *, TcConnectionrec *);
@@ -3095,6 +3212,7 @@ private:
   DLFifoList<Fragrecord> c_lcp_waiting_fragments;  // StartFragReq'ed
   DLFifoList<Fragrecord> c_lcp_restoring_fragments; // Restoring as we speek
   DLFifoList<Fragrecord> c_lcp_complete_fragments;  // Restored
+  DLFifoList<Fragrecord> c_queued_lcp_frag_ord;     //Queue for LCP_FRAG_ORDs
   
 /* ------------------------------------------------------------------------- */
 /*USED DURING SYSTEM RESTART, INDICATES THE OLDEST GCI THAT CAN BE RESTARTED */
@@ -3304,6 +3422,7 @@ public:
     Uint32 prevHash;
     Uint32 reference_count;
     bool in_hash;
+    bool removed_by_fail_api;
 
     inline bool equal(const CommitAckMarker & p) const {
       return ((p.transid1 == transid1) && (p.transid2 == transid2));

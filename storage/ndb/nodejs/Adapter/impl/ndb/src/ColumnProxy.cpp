@@ -25,29 +25,28 @@
 using namespace v8;
 
 ColumnProxy::~ColumnProxy() {
-  if(! jsValue.IsEmpty())
-    jsValue.Dispose();
+  Dispose();
+}
+
+/* Drop our claim on the old value */
+void ColumnProxy::Dispose() {
+  if(! jsValue.IsEmpty()) jsValue.Dispose();
+  if(! blobBuffer.IsEmpty()) blobBuffer.Dispose();
 }
 
 Handle<Value> ColumnProxy::get(char *buffer) {
   HandleScope scope;
-  Handle<Value> val;
   
-  if(! isLoaded) {    
-    val = handler->read(buffer);
+  if(! isLoaded) {
+    Handle<Value> val = handler->read(buffer, blobBuffer);
     jsValue = Persistent<Value>::New(val);
     isLoaded = true;
   }
   return scope.Close(jsValue);
 }
 
-
 void ColumnProxy::set(Handle<Value> newValue) {
-  HandleScope scope;
-    
-  /* Drop our claim on the old value */
-  if(! jsValue.IsEmpty()) jsValue.Dispose();
-  
+  Dispose();
   isNull = (newValue->IsNull());
   isLoaded = isDirty = true;
   jsValue = Persistent<Value>::New(newValue);
@@ -57,13 +56,28 @@ void ColumnProxy::set(Handle<Value> newValue) {
 
 Handle<Value> ColumnProxy::write(char *buffer) {
   HandleScope scope;
-  Handle<Value> rval;
+  Handle<Value> rval = Undefined();
 
-  if(isDirty || (jsValue->IsObject() && jsValue->ToObject()->IsDirty())) {
+  /* Write dirty, non-blob values */
+  if(isDirty && blobBuffer.IsEmpty()) {
     rval = handler->write(jsValue, buffer);
+    DEBUG_PRINT("write %s", handler->column->getName());
+    isDirty = false;
   }
-  isDirty = false;
-  DEBUG_PRINT("write %s", handler->column->getName());
   return scope.Close(rval);
 }
 
+
+BlobWriteHandler * ColumnProxy::createBlobWriteHandle(int i) {
+  BlobWriteHandler * b = 0;
+  if(isDirty && ! isNull) {
+    DEBUG_PRINT("createBlobWriteHandle %s", handler->column->getName());
+    b = handler->createBlobWriteHandle(blobBuffer, i);
+  }
+  isDirty = false;
+  return b;
+}
+
+void ColumnProxy::setBlobBuffer(Handle<Object> buffer) {
+  blobBuffer = Persistent<Object>::New(buffer);
+}

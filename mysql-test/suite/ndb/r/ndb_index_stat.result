@@ -587,6 +587,11 @@ analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 drop table t1;
+use test;
+CREATE TABLE t1 (id int unsigned NOT NULL auto_increment PRIMARY KEY,
+val int unsigned, UNIQUE (val)) ENGINE=NDBCluster;
+INSERT INTO test.t1 values (1,1), (2,2);
+DROP TABLE t1;
 set @is_enable = @is_enable_default;
 set @is_enable = NULL;
 # is_enable_on=0 is_enable_off=0

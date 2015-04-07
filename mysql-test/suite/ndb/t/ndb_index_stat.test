@@ -395,5 +395,25 @@ analyze table t1;
 analyze table t1;
 drop table t1;
 
+
+# Bug#18715165
+
+use test;
+
+CREATE TABLE t1 (id int unsigned NOT NULL auto_increment PRIMARY KEY,
+val int unsigned, UNIQUE (val)) ENGINE=NDBCluster;
+
+INSERT INTO test.t1 values (1,1), (2,2);
+
+--source suite/ndb/include/ndb_find_index_stat_tool.inc
+
+if (`select @@global.ndb_index_stat_enable`)
+{
+  --exec $NDB_INDEX_STAT --update -d test t1 >> $NDB_TOOLS_OUTPUT
+}
+
+#clean up
+DROP TABLE t1;
+
 set @is_enable = @is_enable_default;
 source ndb_index_stat_enable.inc;

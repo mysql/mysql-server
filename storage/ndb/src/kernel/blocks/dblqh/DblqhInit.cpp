@@ -299,6 +299,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
+  c_queued_lcp_frag_ord(c_fragment_pool),
   m_commitAckMarkerHash(m_commitAckMarkerPool),
   c_scanTakeOverHash(c_scanRecordPool)
 {

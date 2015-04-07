@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -372,7 +372,7 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   return false;
 }
 
-int
+bool
 SHM_Transporter::doSend()
 {
   struct iovec iov[64];
@@ -380,7 +380,7 @@ SHM_Transporter::doSend()
 
   if (cnt == 0)
   {
-    return 0;
+    return false;
   }
 
   Uint32 sum = 0;
@@ -399,10 +399,10 @@ SHM_Transporter::doSend()
 
     if (Uint32(nBytesSent) == sum && (cnt != NDB_ARRAY_SIZE(iov)))
     {
-      return 0;
+      return false;
     }
-    return 1;
+    return true;
   }
 
-  return 1;
+  return true;
 }

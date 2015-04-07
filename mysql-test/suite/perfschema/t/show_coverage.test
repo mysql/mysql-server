@@ -17,11 +17,15 @@ set global show_compatibility_56 = ON;
 
 --echo
 --echo # TEST 1
---echo # Handling of SHOW STATUS/VARIABLES...WHERE, expect ERR_WARN_DEPRECATED_SYNTAX
+--echo # Handling of SHOW STATUS/VARIABLES ... WHERE
 --echo #
+SHOW STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
 SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
 --echo
 SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 --echo
 SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 --echo
@@ -29,7 +33,7 @@ SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 
 --echo
 --echo # TEST 2
---echo # CREATE..SELECT -- Expect correct ERR_WARN_DEPRECATED_SYNTAX
+--echo # CREATE..SELECT -- Expect correct ER_WARN_DEPRECATED_SYNTAX
 --echo #
 USE test;
 CREATE TABLE t0 SELECT * FROM information_schema.global_status WHERE variable_name = 'COM_SELECT';
@@ -60,18 +64,18 @@ select * from status_by_account order by variable_name;
 
 --echo
 --echo # TEST 4
---echo # Handling of SHOW STATUS/VARIABLES...WHERE, expect usage error.
+--echo # Handling of SHOW STATUS/VARIABLES ... WHERE
 --echo #
---error ER_WRONG_USAGE
+SHOW STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+--echo
 SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
 --echo
---error ER_WRONG_USAGE
-SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+SHOW VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 --echo
---error ER_WRONG_USAGE
 SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 --echo
---error ER_WRONG_USAGE
 SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 
 --echo

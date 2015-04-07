@@ -1216,17 +1216,22 @@ thd_start_time_in_secs(
 	return(ulint(ut_time()));
 }
 
-/******************************************************************//**
-Save some CPU by testing the value of srv_thread_concurrency in inline
-functions.
-@param[in/out]	prebuilt	row prebuilt handler */
+/** Enter InnoDB engine after checking the max number of user threads
+allowed, else the thread is put into sleep.
+@param[in,out]	prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_enter_innodb(
 	row_prebuilt_t*	prebuilt)
 {
-	trx_t*	trx	= prebuilt->trx;
+	/* We rely on server to do external_lock(F_UNLCK) to reset the
+	srv_conc.n_active counter. Since there are no locks on instrinsic
+	tables, we should skip this for intrinsic temporary tables. */
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return;
+	}
 
+	trx_t*	trx	= prebuilt->trx;
 	if (srv_thread_concurrency) {
 		if (trx->n_tickets_to_enter_innodb > 0) {
 
@@ -1249,15 +1254,21 @@ innobase_srv_conc_enter_innodb(
 	}
 }
 
-/******************************************************************//**
-Note that the thread wants to leave InnoDB only if it doesn't have
+/** Note that the thread wants to leave InnoDB only if it doesn't have
 any spare tickets.
-@param[in/out]	m_prebuilt	row prebuilt handler */
+@param[in,out]	m_prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_exit_innodb(
 	row_prebuilt_t*	prebuilt)
 {
+	/* We rely on server to do external_lock(F_UNLCK) to reset the
+	srv_conc.n_active counter. Since there are no locks on instrinsic
+	tables, we should skip this for intrinsic temporary tables. */
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return;
+	}
+
 	trx_t*			trx = prebuilt->trx;
 	btrsea_sync_check	check(trx->has_search_latch);
 
@@ -5057,7 +5068,7 @@ ha_innobase::open(
 		ib_table = dict_table_open_on_name(
 			norm_name, FALSE, TRUE, ignore_err);
 	} else {
-		++ib_table->n_ref_count;
+		ib_table->acquire();
 		ut_ad(dict_table_is_intrinsic(ib_table));
 	}
 
@@ -10680,7 +10691,7 @@ create_table_info_t::create_table_update_dict()
 		innobase_table = dict_table_open_on_name(
 			m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 	} else {
-		++innobase_table->n_ref_count;
+		innobase_table->acquire();
 		ut_ad(dict_table_is_intrinsic(innobase_table));
 	}
 
@@ -12515,20 +12526,6 @@ ha_innobase::info_low(
 				"returning various info to MySQL";
 		}
 
-		my_snprintf(path, sizeof(path), "%s/%s%s",
-			    mysql_data_home, ib_table->name.m_name, reg_ext);
-
-		unpack_filename(path,path);
-
-		/* Note that we do not know the access time of the table,
-		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
-
-		if (os_file_get_status(
-			path, &stat_info, false,
-			(dict_table_is_intrinsic(ib_table)
-			? false : srv_read_only_mode)) == DB_SUCCESS) {
-			stats.create_time = (ulong) stat_info.ctime;
-		}
 
 		stats.update_time = (ulong) ib_table->update_time;
 	}
@@ -12816,6 +12813,22 @@ ha_innobase::info_low(
 
 		if (!(flag & HA_STATUS_NO_LOCK)) {
 			dict_table_stats_unlock(ib_table, RW_S_LATCH);
+		}
+
+		my_snprintf(path, sizeof(path), "%s/%s%s",
+			    mysql_data_home, table->s->normalized_path.str,
+			    reg_ext);
+
+		unpack_filename(path,path);
+
+		/* Note that we do not know the access time of the table,
+		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
+
+		if (os_file_get_status(
+			path, &stat_info, false,
+			(dict_table_is_intrinsic(ib_table)
+			? false : srv_read_only_mode)) == DB_SUCCESS) {
+			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
 

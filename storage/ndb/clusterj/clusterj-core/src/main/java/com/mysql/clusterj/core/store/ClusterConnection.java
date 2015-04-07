@@ -40,4 +40,6 @@ public interface ClusterConnection {
 
     public ValueHandlerFactory getSmartValueHandlerFactory();
 
+    public void initializeAutoIncrement(long[] autoIncrement);
+
 }

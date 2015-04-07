@@ -19,14 +19,14 @@
 
 #define CHECKNOTNULL(p) if ((p) == NULL) {          \
     ndbout << "Error at line " << __LINE__ << endl; \
-    NDB_ERR(trans->getNdbError());                      \
+    NDB_ERR(trans->getNdbError());                  \
     trans->close();                                 \
     return NDBT_FAILED; }
 
 #define CHECKEQUAL(v, e) if ((e) != (v)) {            \
     ndbout << "Error at line " << __LINE__ <<         \
       " expected " << v << endl;                      \
-    NDB_ERR(trans->getNdbError());                        \
+    NDB_ERR(trans->getNdbError());                    \
     trans->close();                                   \
     return NDBT_FAILED; }
 
@@ -114,8 +114,9 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_OK;
 
   const Uint32 maxRowBytes= NDB_MAX_TUPLE_SIZE_IN_WORDS * sizeof(Uint32);
-  const Uint32 srcBuffBytes= NDBT_Tables::MaxVarTypeKeyBytes;
+  const Uint32 maxKeyBytes= NDBT_Tables::MaxVarTypeKeyBytes;
   const Uint32 maxAttrBytes= NDBT_Tables::MaxKeyMaxVarTypeAttrBytes;
+  const Uint32 srcBuffBytes= MAX(maxKeyBytes,maxAttrBytes);
   char smallKey[50];
   char srcBuff[srcBuffBytes];
   char smallRowBuf[maxRowBytes];
@@ -154,7 +155,7 @@ int testSegmentedSectionPk(NDBT_Context* ctx, NDBT_Step* step){
                                             bigKeyRowBuf,
                                             0),
                  &srcBuff[0],
-                 srcBuffBytes);
+                 maxKeyBytes);
   NdbDictionary::setNull(record, bigKeyRowBuf, 0, false);
 
   setLongVarchar(NdbDictionary::getValuePtr(record,

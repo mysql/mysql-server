@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,11 +85,21 @@ printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec
       i += signalLength;
       break;
     }
-    case ZREMOVE_MARKER: {
+    case ZREMOVE_MARKER:
+    {
+      bool removed_by_api = !(theData[i] & 1);
       Uint32 signalLength = 2;
       fprintf(output, "--------------- Signal ----------------\n");
-      fprintf(output, "r.bn: %u \"%s\", length: %u \"REMOVE_MARKER\"\n",
-	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      if (removed_by_api)
+      {
+        fprintf(output, "r.bn: %u \"%s\", length: %u \"REMOVE_MARKER\"\n",
+	        receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      }
+      else
+      {
+        fprintf(output, "r.bn: %u \"%s\", length: %u \"REMOVE_MARKER_FAIL_API\"\n",
+	        receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      }
       fprintf(output, "Signal data: ");
       i++; // Skip first word!
       for(Uint32 j = 0; j < signalLength; j++)

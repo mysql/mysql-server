@@ -406,7 +406,7 @@ create table t1 (a int) engine=innodb partition by hash(a) ;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 #
+--replace_column 6 # 7 # 10 # 12 #
 show table status like 't1';
 drop table t1;
 
@@ -419,14 +419,14 @@ partition by key (a);
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 #
+--replace_column 6 # 7 # 10 # 12 #
 show table status;
 insert into t1 values (0), (1), (2), (3);
 analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 13 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status;
 drop table t1;
 
@@ -436,21 +436,21 @@ partition by key (a);
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 #
+--replace_column 6 # 7 # 10 # 12 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 13 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
---replace_column 6 # 7 # 10 # 13 #
+--replace_column 6 # 7 # 10 # 12 # 13 #
 show table status;
 drop table t1;
 
@@ -964,4 +964,26 @@ CREATE TABLE t1 (a int)
 PARTITION BY LINEAR HASH (a) PARTITIONS 8;
 LOAD INDEX INTO CACHE t1 PARTITION (ALL);
 ALTER TABLE t1 COALESCE PARTITION 2;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #17299181  CREATE_TIME AND UPDATE_TIME ARE
+--echo #                WRONG FOR PARTITIONED TABLES
+--echo #
+
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
+PARTITION BY HASH (a) PARTITIONS 2;
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
+CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+
+ANALYZE TABLE t1;
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
+CREATE_TIME IS NOT NULL AND UPDATE_TIME IS NOT NULL
+AND TABLE_NAME='t1';
+
 DROP TABLE t1;

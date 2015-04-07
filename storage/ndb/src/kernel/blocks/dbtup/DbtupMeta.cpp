@@ -472,7 +472,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
       
       D("Logfile_client - execTUP_ADD_ATTRREQ");
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-      if((terrorCode = lgman.alloc_log_space(sz)))
+      if((terrorCode = lgman.alloc_log_space(sz, jamBuffer())))
       {
         jamEntry();
         addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
@@ -2028,7 +2028,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     Uint32 sz= sizeof(Disk_undo::Drop) >> 2;
     D("Logfile_client - releaseFragment");
     Logfile_client lgman(this, c_lgman, logfile_group_id);
-    int r0 = lgman.alloc_log_space(sz);
+    int r0 = lgman.alloc_log_space(sz, jamBuffer());
     jamEntry();
     if (r0)
     {
@@ -2047,7 +2047,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
     case -1:
       warningEvent("Failed to get log buffer for drop table: %u",
 		   tabPtr.i);
-      lgman.free_log_space(sz);
+      lgman.free_log_space(sz, jamBuffer());
       jamEntry();
       goto done;
       break;
@@ -2121,7 +2121,6 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     Page_cache_client pgman(this, c_pgman);
     int res= pgman.get_page(signal, req, flags);
     jamEntry();
-    m_pgman_ptr = pgman.m_ptr;
     switch(res)
     {
     case 0:
@@ -2186,7 +2185,9 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
 	cb.m_callbackIndex = DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK;
 #if NOT_YET_UNDO_FREE_EXTENT
 	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
-	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id, sz);
+	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id,
+                                        sz,
+                                        jamBuffer());
         jamEntry();
 	
 	Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);

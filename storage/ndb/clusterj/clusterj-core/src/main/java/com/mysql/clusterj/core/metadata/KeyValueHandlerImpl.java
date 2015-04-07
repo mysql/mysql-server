@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,6 +58,10 @@ public class KeyValueHandlerImpl implements ValueHandler {
             }
             logger.detail("KeyValueHandler<init> values.length: " + values.length + buffer.toString());
         }
+    }
+
+    public void release() {
+        this.values = null;
     }
 
     public boolean isNull(int fieldNumber) {

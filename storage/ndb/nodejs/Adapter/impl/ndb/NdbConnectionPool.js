@@ -20,23 +20,37 @@
 
 "use strict";
 
-var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
+var stats = {
+  "created"                 : 0,
+  "connect"                 : 0,
+  "refcount"                : {},
+  "ndb_session_pool"        : { "hits" : 0, "misses" : 0, "closes" : 0 },
+  "ndb_session_prefetch"    : { "attempts" : 0, "errors" : 0, "success" : 0 },
+  "group_callbacks_created" : 0,
+  "list_tables"             : 0,
+  "get_table_metadata"      : 0
+};
+
+var path             = require("path"),
+    assert           = require("assert"),
+    adapter          = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")),
     ndbsession       = require("./NdbSession.js"),
     NdbConnection    = require("./NdbConnection.js"),
-    dbtablehandler   = require("../common/DBTableHandler.js"),
+    dbtablehandler   = require(mynode.common.DBTableHandler),
     autoincrement    = require("./NdbAutoIncrement.js"),
     udebug           = unified_debug.getLogger("NdbConnectionPool.js"),
-    stats_module     = require(path.join(api_dir,"stats.js")),
-    stats            = stats_module.getWriter(["spi","ndb","DBConnectionPool"]),
-    ColumnTypes      = require(path.join(api_doc_dir,"TableMetadata")).ColumnTypes,
-    isValidConverterObject = require(path.join(api_dir,"TableMapping")).isValidConverterObject,
-    QueuedAsyncCall  = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
+    stats_module     = require(mynode.api.stats),
+    ColumnTypes      = require(path.join(mynode.fs.api_doc_dir,"TableMetadata")).ColumnTypes,
+    isValidConverterObject = require(mynode.api.TableMapping).isValidConverterObject,
+    QueuedAsyncCall  = require(mynode.common.QueuedAsyncCall).QueuedAsyncCall,
     baseConnections  = {},
     initialized      = false;
 
 /* Load-Time Function Asserts */
 assert(typeof adapter.ndb.ndbapi.Ndb_cluster_connection === 'function');
 assert(typeof adapter.ndb.impl.DBDictionary.listTables === 'function');
+
+stats_module.register(stats, "spi","ndb","DBConnectionPool");
 
 
 function initialize() {
@@ -57,13 +71,13 @@ function getNdbConnection(connectString) {
 
   if(baseConnections[connectString]) {
     baseConnections[connectString].referenceCount += 1;
+    stats.refcount[connectString]++;
   }
   else {
     baseConnections[connectString] = new NdbConnection(connectString);
+    stats.refcount[connectString] = 1;
   }
   
-  stats.set( [ connectString, "refcount" ] ,
-            baseConnections[connectString].referenceCount);
   return baseConnections[connectString];
 }
 
@@ -77,8 +91,8 @@ function getNdbConnection(connectString) {
 function releaseNdbConnection(connectString, msecToLinger, userCallback) {
   var ndbConnection = baseConnections[connectString];
   ndbConnection.referenceCount -= 1;
+  stats.refcount[connectString] -= 1;
   assert(ndbConnection.referenceCount >= 0);
-  stats.set( [ connectString, "refcount" ] , ndbConnection.referenceCount);
 
   function closeReally() {
     if(ndbConnection.referenceCount === 0) {        // No new customers.
@@ -98,6 +112,19 @@ function releaseNdbConnection(connectString, msecToLinger, userCallback) {
 }
 
 
+function closeDbSessionImpl(execQueue, impl, callbackOnClose) {
+  stats.ndb_session_pool.closes++;
+  impl.freeTransactions();
+  var apiCall = new QueuedAsyncCall(execQueue, callbackOnClose);
+  apiCall.description = "closeDbSessionImpl";
+  apiCall.impl = impl;
+  apiCall.run = function() {
+    this.impl.destroy(this.callback);
+  };
+  apiCall.enqueue();
+}
+
+
 function closeNdb(execQueue, ndb, callbackOnClose) {
   var apiCall = new QueuedAsyncCall(execQueue, callbackOnClose);
   apiCall.description = "closeNdb";
@@ -109,7 +136,8 @@ function closeNdb(execQueue, ndb, callbackOnClose) {
 }
 
 
-exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
+exports.closeNdbSession = function(ndbSession, userCallback) {
+  var ndbPool = ndbSession.parentPool;
   var ndbConn = ndbPool.ndbConnection;
 
   if(! ndbConn.isConnected) 
@@ -123,7 +151,7 @@ exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
   {
     /* (A) The connection is going to close, or (B) The freelist is full. 
        Either way, enqueue a close call. */
-    closeNdb(ndbConn.execQueue, ndbSession.impl, userCallback);    
+    closeDbSessionImpl(ndbConn.execQueue, ndbSession.impl, userCallback);    
   }
   else 
   { 
@@ -138,38 +166,35 @@ exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
 */
 function prefetchSession(ndbPool) {
   udebug.log("prefetchSession");
-  var db       = ndbPool.properties.database,
-      pool_min = ndbPool.properties.ndb_session_pool_min,
-      ndbSession;
+  var pool_min = ndbPool.properties.ndb_session_pool_min,
+      onFetch;
 
-  function closeCallback(x) {
-    return; 
+  function fetch() {
+    var s = new ndbsession.DBSession(ndbPool);
+    stats.ndb_session_prefetch.attempts++;
+    s.fetchImpl(onFetch);
   }
-
-  function onFetch(err, ndbSessionImpl) {
+  
+  onFetch = function(err, dbSession) {
     if(err) {
-      stats.incr(["ndbSession","prefetch","errors"]);
+      stats.ndb_session_prefetch.errors++;
       udebug.log("prefetchSession onFetch ERROR", err);
-    }
-    else if(ndbPool.ndbConnection.isDisconnecting) {
-      ndbSessionImpl.close(closeCallback);
-    }
-    else {
-      stats.incr(["ndbSession","prefetch","success"]);
+    } else if(ndbPool.ndbConnection.isDisconnecting) {
+      dbSession.close(function() {});
+    } else {
+      stats.ndb_session_prefetch.success++;
       udebug.log("prefetchSession adding to session pool.");
-      ndbSession = ndbsession.newDBSession(ndbPool, ndbSessionImpl);
-      ndbPool.ndbSessionFreeList.push(ndbSession);
+      ndbPool.ndbSessionFreeList.push(dbSession);
       /* If the pool is wanting, fetch another */
       if(ndbPool.ndbSessionFreeList.length < pool_min) {
-        stats.incr(["ndbSession","prefetch","attempts"]);
-        adapter.ndb.impl.create_ndb(ndbPool.impl, db, onFetch);
+        fetch();
       }
     }
-  }
+  };
 
-if(! ndbPool.ndbConnection.isDisconnecting) {
-    stats.incr(["ndbSession","prefetch","attempts"]);
-    adapter.ndb.impl.create_ndb(ndbPool.impl, db, onFetch);
+  /* prefetchSession starts here */
+  if(! ndbPool.ndbConnection.isDisconnecting) {
+    fetch();
   }
 }
 
@@ -182,7 +207,7 @@ if(! ndbPool.ndbConnection.isDisconnecting) {
    Throws an exception if the Properties object is invalid.
 */   
 function DBConnectionPool(props) {
-  stats.incr("created");
+  stats.created++;
   this.properties         = props;
   this.ndbConnection      = null;
   this.impl               = null;
@@ -198,7 +223,7 @@ function DBConnectionPool(props) {
 /* Async connect 
 */
 DBConnectionPool.prototype.connect = function(user_callback) {
-  stats.incr([ "connect" ]);
+  stats.connect++;
   var self = this;
 
   function onConnected(err) {
@@ -210,13 +235,13 @@ DBConnectionPool.prototype.connect = function(user_callback) {
     else {
       self.impl = self.ndbConnection.ndb_cluster_connection;
 
-      /* Start filling the session pool */
-      prefetchSession(self);
-
       /* Create Async Context */
       if(self.properties.use_ndb_async_api) {
         self.asyncNdbContext = self.ndbConnection.getAsyncContext();
       }
+
+      /* Start filling the session pool */
+      prefetchSession(self);
 
       /* All done */
       user_callback(null, self);
@@ -249,7 +274,7 @@ DBConnectionPool.prototype.close = function(userCallback) {
 
   function onNdbClose() {
     nclose--;
-    udebug.log("nclose", nclose);
+    udebug.log_detail("nclose", nclose);
     if(nclose === 0) {
       releaseNdbConnection(properties.ndb_connectstring,
                            properties.linger_on_close_msec,
@@ -267,9 +292,9 @@ DBConnectionPool.prototype.close = function(userCallback) {
     closeNdb(this.ndbConnection.execQueue, table.per_table_ndb , onNdbClose);
   }
 
-  /* Close the NDBs from the session pool */
+  /* Close the DBSessionImpls from the session pool */
   while(session = this.ndbSessionFreeList.pop()) {
-    closeNdb(this.ndbConnection.execQueue, session.impl, onNdbClose);
+    closeDbSessionImpl(this.ndbConnection.execQueue, session.impl, onNdbClose);
   }  
 };
 
@@ -280,38 +305,15 @@ DBConnectionPool.prototype.close = function(userCallback) {
    Users's callback receives (error, DBSession)
 */
 DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
-  var self, user_session, apiCall;
-  self = this;
-
-  function private_callback(err, sessImpl) {
-    udebug.log("getDBSession private_callback");
-    var userSession;
-
-    if(err) {
-      user_callback(err, null);
-    }
-    else {  
-      userSession = ndbsession.newDBSession(self, sessImpl);
-      user_callback(null, userSession);
-    }
-  }
-
-  user_session = this.ndbSessionFreeList.pop();
+  var user_session = this.ndbSessionFreeList.pop();
   if(user_session) {
-    stats.incr( [ "ndbSession","pool","hits" ] );
+    stats.ndb_session_pool.hits++;
     user_callback(null, user_session);
   }
   else {
-    // NOTE: It may not be necessary to serialize these.
-    stats.incr( [ "ndbSession","pool","misses" ] );
-    apiCall = new QueuedAsyncCall(this.ndbConnection.execQueue, private_callback);
-    apiCall.description = "newNdb";
-    apiCall.impl = this.ndbConnection.ndb_cluster_connection;
-    apiCall.db = this.properties.database;
-    apiCall.run = function() {
-      adapter.ndb.impl.create_ndb(this.impl, this.db, this.callback);
-    };
-    apiCall.enqueue();
+    stats.ndb_session_pool.misses++;
+    user_session = new ndbsession.DBSession(this);
+    user_session.fetchImpl(user_callback);
   }
 };
 
@@ -337,7 +339,7 @@ DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
 
 
 function makeGroupCallback(dbSession, container, key) {
-  stats.incr( [ "group_callbacks","created" ] );
+  stats.group_callbacks_created++;
   var groupCallback = function(param1, param2) {
     var callbackList, i, nextCall;
 
@@ -378,7 +380,7 @@ function makeListTablesCall(dbSession, ndbConnectionPool, databaseName) {
   */
 DBConnectionPool.prototype.listTables = function(databaseName, dictSession, 
                                                  user_callback) {
-  stats.incr("listTables");
+  stats.list_tables++;
   assert(databaseName && user_callback);
 
   if(this.pendingListTables[databaseName]) {
@@ -455,7 +457,7 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
 DBConnectionPool.prototype.getTableMetadata = function(dbname, tabname, 
                                                        dictSession, user_callback) {
   var tableKey;
-  stats.incr("getTableMetadata");
+  stats.get_table_metadata++;
   assert(dbname && tabname && user_callback);
   tableKey = dbname + "." + tabname;
 

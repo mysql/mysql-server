@@ -24,6 +24,7 @@
 
 #include <mysql_com.h>       // NAME_CHAR_LEN
 #include <sql_const.h>       // MAX_REF_PARTS
+#include <mysql/plugin.h>    // SHOW_VAR
 
 enum enum_conflict_fn_type
 {
@@ -33,7 +34,21 @@ enum enum_conflict_fn_type
   ,CFT_NDB_MAX_DEL_WIN
   ,CFT_NDB_EPOCH
   ,CFT_NDB_EPOCH_TRANS
+  ,CFT_NDB_EPOCH2
+  ,CFT_NDB_EPOCH2_TRANS
   ,CFT_NUMBER_OF_CFTS /* End marker */
+};
+
+/**
+ * Definitions used when setting the conflict flags
+ * member of the 'extra row info' on a Binlog row
+ * event
+ */
+enum enum_binlog_extra_info_conflict_flags
+{
+  NDB_ERIF_CFT_REFLECT_OP = 0x1,
+  NDB_ERIF_CFT_REFRESH_OP = 0x2,
+  NDB_ERIF_CFT_READ_OP = 0x4
 };
 
 #ifdef HAVE_NDB_BINLOG
@@ -68,7 +83,8 @@ enum enum_conflicting_op_type
   WRITE_ROW   = 1, /* insert (!write) */
   UPDATE_ROW  = 2, /* update          */
   DELETE_ROW  = 3, /* delete          */
-  REFRESH_ROW = 4  /* refresh         */
+  REFRESH_ROW = 4, /* refresh         */
+  READ_ROW    = 5  /* read tracking   */
 };
 
 /*
@@ -94,9 +110,18 @@ typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn
                                      const MY_BITMAP* ai_cols,
                                      class NdbInterpretedCode* code);
 
+/**
+ * enum_conflict_fn_flags
+ *
+ * These are 'features' of a particular conflict resolution algorithm, not
+ * controlled on a per-table basis.
+ * TODO : Encapsulate all these per-algorithm details inside the algorithm
+ */
 enum enum_conflict_fn_flags
 {
-  CF_TRANSACTIONAL = 1
+  CF_TRANSACTIONAL    = 0x1,   /* Conflicts are handled per transaction */
+  CF_REFLECT_SEC_OPS  = 0x2,   /* Secondary operations are reflected back */
+  CF_USE_ROLE_VAR     = 0x4    /* Functionality controlled by role variable */
 };
 
 struct st_conflict_fn_def
@@ -127,6 +152,7 @@ struct Ndb_exceptions_data {
   my_bitmap_map* bitmap_buf; /* Buffer for write_set */
   MY_BITMAP* write_set;
   enum_conflicting_op_type op_type;
+  bool reflected_operation;
   Uint64 trans_id;
 };
 
@@ -141,14 +167,6 @@ enum enum_conflict_fn_table_flags
    (Ndb supports 32, but MySQL has a lower limit)
 */
 static const int NDB_MAX_KEY_PARTS = MAX_REF_PARTS;
-
-
-#define NDB_EXCEPTIONS_TABLE_COLUMN_PREFIX "NDB$"
-#define NDB_EXCEPTIONS_TABLE_OP_TYPE "NDB$OP_TYPE"
-#define NDB_EXCEPTIONS_TABLE_CONFLICT_CAUSE "NDB$CFT_CAUSE"
-#define NDB_EXCEPTIONS_TABLE_ORIG_TRANSID "NDB$ORIG_TRANSID"
-#define NDB_EXCEPTIONS_TABLE_COLUMN_OLD_SUFFIX "$OLD"
-#define NDB_EXCEPTIONS_TABLE_COLUMN_NEW_SUFFIX "$NEW"
 
 /**
    ExceptionsTableWriter
@@ -369,6 +387,29 @@ struct st_ndb_slave_state
 {
   /* Counter values for current slave transaction */
   Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+
+  /**
+   * Number of delete-delete conflicts detected
+   * (delete op is applied, and row does not exist)
+   */
+  Uint32 current_delete_delete_count;
+
+  /**
+   * Number of reflected operations received that have been
+   * prepared (defined) to be executed.
+   */
+  Uint32 current_reflect_op_prepare_count;
+  
+  /**
+   * Number of reflected operations that were not applied as
+   * they hit some error during execution
+   */
+  Uint32 current_reflect_op_discard_count;
+  
+  /**
+   * Number of refresh operations that have been prepared
+   */
+  Uint32 current_refresh_op_count;
   
   /* Track the current epoch from the immediate master,
    * and whether we've committed it
@@ -387,8 +428,15 @@ struct st_ndb_slave_state
   /* Last conflict epoch */
   Uint64 last_conflicted_epoch;
 
+  /* Last stable epoch */
+  Uint64 last_stable_epoch;
+
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
+  Uint64 total_delete_delete_count;
+  Uint64 total_reflect_op_prepare_count;
+  Uint64 total_reflect_op_discard_count;
+  Uint64 total_refresh_op_count;
   Uint64 max_rep_epoch;
   Uint32 sql_run_id;
   /* Transactional conflict detection */
@@ -442,8 +490,55 @@ struct st_ndb_slave_state
                                     const char** failure_cause);
 
   st_ndb_slave_state();
+  ~st_ndb_slave_state();
 };
 
+#ifdef HAVE_NDB_BINLOG
+
+const uint error_conflict_fn_violation= 9999;
+
+/**
+ * Conflict function setup infrastructure
+ */
+int
+parse_conflict_fn_spec(const char* conflict_fn_spec,
+                       const st_conflict_fn_def** conflict_fn,
+                       st_conflict_fn_arg* args,
+                       Uint32* max_args,
+                       char *msg, uint msg_len);
+int
+setup_conflict_fn(Ndb* ndb,
+                  NDB_CONFLICT_FN_SHARE** ppcfn_share,
+                  MEM_ROOT* share_mem_root,
+                  const char* dbName,
+                  const char* tabName,
+                  bool tableUsesBlobs,
+                  bool tableBinlogUseUpdate,
+                  const NdbDictionary::Table *ndbtab,
+                  char *msg, uint msg_len,
+                  const st_conflict_fn_def* conflict_fn,
+                  const st_conflict_fn_arg* args,
+                  const Uint32 num_args);
+
+void 
+slave_reset_conflict_fn(NDB_CONFLICT_FN_SHARE *cfn_share);
+
+bool 
+is_exceptions_table(const char *table_name);
+
+#endif /* HAVE_NDB_BINLOG */
+
+
+/**
+ * show_ndb_conflict_status_vars
+ *
+ * Function called as part of SHOW STATUS / INFORMATION_SCHEMA
+ * tables.
+ * This function returns info about ndb_conflict related status
+ * vars
+ */
+int
+show_ndb_conflict_status_vars(THD *thd, struct st_mysql_show_var *var, char *buff);
 
 /* NDB_CONFLICT_H */
 #endif

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -623,6 +623,20 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Unsupported_Method",
                 "invoke(Object, Method, Object[])", "ValueHandlerBindValuesImpl"));
+    }
+
+    @Override
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("ValueHandlerBindValuesImpl.release");
+        if (this.bindValues != null) {
+            for (int i = 0; i < this.bindValues.length; ++i) {
+                if (this.bindValues[i] != null && !this.bindValues[i].isNull) {
+                  this.bindValues[i].value = null;
+                  this.bindValues[i] = null;
+                }
+            }
+            this.bindValues = null;
+        }
     }
 
 }

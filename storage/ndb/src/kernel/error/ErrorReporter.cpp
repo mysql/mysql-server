@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -280,6 +280,20 @@ WriteMessage(int thrdMessageID,
   Uint32 thrdTheEmulatedJamIndex;
   const JamEvent *thrdTheEmulatedJam;
 
+  /**
+   * In the multithreaded case we need to lock a mutex before starting
+   * the error processing. The method below will lock this mutex,
+   * after locking the mutex it will ensure that there is no other
+   * thread that already started the crash handling. If there is
+   * already another thread that is processing the thread we will
+   * write in the error log while holding the mutex. If we are
+   * crashing due to an error insert and we already have an ongoing
+   * crash handler then we will never return from this first call.
+   * Otherwise we will return, write the error log and never return
+   * from the second call to prepare_to_crash below.
+   */
+  ErrorReporter::prepare_to_crash(true, (nst == NST_ErrorInsert));
+
   Uint32 threadCount = globalScheduler.traceDumpGetNumThreads();
   int thr_no = globalScheduler.traceDumpGetCurrentThread();
 
@@ -371,7 +385,9 @@ WriteMessage(int thrdMessageID,
   }
   fflush(stream);
   fclose(stream);
-  
+
+  ErrorReporter::prepare_to_crash(false, (nst == NST_ErrorInsert));
+
   if (theTraceFileName) {
     /* Attempt to stop all processing to be able to dump a consistent state. */
     globalScheduler.traceDumpPrepare(nst);
