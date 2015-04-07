@@ -19,41 +19,48 @@
 */
 
 
-global.path            = require("path");
-global.fs              = require("fs");
-global.assert          = require("assert");
-global.util            = require("util");
+var path               = require("path");
+var fs                 = require("fs");
+var mynode, parent_dir, udebug_module;
 
-global.adapter_dir     = __dirname;
-global.parent_dir      = path.dirname(adapter_dir);
-global.api_dir         = path.join(adapter_dir, "api");
-global.spi_dir         = path.join(adapter_dir, "impl");
-global.spi_doc_dir     = path.join(spi_dir, "SPI-documentation");
-global.api_doc_dir     = path.join(parent_dir, "API-documentation");
-global.converters_dir  = path.join(parent_dir, "Converters");
+mynode                     = {};
+mynode.fs                  = {};
+parent_dir                 = path.dirname(__dirname);
 
-global.spi_module      = path.join(spi_dir, "SPI.js");
-global.api_module      = path.join(api_dir, "mynode.js");
-global.udebug_module   = path.join(api_dir, "unified_debug.js");
-global.unified_debug   = require(udebug_module);
+mynode.fs.adapter_dir      = __dirname;
+mynode.fs.api_dir          = path.join(mynode.fs.adapter_dir, "api");
+mynode.fs.spi_dir          = path.join(mynode.fs.adapter_dir, "impl");
+
+mynode.fs.spi_doc_dir      = path.join(mynode.fs.spi_dir, "SPI-documentation");
+mynode.fs.api_doc_dir      = path.join(parent_dir, "API-documentation");
+mynode.fs.backend_doc_dir  = path.join(parent_dir, "Backend-documentation");
+mynode.fs.converters_dir   = path.join(parent_dir, "Converters");
+
+mynode.fs.spi_module       = path.join(mynode.fs.spi_dir, "SPI.js");
+mynode.fs.api_module       = path.join(mynode.fs.api_dir, "mynode.js");
+
+mynode.fs.suites_dir       = path.join(parent_dir, "test");
+mynode.fs.samples_dir      = path.join(parent_dir, "samples");
+
+udebug_module              = path.join(mynode.fs.api_dir, "unified_debug.js");
 
 
 /* Find the build directory */
-var build1 = path.join(spi_dir, "build");
+var build1 = path.join(mynode.fs.spi_dir, "build");
 var build2 = path.join(parent_dir, "build");
 var existsSync = fs.existsSync || path.existsSync;
 
 if(existsSync(path.join(build1, "Release", "ndb_adapter.node"))) {
-  global.build_dir = path.join(build1, "Release");
+  mynode.fs.build_dir = path.join(build1, "Release");
 }
 else if(existsSync(path.join(build2, "Release", "ndb_adapter.node"))) {
-  global.build_dir = path.join(build2, "Release");
+  mynode.fs.build_dir = path.join(build2, "Release");
 }
 else if(existsSync(path.join(build1, "Debug", "ndb_adapter.node"))) {
-  global.build_dir = path.join(build1, "Debug");
+  mynode.fs.build_dir = path.join(build1, "Debug");
 }
 else if(existsSync(path.join(build2, "Debug", "ndb_adapter.node"))) {
-  global.build_dir = path.join(build2, "Debug");
+  mynode.fs.build_dir = path.join(build2, "Debug");
 }
 
 /* Some compatibility with older versions of node */
@@ -61,9 +68,14 @@ if(typeof global.setImmediate !== 'function') {
   global.setImmediate = process.nextTick;
 }
 
+/* Export the filesystem config */
+module.exports = mynode.fs;
 
+/* Also make it available globally */
+if(!global.mynode) { global.mynode = {} };
+global.mynode.fs = mynode.fs;
 
-
-
+/* And export unified_debug globally */
+global.unified_debug   = require(udebug_module);
 
 

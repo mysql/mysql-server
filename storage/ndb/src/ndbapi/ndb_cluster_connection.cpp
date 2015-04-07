@@ -436,6 +436,7 @@ Ndb_cluster_connection_impl(const char * connect_string,
 
   m_event_add_drop_mutex= NdbMutex_Create();
   m_new_delete_ndb_mutex = NdbMutex_Create();
+  m_new_delete_ndb_cond = NdbCondition_Create();
 
   m_connect_thread= 0;
   m_connect_callback= 0;
@@ -479,20 +480,23 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
 {
   DBUG_ENTER("~Ndb_cluster_connection");
 
-  if (m_first_ndb_object != 0)
+  // Wait until all Ndb instances belonging to this Ndb_cluster_connection
+  // have been released(they have references to the TransporterFacade)
+  NdbMutex_Lock(m_new_delete_ndb_mutex);
+  if (m_first_ndb_object)
   {
-    g_eventLogger->warning("Deleting Ndb_cluster_connection with Ndb-object"
-                           " not deleted");
-    Ndb * p = m_first_ndb_object;
-    printf("this: %p Ndb-object(s): ", (Ndb_cluster_connection*)this);
-    while (p)
+    g_eventLogger->warning("Waiting for Ndb instances belonging to "
+                           "Ndb_cluster_connection %p to be deleted...",
+                           this);
+
+    while(m_first_ndb_object)
     {
-      printf("%p ", p);
-      p = p->theImpl->m_next_ndb_object;
+      NdbCondition_WaitTimeout(m_new_delete_ndb_cond,
+                               m_new_delete_ndb_mutex,
+                               1000);
     }
-    printf("\n");
-    fflush(stdout);
   }
+  NdbMutex_Unlock(m_new_delete_ndb_mutex);
 
   if (m_transporter_facade != 0)
   {
@@ -541,6 +545,10 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
   if (m_new_delete_ndb_mutex)
     NdbMutex_Destroy(m_new_delete_ndb_mutex);
   m_new_delete_ndb_mutex = 0;
+
+  if (m_new_delete_ndb_cond)
+    NdbCondition_Destroy(m_new_delete_ndb_cond);
+  m_new_delete_ndb_cond = 0;
   
   if(m_multi_wait_group)
     delete m_multi_wait_group;
@@ -583,6 +591,10 @@ Ndb_cluster_connection_impl::link_ndb_object(Ndb* p)
   m_first_ndb_object = p;
   
   p->theFirstTransId += m_max_trans_id;
+
+  // Wake up anyone waiting for changes to the Ndb instance list
+  NdbCondition_Broadcast(m_new_delete_ndb_cond);
+
   unlock_ndb_objects();
 }
 
@@ -625,6 +637,9 @@ Ndb_cluster_connection_impl::unlink_ndb_object(Ndb* p)
   {
     globalApiStatsBaseline[i] += p->theImpl->clientStats[i];
   }
+
+  // Wake up anyone waiting for changes to the Ndb instance list
+  NdbCondition_Broadcast(m_new_delete_ndb_cond);
 
   unlock_ndb_objects();  
 }

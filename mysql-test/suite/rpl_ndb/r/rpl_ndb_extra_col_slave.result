@@ -146,6 +146,9 @@ DROP TABLE t6;
 **** Extra Colums Start ****
 *** Create t7 on slave  ***
 STOP SLAVE;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t7 (a INT KEY, b BLOB, c CHAR(5),
 d TIMESTAMP NULL DEFAULT '0000-00-00 00:00:00',
 e CHAR(20) DEFAULT 'Extra Column Testing')
@@ -177,6 +180,7 @@ STOP SLAVE;
 CREATE TABLE t8 (a INT KEY, b BLOB, c CHAR(5),
 d TIMESTAMP NULL DEFAULT '0000-00-00 00:00:00',
 e INT)ENGINE='NDB';
+SET sql_mode = default;
 *** Create t8 on Master ***
 CREATE TABLE t8 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='NDB';
@@ -423,7 +427,7 @@ c1	c2	c3	c4	c5	c6	c7
 *** Add column on master that is a Extra on Slave ***
 ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c6' to DYNAMIC to enable on-line ADD COLUMN
 ********************************************************
 *** Expect slave to fail with Error ER_DUP_FIELDNAME ***
 ********************************************************

@@ -18,27 +18,19 @@ b char(20)
 ) engine = ndb;
 INSERT INTO t2 VALUES (3, "row4"), (4, "row4");
 CREATE USER 'testuser1'@'localhost';
-SET PASSWORD = PASSWORD('cleartext password');
+SET PASSWORD = 'cleartext password';
 OK
 
-SET PASSWORD = OLD_PASSWORD('cleartext password');
-ERROR HY000: Password hash should be a 41-digit hexadecimal number
+SET PASSWORD = 'new cleartext password';
 OK
 
-SET PASSWORD = PASSWORD('new cleartext password');
+SET PASSWORD FOR testuser1@localhost= 'pass_for_user1';
 OK
 
-SET PASSWORD FOR testuser1@localhost= PASSWORD('pass_for_user1');
+SET PASSWORD FOR testuser1@localhost = 'another pass';
 OK
 
-SET PASSWORD FOR testuser1@localhost= OLD_PASSWORD('pass_for_user');
-ERROR HY000: Password hash should be a 41-digit hexadecimal number
-OK
-
-SET PASSWORD FOR testuser1@localhost = PASSWORD('another pass');
-OK
-
-SET PASSWORD FOR no_such_user@localhost= PASSWORD('new pass');
+SET PASSWORD FOR no_such_user@localhost= 'new pass';
 ERROR 42000: Can't find any matching row in the user table
 OK
 
@@ -85,7 +77,7 @@ OK
 ALTER USER testuser1@localhost PASSWORD EXPIRE;
 OK
 
-SET PASSWORD FOR testuser1@localhost= PASSWORD('pass_for_user1');
+SET PASSWORD FOR testuser1@localhost= 'pass_for_user1';
 OK
 
 CREATE DATABASE mysqltest3;

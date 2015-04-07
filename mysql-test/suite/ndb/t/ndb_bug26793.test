@@ -16,7 +16,8 @@ CREATE TABLE `test` (
 
 # Add user1@localhost with a specific password
 # and connect as that user
-GRANT USAGE ON *.* TO user1@localhost IDENTIFIED BY 'pass';
+CREATE USER user1@localhost IDENTIFIED BY 'pass';
+GRANT USAGE ON *.* TO user1@localhost;
 connect (user1,localhost,user1,pass,*NO-ONE*);
 
 # Run the query 100 times

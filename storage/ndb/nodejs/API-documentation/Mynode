@@ -29,6 +29,17 @@ TableMapping(tableName_or_tableMapping);
 
  
 /**
+ * Projection()
+ * IMMEDIATE
+ * CONSTRUCTOR
+ *
+ * The Projection constructor is visible as a top-level function.
+ * Refer to the Projection documentation for details.
+ */
+Projection(constructor);
+
+ 
+/**
  * connect()
  * ASYNC
  * 
@@ -104,6 +115,19 @@ openSession(Properties, mappings, [callback], [...]);
  * IMMEDIATE
  */
 getOpenSessionFactories();
+
+
+/** Close all open SessionFactories 
+ *
+ * This method closes all SessionFactories.
+ * Because a SessionFactory likely uses an open TCP connection with registered
+ * callbacks, Node.JS will generally not exit while any SessionFactory is
+ * still open.
+ *
+ * @param callback   function called after all SessionFactories are closed
+ * @return a promise
+ */
+closeAllOpenSessionFactories();
 
 
 // The following functions are part of the public API but are not intended for

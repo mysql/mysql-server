@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -669,6 +669,31 @@ valid_seq(Uint32 n, Uint32 r, Uint16 dst[])
 }
 
 void
+Suma::calculate_sub_data_stream(Uint16 bucket, Uint16 buckets, Uint16 replicas)
+{
+  ndbassert(bucket < NO_OF_BUCKETS);
+  Bucket* ptr = c_buckets + bucket;
+
+  // First responsible node, irrespective of it is up or not
+  const Uint16 node = ptr->m_nodes[0];
+  ndbassert(node >= 1);
+  ndbassert(node <= MAX_SUB_DATA_STREAM_GROUPS);
+  const Uint16 buckets_per_node = buckets/replicas;
+  ndbassert(buckets_per_node <= MAX_SUB_DATA_STREAMS_PER_GROUP);
+  const Uint16 sub_data_stream = (node << 8) | (bucket % buckets_per_node);
+
+#ifdef VM_TRACE
+  // Verify that this blocks sub data stream identifiers are unique.
+  for (Uint32 i = 0; i < bucket; i++)
+  {
+    ndbassert(c_buckets[i].m_sub_data_stream != sub_data_stream);
+  }
+#endif
+
+  ptr->m_sub_data_stream = sub_data_stream;
+}
+
+void
 Suma::fix_nodegroup()
 {
   Uint32 i, pos= 0;
@@ -719,6 +744,7 @@ Suma::fix_nodegroup()
           if (DBG_3R) printf("%u ", ptr->m_nodes[j]);
         }
         if (DBG_3R) printf("\n");
+        calculate_sub_data_stream(cnt, buckets, replicas);
         cnt++;
       }
     }
@@ -2563,6 +2589,9 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_frag_cnt         = req->fragCount;
   syncPtr.p->m_frag_id          = req->fragId;
   syncPtr.p->m_tableId          = subPtr.p->m_tableId;
+  syncPtr.p->m_sourceInstance   = RNIL;
+  syncPtr.p->m_headersSection   = RNIL;
+  syncPtr.p->m_dataSection      = RNIL;
 
   {
     jam();
@@ -4302,12 +4331,43 @@ void Suma::suma_ndbrequire(bool v) { ndbrequire(v); }
 #define SUMA_BUF_SZ1 MAX_KEY_SIZE_IN_WORDS + MAX_TUPLE_SIZE_IN_WORDS
 #define SUMA_BUF_SZ MAX_ATTRIBUTES_IN_TABLE + SUMA_BUF_SZ1
 
-static Uint32 f_bufferLock = 0;
+#define NO_LOCK_VAL        0xffffffff
+#define TRIGGER_LOCK_BASE  0x00000000
+
+static Uint32 bufferLock = NO_LOCK_VAL;
 static Uint32 f_buffer[SUMA_BUF_SZ];
 static Uint32 f_trigBufferSize = 0;
-static Uint32 b_bufferLock = 0;
 static Uint32 b_buffer[SUMA_BUF_SZ];
 static Uint32 b_trigBufferSize = 0;
+
+static bool clearBufferLock()
+{
+  if (bufferLock == NO_LOCK_VAL)
+    return false;
+  
+  bufferLock = NO_LOCK_VAL;
+  
+  return true;
+}
+
+static bool setBufferLock(Uint32 lockVal)
+{
+  if (bufferLock != NO_LOCK_VAL)
+    return false;
+  
+  bufferLock = lockVal;
+  return true;
+}
+
+static bool setTriggerBufferLock(Uint32 triggerId)
+{
+  return setBufferLock(triggerId | TRIGGER_LOCK_BASE);
+}
+
+static bool checkTriggerBufferLock(Uint32 triggerId)
+{
+  return (bufferLock == (TRIGGER_LOCK_BASE | triggerId));
+}
 
 void
 Suma::execTRANSID_AI(Signal* signal)
@@ -4320,14 +4380,9 @@ Suma::execTRANSID_AI(Signal* signal)
   const Uint32 opPtrI = data->connectPtr;
   Uint32 length = signal->length() - 3;
 
-  if(f_bufferLock == 0){
-    f_bufferLock = opPtrI;
-  } else {
-    ndbrequire(f_bufferLock == opPtrI);
-  }
-  
   if (signal->getNoOfSections())
   {
+    /* Copy long data into linear signal buffer */
     SectionHandle handle(this, signal);
     SegmentedSectionPtr dataPtr;
     handle.getSection(dataPtr, 0);
@@ -4339,32 +4394,49 @@ Suma::execTRANSID_AI(Signal* signal)
   Ptr<SyncRecord> syncPtr;
   c_syncPool.getPtr(syncPtr, (opPtrI >> 16));
   
-  Uint32 sum = 0;
-  Uint32 * dst = f_buffer + MAX_ATTRIBUTES_IN_TABLE;
-  Uint32 * headers = f_buffer;
+  Uint32 headersSection = RNIL;
+  Uint32 dataSection = RNIL;
   const Uint32 * src = &data->attrData[0];
   const Uint32 * const end = &src[length];
   
   const Uint32 attribs = syncPtr.p->m_currentNoOfAttributes;
   for(Uint32 i = 0; i<attribs; i++){
     Uint32 tmp = * src++;
-    * headers++ = tmp;
     Uint32 len = AttributeHeader::getDataSize(tmp);
     
-    memcpy(dst, src, 4 * len);
-    dst += len;
+    /**
+     * Separate AttributeHeaders and data in separate
+     * sections
+     * 
+     * Note that len == 0 is legitimate, and can result in 
+     * dataSection == RNIL
+     */
+    if (! (appendToSection(headersSection, &tmp, 1) &&
+           appendToSection(dataSection, src, len)))
+    {
+      ErrorReporter::handleError(NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,
+                                 "Out of LongMessageBuffer in SUMA scan",
+                                 "");
+    }
     src += len;
-    sum += len;
-  }
-  f_trigBufferSize = sum;
+  } 
 
   ndbrequire(src == end);
+  ndbrequire(syncPtr.p->m_sourceInstance == RNIL);
+  ndbrequire(syncPtr.p->m_headersSection == RNIL);
+  ndbrequire(syncPtr.p->m_dataSection == RNIL);
+  syncPtr.p->m_sourceInstance = refToInstance(signal->getSendersBlockRef());
+  syncPtr.p->m_headersSection = headersSection;
+  syncPtr.p->m_dataSection = dataSection;
+ 
 
   if ((syncPtr.p->m_requestInfo & SubSyncReq::LM_Exclusive) == 0)
   {
+    /* Send it now */
     sendScanSubTableData(signal, syncPtr, 0);
   }
 
+  /* Wait for KEYINFO20 */
   DBUG_VOID_RETURN;
 }
 
@@ -4377,10 +4449,14 @@ Suma::execKEYINFO20(Signal* signal)
   const Uint32 opPtrI = data->clientOpPtr;
   const Uint32 takeOver = data->scanInfo_Node;
 
-  ndbrequire(f_bufferLock == opPtrI);
-
   Ptr<SyncRecord> syncPtr;
   c_syncPool.getPtr(syncPtr, (opPtrI >> 16));
+
+  ndbrequire(syncPtr.p->m_sourceInstance ==
+             refToInstance(signal->getSendersBlockRef()));
+  ndbrequire(syncPtr.p->m_headersSection != RNIL);
+  ndbrequire(syncPtr.p->m_dataSection != RNIL);
+
   sendScanSubTableData(signal, syncPtr, takeOver);
 }
 
@@ -4388,22 +4464,36 @@ void
 Suma::sendScanSubTableData(Signal* signal,
                            Ptr<SyncRecord> syncPtr, Uint32 takeOver)
 {
-  const Uint32 attribs = syncPtr.p->m_currentNoOfAttributes;
-  const Uint32 sum =  f_trigBufferSize;
+  if (unlikely(syncPtr.p->m_dataSection == RNIL))
+  {
+    jam();
+    
+    /* Zero length data section, but receivers expect 
+     * to get something :(
+     * import() currently supports empty sections
+     */
+    Ptr<SectionSegment> emptySection;
+    Uint32 junk = 0;
+    if (!import(emptySection, &junk, 0))
+    {
+      ErrorReporter::handleError(NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY,
+                                 "Out of LongMessageBuffer in SUMA scan",
+                                 "");
+    }
+    syncPtr.p->m_dataSection = emptySection.i;
+  }
+
+  ndbassert(syncPtr.p->m_headersSection != RNIL);
+  ndbassert(syncPtr.p->m_dataSection != RNIL);
 
   /**
    * Send data to subscriber
    */
-  LinearSectionPtr ptr[3];
-  ptr[0].p = f_buffer;
-  ptr[0].sz = attribs;
-  
-  ptr[1].p = f_buffer + MAX_ATTRIBUTES_IN_TABLE;
-  ptr[1].sz = sum;
-
-  SubscriptionPtr subPtr;
-  c_subscriptions.getPtr(subPtr, syncPtr.p->m_subscriptionPtrI);
-  
+  SectionHandle sh(this);
+  sh.m_ptr[0].i = syncPtr.p->m_headersSection;
+  sh.m_ptr[1].i = syncPtr.p->m_dataSection;
+  getSections(2, sh.m_ptr);
+  sh.m_cnt = 2;
 
   /**
    * Initialize signal
@@ -4419,19 +4509,21 @@ Suma::sendScanSubTableData(Signal* signal,
   sdata->gci_lo = 0;
   sdata->takeOver = takeOver;
 #if PRINT_ONLY
-  ndbout_c("GSN_SUB_TABLE_DATA (scan) #attr: %d len: %d", attribs, sum);
+  ndbout_c("GSN_SUB_TABLE_DATA (scan) #attr: %d len: %d", 
+           getSectionSz(syncPtr.p->m_headersSection),
+           getSectionSz(syncPtr.p->m_dataSection));
 #else
   sendSignal(ref,
 	     GSN_SUB_TABLE_DATA,
 	     signal, 
 	     SubTableData::SignalLength, JBB,
-	     ptr, 2);
+	     &sh);
 #endif
   
-  /**
-   * Reset f_bufferLock
-   */
-  f_bufferLock = 0;
+  /* Clear section references */
+  syncPtr.p->m_sourceInstance = RNIL;
+  syncPtr.p->m_headersSection = RNIL;
+  syncPtr.p->m_dataSection = RNIL;  
 }
 
 /**********************************************************
@@ -4455,7 +4547,7 @@ Suma::execTRIG_ATTRINFO(Signal* signal)
   if(trg->getAttrInfoType() == TrigAttrInfo::BEFORE_VALUES){
     jam();
 
-    ndbrequire(b_bufferLock == trigId);
+    ndbrequire( checkTriggerBufferLock(trigId) );
 
     memcpy(b_buffer + b_trigBufferSize, trg->getData(), 4 * dataLen);
     b_trigBufferSize += dataLen;
@@ -4464,13 +4556,16 @@ Suma::execTRIG_ATTRINFO(Signal* signal)
   } else {
     jam();
 
-    if(f_bufferLock == 0){
-      f_bufferLock = trigId;
+    if (setTriggerBufferLock(trigId))
+    {
+      /* Lock was not taken, we have it now */
       f_trigBufferSize = 0;
-      b_bufferLock = trigId;
       b_trigBufferSize = 0;
-    } else {
-      ndbrequire(f_bufferLock == trigId);
+    }
+    else
+    {
+      /* Lock was taken, must be by us */
+      ndbrequire( checkTriggerBufferLock(trigId) );
     }
 
     memcpy(f_buffer + f_trigBufferSize, trg->getData(), 4 * dataLen);
@@ -4619,6 +4714,8 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
      * Copy value directly into local buffers
      */
     Uint32 trigId = ((FireTrigOrd*)ptr)->getTriggerId();
+    ndbrequire( setTriggerBufferLock(trigId) );
+    
     memcpy(signal->theData, ptr, 4 * siglen); // signal
     ptr += siglen;
     memcpy(f_buffer, ptr, 4*sec0len);
@@ -4630,8 +4727,6 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
 
     f_trigBufferSize = sec0len + sec2len;
     b_trigBufferSize = sec1len;
-    f_bufferLock = trigId;
-    b_bufferLock = trigId;
 
     execFIRE_TRIG_ORD(signal);
 
@@ -4672,10 +4767,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     ndbassert(isNdbMtLqh());
     SectionHandle handle(this, signal);
 
-    ndbrequire(b_bufferLock == 0);
-    ndbrequire(f_bufferLock == 0);
-    f_bufferLock = trigId;
-    b_bufferLock = trigId;
+    ndbrequire( setTriggerBufferLock(trigId) );
 
     SegmentedSectionPtr ptr;
     handle.getSection(ptr, 0); // Keys
@@ -4693,12 +4785,13 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   }
 
   jam();
-  ndbrequire(f_bufferLock == trigId);
+  ndbrequire( checkTriggerBufferLock(trigId) );
   /**
-   * Reset f_bufferLock
+   * Reset bufferlock 
+   * We will use the buffers until the end of 
+   * signal processing, but not after
    */
-  f_bufferLock = 0;
-  b_bufferLock = 0;
+  ndbrequire( clearBufferLock() );
   
   Uint32 tableId = subPtr.p->m_tableId;
   Uint32 schemaVersion =
@@ -4936,6 +5029,7 @@ found:
   /**
    * 
    */
+  Bucket_mask dropped_buckets;
   if(!m_switchover_buckets.isclear())
   {
     bool unlock = false;
@@ -5030,7 +5124,13 @@ found:
                    state & Bucket::BUCKET_DROPPED_SELF ? "self" : "other");
           if (state & Bucket::BUCKET_DROPPED_SELF)
           {
-            m_active_buckets.clear(i);
+            if (m_active_buckets.get(i))
+            {
+              m_active_buckets.clear(i);
+              // Remember this bucket, it should be listed
+              // in SUB_GCP_COMPLETE_REP signal
+              dropped_buckets.set(i);
+            }
             drop = true;
           }
         }
@@ -5106,13 +5206,61 @@ found:
   rep->senderRef  = reference();
   rep->gcp_complete_rep_count = m_gcp_complete_rep_count;
 
+  /**
+   * Append the identifiers of the data streams that this Suma has
+   * completed for the gcp.
+   * The subscribers can use that to identify duplicates or lack
+   * of reception.
+   */
+  Uint32 siglen = SubGcpCompleteRep::SignalLength;
+
+  Uint32 stream_count=0;
+  for(Uint32 bucket = 0; bucket < NO_OF_BUCKETS; bucket ++)
+  {
+    if(m_active_buckets.get(bucket) ||
+       dropped_buckets.get(bucket) ||
+       (m_switchover_buckets.get(bucket) && (check_switchover(bucket, gci))))
+    {
+      Uint32 sub_data_stream = get_sub_data_stream(bucket);
+      if ((stream_count & 1) == 0)
+      {
+        rep->sub_data_streams[stream_count/2] = sub_data_stream;
+      }
+      else
+      {
+        rep->sub_data_streams[stream_count/2] |= sub_data_stream << 16;
+      }
+      stream_count++;
+    }
+  }
+
+  /**
+   * If count match the number of buckets that should be reported
+   * complete, send subscription data streams identifiers.
+   * If this is not the case fallback on old signal without
+   * the streams identifiers, but that should not happend!
+   */
+  if (stream_count == m_gcp_complete_rep_count)
+  {
+    rep->flags |= SubGcpCompleteRep::SUB_DATA_STREAMS_IN_SIGNAL;
+    siglen += (stream_count + 1)/2;
+  }
+  else
+  {
+    g_eventLogger->error("Suma gcp complete rep count (%u) does "
+                         "not match number of buckets that should "
+                         "be reported complete (%u).",
+                         m_gcp_complete_rep_count,
+                         stream_count);
+    ndbassert(false);
+  }
+
   if(m_gcp_complete_rep_count && !c_subscriber_nodes.isclear())
   {
     CRASH_INSERTION(13033);
 
     NodeReceiverGroup rg(API_CLUSTERMGR, c_subscriber_nodes);
-    sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal,
-	       SubGcpCompleteRep::SignalLength, JBB);
+    sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal, siglen, JBB);
     
     Ptr<Gcp_record> gcp;
     if (c_gcp_list.seizeLast(gcp))
@@ -5679,6 +5827,10 @@ Suma::SyncRecord::release(){
 
   LocalDataBuffer<15> boundBuf(suma.c_dataBufferPool, m_boundInfo);
   boundBuf.release();  
+
+  ndbassert(m_sourceInstance == RNIL);
+  ndbassert(m_headersSection == RNIL);
+  ndbassert(m_dataSection == RNIL);
 }
 
 
@@ -6727,6 +6879,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
     if(sz == 0)
     {
       SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
+      Uint32 siglen = SubGcpCompleteRep::SignalLength;
+
       rep->gci_hi = (Uint32)(last_gci >> 32);
       rep->gci_lo = (Uint32)(last_gci & 0xFFFFFFFF);
       rep->flags = (m_missing_data)
@@ -6734,6 +6888,11 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
                    : 0;
       rep->senderRef  = reference();
       rep->gcp_complete_rep_count = 1;
+
+      // Append the sub data stream id for the bucket
+      rep->sub_data_streams[0] = get_sub_data_stream(buck);
+      rep->flags |= SubGcpCompleteRep::SUB_DATA_STREAMS_IN_SIGNAL;
+      siglen ++;
 
       if (ERROR_INSERTED(13036))
       {
@@ -6753,8 +6912,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
       g_cnt = 0;
       
       NodeReceiverGroup rg(API_CLUSTERMGR, c_subscriber_nodes);
-      sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal,
-		 SubGcpCompleteRep::SignalLength, JBB);
+      sendSignal(rg, GSN_SUB_GCP_COMPLETE_REP, signal, siglen, JBB);
     } 
     else
     {

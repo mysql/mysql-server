@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -184,7 +184,7 @@ dict_stats_deinit(
 {
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
 
-	ut_a(table->n_ref_count == 0);
+	ut_a(table->get_ref_count() == 0);
 
 	dict_table_stats_lock(table, RW_X_LATCH);
 

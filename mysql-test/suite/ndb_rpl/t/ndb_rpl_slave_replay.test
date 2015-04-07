@@ -160,7 +160,7 @@ while($i)
 --connection slave
 
 call mtr.add_suppression("NDB Slave : SQL thread stopped as applying epoch .*");
-call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 
 --echo Check that slave stopped with an error
@@ -240,7 +240,7 @@ while($i)
 --connection slave
 
 call mtr.add_suppression("NDB Slave : SQL thread stopped as attempted to reapply already committed epoch .*");
-call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 
 --echo Check that slave stopped with an error
@@ -320,7 +320,7 @@ while($i)
 --connection slave
 
 call mtr.add_suppression("NDB Slave : SQL thread stopped as attempting to apply new epoch .*");
-call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 
 --echo Check that slave stopped with an error

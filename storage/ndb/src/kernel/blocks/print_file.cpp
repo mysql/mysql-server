@@ -42,6 +42,8 @@ File_formats::Datafile::Zero_page g_df_zero;
 
 int main(int argc, char ** argv)
 {
+  ndb_init();
+  bool file_given_in_arg = false;
   for(int i = 1; i<argc; i++){
     if(!strncmp(argv[i], "-v", 2))
     {
@@ -62,9 +64,10 @@ int main(int argc, char ** argv)
 	    !strcmp(argv[i], "--help"))
     {
       print_usage(argv[0]);
-      exit(0);
+     return 0;
     }
     
+    file_given_in_arg = true;
     const char * filename = argv[i];
     
     struct stat sbuf;
@@ -94,6 +97,10 @@ int main(int argc, char ** argv)
     
     fclose(f);
     continue;
+  }
+  if(!file_given_in_arg){
+    ndbout << "Filename not given" << endl;
+    return 1;
   }
   return 0;
 }

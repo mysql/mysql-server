@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,6 +102,7 @@ private:
   virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
                               Uint32 max_use);
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
+  virtual void getSendBufferLevel(NodeId node, SB_LevelType &level);
   virtual bool forceSend(NodeId node);
 
 private:
@@ -111,18 +112,27 @@ private:
   /**
    * This is used for polling
    */
+  bool m_locked_for_poll;
 public:
   NdbMutex* m_mutex; // thread local mutex...
+  void set_locked_for_poll(bool val)
+  {
+    m_locked_for_poll = val;
+  }
+  bool is_locked_for_poll()
+  {
+    return m_locked_for_poll;
+  }
 private:
   struct PollQueue
   {
     PollQueue();
     void assert_destroy() const;
 
+    enum { PQ_WOKEN, PQ_IDLE, PQ_WAITING } m_waiting;
     bool m_locked;
     bool m_poll_owner;
     bool m_poll_queue;
-    enum { PQ_WOKEN, PQ_IDLE, PQ_WAITING } m_waiting;
     trp_client *m_prev;
     trp_client *m_next;
     NdbCondition * m_condition;
@@ -180,7 +190,10 @@ inline
 void
 trp_client::lock_client()
 {
-  m_facade->m_poll_owner->m_poll.lock_client(this);
+  if (!check_if_locked())
+  {
+    m_facade->m_poll_owner->m_poll.lock_client(this);
+  }
 }
 
 inline
@@ -273,13 +286,24 @@ inline
 void
 trp_client::PollQueue::assert_destroy() const
 {
-  assert(m_waiting == PQ_IDLE);
-  assert(m_locked == false);
-  assert(m_poll_owner == false);
-  assert(m_poll_queue == false);
-  assert(m_next == 0);
-  assert(m_prev == 0);
-  assert(m_locked_cnt == 0);
+  if (m_waiting != PQ_IDLE ||
+      m_locked == true ||
+      m_poll_owner == true ||
+      m_poll_queue == true ||
+      m_next != 0 ||
+      m_prev != 0 ||
+      m_locked_cnt != 0)
+  {
+    ndbout << "ERR: ~trp_client: Deleting trp_clnt in use: waiting"
+	   << m_waiting
+	   << " locked  " << m_locked
+	   << " poll_owner " << m_poll_owner
+	   << " poll_queue " << m_poll_queue
+	   << " next " << m_next
+	   << " prev " << m_prev
+	   << " condition " << m_condition << endl;
+    require(false);
+  }
 }
 
 #endif

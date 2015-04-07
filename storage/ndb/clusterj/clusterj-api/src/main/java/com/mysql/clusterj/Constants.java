@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,14 @@ public interface Constants {
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-constructor">Ndb_cluster_connection constructor</a>
      */
     static final String PROPERTY_CLUSTER_CONNECTSTRING = "com.mysql.clusterj.connectstring";
+
+    /** The name of the initial timeout for cluster connection to connect to MGM before connecting to data nodes
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-set-timeout">Ndb_cluster_connection::set_timeout()</a>
+     */
+    static final String PROPERTY_CLUSTER_CONNECT_TIMEOUT_MGM = "com.mysql.clusterj.connect.timeout.mgm";
+
+    /** The default value of the connection timeout mgm property */
+    static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_MGM = 30000;
 
     /** The name of the connection retries property. For details, see
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
@@ -62,6 +70,30 @@ public interface Constants {
 
     /** The default value of the connection delay property */
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_DELAY = 5;
+
+    /** The name of the connection autoincrement batch size property. For details, see
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
+     */
+    static final String PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_BATCH_SIZE = "com.mysql.clusterj.connect.autoincrement.batchsize";
+
+    /** The default value of the connection delay property */
+    static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_BATCH_SIZE = 10;
+
+    /** The name of the connection autoincrement increment property. For details, see
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
+     */
+    static final String PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_STEP = "com.mysql.clusterj.connect.autoincrement.increment";
+
+    /** The default value of the connection delay property */
+    static final long DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_STEP = 1;
+
+    /** The name of the connection autoincrement offset property. For details, see
+     * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
+     */
+    static final String PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_START = "com.mysql.clusterj.connect.autoincrement.offset";
+
+    /** The default value of the connection autoincrement offset property */
+    static final long DEFAULT_PROPERTY_CLUSTER_CONNECT_AUTO_INCREMENT_START = 1;
 
     /** The name of the connection verbose property. For details, see
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>
