@@ -3003,8 +3003,9 @@ os_file_get_status(
 		stat_info->type = OS_FILE_TYPE_LINK;
 		break;
 	case S_IFBLK:
-		stat_info->type = OS_FILE_TYPE_BLOCK;
-		break;
+		/* Handle block device as regular file. */
+	case S_IFCHR:
+		/* Handle character device as regular file. */
 	case S_IFREG:
 		stat_info->type = OS_FILE_TYPE_FILE;
 		break;
@@ -3012,8 +3013,8 @@ os_file_get_status(
 		stat_info->type = OS_FILE_TYPE_UNKNOWN;
 	}
 
-	if (check_rw_perm && (stat_info->type == OS_FILE_TYPE_FILE
-			      || stat_info->type == OS_FILE_TYPE_BLOCK)) {
+	if (check_rw_perm && stat_info->type == OS_FILE_TYPE_FILE) {
+
 		int	fh;
 		int	access;
 

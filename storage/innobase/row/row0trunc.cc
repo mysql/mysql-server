@@ -1572,16 +1572,7 @@ dberr_t
 row_truncate_sanity_checks(
 	const dict_table_t* table)
 {
-	if (srv_sys_space.created_new_raw()) {
-
-		ib::info() << "A new raw disk partition was initialized:"
-			" we do not allow database modifications by the"
-			" user. Shut down mysqld and edit my.cnf so that"
-			" newraw is replaced with raw.";
-
-		return(DB_ERROR);
-
-	} else if (dict_table_is_discarded(table)) {
+	if (dict_table_is_discarded(table)) {
 
 		return(DB_TABLESPACE_DELETED);
 

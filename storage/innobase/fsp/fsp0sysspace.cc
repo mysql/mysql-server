@@ -34,6 +34,11 @@ Refactored 2013-7-26 by Kevin Lewis
 #include "srv0start.h"
 #include "ut0new.h"
 
+/** The server header file is included to access opt_initialize global variable.
+If server passes the option for create/open DB to SE, we should remove such
+direct reference to server header and global variable */
+#include "mysqld.h"
+
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
 
@@ -271,7 +276,9 @@ SysTablespace::parse_params(
 
 			str += 3;
 
-			m_files.back().m_type = SRV_NEW_RAW;
+			/* Initialize new raw device only during initialize */
+			m_files.back().m_type =
+			opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
 		}
 
 		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
@@ -280,8 +287,10 @@ SysTablespace::parse_params(
 
 			str += 3;
 
+			/* Initialize new raw device only during initialize */
 			if (m_files.back().m_type == SRV_NOT_RAW) {
-				m_files.back().m_type = SRV_OLD_RAW;
+				m_files.back().m_type =
+				opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
 			}
 		}
 
@@ -446,6 +455,8 @@ SysTablespace::open_file(
 		written over */
 		m_created_new_raw = true;
 
+		/* Fall through */
+
 	case SRV_OLD_RAW:
 		srv_start_raw_disk_in_use = TRUE;
 
@@ -469,11 +480,25 @@ SysTablespace::open_file(
 		break;
 	}
 
-	if (file.m_type != SRV_OLD_RAW) {
+	switch (file.m_type) {
+	case SRV_NEW_RAW:
+		/* Set file size for new raw device. */
+		err = set_size(file);
+		break;
+
+	case SRV_NOT_RAW:
+		/* Check file size for existing file. */
 		err = check_size(file);
-		if (err != DB_SUCCESS) {
-			file.close();
-		}
+		break;
+
+	case SRV_OLD_RAW:
+		err = DB_SUCCESS;
+		break;
+
+	}
+
+	if (err != DB_SUCCESS) {
+		file.close();
 	}
 
 	return(err);
@@ -662,8 +687,9 @@ SysTablespace::file_not_found(
 }
 
 /** Note that the data file was found.
-@param[in,out]	file	data file object */
-void
+@param[in,out]	file	data file object
+@return true if a new instance to be created */
+bool
 SysTablespace::file_found(
 	Datafile&	file)
 {
@@ -674,16 +700,19 @@ SysTablespace::file_found(
 	/* Set the file open mode */
 	switch (file.m_type) {
 	case SRV_NOT_RAW:
-	case SRV_NEW_RAW:
 		file.set_open_flags(
 			&file == &m_files.front()
 			? OS_FILE_OPEN_RETRY : OS_FILE_OPEN);
 		break;
 
+	case SRV_NEW_RAW:
 	case SRV_OLD_RAW:
 		file.set_open_flags(OS_FILE_OPEN_RAW);
 		break;
 	}
+
+	/* Need to create the system tablespace for new raw device. */
+	return(file.m_type == SRV_NEW_RAW);
 }
 
 /** Check the data file specification.
@@ -763,7 +792,7 @@ SysTablespace::check_file_spec(
 			break;
 
 		} else {
-			file_found(*it);
+			*create_new_db = file_found(*it);
 		}
 	}
 
@@ -772,12 +801,14 @@ SysTablespace::check_file_spec(
 
 /** Open or create the data files
 @param[in]  is_temp		whether this is a temporary tablespace
+@param[in]  create_new_db	whether we are creating a new database
 @param[out] sum_new_sizes	sum of sizes of the new files added
 @param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
 @return DB_SUCCESS or error code */
 dberr_t
 SysTablespace::open_or_create(
 	bool	is_temp,
+	bool	create_new_db,
 	ulint*	sum_new_sizes,
 	lsn_t*	flush_lsn)
 {
@@ -794,12 +825,18 @@ SysTablespace::open_or_create(
 	files_t::iterator	end = m_files.end();
 
 	ut_ad(begin->order() == 0);
-	bool	create_new_db = begin->m_exists;
 
 	for (files_t::iterator it = begin; it != end; ++it) {
 
 		if (it->m_exists) {
 			err = open_file(*it);
+
+			/* For new raw device increment new size. */
+			if (sum_new_sizes && it->m_type == SRV_NEW_RAW) {
+
+				*sum_new_sizes += it->m_size;
+			}
+
 		} else {
 			err = create_file(*it);
 
@@ -810,6 +847,8 @@ SysTablespace::open_or_create(
 			/* Set the correct open flags now that we have
 			successfully created the file. */
 			if (err == DB_SUCCESS) {
+				/* We ignore new_db OUT parameter here
+				as the information is known at this stage */
 				file_found(*it);
 			}
 		}
@@ -836,7 +875,7 @@ SysTablespace::open_or_create(
 #endif /* !NO_FALLOCATE && UNIV_LINUX*/
 	}
 
-	if (create_new_db && flush_lsn) {
+	if (!create_new_db && flush_lsn) {
 		/* Validate the header page in the first datafile
 		and read LSNs fom the others. */
 		err = read_lsn_and_check_flags(flush_lsn);
