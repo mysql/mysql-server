@@ -549,7 +549,7 @@ op_status_t WorkerStep1::do_append() {
     return op_failed;
   }
   
-  /* Save the workitem in the transaction and prepare for async execution */ 
+  /* Prepare for async execution */
   wqitem->next_step = (void *) worker_append;
   Scheduler::execute(tx, NdbTransaction::NoCommit, callback_main, wqitem, YIELD);
   return op_prepared;

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -77,6 +77,9 @@ void ndbmc_debug_enter(const char *func) {
 
 
 void ndbmc_debug_flush() {
+  const thread_identifier *thread = get_thread_id();
+  const char * name = thread ? thread->name : "main";
+  fprintf(debug_outfile, "thread %s: flushed log file.\n", name);
   fflush(debug_outfile);
 }
 
