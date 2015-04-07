@@ -182,6 +182,25 @@ static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
+#ifdef UNIV_DEBUG
+/** Values for --innodb-debug-compress names. */
+static const char* innodb_debug_compress_names[] = {
+	"none",
+	"zlib",
+	"lz4",
+	"lz4hc",
+	NullS
+};
+
+/** Enumeration of --innodb-debug-compress */
+static TYPELIB innodb_debug_compress_typelib = {
+	array_elements(innodb_debug_compress_names) - 1,
+	"innodb_debug_compress_typelib",
+	innodb_debug_compress_names,
+	NULL
+};
+#endif /* UNIV_DEBUG */
+
 /** Possible values for system variable "innodb_stats_method". The values
 are defined the same as its corresponding MyISAM system variable
 "myisam_stats_method"(see "myisam_stats_method_names"), for better usability */
@@ -2031,6 +2050,60 @@ innobase_raw_format(
 	return(ut_str_sql_format(buf_tmp, buf_tmp_used, buf, buf_size));
 }
 
+/** Check if the string is "empty" or "none".
+@param[in]      algorithm       Compression algorithm to check
+@return true if no algorithm requested */
+bool
+Compression::is_none(const char* algorithm)
+{
+	/* NULL is the same as NONE */
+	if (algorithm == NULL || innobase_strcasecmp(algorithm, "none") == 0) {
+		return(true);
+	}
+
+	return(false);
+}
+
+/** Check for supported COMPRESS := (ZLIB | LZ4 | NONE) supported values
+@param[in]	name		Name of the compression algorithm
+@param[out]	compression	The compression algorithm
+@return DB_SUCCESS or DB_UNSUPPORTED */
+dberr_t
+Compression::check(
+	const char*	algorithm,
+	Compression*	compression)
+{
+	if (is_none(algorithm)) {
+
+		compression->m_type = NONE;
+
+	} else if (innobase_strcasecmp(algorithm, "zlib") == 0) {
+
+		compression->m_type = ZLIB;
+
+	} else if (innobase_strcasecmp(algorithm, "lz4") == 0) {
+
+		compression->m_type = LZ4;
+
+	} else {
+		return(DB_UNSUPPORTED);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** Check for supported COMPRESS := (ZLIB | LZ4 | NONE) supported values
+@param[in]	name		Name of the compression algorithm
+@param[out]	compression	The compression algorithm
+@return DB_SUCCESS or DB_UNSUPPORTED */
+dberr_t
+Compression::validate(const char* algorithm)
+{
+	Compression	compression;
+
+	return(check(algorithm, &compression));
+}
+
 /*********************************************************************//**
 Compute the next autoinc value.
 
@@ -3072,7 +3145,7 @@ innobase_init(
 		}
 	}
 
-	os_innodb_umask = (ulint) my_umask;
+	os_file_set_umask(my_umask);
 
 	/* Setup the memory alloc/free tracing mechanisms before calling
 	any functions that could possibly allocate memory. */
@@ -3351,7 +3424,7 @@ innobase_change_buffering_inited_ok:
 	int	count;
 
 	count = array_elements(all_pthread_mutexes);
- 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
+	mysql_mutex_register("innodb", all_pthread_mutexes, count);
 
 # ifdef UNIV_PFS_MUTEX
 	count = array_elements(all_innodb_mutexes);
@@ -4951,7 +5024,7 @@ ha_innobase::open(
 		ut_ad(dict_table_is_intrinsic(ib_table));
 	}
 
-	if (ib_table
+	if (ib_table != NULL
 	    && ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 		 && table->s->fields != dict_table_get_n_user_cols(ib_table))
 		|| (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
@@ -5028,7 +5101,7 @@ ha_innobase::open(
 					ignore_err);
 			}
 
-			if (ib_table) {
+			if (ib_table != NULL) {
 #ifndef _WIN32
 				sql_print_warning("Partition table %s opened"
 						  " after converting to lower"
@@ -5286,6 +5359,40 @@ table_opened:
 	}
 
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
+
+	/* We don't support compression for the system tablespace and
+	the temporary tablespace. Only because they are shared tablespaces.
+	There is no other technical reason. */
+
+	if (m_prebuilt->table != NULL
+	    && !m_prebuilt->table->ibd_file_missing
+	    && !is_shared_tablespace(m_prebuilt->table->space)) {
+
+		dberr_t	err = fil_set_compression(
+			m_prebuilt->table->space, table->s->compress.str);
+
+		switch (err) {
+		case DB_NOT_FOUND:
+		case DB_UNSUPPORTED:
+			/* We will do another check before the create
+			table and push the error to the client there. */
+			break;
+
+		case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
+			/* We did the check in the 'if' above. */
+
+		case DB_IO_NO_PUNCH_HOLE_FS:
+			/* During open we can't check whether the FS supports
+			punch hole or not, at least on Linux. */
+			break;
+
+		default:
+			ut_error;
+
+		case DB_SUCCESS:
+			break;
+		}
+	}
 
 	DBUG_RETURN(0);
 }
@@ -8818,7 +8925,10 @@ create_table_info_t::create_table_def()
 
 	if (DICT_TF_HAS_DATA_DIR(m_flags)) {
 		ut_a(strlen(m_remote_path));
-		table->data_dir_path = mem_heap_strdup(table->heap, m_remote_path);
+
+		table->data_dir_path = mem_heap_strdup(
+			table->heap, m_remote_path);
+
 	} else {
 		table->data_dir_path = NULL;
 	}
@@ -8950,36 +9060,99 @@ err_col:
 	needed in SYSTEM tables. */
 	if (dict_table_is_temporary(table)) {
 
-		/* Get a new table ID */
-		dict_table_assign_new_id(table, m_trx);
+		if (m_create_info->compress.length > 0) {
 
-		/* Create temp tablespace if configured. */
-		err = dict_build_tablespace_for_table(table);
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Compression not supported for "
+				"temporary tables");
+
+			err = DB_UNSUPPORTED;
+
+		} else {
+
+			/* Get a new table ID */
+			dict_table_assign_new_id(table, m_trx);
+
+			/* Create temp tablespace if configured. */
+			err = dict_build_tablespace_for_table(table);
+
+			if (err == DB_SUCCESS) {
+				/* Temp-table are maintained in memory and so
+				can_be_evicted is FALSE. */
+				mem_heap_t* temp_table_heap;
+
+				temp_table_heap = mem_heap_create(256);
+
+				/* For intrinsic table (given that they are
+				not shared beyond session scope), add
+				it to session specific THD structure
+				instead of adding it to dictionary cache. */
+				if (dict_table_is_intrinsic(table)) {
+					add_table_to_thread_cache(
+						table, temp_table_heap, m_thd);
+
+				} else {
+					dict_table_add_to_cache(
+						table, FALSE, temp_table_heap);
+				}
+
+				DBUG_EXECUTE_IF("ib_ddl_crash_during_create2",
+						DBUG_SUICIDE(););
+
+				mem_heap_free(temp_table_heap);
+			}
+		}
+
+	} else {
+
+                const char*     algorithm = m_create_info->compress.str;
+
+		err = DB_SUCCESS;
+
+		if (!(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)
+		    && m_create_info->compress.length > 0
+		    && !Compression::is_none(algorithm)) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Compression not supported for "
+				"shared tablespaces");
+
+			algorithm = NULL;
+
+			err = DB_UNSUPPORTED;
+
+		} else if (Compression::validate(algorithm) != DB_SUCCESS
+			   || m_form->s->row_type == ROW_TYPE_COMPRESSED
+			   || m_create_info->key_block_size > 0) {
+
+			algorithm = NULL;
+                }
 
 		if (err == DB_SUCCESS) {
-			/* Temp-table are maintained in memory and so
-			can_be_evicted is FALSE. */
-			mem_heap_t* temp_table_heap = mem_heap_create(256);
-
-			/* For intrinsic table (given that they are
-			not shared beyond session scope), add it to session
-			specific THD structure instead of adding it to
-			dictionary cache. */
-			if (dict_table_is_intrinsic(table)) {
-				add_table_to_thread_cache(
-					table, temp_table_heap, m_thd);
-			} else {
-				dict_table_add_to_cache(
-					table, FALSE, temp_table_heap);
-			}
-
-			DBUG_EXECUTE_IF("ib_ddl_crash_during_create2",
-					DBUG_SUICIDE(););
-
-			mem_heap_free(temp_table_heap);
+			err = row_create_table_for_mysql(
+				table, algorithm, m_trx, false);
 		}
-	} else {
-		err = row_create_table_for_mysql(table, m_trx, false);
+
+		if (err == DB_IO_NO_PUNCH_HOLE_FS) {
+
+			ut_ad(!is_shared_tablespace(table->space));
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Punch hole not supported by the "
+				"file system or the tablespace page size "
+				"is not large enough. Compression disabled");
+
+			err = DB_SUCCESS;
+		}
 	}
 
 	mem_heap_free(heap);
@@ -9647,6 +9820,42 @@ create_table_info_t::create_options_are_invalid()
 		}
 	}
 
+	/* Note: Currently the max length is 4: ZLIB, LZ4, NONE. */
+
+	if (ret == NULL && m_create_info->compress.length > 0) {
+
+		dberr_t		err;
+		Compression	compression;
+
+		err = Compression::check(
+			m_create_info->compress.str, &compression);
+
+		if (err == DB_UNSUPPORTED) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				ER_UNSUPPORTED_EXTENSION,
+				"InnoDB: Unsupported compression algorithm '"
+				"%s'",
+				m_create_info->compress.str);
+
+			ret = "COMPRESSION";
+
+		} else if (m_create_info->key_block_size > 0
+			   && compression.m_type != Compression::NONE) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				ER_UNSUPPORTED_EXTENSION,
+				"InnODB: Attribute not supported with row "
+				"format compressed or key block size > 0");
+
+			ret = "COMPRESSION";
+		}
+	}
+
 	return(ret);
 }
 
@@ -9857,7 +10066,7 @@ index_bad:
 		}
 	}
 
-	if (m_create_info->key_block_size) {
+	if (m_create_info->key_block_size > 0) {
 		/* The requested compressed page size (key_block_size)
 		is given in kilobytes. If it is a valid number, store
 		that value as the number of log2 shifts from 512 in
@@ -9890,6 +10099,32 @@ index_bad:
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu.",
 				m_create_info->key_block_size);
+		}
+
+	} else if (m_create_info->compress.length > 0) {
+
+		if (m_use_shared_space
+		    || (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Cannot compress pages of shared "
+				"tablespaces");
+		}
+
+		const char*     compression = m_create_info->compress.str;
+
+		if (Compression::validate(compression) != DB_SUCCESS) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Unsupported compression "
+				"algorithm '%s'",
+				compression);
 		}
 	}
 
@@ -10356,7 +10591,7 @@ create_table_info_t::create_table()
 	/* Create the ancillary tables that are common to all FTS indexes on
 	this table. */
 	if (m_flags2 & DICT_TF2_FTS) {
-		enum fts_doc_id_index_enum	ret;
+		fts_doc_id_index_enum	ret;
 
 		innobase_table = dict_table_open_on_name(
 			m_table_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
@@ -10487,6 +10722,18 @@ create_table_info_t::create_table()
 			}
 			DBUG_RETURN(error);
 		}
+	}
+
+	if (!is_intrinsic_temp_table()) {
+		innobase_table = dict_table_open_on_name(
+			m_table_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+
+		if (innobase_table != NULL) {
+			dict_table_close(innobase_table, TRUE, FALSE);
+		}
+
+	} else {
+		innobase_table = NULL;
 	}
 
 	DBUG_RETURN(0);
@@ -17507,6 +17754,11 @@ static MYSQL_SYSVAR_BOOL(disable_background_merge,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_RQCMDARG,
   "Disable change buffering merges by the master thread",
   NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ENUM(compress_debug, srv_debug_compress,
+  PLUGIN_VAR_RQCMDARG,
+  "Compress all tables, without specifying the COMRPESS table attribute",
+  NULL, NULL, Compression::NONE, &innodb_debug_compress_typelib);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 static MYSQL_SYSVAR_BOOL(random_read_ahead, srv_random_read_ahead,
@@ -17768,6 +18020,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(trx_purge_view_update_only_debug),
   MYSQL_SYSVAR(fil_make_page_dirty_debug),
   MYSQL_SYSVAR(saved_page_number_debug),
+  MYSQL_SYSVAR(compress_debug),
   MYSQL_SYSVAR(disable_resize_buffer_pool_debug),
 #endif /* UNIV_DEBUG */
   NULL

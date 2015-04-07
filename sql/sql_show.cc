@@ -1872,6 +1872,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       end= longlong10_to_str(table->s->key_block_size, buff, 10);
       packet->append(buff, (uint) (end - buff));
     }
+    if (table->s->compress.length)
+    {
+      packet->append(STRING_WITH_LEN(" COMPRESS="));
+      append_unescaped(packet, share->compress.str, share->compress.length);
+    }
     table->file->append_create_info(packet);
     if (share->comment.length)
     {
@@ -4730,6 +4735,16 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     {
       ptr= my_stpcpy(ptr, " KEY_BLOCK_SIZE=");
       ptr= longlong10_to_str(share->key_block_size, ptr, 10);
+    }
+
+    if (share->compress.length > 0)
+    {
+      /* In the .frm file this option has a max length of 2K. Currently,
+      InnoDB uses only the first 5 bytes and the only supported values
+      are (ZLIB | LZ4 | NONE). */
+      ptr= my_stpcpy(ptr, " COMPRESS=\"");
+      ptr= strxnmov(ptr, 7, share->compress.str, NullS);
+      ptr= my_stpcpy(ptr, "\"");
     }
 
     if (is_partitioned)

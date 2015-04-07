@@ -642,19 +642,29 @@ buf_page_is_corrupted(
 #endif
 
 	/* declare empty pages non-corrupted */
-	if (checksum_field1 == 0 && checksum_field2 == 0
-	    && *reinterpret_cast<const ib_uint64_t*>(read_buf +
-						     FIL_PAGE_LSN) == 0) {
+	if (checksum_field1 == 0
+	    && checksum_field2 == 0
+	    && *reinterpret_cast<const ib_uint64_t*>(
+		    read_buf + FIL_PAGE_LSN) == 0) {
+
 		/* make sure that the page is really empty */
 
-#ifdef UNIV_INNOCHECKSUM
 		ulint	i;
 
-		for (i = 0; i < page_size.logical(); i++) {
-			if (read_buf[i] != 0)
-				break;
-		}
+		for (i = 0; i < page_size.logical(); ++i) {
 
+			/* The FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID has been
+			repurposed for page compression. It can be
+			set for uncompressed empty pages. */
+
+			if ((i < FIL_PAGE_FILE_FLUSH_LSN
+			     || i >= FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID)
+			    && read_buf[i] != 0) {
+
+				break;
+			}
+		}
+#ifdef UNIV_INNOCHECKSUM
 		if (i >= page_size.logical()) {
 			if (is_log_enabled) {
 				fprintf(log_file, "Page::%" PRIuMAX
@@ -664,15 +674,8 @@ buf_page_is_corrupted(
 			return(FALSE);
 		}
 #else
-		for (ulint i = 0; i < page_size.logical(); i++) {
-			if (read_buf[i] != 0) {
-				return(TRUE);
-			}
-		}
-
-		return(FALSE);
+		return(i < page_size.logical());
 #endif /* UNIV_INNOCHECKSUM */
-
 	}
 
 	switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
@@ -3992,8 +3995,11 @@ loop:
 				<< " into the buffer pool after "
 				<< BUF_PAGE_READ_MAX_RETRIES << " attempts."
 				" The most probable cause of this error may"
-				" be that the table has been corrupted."
-				" You can try to fix this problem by using"
+				" be that the table has been corrupted. Or,"
+				" the table was compressed with with an"
+				" algorithm that is not supported by this"
+				" instance. If it is not a decompress failure,"
+				" you can try to fix this problem by using"
 				" innodb_force_recovery."
 				" Please see " REFMAN " for more"
 				" details. Aborting...";
@@ -5238,9 +5244,16 @@ buf_page_create(
 	memset(frame + FIL_PAGE_PREV, 0xff, 4);
 	memset(frame + FIL_PAGE_NEXT, 0xff, 4);
 	mach_write_to_2(frame + FIL_PAGE_TYPE, FIL_PAGE_TYPE_ALLOCATED);
-	/* FIL_PAGE_FILE_FLUSH_LSN is only used on the following pages:
+
+	/* These 8 bytes are also repurposed for PageIO compression and must
+	be reset when the frame is assigned to a new page id. See fil0fil.h.
+
+	FIL_PAGE_FILE_FLUSH_LSN is used on the following pages:
 	(1) The first page of the InnoDB system tablespace (page 0:0)
-	(2) FIL_RTREE_SPLIT_SEQ_NUM on R-tree pages */
+	(2) FIL_RTREE_SPLIT_SEQ_NUM on R-tree pages .
+
+	Therefore we don't transparently compress such pages. */
+
 	memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -5439,15 +5452,18 @@ buf_page_io_complete(
 		ulint	read_page_no;
 		ulint	read_space_id;
 		byte*	frame;
+		bool	compressed_page;
 
 		if (bpage->size.is_compressed()) {
 			frame = bpage->zip.data;
 			buf_pool->n_pend_unzip++;
+
 			if (uncompressed
 			    && !buf_zip_decompress((buf_block_t*) bpage,
 						   FALSE)) {
 
 				buf_pool->n_pend_unzip--;
+				compressed_page = false;
 				goto corrupt;
 			}
 			buf_pool->n_pend_unzip--;
@@ -5469,7 +5485,7 @@ buf_page_io_complete(
 			ib::error() << "Reading page " << bpage->id
 				<< ", which is in the doublewrite buffer!";
 
-		} else if (!read_space_id && !read_page_no) {
+		} else if (read_space_id == 0 && read_page_no == 0) {
 			/* This is likely an uninitialized page. */
 		} else if ((bpage->id.space() != 0
 			    && bpage->id.space() != read_space_id)
@@ -5485,11 +5501,30 @@ buf_page_io_complete(
 				<< ", should be " << bpage->id;
 		}
 
+		compressed_page = Compression::is_compressed_page(frame);
+
+		/* If the decompress failed then the most likely case is
+		that we are reading in a page for which this instance doesn't
+		support the compression algorithm. */
+		if (compressed_page) {
+
+			Compression::meta_t	meta;
+
+			Compression::deserialize_header(frame, &meta);
+
+			ib::error()
+				<< "Page " << bpage->id << " "
+				<< "compressed with "
+				<< Compression::to_string(meta) << " "
+				<< "that is not supported by this instance";
+		}
+
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
-		if (buf_page_is_corrupted(true, frame, bpage->size,
-					  fsp_is_checksum_disabled(
-						bpage->id.space()))) {
+		if (compressed_page
+		    || buf_page_is_corrupted(
+			    true, frame, bpage->size,
+			    fsp_is_checksum_disabled(bpage->id.space()))) {
 
 			/* Not a real corruption if it was triggered by
 			error injection */
@@ -5506,33 +5541,53 @@ buf_page_io_complete(
 				goto page_not_corrupt;
 				;);
 corrupt:
-			ib::error() << "Database page corruption on disk"
-				" or a failed file read of page " << bpage->id
-				<< ". You may have to recover from a backup.";
+			/* Compressed pages are basically gibberish avoid
+			printing the contents. */
+			if (!compressed_page) {
 
-			buf_page_print(frame, bpage->size,
-				       BUF_PAGE_PRINT_NO_CRASH);
+				ib::error()
+					<< "Database page corruption on disk"
+					" or a failed file read of page "
+					<< bpage->id
+					<< ". You may have to recover from "
+					<< "a backup.";
 
-			ib::info() << "It is also possible that your operating"
-				" system has corrupted its own file cache and"
-				" rebooting your computer removes the error."
-				" If the corrupt page is an index page."
-				" You can also try to fix the corruption"
-				" by dumping, dropping, and reimporting"
-				" the corrupt table. You can use CHECK"
-				" TABLE to scan your table for corruption. "
-				<< FORCE_RECOVERY_MSG;
+				buf_page_print(
+					frame, bpage->size,
+					BUF_PAGE_PRINT_NO_CRASH);
+
+				ib::info()
+					<< "It is also possible that your"
+				        " operating system has corrupted"
+					" its own file cache and rebooting"
+					" your computer removes the error."
+					" If the corrupt page is an index page."
+					" You can also try to fix the"
+					" corruption by dumping, dropping,"
+					" and reimporting the corrupt table."
+					" You can use CHECK TABLE to scan"
+					" your table for corruption. "
+					<< FORCE_RECOVERY_MSG;
+			}
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
+
 				/* If page space id is larger than TRX_SYS_SPACE
 				(0), we will attempt to mark the corresponding
 				table as corrupted instead of crashing server */
+
 				if (bpage->id.space() > TRX_SYS_SPACE
 				    && buf_mark_space_corrupt(bpage)) {
+
 					return(false);
 				} else {
-					ib::fatal() << "Aborting because of a"
-						" corrupt database page.";
+					ib::fatal()
+						<< "Aborting because of a"
+						" corrupt database page in"
+						" the system tablespace. Or, "
+						" there was a failure in"
+						" tagging the tablespace "
+						" as corrupt.";
 				}
 			}
 		}
@@ -5549,6 +5604,7 @@ corrupt:
 		/* If space is being truncated then avoid ibuf operation.
 		During re-init we have already freed ibuf entries. */
 		if (uncompressed
+		    && !Compression::is_compressed_page(frame)
 		    && !recv_no_ibuf_operations
 		    && !Tablespace::is_undo_tablespace(bpage->id.space())
 		    && bpage->id.space() != srv_tmp_space.space_id()
@@ -5635,7 +5691,6 @@ corrupt:
 	default:
 		ut_error;
 	}
-
 
 	DBUG_PRINT("ib_buf", ("%s page " UINT32PF ":" UINT32PF,
 			      io_type == BUF_IO_READ ? "read" : "wrote",

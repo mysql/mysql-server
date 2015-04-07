@@ -576,21 +576,13 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
 Error	1031	Table storage engine for 't3' doesn't have this option
-# Cannot use both a general tablespace and a DATA DIRECTORY
-CREATE TABLE t4 (a int, b text) TABLESPACE=s_def DATA DIRECTORY='MYSQL_TMP_DIR';
+CREATE TABLE t4 (a int, b text) TABLESPACE s_def DATA DIRECTORY='MYSQL_TMP_DIR';
 ERROR HY000: InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
 Error	1031	Table storage engine for 't4' doesn't have this option
-# Do not allow an empty string in DATA DIRECTORY=''
-CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
-ERROR 42000: Incorrect table name ''
-SHOW WARNINGS;
-Level	Code	Message
-Error	1103	Incorrect table name ''
-# TABLESPACE=innodb_file_per_table can be used with DATA DIRECTORY='...'
-CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
+CREATE TABLE t4 (a int, b text) TABLESPACE innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 SHOW WARNINGS;
 Level	Code	Message
 SHOW CREATE TABLE t4;

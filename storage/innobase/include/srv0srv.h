@@ -569,6 +569,11 @@ enum srv_stats_method_name_enum {
 
 typedef enum srv_stats_method_name_enum		srv_stats_method_name_t;
 
+#ifdef UNIV_DEBUG
+/** Force all user tables to use page compression. */
+extern ulong	srv_debug_compress;
+#endif /* UNIV_DEBUG */
+
 #ifndef UNIV_HOTBACKUP
 /** Types of threads existing in the system. */
 enum srv_thread_type {
@@ -781,6 +786,10 @@ Wakeup the purge threads. */
 void
 srv_purge_wakeup(void);
 /*==================*/
+
+/** Call exit(3) */
+void
+srv_fatal_error();
 
 /** Check if tablespace is being truncated.
 (Ignore system-tablespace as we don't re-create the tablespace

@@ -813,6 +813,16 @@ ut_strerr(
 		return("Table is corrupted");
 	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
 		return("Too many words in a FTS phrase or proximity search");
+	case DB_IO_DECOMPRESS_FAIL:
+		return("Page decompress failed after reading from disk");
+	case DB_IO_NO_PUNCH_HOLE:
+		return("No punch hole support");
+	case DB_IO_NO_PUNCH_HOLE_FS:
+		return("Punch hole not supported by the file system");
+	case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
+		return("Punch hole not supported by the tablespace");
+	case DB_IO_PARTIAL_FAILED:
+		return("Partial IO failed");
 	case DB_FORCED_ABORT:
 		return("Transaction aborted by another higher priority "
 		       "transaction");

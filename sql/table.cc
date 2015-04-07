@@ -1744,6 +1744,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
       next_chunk+= format_section_length;
     }
+
+    if (next_chunk + 2 <= buff_end)
+    {
+      share->compress.length = uint2korr(next_chunk);
+      if (! (share->compress.str= strmake_root(&share->mem_root,
+             (char*)next_chunk + 2, share->compress.length)))
+      {
+          goto err;
+      }
+      next_chunk+= 2 + share->compress.length;
+    }
   }
   share->key_block_size= uint2korr(head+62);
 

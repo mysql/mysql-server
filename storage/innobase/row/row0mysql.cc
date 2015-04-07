@@ -2891,6 +2891,9 @@ row_create_table_for_mysql(
 	dict_table_t*	table,	/*!< in, own: table definition
 				(will be freed, or on DB_SUCCESS
 				added to the data dictionary cache) */
+        const char*     compression,
+                                /*!< in: compression algorithm to use,
+                                can be NULL */
 	trx_t*		trx,	/*!< in/out: transaction */
 	bool		commit)	/*!< in: if true, commit the transaction */
 {
@@ -2977,13 +2980,38 @@ err_exit:
 			ut_free(path);
 
 		if (err != DB_SUCCESS) {
+
 			/* We must delete the link file. */
 			RemoteDatafile::delete_link_file(table->name.m_name);
+
+		} else if (compression != NULL) {
+
+		        ut_ad(!is_shared_tablespace(table->space));
+
+                        ut_ad(Compression::validate(compression) == DB_SUCCESS);
+
+                        err = fil_set_compression(table->space, compression);
+
+                        /* The tablespace must be found and we have already
+                        done the check for the system tablespace and the
+                        temporary tablespace. Compression must be a valid
+                        and supported algorithm. */
+
+			/* However, we can check for file system punch hole
+			support only after creating the tablespace. On Windows
+			we can query that information but not on Linux. */
+
+			ut_ad(err == DB_SUCCESS
+			      || err == DB_IO_NO_PUNCH_HOLE_FS);
+
+                        /* In non-strict mode we ignore dodgy compression
+                        settings. */
 		}
 	}
 
 	switch (err) {
 	case DB_SUCCESS:
+	case DB_IO_NO_PUNCH_HOLE_FS:
 		break;
 	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
@@ -3007,6 +3035,7 @@ err_exit:
 
 		break;
 
+        case DB_UNSUPPORTED:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
