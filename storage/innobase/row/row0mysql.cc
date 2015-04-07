@@ -2905,7 +2905,9 @@ row_create_table_for_mysql(
 		ib::error() << "Trying to create a MySQL system table "
 			<< table->name << " of type InnoDB. MySQL system"
 			" tables must be of the MyISAM type!";
+#ifndef DBUG_OFF
 err_exit:
+#endif /* !DBUG_OFF */
 		dict_mem_table_free(table);
 
 		if (commit) {
