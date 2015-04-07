@@ -11,6 +11,7 @@
 
 --source include/have_innodb_16k.inc
 --source include/not_embedded.inc
+--source include/have_util_uz.inc
 
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;

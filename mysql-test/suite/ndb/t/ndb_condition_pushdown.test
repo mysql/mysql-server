@@ -2487,6 +2487,17 @@ DROP TABLE t1,t2,t3,t4,t5;
 --echo #
 create table t1(a time) engine=ndbcluster;
 insert into t1 values ('00:00:00'),('01:01:01');
-select 1 from t1 where a >= ST_geomfromtext('1');
+select 1 from t1 where a >= NULL;
+drop table t1;
+
+--echo #
+--echo # BUG#14798022 "CHAR (0)" DATATYPE CAUSING ERROR 1296
+--echo # Verify there is no push down support for char(0)
+--echo # 
+create table t1(a int, b char(0)) engine=ndbcluster;
+insert into t1 values(1,''), (2, NULL);
+--replace_column 10 # 11 #
+explain select * from t1 where b = '';
+select * from t1 where b = '';
 drop table t1;
 

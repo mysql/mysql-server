@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1060,6 +1060,117 @@ int runSystemRestart9(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runSystemRestart10(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  //Uint32 loops = ctx->getNumLoops();
+  Uint32 loops = 3;
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  Uint32 i = 1;
+
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  if(nodeCount < 4){
+    g_info << "SR10 - Needs atleast 4 nodes to test" << endl;
+    return NDBT_OK;
+  }
+
+  Vector<int> nodeIds;
+  for(i = 0; i<nodeCount; i++)
+    nodeIds.push_back(restarter.getDbNodeId(i));
+
+  int a_nodeIds[64];
+  if(nodeCount > 64)
+    abort();
+
+  UtilTransactions utilTrans(*ctx->getTab());
+  HugoTransactions hugoTrans(*ctx->getTab());
+
+  i = 1;
+  while(i < loops && result != NDBT_FAILED){
+    
+    g_info << "Loop " << i << "/"<< loops <<" started" << endl;
+    /**
+     * 1. Load data
+     * 2. Stop one node X (restart -nostart)
+     * 3. Wait 10 seconds to ensure some GCPs are executed.
+     * 4. Stop the rest of the nodes
+     * 5. Start all nodes, but insert an error into the 2nd
+     *    node to prevent it from passing phase 3 for 10
+     *    seconds. The cluster should wait for these 10
+     *    seconds, it cannot proceed at this point without
+     *    it. If it tries to start without it, there will
+     *    be a crash of the system restart.
+     * 6. Verify records
+     */
+
+    g_info << "Loading records..." << endl;
+    hugoTrans.loadTable(pNdb, records);
+   
+    Uint32 j = 0;
+    for(Uint32 k = 0; k<nodeCount; k++)
+    {
+      a_nodeIds[j++] = nodeIds[k];
+    }
+
+    g_info << "Stop 2nd last node" << endl;
+    CHECK(restarter.restartOneDbNode(a_nodeIds[nodeCount - 2],
+				     false, 
+				     true,
+				     false) == 0);
+
+    NdbSleep_SecSleep(10);
+    g_info << "Stop rest of the nodes" << endl;
+    CHECK(restarter.restartAll(false, true, false) == 0);
+    
+    int nodeId = a_nodeIds[nodeCount - 1];
+
+    if (i == 0)
+    {
+      g_info << "Inject Error 1021 into last node to stop it in phase 1" << endl;
+      CHECK(restarter.insertErrorInNode(nodeId, 1021) == 0);
+    }
+    else if (i == 1)
+    {
+      g_info << "Inject Error 1010 into last node to stop it in phase 4" << endl;
+      CHECK(restarter.insertErrorInNode(nodeId, 1010) == 0);
+    }
+    if (i == 2)
+    {
+      g_info << "Start all nodes except the last node" << endl;
+      CHECK(restarter.startNodes(a_nodeIds, nodeCount - 1) == 0);
+      g_info << "Wait for those nodes to start, expect failure" << endl;
+      CHECK(restarter.waitNodesStarted(a_nodeIds, nodeCount - 1, 30) != 0);
+      g_info << "Start the last node" << endl;
+      CHECK(restarter.startNodes(&nodeId, 1) == 0);
+      g_info << "Wait for cluster to be started" << endl;
+      CHECK(restarter.waitNodesStarted(a_nodeIds, nodeCount, 120) == 0);
+    }
+    else
+    {
+      CHECK(restarter.startNodes(a_nodeIds, nodeCount) == 0);
+      g_info << "Wait for cluster to be started" << endl;
+      CHECK(restarter.waitNodesStarted(a_nodeIds, nodeCount, 120) == 0);
+    }
+    g_info << "Perform consistency checks" << endl;
+    CHECK(pNdb->waitUntilReady(5) == 0);
+    int count = records - 1;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == records);
+    CHECK(utilTrans.clearTable(pNdb) == 0);    
+
+    i++;
+  }
+  
+  g_info << "runSystemRestart10 finished" << endl;  
+
+  return result;
+}
+
 int runBug18385(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   const Uint32 nodeCount = restarter.getNumDbNodes();
@@ -1466,7 +1577,8 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Found " << cnt << " records..." << endl;
     ndbout << "Updating..." << endl;
     CHECK(hugoTrans.scanUpdateRecords(pNdb,
-                                      NdbScanOperation::SF_TupScan, cnt) == 0);
+                                      NdbScanOperation::SF_TupScan, cnt) == 0
+          || hugoTrans.getRetryMaxReached());
     ndbout << "Clearing..." << endl;    
     CHECK(hugoTrans.clearTable(pNdb,
                                NdbScanOperation::SF_TupScan, cnt) == 0);
@@ -1573,7 +1685,8 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "Found " << cnt << " records..." << endl;
     ndbout << "Updating..." << endl;
     CHECK(hugoTrans.scanUpdateRecords(pNdb,
-                                      NdbScanOperation::SF_TupScan, cnt) == 0);
+                                      NdbScanOperation::SF_TupScan, cnt) == 0
+          || hugoTrans.getRetryMaxReached());
     ndbout << "Clearing..." << endl;    
     CHECK(hugoTrans.clearTable(pNdb,
                                NdbScanOperation::SF_TupScan, cnt) == 0);
@@ -1678,7 +1791,8 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
       if (hugoTrans.getTransaction() != 0)
         hugoTrans.closeTransaction(pNdb);
 
-      if (hugoTrans.scanUpdateRecords(pNdb, NdbScanOperation::SF_TupScan,0)!=0)
+      if (hugoTrans.scanUpdateRecords(pNdb, NdbScanOperation::SF_TupScan,0)!=0
+          && !hugoTrans.getRetryMaxReached())
 	break;
     } while (NdbTick_CurrentMillisecond() < end);
 
@@ -2567,6 +2681,13 @@ TESTCASE("SR9",
   INITIALIZER(runWaitStarted);
   INITIALIZER(runClearTable);
   STEP(runSystemRestart9);
+}
+TESTCASE("SR10", 
+     "More tests of partitioned system restarts\n")
+{
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runClearTable);
+  STEP(runSystemRestart10);
 }
 TESTCASE("Bug18385", 
 	 "Perform partition system restart with other nodes with higher GCI"){

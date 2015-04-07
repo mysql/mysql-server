@@ -107,7 +107,7 @@ public:                                                                 \
     }                                                                   \
                                                                         \
 private:                                                                \
-    volatile TYPE value;                                                \
+    TYPE value;                                                         \
   }
 
 DEFINE_ATOMIC_CLASS(int32, 32, int32);

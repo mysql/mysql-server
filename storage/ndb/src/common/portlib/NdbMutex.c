@@ -164,6 +164,7 @@ int NdbMutex_Destroy(NdbMutex* p_mutex)
   if (p_mutex == NULL)
     return -1;
   result = NdbMutex_Deinit(p_mutex);
+  memset(p_mutex, 0xff, sizeof(NdbMutex));
   NdbMem_Free(p_mutex);
   return result;
 }

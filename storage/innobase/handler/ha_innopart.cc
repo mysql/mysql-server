@@ -215,7 +215,17 @@ Ha_innopart_share::open_table_parts(
 	m_ref_count++;
 	if (m_table_parts != NULL) {
 		ut_ad(m_ref_count > 1);
-		ut_ad(m_tot_parts);
+		ut_ad(m_tot_parts > 0);
+
+		/* Increment dict_table_t reference count for all partitions */
+		mutex_enter(&dict_sys->mutex);
+		for (uint i = 0; i < m_tot_parts; i++) {
+			dict_table_t*	table = m_table_parts[i];
+			table->acquire();
+			ut_ad(table->get_ref_count() >= m_ref_count);
+		}
+		mutex_exit(&dict_sys->mutex);
+
 		return(false);
 	}
 	ut_ad(m_ref_count == 1);
@@ -366,6 +376,16 @@ Ha_innopart_share::close_table_parts()
 #endif /* DBUG_OFF */
 	m_ref_count--;
 	if (m_ref_count != 0) {
+
+		/* Decrement dict_table_t reference count for all partitions */
+		mutex_enter(&dict_sys->mutex);
+		for (uint i = 0; i < m_tot_parts; i++) {
+			dict_table_t*	table = m_table_parts[i];
+			table->release();
+			ut_ad(table->get_ref_count() >= m_ref_count);
+		}
+		mutex_exit(&dict_sys->mutex);
+
 		return;
 	}
 
@@ -3388,22 +3408,6 @@ ha_innopart::info_low(
 			m_prebuilt->trx->op_info =
 				"returning various info to MySQL";
 		}
-
-		char		path[FN_REFLEN];
-		os_file_stat_t	stat_info;
-		/* Use the first partition for create time until new DD. */
-		ib_table = m_part_share->get_table_part(0);
-		my_snprintf(path, sizeof(path), "%s/%s%s",
-			    mysql_data_home, ib_table->name, reg_ext);
-
-		unpack_filename(path,path);
-
-		/* Note that we do not know the access time of the table,
-		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
-
-		if (os_file_get_status(path, &stat_info, false, false) == DB_SUCCESS) {
-			stats.create_time = (ulong) stat_info.ctime;
-		}
 	}
 
 	if ((flag & HA_STATUS_VARIABLE) != 0) {
@@ -3731,6 +3735,21 @@ ha_innopart::info_low(
 
 		if ((flag & HA_STATUS_NO_LOCK) == 0) {
 			dict_table_stats_unlock(ib_table, RW_S_LATCH);
+		}
+
+		char		path[FN_REFLEN];
+		os_file_stat_t	stat_info;
+		/* Use the first partition for create time until new DD. */
+		ib_table = m_part_share->get_table_part(0);
+		my_snprintf(path, sizeof(path), "%s/%s%s",
+			    mysql_data_home,
+			    table->s->normalized_path.str,
+			    reg_ext);
+
+		unpack_filename(path,path);
+
+		if (os_file_get_status(path, &stat_info, false, true) == DB_SUCCESS) {
+			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
 

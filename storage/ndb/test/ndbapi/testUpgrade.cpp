@@ -25,6 +25,7 @@
 #include <NdbBackup.hpp>
 #include <ndb_version.h>
 #include <random.h>
+#include <NdbMutex.h>
 
 static Vector<BaseString> table_list;
 
@@ -301,18 +302,34 @@ dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
 }
 
 
+static NdbMutex* createDropEvent_mutex = 0;
+
 static
 int
-createDropEvent(NDBT_Context* ctx, NDBT_Step* step)
+createDropEvent(NDBT_Context* ctx, NDBT_Step* step, bool wait = true)
 {
+  if (!wait)
+  {
+    if (NdbMutex_Trylock(createDropEvent_mutex) != 0)
+    {
+      g_err << "Skipping createDropEvent since already running in other process" << endl;
+      return NDBT_OK;
+    }
+  }
+  else if (NdbMutex_Lock(createDropEvent_mutex) != 0)
+  {
+    g_err << "Error while locking createDropEvent_mutex" << endl;
+    return NDBT_FAILED;
+  }
+
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
 
+  int res = NDBT_OK;
   if (ctx->getProperty("NoDDL", Uint32(0)) == 0)
   {
     for (unsigned i = 0; i<table_list.size(); i++)
     {
-      int res = NDBT_OK;
       const NdbDictionary::Table* tab = myDict->getTable(table_list[i].c_str());
       if (tab == 0)
       {
@@ -320,19 +337,26 @@ createDropEvent(NDBT_Context* ctx, NDBT_Step* step)
       }
       if ((res = createEvent(pNdb, *tab) != NDBT_OK))
       {
-        return res;
+        goto done;
       }
       
       
       
       if ((res = dropEvent(pNdb, *tab)) != NDBT_OK)
       {
-        return res;
+        goto done;
       }
     }
   }
 
-  return NDBT_OK;
+done:
+  if (NdbMutex_Unlock(createDropEvent_mutex) != 0)
+  {
+    g_err << "Error while unlocking createDropEvent_mutex" << endl;
+    return NDBT_FAILED;
+  }
+
+  return res;
 }
 
 /* An enum for expressing how many of the multiple nodes
@@ -982,7 +1006,7 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
         trans.clearTable(pNdb, records/2);
         break;
       case 3:
-        if (createDropEvent(ctx, step))
+        if (createDropEvent(ctx, step, false))
         {
           return NDBT_FAILED;
         }
@@ -1762,7 +1786,10 @@ int main(int argc, const char** argv){
     strcpy(env, "API_SIGNAL_LOG=-"); // stdout
     putenv(env);
   }
-  return testUpgrade.execute(argc, argv);
+  createDropEvent_mutex = NdbMutex_Create();
+  int ret = testUpgrade.execute(argc, argv);
+  NdbMutex_Destroy(createDropEvent_mutex);
+  return ret;
 }
 
 template class Vector<NodeInfo>;

@@ -1,9 +1,9 @@
-SET @@session.storage_engine = 'ndbcluster';
-create table t1 (a int, b virtual int as (a+1));
-ERROR HY000: 'Specified storage engine' is not yet supported for generated columns.
+SET @@session.default_storage_engine = 'ndbcluster';
+create table t1 (a int, b int generated always as (a+1) virtual);
+ERROR HY000: 'Specified storage engine' is not supported for generated columns.
 create table t1 (a int);
-alter table t1 add column b virtual int as (a+1);
-ERROR HY000: 'Specified storage engine' is not yet supported for generated columns.
+alter table t1 add column b int generated always as (a+1) virtual;
+ERROR HY000: 'Specified storage engine' is not supported for generated columns.
 drop table t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

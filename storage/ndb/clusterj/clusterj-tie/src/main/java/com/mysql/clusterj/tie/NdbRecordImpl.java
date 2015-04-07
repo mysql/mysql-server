@@ -26,6 +26,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.ClusterJUserException;
@@ -136,6 +137,12 @@ public class NdbRecordImpl {
 
     private int[] recordSpecificationIndexes = null;
 
+    /** The autoincrement column or null if none */
+    private Column autoIncrementColumn;
+
+    /** The function to handle setting autoincrement values */
+    private AutoIncrementValueSetter autoIncrementValueSetter;
+
     /** Constructor for table operations.
      * 
      * @param storeTable the store table
@@ -152,6 +159,10 @@ public class NdbRecordImpl {
         this.nullbitBitInByte = new int[numberOfTableColumns];
         this.nullbitByteOffset = new int[numberOfTableColumns];
         this.storeColumns = new Column[numberOfTableColumns];
+        this.autoIncrementColumn = storeTable.getAutoIncrementColumn();
+        if (this.autoIncrementColumn != null) {
+            chooseAutoIncrementValueSetter();
+        }
         this.ndbRecord = createNdbRecord(storeTable, ndbDictionary);
         if (logger.isDetailEnabled()) logger.detail(storeTable.getName() + " " + dumpDefinition());
         initializeDefaultBuffer();
@@ -930,4 +941,95 @@ public class NdbRecordImpl {
         return storeColumns[columnId].isLob();
     }
 
+    public void setAutoIncrementValue(ByteBuffer valueBuffer, long value) {
+        autoIncrementValueSetter.set(valueBuffer, value);
+    }
+
+    /** Choose the appropriate autoincrement value setter based on the column type.
+     * This is done once during construction when the autoincrement column is known.
+     */
+    private void chooseAutoIncrementValueSetter() {
+        switch (autoIncrementColumn.getType()) {
+            case Int:
+            case Unsigned:
+                logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterInt.");
+                autoIncrementValueSetter = autoIncrementValueSetterInt;
+                break;
+            case Bigint:
+            case Bigunsigned:
+                logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterBigint.");
+                autoIncrementValueSetter = autoIncrementValueSetterLong;
+                break;
+            case Smallint:
+            case Smallunsigned:
+                logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterSmallint.");
+                autoIncrementValueSetter = autoIncrementValueSetterShort;
+                break;
+            case Tinyint:
+            case Tinyunsigned:
+                logger.debug("chooseAutoIncrementValueSetter autoIncrementValueSetterTinyint.");
+                autoIncrementValueSetter = autoIncrementValueSetterByte;
+                break;
+            default: 
+                logger.error("chooseAutoIncrementValueSetter undefined.");
+                autoIncrementValueSetter = autoIncrementValueSetterError;
+                throw new ClusterJFatalInternalException(local.message("ERR_Unsupported_AutoIncrement_Column_Type",
+                        autoIncrementColumn.getType(), autoIncrementColumn.getName(), tableConst.getName()));
+        }
+    }
+
+    protected interface AutoIncrementValueSetter {
+        void set(ByteBuffer valueBuffer, long value);
+    }
+
+    protected AutoIncrementValueSetter autoIncrementValueSetterError = new AutoIncrementValueSetter() {
+        public void set(ByteBuffer valueBuffer, long value) {
+            throw new ClusterJFatalInternalException(local.message("ERR_No_AutoIncrement_Column",
+                    tableConst.getName()));
+        }
+    };
+
+    protected AutoIncrementValueSetter autoIncrementValueSetterInt = new AutoIncrementValueSetter() {
+        public void set(ByteBuffer valueBuffer, long value) {
+            if (logger.isDetailEnabled()) logger.detail("autoincrement set value: " + value);
+            if (value < 0 || value > Integer.MAX_VALUE) {
+                throw new ClusterJDatastoreException(local.message("ERR_AutoIncrement_Value_Out_Of_Range",
+                        value, autoIncrementColumn.getName(), tableConst.getName()));
+            }
+            setInt(valueBuffer, autoIncrementColumn, (int)value);
+        }
+    };
+
+    protected AutoIncrementValueSetter autoIncrementValueSetterLong = new AutoIncrementValueSetter() {
+        public void set(ByteBuffer valueBuffer, long value) {
+            if (logger.isDetailEnabled()) logger.detail("autoincrement set value: " + value);
+            if (value < 0) {
+                throw new ClusterJDatastoreException(local.message("ERR_AutoIncrement_Value_Out_Of_Range",
+                        value, autoIncrementColumn.getName(), tableConst.getName()));
+            }
+            setLong(valueBuffer, autoIncrementColumn, value);
+        }
+    };
+
+    protected AutoIncrementValueSetter autoIncrementValueSetterShort = new AutoIncrementValueSetter() {
+        public void set(ByteBuffer valueBuffer, long value) {
+            if (logger.isDetailEnabled()) logger.detail("autoincrement set value: " + value);
+            if (value < 0 || value > Short.MAX_VALUE) {
+                throw new ClusterJDatastoreException(local.message("ERR_AutoIncrement_Value_Out_Of_Range",
+                        value, autoIncrementColumn.getName(), tableConst.getName()));
+            }
+            setShort(valueBuffer, autoIncrementColumn, (short)value);
+        }
+    };
+
+    protected AutoIncrementValueSetter autoIncrementValueSetterByte = new AutoIncrementValueSetter() {
+        public void set(ByteBuffer valueBuffer, long value) {
+            if (logger.isDetailEnabled()) logger.detail("autoincrement set value: " + value);
+            if (value < 0 || value > Byte.MAX_VALUE) {
+                throw new ClusterJDatastoreException(local.message("ERR_AutoIncrement_Value_Out_Of_Range",
+                        value, autoIncrementColumn.getName(), tableConst.getName()));
+            }
+            setByte(valueBuffer, autoIncrementColumn, (byte)value);
+        }
+    };
 }

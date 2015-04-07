@@ -20,13 +20,22 @@
 
 "use strict";
 
-var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
+var stats = {
+	"wait_until_ready_timeouts" : 0 ,
+  "node_ids"                  : [],
+  "connections"               : { "successful" : 0, "failed" : 0 },
+  "connect"                   : { "join" : 0, "connect" : 0, "queued" : 0 },
+	"simultaneous_disconnects"  : 0  // this should always be zero
+};
+
+var path             = require("path"),
+    adapter          = require(path.join(mynode.fs.build_dir, "ndb_adapter.node")),
     udebug           = unified_debug.getLogger("NdbConnection.js"),
-    stats_module     = require(path.join(api_dir,"stats.js")),
-    stats            = stats_module.getWriter(["spi","ndb","NdbConnection"]),
+    stats_module     = require(mynode.api.stats),
     QueuedAsyncCall  = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     logReadyNodes;
 
+stats_module.register(stats, "spi","ndb","NdbConnection");
 
 /* NdbConnection represents a single connection to MySQL Cluster.
    This connection may be shared by multiple DBConnectionPool objects 
@@ -52,7 +61,7 @@ function NdbConnection(connectString) {
 function logReadyNodes(ndb_cluster_connection, nnodes) {
   var node_id;
   if(nnodes < 0) {
-    stats.incr( [ "wait_until_ready","timeouts" ] );
+    stats.wait_until_ready_timeouts++;
   }
   else {
     node_id = ndb_cluster_connection.node_id();
@@ -60,7 +69,7 @@ function logReadyNodes(ndb_cluster_connection, nnodes) {
       udebug.log_notice("Warning: only", nnodes, "data nodes are running.");
     }
     udebug.log_notice("Connected to cluster as node id:", node_id);
-    stats.push( [ "node_ids" ] , node_id);
+    stats.node_ids.push(node_id);
   }
   return nnodes;
 }
@@ -91,11 +100,11 @@ NdbConnection.prototype.connect = function(properties, callback) {
     var err;
     udebug.log("connect() onConnected rval =", rval);
     if(rval === 0) {
-      stats.incr( [ "connections","successful" ]);
+      stats.connections.successful++;
       self.ndb_cluster_connection.wait_until_ready(1, 1, onReady);
     }
     else {
-      stats.incr( [ "connections","failed" ]);
+      stats.connections.failed++;
       err = new Error(self.ndb_cluster_connection.get_latest_error_msg());
       err.sqlstate = "08000";
       runCallbacks(err, self);
@@ -104,19 +113,19 @@ NdbConnection.prototype.connect = function(properties, callback) {
   
   /* connect() starts here */
   if(this.isConnected) {
-    stats.incr( [ "connect", "join" ] );
+    stats.connect.join++;
     callback(null, this);
   }
   else {
     this.pendingConnections.push(callback);
     if(this.pendingConnections.length === 1) {
-      stats.incr( ["connect"] );
+      stats.connect.connect++;
       this.ndb_cluster_connection.connect(
         properties.ndb_connect_retries, properties.ndb_connect_delay,
         properties.ndb_connect_verbose, onConnected);
     }
     else {
-      stats.incr( [ "connect","queued" ] );
+      stats.connect.queued++;
     }
   }
 };
@@ -169,7 +178,7 @@ NdbConnection.prototype.close = function(userCallback) {
     disconnect();  /* Free Resources anyway */
   }
   else if(this.isDisconnecting) { 
-    stats.incr("very_strange_simultaneous_disconnects");
+    stats.simultaneous_disconnects++;  // a very unusual situation
   }
   else { 
     this.isDisconnecting = true;

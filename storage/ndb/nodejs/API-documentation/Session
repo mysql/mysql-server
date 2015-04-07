@@ -19,11 +19,15 @@
  * If keys cannot identify the primary key, property names corresponding to 
  * unique key columns will be used. If no complete primary or unique key 
  * properties are found, an error is reported.
+ * If the first parameter is a Projection, the find operation will return
+ * the object corresponding to the key. Additionally, the properties 
+ * defined in the projection as relationship properties will be fetched,
+ * recursively.
  *
  * For multi-column primary or unique keys, all key fields must be set.
  *
- * The returned object will be loaded based on the mapping and the current
- * values in the database.
+ * The returned object will be loaded based on the mapping, the Projection,
+ * and the current values in the database.
  *
  * This function returns a promise.  On success, the promise will be fulfilled 
  * with the found object.  The optional callback receives an error value and the 
@@ -32,7 +36,8 @@
  * the found instance value.
  *
  * @method find
- * @param constructor the constructor function of a mapped domain object
+ * @param constructorOrProjection the constructor function of a mapped domain object
+ * or a Projection object.
  * @param keys the instance to find in the database
  * @param callback function to be called when operation has completed, 
  *                 with parameters:
@@ -40,7 +45,7 @@
  *                    instance: the domain model object or null if not found
  * @return promise
  */
-find(Function constructor, Object keys, [callback], [...]);
+find(Function constructorOrProjection, Object keys, [callback], [...]);
 
 /** Find a specific instance based on primary or unique key value.
  * See other variant for semantics.
@@ -213,6 +218,10 @@ remove(String tableName, Object keys, [callback], [...]);
  * The primary key field is used to determine which instance is to be updated.
  * If the instance does not exist in the database, an error is reported.
  * This method cannot be used to change the primary key.
+ *
+ * To efficiently perform read/modify/write, the user should find the object,
+ * modify the fields to be updated, set the fields *not* to be updated
+ * to undefined, and call update on the object.
  *
  * This function returns a promise.  On success, the promise will be fulfilled.
  * The optional callback receives only an error value.  Any extra arguments 
@@ -489,8 +498,6 @@ listTables(databaseName, callback);
  */
 getTableMetadata(databaseName, tableName, callback);
 }
-
-
 
 /* 
  * Users may find useful a "user" property of session and batch.

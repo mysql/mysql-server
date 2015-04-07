@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -635,12 +635,44 @@ System.out.println(this.getClass().getName());
         return result.toString();
     }
 
+    /** Compare one byte array with another.
+     * @param expected the expected byte array
+     * @param actual the actual byte array
+     * @return String identifying the differences, or null if identical
+     */
+    public String compareBytes(byte[] expected, byte[] actual) {
+        StringBuffer mismatches = new StringBuffer();
+        if (expected == null && actual == null) {
+            return null;
+        }
+        if (expected != null && actual == null) {
+            return "compareBytes mismatch; expected: " + dumpBytes(expected) + "; actual: null";
+        }
+        if (expected.length != actual.length) {
+            return "compareBytes mismatch; expected: " + dumpBytes(expected) + "; actual: " + dumpBytes(actual);
+        }
+        // lengths are equal; compare values
+        for (int i = 0; i < expected.length; ++i) {
+            if (expected[i] != actual[i]) {
+                mismatches.append(i);
+                mismatches.append(' ');
+            }
+        }
+        if (mismatches.length() != 0) {
+            return "compareBytes mismatch; expected: " + dumpBytes(expected) + "; actual: " + dumpBytes(actual);
+        }
+        return null;
+    }
+
     /** Convert the byte[] into a String to be used for logging and debugging.
      * 
      * @param bytes the byte[] to be dumped
      * @return the String representation
      */
     public static String dumpBytes (byte[] bytes) {
+        if (bytes == null) {
+            return "(byte[])null";
+        }
         StringBuffer buffer = new StringBuffer("byte[");
         buffer.append(bytes.length);
         buffer.append("]: [");

@@ -71,11 +71,6 @@ Created 9/17/2000 Heikki Tuuri
 #include <deque>
 #include <vector>
 
-const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
-	"A new raw disk partition was initialized. We do not allow database"
-	" modifications by the user at this time.  Shut down mysqld and edit"
-	" my.cnf so that newraw is replaced with raw.";
-
 const char* MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
 	"innodb_force_recovery is on. We do not allow database modifications"
 	" by the user. Shut down mysqld and edit my.cnf to set"
@@ -1636,11 +1631,6 @@ row_insert_for_mysql_using_ins_graph(
 
 		return(DB_TABLESPACE_NOT_FOUND);
 
-	} else if (srv_sys_space.created_new_raw()) {
-
-		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-
-		return(DB_ERROR);
 	} else if (srv_force_recovery) {
 
 		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
@@ -2358,11 +2348,6 @@ row_update_for_mysql_using_upd_graph(
 		DBUG_RETURN(DB_ERROR);
 	}
 
-	if (srv_sys_space.created_new_raw()) {
-		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-		DBUG_RETURN(DB_ERROR);
-	}
-
 	if(srv_force_recovery) {
 		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
 		DBUG_RETURN(DB_READ_ONLY);
@@ -2910,19 +2895,6 @@ row_create_table_for_mysql(
 		goto err_exit;
 	);
 
-	if (srv_sys_space.created_new_raw()) {
-		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-
-err_exit:
-		dict_mem_table_free(table);
-
-		if (commit) {
-			trx_commit_for_mysql(trx);
-		}
-
-		return(DB_ERROR);
-	}
-
 	trx->op_info = "creating table";
 
 	if (row_mysql_is_system_table(table->name.m_name)) {
@@ -2930,7 +2902,16 @@ err_exit:
 		ib::error() << "Trying to create a MySQL system table "
 			<< table->name << " of type InnoDB. MySQL system"
 			" tables must be of the MyISAM type!";
-		goto err_exit;
+err_exit:
+		dict_mem_table_free(table);
+
+		if (commit) {
+			trx_commit_for_mysql(trx);
+		}
+
+		trx->op_info = "";
+
+		return(DB_ERROR);
 	}
 
 	trx_start_if_not_started_xa(trx, true);
@@ -3093,7 +3074,7 @@ row_create_index_for_mysql(
 						DICT_ERR_IGNORE_NONE);
 
 	} else {
-		++table->n_ref_count;
+		table->acquire();
 		ut_ad(dict_table_is_intrinsic(table));
 	}
 
@@ -3941,7 +3922,7 @@ row_drop_ancillary_fts_tables(
 	if (dict_table_has_fts_index(table)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 
-		ut_ad(table->n_ref_count == 0);
+		ut_ad(table->get_ref_count() == 0);
 		ut_ad(trx_is_started(trx));
 
 		dberr_t err = fts_drop_tables(trx, table);
@@ -4105,11 +4086,6 @@ row_drop_table_for_mysql(
 
 	ut_a(name != NULL);
 
-	if (srv_sys_space.created_new_raw()) {
-		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-		DBUG_RETURN(DB_ERROR);
-	}
-
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
@@ -4143,7 +4119,7 @@ row_drop_table_for_mysql(
 				DICT_ERR_IGNORE_INDEX_ROOT
 				| DICT_ERR_IGNORE_CORRUPT));
 	} else {
-		++table->n_ref_count;
+		table->acquire();
 		ut_ad(dict_table_is_intrinsic(table));
 	}
 
@@ -4308,13 +4284,13 @@ row_drop_table_for_mysql(
 	shouldn't have to. There should never be record locks on a table
 	that is going to be dropped. */
 
-	if (table->n_ref_count == 0) {
+	if (table->get_ref_count() == 0) {
 		/* We don't take lock on intrinsic table so nothing to remove.*/
 		if (!dict_table_is_intrinsic(table)) {
 			lock_remove_all_on_table(table, TRUE);
 		}
 		ut_a(table->n_rec_locks == 0);
-	} else if (table->n_ref_count > 0 || table->n_rec_locks > 0) {
+	} else if (table->get_ref_count() > 0 || table->n_rec_locks > 0) {
 		ibool	added;
 
 		ut_ad(!dict_table_is_intrinsic(table));
@@ -4918,7 +4894,7 @@ loop:
 		/* Wait until MySQL does not have any queries running on
 		the table */
 
-		if (table->n_ref_count > 0) {
+		if (table->get_ref_count() > 0) {
 			row_mysql_unlock_data_dictionary(trx);
 
 			ib::warn() << "MySQL is trying to drop database "
@@ -5071,11 +5047,7 @@ row_rename_table_for_mysql(
 	ut_a(new_name != NULL);
 	ut_ad(trx->state == TRX_STATE_ACTIVE);
 
-	if (srv_sys_space.created_new_raw()) {
-		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-		goto funct_exit;
-
-	} else if (srv_force_recovery) {
+	if (srv_force_recovery) {
 		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
 		err = DB_READ_ONLY;
 		goto funct_exit;

@@ -46,3 +46,49 @@ SHOW CREATE TABLE t3;
 DROP TABLE t1, t3;
 
 --echo End of 5.1 tests
+
+
+set @@auto_increment_increment=4;
+set @@auto_increment_offset=1;
+set @@ndb_autoincrement_prefetch_sz=2;
+create table t1 (a int unsigned not null primary key auto_increment)
+engine ndb;
+insert into t1 values ();
+insert into t1 values (2);
+insert into t1 values ();
+insert into t1 values ();
+select * from t1 order by a;
+drop table t1;
+
+
+
+set @@auto_increment_increment=2;
+set @@auto_increment_offset=1;
+
+--echo First look at default SE behaviour on manual insert unaligned with
+--echo offset + step
+
+create table t1 (a int unsigned not null primary key auto_increment);
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values(18);
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values(22);
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values(28);
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+insert into t1 values();
+show variables like 'LAST_INSERT_ID';
+select * from t1 order by a;
+drop table t1;

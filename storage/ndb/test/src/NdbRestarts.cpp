@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -257,6 +257,7 @@ int NdbRestarts::executeRestart(NDBT_Context* ctx,
   if (restarter.waitClusterStarted(120) != 0){
     // If cluster is not started when we shall peform restart
     // the restart can not be executed and the test fails
+    g_err << "Wait cluster start 120 secs failed" << endl;
     return NDBT_FAILED;
   }
   
@@ -272,7 +273,7 @@ int NdbRestarts::executeRestart(NDBT_Context* ctx,
 	    << endl;
   } else {
     if (restarter.waitClusterStarted(_timeout) != 0){
-      g_err<<"Cluster failed to start" << endl;
+      g_err << "Cluster failed to start, timeout = " << _timeout << endl;
       res = NDBT_FAILED; 
     }
   }
@@ -286,7 +287,11 @@ int NdbRestarts::executeRestart(NDBT_Context* ctx,
                                 int safety){
   const NdbRestarts::NdbRestart* r = getRestart(_num);
   if (r == NULL)
+  {
+    g_err << "No such restart variant, line: " << __LINE__;
+    g_err << " num: " << _num << endl;
     return NDBT_FAILED;
+  }
 
   int res = executeRestart(ctx, r, _timeout, safety);
   return res;
@@ -298,7 +303,11 @@ int NdbRestarts::executeRestart(NDBT_Context* ctx,
                                 int safety){
   const NdbRestarts::NdbRestart* r = getRestart(_name);
   if (r == NULL)
+  {
+    g_err << "No such restart variant, line: " << __LINE__;
+    g_err << " variant: " << _name << endl;
     return NDBT_FAILED;
+  }
 
   int res = executeRestart(ctx, r, _timeout, safety);
   return res;

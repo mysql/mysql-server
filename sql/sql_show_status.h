@@ -22,15 +22,15 @@
 class String;
 
 SELECT_LEX*
-build_show_global_status(const POS &pos, THD *thd, const String *wild);
+build_show_global_status(const POS &pos, THD *thd, const String *wild, Item *where_cond);
 
 SELECT_LEX*
-build_show_session_status(const POS &pos, THD *thd, const String *wild);
+build_show_session_status(const POS &pos, THD *thd, const String *wild, Item *where_cond);
 
 SELECT_LEX*
-build_show_global_variables(const POS &pos, THD *thd, const String *wild);
+build_show_global_variables(const POS &pos, THD *thd, const String *wild, Item *where_cond);
 
 SELECT_LEX*
-build_show_session_variables(const POS &pos, THD *thd, const String *wild);
+build_show_session_variables(const POS &pos, THD *thd, const String *wild, Item *where_cond);
 
 #endif /* SQL_SHOW_STATUS_H */

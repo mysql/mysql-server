@@ -1,0 +1,2720 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+Setup circular replication
+The circle is setup between Primary and Secondary
+Setup ndb_replication and t1 exceptions table
+Populate ndb_replication table
+create table test.t1$EX(
+ndb$server_id int unsigned,
+ndb$master_server_id int unsigned,
+ndb$master_epoch bigint unsigned,
+ndb$count int unsigned,
+k int not null,
+v$old int,
+v$new int,
+c$old varchar(2000),
+c$new varchar(2000),
+ndb$op_type           enum('write_row','update_row', 'delete_row') not null,
+ndb$cft_cause         enum('row_does_not_exist','row_already_exists','data_in_conflict','trans_in_conflict') not null,
+primary key(ndb$server_id, ndb$master_server_id, ndb$master_epoch, ndb$count)) 
+engine ndb;
+create table test.t1 (
+k int primary key,
+v int,
+c varchar(2000)) engine=ndb;
+Setup conflict roles
+--------------------
+STOP SLAVE;
+set global ndb_slave_conflict_role="PRIMARY";
+START SLAVE;
+STOP SLAVE;
+set global ndb_slave_conflict_role="SECONDARY";
+START SLAVE;
+Create some initial data
+------------------------
+insert into test.t1 values 
+(1,10, "Swimming"),
+(2,20, "Cycling"),
+(3,30, "Running"),
+(4,40, "Triathlon");
+Content on PRIMARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	30	Running
+4	40	Triathlon
+Content on SECONDARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	30	Running
+4	40	Triathlon
+Basic delete-delete cases
+-------------------------
+Stop Slave on SECONDARY
+STOP SLAVE;
+Delete row 3 on PRIMARY
+delete from t1 where k=3;
+Delete row 3 on SECONDARY
+delete from t1 where k=3;
+Insert replacement row on SECONDARY
+This is likely to go in the same SECONDARY epoch transaction
+insert into t1 values (3,31, "Judo");
+Wait for SECONDARY change to apply on PRIMARY
+Expect it to apply correctly here as the PRIMARY
+has no track of its outstanding DELETE
+
+PRIMARY content
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	40	Triathlon
+PRIMARY counters
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+1
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+1
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
+Re-enable SECONDARY Slave, and check state there
+START SLAVE;
+SECONDARY content
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	40	Triathlon
+SECONDARY counters
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+1
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+1
+Look at PRIMARY exceptions table content
+SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
+k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
+3	30	NULL	Running	NULL	delete_row	row_already_exists
+Now check behaviour of Secondary when reflected ops should not be applied
+-------------------------------------------------------------------------
+The interpreted program attached to reflected ops at the Secondary slave
+is intended to avoid an 'old' reflected op overwriting a 'new' locally
+inserted row value.  The end result should still be the same (the new
+value will be applied later, but we should avoid having every modification
+made at the secondary applied twice with some time lag as that will cause
+chaos for Secondary applications)
+Stop Slave on SECONDARY
+STOP SLAVE;
+Stop Slave on PRIMARY
+STOP SLAVE;
+Delete row 4 on PRIMARY
+DELETE from test.t1 where k=4;
+Primary state
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+Delete row 4 on SECONDARY
+DELETE from test.t1 where k=4;
+Follow with INSERT on SECONDARY
+INSERT into test.t1 values (4, 440, "Fell running");
+Secondary state : 
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Allow Primary change to propagate to Secondary
+(Which will delete the new, updated row on the Secondary)
+START SLAVE;
+Examine data on the SECONDARY - row 4 deleted
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+Now allow the SECONDARY Binlog to propagate back to the PRIMARY
+while blocking the return path...
+STOP SLAVE;
+START SLAVE;
+Examine data on the PRIMARY - row 4 exists
+as the PRIMARY's delete is not applied if present
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now stop the PRIMARY Slave - changes from the
+SECONDARY cannot now reach the PRIMARY
+STOP SLAVE;
+Now go back to the SECONDARY and create a new
+row version
+First show there is no row 4 on the SECONDARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+INSERT into test.t1 values (4, 4444, "Cyclo-cross");
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	4444	Cyclo-cross
+Now allow the Binlog of the PRIMARY (containing the
+reflected DELETE + Insert (4, 440, "Fell running")
+to be applied locally
+The SECONDARY should reject this application
+START SLAVE;
+Examine data on the SECONDARY : Row 4 should be untouched
+(4, 4444, "Cyclo-cross").
+Insert will be rejected as row already exists.
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	4444	Cyclo-cross
+Show operation counter diff on the SECONDARY
+Should show reflected op prepared + rejected.
+Should show equal, non-zero reflected op prep+reject counts
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Ok, now allow SECONDARY Binlog to propagate to Primary
+and realign it
+START SLAVE;
+Show data on PRIMARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Allow reflection back to the SECONDARY...
+Now show same for UPDATE, then DELETE
+-------------------------------------
+First stop SLAVEs
+STOP SLAVE;
+STOP SLAVE;
+Now perform UPDATE 1 at Secondary
+UPDATE test.t1 SET c="Bathing" where k=1;
+Show data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Bathing
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now propagate to Primary...
+START SLAVE;
+Updated data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Bathing
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now stop Primary slave to stop further propagation
+STOP SLAVE;
+Now make update 2 on Secondary
+update test.t1 SET c="Paddling" where k=1;
+Data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now allow Primary binlog, containing reflected update op
+setting column c of row 1 to "Bathing" to be applied
+it should be rejected by the Secondary, and increment
+the defined + rejected counts
+START SLAVE;
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+1
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now allow sync...
+START SLAVE;
+Allowing the sync should have allowed the second update
+(To 'Paddling') to be reflected, and rejected
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+1
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Show same for DELETE
+--------------------
+First stop SLAVEs
+STOP SLAVE;
+STOP SLAVE;
+Now perform DELETE of row 2 at Secondary
+DELETE from test.t1 where k=2;
+Show data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+3	31	Judo
+4	440	Fell running
+Data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now propagate to Primary...
+START SLAVE;
+Updated data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+3	31	Judo
+4	440	Fell running
+Now stop Primary slave to stop further propagation
+STOP SLAVE;
+Now make a further change on Secondary
+INSERT into test.t1 VALUES (2, 22, "Rock-climbing");
+Data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Now allow Primary binlog, containing reflected delete op
+on row 2 to be applied it should be rejected by the 
+Secondary, and increment the defined + rejected counts
+START SLAVE;
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now allow sync...
+START SLAVE;
+Allowing the sync should have allowed the insert
+(To 'Rock-climbing') to be reflected, and rejected
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Primary insert-delete obscures Secondary insert problem
+-------------------------------------------------------
+Stop slaves in both directions
+STOP SLAVE;
+STOP SLAVE;
+Start with non-existent row (5, 50, "Disco dancing") on primary
+insert into test.t1 values (5, 50, "Disco dancing");
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	50	Disco dancing
+Reset conflict counters on Primary
+Empty exceptions table on Primary
+DELETE from test.t1$EX;
+Insert non-existent row (5, 500, "Line dancing") on secondary
+insert into test.t1 values (5, 500, "Line dancing");
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	500	Line dancing
+Reset conflict counters on Secondary
+Allow Primary insert to trample Secondary insert.
+START SLAVE;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	50	Disco dancing
+Secondary now updates the row set by the Primary
+update test.t1 set v=v+5 where k=5;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Stop Secondary Slave again
+STOP SLAVE;
+Now delete row from the primary
+delete from test.t1 where k=5;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Now allow Secondary writes to propagate to Primary
+START SLAVE;
+Expect that the Secondary insert succeeded as no row existed
+on arrival, but then the secondary row was trampled by the
+primary, and then a secondary update was applied...
+So what do we see at the Primary?
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Show primary conflict info counter diff - expect nothing.
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Show primary's exceptions table content - expect there to be none.
+SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
+k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
+Now allow Primary changes to propagate back to Secondary
+START SLAVE;
+Look at Secondary content
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Look at Secondary conflict counters diff - showing 
+reflected ops applied on Secondary
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+1
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+1
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Iteration 3
+STOP SLAVE;
+DELETE FROM test.t1$EX;
+set global ndb_slave_conflict_role="SECONDARY";
+STOP SLAVE;
+DELETE FROM test.t1$EX;
+set global ndb_slave_conflict_role="PRIMARY";
+Setup S1 P2
+delete from test.t1;
+insert into test.t1 values 
+(1,10, "Swimming"),
+(2,20, "Cycling"),
+(3,30, "Running"),
+(4,40, "Triathlon");
+START SLAVE;
+START SLAVE;
+Content on PRIMARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	30	Running
+4	40	Triathlon
+Content on SECONDARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	30	Running
+4	40	Triathlon
+Basic delete-delete cases
+-------------------------
+Stop Slave on SECONDARY
+STOP SLAVE;
+Delete row 3 on PRIMARY
+delete from t1 where k=3;
+Delete row 3 on SECONDARY
+delete from t1 where k=3;
+Insert replacement row on SECONDARY
+This is likely to go in the same SECONDARY epoch transaction
+insert into t1 values (3,31, "Judo");
+Wait for SECONDARY change to apply on PRIMARY
+Expect it to apply correctly here as the PRIMARY
+has no track of its outstanding DELETE
+
+PRIMARY content
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	40	Triathlon
+PRIMARY counters
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+1
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+1
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
+Re-enable SECONDARY Slave, and check state there
+START SLAVE;
+SECONDARY content
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	40	Triathlon
+SECONDARY counters
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+1
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+1
+Look at PRIMARY exceptions table content
+SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
+k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
+3	30	NULL	Running	NULL	delete_row	row_already_exists
+Now check behaviour of Secondary when reflected ops should not be applied
+-------------------------------------------------------------------------
+The interpreted program attached to reflected ops at the Secondary slave
+is intended to avoid an 'old' reflected op overwriting a 'new' locally
+inserted row value.  The end result should still be the same (the new
+value will be applied later, but we should avoid having every modification
+made at the secondary applied twice with some time lag as that will cause
+chaos for Secondary applications)
+Stop Slave on SECONDARY
+STOP SLAVE;
+Stop Slave on PRIMARY
+STOP SLAVE;
+Delete row 4 on PRIMARY
+DELETE from test.t1 where k=4;
+Primary state
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+Delete row 4 on SECONDARY
+DELETE from test.t1 where k=4;
+Follow with INSERT on SECONDARY
+INSERT into test.t1 values (4, 440, "Fell running");
+Secondary state : 
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Allow Primary change to propagate to Secondary
+(Which will delete the new, updated row on the Secondary)
+START SLAVE;
+Examine data on the SECONDARY - row 4 deleted
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+Now allow the SECONDARY Binlog to propagate back to the PRIMARY
+while blocking the return path...
+STOP SLAVE;
+START SLAVE;
+Examine data on the PRIMARY - row 4 exists
+as the PRIMARY's delete is not applied if present
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now stop the PRIMARY Slave - changes from the
+SECONDARY cannot now reach the PRIMARY
+STOP SLAVE;
+Now go back to the SECONDARY and create a new
+row version
+First show there is no row 4 on the SECONDARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+INSERT into test.t1 values (4, 4444, "Cyclo-cross");
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	4444	Cyclo-cross
+Now allow the Binlog of the PRIMARY (containing the
+reflected DELETE + Insert (4, 440, "Fell running")
+to be applied locally
+The SECONDARY should reject this application
+START SLAVE;
+Examine data on the SECONDARY : Row 4 should be untouched
+(4, 4444, "Cyclo-cross").
+Insert will be rejected as row already exists.
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	4444	Cyclo-cross
+Show operation counter diff on the SECONDARY
+Should show reflected op prepared + rejected.
+Should show equal, non-zero reflected op prep+reject counts
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Ok, now allow SECONDARY Binlog to propagate to Primary
+and realign it
+START SLAVE;
+Show data on PRIMARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Allow reflection back to the SECONDARY...
+Now show same for UPDATE, then DELETE
+-------------------------------------
+First stop SLAVEs
+STOP SLAVE;
+STOP SLAVE;
+Now perform UPDATE 1 at Secondary
+UPDATE test.t1 SET c="Bathing" where k=1;
+Show data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Bathing
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now propagate to Primary...
+START SLAVE;
+Updated data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Bathing
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now stop Primary slave to stop further propagation
+STOP SLAVE;
+Now make update 2 on Secondary
+update test.t1 SET c="Paddling" where k=1;
+Data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now allow Primary binlog, containing reflected update op
+setting column c of row 1 to "Bathing" to be applied
+it should be rejected by the Secondary, and increment
+the defined + rejected counts
+START SLAVE;
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+1
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now allow sync...
+START SLAVE;
+Allowing the sync should have allowed the second update
+(To 'Paddling') to be reflected, and rejected
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+1
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Show same for DELETE
+--------------------
+First stop SLAVEs
+STOP SLAVE;
+STOP SLAVE;
+Now perform DELETE of row 2 at Secondary
+DELETE from test.t1 where k=2;
+Show data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+3	31	Judo
+4	440	Fell running
+Data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now propagate to Primary...
+START SLAVE;
+Updated data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+3	31	Judo
+4	440	Fell running
+Now stop Primary slave to stop further propagation
+STOP SLAVE;
+Now make a further change on Secondary
+INSERT into test.t1 VALUES (2, 22, "Rock-climbing");
+Data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Now allow Primary binlog, containing reflected delete op
+on row 2 to be applied it should be rejected by the 
+Secondary, and increment the defined + rejected counts
+START SLAVE;
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now allow sync...
+START SLAVE;
+Allowing the sync should have allowed the insert
+(To 'Rock-climbing') to be reflected, and rejected
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Primary insert-delete obscures Secondary insert problem
+-------------------------------------------------------
+Stop slaves in both directions
+STOP SLAVE;
+STOP SLAVE;
+Start with non-existent row (5, 50, "Disco dancing") on primary
+insert into test.t1 values (5, 50, "Disco dancing");
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	50	Disco dancing
+Reset conflict counters on Primary
+Empty exceptions table on Primary
+DELETE from test.t1$EX;
+Insert non-existent row (5, 500, "Line dancing") on secondary
+insert into test.t1 values (5, 500, "Line dancing");
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	500	Line dancing
+Reset conflict counters on Secondary
+Allow Primary insert to trample Secondary insert.
+START SLAVE;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	50	Disco dancing
+Secondary now updates the row set by the Primary
+update test.t1 set v=v+5 where k=5;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Stop Secondary Slave again
+STOP SLAVE;
+Now delete row from the primary
+delete from test.t1 where k=5;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Now allow Secondary writes to propagate to Primary
+START SLAVE;
+Expect that the Secondary insert succeeded as no row existed
+on arrival, but then the secondary row was trampled by the
+primary, and then a secondary update was applied...
+So what do we see at the Primary?
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Show primary conflict info counter diff - expect nothing.
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Show primary's exceptions table content - expect there to be none.
+SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
+k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
+Now allow Primary changes to propagate back to Secondary
+START SLAVE;
+Look at Secondary content
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Look at Secondary conflict counters diff - showing 
+reflected ops applied on Secondary
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+1
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+1
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Iteration 2
+STOP SLAVE;
+DELETE FROM test.t1$EX;
+set global ndb_slave_conflict_role="SECONDARY";
+STOP SLAVE;
+DELETE FROM test.t1$EX;
+set global ndb_slave_conflict_role="PRIMARY";
+Setup P1 S2
+delete from test.t1;
+insert into test.t1 values 
+(1,10, "Swimming"),
+(2,20, "Cycling"),
+(3,30, "Running"),
+(4,40, "Triathlon");
+START SLAVE;
+START SLAVE;
+Content on PRIMARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	30	Running
+4	40	Triathlon
+Content on SECONDARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	30	Running
+4	40	Triathlon
+Basic delete-delete cases
+-------------------------
+Stop Slave on SECONDARY
+STOP SLAVE;
+Delete row 3 on PRIMARY
+delete from t1 where k=3;
+Delete row 3 on SECONDARY
+delete from t1 where k=3;
+Insert replacement row on SECONDARY
+This is likely to go in the same SECONDARY epoch transaction
+insert into t1 values (3,31, "Judo");
+Wait for SECONDARY change to apply on PRIMARY
+Expect it to apply correctly here as the PRIMARY
+has no track of its outstanding DELETE
+
+PRIMARY content
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	40	Triathlon
+PRIMARY counters
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+1
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+1
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
+Re-enable SECONDARY Slave, and check state there
+START SLAVE;
+SECONDARY content
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	40	Triathlon
+SECONDARY counters
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+1
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+1
+Look at PRIMARY exceptions table content
+SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
+k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
+3	30	NULL	Running	NULL	delete_row	row_already_exists
+Now check behaviour of Secondary when reflected ops should not be applied
+-------------------------------------------------------------------------
+The interpreted program attached to reflected ops at the Secondary slave
+is intended to avoid an 'old' reflected op overwriting a 'new' locally
+inserted row value.  The end result should still be the same (the new
+value will be applied later, but we should avoid having every modification
+made at the secondary applied twice with some time lag as that will cause
+chaos for Secondary applications)
+Stop Slave on SECONDARY
+STOP SLAVE;
+Stop Slave on PRIMARY
+STOP SLAVE;
+Delete row 4 on PRIMARY
+DELETE from test.t1 where k=4;
+Primary state
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+Delete row 4 on SECONDARY
+DELETE from test.t1 where k=4;
+Follow with INSERT on SECONDARY
+INSERT into test.t1 values (4, 440, "Fell running");
+Secondary state : 
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Allow Primary change to propagate to Secondary
+(Which will delete the new, updated row on the Secondary)
+START SLAVE;
+Examine data on the SECONDARY - row 4 deleted
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+Now allow the SECONDARY Binlog to propagate back to the PRIMARY
+while blocking the return path...
+STOP SLAVE;
+START SLAVE;
+Examine data on the PRIMARY - row 4 exists
+as the PRIMARY's delete is not applied if present
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now stop the PRIMARY Slave - changes from the
+SECONDARY cannot now reach the PRIMARY
+STOP SLAVE;
+Now go back to the SECONDARY and create a new
+row version
+First show there is no row 4 on the SECONDARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+INSERT into test.t1 values (4, 4444, "Cyclo-cross");
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	4444	Cyclo-cross
+Now allow the Binlog of the PRIMARY (containing the
+reflected DELETE + Insert (4, 440, "Fell running")
+to be applied locally
+The SECONDARY should reject this application
+START SLAVE;
+Examine data on the SECONDARY : Row 4 should be untouched
+(4, 4444, "Cyclo-cross").
+Insert will be rejected as row already exists.
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	4444	Cyclo-cross
+Show operation counter diff on the SECONDARY
+Should show reflected op prepared + rejected.
+Should show equal, non-zero reflected op prep+reject counts
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Ok, now allow SECONDARY Binlog to propagate to Primary
+and realign it
+START SLAVE;
+Show data on PRIMARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Allow reflection back to the SECONDARY...
+Now show same for UPDATE, then DELETE
+-------------------------------------
+First stop SLAVEs
+STOP SLAVE;
+STOP SLAVE;
+Now perform UPDATE 1 at Secondary
+UPDATE test.t1 SET c="Bathing" where k=1;
+Show data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Bathing
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now propagate to Primary...
+START SLAVE;
+Updated data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Bathing
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now stop Primary slave to stop further propagation
+STOP SLAVE;
+Now make update 2 on Secondary
+update test.t1 SET c="Paddling" where k=1;
+Data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now allow Primary binlog, containing reflected update op
+setting column c of row 1 to "Bathing" to be applied
+it should be rejected by the Secondary, and increment
+the defined + rejected counts
+START SLAVE;
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+1
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now allow sync...
+START SLAVE;
+Allowing the sync should have allowed the second update
+(To 'Paddling') to be reflected, and rejected
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+1
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Show same for DELETE
+--------------------
+First stop SLAVEs
+STOP SLAVE;
+STOP SLAVE;
+Now perform DELETE of row 2 at Secondary
+DELETE from test.t1 where k=2;
+Show data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+3	31	Judo
+4	440	Fell running
+Data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now propagate to Primary...
+START SLAVE;
+Updated data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+3	31	Judo
+4	440	Fell running
+Now stop Primary slave to stop further propagation
+STOP SLAVE;
+Now make a further change on Secondary
+INSERT into test.t1 VALUES (2, 22, "Rock-climbing");
+Data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Now allow Primary binlog, containing reflected delete op
+on row 2 to be applied it should be rejected by the 
+Secondary, and increment the defined + rejected counts
+START SLAVE;
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now allow sync...
+START SLAVE;
+Allowing the sync should have allowed the insert
+(To 'Rock-climbing') to be reflected, and rejected
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Primary insert-delete obscures Secondary insert problem
+-------------------------------------------------------
+Stop slaves in both directions
+STOP SLAVE;
+STOP SLAVE;
+Start with non-existent row (5, 50, "Disco dancing") on primary
+insert into test.t1 values (5, 50, "Disco dancing");
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	50	Disco dancing
+Reset conflict counters on Primary
+Empty exceptions table on Primary
+DELETE from test.t1$EX;
+Insert non-existent row (5, 500, "Line dancing") on secondary
+insert into test.t1 values (5, 500, "Line dancing");
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	500	Line dancing
+Reset conflict counters on Secondary
+Allow Primary insert to trample Secondary insert.
+START SLAVE;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	50	Disco dancing
+Secondary now updates the row set by the Primary
+update test.t1 set v=v+5 where k=5;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Stop Secondary Slave again
+STOP SLAVE;
+Now delete row from the primary
+delete from test.t1 where k=5;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Now allow Secondary writes to propagate to Primary
+START SLAVE;
+Expect that the Secondary insert succeeded as no row existed
+on arrival, but then the secondary row was trampled by the
+primary, and then a secondary update was applied...
+So what do we see at the Primary?
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Show primary conflict info counter diff - expect nothing.
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Show primary's exceptions table content - expect there to be none.
+SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
+k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
+Now allow Primary changes to propagate back to Secondary
+START SLAVE;
+Look at Secondary content
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Look at Secondary conflict counters diff - showing 
+reflected ops applied on Secondary
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+1
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+1
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Iteration 1
+STOP SLAVE;
+DELETE FROM test.t1$EX;
+set global ndb_slave_conflict_role="SECONDARY";
+STOP SLAVE;
+DELETE FROM test.t1$EX;
+set global ndb_slave_conflict_role="PRIMARY";
+Setup S1 P2
+delete from test.t1;
+insert into test.t1 values 
+(1,10, "Swimming"),
+(2,20, "Cycling"),
+(3,30, "Running"),
+(4,40, "Triathlon");
+START SLAVE;
+START SLAVE;
+Content on PRIMARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	30	Running
+4	40	Triathlon
+Content on SECONDARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	30	Running
+4	40	Triathlon
+Basic delete-delete cases
+-------------------------
+Stop Slave on SECONDARY
+STOP SLAVE;
+Delete row 3 on PRIMARY
+delete from t1 where k=3;
+Delete row 3 on SECONDARY
+delete from t1 where k=3;
+Insert replacement row on SECONDARY
+This is likely to go in the same SECONDARY epoch transaction
+insert into t1 values (3,31, "Judo");
+Wait for SECONDARY change to apply on PRIMARY
+Expect it to apply correctly here as the PRIMARY
+has no track of its outstanding DELETE
+
+PRIMARY content
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	40	Triathlon
+PRIMARY counters
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+1
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+1
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
+Re-enable SECONDARY Slave, and check state there
+START SLAVE;
+SECONDARY content
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	40	Triathlon
+SECONDARY counters
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+1
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+1
+Look at PRIMARY exceptions table content
+SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
+k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
+3	30	NULL	Running	NULL	delete_row	row_already_exists
+Now check behaviour of Secondary when reflected ops should not be applied
+-------------------------------------------------------------------------
+The interpreted program attached to reflected ops at the Secondary slave
+is intended to avoid an 'old' reflected op overwriting a 'new' locally
+inserted row value.  The end result should still be the same (the new
+value will be applied later, but we should avoid having every modification
+made at the secondary applied twice with some time lag as that will cause
+chaos for Secondary applications)
+Stop Slave on SECONDARY
+STOP SLAVE;
+Stop Slave on PRIMARY
+STOP SLAVE;
+Delete row 4 on PRIMARY
+DELETE from test.t1 where k=4;
+Primary state
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+Delete row 4 on SECONDARY
+DELETE from test.t1 where k=4;
+Follow with INSERT on SECONDARY
+INSERT into test.t1 values (4, 440, "Fell running");
+Secondary state : 
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Allow Primary change to propagate to Secondary
+(Which will delete the new, updated row on the Secondary)
+START SLAVE;
+Examine data on the SECONDARY - row 4 deleted
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+Now allow the SECONDARY Binlog to propagate back to the PRIMARY
+while blocking the return path...
+STOP SLAVE;
+START SLAVE;
+Examine data on the PRIMARY - row 4 exists
+as the PRIMARY's delete is not applied if present
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now stop the PRIMARY Slave - changes from the
+SECONDARY cannot now reach the PRIMARY
+STOP SLAVE;
+Now go back to the SECONDARY and create a new
+row version
+First show there is no row 4 on the SECONDARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+INSERT into test.t1 values (4, 4444, "Cyclo-cross");
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	4444	Cyclo-cross
+Now allow the Binlog of the PRIMARY (containing the
+reflected DELETE + Insert (4, 440, "Fell running")
+to be applied locally
+The SECONDARY should reject this application
+START SLAVE;
+Examine data on the SECONDARY : Row 4 should be untouched
+(4, 4444, "Cyclo-cross").
+Insert will be rejected as row already exists.
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	4444	Cyclo-cross
+Show operation counter diff on the SECONDARY
+Should show reflected op prepared + rejected.
+Should show equal, non-zero reflected op prep+reject counts
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Ok, now allow SECONDARY Binlog to propagate to Primary
+and realign it
+START SLAVE;
+Show data on PRIMARY
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Allow reflection back to the SECONDARY...
+Now show same for UPDATE, then DELETE
+-------------------------------------
+First stop SLAVEs
+STOP SLAVE;
+STOP SLAVE;
+Now perform UPDATE 1 at Secondary
+UPDATE test.t1 SET c="Bathing" where k=1;
+Show data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Bathing
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Swimming
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now propagate to Primary...
+START SLAVE;
+Updated data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Bathing
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now stop Primary slave to stop further propagation
+STOP SLAVE;
+Now make update 2 on Secondary
+update test.t1 SET c="Paddling" where k=1;
+Data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now allow Primary binlog, containing reflected update op
+setting column c of row 1 to "Bathing" to be applied
+it should be rejected by the Secondary, and increment
+the defined + rejected counts
+START SLAVE;
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+1
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now allow sync...
+START SLAVE;
+Allowing the sync should have allowed the second update
+(To 'Paddling') to be reflected, and rejected
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+1
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Show same for DELETE
+--------------------
+First stop SLAVEs
+STOP SLAVE;
+STOP SLAVE;
+Now perform DELETE of row 2 at Secondary
+DELETE from test.t1 where k=2;
+Show data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+3	31	Judo
+4	440	Fell running
+Data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	20	Cycling
+3	31	Judo
+4	440	Fell running
+Now propagate to Primary...
+START SLAVE;
+Updated data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+3	31	Judo
+4	440	Fell running
+Now stop Primary slave to stop further propagation
+STOP SLAVE;
+Now make a further change on Secondary
+INSERT into test.t1 VALUES (2, 22, "Rock-climbing");
+Data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Now allow Primary binlog, containing reflected delete op
+on row 2 to be applied it should be rejected by the 
+Secondary, and increment the defined + rejected counts
+START SLAVE;
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now allow sync...
+START SLAVE;
+Allowing the sync should have allowed the insert
+(To 'Rock-climbing') to be reflected, and rejected
+Data on Secondary (should be unchanged)
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Conflict counts on Secondary (incremented preped + rejected)
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Primary insert-delete obscures Secondary insert problem
+-------------------------------------------------------
+Stop slaves in both directions
+STOP SLAVE;
+STOP SLAVE;
+Start with non-existent row (5, 50, "Disco dancing") on primary
+insert into test.t1 values (5, 50, "Disco dancing");
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	50	Disco dancing
+Reset conflict counters on Primary
+Empty exceptions table on Primary
+DELETE from test.t1$EX;
+Insert non-existent row (5, 500, "Line dancing") on secondary
+insert into test.t1 values (5, 500, "Line dancing");
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	500	Line dancing
+Reset conflict counters on Secondary
+Allow Primary insert to trample Secondary insert.
+START SLAVE;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	50	Disco dancing
+Secondary now updates the row set by the Primary
+update test.t1 set v=v+5 where k=5;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Stop Secondary Slave again
+STOP SLAVE;
+Now delete row from the primary
+delete from test.t1 where k=5;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+Now allow Secondary writes to propagate to Primary
+START SLAVE;
+Expect that the Secondary insert succeeded as no row existed
+on arrival, but then the secondary row was trampled by the
+primary, and then a secondary update was applied...
+So what do we see at the Primary?
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Show primary conflict info counter diff - expect nothing.
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Show primary's exceptions table content - expect there to be none.
+SELECT k, v$old, v$new, c$old, c$new, ndb$op_type, ndb$cft_cause from test.t1$EX order by ndb$count;
+k	v$old	v$new	c$old	c$new	ndb$op_type	ndb$cft_cause
+Now allow Primary changes to propagate back to Secondary
+START SLAVE;
+Look at Secondary content
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Look at Secondary conflict counters diff - showing 
+reflected ops applied on Secondary
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+1
+any_reflected_ops_applied
+1
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+1
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Now test SCR_PASS
+-----------------
+SCR_PASS is a slave conflict role which should act as a
+filterless pass-through of replication events, with no
+conflict detection etc.  The idea is that it might be
+useful for failover situations etc.
+Here we test that it does not detect conflicts, and
+allows divergence etc.
+Lets set it up
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+set global ndb_slave_conflict_role="PASS";
+START SLAVE;
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+set global ndb_slave_conflict_role="PASS";
+START SLAVE;
+Initial data on Primary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+Initial data on Secondary
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Judo
+4	440	Fell running
+5	55	Disco dancing
+STOP SLAVE on Secondary
+STOP SLAVE;
+Create a conflict between two updates
+First at the primary
+update test.t1 set c="Capoiera" where c="Judo";
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Capoiera
+4	440	Fell running
+5	55	Disco dancing
+Now at the secondary
+update test.t1 set c="Wing chun" where c="Judo";
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Wing chun
+4	440	Fell running
+5	55	Disco dancing
+Now restart the secondary slave and allow propagation
+START SLAVE;
+Synchronise
+Now look at primary content and conflict counters
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Wing chun
+4	440	Fell running
+5	55	Disco dancing
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now look at secondary content and conflict counters
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Capoiera
+4	440	Fell running
+5	55	Disco dancing
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now look at how row existence errors are handled
+PRIMARY
+insert into test.t1 values (6, 60, "Cigars");
+insert into test.t1 values (7, 70, "Whisky");
+Synchronise
+Cause misalignment via 'secret' deletes.
+PRIMARY
+set sql_log_bin=0;
+delete from test.t1 where k=7;
+set sql_log_bin=1;
+SECONDARY
+set sql_log_bin=0;
+delete from test.t1 where k=6;
+set sql_log_bin=1;
+Synchronise
+Show start state
+Primary :
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Wing chun
+4	440	Fell running
+5	55	Disco dancing
+6	60	Cigars
+Secondary :
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Capoiera
+4	440	Fell running
+5	55	Disco dancing
+7	70	Whisky
+Now insert a row on the Secondary which already
+exists on the Primary
+insert into test.t1 values (6,66, "Snuff");
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Capoiera
+4	440	Fell running
+5	55	Disco dancing
+6	66	Snuff
+7	70	Whisky
+Show that the primary was overwritten with the Secondary's
+value, and no conflict reported.
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Wing chun
+4	440	Fell running
+5	55	Disco dancing
+6	66	Snuff
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Same for a Secondary sourced update of a row
+which doesn't exist on the primary.
+update test.t1 set c="Tawny Port" where c="Whisky";
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Capoiera
+4	440	Fell running
+5	55	Disco dancing
+6	66	Snuff
+7	70	Tawny Port
+Show state on Primary.  No row, but also no conflicts
+or slave errors.
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Wing chun
+4	440	Fell running
+5	55	Disco dancing
+6	66	Snuff
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Now show a row delete from the secondary for
+a row which does not exist on the primary
+delete from test.t1 where k=7;
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Capoiera
+4	440	Fell running
+5	55	Disco dancing
+6	66	Snuff
+Show state on Primary.  No conflicts or slave errors
+select * from test.t1 order by k;
+k	v	c
+1	10	Paddling
+2	22	Rock-climbing
+3	31	Wing chun
+4	440	Fell running
+5	55	Disco dancing
+6	66	Snuff
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+0
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+0
+conflict_handling_in_progess
+0
+stable_epoch_is_older_than_max_replicated
+0
+Remove inconsistencies from the table
+delete from test.t1 where k in (3, 6);
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+set global ndb_slave_conflict_role="PRIMARY";
+START SLAVE;
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+set global ndb_slave_conflict_role="SECONDARY";
+START SLAVE;
+Test ndb_conflict_last_stable_epoch
+This status var is intended to help in situations
+where there is an unexpected PRIMARY failure, and
+the SECONDARY can determine that there were in-flight
+realignment ops (conflicts), based on 
+ndb_conflict_last_conflict_epoch > 
+ndb_slave_max_replicated_epoch
+ndb_conflict_last_stable_epoch will contain the 
+last (highest) SECONDARY epoch which is known
+to have replicated via the PRIMARY with no
+conflicts being discovered.  This is then
+a consistent baseline from which to potentially
+resolve any partial realignments.
+How to resolve them is an exercise left for
+the reader :)
+Testcase to show the variable in action
+Stop SECONDARY slave
+STOP SLAVE;
+Change on Primary, won't propagate to Secondary as SLAVE is stopped.
+update test.t1 set c="Loafing" where k=1;
+Conflicting change on Secondary
+update test.t1 set c="Idling" where k=1;
+Add some epochs after the conflicting modification
+insert into t1 values (10 + 10, 10, "Sequencing");
+insert into t1 values (9 + 10, 10, "Sequencing");
+insert into t1 values (8 + 10, 10, "Sequencing");
+insert into t1 values (7 + 10, 10, "Sequencing");
+insert into t1 values (6 + 10, 10, "Sequencing");
+insert into t1 values (5 + 10, 10, "Sequencing");
+insert into t1 values (4 + 10, 10, "Sequencing");
+insert into t1 values (3 + 10, 10, "Sequencing");
+insert into t1 values (2 + 10, 10, "Sequencing");
+insert into t1 values (1 + 10, 10, "Sequencing");
+Now look at Secondary values, should have
+Max_Replicated_Epoch == Last_Stable_Epoch
+Expect 1,0,1 - all is well.
+SELECT (@ndb_last_conflict_epoch+0) <= (@ndb_max_replicated_epoch+0) AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SECONDARY_IS_CURRENTLY_CONFLICT_FREE
+1
+SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH
+0
+SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
+1
+Stop PRIMARY slave just to have control
+STOP SLAVE;
+Conflict algorithm counter diff :
+ndb_conflict_fn_epoch2
+1
+ndb_conflict_fn_epoch2_trans
+0
+ndb_conflict_trans_reject_count
+0
+ndb_conflict_epoch_delete_delete_count
+0
+ndb_conflict_refresh_op_count
+0
+reflected_op_prepare_count_greater_than_zero
+0
+any_reflected_ops_applied
+0
+last_conflict_epoch_increased
+1
+conflict_handling_in_progess
+1
+stable_epoch_is_older_than_max_replicated
+0
+Now Start SECONDARY slave, to get conflict realignment
+and following SECONDARY epochs re-applied on the SEOCNDARY
+START SLAVE;
+Now look at variables on the SECONDARY again
+Expect 0,1,0 - Conflict handling open, stable epoch is old, most recent
+replicated epochs are not yet stable.
+SELECT (@ndb_last_conflict_epoch+0) <= (@ndb_max_replicated_epoch+0) AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SECONDARY_IS_CURRENTLY_CONFLICT_FREE
+0
+SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH
+1
+SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
+0
+Now make a SECONDARY change and allow it to flow
+START SLAVE;
+delete from test.t1 where k >=10;
+Now look at variables on the SECONDARY for third time
+Expect 1,0,1 - stability has returned
+SELECT (@ndb_last_conflict_epoch+0) <= (@ndb_max_replicated_epoch+0) AS SECONDARY_IS_CURRENTLY_CONFLICT_FREE;
+SECONDARY_IS_CURRENTLY_CONFLICT_FREE
+1
+SELECT (@ndb_last_stable_epoch+0) < (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_LAGS_MAX_REPLICATED_EPOCH
+0
+SELECT (@ndb_last_stable_epoch+0) = (@ndb_max_replicated_epoch+0) AS STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH;
+STABLE_EPOCH_IS_MAX_REPLICATED_EPOCH
+1
+Done.
+Cleanup conflict roles
+--------------------
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+START SLAVE;
+STOP SLAVE;
+set global ndb_slave_conflict_role="NONE";
+START SLAVE;
+stop slave;
+reset slave;
+drop table test.t1;
+drop table test.t1$EX;
+drop table mysql.ndb_replication;
+include/rpl_end.inc

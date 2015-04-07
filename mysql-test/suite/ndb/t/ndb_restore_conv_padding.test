@@ -12,6 +12,11 @@
 # mysqld's configuration is not relevant to this test
 -- source include/not_embedded.inc
 
+# Turn off STRICT sql_mode since test intentionally truncates
+# data when preparing the test data(those offending statements
+# are within enable/disable_warnings)
+--source suite/ndb/include/turn_off_strict_sql_mode.inc
+
 --echo ************************************************************
 --echo * Creating table with char+binary types
 --echo ************************************************************
@@ -263,3 +268,5 @@ DROP TABLE t3_myisam;
 --echo ************************************************************
 
 DROP TABLE t3;
+
+--source suite/ndb/include/restore_sql_mode_after_turn_off_strict.inc

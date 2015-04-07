@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 768;
+const GlobalSignalNumber MAX_GSN = 782;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -841,9 +841,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_LCP_STATUS_CONF             616
 #define GSN_LCP_STATUS_REF              617
 
-#define GSN_618
-#define GSN_619
-#define GSN_620
+#define GSN_CHECK_NODE_RESTARTREQ       618
+#define GSN_CHECK_NODE_RESTARTCONF      619
+
+#define GSN_GET_CPU_USAGE_REQ           620
 #define GSN_621
 #define GSN_622
 #define GSN_623
@@ -1090,4 +1091,22 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_INDEX_STAT_IMPL_REF         655
 #define GSN_INDEX_STAT_REP              656
 
+#define GSN_NODE_STARTED_REP            769
+
+#define GSN_PAUSE_LCP_REQ               770
+#define GSN_PAUSE_LCP_CONF              771
+#define GSN_FLUSH_LCP_REP_REQ           772
+#define GSN_FLUSH_LCP_REP_CONF          773
+
+#define GSN_ISOLATE_ORD                 774
+
+/* 775 free, never used in released version */
+
+#define GSN_ALLOC_NODEID_REP            776
+#define GSN_INCL_NODE_HB_PROTOCOL_REP   777
+#define GSN_NDBCNTR_START_WAIT_REP      778
+#define GSN_NDBCNTR_STARTED_REP         779
+#define GSN_SUMA_HANDOVER_COMPLETE_REP  780
+#define GSN_END_TOREP                   781
+#define GSN_LOCAL_RECOVERY_COMP_REP     782
 #endif

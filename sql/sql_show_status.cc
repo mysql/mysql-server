@@ -43,7 +43,8 @@ build_query(const POS &pos,
             THD *thd,
             enum_sql_command command,
             const LEX_STRING& table_name,
-            const String *wild)
+            const String *wild,
+            Item *where_cond)
 {
   /*
     MAINTAINER:
@@ -184,8 +185,13 @@ build_query(const POS &pos,
     if (where_clause == NULL)
       return NULL;
   }
+  else
+  {
+    where_clause= where_cond;
+  }
 
   /* SELECT ... [ WHERE Variable_name LIKE <value> ] */
+  /* SELECT ... [ WHERE <cond> ] */
   PT_select_part2 *select_part2;
   select_part2= new (thd->mem_root) PT_select_part2(options_and_item_list,
                                                     NULL, /* opt_into */
@@ -227,34 +233,34 @@ build_query(const POS &pos,
 }
 
 SELECT_LEX*
-build_show_session_status(const POS &pos, THD *thd, const String *wild)
+build_show_session_status(const POS &pos, THD *thd, const String *wild, Item *where_cond)
 {
   static const LEX_STRING table_name= { C_STRING_WITH_LEN("session_status")};
 
-  return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild);
+  return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild, where_cond);
 }
 
 SELECT_LEX*
-build_show_global_status(const POS &pos, THD *thd, const String *wild)
+build_show_global_status(const POS &pos, THD *thd, const String *wild, Item *where_cond)
 {
   static const LEX_STRING table_name= { C_STRING_WITH_LEN("global_status")};
 
-  return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild);
+  return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild, where_cond);
 }
 
 SELECT_LEX*
-build_show_session_variables(const POS &pos, THD *thd, const String *wild)
+build_show_session_variables(const POS &pos, THD *thd, const String *wild, Item *where_cond)
 {
   static const LEX_STRING table_name= { C_STRING_WITH_LEN("session_variables")};
 
-  return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild);
+  return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild, where_cond);
 }
 
 SELECT_LEX*
-build_show_global_variables(const POS &pos, THD *thd, const String *wild)
+build_show_global_variables(const POS &pos, THD *thd, const String *wild, Item *where_cond)
 {
   static const LEX_STRING table_name= { C_STRING_WITH_LEN("global_variables")};
 
-  return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild);
+  return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild, where_cond);
 }
 
