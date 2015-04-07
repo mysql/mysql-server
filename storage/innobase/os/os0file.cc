@@ -3627,8 +3627,9 @@ os_file_get_status_posix(
 		stat_info->type = OS_FILE_TYPE_LINK;
 		break;
 	case S_IFBLK:
-		stat_info->type = OS_FILE_TYPE_BLOCK;
-		break;
+		/* Handle block device as regular file. */
+	case S_IFCHR:
+		/* Handle character device as regular file. */
 	case S_IFREG:
 		stat_info->type = OS_FILE_TYPE_FILE;
 		break;
