@@ -157,11 +157,13 @@ public:
 
 	/** Open or create the data files
 	@param[in]  is_temp		whether this is a temporary tablespace
+	@param[in]  create_new_db	whether we are creating a new database
 	@param[out] sum_new_sizes	sum of sizes of the new files added
 	@param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
 	@return DB_SUCCESS or error code */
 	dberr_t open_or_create(
 		bool	is_temp,
+		bool	create_new_db,
 		ulint*	sum_new_sizes,
 		lsn_t*	flush_lsn)
 		__attribute__((warn_unused_result));
@@ -195,8 +197,9 @@ private:
 	dberr_t file_not_found(Datafile& file, bool* create_new_db);
 
 	/** Note that the data file was found.
-	@param[in,out]	file	data file object */
-	void file_found(Datafile& file);
+	@param[in,out]	file	data file object
+	@return true if a new instance to be created */
+	bool file_found(Datafile& file);
 
 	/** Create a data file.
 	@param[in,out]	file	data file object
