@@ -5945,6 +5945,12 @@ btr_estimate_number_of_different_key_vals(
 	ulint*		offsets_rec	= NULL;
 	ulint*		offsets_next_rec = NULL;
 
+	/* For spatial index, there is no such stats can be
+	fetched. */
+	if (dict_index_is_spatial(index)) {
+		return(false);
+	}
+
 	n_cols = dict_index_get_n_unique(index);
 
 	heap = mem_heap_create((sizeof *n_diff + sizeof *n_not_null)
