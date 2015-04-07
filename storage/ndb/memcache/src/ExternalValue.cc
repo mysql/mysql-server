@@ -512,16 +512,16 @@ bool ExternalValue::insertParts(char * val, size_t val_length, int nparts, int o
   
   if(key_buffer == 0 || row_buffer == 0) 
     return false;
-  
+
   size_t this_part_size = part_size;
-  for(int i = 0 ; i < nparts ; i++) {
-    if(i == (nparts - 1)) 
-      this_part_size = val_length % part_size;
-    
+  size_t nleft = val_length;
+  int i = 0;
+  while(nleft) {
+    this_part_size = (nleft > part_size ? part_size : nleft);
+
     const char * start = val + (i * part_size);
     
     Operation part_op(ext_plan);
-
     part_op.key_buffer = key_buffer + (i * key_size);
     part_op.buffer = row_buffer + (i * row_size);
     
@@ -534,6 +534,9 @@ bool ExternalValue::insertParts(char * val, size_t val_length, int nparts, int o
     part_op.setColumn(COL_STORE_VALUE, start, this_part_size);
     
     part_op.insertTuple(tx);
+
+    nleft -= this_part_size;
+    i++;
   }
   if(this_part_size == part_size) {
     DEBUG_PRINT("%d parts of size %d exactly", nparts, part_size);
@@ -721,8 +724,8 @@ void ExternalValue::prepend() {
 
   char * new_value = (char *) memory_pool_alloc(pool, new_hdr.length);
   memcpy(new_value, affix_val, affix_len);
-  memcpy(new_value + affix_len, value, old_hdr.length);
-  
+  readLongValueIntoBuffer(new_value + affix_len);
+
   /* It's OK to overwrite the old pointer; readParts() allocated it from a pool
      and the pool still knows to free it */
   value = new_value;
@@ -793,6 +796,19 @@ void ExternalValue::warnMissingParts() const {
 }
 
 
+int ExternalValue::readLongValueIntoBuffer(char * buf) const {
+  int row_size = pad8(ext_plan->val_record->rec_size);
+  int ncopied = 0;
+
+  /* Copy all of the parts */
+  for(int i = 0 ; i < old_hdr.nparts; i++) {
+    Operation op(ext_plan, value + (row_size * i));
+    ncopied += op.copyValue(COL_STORE_VALUE, buf + ncopied);
+  }
+  return ncopied;
+}
+
+
 void ExternalValue::build_hash_item() const {
   struct default_engine * se =  (struct default_engine *) 
     wqitem->pipeline->engine->m_default_engine;
@@ -801,24 +817,15 @@ void ExternalValue::build_hash_item() const {
   hash_item * item = item_alloc(se, wqitem->key, wqitem->base.nkey, 
                                 wqitem->math_flags, 
                                 expire_time.local_cache_expire_time,
-                                new_hdr.length + 3, wqitem->cookie);
+                                old_hdr.length + 3, wqitem->cookie);
   
   if(item) {
     /* Now populate the item with the result */
-    size_t ncopied = 0;
     memcpy(hash_item_get_key(item), wqitem->key, wqitem->base.nkey); // the key
     
-    size_t last_part_size = new_hdr.length - ((new_hdr.nparts - 1) * new_hdr.part_size);
-    int row_size = pad8(ext_plan->val_record->rec_size);
     char * data_ptr = hash_item_get_data(item);
-    
-    /* Copy all of the parts */
-    for(int i = 0 ; i < new_hdr.nparts; i++) {
-      size_t len = (i == new_hdr.nparts-1 ? last_part_size : new_hdr.part_size);
-      memcpy(data_ptr + ncopied, value + (row_size * i), len);
-      ncopied += len;       
-    }
-    
+    size_t ncopied = readLongValueIntoBuffer(data_ptr);
+
     /* Append \r\n\0 */
     * (data_ptr + ncopied)     = '\r';
     * (data_ptr + ncopied + 1) = '\n';
