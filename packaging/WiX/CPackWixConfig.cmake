@@ -16,6 +16,11 @@
 SET(CPACK_COMPONENTS_USED 
     "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts")
 
+IF("${VERSION}" MATCHES "-ndb-")
+  MESSAGE(STATUS "This is Cluster build, append additional components")
+  SET(CPACK_COMPONENTS_USED
+    "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")a
+ENDIF()
 
 # Some components like Embedded are optional
 # We will build MSI without embedded if it was not selected for build
@@ -99,3 +104,41 @@ SET(CPACK_COMPONENT_GROUP_MISC_HIDDEN 1)
 SET(CPACK_COMPONENT_GROUP_MISC_WIX_LEVEL 100)
   SET(CPACK_COMPONENT_INIFILES_GROUP "Misc")
   SET(CPACK_COMPONENT_SERVER_SCRIPTS_GROUP "Misc")
+
+IF("${VERSION}" MATCHES "-ndb-")
+  MESSAGE(STATUS "This is Cluster build, define additional components")
+  #Feature "Cluster"
+  SET(CPACK_COMPONENT_GROUP_CLUSTER_DISPLAY_NAME "MySQL Cluster")
+  SET(CPACK_COMPONENT_GROUP_CLUSTER_DESCRIPTION "Installs MySQL Cluster")
+
+  #Subfeature "ClusterTools"
+  SET(CPACK_COMPONENT_CLUSTERTOOLS_GROUP "Cluster")
+  SET(CPACK_COMPONENT_CLUSTERTOOLS_DISPLAY_NAME "Cluster Tools")
+  SET(CPACK_COMPONENT_CLUSTERTOOLS_DESCRIPTION "Installs Cluster Tools")
+
+  #Subfeature "Cluster Storage Engines"
+  SET(CPACK_COMPONENT_CLUSTERDATANODE_GROUP "Cluster")
+  SET(CPACK_COMPONENT_CLUSTERDATANODE_DISPLAY_NAME "Cluster Storage Engines")
+  SET(CPACK_COMPONENT_CLUSTERDATANODE_DESCRIPTION "Installs Cluster Storage Engines")
+
+  #Subfeature "Cluster Management Server"
+  SET(CPACK_COMPONENT_CLUSTERMANAGEMENTSERVER_GROUP "Cluster")
+  SET(CPACK_COMPONENT_CLUSTERMANAGEMENTSERVER_DISPLAY_NAME "Cluster Management Server")
+  SET(CPACK_COMPONENT_CLUSTERMANAGEMENTSERVER_DESCRIPTION "Installs Cluster Management Server")
+
+  #Subfeature "Cluster Management Client"^M
+  SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_GROUP "Cluster")
+  SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_DISPLAY_NAME "Cluster Management Client")
+  SET(CPACK_COMPONENT_CLUSTERMANAGEMENTCLIENT_DESCRIPTION "Installs Cluster Management Client")
+
+  #Subfeature "ClusterJ"
+  SET(CPACK_COMPONENT_CLUSTERJ_GROUP "Devel")
+  SET(CPACK_COMPONENT_CLUSTERJ_DISPLAY_NAME "ClusterJ Java Connector for Cluster")
+  SET(CPACK_COMPONENT_CLUSTERJ_DESCRIPTION "Installs ClusterJ")
+
+  #Subfeature "nodejs"
+  SET(CPACK_COMPONENT_NODEJS_GROUP "Devel")
+  SET(CPACK_COMPONENT_NODEJS_DISPLAY_NAME "nodejs Connector for Cluster")
+  SET(CPACK_COMPONENT_NODEJS_DESCRIPTION "Installs nodejs connector")
+ENDIF()
+

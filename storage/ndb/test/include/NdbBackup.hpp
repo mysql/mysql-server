@@ -34,7 +34,7 @@ public:
 	    unsigned int user_backup_id= 0,
 	    unsigned int logtype= 0);
   int start() { unsigned unused =0; return start(unused); }
-  int restore(unsigned _backup_id, bool restore_meta = true);
+  int restore(unsigned _backup_id, bool restore_meta = true, bool restore_data = true, unsigned error_insert = 0);
 
   int NFMaster(NdbRestarter& _restarter);
   int NFMasterAsSlave(NdbRestarter& _restarter);
@@ -56,7 +56,8 @@ private:
   int execRestore(bool _restore_data,
 		  bool _restore_meta,
 		  int _node_id,
-		  unsigned _backup_id);
+		  unsigned _backup_id,
+                  unsigned error_insert=0);
 
   const char * getBackupDataDirForNode(int _node_id);
   NdbLogEventHandle log_handle;

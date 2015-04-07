@@ -1,18 +1,12 @@
 SHOW GLOBAL VARIABLES WHERE Variable_name LIKE "abc";
 Variable_name	Value
-Warnings:
-Warning	1287	'SHOW GLOBAL VARIABLES WHERE' is deprecated and will be removed in a future release. Please use SHOW GLOBAL VARIABLES [LIKE] instead
 SHOW GLOBAL VARIABLES LIKE "abc";
 Variable_name	Value
 SHOW SESSION VARIABLES WHERE Variable_name LIKE "abc";
 Variable_name	Value
-Warnings:
-Warning	1287	'SHOW SESSION VARIABLES WHERE' is deprecated and will be removed in a future release. Please use SHOW SESSION VARIABLES [LIKE] instead
 SHOW SESSION VARIABLES LIKE "abc";
 Variable_name	Value
 SHOW VARIABLES WHERE Variable_name LIKE "abc";
 Variable_name	Value
-Warnings:
-Warning	1287	'SHOW SESSION VARIABLES WHERE' is deprecated and will be removed in a future release. Please use SHOW SESSION VARIABLES [LIKE] instead
 SHOW VARIABLES LIKE "abc";
 Variable_name	Value

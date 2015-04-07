@@ -27,8 +27,14 @@ public:
   Ndb_internal() {}
   virtual ~Ndb_internal() {}
 
-  static int send_event_report(bool has_lock, Ndb *ndb, Uint32*data,Uint32 len);
+  static int send_event_report(bool is_poll_owner,
+                               Ndb *ndb,
+                               Uint32*data,
+                               Uint32 len);
   static void setForceShortRequests(Ndb*, bool val);
+  static void set_TC_COMMIT_ACK_immediate(Ndb*, bool flag);
+  static int send_dump_state_all(Ndb*,
+                                 Uint32 *dumpStateCodeArray,
+                                 Uint32 len);
 };
-
 #endif

@@ -2081,17 +2081,16 @@ const char *print_slave_db_safe(const char* db)
   FALSE        not network error
 */
 
-bool is_network_error(uint errorno)
-{ 
-  if (errorno == CR_CONNECTION_ERROR || 
+static bool is_network_error(uint errorno)
+{
+  return errorno == CR_CONNECTION_ERROR ||
       errorno == CR_CONN_HOST_ERROR ||
       errorno == CR_SERVER_GONE_ERROR ||
       errorno == CR_SERVER_LOST ||
       errorno == ER_CON_COUNT_ERROR ||
-      errorno == ER_SERVER_SHUTDOWN)
-    return TRUE;
-
-  return FALSE;   
+      errorno == ER_SERVER_SHUTDOWN ||
+      errorno == ER_NET_READ_INTERRUPTED ||
+      errorno == ER_NET_WRITE_INTERRUPTED;
 }
 
 
@@ -2185,7 +2184,7 @@ io_thread_init_command(Master_info *mi, const char *query, int allowed_error,
   @param  mysql MYSQL to request uuid from master.
   @param  mi    Master_info to set master_uuid
 
-  @return 0: Success, 1: Fatal error, 2: Network error.
+  @return 0: Success, 1: Fatal error, 2: Transient network error.
  */
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
 {
@@ -2230,7 +2229,7 @@ err:
   @param  mysql MYSQL to request uuid from master.
   @param  mi    Master_info to set master_uuid
 
-  @return 0: Success, 1: Fatal error, 2: Network error.
+  @return 0: Success, 1: Fatal error, 2: Transient network error.
 */
 static int get_master_uuid(MYSQL *mysql, Master_info *mi)
 {
@@ -2569,6 +2568,12 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                   };);
   master_res= NULL;
   master_row= NULL;
+  DBUG_EXECUTE_IF("get_master_server_id.ER_NET_READ_INTERRUPTED",
+                  {
+                    DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+                    DBUG_SET("-d,get_master_server_id."
+                             "ER_NET_READ_INTERRUPTED");
+                  });
   if (!mysql_real_query(mysql,
                         STRING_WITH_LEN("SHOW GLOBAL VARIABLES LIKE 'SERVER_ID'")) &&
       (master_res= mysql_store_result(mysql)) &&
@@ -5578,6 +5583,14 @@ ignore_log_space_limit=%d",
       DBUG_EXECUTE_IF("stop_io_after_queuing_event",
         thd->killed= THD::KILLED_NO_VALUE;
       );
+      /*
+        After event is flushed to relay log file, memory used
+        by thread's mem_root is not required any more.
+        Hence adding free_root(thd->mem_root,...) to do the
+        cleanup, otherwise a long running IO thread can
+        cause OOM error.
+      */
+      free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
     }
   }
 

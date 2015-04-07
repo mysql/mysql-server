@@ -9631,7 +9631,7 @@ int setup_ftfuncs(SELECT_LEX *select_lex)
 
   while ((ftf= li++))
   {
-    if (ftf->fix_index())
+    if (ftf->table_ref && ftf->fix_index())
       return 1;
     lj.rewind();
 

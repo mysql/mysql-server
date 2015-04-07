@@ -191,6 +191,13 @@ struct EndToConf
   Uint32 startingNodeId;
 };
 
+struct EndToRep
+{
+public:
+  STATIC_CONST ( SignalLength = 1 );
+
+  Uint32 nodeId;
+};
 
 #undef JAM_FILE_ID
 

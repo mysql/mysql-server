@@ -681,3 +681,30 @@ connection default;
 disconnect cleartext_con;
 DROP USER bug20537246@localhost;
 
+--echo #
+--echo # Bug #20599280 PASSWORD EXPIRED FLAG SET FOR PROXY USER SESSION WHEN
+--echo #               IT SET FOR PROXIED USER
+--echo #
+
+CREATE USER 'empl_external'@'localhost' IDENTIFIED WITH test_plugin_server AS 'employee';
+CREATE USER 'employee'@'localhost' IDENTIFIED BY 'passkey';
+GRANT ALL ON *.* TO 'employee'@'localhost';
+GRANT PROXY ON 'employee'@'localhost' TO 'empl_external'@'localhost';
+
+connect(plugin_con, localhost, empl_external, employee);
+SELECT USER(), CURRENT_USER, @@PROXY_USER;
+ALTER USER 'employee'@'localhost' PASSWORD EXPIRE;
+SELECT USER(), CURRENT_USER, @@PROXY_USER;
+disconnect plugin_con;
+
+connect(plugin_con, localhost, empl_external, employee);
+SELECT USER(), CURRENT_USER, @@PROXY_USER;
+disconnect plugin_con;
+
+connect(plugin_con, localhost, employee, passkey);
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER(), CURRENT_USER, @@PROXY_USER;
+disconnect plugin_con;
+
+connection default;
+DROP USER 'employee'@'localhost', 'empl_external'@'localhost';

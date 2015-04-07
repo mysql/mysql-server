@@ -36,6 +36,8 @@ TFPool::init(size_t mem, size_t page_sz)
     p->m_next = m_first_free;
     m_first_free = p;
   }
+  m_tot_send_buffer = mem;
+  m_tot_used_send_buffer = 0;
   return true;
 }
 
@@ -74,7 +76,6 @@ TFBuffer::validate() const
   {
     assert(p->m_bytes <= p->m_size);
     assert(p->m_start <= p->m_size);
-    assert((p->m_bytes & 3) == 0);
     assert(p->m_start + p->m_bytes <= p->m_size);
     assert(p->m_bytes <= (int)m_bytes_in_buffer);
     assert(p->m_next != p);

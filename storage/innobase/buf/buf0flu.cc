@@ -76,7 +76,13 @@ bool buf_page_cleaner_is_active = false;
 
 /** Factor for scan length to determine n_pages for intended oldest LSN
 progress */
-ulint buf_flush_lsn_scan_factor = 3;
+static ulint buf_flush_lsn_scan_factor = 3;
+
+/** Average redo generation rate */
+static lsn_t lsn_avg_rate = 0;
+
+/** Target oldest LSN for the requested flush_sync */
+static lsn_t buf_flush_sync_lsn = 0;
 
 #ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t page_cleaner_thread_key;
@@ -2057,6 +2063,8 @@ buf_flush_wait_flushed(
 
 			/* sleep and retry */
 			os_thread_sleep(buf_flush_wait_flushed_sleep_time);
+
+			MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
 		}
 	}
 }
@@ -2452,7 +2460,6 @@ page_cleaner_flush_pages_recommendation(
 	lsn_t*	lsn_limit,
 	ulint	last_pages_in)
 {
-	static	lsn_t		lsn_avg_rate = 0;
 	static	lsn_t		prev_lsn = 0;
 	static	ulint		sum_pages = 0;
 	static	ulint		avg_page_rate = 0;
@@ -2628,7 +2635,7 @@ page_cleaner_flush_pages_recommendation(
 		ut_ad(page_cleaner->slots[i].state
 		      == PAGE_CLEANER_STATE_NONE);
 		page_cleaner->slots[i].n_pages_requested
-			= pages_for_lsn / buf_flush_lsn_scan_factor;
+			= pages_for_lsn / buf_flush_lsn_scan_factor + 1;
 		mutex_exit(&page_cleaner->mutex);
 	}
 
@@ -2638,8 +2645,11 @@ page_cleaner_flush_pages_recommendation(
 	}
 
 	/* Cap the maximum IO capacity that we are going to use by
-	max_io_capacity. */
-	n_pages = (PCT_IO(pct_total) + avg_page_rate + sum_pages_for_lsn) / 3;
+	max_io_capacity. Limit the value to avoid too quick increase */
+	ulint	pages_for_lsn =
+		std::min<ulint>(sum_pages_for_lsn, srv_max_io_capacity * 2);
+
+	n_pages = (PCT_IO(pct_total) + avg_page_rate + pages_for_lsn) / 3;
 
 	if (n_pages > srv_max_io_capacity) {
 		n_pages = srv_max_io_capacity;
@@ -2656,7 +2666,7 @@ page_cleaner_flush_pages_recommendation(
 		don't care about age distribution of pages */
 		page_cleaner->slots[i].n_pages_requested = pct_for_lsn > 30 ?
 			page_cleaner->slots[i].n_pages_requested
-			* n_pages / sum_pages_for_lsn
+			* n_pages / sum_pages_for_lsn + 1
 			: n_pages / srv_buf_pool_instances;
 	}
 	mutex_exit(&page_cleaner->mutex);
@@ -3130,7 +3140,46 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			n_flushed_last = n_evicted = 0;
 		}
 
-		if (srv_check_activity(last_activity)) {
+		if (ret_sleep != OS_SYNC_TIME_EXCEEDED
+		    && srv_flush_sync
+		    && buf_flush_sync_lsn > 0) {
+			/* woke up for flush_sync */
+			mutex_enter(&page_cleaner->mutex);
+			lsn_t	lsn_limit = buf_flush_sync_lsn;
+			buf_flush_sync_lsn = 0;
+			mutex_exit(&page_cleaner->mutex);
+
+			/* Request flushing for threads */
+			pc_request(ULINT_MAX, lsn_limit);
+
+			ulint tm = ut_time_ms();
+
+			/* Coordinator also treats requests */
+			while (pc_flush_slot() > 0) {}
+
+			/* only coordinator is using these counters,
+			so no need to protect by lock. */
+			page_cleaner->flush_time += ut_time_ms() - tm;
+			page_cleaner->flush_pass++;
+
+			/* Wait for all slots to be finished */
+			ulint	n_flushed_lru = 0;
+			ulint	n_flushed_list = 0;
+			pc_wait_finished(&n_flushed_lru, &n_flushed_list);
+
+			if (n_flushed_list > 0 || n_flushed_lru > 0) {
+				buf_flush_stats(n_flushed_list, n_flushed_lru);
+
+				MONITOR_INC_VALUE_CUMULATIVE(
+					MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+					MONITOR_FLUSH_SYNC_COUNT,
+					MONITOR_FLUSH_SYNC_PAGES,
+					n_flushed_lru + n_flushed_list);
+			}
+
+			n_flushed = n_flushed_lru + n_flushed_list;
+
+		} else if (srv_check_activity(last_activity)) {
 			ulint	n_to_flush;
 			lsn_t	lsn_limit = 0;
 
@@ -3375,6 +3424,24 @@ buf_flush_sync_all_buf_pools(void)
 	} while (!success);
 
 	ut_a(success);
+}
+
+/** Request IO burst and wake page_cleaner up.
+@param[in]	lsn_limit	upper limit of LSN to be flushed */
+void
+buf_flush_request_force(
+	lsn_t	lsn_limit)
+{
+	/* adjust based on lsn_avg_rate not to get old */
+	lsn_t	lsn_target = lsn_limit + lsn_avg_rate * 3;
+
+	mutex_enter(&page_cleaner->mutex);
+	if (lsn_target > buf_flush_sync_lsn) {
+		buf_flush_sync_lsn = lsn_target;
+	}
+	mutex_exit(&page_cleaner->mutex);
+
+	os_event_set(buf_flush_event);
 }
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 

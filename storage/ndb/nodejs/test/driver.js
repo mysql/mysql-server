@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2013, 2014 Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -20,16 +20,19 @@
 
 "use strict";
 
-// Setup globals:
-require("../Adapter/adapter_config.js");
-global.suites_dir = __dirname;
-global.harness    = require(path.join(suites_dir, "lib", "harness"));
-global.mynode     = require(api_module);
-global.adapter    = "ndb";
-global.engine     = "ndb";
+var path = require("path"),
+    fs   = require("fs"),
+    conf = require("../Adapter/adapter_config.js"),
+    suites_dir = conf.suites_dir;
 
-var tprops = require(path.join(suites_dir, "lib", "test_properties"));
+// Setup globals:
+global.mynode     = require(conf.api_module);
+global.adapter    = "ndb";
+global.harness    = require(path.join(suites_dir, "lib", "harness"));
+
+
 var udebug = unified_debug.getLogger("Driver.js");
+var stats_module = require(mynode.api.stats);
 
 /** Driver 
 */
@@ -43,12 +46,15 @@ function Driver() {
   this.skipSmokeTest = false;
   this.skipClearSmokeTest = false;
   this.doStats = false;
+  this.statsDomain = null;
 }
 
 Driver.prototype.findSuites = function(directory) {
-  var files, f, i, st, suite;
-  
+  var files, f, i, st, suite, nsuites;
+  nsuites = 0;
+
   if(this.fileToRun) {
+    nsuites++;
     var suitename = path.dirname(this.fileToRun);
     var pathname = path.join(directory, this.fileToRun); 
     suite = new harness.Suite(suitename, pathname);
@@ -64,6 +70,7 @@ Driver.prototype.findSuites = function(directory) {
       f = files[i];
       st = fs.statSync(path.join(directory, f));
       if (st.isDirectory() && this.isSuiteToRun(f)) {
+        nsuites++;
         udebug.log_detail('Driver.findSuites found directory', f);
         suite = new harness.Suite(f, path.join(directory, f));
         if(this.skipSmokeTest)      { suite.skipSmokeTest = true;      }
@@ -72,6 +79,7 @@ Driver.prototype.findSuites = function(directory) {
       }
     }
   }
+  return nsuites;
 };
 
 Driver.prototype.isSuiteToRun = function(directoryName) {
@@ -85,6 +93,8 @@ Driver.prototype.testCompleted = function(testCase) {
   var suite = testCase.suite;
   udebug.log_detail('Driver.testCompleted Test:', testCase.name, 'Suite:', suite.name);
   if (suite.testCompleted(testCase)) {
+    udebug.log_detail('numberOfRunningSuites', this.numberOfRunningSuites);
+
     // this suite is done; remove it from the list of running suites
     if (--this.numberOfRunningSuites === 0) {
       // no more running suites; report and exit
@@ -95,50 +105,52 @@ Driver.prototype.testCompleted = function(testCase) {
 
 Driver.prototype.reportResultsAndExit = function() {
   var driver = this;
-  var sessionFactory;
-  var openSessions;
-  var i;
-  var closedSessions = 0;
-  var sessionFactories;
-  var numberOfSessionFactoriesToClose;
-  var numberOfSessionFactoriesClosed = 0;
-  
+
   console.log("Started: ", this.result.listener.started);
   console.log("Passed:  ", this.result.passed.length);
   console.log("Failed:  ", this.result.failed.length);
   console.log("Skipped: ", this.result.skipped.length);
   if(this.doStats) {
-    require(path.join(api_dir, "stats")).peek();
+    stats_module.peek(this.statsDomain);
   }
-
-  // exit after closing all session factories
-  var onSessionFactoryClose = function() {
-    if (driver.result.listener.printStackTraces) {
-      console.log('Closed', numberOfSessionFactoriesClosed + 1,
-          'of', numberOfSessionFactoriesToClose, 'session factories.');
-    }
-    if (++numberOfSessionFactoriesClosed === numberOfSessionFactoriesToClose) {
-      // we have closed them all
-      unified_debug.close();
-      process.exit(driver.result.failed.length > 0);
-    }
-  };
 
   // close all open session factories and exit
-  sessionFactories = mynode.getOpenSessionFactories();
-  numberOfSessionFactoriesToClose = sessionFactories.length;
-  if (driver.result.listener.printStackTraces) {
-    console.log('Closing', numberOfSessionFactoriesToClose, 'session factories.');
-  }
-  if (numberOfSessionFactoriesToClose > 0) {
-    for (i = 0; i < sessionFactories.length; ++i) {
-      sessionFactories[i].close(onSessionFactoryClose);
-    }
-  } else {
+  mynode.closeAllOpenSessionFactories(function() {
     unified_debug.close();
     process.exit(driver.result.failed.length > 0);
+  });
+};
+
+Driver.prototype.runAllTests = function(test_suite_dir_array) {
+  var i, dir, n;
+
+  /* Find Suites */
+  for(i = 0 ; i < test_suite_dir_array.length; i++) {
+    dir = test_suite_dir_array[i];
+    n = this.findSuites(dir);
+    udebug.log_detail('found ', n, 'suite', (n == 1 ? '':'s'), ' in ', dir);
+  }
+
+  /* Create tests */
+  for(i = 0; i < this.suites.length ; i++) {
+    this.suites[i].createTests();
+  }
+
+  /* now run tests */
+  this.numberOfRunningSuites = this.suites.length;
+  for(i = 0; i < this.suites.length ; i++) {
+    if (! this.suites[i].runTests(this.result)) {
+      this.numberOfRunningSuites--;
+    }
+  }
+
+  /* if we did not start any suites, exit now */
+  if (this.numberOfRunningSuites === 0) {
+    this.reportResultsAndExit();
   }
 };
+
+
 
 //// END OF DRIVER
 
@@ -151,6 +163,7 @@ var driver = new Driver();
 var exit = false;
 var timeoutMillis = 0;
 var val, values, i, pair;
+var storageEngine = null;
 
 var usageMessage = 
   "Usage: node driver [options]\n" +
@@ -165,13 +178,13 @@ var usageMessage =
   "   --suites=<suite>: only run the named suite(s)\n" +
   "      --file=<file>: only run the named test file\n" +
   "   --test=<n,m,...>: only run tests numbered n, m, etc. in <file>\n " +
-  "--adapter=<adapter>: only run on the named adapter/engine (e.g. ndb or mysql)\n" +
+  "--adapter=<adapter>: only run on the named adapter/engine \n" +
   "                     optionally add engine (e.g. mysql/ndb or mysql/innodb\n" +
   "     --timeout=<ms>: set timeout in msec.\n" +
   "--set <var>=<value>: set a global variable\n" +
   "       --skip-smoke: do not run SmokeTest\n" +
   "       --skip-clear: do not run ClearSmokeTest\n" +
-  "            --stats: show server statistics after test run\n"
+  "    --stats=<query>: show server statistics after test run\n"
   ;
 
 // handle command line arguments
@@ -224,13 +237,14 @@ for(i = 2; i < process.argv.length ; i++) {
     driver.result.listener = new harness.QuietListener();
     timeoutMillis = 10000;
     break;
-  case '--stats':
-    driver.doStats = true;
-    break;
   default:
     values = val.split('=');
     if (values.length === 2) {
       switch (values[0]) {
+      case '--stats':
+        driver.doStats = true;
+        driver.statsDomain = values[1];
+        break;
       case '--suite':
       case '--suites':
         driver.suitesToRun = values[1];
@@ -244,22 +258,13 @@ for(i = 2; i < process.argv.length ; i++) {
       case '--adapter':
         // adapter is adapter/engine
         var adapterSplit = values[1].split('/');
-        var engine;
         switch (adapterSplit.length) {
         case 1:
           global.adapter = values[1];
-          global.engine = 'ndb';
           break;
         case 2:
           global.adapter = adapterSplit[0];
-          engine = adapterSplit[1];
-          if (engine === 'ndb' || engine === 'innodb') {
-            global.engine = engine;
-          } else {
-            exit = true;
-// change this to a warning
-            console.log('Invalid adapter engine parameter -- use ndb or innodb');
-          }
+          storageEngine = adapterSplit[1];
           break;
         default:
           console.log('Invalid adapter parameter');
@@ -272,18 +277,18 @@ for(i = 2; i < process.argv.length ; i++) {
         break;
       case '-df':
         unified_debug.on();
-        var client = require(path.join(build_dir,"ndb_adapter")).debug;
-        unified_debug.register_client(client);
         unified_debug.set_file_level(values[1], 5);
         break;
       default:
         console.log('Invalid option ' + val);
         exit = true;
       }
+    } else if(values[0] == '--stats') {  // --stats argument is optional
+      driver.doStats = true;
     } else {
       console.log('Invalid option ' + val);
       exit = true;
-   }
+    }
   }
 }
 
@@ -292,32 +297,18 @@ if (exit) {
   process.exit(0);
 }
 
-// Now that global.adapter is set, get connection properties 
-global.test_conn_properties = tprops.connectionProperties();
+/* global.adapter is now set.  Read in the utilities library for the test suite; 
+   it may set some additional globals.
+*/
+require(path.join(suites_dir, "utilities"));
 
-// Find suites
-driver.findSuites(suites_dir);
-udebug.log_detail('suites found', driver.suites.length);
-
-driver.suites.forEach(function(suite) {
-  udebug.log_detail('createTests for', suite.name);
-  suite.createTests();
-});
-
-// now run tests
-driver.numberOfRunningSuites = driver.suites.length;
-driver.suites.forEach(function(suite) {
-  udebug.log_detail('main running tests for', suite.name);
-  if (!suite.runTests(driver.result)) {
-    // if there are no tests to run, this suite is finished
-    driver.numberOfRunningSuites--;
-  }
-});
-
-// if we did not start any suites, exit now
-if (driver.numberOfRunningSuites === 0) {
-  driver.reportResultsAndExit();
+/* Set storage engine from command-line options */
+if(storageEngine && global.test_conn_properties) {
+  global.test_conn_properties.mysql_storage_engine = storageEngine;
 }
+
+/* Find and run all tests */
+driver.runAllTests( [ suites_dir ] );
 
 function onTimeout() { 
   var nwait = driver.result.listener.started - driver.result.listener.ended;
@@ -333,31 +324,3 @@ if(timeoutMillis > 0) {
   setTimeout(onTimeout, timeoutMillis);
 }
 
-/** Open a session or fail the test case */
-global.fail_openSession = function(testCase, callback) {
-  var promise;
-  if (arguments.length === 0) {
-    throw new Error('Fatal internal exception: fail_openSession must have  1 or 2 parameters: testCase, callback');
-  }
-  var properties = global.test_conn_properties;
-  var mappings = testCase.mappings;
-  promise = mynode.openSession(properties, mappings, function(err, session) {
-    if (callback && err) {
-      testCase.fail(err);
-      return;
-    }
-    testCase.session = session;
-    if (typeof callback !== 'function') {
-      return;
-    }
-    try {
-      callback(session, testCase);
-    }
-    catch(e) {
-      testCase.appendErrorMessage(e);
-      testCase.stack = e.stack;
-      testCase.failOnError();
-    }
-  });
-  return promise;
-};

@@ -123,9 +123,9 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
         totalLen = * ops++;
       }
 
-      void * tPtr = theNdb->int2void(ptrI);
+      void * tPtr = theNdb->theImpl->int2void(ptrI);
       assert(tPtr); // For now
-      NdbReceiver* tOp = theNdb->void2rec(tPtr);
+      NdbReceiver* tOp = NdbImpl::void2rec(tPtr);
       if (tOp && tOp->checkMagicNumber())
       {
         // Check if this is a linked operation.

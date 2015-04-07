@@ -230,7 +230,8 @@ static TYPELIB innodb_stats_method_typelib = {
 	NULL
 };
 
-/** Possible values for system variable "innodb_checksum_algorithm". */
+/** Possible values for system variable "innodb_checksum_algorithm" and
+"innodb_log_checksum_algorithm". */
 static const char* innodb_checksum_algorithm_names[] = {
 	"crc32",
 	"strict_crc32",
@@ -1234,17 +1235,22 @@ thd_start_time_in_secs(
 	return(ulint(ut_time()));
 }
 
-/******************************************************************//**
-Save some CPU by testing the value of srv_thread_concurrency in inline
-functions.
-@param[in/out]	prebuilt	row prebuilt handler */
+/** Enter InnoDB engine after checking the max number of user threads
+allowed, else the thread is put into sleep.
+@param[in,out]	prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_enter_innodb(
 	row_prebuilt_t*	prebuilt)
 {
-	trx_t*	trx	= prebuilt->trx;
+	/* We rely on server to do external_lock(F_UNLCK) to reset the
+	srv_conc.n_active counter. Since there are no locks on instrinsic
+	tables, we should skip this for intrinsic temporary tables. */
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return;
+	}
 
+	trx_t*	trx	= prebuilt->trx;
 	if (srv_thread_concurrency) {
 		if (trx->n_tickets_to_enter_innodb > 0) {
 
@@ -1267,15 +1273,21 @@ innobase_srv_conc_enter_innodb(
 	}
 }
 
-/******************************************************************//**
-Note that the thread wants to leave InnoDB only if it doesn't have
+/** Note that the thread wants to leave InnoDB only if it doesn't have
 any spare tickets.
-@param[in/out]	m_prebuilt	row prebuilt handler */
+@param[in,out]	m_prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_exit_innodb(
 	row_prebuilt_t*	prebuilt)
 {
+	/* We rely on server to do external_lock(F_UNLCK) to reset the
+	srv_conc.n_active counter. Since there are no locks on instrinsic
+	tables, we should skip this for intrinsic temporary tables. */
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return;
+	}
+
 	trx_t*			trx = prebuilt->trx;
 	btrsea_sync_check	check(trx->has_search_latch);
 
@@ -3066,6 +3078,29 @@ static const char*	deprecated_file_format_check
 static const char*	deprecated_file_format_max
 	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format_max");
 
+/** Update log_checksum_algorithm_ptr with a pointer to the function
+corresponding to the given checksum algorithm.
+@param[in]	algorithm	the checksum algorithm */
+static
+void
+innodb_log_checksum_func_update(ulint	algorithm)
+{
+	switch (algorithm) {
+	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+	case SRV_CHECKSUM_ALGORITHM_INNODB:
+		log_checksum_algorithm_ptr = log_block_calc_checksum_innodb;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+	case SRV_CHECKSUM_ALGORITHM_CRC32:
+		log_checksum_algorithm_ptr = log_block_calc_checksum_crc32;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+	case SRV_CHECKSUM_ALGORITHM_NONE:
+		log_checksum_algorithm_ptr = log_block_calc_checksum_none;
+		break;
+       }
+}
+
 /*********************************************************************//**
 Opens an InnoDB database.
 @return 0 on success, 1 on failure */
@@ -3455,6 +3490,8 @@ innobase_change_buffering_inited_ok:
 			" should set innodb_checksum_algorithm=NONE instead.";
 		srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_NONE;
 	}
+
+	innodb_log_checksum_func_update(srv_log_checksum_algorithm);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
 	if ((os_use_large_pages = my_use_large_pages)) {
@@ -5104,7 +5141,7 @@ ha_innobase::open(
 		ib_table = dict_table_open_on_name(
 			norm_name, FALSE, TRUE, ignore_err);
 	} else {
-		++ib_table->n_ref_count;
+		ib_table->acquire();
 		ut_ad(dict_table_is_intrinsic(ib_table));
 	}
 
@@ -10901,7 +10938,7 @@ create_table_info_t::create_table_update_dict()
 		innobase_table = dict_table_open_on_name(
 			m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 	} else {
-		++innobase_table->n_ref_count;
+		innobase_table->acquire();
 		ut_ad(dict_table_is_intrinsic(innobase_table));
 	}
 
@@ -12736,20 +12773,6 @@ ha_innobase::info_low(
 				"returning various info to MySQL";
 		}
 
-		my_snprintf(path, sizeof(path), "%s/%s%s",
-			    mysql_data_home, ib_table->name.m_name, reg_ext);
-
-		unpack_filename(path,path);
-
-		/* Note that we do not know the access time of the table,
-		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
-
-		if (os_file_get_status(
-			path, &stat_info, false,
-			(dict_table_is_intrinsic(ib_table)
-			? false : srv_read_only_mode)) == DB_SUCCESS) {
-			stats.create_time = (ulong) stat_info.ctime;
-		}
 
 		stats.update_time = (ulong) ib_table->update_time;
 	}
@@ -13038,6 +13061,22 @@ ha_innobase::info_low(
 		if (!(flag & HA_STATUS_NO_LOCK)) {
 			dict_table_stats_unlock(ib_table, RW_S_LATCH);
 		}
+
+		my_snprintf(path, sizeof(path), "%s/%s%s",
+			    mysql_data_home, table->s->normalized_path.str,
+			    reg_ext);
+
+		unpack_filename(path,path);
+
+		/* Note that we do not know the access time of the table,
+		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
+
+		if (os_file_get_status(
+			path, &stat_info, false,
+			(dict_table_is_intrinsic(ib_table)
+			? false : srv_read_only_mode)) == DB_SUCCESS) {
+			stats.create_time = (ulong) stat_info.ctime;
+		}
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -13116,6 +13155,13 @@ ha_innobase::enable_indexes(
 			= UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			/* InnoDB being clustered index we can't disable/enable
+			clustered index itself. */
+			if (dict_index_is_clust(index)) {
+				continue;
+			}
+
 			index->allow_duplicates = false;
 		}
 		error = 0;
@@ -13142,6 +13188,13 @@ ha_innobase::disable_indexes(
 			= UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			/* InnoDB being clustered index we can't disable/enable
+			clustered index itself. */
+			if (dict_index_is_clust(index)) {
+				continue;
+			}
+
 			index->allow_duplicates = true;
 		}
 		error = 0;
@@ -17398,6 +17451,31 @@ innodb_status_output_update(
 	os_event_set(lock_sys->timeout_event);
 }
 
+/** On update hook for the innodb_log_checksum_algorithm variable.
+@param[in]	thd	thread handle
+@param[in]	var	system variable
+@param[out]	var_ptr	current value
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_log_checksum_algorithm_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	srv_checksum_algorithm_t        algorithm;
+
+	algorithm = static_cast<srv_checksum_algorithm_t>(
+		*static_cast<const ulong*>(save));
+
+	/* Make sure we are the only log user */
+	mutex_enter(&log_sys->mutex);
+	innodb_log_checksum_func_update(algorithm);
+	srv_log_checksum_algorithm = algorithm;
+	mutex_exit(&log_sys->mutex);
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
 	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
 	{NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
@@ -17430,6 +17508,30 @@ static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
   " Files updated when this option is set to crc32 or strict_crc32 will"
   " not be readable by MySQL versions older than 5.6.3",
   NULL, NULL, SRV_CHECKSUM_ALGORITHM_CRC32,
+  &innodb_checksum_algorithm_typelib);
+
+static MYSQL_SYSVAR_ENUM(log_checksum_algorithm, srv_log_checksum_algorithm,
+  PLUGIN_VAR_RQCMDARG,
+  "The algorithm InnoDB uses for redo log block checksums. Possible values are"
+  " CRC32 (hardware accelerated if the CPU supports it)"
+    " write crc32, allow any of the other checksums to match when reading;"
+  " STRICT_CRC32 "
+    " write crc32, do not allow other algorithms to match when reading;"
+  " INNODB"
+    " write a software calculated checksum, allow any other checksums"
+    " to match when reading;"
+  " STRICT_INNODB"
+    " write a software calculated checksum, do not allow other algorithms"
+    " to match when reading;"
+  " NONE"
+    " write a constant magic number, do not do any checksum verification"
+    " when reading"
+  " STRICT_NONE"
+    " write a constant magic number, do not allow values other than that"
+    " magic number when reading;"
+  " Redo logs created when this option is set to crc32, strict_crc32, none, or"
+  " strict_none will not be readable by MySQL versions older than 5.7.6",
+  NULL, innodb_log_checksum_algorithm_update, SRV_CHECKSUM_ALGORITHM_INNODB,
   &innodb_checksum_algorithm_typelib);
 
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
@@ -17624,6 +17726,11 @@ static MYSQL_SYSVAR_ULONG(adaptive_flushing_lwm,
 static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
   PLUGIN_VAR_NOCMDARG,
   "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
+  NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(flush_sync, srv_flush_sync,
+  PLUGIN_VAR_NOCMDARG,
+  "Allow IO bursts at the checkpoints ignoring io_capacity setting.",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(flushing_avg_loops,
@@ -18280,6 +18387,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(lru_scan_depth),
   MYSQL_SYSVAR(flush_neighbors),
   MYSQL_SYSVAR(checksum_algorithm),
+  MYSQL_SYSVAR(log_checksum_algorithm),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
@@ -18329,6 +18437,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
   MYSQL_SYSVAR(adaptive_flushing_lwm),
   MYSQL_SYSVAR(adaptive_flushing),
+  MYSQL_SYSVAR(flush_sync),
   MYSQL_SYSVAR(flushing_avg_loops),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(max_purge_lag_delay),

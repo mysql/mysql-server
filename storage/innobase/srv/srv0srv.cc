@@ -192,6 +192,9 @@ page_size_t	univ_page_size(0, 0, false);
 the checkpoints. */
 char	srv_adaptive_flushing	= TRUE;
 
+/* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
+my_bool	srv_flush_sync		= TRUE;
+
 /** Maximum number of times allowed to conditionally acquire
 mutex before switching to blocking wait on the mutex */
 #define MAX_MUTEX_NOWAIT	20
@@ -350,6 +353,8 @@ of the pages are used for single page flushing. */
 ulong	srv_doublewrite_batch_size	= 120;
 
 ulong	srv_replication_delay		= 0;
+
+ulong	srv_log_checksum_algorithm	= SRV_CHECKSUM_ALGORITHM_INNODB;
 
 /*-------------------------------------------*/
 ulong	srv_n_spin_wait_rounds	= 30;

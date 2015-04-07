@@ -449,6 +449,23 @@ SHOW WARNINGS;
 SHOW CREATE TABLE t4;
 DROP TABLE t4;
 
+--echo # If you use TABLESPACE=innodb_file_per_table, the config setting does not matter.
+SET GLOBAL innodb_file_per_table = OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+
+--echo # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY=
+ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+ALTER TABLE t4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t4;
+DROP TABLE t4;
+SET GLOBAL innodb_file_per_table = ON;
+
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --source suite/innodb/include/show_i_s_tables.inc
 DROP TABLE t_def_in_def;

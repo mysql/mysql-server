@@ -2345,7 +2345,7 @@ void st_select_lex_unit::exclude_level()
     Changing unit tree should be done only when LOCK_query_plan mutex is
     taken. This is needed to provide stable tree for EXPLAIN FOR CONNECTION.
   */
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+  thd->lock_query_plan();
   SELECT_LEX_UNIT *units= NULL;
   SELECT_LEX_UNIT **units_last= &units;
   SELECT_LEX *sl= first_select();
@@ -2408,7 +2408,7 @@ void st_select_lex_unit::exclude_level()
   }
 
   invalidate();
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  thd->unlock_query_plan();
 }
 
 
@@ -2529,25 +2529,25 @@ bool st_select_lex::test_limit()
 
 enum_parsing_context st_select_lex_unit::get_explain_marker() const
 {
-  mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+  thd->query_plan.assert_plan_is_locked_if_other();
   return explain_marker;
 }
 
 
 void st_select_lex_unit::set_explain_marker(enum_parsing_context m)
 {
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+  thd->lock_query_plan();
   explain_marker= m;
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  thd->unlock_query_plan();
 }
 
 
 void st_select_lex_unit::
 set_explain_marker_from(const st_select_lex_unit *u)
 {
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+  thd->lock_query_plan();
   explain_marker= u->explain_marker;
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  thd->unlock_query_plan();
 }
 
 
@@ -4375,9 +4375,9 @@ void st_select_lex::include_chain_in_global(st_select_lex **start)
 
 void st_select_lex::set_join(JOIN *join_arg)
 {
-  mysql_mutex_lock(&master_unit()->thd->LOCK_query_plan);
+  master_unit()->thd->lock_query_plan();
   join= join_arg;
-  mysql_mutex_unlock(&master_unit()->thd->LOCK_query_plan);
+  master_unit()->thd->unlock_query_plan();
 }
 
 

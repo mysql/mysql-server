@@ -61,6 +61,12 @@ public:
 
     _BackupMin   = 100000,
     BackupStatus = 100000,
+    BackupMinWriteSpeed32 = 100001,
+    BackupMaxWriteSpeed32 = 100002,
+    BackupMaxWriteSpeedOtherNodeRestart32 = 100003,
+    BackupMinWriteSpeed64 = 100004,
+    BackupMaxWriteSpeed64 = 100005,
+    BackupMaxWriteSpeedOtherNodeRestart64 = 100006,
     _BackupMax   = 100999,
 
     _TCMin       = 101000,
@@ -117,18 +123,19 @@ public:
     AccDumpFreeOpRecs = 2405,
     AccDumpNotFreeOpRecs = 2406,
     DumpPageMemory = 1000, // Acc & TUP
-    TcDumpAllScanFragRec = 2500,
+    TcDumpSetOfScanFragRec = 2500,
     TcDumpOneScanFragRec = 2501,
-    TcDumpAllScanRec = 2502,
-    TcDumpAllActiveScanRec = 2503,
+    TcDumpSetOfScanRec = 2502,
     TcDumpOneScanRec = 2504,
     TcDumpOneApiConnectRec = 2505,
-    TcDumpAllApiConnectRec = 2506,
     TcSetTransactionTimeout = 2507,
     TcSetApplTransactionTimeout = 2508,
     TcStartDumpIndexOpCount = 2512,
     TcDumpIndexOpCount = 2513,
     TcDumpApiConnectRecSummary = 2514,
+    TcDumpSetOfApiConnectRec = 2515,
+    TcDumpOneTcConnectRec = 2516,
+    TcDumpSetOfTcConnectRec = 2517,
     TcDumpPoolLevels = 2555,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
@@ -144,6 +151,7 @@ public:
     CmvmiLongSignalMemorySnapshotStart = 2607,
     CmvmiLongSignalMemorySnapshot = 2608,
     CmvmiLongSignalMemorySnapshotCheck = 2609,
+    CmvmiSetKillerWatchdog = 2610,
 
     LCPContinue = 5900,
     // 7000 DIH
@@ -181,8 +189,13 @@ public:
       *not* be described in end-user documentation.
     */
     DihAddFragFailCleanedUp = 7024,
+    /**
+     * Allows GCP stop thresholds to be set
+     */
+    DihSetGcpStopVals = 7026,
     DihDumpPageRecInfo = 7032,
     DihFragmentsPerNode = 7033,
+    DihDisplayPauseState = 7034,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,

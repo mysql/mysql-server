@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,13 +40,6 @@ use File::Basename;
 use Getopt::Long;
 use Cwd;
 use strict;
-
-my @exclude_cflags =
-  qw/DDBUG_OFF DSAFE_MUTEX
-     DEXTRA_DEBUG DHAVE_VALGRIND O O[0-9] xO[0-9] W[-A-Za-z]*
-     unroll2 ip mp restrict/;
-
-my @exclude_libs = qw/lmtmalloc static-libcxa i-static static-intel/;
 
 my $cwd = cwd();
 my $basedir;
@@ -210,29 +203,26 @@ $flags->{cxxflags}= [@{$flags->{include}},split(" ",'@CXXFLAGS@')];
 # Remove some options that a client doesn't have to care about
 # ----------------------------------------------------------------------
 
-my $filter = "-".join("|[/-]", @exclude_cflags);
 my @tmp = @{$flags->{cflags}};          # Copy the flag list
 $flags->{cflags} = [];                  # Clear it
 foreach my $cflag ( @tmp )
 {
-  push(@{$flags->{cflags}}, $cflag) unless $cflag =~ m/^($filter)$/o;
+  push(@{$flags->{cflags}}, $cflag);
 }
 @tmp = @{$flags->{cxxflags}};           # Copy the flag list
 $flags->{cxxflags} = [];                # Clear it
 foreach my $cxxflag ( @tmp )
 {
-  push(@{$flags->{cxxflags}}, $cxxflag) unless $cxxflag =~ m/^($filter)$/o;
+  push(@{$flags->{cxxflags}}, $cxxflag);
 }
 
-# Same for --libs(_r)
-$filter = join("|", @exclude_libs);
 foreach my $lib_type ( "libs","libs_r","embedded_libs" )
 {
   my @tmp = @{$flags->{$lib_type}};          # Copy the flag list
   $flags->{$lib_type} = [];                  # Clear it
   foreach my $lib ( @tmp )
   {
-    push(@{$flags->{$lib_type}}, $lib) unless $lib =~ m/^($filter)$/o;
+    push(@{$flags->{$lib_type}}, $lib);
   }
 }
 

@@ -26,6 +26,27 @@
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
 
+extern my_bool opt_core;
+
+#define DBG(x) \
+  do { g_info << x << " at line " << __LINE__ << endl; } while (0)
+
+#define CHK1(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << endl; \
+    if (opt_core) abort(); \
+    return NDBT_FAILED; \
+  }
+
+#define CHK2(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    if (opt_core) abort(); \
+    return NDBT_FAILED; \
+  }
+
 static int runLongSignalMemorySnapshot(NDBT_Context* ctx, NDBT_Step* step);
 
 /**
@@ -504,6 +525,7 @@ createIDX(NdbDictionary::Dictionary * dict,
             pIdx.addIndexColumn(indexes[i]->getColumn(c)->getName());
           }
 
+          DBG("CREATE index " << pIdx.getName());
           if (dict->createIndex(pIdx) != 0)
           {
             ndbout << "FAILED! to create OI " << tmp.c_str() << endl;
@@ -589,6 +611,7 @@ createIDX(NdbDictionary::Dictionary * dict,
       }
     }
 
+    DBG("CREATE index " << pIdx.getName());
     if (dict->createIndex(pIdx) != 0)
     {
       ndbout << "FAILED! to create UI " << tmp.c_str() << endl;
@@ -791,8 +814,14 @@ createFK(NdbDictionary::Dictionary * dict,
 
   if (dict->createForeignKey(ndbfk) == 0)
   {
+    // bug#19122346 TODO: provide new NdbDictionary methods
+    char fullname[MAX_TAB_NAME_SIZE];
+    sprintf(fullname, "%d/%d/%s", pParent->getObjectId(), pChild->getObjectId(),
+                                  ndbfk.getName());
     NdbDictionary::ForeignKey * get = new NdbDictionary::ForeignKey();
-    dict->getForeignKey(* get, ndbfk.getName());
+    DBG("CREATE fk " << fullname);
+    CHK2(dict->getForeignKey(* get, fullname) == 0,
+         fullname << ": " << dict->getNdbError());
     fks.push_back(get);
     return NDBT_OK;
   }
@@ -800,6 +829,7 @@ createFK(NdbDictionary::Dictionary * dict,
 
   if (1)
   {
+    ndbout << "DESC " << pChild->getName() << endl;
     dict->print(ndbout, * pChild);
   }
 
@@ -852,6 +882,7 @@ runCreateRandom(NDBT_Context* ctx, NDBT_Step* step)
 
   if (1)
   {
+    ndbout << "DESC " << pTab->getName() << endl;
     dict->print(ndbout, * pTab);
   }
 
@@ -865,25 +896,29 @@ runCleanupTable(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   const char * tableName = ctx->getTab()->getName();
 
-  ndbout << "cleanup(" << tableName << ")..." << flush;
+  ndbout << "cleanup " << tableName << endl;
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
   while (fks.size() > tableFKs)
   {
     unsigned last = fks.size() - 1;
-    dict->dropForeignKey(* fks[last]);
+    DBG("DROP fk " << fks[last]->getName());
+    CHK2(dict->dropForeignKey(* fks[last]) == 0,
+        fks[last]->getName() << ": " << dict->getNdbError());
     delete fks[last];
     fks.erase(last);
   }
-  ndbout << "FK done..." << flush;
+  ndbout << "FK done" << endl;
 
   while (indexes.size() > tableIndexes)
   {
     unsigned last = indexes.size() - 1;
-    dict->dropIndex(indexes[last]->getName(), tableName);
+    DBG("DROP index " << indexes[last]->getName());
+    CHK2(dict->dropIndex(indexes[last]->getName(), tableName) == 0,
+        indexes[last]->getName() << ": " << dict->getNdbError());
     indexes.erase(last);
   }
 
-  ndbout << "indexes done..." << endl;
+  ndbout << "indexes done" << endl;
 
   return NDBT_OK;
 }
@@ -951,25 +986,78 @@ runRSSsnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-static
+/**
+ * BUG#19643174
+ * 
+ * Test cases that use TcResourceSnapshot and TcResourceCheckLeak have
+ * to be protected from race conditions. There are multiple variants of
+ * races to protect against.
+ * 
+ * 1) We wake up the user thread before we send the TC_COMMIT_ACK, this could
+ * lead to that we haven't released the commit ack markers before our
+ * DUMP_STATE_ORD arrives in the DBTC instances. To handle this we set
+ * TC_COMMIT_ACK to be sent immediate and even before the user thread is
+ * signalled.
+ * 
+ * 2) The sending of TC_COMMIT_ACK uses a method to send the signal without
+ * flushing for performance reasons. However in this case we need it to be
+ * sent immediate, this is also handled by the same flag as for 1).
+ *
+ * 3) The sending of DUMP_STATE_ORD can race the TC_COMMIT_ACK if we send it
+ * through the management server. To avoid this we send it directly to all
+ * nodes through a signal.
+ *
+ * 4) The TC_COMMIT_ACK can still be raced by the DUMP_STATE_ORD if they arrive
+ * in the same TCP/IP message. This is so since the data node receiver will
+ * not flush the signals to the threads until it has received all signals or
+ * some maximum value. When flushing it starts with low thread numbers, so the
+ * thread where CMVMI belongs (the main thread) will get its signal flushed
+ * before the TC threads gets their signals flushed. This means that a signal
+ * directly to TC can be raced by a signal to the same TC routed via the thread
+ * of the CMVMI. To avoid this we always route TC_COMMIT_ACK via CMVMI when
+ * the immediate flag has been set.
+ *
+ * The above 4 measures handles the TC_COMMIT_ACK resources. There is however
+ * also a number of resources kept until the complete phase is processed.
+ * There is no signal sent back to the API when the complete phase is
+ * completed, so there isn't much we can do in that respect. There is however
+ * a signal WAIT_GCP_REQ that can be sent that waits for the current global
+ * checkpoint to complete before sending WAIT_GCP_CONF, given that we have
+ * received a transaction with a certain GCP, we know that this signal will
+ * not return until the complete phase of our transactions are completed.
+ * It will actually wait also for the logs to be written and so forth, but
+ * this extra wait doesn't matter since it is simply delaying the test case
+ * somewhat. So by adding a call to forceGCPWait(1) we ensure that the
+ * complete phase is done before we proceed with checking for memory leaks.
+ */
+
+#include "../../src/ndbapi/ndb_internal.hpp"
+
 int
 runTransSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
+  Ndb *pNdb = GETNDB(step);
+
   g_info << "save all resource usage" << endl;
   int dump1[] = { DumpStateOrd::TcResourceSnapshot };
   restarter.dumpStateAllNodes(dump1, 1);
+  Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
   return NDBT_OK;
 }
 
-static
 int
 runTransSnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
 {
-  NdbRestarter restarter;
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
   g_info << "save all resource usage" << endl;
-  int dump1[] = { DumpStateOrd::TcResourceCheckLeak };
-  restarter.dumpStateAllNodes(dump1, 1);
+  pDict->forceGCPWait(1);
+  Uint32 dump1[] = { DumpStateOrd::TcResourceCheckLeak };
+  if (Ndb_internal::send_dump_state_all(pNdb, dump1, 1) != 0)
+  {
+    return NDBT_FAILED;
+  }
   return NDBT_OK;
 }
 
@@ -1037,8 +1125,19 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Table child(* pTab);
   child.setName(childname.c_str());
 
-  (void)dict->dropTable(child.getName());
+  if (dict->getTable(child.getName()) == 0)
+  {
+    CHK2(dict->getNdbError().code == 723,
+         child.getName() << ": " << dict->getNdbError());
+  }
+  else
+  {
+    DBG("DROP old table" << child.getName());
+    CHK2(dict->dropTable(child.getName()) == 0,
+         child.getName() << ": " << dict->getNdbError());
+  }
 
+  DBG("CREATE table " << child.getName());
   int res = dict->createTable(child);
   if (res != 0)
   {
@@ -1069,6 +1168,7 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
         {
           copy.addColumn(idx->getColumn(j)->getName());
         }
+        DBG("CREATE index " << copy.getName());
         if (dict->createIndex(copy) != 0)
         {
           ndbout << __LINE__ << ": " << dict->getNdbError() << endl;
@@ -1096,6 +1196,7 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
 
   if (1)
   {
+    ndbout << "DESC " << pChild->getName() << endl;
     dict->print(ndbout, * pChild);
   }
 
@@ -1269,7 +1370,9 @@ runDropCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   BaseString childname;
   childname.assfmt("%s_CHILD", pTab->getName());
 
-  pNdb->getDictionary()->dropTable(childname.c_str());
+  DBG("DROP table " << childname.c_str());
+  CHK2(pNdb->getDictionary()->dropTable(childname.c_str()) == 0,
+       pNdb->getDictionary()->getNdbError());
 
   return NDBT_OK;
 }
@@ -1421,8 +1524,8 @@ TESTCASE("Cascade1",
   INITIALIZER(runDiscoverTable);
   INITIALIZER(runCreateCascadeChild);
   STEPS(runMixedCascade, 1);
-  VERIFIER(runDropCascadeChild);
   VERIFIER(runCleanupTable);
+  VERIFIER(runDropCascadeChild);
 }
 TESTCASE("Cascade10",
 	 "")
@@ -1430,8 +1533,8 @@ TESTCASE("Cascade10",
   INITIALIZER(runDiscoverTable);
   INITIALIZER(runCreateCascadeChild);
   STEPS(runMixedCascade, 10);
-  VERIFIER(runDropCascadeChild);
   VERIFIER(runCleanupTable);
+  VERIFIER(runDropCascadeChild);
 }
 TESTCASE("CascadeError",
 	 "")
@@ -1440,8 +1543,8 @@ TESTCASE("CascadeError",
   INITIALIZER(runDiscoverTable);
   INITIALIZER(runCreateCascadeChild);
   INITIALIZER(runTransError);
-  VERIFIER(runDropCascadeChild);
   VERIFIER(runCleanupTable);
+  VERIFIER(runDropCascadeChild);
 }
 NDBT_TESTSUITE_END(testFK);
 

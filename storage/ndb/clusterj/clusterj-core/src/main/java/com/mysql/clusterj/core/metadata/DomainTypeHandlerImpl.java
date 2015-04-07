@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,6 +59,10 @@ import java.util.Map;
  */
 public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
+    protected interface Finalizable {
+        void finalize() throws Throwable;
+    }
+
     /** The domain class. */
     Class<T> cls;
 
@@ -117,8 +121,9 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
             this.tableName = getTableNameForDynamicObject((Class<DynamicObject>)cls);
         } else {
             // Create a proxy class for the domain class
+            // Invoke the handler's finalizer method when the proxy is finalized
             proxyClass = (Class<T>)Proxy.getProxyClass(
-                    cls.getClassLoader(), new Class[]{cls});
+                    cls.getClassLoader(), new Class[]{cls, Finalizable.class});
             ctor = getConstructorForInvocationHandler (proxyClass);
             persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
             if (persistenceCapable == null) {
@@ -272,7 +277,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         // If not, this table has no primary key or there is no primary key field
         if (!indexHandlerImpls.get(0).isUsable()) {
             String reason = local.message("ERR_Primary_Field_Missing", name);
-            logger.info(reason);
+            logger.warn(reason);
             throw new ClusterJUserException(reason);
         }
 
