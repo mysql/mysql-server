@@ -5,6 +5,7 @@ where name like 'Wait/Synch/Mutex/sql/%'
 order by name limit 10;
 NAME	ENABLED	TIMED
 wait/synch/mutex/sql/Commit_order_manager::m_mutex	YES	YES
+wait/synch/mutex/sql/Cost_constant_cache::LOCK_cost_const	YES	YES
 wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state	YES	YES
 wait/synch/mutex/sql/Gtid_state	YES	YES
 wait/synch/mutex/sql/Gtid_state::gtid_executed::free_intervals_mutex	YES	YES
@@ -13,7 +14,6 @@ wait/synch/mutex/sql/key_mts_gaq_LOCK	YES	YES
 wait/synch/mutex/sql/key_mts_temp_table_LOCK	YES	YES
 wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
 wait/synch/mutex/sql/LOCK_compress_gtid_table	YES	YES
-wait/synch/mutex/sql/LOCK_connection_count	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
