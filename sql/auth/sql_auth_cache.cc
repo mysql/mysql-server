@@ -2442,6 +2442,12 @@ my_bool grant_reload(THD *thd)
     goto end;
   }
 
+  if (tables[2].table == NULL)
+  {
+    my_hash_free(&proc_priv_hash);
+    my_hash_free(&func_priv_hash);
+  }
+
   LOCK_grant.wrlock();
 
   old_column_priv_hash= column_priv_hash;
