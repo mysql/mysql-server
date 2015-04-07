@@ -49,8 +49,8 @@ Ndb_move_data::Ndb_move_data()
 
 Ndb_move_data::~Ndb_move_data()
 {
-  delete m_sourceattr;
-  delete m_targetattr;
+  delete [] m_sourceattr;
+  delete [] m_targetattr;
   m_sourceattr = 0;
   m_targetattr = 0;
   release_data();
@@ -136,6 +136,21 @@ Ndb_move_data::set_type(Attr& attr, const NdbDictionary::Column* c)
   }
 }
 
+Uint32
+Ndb_move_data::calc_str_len_truncated(CHARSET_INFO *cs, char *data, Uint32 maxlen)
+{
+  const char *begin = (const char*) data;
+  const char *end= (const char*) (data+maxlen);
+  int errors = 0;
+  // for multi-byte characters, truncate to last well-formed character before
+  // maxlen so that string is not truncated in the middle of a multi-byte char. 
+  Uint32 numchars = cs->cset->numchars(cs, begin, end); 
+  Uint32 wf_len = cs->cset->well_formed_len(cs, begin, end, numchars, &errors);
+  require(wf_len <= maxlen);
+
+  return wf_len;
+}
+  
 int
 Ndb_move_data::check_nopk(const Attr& attr1, const Attr& attr2)
 {
@@ -341,6 +356,14 @@ Ndb_move_data::check_tables()
       if (attr1.type == Attr::TypeArray &&
           attr2.type == Attr::TypeArray)
       {
+        CHK1(check_sizes(attr1, attr2) == 0);
+        continue;
+      }
+
+      if (attr1.type == Attr::TypeBlob &&
+          attr2.type == Attr::TypeBlob)
+      {
+        // TEXT and BLOB conversions
         CHK1(check_sizes(attr1, attr2) == 0);
         continue;
       }
@@ -701,9 +724,21 @@ Ndb_move_data::copy_blob_to_blob(const Attr& attr1, const Attr& attr2)
     {
       char* data = alloc_data(data_length);
       Uint32 bytes = data_length;
+
       CHK2(bh1->readData(data, bytes) == 0, (bh1->getNdbError()));
       require(bytes == data_length);
-
+      
+      // prevent TINYTEXT/TINYBLOB overflow by truncating data
+      if(attr2.column->getPartSize() == 0)
+      {
+        Uint32 inline_size = attr2.column->getInlineSize();
+        if(bytes > inline_size) 
+        {
+          data_length = calc_str_len_truncated(attr2.column->getCharset(),
+                                               data, inline_size);
+          op.truncated_in_batch++;
+        }
+      }
       CHK2(bh2->setValue(data, data_length) == 0,
            (bh2->getNdbError()));
     }
@@ -746,6 +781,7 @@ Ndb_move_data::copy_attr(const Attr& attr1, const Attr& attr2)
     if (attr1.type == Attr::TypeBlob &&
         attr2.type == Attr::TypeBlob)
     {
+      // handles TEXT and BLOB conversions 
       CHK1(copy_blob_to_blob(attr1, attr2) == 0);
       break;
     }

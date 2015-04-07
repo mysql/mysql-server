@@ -228,3 +228,13 @@ set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 End of 5.1 tests
+#
+# Bug #20648276: SSL-RELATED GLOBAL STATUS INFORMATION ONLY AVAILABLE
+#  WHEN CONNECTED USING --SSL
+#
+# Must return empty
+# Must return values for the certificate data
+Variable_name	Value
+Ssl_server_not_after	Dec  1 04:48:40 2029 GMT
+Ssl_server_not_before	Dec  5 04:48:40 2014 GMT
+End of 5.7 tests

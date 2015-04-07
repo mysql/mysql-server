@@ -15,6 +15,7 @@
 --connection slave
 call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key 'a'");
 call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("Error writing relay log configuration.");
 --source include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=2;
@@ -140,5 +141,96 @@ DELETE FROM d1.t1 WHERE a = 13;
 DROP DATABASE d1;
 DROP DATABASE d2;
 --source include/sync_slave_sql_with_master.inc
+
+###############################################################################
+# Bug#20411374: CAN NOT EXECUTE CHANGE MASTER AFTER ERROR OCCURED IN MTS MODE
+#
+# Problem:
+# ========
+# When error occurred in MTS mode, If user first change master
+# (ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS received here), and then reset slave,
+# user can never change master (error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
+# occurred again). The debug version mysqld will crash at this case.
+#
+# Test:
+# =====
+# Generate MTS gaps and execute CHANGE MASTER command so that
+# ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS error is reported. Execute RESET
+# SLAVE command. Reexecute the CHANGE MASTER command once again it should
+# report an assert in the case of bug scenario and it should succeed after the
+# fix.
+###############################################################################
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
+SET @@global.slave_parallel_workers=2;
+SET @save.relay_log_info_repository=@@global.relay_log_info_repository;
+SET @@global.relay_log_info_repository='TABLE';
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE TABLE d1.t1 (a int unique) ENGINE=INNODB;
+CREATE TABLE d2.t1 (a int unique) ENGINE=INNODB;
+--source include/sync_slave_sql_with_master.inc
+BEGIN;
+INSERT INTO d1.t1 VALUES (13); # to cause the dup key error
+# change-master with gaps
+--source include/rpl_connection_master.inc
+INSERT INTO d1.t1 VALUES (6);
+INSERT INTO d2.t1 VALUES (7);
+--connection master1
+BEGIN;
+INSERT INTO d1.t1 VALUES (13);
+--connection master
+BEGIN;
+INSERT INTO d2.t1 VALUES (8);  # this worker will race over one inserting (13)
+--connection master1
+COMMIT;
+--connection master
+COMMIT;
+INSERT INTO d2.t1 VALUES (9);
+
+--source include/rpl_connection_slave1.inc
+# make sure workers doing d2.t1 raced the one that occupied  with d1.t1
+--let $count= 1
+--let $table= d2.t1
+--let $wait_condition= select count(*) = 1 from $table where a = 8
+--source include/wait_condition.inc
+
+--source include/rpl_connection_slave.inc
+# make worker executing (13) to error out
+COMMIT;
+
+--let $slave_sql_errno= 1062
+--source include/wait_for_slave_sql_error.inc
+
+--source include/stop_slave_io.inc
+
+--source include/rpl_connection_master.inc
+FLUSH LOGS;
+--let $file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--source include/rpl_connection_slave.inc
+--replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS
+--replace_column 2 ####
+--error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
+eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT, MASTER_USER= 'root',MASTER_LOG_FILE = '$file', MASTER_LOG_POS = $pos ;
+reset slave;
+--replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS
+--replace_column 2 ####
+eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT, MASTER_USER= 'root',MASTER_LOG_FILE = '$file', MASTER_LOG_POS = $pos ;
+
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+SET @@global.relay_log_info_repository= @save.relay_log_info_repository;
+--source include/start_slave.inc
+#
+# cleanup
+#
+--source include/rpl_connection_master.inc
+DROP DATABASE d1;
+DROP DATABASE d2;
 
 --source include/rpl_end.inc

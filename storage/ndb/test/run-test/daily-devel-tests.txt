@@ -497,3 +497,15 @@ max-time: 900
 cmd: testNodeRestart
 args: -n Bug34702 T1
 
+max-time: 3600
+cmd: testNodeRestart
+args: -n LCPScanFragWatchdogIsolation T1
+
+max-time: 3600
+cmd: testNodeRestart
+args: -n GcpStop T1 --loops=1
+
+max-time: 3600
+cmd: testNodeRestart
+args: -n GcpStopIsolation T1 --loops=1
+

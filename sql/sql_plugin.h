@@ -177,4 +177,8 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
                                      int type, uint state_mask, void *arg);
 int lock_plugin_data();
 int unlock_plugin_data();
+
+extern volatile int32 num_pre_parse_plugins;
+extern volatile int32 num_post_parse_plugins;
+
 #endif

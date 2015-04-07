@@ -20,12 +20,15 @@
 
 "use strict";
 
+var path = require("path"),
+    fs   = require("fs");
+
 try {
   require("./suite_config.js");
 } catch(e) {} 
 
-var spi_lib = require("./lib.js"),
-    doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
+var spi_lib    = require("./lib.js"),
+    doc_parser = require("../lib/doc_parser");
     
 /***** 
   t1:  get a connection
@@ -60,7 +63,7 @@ t3.run = function() {
     var dbConnPool, docFile, functionList, tester;
     try {
       dbConnPool = dbSession.getConnectionPool();
-      docFile = path.join(spi_doc_dir, "DBConnectionPool");
+      docFile = path.join(mynode.fs.spi_doc_dir, "DBConnectionPool");
       functionList = doc_parser.listFunctions(docFile);
       tester = new doc_parser.ClassTester(dbConnPool, "DBConnectionPool");
       tester.test(functionList, t3);

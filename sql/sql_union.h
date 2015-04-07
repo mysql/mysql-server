@@ -28,8 +28,10 @@ class Query_result_union :public Query_result_interceptor
   Temp_table_param tmp_table_param;
 public:
   TABLE *table;
+  bool is_union_mixed_with_union_all; // Mark the mixed operation
 
-  Query_result_union() :table(0) {}
+  Query_result_union() :table(0),
+  is_union_mixed_with_union_all(false){}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   /**
     Do prepare() and prepare2() if they have been postponed until

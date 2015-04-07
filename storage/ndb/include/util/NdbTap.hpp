@@ -42,7 +42,7 @@ int name##_test()
 #undef DONT_DEFINE_VOID
 #endif
 
-#ifdef HAVE_gcov
+#ifdef HAVE_GCOV
 // __gcov_flush need C linkage
 extern "C" void __gcov_flush(void);
 #endif

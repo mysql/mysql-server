@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -575,6 +575,46 @@ BaseString_get_key(const void* key, size_t* key_length)
   const BaseString* str = (const BaseString*)key;
   *key_length = str->length();
   return str->c_str();
+}
+
+size_t
+BaseString::hexdump(char * buf, size_t len, const Uint32 * wordbuf, size_t numwords)
+{
+  /**
+   * If not all words are printed end with "...\n".
+   * Words are written as "H'11223344 ", 11 character each.
+   */
+  size_t offset = 0;
+  size_t words_to_dump = numwords;
+  const size_t max_words_to_dump = (len - 5) / 11;
+  if (words_to_dump > max_words_to_dump)
+  {
+    words_to_dump = max_words_to_dump;
+  }
+  for (size_t i = 0 ; i < words_to_dump ; i ++ )
+  {
+    // Write at most 6 words per line
+    char sep = (i % 6 == 5) ? '\n' : ' ';
+    assert(offset + 11 < len);
+    int n = BaseString::snprintf(buf + offset, len - offset, "H'%08x%c", wordbuf[i], sep);
+    assert(n == 11);
+    offset += n;
+  }
+  if (words_to_dump < numwords)
+  {
+    assert(offset + 4 < len);
+    int n = BaseString::snprintf(buf + offset, len - offset, "...\n");
+    assert(n == 4);
+    offset += n;
+  }
+  else
+  {
+    assert(offset + 1 < len);
+    int n = BaseString::snprintf(buf + offset, len - offset, "\n");
+    assert(n == 1);
+    offset += n;
+  }
+  return offset;
 }
 
 #ifdef TEST_BASE_STRING

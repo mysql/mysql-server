@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,11 @@
     the release plugin.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <properties>
+    <subproject>jpatest</subproject>
+    <subproject.source-dir>${project.source-dir}/clusterj-${subproject}</subproject.source-dir>
+  </properties>
+
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
@@ -38,6 +43,18 @@
     <name>ClusterJ JPA Integration Tests</name>
 
     <build>
+    <sourceDirectory>${subproject.source-dir}/src/main/java</sourceDirectory>
+    <testSourceDirectory>${subproject.source-dir}/src/test/java</testSourceDirectory>
+    <resources>
+      <resource>
+        <directory>${subproject.source-dir}/src/main/resources</directory>
+      </resource>
+    </resources>
+    <testResources>
+      <testResource>
+        <directory>${subproject.source-dir}/src/test/resources</directory>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key 'a'");
 call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("Error writing relay log configuration.");
 include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=2;
@@ -62,4 +63,50 @@ include/start_slave.inc
 DROP DATABASE d1;
 DROP DATABASE d2;
 include/sync_slave_sql_with_master.inc
+[connection slave]
+include/stop_slave.inc
+SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
+SET @@global.slave_parallel_workers=2;
+SET @save.relay_log_info_repository=@@global.relay_log_info_repository;
+SET @@global.relay_log_info_repository='TABLE';
+include/start_slave.inc
+[connection master]
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE TABLE d1.t1 (a int unique) ENGINE=INNODB;
+CREATE TABLE d2.t1 (a int unique) ENGINE=INNODB;
+include/sync_slave_sql_with_master.inc
+BEGIN;
+INSERT INTO d1.t1 VALUES (13);
+[connection master]
+INSERT INTO d1.t1 VALUES (6);
+INSERT INTO d2.t1 VALUES (7);
+BEGIN;
+INSERT INTO d1.t1 VALUES (13);
+BEGIN;
+INSERT INTO d2.t1 VALUES (8);
+COMMIT;
+COMMIT;
+INSERT INTO d2.t1 VALUES (9);
+[connection slave1]
+[connection slave]
+COMMIT;
+include/wait_for_slave_sql_error.inc [errno=1062]
+include/stop_slave_io.inc
+[connection master]
+FLUSH LOGS;
+[connection slave]
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT, MASTER_USER= 'root',MASTER_LOG_FILE = 'FILE', MASTER_LOG_POS = POS ;
+ERROR HY000: CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL.
+reset slave;
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT, MASTER_USER= 'root',MASTER_LOG_FILE = 'FILE', MASTER_LOG_POS = POS ;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+SET @@global.relay_log_info_repository= @save.relay_log_info_repository;
+include/start_slave.inc
+[connection master]
+DROP DATABASE d1;
+DROP DATABASE d2;
 include/rpl_end.inc

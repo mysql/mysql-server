@@ -658,7 +658,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
    *   still having a transaction context...
    *   i.e can abort transactions, modify transaction
    */
-  req_struct.no_fired_triggers = 0;
+  req_struct.num_fired_triggers = 0;
 
   /**
    * See DbtupCommit re "Setting the op-list has this effect"
@@ -673,7 +673,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
   lastOperPtr.p->prevActiveOp = save[1];
 
   signal->theData[0] = 0;
-  signal->theData[1] = req_struct.no_fired_triggers;
+  signal->theData[1] = req_struct.num_fired_triggers;
 }
 
 /* ---------------------------------------------------------------- */
@@ -805,16 +805,16 @@ Dbtup::checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
       jam();
       switch(trigPtr.p->triggerType){
       case TriggerType::SECONDARY_INDEX:
-        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->num_fired_triggers);
         break;
       case TriggerType::FK_PARENT:
       case TriggerType::FK_CHILD:
-        NoOfFiredTriggers::setDeferredFKBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredFKBit(req_struct->num_fired_triggers);
         break;
       default:
         ndbassert(false);
       }
-      if (NoOfFiredTriggers::getDeferredAllSet(req_struct->no_fired_triggers))
+      if (NoOfFiredTriggers::getDeferredAllSet(req_struct->num_fired_triggers))
         return;
     }
     triggerList.next(trigPtr);
@@ -932,7 +932,8 @@ end:
 void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
                                   Operationrec* regOperPtr,
                                   Tablerec* regTablePtr,
-                                  bool disk)
+                                  bool disk,
+                                  Uint32 diskPagePtrI)
 {
   Uint32 save_type = regOperPtr->op_type;
   Tuple_header *save_ptr = req_struct->m_tuple_ptr;  
@@ -981,7 +982,9 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     // If any fired immediate insert trigger then fetch after tuple
     fireDetachedTriggers(req_struct,
                          regTablePtr->subscriptionInsertTriggers, 
-                         regOperPtr, disk);
+                         regOperPtr,
+                         disk,
+                         diskPagePtrI);
     break;
   case(ZDELETE):
     jam();
@@ -995,7 +998,9 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     // FIRETRIGORD with the before tuple
     fireDetachedTriggers(req_struct,
 			 regTablePtr->subscriptionDeleteTriggers, 
-			 regOperPtr, disk);
+			 regOperPtr,
+                         disk,
+                         diskPagePtrI);
     break;
   case(ZUPDATE):
     jam();
@@ -1009,7 +1014,9 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     // and send two FIRETRIGORD one with before tuple and one with after tuple
     fireDetachedTriggers(req_struct,
                          regTablePtr->subscriptionUpdateTriggers, 
-                         regOperPtr, disk);
+                         regOperPtr,
+                         disk,
+                         diskPagePtrI);
     break;
   case ZREFRESH:
     jam();
@@ -1022,13 +1029,17 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
     case Operationrec::RF_MULTI_NOT_EXIST:
       fireDetachedTriggers(req_struct,
                            regTablePtr->subscriptionDeleteTriggers,
-                           regOperPtr, disk);
+                           regOperPtr,
+                           disk,
+                           diskPagePtrI);
       break;
     case Operationrec::RF_SINGLE_EXIST:
     case Operationrec::RF_MULTI_EXIST:
       fireDetachedTriggers(req_struct,
                            regTablePtr->subscriptionInsertTriggers,
-                           regOperPtr, disk);
+                           regOperPtr,
+                           disk,
+                           diskPagePtrI);
       break;
     default:
       ndbrequire(false);
@@ -1074,11 +1085,11 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
       {
         switch(trigPtr.p->triggerType){
         case TriggerType::SECONDARY_INDEX:
-          NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+          NoOfFiredTriggers::setDeferredUKBit(req_struct->num_fired_triggers);
           break;
         case TriggerType::FK_PARENT:
         case TriggerType::FK_CHILD:
-          NoOfFiredTriggers::setDeferredFKBit(req_struct->no_fired_triggers);
+          NoOfFiredTriggers::setDeferredFKBit(req_struct->num_fired_triggers);
           break;
         default:
           ndbassert(false);
@@ -1144,7 +1155,8 @@ void
 Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList, 
                             Operationrec* const regOperPtr,
-                            bool disk)
+                            bool disk,
+                            Uint32 diskPagePtrI)
 {
   
   TriggerPtr trigPtr;  
@@ -1152,7 +1164,7 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
   /**
    * Set disk page
    */
-  req_struct->m_disk_page_ptr.i = m_pgman_ptr.i;
+  req_struct->m_disk_page_ptr.i = diskPagePtrI;
   
   ndbrequire(regOperPtr->is_first_operation());
   triggerList.first(trigPtr);
@@ -1448,11 +1460,11 @@ out:
     {
       switch(regOperPtr->op_type){
       case ZINSERT:
-        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->num_fired_triggers);
         return;
         break;
       case ZUPDATE:
-        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->num_fired_triggers);
         noAfterWords = 0;
         break;
       case ZDELETE:
@@ -1492,7 +1504,7 @@ out:
     }
   }
 
-  req_struct->no_fired_triggers++;
+  req_struct->num_fired_triggers++;
 
   if (longsignal == false)
   {
@@ -1715,17 +1727,20 @@ out:
 }
 
 Uint32 Dbtup::setAttrIds(Bitmask<MAXNROFATTRIBUTESINWORDS>& attributeMask, 
-                         Uint32 m_no_of_attributesibutes, 
+                         Uint32 no_of_attributes, 
                          Uint32* inBuffer)
 {
   Uint32 bufIndx = 0;
-  for (Uint32 i = 0; i < m_no_of_attributesibutes; i++) {
-    jam();
-    if (attributeMask.get(i)) {
-      jam();
+  jam();
+  for (Uint32 i = 0; i < no_of_attributes; i++)
+  {
+    if (attributeMask.get(i))
+    {
+      jamLine(i);
       AttributeHeader::init(&inBuffer[bufIndx++], i, 0);
     }
   }
+  jam();
   return bufIndx;
 }
 

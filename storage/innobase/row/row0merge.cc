@@ -3485,7 +3485,7 @@ row_merge_drop_indexes(
 	ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_COMPLETE);
 
 	/* the caller should have an open handle to the table */
-	ut_ad(table->n_ref_count >= 1);
+	ut_ad(table->get_ref_count() >= 1);
 
 	/* It is possible that table->n_ref_count > 1 when
 	locked=TRUE. In this case, all code that should have an open
@@ -3494,7 +3494,7 @@ row_merge_drop_indexes(
 
 	A concurrent purge will be prevented by dict_operation_lock. */
 
-	if (!locked && table->n_ref_count > 1) {
+	if (!locked && table->get_ref_count() > 1) {
 		/* We will have to drop the indexes later, when the
 		table is guaranteed to be no longer in use.  Mark the
 		indexes as incomplete and corrupted, so that other
@@ -4182,7 +4182,7 @@ row_merge_drop_table(
 	ut_ad(!srv_read_only_mode);
 
 	/* There must be no open transactions on the table. */
-	ut_a(table->n_ref_count == 0);
+	ut_a(table->get_ref_count() == 0);
 
 	return(row_drop_table_for_mysql(table->name.m_name,
 					trx, false, false));

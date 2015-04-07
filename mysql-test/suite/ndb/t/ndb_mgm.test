@@ -31,12 +31,10 @@ let $mysql_version = mysql-$mysql_version;
 # echo mysql_version: $mysql_version;
 
 # load ndb-X.X.X from the "ndb_version_string" vaioable
---disable_warnings
 let $ndb_version=
   `select VARIABLE_VALUE
      from INFORMATION_SCHEMA.GLOBAL_VARIABLES
        where VARIABLE_NAME='ndb_version_string'`;
---enable_warnings
 # echo ndb_version: $ndb_version;
 
 #

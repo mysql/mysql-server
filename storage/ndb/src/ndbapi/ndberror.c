@@ -136,13 +136,16 @@ ErrorBundle ErrorCodes[] = {
   {  499, DMEC, NR, "Scan take over error, restart scan transaction" },  
   { 1204, DMEC, NR, "Temporary failure, distribution changed" },
   { 4002, DMEC, NR, "Send to NDB failed" },
+  { 4007, DMEC, NR, "Send to ndbd node failed" },
   { 4010, DMEC, NR, "Node failure caused abort of transaction" }, 
+  { 4013, DMEC, NR, "Request timed out in waiting for node failure"}, 
   { 4025, DMEC, NR, "Node failure caused abort of transaction" }, 
   { 4027, DMEC, NR, "Node failure caused abort of transaction" },
   { 4028, DMEC, NR, "Node failure caused abort of transaction" },
   { 4029, DMEC, NR, "Node failure caused abort of transaction" },
   { 4031, DMEC, NR, "Node failure caused abort of transaction" },
   { 4033, DMEC, NR, "Send to NDB failed" },
+  { 4035, DMEC, NR, "Cluster temporary unavailable" },
   { 4115, DMEC, NR, 
     "Transaction was committed but all read information was not "
     "received due to node crash" },
@@ -223,15 +226,31 @@ ErrorBundle ErrorCodes[] = {
   
   /**
    * Unknown result
+   * 
+   * We want to avoid reporting these error codes as much as possible. There
+   * are two cases where we report this as the error code.
+   *
+   * 1) We have sent a request to NDB, but for some reason we got no response,
+   *    the node is still alive and the send was successful, so what happened
+   *    is simply unknown, it shouldn't happen, most likely it is caused by
+   *    some bug somewhere.
+   *    4008 and 4012 are indications of this problem.
+   *
+   * 2) We have no connection to the cluster at all or all nodes we're
+   *    connected to are shutting down. So we have no communication to
+   *    the cluster. We will avoid reporting this error if we even only
+   *    have a starting node that we're connected since this is and
+   *    indication that we're very close to having a cluster up and
+   *    running again.
+   *    The cluster can still be up, but our API node have no ability to
+   *    see any nodes being up, we don't know whether this depends on the
+   *    cluster actually being down or if we simply have no communication
+   *    link to it at present.
    */
-  { 4007, DMEC, UR, "Send to ndbd node failed" },
   { 4008, DMEC, UR, "Receive from NDB failed" },
   { 4009, HA_ERR_NO_CONNECTION, UR, "Cluster Failure" },
   { 4012, DMEC, UR, 
     "Request ndbd time-out, maybe due to high load or communication problems"}, 
-  { 4013, DMEC, UR, "Request timed out in waiting for node failure"}, 
-  { 4024, DMEC, UR, 
-    "Time-out, most likely caused by simple read or cluster failure" }, 
   
   /**
    * TemporaryResourceError
@@ -239,6 +258,8 @@ ErrorBundle ErrorCodes[] = {
   { 217,  DMEC, TR, "217" },
   { 218,  DMEC, TR, "Out of LongMessageBuffer" },
   { 219,  DMEC, TR, "219" },
+  { 221,  DMEC, TR, "Too many concurrently fired triggers (increase "
+    "MaxNoOfFiredTriggers)" },
   { 233,  DMEC, TR,
     "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 275,  DMEC, TR, "Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)" },
@@ -668,6 +689,7 @@ ErrorBundle ErrorCodes[] = {
   { 4104, DMEC, AE, "Ndb Init in wrong state, destroy Ndb object and create a new" },
   { 4121, DMEC, AE, "Cannot set name twice for an Ndb object" },
   { 4122, DMEC, AE, "Cannot set name after Ndb object is initialised" },
+  { 4123, DMEC, AE, "Free percent out of range. Allowed range is 1-99" },
   { 4105, DMEC, AE, "Too many Ndb objects" },
   { 4106, DMEC, AE, "All Not NULL attribute have not been defined" },
   { 4114, DMEC, AE, "Transaction is already completed" },
@@ -756,6 +778,7 @@ ErrorBundle ErrorCodes[] = {
   { 4553, DMEC, AE, "NdbLockHandle original operation not executed successfully" },
   { 4554, DMEC, AE, "NdbBlob can only be closed from Active state" },
   { 4555, DMEC, AE, "NdbBlob cannot be closed with pending operations" },
+  { 4556, DMEC, AE, "RecordSpecification has illegal value in column_flags" },
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },

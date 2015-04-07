@@ -598,11 +598,11 @@ blob_nl blob,
 text_nl text,
 primary key(a)
 ) engine=ndb;
-insert into t1(a) values (1);
+insert ignore into t1(a) values (1);
 Warnings:
 Warning	1364	Field 'blob_nn' doesn't have a default value
 Warning	1364	Field 'text_nn' doesn't have a default value
-insert into t1(a, text_nl) values (2, 'MySQL Cluster NDB');
+insert ignore into t1(a, text_nl) values (2, 'MySQL Cluster NDB');
 Warnings:
 Warning	1364	Field 'blob_nn' doesn't have a default value
 Warning	1364	Field 'text_nn' doesn't have a default value

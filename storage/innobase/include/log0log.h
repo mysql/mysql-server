@@ -55,6 +55,15 @@ struct log_t;
 /** Redo log group */
 struct log_group_t;
 
+/** Magic value to use instead of log checksums when they are disabled */
+#define LOG_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
+
+typedef ulint (*log_checksum_func_t)(const byte* log_block);
+
+/** Pointer to the log checksum calculation function. Protected with
+log_sys->mutex. */
+extern log_checksum_func_t log_checksum_algorithm_ptr;
+
 /** Maximum number of log groups in log_group_t::checkpoint_buf */
 #define LOG_MAX_N_GROUPS	32
 
@@ -358,6 +367,28 @@ ulint
 log_block_calc_checksum(
 /*====================*/
 	const byte*	block);	/*!< in: log block */
+
+/** Calculates the checksum for a log block using the legacy InnoDB algorithm.
+@param[in]	block	the redo log block
+@return		the calculated checksum value */
+UNIV_INLINE
+ulint
+log_block_calc_checksum_innodb(const byte*	block);
+
+/** Calculates the checksum for a log block using the CRC32 algorithm.
+@param[in]	block	the redo log block
+@return		the calculated checksum value */
+UNIV_INLINE
+ulint
+log_block_calc_checksum_crc32(const byte*	block);
+
+/** Calculates the checksum for a log block using the "no-op" algorithm.
+@param[in]	block	the redo log block
+@return		the calculated checksum value */
+UNIV_INLINE
+ulint
+log_block_calc_checksum_none(const byte*	block);
+
 /************************************************************//**
 Gets a log block checksum field value.
 @return checksum */

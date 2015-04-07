@@ -369,6 +369,12 @@ err:
   if (error)
     sql_print_error("Could not delete from Slave Workers info repository.");
   rli->recovery_parallel_workers= 0;
+  if (rli->recovery_groups_inited)
+  {
+    bitmap_free(&rli->recovery_groups);
+    rli->mts_recovery_group_cnt= 0;
+    rli->recovery_groups_inited= false;
+  }
   if (rli->flush_info(true))
   {
     error= true;

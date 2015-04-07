@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +20,12 @@
 
 #include <SimulatedBlock.hpp>
 #include <LocalProxy.hpp>
+#include <NdbGetRUsage.h>
+#include <NdbTick.h>
 
 #define JAM_FILE_ID 340
 
-
+//#define DEBUG_CPU_USAGE 1
 class Thrman : public SimulatedBlock
 {
 public:
@@ -32,8 +34,26 @@ public:
   BLOCK_DEFINES(Thrman);
 
   void execDBINFO_SCANREQ(Signal*);
+  void execCONTINUEB(Signal*);
+  void execGET_CPU_USAGE_REQ(Signal*);
+  void execREAD_CONFIG_REQ(Signal*);
+  void execSTTOR(Signal*);
 protected:
 
+private:
+  /* Private methods */
+  void sendSTTORRY(Signal*);
+  void sendNextCONTINUEB(Signal*);
+  void measure_cpu_usage(void);
+
+  /* Private variables */
+  struct ndb_rusage last_rusage;
+  Uint32 current_cpu_load;
+
+  NDB_TICKS prev_cpu_usage_check;
+
+  static const Uint32 ZCONTINUEB_MEASURE_CPU_USAGE = 1;
+  static const Uint32 default_cpu_load = 90;
 };
 
 class ThrmanProxy : public LocalProxy

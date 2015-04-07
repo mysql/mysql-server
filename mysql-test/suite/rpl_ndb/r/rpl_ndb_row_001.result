@@ -19,9 +19,9 @@ Aaron
 Ababa
 Ababa
 STOP SLAVE;
-SET PASSWORD FOR root@"localhost" = PASSWORD('foo');
+SET PASSWORD FOR root@"localhost" = 'foo';
 START SLAVE;
-SET PASSWORD FOR root@"localhost" = PASSWORD('');
+SET PASSWORD FOR root@"localhost" = '';
 CREATE TABLE t3(n INT);
 INSERT INTO t3 VALUES(1),(2);
 SELECT * FROM t3 ORDER BY n;

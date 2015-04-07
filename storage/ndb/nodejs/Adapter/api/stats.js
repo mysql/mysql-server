@@ -20,12 +20,15 @@
 
 "use strict";
 
-/*global assert, util */
+var assert    = require("assert"),
+    util      = require("util"),
+    http      = require("http");
+
 var global_stats;
 var running_servers = {};
 var unified_debug = require("./unified_debug");
 var udebug = unified_debug.getLogger("STATS");
-var http = require("http");
+var DETAIL = udebug.is_detail();
 
 /* Because modules are cached, this initialization should happen only once. 
    If you try to do it twice the assert will fail.
@@ -63,94 +66,27 @@ function dotted_name(base, keyPath) {
   return base + "." + dot(keyPath, keyPath.length);
 }
 
-function stats_incr(baseDomain, basePrefix, keyPath) {
-  var len = keyPath.length - 1;
-  var domain = getStatsDomain(baseDomain, keyPath, len);
-  var key = keyPath[len];
 
-  if(domain[key]) {
-    domain[key] += 1;
-  }
-  else { 
-    domain[key] = 1;
-  }
-
-  udebug.log_detail(dotted_name(basePrefix, keyPath), "INCR", "(" + domain[key] + ")");
-}
-
-function stats_set(baseDomain, basePrefix, keyPath, value) {
-  var len = keyPath.length - 1;
-  var domain = getStatsDomain(baseDomain, keyPath, len);
-  var key = keyPath[(len)];
-   
-  domain[key] = value;
-  udebug.log_detail(dotted_name(basePrefix, keyPath), "SET", value);
-}
-
-function stats_push(baseDomain, basePrefix, keyPath, value) {
-  var len = keyPath.length - 1;
-  var domain = getStatsDomain(baseDomain, keyPath, len);
-  var key = keyPath[(len)];
-
-  if(! Array.isArray(domain[key])) {
-    domain[key] = [];
-  }  
-  domain[key].push(value);
-
-  udebug.log_detail(dotted_name(basePrefix, keyPath), "PUSH", value);
-}
-
-function testPathIsArray(keyOrPath) {
-  var r = true;
-  if(typeof keyOrPath === 'string') {
-    r = false;
-  }
-  else if(! Array.isArray(keyOrPath)) {
-    throw new Error("stats.incr() takes string key or array key path");
-  }    
-  return r;
-}
-
-
-exports.getWriter = function(domainPath) {
-  var statWriter = {};
-  var thisDomain = getStatsDomain(global_stats, domainPath, domainPath.length);
-  var prefix = dot(domainPath, domainPath.length);
-  
-  statWriter.incr = function(keyOrPath) {
-    return( testPathIsArray(keyOrPath) ? 
-      stats_incr(thisDomain, prefix, keyOrPath) :
-      stats_incr(thisDomain, prefix, [ keyOrPath ] )
-    );
-  };
-
-  statWriter.set = function(keyOrPath, value) {
-    return( testPathIsArray(keyOrPath) ? 
-      stats_set(thisDomain, prefix, keyOrPath,      value) :
-      stats_set(thisDomain, prefix, [ keyOrPath ] , value )
-    );
-  };
-  
-  statWriter.push = function(keyOrPath, value) {
-    return( testPathIsArray(keyOrPath) ? 
-      stats_push(thisDomain, prefix, keyOrPath,      value) :
-      stats_push(thisDomain, prefix, [ keyOrPath ] , value )
-    );      
-  };
-  
-  return statWriter;
-};
-
-
-exports.peek = function() {
-  console.log(JSON.stringify(global_stats));
+/* registerStats(statsObject, keyPart, ...)
+*/
+exports.register = function(userStatsContainer) {
+	var statParts, statsDomain, globalStatsNode, i;
+	statParts = [];
+	for(i = 1 ; i < arguments.length - 1; i++) {
+		statParts.push(arguments[i]);
+	}
+	statsDomain = arguments[i];  // the final part of the domain
+	
+	assert(typeof userStatsContainer === 'object');
+	globalStatsNode = getStatsDomain(global_stats, statParts, statParts.length);
+	globalStatsNode[statsDomain] = userStatsContainer;
+	return this;
 };
 
 
 exports.query = function(path) {
   return getStatsDomain(global_stats, path, path.length);
 };
-
 
 /* Translate a URL like "/a/b/" into an array ["a","b"] 
 */
@@ -164,6 +100,17 @@ function parseStatsUrl(url) {
   }
   return parts;
 }
+
+
+exports.peek = function(query) {
+  var parts;
+  var tree = global_stats;  
+  if(query) {
+    parts = parseStatsUrl(query);
+    tree = getStatsDomain(global_stats, parts, parts.length);
+  }
+  console.log(JSON.stringify(tree));
+};
 
 
 exports.startStatsServer = function(port, host, callback) {

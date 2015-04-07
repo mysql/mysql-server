@@ -27,23 +27,7 @@ public class MyJapiCtypes {
     // Platform-Dependent mappings of all primitive result/parameter types
     // ----------------------------------------------------------------------
 
-    static public native boolean f011();
 
-    static public native boolean f11(boolean p0);
-    static public native byte f12(byte p0);
-    static public native byte f13(byte p0);
-    static public native byte f14(byte p0);
-    static public native short f15(short p0);
-    static public native short f16(short p0);
-    static public native int f17(int p0);
-    static public native int f18(int p0);
-    static public native int f19(int p0);
-    static public native int f20(int p0);
-    static public native long f21(long p0);
-    static public native long f22(long p0);
-    static public native float f23(float p0);
-    static public native double f24(double p0);
-    static public native double f25(double p0);
 
     static public native boolean f31(boolean p0);
     static public native byte f32(byte p0);

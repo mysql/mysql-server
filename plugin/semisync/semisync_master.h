@@ -383,6 +383,17 @@ public:
   static int compare(const char *log_file_name1, my_off_t log_file_pos1,
                      const char *log_file_name2, my_off_t log_file_pos2);
 
+  /* Find out if active tranx node list is empty or not
+   *
+   * Return:
+   *   True :  If there are no nodes
+   *   False:  othewise
+  */
+  bool is_empty()
+  {
+    return (trx_front_ == NULL);
+  }
+
 };
 
 /**
