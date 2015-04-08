@@ -81,11 +81,6 @@ page-type-dump                    (No default value)
 log                               (No default value)
 [4]: Test for --allow-mismatches =99
 # Expect the fails for checksum mismatches. Print the error message.
-Fail: page 0 invalid
-Fail: page 1 invalid
-Fail: page 2 invalid
-Fail: page 3 invalid
-Fail: page 4 invalid
 [5]: Test checksum check for page: 2 to page:5
 [6]: Test for checksum check for only pageno.= 2
 [7]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
