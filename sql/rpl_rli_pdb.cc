@@ -2500,10 +2500,10 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
-    sql_print_information("Worker %lu is exiting: killed %i, error %i, "
-                          "running_status %d",
-                          worker->id, thd->killed, thd->is_error(),
-                          worker->running_status);
+    DBUG_PRINT("info", ("Worker %lu is exiting: killed %i, error %i, "
+                        "running_status %d",
+                        worker->id, thd->killed, thd->is_error(),
+                        worker->running_status));
     worker->slave_worker_ends_group(ev, error); /* last done sets post exec */
   }
   DBUG_RETURN(error);
