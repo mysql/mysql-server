@@ -258,6 +258,46 @@ CREATE TABLESPACE `InnoDB_Custom` ADD DATAFILE 's_InnoDB_Custom.ibd';
 DROP TABLESPACE `InnoDB_Custom`;
 CREATE TABLESPACE `INNODB_CUSTOM` ADD DATAFILE 's_INNODB_CUSTOM.ibd';
 DROP TABLESPACE `INNODB_CUSTOM`;
+DROP TABLESPACE `ib_logfile0`;
+ERROR HY000: Failed to drop TABLESPACE ib_logfile0
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE ib_logfile0
+Error	1812	Tablespace is missing for table ib_logfile0.
+CREATE TABLESPACE `ib_logfile0` ADD DATAFILE 'ib_logfile0.ibd';
+DROP TABLESPACE `ib_logfile0`;
+DROP TABLESPACE `ib_logfile1`;
+ERROR HY000: Failed to drop TABLESPACE ib_logfile1
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE ib_logfile1
+Error	1812	Tablespace is missing for table ib_logfile1.
+CREATE TABLESPACE `ib_logfile1` ADD DATAFILE 'ib_logfile1.ibd';
+DROP TABLESPACE `ib_logfile1`;
+DROP TABLESPACE `ibdata1`;
+ERROR HY000: Failed to drop TABLESPACE ibdata1
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE ibdata1
+Error	1812	Tablespace is missing for table ibdata1.
+CREATE TABLESPACE `ibdata1` ADD DATAFILE 'ibdata1.ibd';
+DROP TABLESPACE `ibdata1`;
+DROP TABLESPACE `undo001`;
+ERROR HY000: Failed to drop TABLESPACE undo001
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE undo001
+Error	1812	Tablespace is missing for table undo001.
+CREATE TABLESPACE `undo001` ADD DATAFILE 'undo001.ibd';
+DROP TABLESPACE `undo001`;
+DROP TABLESPACE `undo002`;
+ERROR HY000: Failed to drop TABLESPACE undo002
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE undo002
+Error	1812	Tablespace is missing for table undo002.
+CREATE TABLESPACE `undo002` ADD DATAFILE 'undo002.ibd';
+DROP TABLESPACE `undo002`;
 #
 # Test various forms of ADD DATAFILE
 #
