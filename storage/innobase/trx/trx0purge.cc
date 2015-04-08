@@ -791,10 +791,11 @@ namespace undo {
 		os_file_type_t	type;
 		os_file_status(log_file_name, &exist, &type);
 
-		/* Step-3: If file exist, check if for presence of magic number.
-		If found, then simple delete the file and report file
-		doesn't exist as presence of magic number suggest that truncate
-		action was complete. */
+		/* Step-3: If file exists, check it for presence of magic
+		number.  If found, then delete the file and report file
+		doesn't exist as presence of magic number suggest that
+		truncate action was complete. */
+
 		if (exist) {
 			bool    ret;
 			os_file_t	handle =
@@ -826,12 +827,33 @@ namespace undo {
 
 			request.disable_compression();
 
-			os_file_read(request, handle, log_buf, 0, sz);
+			dberr_t	err;
+
+			err = os_file_read(request, handle, log_buf, 0, sz);
 
 			os_file_close(handle);
 
+			if (err != DB_SUCCESS) {
+
+				ib::info()
+					<< "Unable to read '"
+					<< log_file_name << "' : "
+					<< ut_strerr(err);
+
+				os_file_delete(
+					innodb_log_file_key, log_file_name);
+
+				ut_free(buf);
+
+				delete[] log_file_name;
+
+				return(false);
+			}
+
 			ulint	magic_no = mach_read_from_4(log_buf);
+
 			ut_free(buf);
+
 			if (magic_no == undo::s_magic) {
 				/* Found magic number. */
 				os_file_delete(innodb_log_file_key,
