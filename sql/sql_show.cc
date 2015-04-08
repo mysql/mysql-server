@@ -6636,7 +6636,11 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
     SHOW_VAR array and hold it until all variables are stored in the table.
   */
-  mysql_mutex_lock(&LOCK_plugin_delete);
+  if (thd->fill_variables_recursion_level++ == 0)
+  {
+    mysql_mutex_lock(&LOCK_plugin_delete);
+  }
+
   // Lock LOCK_system_variables_hash to prepare SHOW_VARs array.
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   DEBUG_SYNC(thd, "acquired_LOCK_system_variables_hash");
@@ -6646,7 +6650,11 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   res= show_status_array(thd, wild, sys_var_array, option_type, NULL, "",
                          tables->table, upper_case_names, cond);
 
-  mysql_mutex_unlock(&LOCK_plugin_delete);
+  if (thd->fill_variables_recursion_level-- == 1)
+  {
+    mysql_mutex_unlock(&LOCK_plugin_delete);
+  }
+
   DBUG_RETURN(res);
 }
 
