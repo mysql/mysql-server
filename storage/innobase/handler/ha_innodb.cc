@@ -5920,22 +5920,6 @@ get_innobase_type_from_mysql_type(
 }
 
 /*******************************************************************//**
-Writes an unsigned integer value < 64k to 2 bytes, in the little-endian
-storage format. */
-static inline
-void
-innobase_write_to_2_little_endian(
-/*==============================*/
-	byte*	buf,	/*!< in: where to store */
-	ulint	val)	/*!< in: value to write, must be < 64k */
-{
-	ut_a(val < 256 * 256);
-
-	buf[0] = (byte)(val & 0xFF);
-	buf[1] = (byte)(val / 256);
-}
-
-/*******************************************************************//**
 Reads an unsigned integer value < 64k from 2 bytes, in the little-endian
 storage format.
 @return value */
