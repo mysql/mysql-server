@@ -1175,6 +1175,7 @@ public:
     decremented each time before it returns from the function.
   */
   uint fill_status_recursion_level;
+  uint fill_variables_recursion_level;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
