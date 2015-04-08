@@ -41,6 +41,9 @@
 #include "path.h"
 #include "logger.h"
 
+#if HAVE_CHOWN
+#include <pwd.h>
+#endif
 /* Utility Version */
 #define MY_VERSION      "1.0.0"
 
@@ -100,6 +103,10 @@ static char *opt_datadir= 0;
 static char default_data_dir[]= MYSQL_DATADIR;
 static char *opt_suffix= 0;
 static char default_suffix[]= MYSQL_SERVER_VERSION;
+#if HAVE_CHOWN
+static char *opt_userid= 0;
+struct passwd *user_info= 0;
+#endif /* HAVE_CHOWN */
 Path dir_string;
 Sql_string_t suffix_string;
 my_bool opt_verbose;
@@ -125,6 +132,11 @@ static struct my_option my_options[]= {
    "Suffix to be added in certificate subject line", &opt_suffix,
    &opt_suffix, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong) &default_suffix,
    0, 0, 0, 0, 0},
+#if HAVE_CHOWN
+   {"uid", 0, "The effective user id to be used for file permission",
+    &opt_userid, &opt_userid, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
+    0, 0, 0},
+#endif /* HAVE_CHOWN */
   /* END TOKEN */
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -171,6 +183,17 @@ int set_file_pair_permission(const Sql_string_t &priv,
           << " and " << pub.c_str() << endl;
     return 1;
   }
+#if HAVE_CHOWN
+  if (user_info)
+  {
+    if(chown(priv.c_str(), user_info->pw_uid, user_info->pw_gid) ||
+       chown(pub.c_str(), user_info->pw_uid, user_info->pw_gid))
+    {
+      error << "Failed to change file permission" << endl;
+      return 1;
+    }
+  }
+#endif /* HAVE_CHOWN */
   return 0;
 }
 
@@ -206,6 +229,10 @@ void free_resources()
     my_free(opt_datadir);
   if (opt_suffix)
     my_free(opt_suffix);
+#if HAVE_CHOWN
+  if (opt_userid)
+    my_free(opt_userid);
+#endif
   if (defaults_argv && *defaults_argv)
     free_defaults(defaults_argv);
 }
@@ -476,6 +503,18 @@ int main(int argc, char *argv[])
       ret_val= 1;
       goto end;
     }
+#if HAVE_CHOWN
+    if (opt_userid && geteuid() == 0)
+    {
+      user_info= getpwnam(opt_userid);
+      if (!user_info)
+      {
+        error << "Error fetching user information" << endl;
+        ret_val= 1;
+        goto end;
+      }
+    }
+#endif /* HAVE_CHOWN */
 
     /*
       SSL Certificate Generation.
@@ -553,9 +592,12 @@ int main(int argc, char *argv[])
         goto end;
 
       /* Set permission */
-      if ((ret_val= (set_file_pair_permission(cert_files[CA_KEY], cert_files[CA_CERT]) |
-                     set_file_pair_permission(cert_files[SERVER_KEY], cert_files[SERVER_CERT]) |
-                     set_file_pair_permission(cert_files[CLIENT_KEY], cert_files[CLIENT_CERT]))))
+      if ((ret_val= (set_file_pair_permission(cert_files[CA_KEY],
+                                              cert_files[CA_CERT]) |
+                     set_file_pair_permission(cert_files[SERVER_KEY],
+                                              cert_files[SERVER_CERT]) |
+                     set_file_pair_permission(cert_files[CLIENT_KEY],
+                                              cert_files[CLIENT_CERT]))))
         goto end;
 
       /* Remove request files : Flag an error if we can't delete them. */
@@ -592,11 +634,13 @@ int main(int argc, char *argv[])
               "Error generating private_key.pem")))
         goto end;
 
-      if ((ret_val= execute_command(rsa_pub(cert_files[PRIVATE_KEY], cert_files[PUBLIC_KEY]),
+      if ((ret_val= execute_command(rsa_pub(cert_files[PRIVATE_KEY],
+                                            cert_files[PUBLIC_KEY]),
               "Error generating public_key.pem")))
         goto end;
       /* Set Permission */
-      if ((ret_val= set_file_pair_permission(cert_files[PRIVATE_KEY], cert_files[PUBLIC_KEY])))
+      if ((ret_val= set_file_pair_permission(cert_files[PRIVATE_KEY],
+                                             cert_files[PUBLIC_KEY])))
         goto end;
     }
 
