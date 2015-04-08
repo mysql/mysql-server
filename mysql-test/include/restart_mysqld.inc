@@ -12,7 +12,9 @@ if (!$restart_parameters)
   let $restart_parameters = restart;
 }
 
---echo # $restart_parameters
+# We use --exec echo instead of simple "--echo" because
+# replace_result works on --exec
+--exec echo "# $restart_parameters"
 
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
 # it until it's told to
