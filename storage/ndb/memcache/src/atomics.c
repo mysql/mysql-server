@@ -37,6 +37,16 @@ void atomic_set_ptr(void * volatile * target, void *newval) {
   membar_exit();
 }
 
+#elif defined USE_GCC_ATOMICS
+
+void atomic_set_ptr(void * volatile * target, void *newval) {
+  int r;
+  do {
+    void * old = *target;
+    r = __sync_bool_compare_and_swap(target, old, newval);
+  } while(!r);
+}
+
 #elif defined USE_DARWIN_ATOMICS
 
 void atomic_set_ptr(void * volatile * target, void *newval) {

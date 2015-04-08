@@ -75,7 +75,7 @@ void atomic_set_ptr(void * volatile * target, void *);
 #elif defined USE_GCC_ATOMICS
 #define atomic_cmp_swap_int(loc, old, new) \
   __sync_bool_compare_and_swap(loc, (Uint32) old, (Uint32) new)
-#define atomic_set_ptr(loc, val) (void) __sync_lock_test_and_set(loc, val)
+void atomic_set_ptr(void * volatile * target, void *);
 #define atomic_barrier() __sync_synchronize()
 
 #elif defined USE_SOLARIS_ATOMICS
