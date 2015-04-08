@@ -297,6 +297,57 @@ drop table t1,tt;
 # 
 CREATE TABLE t1(a bigint AS (a between 1 and 1));
 ERROR HY000: Generated column can refer only to generated columns defined prior to it.
+# Bug#20566243: ERROR WHILE DOING CREATE TABLE T1 SELECT (QUERY ON GC COLUMNS)
+CREATE TABLE t1(a int, b int as (a + 1),
+c varchar(12) as ("aaaabb") stored, d blob as (c));
+INSERT INTO t1(a) VALUES(1),(3);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a + 1) VIRTUAL,
+  `c` varchar(12) GENERATED ALWAYS AS ("aaaabb") STORED,
+  `d` blob GENERATED ALWAYS AS (c) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a	b	c	d
+1	2	aaaabb	aaaabb
+3	4	aaaabb	aaaabb
+CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a + 1) VIRTUAL,
+  `c` varchar(12) GENERATED ALWAYS AS ("aaaabb") STORED,
+  `d` blob GENERATED ALWAYS AS (c) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t3 AS SELECT * FROM t1;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` varchar(12) DEFAULT NULL,
+  `d` blob
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t3;
+a	b	c	d
+1	2	aaaabb	aaaabb
+3	4	aaaabb	aaaabb
+CREATE TABLE t4 AS SELECT b,c,d FROM t1;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `b` int(11) DEFAULT NULL,
+  `c` varchar(12) DEFAULT NULL,
+  `d` blob
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t4;
+b	c	d
+2	aaaabb	aaaabb
+4	aaaabb	aaaabb
+DROP TABLE t1,t2,t3,t4;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;
