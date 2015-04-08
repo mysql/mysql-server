@@ -6529,7 +6529,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
 end:
   /*
     Free the buffer that was being used to report worker's status through
-    the table performance_schema.table_replication_execute_status_by_worker
+    the table performance_schema.table_replication_applier_status_by_worker
     between stop slave and next start slave.
   */
   for (int i= static_cast<int>(rli->workers_copy_pfs.size()) - 1; i >= 0; i--)

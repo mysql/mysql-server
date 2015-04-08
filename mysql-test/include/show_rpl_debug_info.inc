@@ -98,13 +98,13 @@ while ($_rpl_server)
   query_vertical
   SELECT * FROM performance_schema.replication_connection_status;
   --echo
-  --echo **** replication_execute_status_by_worker on $CURRENT_CONNECTION ****
+  --echo **** replication_applier_status_by_worker on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT * FROM performance_schema.replication_execute_status_by_worker;
+  SELECT * FROM performance_schema.replication_applier_status_by_worker;
   --echo
-  --echo **** replication_execute_status_by_coordinator on $CURRENT_CONNECTION ****
+  --echo **** replication_applier_status_by_coordinator on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT * FROM performance_schema.replication_execute_status_by_coordinator;
+  SELECT * FROM performance_schema.replication_applier_status_by_coordinator;
   --echo
   --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
   query_vertical
