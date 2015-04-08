@@ -46,8 +46,6 @@ or std::unordered_map instead of the InnoDB lock free hash. */
 
 #include <gtest/gtest.h>
 
-#include "lf.h"
-
 #include "univ.i"
 
 #include "sync0policy.h" /* needed by ib0mutex.h, which is not self contained */
@@ -162,119 +160,6 @@ private:
 };
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
-class lf_hash_t /* : public ut_hash_interface_t */ {
-public:
-	static const uintptr_t	NOT_FOUND = UINTPTR_MAX;
-
-	/** Constructor. */
-	lf_hash_t()
-	{
-		lf_hash_init(
-			&m_hash,
-			sizeof(key_val_t),
-			LF_HASH_UNIQUE,
-			/* the key begins at offset 0 of the blob stored in
-			the hash. */
-			0,
-			/* the size of the key */
-			sizeof(uintptr_t /* key_val_t::key */),
-			NULL,
-			&my_charset_bin);
-	}
-
-	/** Destructor. */
-	~lf_hash_t()
-	{
-		lf_hash_destroy(&m_hash);
-	}
-
-	uintptr_t
-	get(
-		uintptr_t	key,
-		LF_PINS*	pins) const
-	{
-		const key_val_t*	keyval = static_cast<key_val_t*>(
-			lf_hash_search(&m_hash, pins, &key, sizeof(key)));
-
-		const uintptr_t		val
-			= keyval != NULL ? keyval->val : NOT_FOUND;
-
-		lf_hash_search_unpin(pins);
-
-		return(val);
-	}
-
-	void
-	set(
-		uintptr_t	key,
-		uintptr_t	val,
-		LF_PINS*	pins)
-	{
-		const key_val_t	keyval = { key, val };
-
-		lf_hash_insert(&m_hash, pins, &keyval);
-
-		lf_hash_search_unpin(pins);
-	}
-
-	void
-	inc(
-		uintptr_t	key,
-		LF_PINS*	pins)
-	{
-		const key_val_t*	keyval = static_cast<key_val_t*>(
-			lf_hash_search(&m_hash, pins, &key, sizeof(key)));
-
-		if (keyval != NULL) {
-			os_atomic_increment(&keyval->val, 1);
-		}
-
-		lf_hash_search_unpin(pins);
-	}
-
-	void
-	dec(
-		uintptr_t	key,
-		LF_PINS*	pins)
-	{
-		const key_val_t*	keyval = static_cast<key_val_t*>(
-			lf_hash_search(&m_hash, pins, &key, sizeof(key)));
-
-		if (keyval != NULL) {
-			for (;;) {
-				const uintptr_t	cur_val = keyval->val;
-
-				ut_a(cur_val > 0);
-
-				const uintptr_t	new_val = cur_val - 1;
-
-				if (os_compare_and_swap_ulint(
-						&keyval->val,
-						cur_val,
-						new_val)) {
-					break;
-				}
-			}
-		}
-
-		lf_hash_search_unpin(pins);
-	}
-
-#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-	void
-	print_stats()
-	{
-	}
-#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
-
-	struct key_val_t {
-		uintptr_t	key;
-		uintptr_t	val;
-	};
-
-	mutable LF_HASH	m_hash;
-};
-
 /** Generate a key to use in the (key, value) tuples.
 @param[in]	i		some sequential number
 @param[in]	extra_bits	extra bits to OR into the result
@@ -307,13 +192,12 @@ val_from_i(
 @param[in]	key_extra_bits	extra bits to use for key generation */
 void
 hash_insert(
-	lf_hash_t*		hash,
+	ut_hash_interface_t*	hash,
 	uintptr_t		n_elements,
-	uintptr_t		key_extra_bits,
-	LF_PINS*		pins)
+	uintptr_t		key_extra_bits)
 {
 	for (uintptr_t i = 0; i < n_elements; i++) {
-		hash->set(key_gen(i, key_extra_bits), val_from_i(i), pins);
+		hash->set(key_gen(i, key_extra_bits), val_from_i(i));
 	}
 }
 
@@ -323,19 +207,17 @@ hash_insert(
 @param[in]	key_extra_bits	extra bits that were given to hash_insert() */
 void
 hash_check_inserted(
-	const lf_hash_t*		hash,
+	const ut_hash_interface_t*	hash,
 	uintptr_t			n_elements,
-	uintptr_t			key_extra_bits,
-	LF_PINS*			pins)
+	uintptr_t			key_extra_bits)
 {
 	for (uintptr_t i = 0; i < n_elements; i++) {
 		const uintptr_t	key = key_gen(i, key_extra_bits);
 
-		ASSERT_EQ(val_from_i(i), hash->get(key, pins));
+		ASSERT_EQ(val_from_i(i), hash->get(key));
 	}
 }
 
-#if 0
 TEST(ut0lock_free_hash, single_threaded)
 {
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
@@ -382,10 +264,9 @@ TEST(ut0lock_free_hash, single_threaded)
 
 	delete hash;
 }
-#endif
 
 /** Global hash, edited from many threads concurrently. */
-lf_hash_t*		global_hash;
+ut_hash_interface_t*	global_hash;
 
 /** Number of common tuples (edited by all threads) to insert into the hash. */
 static const uintptr_t	N_COMMON = 512;
@@ -409,9 +290,7 @@ DECLARE_THREAD(thread)(
 	const uintptr_t	thread_id = reinterpret_cast<uintptr_t>(arg);
 	const uintptr_t	key_extra_bits = thread_id << 32;
 
-	LF_PINS*	pins = lf_hash_get_pins(&global_hash->m_hash);
-
-	hash_insert(global_hash, N_PRIV_PER_THREAD, key_extra_bits, pins);
+	hash_insert(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
 
 	const uintptr_t	n_iter = 512;
 
@@ -419,31 +298,29 @@ DECLARE_THREAD(thread)(
 		for (uintptr_t j = 0; j < N_COMMON; j++) {
 			const uintptr_t	key = key_gen(j, 0);
 
-			global_hash->inc(key, pins);
-			global_hash->inc(key, pins);
-			global_hash->inc(key, pins);
+			global_hash->inc(key);
+			global_hash->inc(key);
+			global_hash->inc(key);
 
-			global_hash->dec(key, pins);
-			global_hash->inc(key, pins);
+			global_hash->dec(key);
+			global_hash->inc(key);
 
-			global_hash->dec(key, pins);
-			global_hash->dec(key, pins);
-			global_hash->dec(key, pins);
+			global_hash->dec(key);
+			global_hash->dec(key);
+			global_hash->dec(key);
 		}
 
 		for (uintptr_t j = 0; j < N_PRIV_PER_THREAD; j++) {
 			const uintptr_t	key = key_gen(j, key_extra_bits);
 
 			for (uintptr_t k = 0; k < 4; k++) {
-				global_hash->inc(key, pins);
-				global_hash->dec(key, pins);
+				global_hash->inc(key);
+				global_hash->dec(key);
 			}
 		}
 	}
 
-	hash_check_inserted(global_hash, N_PRIV_PER_THREAD, key_extra_bits, pins);
-
-	lf_hash_put_pins(pins);
+	hash_check_inserted(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
 
 	os_thread_exit(NULL);
 
@@ -460,13 +337,10 @@ TEST(ut0lock_free_hash, multi_threaded)
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
 	global_hash = new std_hash_t();
 #else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-	//global_hash = new ut_lock_free_hash_t(1024 * 16);
-	global_hash = new lf_hash_t();
+	global_hash = new ut_lock_free_hash_t(1024 * 16);
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
-	LF_PINS*	pins = lf_hash_get_pins(&global_hash->m_hash);
-
-	hash_insert(global_hash, N_COMMON, 0, pins);
+	hash_insert(global_hash, N_COMMON, 0);
 
 	for (uintptr_t i = 0; i < N_THREADS; i++) {
 		/* Avoid thread_id==0 because that will collide with the
@@ -483,13 +357,11 @@ TEST(ut0lock_free_hash, multi_threaded)
 	}
 	mutex_exit(&thread_mutex);
 
-	hash_check_inserted(global_hash, N_COMMON, 0, pins);
+	hash_check_inserted(global_hash, N_COMMON, 0);
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
 	global_hash->print_stats();
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
-
-	lf_hash_put_pins(pins);
 
 	delete global_hash;
 
