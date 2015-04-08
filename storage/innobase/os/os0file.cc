@@ -3676,7 +3676,17 @@ os_file_truncate_posix(
 	int	res = ftruncate(file, size);
 
 	if (res == -1) {
-		os_file_handle_error_no_exit(pathname, "truncate", false);
+
+		bool	retry;
+
+		retry = os_file_handle_error_no_exit(
+			pathname, "truncate", false);
+
+		if (retry) {
+			ib::warn()
+				<< "Truncate failed for '"
+				<< pathname << "'";
+		}
 	}
 
 	return(res == 0);
