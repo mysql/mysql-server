@@ -4686,7 +4686,10 @@ bool JOIN::make_join_plan()
     DBUG_RETURN(true);
 
   if (sj_nests)
+  {
     set_semijoin_embedding();
+    select_lex->update_semijoin_strategies(thd);
+  }
 
   if (!plan_is_const())
     optimize_keyuse();
@@ -5937,8 +5940,8 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join)
     sj_nest->nested_join->sjm.positions= NULL;
 
     /* Calculate the cost of materialization if materialization is allowed. */
-    if (join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
-        join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
+    if (sj_nest->nested_join->sj_enabled_strategies &
+        OPTIMIZER_SWITCH_MATERIALIZATION)
     {
       /* A semi-join nest should not contain tables marked as const */
       DBUG_ASSERT(!(sj_nest->sj_inner_tables & join->const_table_map));
@@ -10566,8 +10569,14 @@ bool JOIN::compare_costs_of_subquery_strategies(
 {
   *method= Item_exists_subselect::EXEC_EXISTS;
 
-  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
+  Item_exists_subselect::enum_exec_method allowed_strategies=
+    select_lex->subquery_strategy(thd);
+
+  if (allowed_strategies == Item_exists_subselect::EXEC_EXISTS)
     return false;
+
+  DBUG_ASSERT(allowed_strategies == Item_exists_subselect::EXEC_EXISTS_OR_MAT ||
+              allowed_strategies == Item_exists_subselect::EXEC_MATERIALIZATION);
 
   const JOIN *parent_join= unit->outer_select()->join;
   if (!parent_join || !parent_join->child_subquery_can_materialize)
@@ -10749,7 +10758,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
   const double cost_mat= cost_mat_table + subq_executions *
     sjm.lookup_cost.total_cost();
   const bool mat_chosen=
-    thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED) ?
+    (allowed_strategies == Item_exists_subselect::EXEC_EXISTS_OR_MAT) ?
     (cost_mat < cost_exists) : true;
   trace_subq_mat_decision
     .add("cost_to_create_and_fill_materialized_table",

@@ -675,7 +675,7 @@ static const SYMBOL symbols[] = {
   { SYM("ZEROFILL",                 ZEROFILL)},
   { SYM("||",                       OR_OR_SYM)},
   /*
-    Place keywords that accept optimizert hints below the commentary.
+    Place keywords that accept optimizer hints below the commentary.
   */
   { SYM_HK("DELETE",                 DELETE_SYM)},
   { SYM_HK("INSERT",                 INSERT)},
@@ -718,19 +718,27 @@ static const SYMBOL symbols[] = {
   { SYM_FN("VAR_POP",               VARIANCE_SYM)},
   { SYM_FN("VAR_SAMP",              VAR_SAMP_SYM)},
   /*
-    Insert new optimizer hint keywords after than commentary:
+    Insert new optimizer hint keywords after that commentary:
   */
   { SYM_H("BKA",                    BKA_HINT)},
   { SYM_H("BNL",                    BNL_HINT)},
+  { SYM_H("DUPSWEEDOUT",            DUPSWEEDOUT_HINT)},
+  { SYM_H("FIRSTMATCH",             FIRSTMATCH_HINT)},
   { SYM_H("ICP",                    ICP_HINT)},
+  { SYM_H("INTOEXISTS",             INTOEXISTS_HINT)},
+  { SYM_H("LOOSESCAN",              LOOSESCAN_HINT)},
+  { SYM_H("MATERIALIZATION",        MATERIALIZATION_HINT)},
   { SYM_H("MAX_EXECUTION_TIME",     MAX_EXECUTION_TIME_HINT)},
   { SYM_H("NO_BKA",                 NO_BKA_HINT)},
   { SYM_H("NO_BNL",                 NO_BNL_HINT)},
   { SYM_H("NO_ICP",                 NO_ICP_HINT)},
   { SYM_H("NO_MRR",                 NO_MRR_HINT)},
   { SYM_H("NO_RANGE_OPTIMIZATION",  NO_RANGE_OPTIMIZATION_HINT)},
+  { SYM_H("NO_SEMIJOIN",            NO_SEMIJOIN_HINT)},
   { SYM_H("MRR",                    MRR_HINT)},
   { SYM_H("QB_NAME",                QB_NAME_HINT)},
+  { SYM_H("SEMIJOIN",               SEMIJOIN_HINT)},
+  { SYM_H("SUBQUERY",               SUBQUERY_HINT)},
 };
 
 #endif /* LEX_INCLUDED */

@@ -1126,6 +1126,7 @@ public:
   table_map select_list_tables;
   table_map outer_join;       ///< Bitmap of all inner tables from outer joins
 
+  /// Query-block-level hints, for this query block
   Opt_hints_qb *opt_hints_qb;
 
 
@@ -1426,6 +1427,43 @@ public:
   bool optimize(THD *thd);
   void reset_nj_counters(List<TABLE_LIST> *join_list= NULL);
   bool check_only_full_group_by(THD *thd);
+
+  /**
+    Returns which subquery execution strategies can be used for this query block.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+
+    @retval EXEC_MATERIALIZATION  Subquery Materialization should be used
+    @retval EXEC_EXISTS           In-to-exists execution should be used
+    @retval EXEC_EXISTS_OR_MAT    A cost-based decision should be made
+  */
+  Item_exists_subselect::enum_exec_method subquery_strategy(THD *thd) const;
+
+  /**
+    Returns whether semi-join is enabled for this query block
+
+    @see @c Opt_hints_qb::semijoin_enabled for details on how hints
+    affect this decision.  If there are no hints for this query block,
+    optimizer_switch setting determines whether semi-join is used.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+
+    @return true if semijoin is enabled,
+            false otherwise
+  */
+  bool semijoin_enabled(THD *thd) const;
+  /**
+    Update available semijoin strategies for semijoin nests.
+
+    Available semijoin strategies needs to be updated on every execution since
+    optimizer_switch setting may have changed.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+  */
+  void update_semijoin_strategies(THD *thd);
 };
 typedef class st_select_lex SELECT_LEX;
 
