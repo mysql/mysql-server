@@ -4,6 +4,8 @@
 
 --source include/have_innodb.inc
 --source include/have_debug.inc
+# Embedded mode doesn't support restart
+--source include/not_embedded.inc
 
 set global innodb_checksum_algorithm=crc32;
 
