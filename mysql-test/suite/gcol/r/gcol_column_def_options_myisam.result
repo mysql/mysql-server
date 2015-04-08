@@ -292,6 +292,11 @@ a	b	c
 1	-1	0
 2	-2	-1
 drop table t1,tt;
+# Bug#20745142: GENERATED COLUMNS: ASSERTION FAILED:
+#   THD->CHANGE_LIST.IS_EMPTY()
+# 
+CREATE TABLE t1(a bigint AS (a between 1 and 1));
+ERROR HY000: Generated column can refer only to generated columns defined prior to it.
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

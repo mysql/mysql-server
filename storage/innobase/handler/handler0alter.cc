@@ -2181,7 +2181,7 @@ online_retry_drop_indexes_low(
 	may have prebuilt->table pointing to the table. However, these
 	other threads should be between statements, waiting for the
 	next statement to execute, or for a meta-data lock. */
-	ut_ad(table->n_ref_count >= 1);
+	ut_ad(table->get_ref_count() >= 1);
 
 	if (table->drop_aborted) {
 		row_merge_drop_indexes(trx, table, TRUE);
@@ -3205,11 +3205,32 @@ prepare_inplace_alter_table_dict(
 			ctx->new_table->fts->doc_col = fts_doc_id_col;
 		}
 
+		const char*	compression;
+
+		compression = ha_alter_info->create_info->compress.str;
+
+                if (Compression::validate(compression) != DB_SUCCESS) {
+
+                        compression = NULL;
+                }
+
 		error = row_create_table_for_mysql(
-			ctx->new_table, ctx->trx, false);
+			ctx->new_table, compression, ctx->trx, false);
 
 		switch (error) {
 			dict_table_t*	temp_table;
+		case DB_IO_NO_PUNCH_HOLE_FS:
+
+			push_warning_printf(
+				ctx->prebuilt->trx->mysql_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"XPunch hole not supported by the file system. "
+				"Compression disabled for '%s'",
+				ctx->new_table->name.m_name);
+
+			error = DB_SUCCESS;
+
 		case DB_SUCCESS:
 			/* We need to bump up the table ref count and
 			before we can use it we need to open the
@@ -3224,7 +3245,7 @@ prepare_inplace_alter_table_dict(
 			/* n_ref_count must be 1, because purge cannot
 			be executing on this very table as we are
 			holding dict_operation_lock X-latch. */
-			DBUG_ASSERT(ctx->new_table->n_ref_count == 1);
+			DBUG_ASSERT(ctx->new_table->get_ref_count() == 1);
 			break;
 		case DB_TABLESPACE_EXISTS:
 			my_error(ER_TABLESPACE_EXISTS, MYF(0),
@@ -3234,13 +3255,17 @@ prepare_inplace_alter_table_dict(
 			my_error(HA_ERR_TABLE_EXIST, MYF(0),
 				 altered_table->s->table_name.str);
 			goto new_clustered_failed;
+		case DB_UNSUPPORTED:
+			my_error(ER_UNSUPPORTED_EXTENSION, MYF(0),
+				 ctx->new_table->name.m_name);
+			goto new_clustered_failed;
 		default:
 			my_error_innodb(error, table_name, flags);
 		new_clustered_failed:
 			DBUG_ASSERT(ctx->trx != ctx->prebuilt->trx);
 			trx_rollback_to_savepoint(ctx->trx, NULL);
 
-			ut_ad(user_table->n_ref_count == 1);
+			ut_ad(user_table->get_ref_count() == 1);
 
 			online_retry_drop_indexes_with_trx(
 				user_table, ctx->trx);
@@ -3558,7 +3583,7 @@ error_handled:
 		/* n_ref_count must be 1, because purge cannot
 		be executing on this very table as we are
 		holding dict_operation_lock X-latch. */
-		DBUG_ASSERT(user_table->n_ref_count == 1 || ctx->online);
+		DBUG_ASSERT(user_table->get_ref_count() == 1 || ctx->online);
 
 		online_retry_drop_indexes_with_trx(user_table, ctx->trx);
 	} else {
@@ -5769,12 +5794,12 @@ commit_try_rebuild(
 		user_table, rebuilt_table, ctx->tmp_name, trx);
 
 	/* We must be still holding a table handle. */
-	DBUG_ASSERT(user_table->n_ref_count >= 1);
+	DBUG_ASSERT(user_table->get_ref_count() >= 1);
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_after_rename", DBUG_SUICIDE(););
 	DBUG_EXECUTE_IF("ib_rebuild_cannot_rename", error = DB_ERROR;);
 
-	if (user_table->n_ref_count > 1) {
+	if (user_table->get_ref_count() > 1) {
 		/* This should only occur when an innodb_memcached
 		connection with innodb_api_enable_mdl=off was started
 		before commit_inplace_alter_table() locked the data
@@ -5792,11 +5817,11 @@ commit_try_rebuild(
 	case DB_SUCCESS:
 		DBUG_RETURN(false);
 	case DB_TABLESPACE_EXISTS:
-		ut_a(rebuilt_table->n_ref_count == 1);
+		ut_a(rebuilt_table->get_ref_count() == 1);
 		my_error(ER_TABLESPACE_EXISTS, MYF(0), ctx->tmp_name);
 		DBUG_RETURN(true);
 	case DB_DUPLICATE_KEY:
-		ut_a(rebuilt_table->n_ref_count == 1);
+		ut_a(rebuilt_table->get_ref_count() == 1);
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), ctx->tmp_name);
 		DBUG_RETURN(true);
 	default:
@@ -6852,8 +6877,12 @@ foreign_fail:
 		}
 	}
 
-	innobase_parse_hint_from_comment(m_user_thd, m_prebuilt->table,
-					 altered_table->s);
+	/* We don't support compression for the system tablespace nor
+	the temporary tablespace. Only because they are shared tablespaces.
+	There is no other technical reason. */
+
+	innobase_parse_hint_from_comment(
+		m_user_thd, m_prebuilt->table, altered_table->s);
 
 	/* TODO: Also perform DROP TABLE and DROP INDEX after
 	the MDL downgrade. */

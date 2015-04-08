@@ -23,53 +23,25 @@ drop procedure if exists mysql.mysql_cluster_restore_privileges|
 drop procedure if exists mysql.mysql_cluster_restore_local_privileges|
 drop procedure if exists mysql.mysql_cluster_move_privileges|
 
+ -- Count number of privilege tables in NDB, require
+ -- all the tables to be in NDB in order to return "true"
 create function mysql.mysql_cluster_privileges_are_distributed()
 returns bool
 reads sql data
 begin
- declare distributed_user bool default 0;
- declare distributed_db bool default 0;
- declare distributed_tables_priv bool default 0;
- declare distributed_columns_priv bool default 0;
- declare distributed_procs_priv bool default 0;
- declare distributed_proxies_priv bool default 0;
+ declare distributed bool default 0;
 
- select IF(COUNT(engine) > 0, engine = 'ndbcluster', 0)
-   into distributed_user
+ select COUNT(table_name) = 6
+   into distributed
      from information_schema.tables
-       where table_schema = "mysql" and table_name = "user";
- select IF(COUNT(engine) > 0, engine = 'ndbcluster', 0)
-   into distributed_db
-     from information_schema.tables
-       where table_schema = "mysql" and table_name = "db";
- select IF(COUNT(engine) > 0, engine = 'ndbcluster', 0)
-   into distributed_tables_priv
-     from information_schema.tables
-       where table_schema = "mysql" and table_name = "tables_priv";
- select IF(COUNT(engine) > 0, engine = 'ndbcluster', 0)
-   into distributed_columns_priv
-     from information_schema.tables
-       where table_schema = "mysql" and table_name = "columns_priv";
- select IF(COUNT(engine) > 0, engine = 'ndbcluster', 0)
-   into distributed_procs_priv
-     from information_schema.tables
-       where table_schema = "mysql" and table_name = "procs_priv";
- select IF(COUNT(engine) > 0, engine = 'ndbcluster', 0)
-   into distributed_proxies_priv
-     from information_schema.tables
-       where table_schema = "mysql" and table_name = "proxies_priv";
+       where table_schema = "mysql" and
+             table_name IN ("user", "db", "tables_priv",
+                            "columns_priv", "procs_priv",
+                            "proxies_priv") and
+             table_type = 'BASE TABLE' and
+             engine = 'NDBCLUSTER';
 
- if distributed_user = 1 and
-    distributed_db = 1 and
-    distributed_tables_priv = 1 and
-    distributed_columns_priv = 1 and
-    distributed_procs_priv = 1 and
-    distributed_proxies_priv = 1
- then
-  return 1;
- else
-  return 0;
- end if;
+ return distributed;
 end|
 
 create procedure mysql.mysql_cluster_backup_privileges()

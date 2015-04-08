@@ -43,6 +43,8 @@ void Dbtc::initData()
   clqhblockref = DBLQH_REF;
   cerrorBlockref = NDBCNTR_REF;
 
+  c_lqhkeyconf_direct_sent = 0;
+ 
   // Records with constant sizes
   tcFailRecord = (TcFailRecord*)allocRecord("TcFailRecord",
 					    sizeof(TcFailRecord), 1);
@@ -84,6 +86,11 @@ void Dbtc::initRecords()
     new (p) TcFiredTriggerData();
   }
   while (triggers.releaseFirst());
+  /*
+    The code above temporarily allocates all TcFiredTriggerData records.
+    Therefore we need to reset freeMin now, to get meaningful values.
+  */
+  c_theFiredTriggerPool.resetFreeMin();
 
   /*
   // Init all index records

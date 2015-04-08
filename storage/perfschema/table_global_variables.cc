@@ -94,9 +94,6 @@ void table_global_variables::reset_position(void)
 
 int table_global_variables::rnd_init(bool scan)
 {
-  if (show_compatibility_56)
-    return 0;
-
   /*
     Build a list of system variables from the global system variable hash.
     Filter by scope.
@@ -118,9 +115,6 @@ int table_global_variables::rnd_init(bool scan)
 
 int table_global_variables::rnd_next(void)
 {
-  if (show_compatibility_56)
-    return HA_ERR_END_OF_FILE;
-
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < m_sysvar_cache.size();
        m_pos.next())
@@ -138,9 +132,6 @@ int table_global_variables::rnd_next(void)
 
 int table_global_variables::rnd_pos(const void *pos)
 {
-  if (show_compatibility_56)
-    return HA_ERR_RECORD_DELETED;
-
   /* If system variable hash changes, do nothing. */ // TODO: Issue warning
   if (!m_context->versions_match())
     return HA_ERR_RECORD_DELETED;

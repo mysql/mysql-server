@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@ import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
-import com.mysql.ndbjtie.ndbapi.NdbRecord;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
@@ -46,6 +45,9 @@ class TableImpl implements Table {
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(TableImpl.class);
+
+    /** The TableConst wrapped by this */
+    protected TableConst ndbTable;
 
     /** The table name */
     private String tableName;
@@ -80,7 +82,11 @@ class TableImpl implements Table {
     /** The maximum column length */
     private int maximumColumnLength = 0;
 
+    /** The autoincrement column */
+    private Column autoIncrementColumn = null;
+
     public TableImpl(TableConst ndbTable, String[] indexNames) {
+        this.ndbTable = ndbTable;
         this.tableName = ndbTable.getName();
         // process columns and partition key columns
         List<String> partitionKeyColumnNameList = new ArrayList<String>();
@@ -90,17 +96,19 @@ class TableImpl implements Table {
         ColumnImpl[] columnImpls = new ColumnImpl[noOfColumns];
         columnNames = new String[noOfColumns];
         for (int i = 0; i < noOfColumns; ++i) {
-            ColumnConst column = ndbTable.getColumn(i);
-            // primary key and partition key columns are listed in the order declared in the schema
-            if (column.getPartitionKey()) {
-                partitionKeyColumnNameList.add(column.getName());
-            }
-            if (column.getPrimaryKey()) {
-                primaryKeyColumnNameList.add(column.getName());
-            }
             ColumnConst ndbColumn = ndbTable.getColumn(i);
+            // primary key and partition key columns are listed in the order declared in the schema
+            if (ndbColumn.getPartitionKey()) {
+                partitionKeyColumnNameList.add(ndbColumn.getName());
+            }
+            if (ndbColumn.getPrimaryKey()) {
+                primaryKeyColumnNameList.add(ndbColumn.getName());
+            }
             String columnName = ndbColumn.getName();
             ColumnImpl columnImpl = new ColumnImpl(tableName, ndbColumn);
+            if (ndbColumn.getAutoIncrement()) {
+                autoIncrementColumn = columnImpl;
+            }
             columns.put(columnName, columnImpl);
             columnImpls[i] = columnImpl;
             columnNames[i] = columnName;
@@ -133,6 +141,9 @@ class TableImpl implements Table {
         this.indexNames = indexNames;
     }
 
+    public Column getAutoIncrementColumn() {
+        return autoIncrementColumn;
+    }
     public Column getColumn(String columnName) {
         return columns.get(columnName);
     }

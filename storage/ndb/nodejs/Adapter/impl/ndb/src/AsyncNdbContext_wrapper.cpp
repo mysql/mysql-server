@@ -30,7 +30,6 @@ using namespace v8;
 
 Handle<Value> createAsyncNdbContext(const Arguments &args);
 Handle<Value> startListenerThread(const Arguments &args);
-Handle<Value> executeAsynch(const Arguments &args);
 Handle<Value> shutdown(const Arguments &args);
 
 
@@ -54,30 +53,6 @@ Handle<Value> createAsyncNdbContext(const Arguments &args) {
   return args.This();
 }
 
-
-/* executeAsynch(NdbTransaction *,
-                 execType,
-                 abortOption,
-                 forceSend,
-                 execCompleteCallback,
-                 execSentCallback)
-   ASYNC.
-   The sending of the transaction to Ndb will happen in a UV worker thread.
-*/
-Handle<Value> executeAsynch(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);  
-  REQUIRE_ARGS_LENGTH(6);
-
-  /* TODO: The JsValueConverter constructor for arg4 creates a 
-     Persistent<Function> from a Local<Value>, but is there 
-     actually a chain of destructors that will call Dispose() on it? 
-  */  
-  typedef NativeMethodCall_5_<int, AsyncNdbContext, NdbTransaction *,
-                              int, int, int, Persistent<Function> > NCALL;
-  NCALL * ncallptr = new NCALL(& AsyncNdbContext::executeAsynch, args);
-  ncallptr->runAsync();
-  return Undefined();
-}
 
 /* shutdown() 
    IMMEDIATE
@@ -109,7 +84,6 @@ void AsyncNdbContext_initOnLoad(Handle<Object> target) {
   Local<FunctionTemplate> JsAsyncNdbContext;
   
   DEFINE_JS_CLASS(JsAsyncNdbContext, "AsyncNdbContext", createAsyncNdbContext);
-  DEFINE_JS_METHOD(JsAsyncNdbContext, "executeAsynch", executeAsynch);
   DEFINE_JS_METHOD(JsAsyncNdbContext, "shutdown", shutdown);
   DEFINE_JS_METHOD(JsAsyncNdbContext, "delete", destroy);
   DEFINE_JS_CONSTRUCTOR(target, "AsyncNdbContext", JsAsyncNdbContext);

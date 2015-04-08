@@ -183,7 +183,7 @@ public:
 	Datafile* first_datafile()
 	{
 		ut_a(!m_files.empty());
-		return &(m_files.front());
+		return(&m_files.front());
 	}
 
 	/** Check if undo tablespace.

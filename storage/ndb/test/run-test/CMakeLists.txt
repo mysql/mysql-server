@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,5 +48,5 @@ INSTALL(FILES   daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt
                 conf-techra29.cnf conf-test.cnf conf-tyr64.cnf conf-upgrade.cnf
                 test-tests.txt upgrade-tests.txt release-bigmem-tests.txt
                 conf-tyr13.cnf
-		conf-blade08.cnf
+		conf-blade08.cnf conf-mikael1.cnf
         DESTINATION mysql-test/ndb)

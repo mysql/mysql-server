@@ -20,6 +20,10 @@
 
 "use strict";
 
+var ValueVerifier = require("./lib.js").ValueVerifier;
+var ErrorVerifier = require("./lib.js").ErrorVerifier;
+var BufferVerifier = require("./lib.js").BufferVerifier;
+
 // Domain Object Constructor
 var test_id = 1;
 
@@ -28,35 +32,6 @@ function TestData() {
     this.id = test_id++;
   }
 }
-
-function ErrorVerifier(testCase, sqlState) {
-  this.run = function onRead(err, rowRead) {
-    var message = "Expected SQLState " + sqlState;
-    if(testCase.errorIfUnset(message, err && err.cause && err.cause.sqlstate)) 
-    {
-      testCase.errorIfNotEqual("Expected sqlstate", sqlState, err.cause.sqlstate);
-    }
-    testCase.failOnError();
-  };
-}
-
-function ValueVerifier(testCase, field, value) {
-  this.run = function onRead(err, rowRead) {
-    testCase.errorIfError(err);
-    testCase.errorIfNull(rowRead);
-    try {
-      if(value !== rowRead[field]) {
-        testCase.errorIfNotEqual("length", value.length, rowRead[field].length);
-        testCase.errorIfNotEqual(field, value, rowRead[field]);
-      }
-    }
-    catch(e) {
-      testCase.appendErrorMessage(e);
-    }
-    testCase.failOnError();
-  };
-}
-
 
 function ReadFunction(testCase, session) { 
   return function onPersist(err) {

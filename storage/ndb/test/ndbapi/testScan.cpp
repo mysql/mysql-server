@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -455,6 +455,8 @@ int runScanReadError(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+#include "../../src/ndbapi/ndb_internal.hpp"
+
 int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
 {
   int result = NDBT_OK;
@@ -463,12 +465,16 @@ int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
   int parallelism = 240; // Max parallelism
   int error = 8093;
   NdbRestarter restarter;
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
   
   /* First take a TC resource snapshot */
   int savesnapshot= DumpStateOrd::TcResourceSnapshot;
-  int checksnapshot= DumpStateOrd::TcResourceCheckLeak;
+  Uint32 checksnapshot= DumpStateOrd::TcResourceCheckLeak;
   
   restarter.dumpStateAllNodes(&savesnapshot, 1);
+  Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
+
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   hugoTrans.setRetryMax(1);
@@ -491,8 +497,11 @@ int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
   }
   
   restarter.insertErrorInAllNodes(0);
-
-  restarter.dumpStateAllNodes(&checksnapshot, 1);
+  pDict->forceGCPWait(1);
+  if (Ndb_internal::send_dump_state_all(pNdb, &checksnapshot, 1) != 0)
+  {
+    return NDBT_FAILED;
+  }
   return result;
 }
 
@@ -1181,6 +1190,12 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 		 << endl;
 	  
 	  NdbConnection* pCon = pNdb->startTransaction();
+          if (pCon == NULL)
+          {
+            NDB_ERR(pNdb->getNdbError());
+            return NDBT_FAILED;
+          }
+
 	  NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
 	  if (pOp == NULL) {
 	    NDB_ERR(pCon->getNdbError());
@@ -1239,6 +1254,12 @@ runBug36124(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table*  pTab = ctx->getTab();
 
   NdbTransaction* pCon = pNdb->startTransaction();
+  if (pCon == NULL)
+  {
+    NDB_ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
   NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
   if (pOp == NULL) {
     NDB_ERR(pCon->getNdbError());
@@ -1328,6 +1349,12 @@ int runBug42545(NDBT_Context* ctx, NDBT_Step* step){
   {
     g_info << i << ": ";
     NdbTransaction* pTrans = pNdb->startTransaction();
+    if (pTrans == NULL)
+    {
+      NDB_ERR(pNdb->getNdbError());
+      return NDBT_FAILED;
+    }
+
     int nodeId = pTrans->getConnectedNodeId();
     
     {
@@ -1396,10 +1423,12 @@ finalizeBug42559(NDBT_Context* ctx, NDBT_Step* step){
 
 int takeResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
+  Ndb *pNdb = GETNDB(step);
   NdbRestarter restarter;
   
   int checksnapshot = DumpStateOrd::TcResourceSnapshot;
   restarter.dumpStateAllNodes(&checksnapshot, 1);
+  Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
 
   /* TODO : Check other block's resources? */
   return NDBT_OK;
@@ -1599,11 +1628,15 @@ int runScanReadIndexWithBounds(NDBT_Context* ctx, NDBT_Step* step){
 
 int checkResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
-  NdbRestarter restarter;
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
   
-  int checksnapshot = DumpStateOrd::TcResourceCheckLeak;
-  restarter.dumpStateAllNodes(&checksnapshot, 1);
-
+  Uint32 checksnapshot = DumpStateOrd::TcResourceCheckLeak;
+  pDict->forceGCPWait(1);
+  if (Ndb_internal::send_dump_state_all(pNdb, &checksnapshot, 1) != 0)
+  {
+    return NDBT_FAILED;
+  }
   /* TODO : Check other block's resources? */
   return NDBT_OK;
 }
@@ -1652,19 +1685,26 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
     for (int i = 0; i< 25; i++)
     {
       NdbTransaction* pCon = pNdb->startTransaction();
-      NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
-      if (pOp == NULL) {
-        NDB_ERR(pCon->getNdbError());
+      if (pCon == NULL)
+      {
+        NDB_ERR(pNdb->getNdbError());
         return NDBT_FAILED;
       }
-      
-      if( pOp->readTuples(NdbOperation::LM_Read) != 0) 
+
+      NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+      if (pOp == NULL)
       {
         NDB_ERR(pCon->getNdbError());
         return NDBT_FAILED;
       }
       
-      if( pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
+      if (pOp->readTuples(NdbOperation::LM_Read) != 0) 
+      {
+        NDB_ERR(pCon->getNdbError());
+        return NDBT_FAILED;
+      }
+      
+      if (pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
       {
         NDB_ERR(pCon->getNdbError());
         return NDBT_FAILED;
@@ -1703,6 +1743,12 @@ runCloseRefresh(NDBT_Context* ctx, NDBT_Step* step)
 
   const NdbDictionary::Table*  pTab = ctx->getTab();
   NdbTransaction* pTrans = pNdb->startTransaction();
+  if (pTrans == NULL)
+  {
+    NDB_ERR(pNdb->getNdbError());
+    return NDBT_FAILED;
+  }
+
   NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
   if (pOp == NULL)
   {
@@ -1941,6 +1987,11 @@ namespace TupErr
     const NdbRecord* const record = tab->getDefaultRecord();
 
     NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      NDB_ERR(ndb->getNdbError());
+      return NDBT_FAILED;
+    }
 
     for (int i = 0; i<totalRowCount; i++)
     {
@@ -1981,6 +2032,11 @@ namespace TupErr
 
   
     NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      NDB_ERR(ndb->getNdbError());
+      return NDBT_FAILED;
+    }
 
     NdbScanOperation* const scanOp = trans->scanTable(record);
     require(scanOp != NULL);
@@ -2044,6 +2100,11 @@ namespace TupErr
     const NdbRecord* const record = tab->getDefaultRecord();
 
     NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      NDB_ERR(ndb->getNdbError());
+      return NDBT_FAILED;
+    }
 
     NdbInterpretedCode code(tab);
 

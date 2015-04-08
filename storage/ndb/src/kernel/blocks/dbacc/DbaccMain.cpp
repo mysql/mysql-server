@@ -1275,7 +1275,17 @@ checkop:
   nextbits &= nextbits & ~(Uint32)Operationrec::OP_STATE_MASK;
   nextbits |= Operationrec::OP_STATE_RUNNING;
 
-  if (lastop == ZDELETE)
+  /*
+   * bug#19031389
+   * Consider transactions such as read-0,read-1,read-2,delete-3.
+   * Read-N commits come from TC while delete-3 commit comes from
+   * backup replica.  In MT kernel delete-3 commit can come first.
+   * Then at read-0 commit there is no ZDELETE left.  But all
+   * ops in parallel queue have been marked OP_ELEMENT_DISAPPEARED.
+   * So also check for that bit.
+   */
+  if (lastop == ZDELETE ||
+      (lastOp.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED))
   {
     jam();
     if (nextop != ZINSERT && nextop != ZWRITE)

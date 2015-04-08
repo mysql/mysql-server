@@ -249,7 +249,8 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
       jam();
       D("Logfile_client - do_tup_abortreq");
       Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-      lgman.free_log_space(regOperPtr.p->m_undo_buffer_space);
+      lgman.free_log_space(regOperPtr.p->m_undo_buffer_space,
+                           jamBuffer());
     }
   }
 
@@ -415,7 +416,7 @@ void Dbtup::early_tupkey_error(KeyReqStruct* req_struct)
   set_trans_state(regOperPtr, TRANS_IDLE);
   set_tuple_state(regOperPtr, TUPLE_PREPARED);
   initOpConnection(regOperPtr);
-  send_TUPKEYREF(req_struct->signal, regOperPtr);
+  send_TUPKEYREF(req_struct);
 }
 
 void Dbtup::tupkeyErrorLab(KeyReqStruct* req_struct)
@@ -438,7 +439,8 @@ void Dbtup::tupkeyErrorLab(KeyReqStruct* req_struct)
     jam();
     D("Logfile_client - tupkeyErrorLab");
     Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-    lgman.free_log_space(regOperPtr->m_undo_buffer_space);
+    lgman.free_log_space(regOperPtr->m_undo_buffer_space,
+                         jamBuffer());
   }
 
   Uint32 *ptr = 0;
@@ -451,15 +453,16 @@ void Dbtup::tupkeyErrorLab(KeyReqStruct* req_struct)
 
   removeActiveOpList(regOperPtr, (Tuple_header*)ptr);
   initOpConnection(regOperPtr);
-  send_TUPKEYREF(req_struct->signal, regOperPtr);
+  send_TUPKEYREF(req_struct);
 }
 
-void Dbtup::send_TUPKEYREF(Signal* signal,
-                           Operationrec* const regOperPtr)
+void Dbtup::send_TUPKEYREF(const KeyReqStruct* req_struct)
 {
-  TupKeyRef * const tupKeyRef = (TupKeyRef *)signal->getDataPtrSend();  
-  tupKeyRef->userRef = regOperPtr->userpointer;
+  TupKeyRef * const tupKeyRef =
+    (TupKeyRef *)req_struct->signal->getDataPtrSend();  
+  tupKeyRef->userRef = req_struct->operPtrP->userpointer;
   tupKeyRef->errorCode = terrorCode;
+  tupKeyRef->noExecInstructions = req_struct->no_exec_instructions;
 }
 
 /**
@@ -468,7 +471,8 @@ void Dbtup::send_TUPKEYREF(Signal* signal,
 void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
                                Tuple_header *tuple_ptr)
 {
-  OperationrecPtr raoOperPtr;
+  OperationrecPtr nextOperPtr;
+  OperationrecPtr prevOperPtr;
 
   if(!regOperPtr->m_copy_tuple_location.isNull())
   {
@@ -476,22 +480,56 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
     c_undo_buffer.free_copy_tuple(&regOperPtr->m_copy_tuple_location);
   }
 
-  if (regOperPtr->op_struct.bit_field.in_active_list) {
+  if (regOperPtr->op_struct.bit_field.in_active_list)
+  {
+    nextOperPtr.i = regOperPtr->nextActiveOp;
+    prevOperPtr.i = regOperPtr->prevActiveOp;
     regOperPtr->op_struct.bit_field.in_active_list= false;
-    if (regOperPtr->nextActiveOp != RNIL) {
+    if (nextOperPtr.i != RNIL)
+    {
       jam();
-      raoOperPtr.i= regOperPtr->nextActiveOp;
-      c_operation_pool.getPtr(raoOperPtr);
-      raoOperPtr.p->prevActiveOp= regOperPtr->prevActiveOp;
-    } else {
-      jam();
-      tuple_ptr->m_operation_ptr_i = regOperPtr->prevActiveOp;
+      c_operation_pool.getPtr(nextOperPtr);
+      nextOperPtr.p->prevActiveOp = prevOperPtr.i;
     }
-    if (regOperPtr->prevActiveOp != RNIL) {
+    else
+    {
       jam();
-      raoOperPtr.i= regOperPtr->prevActiveOp;
-      c_operation_pool.getPtr(raoOperPtr);
-      raoOperPtr.p->nextActiveOp= regOperPtr->nextActiveOp;
+      tuple_ptr->m_operation_ptr_i = prevOperPtr.i;
+    }
+    if (prevOperPtr.i != RNIL)
+    {
+      jam();
+      c_operation_pool.getPtr(prevOperPtr);
+      prevOperPtr.p->nextActiveOp = nextOperPtr.i;
+      if (nextOperPtr.i == RNIL)
+      {
+        jam();
+        /**
+         * We are the leader in the list of the operations on this row.
+         * There is more operations behind us, so thus we are the leader
+         * in a group of more than one operation. This means that we
+         * to transfer the leader functionality to the second in line.
+         */
+        prevOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit =
+          regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit;
+        prevOperPtr.p->op_struct.bit_field.m_wait_log_buffer =
+          regOperPtr->op_struct.bit_field.m_wait_log_buffer;
+        if (regOperPtr->op_struct.bit_field.delete_insert_flag &&
+            regOperPtr->op_type == ZINSERT &&
+            prevOperPtr.p->op_type == ZDELETE)
+        {
+          jam();
+          /**
+           * If someone somehow manages to first delete the record and then
+           * starts a new operation on the same record using an insert, given
+           * that we now abort the insert operation we need to reset the
+           * delete+insert flag on the delete operation if this operation for
+           * some reason continues and becomes committed. In this case we
+           * want to ensure that the delete executes its index triggers.
+           */
+          prevOperPtr.p->op_struct.bit_field.delete_insert_flag = false;
+        }
+      }
     }
     regOperPtr->prevActiveOp= RNIL;
     regOperPtr->nextActiveOp= RNIL;

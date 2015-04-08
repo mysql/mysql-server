@@ -205,6 +205,12 @@ struct view {
   { "threadstat",
     "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>threadstat`"
   },
+  { "disk_write_speed_base",
+    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_base`"
+  },
+  { "disk_write_speed_aggregate",
+    "SELECT * from `<NDBINFO_DB>`.`<TABLE_PREFIX>disk_write_speed_aggregate`"
+  },
   { "cluster_transactions",
     "SELECT"
     " t.node_id,"
@@ -330,13 +336,34 @@ struct view {
     "fragment_num, fixed_elem_count, fixed_elem_size_bytes, "
     "fixed_elem_alloc_bytes, fixed_elem_free_bytes,  "
     "FLOOR(fixed_elem_free_bytes/fixed_elem_size_bytes) AS "
-    "fixed_elem_free_rows, var_elem_count, var_elem_alloc_bytes, "
+    "fixed_elem_free_count, var_elem_count, var_elem_alloc_bytes, "
     "var_elem_free_bytes, hash_index_alloc_bytes "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>frag_mem_use` AS space "
     "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` "
     "AS name ON name.id=space.table_id AND name.type<=6 JOIN "
     "`<NDBINFO_DB>`.dict_obj_types AS types ON name.type=types.type_id "
     "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` AS parent_name "
+    "ON name.parent_obj_id=parent_name.id AND "
+    "name.parent_obj_type=parent_name.type"
+  },
+  {
+    "operations_per_fragment",
+    "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
+    "types.type_name AS type, table_id, node_id, block_instance, fragment_num, "
+    "tot_key_reads, tot_key_inserts, tot_key_updates, tot_key_writes, "
+    "tot_key_deletes, tot_key_refs, tot_key_attrinfo_bytes,"
+    "tot_key_keyinfo_bytes, tot_key_prog_bytes, tot_key_inst_exec, "
+    "tot_key_bytes_returned, tot_frag_scans, tot_scan_rows_examined, "
+    "tot_scan_rows_returned, tot_scan_bytes_returned, tot_scan_prog_bytes, "
+    "tot_scan_bound_bytes, tot_scan_inst_exec, tot_qd_frag_scans, "
+    "conc_frag_scans,"
+    "conc_qd_plain_frag_scans+conc_qd_tup_frag_scans AS conc_qd_frag_scans, "
+    "tot_commits "
+    "FROM ndbinfo.ndb$frag_operations AS ops "
+    "JOIN ndbinfo.ndb$dict_obj_info AS name "
+    "ON name.id=ops.table_id AND name.type<=6 "
+    "JOIN ndbinfo.dict_obj_types AS types ON name.type=types.type_id "
+    "LEFT JOIN ndbinfo.ndb$dict_obj_info AS parent_name "
     "ON name.parent_obj_id=parent_name.id AND "
     "name.parent_obj_type=parent_name.type"
   }

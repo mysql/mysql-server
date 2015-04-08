@@ -33,6 +33,7 @@
 #include "merge_sort.h"
 #include <my_bit.h>
 #include "opt_hints.h"   // hint_table_state()
+#include "parse_tree_hints.h"
 
 #include <algorithm>
 using std::max;
@@ -2196,6 +2197,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
     /* Find the extension of the current QEP with the lowest cost */
     join->best_read= DBL_MAX;
     join->best_rowcount= HA_POS_ERROR;
+    found_plan_with_allowed_sj= false;
     if (best_extension_by_limited_search(remaining_tables, idx, search_depth))
       DBUG_RETURN(true);
     /*
@@ -2346,10 +2348,44 @@ void Optimize_table_order::consider_plan(uint             idx,
     sort_cost= join->positions[idx].prefix_rowcount;
   }
 
-  const bool chosen= cost < join->best_read;
+
+  /*
+    Check if the plan uses a disabled strategy.  (This may happen if this join
+    order does not support any of the enabled strategies.)  Currently
+    DuplicateWeedout is the only strategy for which this may happen.
+    If we have found a previous plan with only allowed strategies,
+    we only choose the current plan if it is both cheaper and does not use
+    disabled strategies.  If all previous plans use a disabled strategy,
+    we choose the current plan if it is either cheaper or does not use a
+    disabled strategy.
+  */
+  bool plan_uses_allowed_sj= true;
+  if (has_sj)
+    for (uint i= join->const_tables; i <= idx && plan_uses_allowed_sj; i++)
+      if (join->positions[i].sj_strategy == SJ_OPT_DUPS_WEEDOUT)
+      {
+        uint first= join->positions[i].first_dupsweedout_table;
+        for (uint j= first; j <= i; j++)
+        {
+          TABLE_LIST *emb_sj_nest= join->positions[j].table->emb_sj_nest;
+          if (emb_sj_nest &&
+              !(emb_sj_nest->nested_join->sj_enabled_strategies &
+                OPTIMIZER_SWITCH_DUPSWEEDOUT))
+            plan_uses_allowed_sj= false;
+        }
+      }
+
+  const bool cheaper= cost < join->best_read;
+  const bool chosen= found_plan_with_allowed_sj ?
+    ( plan_uses_allowed_sj && cheaper) :
+    ( plan_uses_allowed_sj || cheaper) ;
+
   trace_obj->add("chosen", chosen);
   if (chosen)
   {
+    if (!cheaper)
+      trace_obj->add_alnum("cause", "previous_plan_used_disabled_strategy");
+
     memcpy((uchar*) join->best_positions, (uchar*) join->positions,
             sizeof(POSITION) * (idx + 1));
 
@@ -2362,7 +2398,11 @@ void Optimize_table_order::consider_plan(uint             idx,
     join->best_read= cost - 0.001;
     join->best_rowcount= (ha_rows)join->positions[idx].prefix_rowcount;
     join->sort_cost= sort_cost;
+    found_plan_with_allowed_sj= plan_uses_allowed_sj;
   }
+  else if (cheaper)
+    trace_obj->add_alnum("cause", "plan_uses_disabled_strategy");
+
   DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                  join->positions[idx].prefix_rowcount,
                                  cost,
@@ -2592,8 +2632,13 @@ bool Optimize_table_order::best_extension_by_limited_search(
       else
         position->no_semijoin();
 
-      /* Expand only partial plans with lower cost than the best QEP so far */
-      if (position->prefix_cost >= join->best_read)
+      /*
+        Expand only partial plans with lower cost than the best QEP so far.
+        However, if the best plan so far uses a disabled semi-join strategy,
+        we continue the search since this partial plan may support other
+        semi-join strategies.
+      */
+      if (position->prefix_cost >= join->best_read && found_plan_with_allowed_sj)
       {
         DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                        position->prefix_rowcount,
@@ -2626,7 +2671,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
             best_cost=     position->prefix_cost;
           }
         }
-        else
+        else if (found_plan_with_allowed_sj)
         {
           DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                          position->prefix_rowcount,
@@ -4017,7 +4062,8 @@ void Optimize_table_order::advance_sj_state(
     Grouped tables: ot - FM(it11 - it12) - FM(it21 - it22)
   */
   if (emb_sj_nest &&
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_FIRSTMATCH))
+      emb_sj_nest->nested_join->sj_enabled_strategies &
+      OPTIMIZER_SWITCH_FIRSTMATCH)
   {
     const table_map outer_corr_tables= emb_sj_nest->nested_join->sj_depends_on;
     const table_map sj_inner_tables=   emb_sj_nest->sj_inner_tables;
@@ -4099,7 +4145,6 @@ void Optimize_table_order::advance_sj_state(
        tables.
     Notice that any other semi-joined tables must be outside this table range.
   */
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN))
   {
     /*
       LooseScan strategy can't handle interleaving between tables from the
@@ -4126,8 +4171,9 @@ void Optimize_table_order::advance_sj_state(
 
     /*
       We may consider the LooseScan strategy if
-      1. The next table is an SJ-inner table, and
-      2, We have no more than 64 IN expressions (must fit in bitmap), and
+      1a. The next table is an SJ-inner table, and
+      1b. LooseScan is enabled for this SJ nest, and
+      2. We have no more than 64 IN expressions (must fit in bitmap), and
       3. It is the first table from that semijoin, and
       4. We're not within a semi-join range, except
       new_join_tab->emb_sj_nest (which we've just entered, see #3), and
@@ -4139,7 +4185,9 @@ void Optimize_table_order::advance_sj_state(
       handled with an index of this table, and
       8. Not a derived table/view. (a temporary restriction)
     */
-    if (emb_sj_nest &&                                               // (1)
+    if (emb_sj_nest &&                                               // (1a)
+        emb_sj_nest->nested_join->sj_enabled_strategies &
+        OPTIMIZER_SWITCH_LOOSE_SCAN &&                               // (1b)
         emb_sj_nest->nested_join->sj_inner_exprs.elements <= 64 &&   // (2)
         ((remaining_tables_incl & emb_sj_nest->sj_inner_tables) ==   // (3)
          emb_sj_nest->sj_inner_tables) &&                            // (3)
@@ -4184,8 +4232,8 @@ void Optimize_table_order::advance_sj_state(
         /*
           We don't yet have any other strategies that could handle this
           semi-join nest (the other options are Duplicate Elimination or
-          Materialization, which need at least the same set of tables in 
-          the join prefix to be considered) so unconditionally pick the 
+          Materialization, which need at least the same set of tables in
+          the join prefix to be considered) so unconditionally pick the
           LooseScan.
         */
         sj_strategy= SJ_OPT_LOOSE_SCAN;
@@ -4292,7 +4340,7 @@ void Optimize_table_order::advance_sj_state(
       add("rows", rowcount).
       add("duplicate_tables_left", pos->dups_producing_tables != 0);
     /*
-      Use the strategy if 
+      Use the strategy if
        * it is cheaper then what we've had, or
        * we haven't picked any other semi-join strategy yet
       In the second case, we pick this strategy unconditionally because
@@ -4347,8 +4395,8 @@ void Optimize_table_order::advance_sj_state(
       semijoin_dupsweedout_access_paths(pos->first_dupsweedout_table, idx,
                                         remaining_tables, &rowcount, &cost);
       /*
-        Use the strategy if 
-         * it is cheaper then what we've had, or
+        Use the strategy if
+         * it is cheaper then what we've had, and strategy is enabled, or
          * we haven't picked any other semi-join strategy yet
         The second part is necessary because this strategy is the last one
         to consider (it needs "the most" tables in the prefix) and we can't
@@ -4358,7 +4406,11 @@ void Optimize_table_order::advance_sj_state(
         add("cost", cost).
         add("rows", rowcount).
         add("duplicate_tables_left", pos->dups_producing_tables != 0);
-      if (cost < best_cost || pos->dups_producing_tables)
+      if ((cost < best_cost &&
+           join->positions[pos->first_dupsweedout_table].table->emb_sj_nest->
+             nested_join->sj_enabled_strategies &
+           OPTIMIZER_SWITCH_DUPSWEEDOUT) ||
+          pos->dups_producing_tables)
       {
         sj_strategy= SJ_OPT_DUPS_WEEDOUT;
         best_cost=     cost;

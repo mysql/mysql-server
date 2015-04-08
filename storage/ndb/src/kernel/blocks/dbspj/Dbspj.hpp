@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -678,7 +678,7 @@ public:
     }
     struct RangeBuilder
     {
-      Uint16 m_range_size;
+      Uint32 m_range_size;
       Uint16 m_range_cnt; // too set bounds info correctly
     } m_range_builder;
     Uint32 m_rangePtrI;

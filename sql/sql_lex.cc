@@ -625,7 +625,6 @@ st_select_lex *LEX::new_empty_query_block()
     return NULL;             /* purecov: inspected */
 
   select->parent_lex= this;
-  select->opt_hints_qb= NULL;
 
   return select;
 }
@@ -2326,6 +2325,7 @@ st_select_lex::st_select_lex
   prev_join_using(NULL),
   select_list_tables(0),
   outer_join(0),
+  opt_hints_qb(NULL),
   m_agg_func_used(false),
   sj_candidates(NULL)
 {
@@ -2366,7 +2366,7 @@ void st_select_lex_unit::exclude_level()
     Changing unit tree should be done only when LOCK_query_plan mutex is
     taken. This is needed to provide stable tree for EXPLAIN FOR CONNECTION.
   */
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+  thd->lock_query_plan();
   SELECT_LEX_UNIT *units= NULL;
   SELECT_LEX_UNIT **units_last= &units;
   SELECT_LEX *sl= first_select();
@@ -2429,7 +2429,7 @@ void st_select_lex_unit::exclude_level()
   }
 
   invalidate();
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  thd->unlock_query_plan();
 }
 
 
@@ -2550,25 +2550,25 @@ bool st_select_lex::test_limit()
 
 enum_parsing_context st_select_lex_unit::get_explain_marker() const
 {
-  mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+  thd->query_plan.assert_plan_is_locked_if_other();
   return explain_marker;
 }
 
 
 void st_select_lex_unit::set_explain_marker(enum_parsing_context m)
 {
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+  thd->lock_query_plan();
   explain_marker= m;
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  thd->unlock_query_plan();
 }
 
 
 void st_select_lex_unit::
 set_explain_marker_from(const st_select_lex_unit *u)
 {
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+  thd->lock_query_plan();
   explain_marker= u->explain_marker;
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  thd->unlock_query_plan();
 }
 
 
@@ -4396,9 +4396,9 @@ void st_select_lex::include_chain_in_global(st_select_lex **start)
 
 void st_select_lex::set_join(JOIN *join_arg)
 {
-  mysql_mutex_lock(&master_unit()->thd->LOCK_query_plan);
+  master_unit()->thd->lock_query_plan();
   join= join_arg;
-  mysql_mutex_unlock(&master_unit()->thd->LOCK_query_plan);
+  master_unit()->thd->unlock_query_plan();
 }
 
 
@@ -4479,6 +4479,57 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd,
   }
   return get_optimizable_join_conditions(thd, top_join_list);
 }
+
+Item_exists_subselect::enum_exec_method
+st_select_lex::subquery_strategy(THD *thd) const
+{
+  if (opt_hints_qb)
+  {
+    Item_exists_subselect::enum_exec_method strategy=
+      opt_hints_qb->subquery_strategy();
+    if (strategy != Item_exists_subselect::EXEC_UNSPECIFIED)
+      return strategy;
+  }
+
+  // No SUBQUERY hint given, base possible strategies on optimizer_switch
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
+    return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED) ?
+      Item_exists_subselect::EXEC_EXISTS_OR_MAT :
+      Item_exists_subselect::EXEC_MATERIALIZATION;
+
+  return Item_exists_subselect::EXEC_EXISTS;
+}
+
+bool st_select_lex::semijoin_enabled(THD *thd) const
+{
+  return opt_hints_qb ?
+    opt_hints_qb->semijoin_enabled(thd) :
+    thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN);
+}
+
+void st_select_lex::update_semijoin_strategies(THD *thd)
+{
+  uint sj_strategy_mask= OPTIMIZER_SWITCH_FIRSTMATCH |
+    OPTIMIZER_SWITCH_LOOSE_SCAN | OPTIMIZER_SWITCH_MATERIALIZATION |
+    OPTIMIZER_SWITCH_DUPSWEEDOUT;
+
+  uint opt_switches= thd->variables.optimizer_switch & sj_strategy_mask;
+
+  List_iterator<TABLE_LIST> sj_list_it(sj_nests);
+  TABLE_LIST *sj_nest;
+  while ((sj_nest= sj_list_it++))
+  {
+    /*
+      After semi-join transformation, original SELECT_LEX with hints is lost.
+      Fetch hints from first table in semijoin nest.
+    */
+    List_iterator<TABLE_LIST> table_list(sj_nest->nested_join->join_list);
+    TABLE_LIST *table= table_list++;
+    sj_nest->nested_join->sj_enabled_strategies= table->opt_hints_qb ?
+      table->opt_hints_qb->sj_enabled_strategies(opt_switches) : opt_switches;
+  }
+}
+
 
 /**
   Check if an option that can be used only for an outer-most query block is

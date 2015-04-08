@@ -1308,17 +1308,6 @@ Java_myjapi_E_take_1EE1(JNIEnv * env, jclass cls, jint p0)
 #endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-JNIEXPORT jint JNICALL
-Java_myjapi_E_deliver_1EE1c(JNIEnv * env, jclass cls)
-{
-    TRACE("jint Java_myjapi_E_deliver_1EE1c(JNIEnv *, jclass)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_fr< ttrait_E_EE_c_iv, E::deliver_EE1c >(env, cls);
-#else
-    return gcall_fr< ttrait_E_EE_c_iv, &MyApiWrapper::E__deliver_EE1c >(env, cls);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
 JNIEXPORT void JNICALL
 Java_myjapi_E_take_1EE1c(JNIEnv * env, jclass cls, jint p0)
 {

@@ -32,4 +32,5 @@ MaxNoOfSavedMessages= 5
 SendBufferMemory = 2M
 NoOfFragmentLogFiles = 4
 FragmentLogFileSize = 64M
+Checksum=1
 

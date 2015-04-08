@@ -31,6 +31,9 @@
 #include <version.h>
 
 #define NDB_RESTORE_STAGING_SUFFIX "$ST"
+#ifdef ERROR_INSERT
+#define NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER 1
+#endif
 
 enum TableChangesMask
 {
@@ -101,6 +104,7 @@ struct AttributeDesc {
   Uint32 m_nullBitIndex;
   AttrConvertFunc convertFunc;
   void *parameter;
+  Uint32 parameterSz; 
   bool truncation_detected;
   bool staging;
 
@@ -335,7 +339,9 @@ protected:
   void * m_buffer_ptr;
   Uint32 m_buffer_sz;
   Uint32 m_buffer_data_left;
-
+#ifdef ERROR_INSERT
+  unsigned m_error_insert;
+#endif
   Uint64 m_file_size;
   Uint64 m_file_pos;
   
@@ -374,6 +380,9 @@ public:
 
   Uint64 get_file_size() const { return m_file_size; }
   Uint64 get_file_pos() const { return m_file_pos; }
+#ifdef ERROR_INSERT
+  void error_insert(unsigned int code); 
+#endif
 
 private:
   void

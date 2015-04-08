@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -20,17 +20,42 @@
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
-/*global unified_debug, util, path, api_dir */
-
 "use strict";
+
+var path = require("path");
+var util = require('util');
+
+var session_stats = {
+	"created" : 0,
+	"closed"  : 0	
+};
+
+var transaction_stats = {
+	"execute"   : { "commit": 0, "no_commit" : 0},
+	"closed"    : 0,
+	"commit"    : 0,
+	"rollback"  : 0
+};
+
+var op_stats = {
+	"read"				: 0,
+	"insert"			: 0,
+	"update"			: 0,
+	"write"				: 0,
+	"delete"			: 0,
+	"scan_read"		: 0,
+	"scan_count"	: 0,
+	"scan_delete" : 0
+};
 
 var mysql  = require("mysql"),
     udebug = unified_debug.getLogger("MySQLConnection.js"),
-    stats_module  = require(path.join(api_dir, "stats.js")),
-    session_stats  = stats_module.getWriter(["spi","mysql","DBSession"]),
-    transaction_stats = stats_module.getWriter(["spi","mysql","DBTransactionHandler"]),
-    op_stats = stats_module.getWriter(["spi","mysql","DBOperation"]),
+    stats_module  = require(mynode.api.stats),
     mysql_code_to_sqlstate_map = require("../common/MysqlErrToSQLStateMap");
+
+stats_module.register(session_stats, "spi","mysql","DBSession");
+stats_module.register(transaction_stats, "spi","mysql","DBTransactionHandler");
+stats_module.register(op_stats, "spi","mysql","DBOperation");
     
 /** Convert the raw data in the driver to the type expected by the adapter.
  * Felix driver would normally convert DATE, DATETIME, and TIMESTAMP to
@@ -42,7 +67,6 @@ var mysql  = require("mysql"),
  * @return the value to be passed to the adapter from the driver
  */
 function driverTypeConverter(field, next) {
-//console.log('MySQLConnectionPool.driverTypeConverter with field', util.inspect(field));
   var type = field.type;
   var name = field.name;
   var value;
@@ -89,7 +113,7 @@ exports.DBSession = function(pooledConnection, connectionPool, index) {
     this.transactionHandler = null;
     this.autocommit = true;
     this.index = index;
-    session_stats.incr("created");
+    session_stats.created++;
   }
 };
 
@@ -210,12 +234,12 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
     // execute begin operation the first time for non-autocommit
     if (this.firstTime) {
-      transaction_stats.incr( [ "execute","no_commit" ] );
+      transaction_stats.execute.no_commit++;
       transactionHandler.operationsList = operationsList;
       transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
       this.dbSession.pooledConnection.query('begin', executeOnBegin);
     } else {
-      transaction_stats.incr( [ "execute","commit" ] );
+      transaction_stats.execute.commit++;
       if (transactionHandler.numberOfOperations > 0) {
         // there are pending batches, so just put this request on the list
         transactionHandler.pendingBatches.push(
@@ -233,7 +257,7 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
   
   this.close = function() {
-    transaction_stats.incr( [ "closed" ] );
+    transaction_stats.closed++;
   };
 
   this.batchComplete = function() {
@@ -291,7 +315,7 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
           operation.result.error = transactionHandler.error;
           if (typeof(operationCallback) === 'function') {
             // call the UserContext callback
-            operationCallback(transactionHandler.error);
+            operationCallback(transactionHandler.error, operation);
           }
           transactionHandler.executedOperations.push(operation);
         }
@@ -308,16 +332,16 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
   this.commit = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.commit.');
-    transaction_stats.incr( [ "commit" ]);
+    transaction_stats.commit++;
     this.dbSession.pooledConnection.query('commit', callback);
-    this.dbSession.transactionHandler = null;
+    this.autocommit = true;
   };
 
   this.rollback = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.rollback.');
-    transaction_stats.incr( [ "rollback" ]);
+    transaction_stats.rollback++;
     this.dbSession.pooledConnection.query('rollback', callback);
-    this.dbSession.transactionHandler = null;
+    this.autocommit = true;
   };
 };
 
@@ -362,7 +386,7 @@ function InsertOperation(sql, data, callback) {
   this.data = data;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","insert" ]);
+  op_stats.insert++;
 
   function onInsert(err, status) {
     if (err) {
@@ -401,7 +425,7 @@ function WriteOperation(sql, data, callback) {
   this.data = data;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","write" ]);
+  op_stats.write++;
 
   function onWrite(err, status) {
     if (err) {
@@ -438,7 +462,7 @@ function DeleteOperation(sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","delete" ]);
+  op_stats.delete++;
 
   function onDelete(err, status) {
     if (err) {
@@ -482,7 +506,7 @@ function ReadOperation(dbSession, dbTableHandler, sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","read" ]);
+  op_stats.read++;
 
   function onRead(err, rows) {
     if (err) {
@@ -547,7 +571,7 @@ function ScanOperation(dbSession, dbTableHandler, sql, parameters, callback) {
   this.parameters = parameters;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","scan" ]);
+  op_stats.scan_read++;
 
   function onScan(err, rows) {
     var i;
@@ -584,6 +608,392 @@ function ScanOperation(dbSession, dbTableHandler, sql, parameters, callback) {
   };
 }
 
+function showProjection(projections, msg) {
+  var projection, next;
+  if (projections.length > 0) {
+    projection = projections.shift();
+    next = projection.firstNestedProjection;
+    msg += '\nprojection name: ' + projection.name + ' for ' + projection.domainObject.name;
+    msg += ' with ' + projection.sectors.length + ' sectors.';
+    if (next) {
+      msg += '\n    ' + next.domainObject.name;
+      projections.push(next);
+    }
+    showProjection(projections, msg);
+  } else {
+    console.log(msg);
+    return msg;
+  }
+}
+
+/** Initialize the projection object for use with mysql adapter.
+ * The projection object is organized into sectors, one for each domain object.
+ * A sector contains a count of fields, a list of field names, and the offset column 
+ * corresponding to the first column mapped to the first field.
+ * All primary key fields are always included, plus any fields identified in the fields array
+ * of the corresponding projection for the domain object.
+ * Build the sql statement to use for the projection. SELECT... FROM... WHERE... ORDER BY...
+ * For each sector, add the mapped table to the FROM clause including the join condition.
+ * Add the key and non-key columns to the SELECT clause.
+ * Add ORDER BY key columns for multi-value relationships.
+ */
+function initializeProjection(projection) {
+  var mysql = {};
+  projection.mysql = mysql;
+  var i, j;
+  var sector, sectorName;
+  var relatedSectorName;
+  var select, from, on, alias, order;
+  var thisOn, otherOn, and;
+
+  var selectDelimiter, fromDelimiter, orderDelimiter;
+  var columnName;
+  var joinType, joinIndex;
+  var offset;
+  var keyField, nonKeyField;
+  var errors = '';
+
+  // create the sql query for the find method.
+  select = 'SELECT ';
+  from = ' FROM ';
+  order = '';
+  selectDelimiter = '';
+  fromDelimiter = '';
+  orderDelimiter = '';
+  alias = 0;
+  offset = 0;
+
+  for (i = 0; i < projection.sectors.length; ++i) {
+    sector = projection.sectors[i];
+    udebug.log_detail('initializeProjection for sector\n', sector);
+    // offset of each sector into column in row
+    sector.offset = offset;
+    offset += sector.keyFields.length + sector.nonKeyFields.length;
+
+    // set up the table names
+    sector.tableName = sector.tableHandler.dbTable.database + '.' + sector.tableHandler.dbTable.name;
+    sectorName = 't' + i;
+    relatedSectorName = 't' + (i - 1);
+    joinType = '';
+    on = '';
+    if (sector.relatedFieldMapping && i > 0) {
+      sector.relatedTableName = sector.relatedTableHandler.dbTable.database + '.' + sector.relatedTableHandler.dbTable.name;
+      if (sector.relatedFieldMapping.toMany && sector.relatedFieldMapping.manyTo) {
+        // join table mapping
+        // create a join table reference based on current table name
+        // join tables are "between" tables that are joined for many-to-many relationships
+        // ... t1 LEFT OUTER JOIN customerdiscount AS t15 on [t1.k = t15.k and...] 
+        //     LEFT OUTER JOIN discount AS t2 on [t15.k = t2.k and ...]
+        sector.joinTableName = sector.joinTableHandler.dbTable.database + '.' + sector.joinTableHandler.dbTable.name;
+        sector.joinTableAlias = relatedSectorName + 'J';
+        udebug.log_detail('initializeProjection join table handling for', sector.joinTableName, 'AS', sector.joinTableAlias,
+            'thisForeignKey.columnNames', sector.relatedFieldMapping.thisForeignKey.columnNames,
+            'otherForeignKey.columnNames', sector.relatedFieldMapping.otherForeignKey.columnNames);
+        // generate the join from the previous domain table to the join table
+        joinType = ' LEFT OUTER JOIN ';
+        thisOn = ' ON ';
+        and = '';
+        for (joinIndex = 0; joinIndex < sector.relatedFieldMapping.thisForeignKey.columnNames.length; ++joinIndex) {
+          thisOn += and + relatedSectorName + '.' + sector.relatedFieldMapping.thisForeignKey.targetColumnNames[joinIndex] + ' = ' +
+              sector.joinTableAlias + '.' + sector.relatedFieldMapping.thisForeignKey.columnNames[joinIndex];
+          and = ' AND ';
+        }
+        from += fromDelimiter + joinType + sector.joinTableName + ' AS ' + sector.joinTableAlias + thisOn;
+
+        // generate the join from the join table to this domain table
+        otherOn = ' ON ';
+        and = '';
+        for (joinIndex = 0; joinIndex < sector.relatedFieldMapping.otherForeignKey.columnNames.length; ++joinIndex) {
+          otherOn += and + sector.joinTableAlias + '.' + sector.relatedFieldMapping.otherForeignKey.columnNames[joinIndex] + ' = ' +
+          sectorName + '.' + sector.relatedFieldMapping.otherForeignKey.targetColumnNames[joinIndex];
+          and = ' AND ';
+        }
+        from += fromDelimiter + joinType + sector.tableName + ' AS ' + sectorName + otherOn;
+        
+      } else {
+        // foreign key mapping for one-to-one, one-to-many, and many-to-one relationships
+        joinType = ' LEFT OUTER JOIN ';
+        on = ' ON ';
+        and = '';
+        for (joinIndex = 0; joinIndex < sector.thisJoinColumns.length; ++joinIndex) {
+          on += and + relatedSectorName + '.' + sector.otherJoinColumns[joinIndex] + ' = ' + 
+                sectorName + '.' + sector.thisJoinColumns[joinIndex];
+          and = ' AND ';
+        }
+        if (sector.relatedFieldMapping.toMany) {
+          // order by key columns that can have multiple values (toMany relationships)
+          for (j = 0; j < sector.keyFields.length; ++j) {
+            keyField = sector.keyFields[j];
+            columnName = keyField.columnName;
+            order += orderDelimiter + sectorName + '.' + columnName;
+            orderDelimiter = ', ';
+          }
+        }
+        from += fromDelimiter + joinType + sector.tableName + ' AS ' + sectorName + on;
+      }
+    } else {
+      // first table is always t0
+      from += sector.tableName + ' AS ' + sectorName;
+      fromDelimiter = ' ';
+    }
+    // add key column names to SELECT clause
+    for (j = 0; j < sector.keyFields.length; ++j) {
+      keyField = sector.keyFields[j];
+      columnName = keyField.columnName;
+      select += selectDelimiter + sectorName + '.' + columnName + ' AS \'' + alias++ + '\'';
+      selectDelimiter = ', ';
+    }
+    // add non-key column names to SELECT clause
+    for (j = 0; j < sector.nonKeyFields.length; ++j) {
+      nonKeyField = sector.nonKeyFields[j];
+      columnName = nonKeyField.columnName;
+      select += selectDelimiter + sectorName + '.' + columnName + ' AS \'' + alias++ + '\'';
+      selectDelimiter = ', ';
+    }
+  }
+  mysql.select = select;
+  mysql.from = from;
+  mysql.sectors = projection.sectors;
+  if (order) {
+    mysql.order = 'ORDER BY ' + order;
+  } else {
+    mysql.order = '';
+  }
+  // mark this as having been processed
+  projection.mysql.id = projection.id;
+}
+
+
+/** Read projection executes sql with parameters and creates results according to the projection.
+ * Each row returned from felix contains results for possibly many objects.
+ * Each sector may create a new domain object (tuple) using the DBTableHandler constructor.
+ * The results are kept in a tuple array in which each domain object is contained in the object to its left.
+ * When analyzing rows, starting with the leftmost object in the tuple array, the key values in each tuple
+ * are compared to the corresponding key values in the row. If the keys are the same, processing
+ * continues with the next object in the tuple array. If the keys are different, or no object exists,
+ * a new object is created and processing continues with the next object in the tuple.
+ * In this case, the tuples to the "right" of the newly created tuple belong to the previous tuple and are discarded.
+ * [Processing the last tuple in the row will always create a new object.]
+ * Once the last sector is processed, the function returns and the next row will be processed.
+ * At the end of the last row, the callback is called, which will return the result.value to the user.
+ */
+function ReadProjectionOperation(dbSession, dbTableHandler, projection, where, keys, callback) {
+  var op = this;
+  this.selectSQL = projection.mysql.select + projection.mysql.from + where + projection.mysql.order;
+  var query;
+  this.type = 'read';
+  this.keys = keys;
+  this.callback = callback;
+  this.result = {};
+  this.err = null;
+  this.tuples = [];
+  this.sectors = projection.mysql.sectors;
+  this.rows = 0;
+  op_stats.read++;
+
+  /** Is the key of the sector in this row null? */
+  function isRowSectorKeyNull(row, sector) {
+    var keyRowIndex;
+    var offset = sector.offset;
+    for (keyRowIndex = 0; keyRowIndex < sector.keyFields.length; ++keyRowIndex) {
+      if (row[offset + keyRowIndex] !== null) {
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  /** Is the key of the sector in this row equal to the key of the tuple? */
+  function isRowSectorKeyEqual(row, sector, tuple) {
+    var keyRowIndex;
+    var offset = sector.offset;
+    var rowValue;
+    var tupleValue;
+    if (tuple) {
+      for (keyRowIndex = 0; keyRowIndex < sector.keyFields.length; ++keyRowIndex) {
+        rowValue = row[offset + keyRowIndex];
+        tupleValue = tuple[sector.keyFields[keyRowIndex].fieldName];
+        if (rowValue !== tupleValue) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+  
+  /** Set to null those tuples starting at tupleStart to the end of the tuples array */
+  function resetTuples(tupleStart) {
+    var tupleIndex;
+    for (tupleIndex = tupleStart; tupleIndex < op.tuples.length; ++tupleIndex) {
+      op.tuples[tupleIndex] = null;
+    }
+  }
+  
+  function onResult(row) {
+    var i;
+    var sector;
+    var tuple = null;
+    var relationship;
+    var nullValue;
+    op.rows++;
+    // process the row by sector, left to right
+    udebug.log_detail('onResult processing row with', op.sectors.length, 'sectors:\n', row);
+    // do each sector in turn
+    for (i = 0; i < op.sectors.length; ++i) {
+      sector = op.sectors[i];
+      tuple = op.tuples[i];
+      // if the keys in the row for this sector are null set the related object if any
+      if (isRowSectorKeyNull(row, sector)) {
+        // if there is a relationship, set the value to the default for the relationship
+        if (i > 0 && sector.relatedFieldMapping) {
+          if (sector.relatedFieldMapping.toMany) {
+            // null toMany relationships are represented by an empty array
+            nullValue = [];
+          } else {
+            nullValue = null;
+          }
+          op.tuples[i - 1][sector.relatedFieldMapping.fieldName] = nullValue;
+        }
+        resetTuples(i);
+        break;
+      }
+      // compare the keys of the row with the keys of the current object
+      if (!isRowSectorKeyEqual(row, sector, tuple)) {
+        // keys do not match the current object; create a new one
+        tuple = sector.tableHandler.newResultObjectFromRow(row, 'mysql',
+            sector.offset, sector.keyFields, sector.nonKeyFields);
+        op.tuples[i] = tuple;
+        // the rest of the tuples belong to the previous object
+        resetTuples(i + 1);
+        // assign the new object to the relationship field of the previous object
+        if (i > 0) {
+          if (sector.relatedFieldMapping.toMany) {
+            // relationship is an array
+            relationship = op.tuples[i - 1][sector.relatedFieldMapping.fieldName];
+            if (!relationship) {
+              relationship = op.tuples[i - 1][sector.relatedFieldMapping.fieldName] = [];
+            }
+            relationship.push(tuple);
+          } else {
+            // relationship is a reference
+            op.tuples[i - 1][sector.relatedFieldMapping.fieldName] = tuple;
+          }
+        }
+      }
+    }
+  }
+
+  function onError(e) {
+    // remember the error; the error will be returned at onEnd
+    e.message += '\nsql:\n' + op.selectSQL + '\nwith keys: ' + op.keys;
+    op.result.error = e;
+    op.result.error.sqlstate = 'HY000';
+  }
+
+  function onEnd() {
+    // done processing all the rows
+    if (op.tuples.length !== 0) {
+      // we had a result
+      op.result.value = op.tuples[0];
+      op.result.success = true;
+    } else if (!op.result.error) {
+      if (op.rows > 0) {
+        throw new Error(op.rows + ' were processed but no tuples were returned. Sectors:\n' + op.sectors);
+      }
+      // no error was reported, but there is no result, so make up a "row not found" error
+      op.result.value = null;
+      op.result.success = false;
+      op.result.error = {};
+      op.result.error.code = 1032;
+      op.result.error.sqlstate = "02000";
+    }
+    if (typeof(op.callback) === 'function') {
+    // call the UserContext callback
+    op.callback(op.result.error, op);
+    }
+    // now call the transaction operation complete callback
+    op.operationCompleteCallback(op);
+  }
+  
+  this.execute = function(connection, operationCompleteCallback) {
+    udebug.log_detail('ReadProjectionOperation.execute with SQL:\n ', this.selectSQL, '\nkeys: ', this.keys);
+    op.operationCompleteCallback = operationCompleteCallback;
+    // we have to format the query string ourselves because the variant of connection.query
+    // with no callback does not allow formatting parameters
+    var formattedSQL = connection.format(this.selectSQL, this.keys);
+    query = connection.query(
+        {sql: formattedSQL,
+          typeCast: driverTypeConverter
+        });
+    query.
+    on('end', onEnd).
+    on('error', onError).
+    on('result', onResult);
+  };
+}
+
+/** Scan projection executes sql with parameters and creates results according to the projection.
+ * Each row returned from felix contains results for possibly many objects. 
+ * The results are kept in a tuple in which each object is contained in the object to its left.
+ * When analyzing rows, starting with the leftmost object in the tuple, the key values in each tuple
+ * are compared to the corresponding key values in the row. If the keys are the same, processing
+ * continues with the next object in the tuple. If the keys are different, or no object exists,
+ * a new object is created and processing continues with the next object in the tuple. 
+ * Processing the last tuple in the row will always create a new object.
+ * Once the last tuple is processed, the function returns and the next row will be processed.
+ * At the end of the last row, the callback is called, which will return the result.value to the user.
+ */
+function ScanProjectionOperation(dbSession, dbTableHandler, sql, parameters, projection, callback) {
+  udebug.log('dbSession.ScanOperation with sql\n', sql, '\nparameters', parameters);
+  var op = this;
+  var query;
+  this.type = 'scan';
+  this.sql = sql;
+  this.parameters = parameters;
+  this.callback = callback;
+  this.result = {};
+  this.err = null;
+  op_stats.incr( [ "created","scan" ]);
+
+  function onResult(row) {
+    // process the row by tuple, left to right
+//    console.log('ScanProjectionOperation.onResult', row);
+//    projectionHandler.onResult(op, row);
+  }
+  function onFields(fields) {
+    // we don't need this because we already know what to expect
+//    console.log('ScanProjectionOperation.onFields', fields);
+  }
+  function onError(e) {
+    // just remember the error
+    // the error will be returned at onEnd
+    op.result.error = e;
+  }
+  function onEnd() {
+    if (typeof(op.callback) === 'function') {
+    // call the UserContext callback
+    op.callback(op.result.error, op);
+    }
+    // now call the transaction operation complete callback
+    op.operationCompleteCallback(op);
+  }
+  
+  this.execute = function(connection, operationCompleteCallback) {
+    op.operationCompleteCallback = operationCompleteCallback;
+    var formattedSQL = connection.format(this.sql, this.keys);
+    query = connection.query(
+        {sql: formattedSQL, 
+          typeCast: driverTypeConverter
+        });
+    query.
+    on('end', onEnd).
+    on('error', onError).
+    on('fields', onFields).
+    on('result', onResult);
+  };
+}
+
 function UpdateOperation(sql, keys, values, callback) {
   udebug.log('dbSession.UpdateOperation with', sql, values, keys);
   var op = this;
@@ -593,7 +1003,7 @@ function UpdateOperation(sql, keys, values, callback) {
   this.values = values;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","update" ]);
+  op_stats.update++;
 
   function onUpdate(err, status) {
     if (err) {
@@ -781,6 +1191,35 @@ function createSelectSQL(dbTableHandler, index) {
   return selectSQL;
 }
 
+function createWhereSQL(dbTableHandler, index) {
+  var whereSQL;
+  var separator = '';
+  var i, j, columns;
+  columns = dbTableHandler.getColumnMetadata();
+  if (index) {
+    // create the where SQL clause from the table metadata for the named index
+    whereSQL = ' WHERE ';
+
+    // loop over the index columns
+    // find the index metadata from the dbTableHandler index section
+    // loop over the columns in the index and extract the column name
+    var indexMetadatas = dbTableHandler.dbTable.indexes;
+    separator = '';
+    for (i = 0; i < indexMetadatas.length; ++i) {
+      if (indexMetadatas[i].name === index) {
+        var indexMetadata = indexMetadatas[i];
+        for (j = 0; j < indexMetadata.columnNumbers.length; ++j) {
+          whereSQL += separator + 't0.' + columns[indexMetadata.columnNumbers[j]].name + ' = ? ';
+          separator = ' AND ';
+        }
+        // for unique btree indexes the first one is the unique index we are interested in
+        break;
+      }
+    }
+  }
+  return whereSQL;
+}
+
 function getMetadata(dbTableHandler) {
   if (dbTableHandler.mysql) {
     return;
@@ -792,6 +1231,7 @@ function getMetadata(dbTableHandler) {
   dbTableHandler.mysql.deleteTableScanSQL= createDeleteSQL(dbTableHandler);
   dbTableHandler.mysql.selectSQL = {};
   dbTableHandler.mysql.selectTableScanSQL = createSelectSQL(dbTableHandler);
+  dbTableHandler.mysql.whereSQL = {};
   dbTableHandler.mysql.insertPartialSQL = {};
   dbTableHandler.mysql.duplicatePartialSQL = {};
   
@@ -803,6 +1243,7 @@ function getMetadata(dbTableHandler) {
     index = dbTableHandler.dbTable.indexes[i];
     dbTableHandler.mysql.deleteSQL[index.name] = createDeleteSQL(dbTableHandler, index.name);
     dbTableHandler.mysql.selectSQL[index.name] = createSelectSQL(dbTableHandler, index.name);
+    dbTableHandler.mysql.whereSQL[index.name] = createWhereSQL(dbTableHandler, index.name);
   }
 }
 
@@ -851,7 +1292,12 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
                     dbTableHandler.dbTable.name, 'object:', object);
   getMetadata(dbTableHandler);
   var fieldValueDefinedListener = new FieldValueDefinedListener();
-  var fieldValues = dbTableHandler.getFields(object, false, 'mysql', fieldValueDefinedListener);
+  var fieldValues = dbTableHandler.getFieldsWithListener(object, 'mysql', fieldValueDefinedListener);
+  if (fieldValueDefinedListener.err) {
+    // error during preparation of field values
+    udebug.log('MySQLConnection.buildInsertOperation error', fieldValueDefinedListener.err);
+    return new ErrorOperation(fieldValueDefinedListener.err, callback);
+  }
   var fieldValueDefinedKey = fieldValueDefinedListener.key;
   udebug.log_detail('MySQLConnection.buildWriteOperation', fieldValueDefinedKey);
   if (typeof(fieldValueDefinedKey) === 'undefined') {
@@ -890,6 +1336,30 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
   getMetadata(dbTableHandler);
   var selectSQL = dbTableHandler.mysql.selectSQL[dbIndexHandler.dbIndex.name];
   return new ReadOperation(this, dbTableHandler, selectSQL, keysArray, callback);
+};
+
+exports.DBSession.prototype.buildReadProjectionOperation = 
+    function(dbIndexHandler, keys, projection, transaction, callback) {
+  udebug.log_detail('dbSession.buildReadProjectionOperation with indexHandler:\n', dbIndexHandler.dbIndex.name,
+      'keys:\n', keys);
+
+  // process the projection object if it has not been processed since it was last changed
+  if (!projection.mysql || (projection.mysql.id !== projection.id)) {
+    // we need to (re-)initialize the projection object for use with mysql adapter
+    initializeProjection(projection);
+  }
+    
+  var keysArray;
+  if (!Array.isArray(keys)) {
+    // the keys object is a domain object or value object from which we need to extract the array of keys
+    keysArray = dbIndexHandler.getFields(keys);
+  } else {
+    keysArray = keys;
+  }
+  var dbTableHandler = dbIndexHandler.tableHandler;
+  getMetadata(dbTableHandler);
+  var whereSQL = dbTableHandler.mysql.whereSQL[dbIndexHandler.dbIndex.name];
+  return new ReadProjectionOperation(this, dbTableHandler, projection, whereSQL, keysArray, callback);
 };
 
 /** maximum limit parameter is some large number */
@@ -1022,7 +1492,12 @@ exports.DBSession.prototype.buildWriteOperation = function(dbIndexHandler, value
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var fieldValueDefinedListener = new FieldValueDefinedListener();
-  var fieldValues = dbTableHandler.getFields(values, false, 'mysql', fieldValueDefinedListener);
+  var fieldValues = dbTableHandler.getFieldsWithListener(values, 'mysql', fieldValueDefinedListener);
+  if (fieldValueDefinedListener.err) {
+    // error during preparation of field values
+    udebug.log('MySQLConnection.buildWriteOperation error', fieldValueDefinedListener.err);
+    return new ErrorOperation(fieldValueDefinedListener.err, callback);
+  }
   var fieldValueDefinedKey = fieldValueDefinedListener.key;
   if (typeof(fieldValueDefinedKey) === 'undefined') {
     // all fields are defined; use the standard generated INSERT... DUPLICATE SQL statement
@@ -1056,20 +1531,9 @@ exports.DBSession.prototype.rollback = function(callback) {
 
 exports.DBSession.prototype.close = function(callback) {
   udebug.log('MySQLConnection.close');
-  var dbSession = this;
-  session_stats.incr("closed");
-  if (dbSession.pooledConnection) {
-    dbSession.pooledConnection.end(function(err) {
-      udebug.log('close dbSession', dbSession);
-    });
-  }
-  dbSession.connectionPool.openConnections[dbSession.index] = null;
-  // always make the callback
-  if (typeof(callback) === 'function') {
-    callback(null);
-  }
+  session_stats.closed++;
+  this.connectionPool.closeConnection(this, callback);
 };
-
 
 exports.DBSession.prototype.getConnectionPool = function() {
   return this.connectionPool;

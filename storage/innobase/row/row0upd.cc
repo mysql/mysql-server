@@ -1318,6 +1318,40 @@ copy_dfield:
 			dfield = &dfield_ext;
 		}
 
+		/* For spatial index update, since the different geometry
+		data could generate same MBR, so, if the new index entry is
+		same as old entry, which means the MBR is not changed, we
+		don't need to do anything. */
+		if (dict_index_is_spatial(index) && i == 0) {
+			double		mbr1[SPDIMS * 2];
+			double		mbr2[SPDIMS * 2];
+			rtr_mbr_t*	old_mbr;
+			rtr_mbr_t*	new_mbr;
+			uchar*		dptr = NULL;
+			ulint		dlen = 0;
+
+			dptr = static_cast<uchar*>(dfield->data);
+			dlen = dfield->len;
+			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+					   static_cast<uint>(dlen
+					   - GEO_DATA_HEADER_SIZE),
+					   SPDIMS, mbr1);
+			old_mbr = reinterpret_cast<rtr_mbr_t*>(mbr1);
+
+			dptr = static_cast<uchar*>(upd_field->new_val.data);
+			dlen = upd_field->new_val.len;
+			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+					   static_cast<uint>(dlen
+					   - GEO_DATA_HEADER_SIZE),
+					   SPDIMS, mbr2);
+			new_mbr = reinterpret_cast<rtr_mbr_t*>(mbr2);
+			if (!MBR_EQUAL_CMP(old_mbr, new_mbr)) {
+				return(TRUE);
+			} else {
+				continue;
+			}
+		}
+
 		if (!dfield_datas_are_binary_equal(
 			    dfield, &upd_field->new_val,
 			    ind_field->prefix_len)) {

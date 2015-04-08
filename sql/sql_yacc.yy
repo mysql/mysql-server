@@ -559,6 +559,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  COMPACT_SYM
 %token  COMPLETION_SYM
 %token  COMPRESSED_SYM
+%token  COMPRESSION_SYM
 %token  CONCURRENT
 %token  CONDITION_SYM                 /* SQL-2003-R, SQL-2008-R */
 %token  CONNECTION_SYM
@@ -5894,6 +5895,11 @@ create_table_option:
             Lex->create_info.comment=$3;
             Lex->create_info.used_fields|= HA_CREATE_USED_COMMENT;
           }
+        | COMPRESSION_SYM opt_equal TEXT_STRING_sys
+	  {
+            Lex->create_info.used_fields|= HA_CREATE_USED_COMPRESS;
+            Lex->create_info.compress= $3;
+	  }
         | AUTO_INC opt_equal ulonglong_num
           {
             Lex->create_info.auto_increment_value=$3;
@@ -8204,11 +8210,22 @@ alter_list_item:
                        $5->name, $4->csname);
               MYSQL_YYABORT;
             }
+
             LEX *lex= Lex;
-            lex->create_info.table_charset=
-            lex->create_info.default_table_charset= $5;
-            lex->create_info.used_fields|= (HA_CREATE_USED_CHARSET |
-              HA_CREATE_USED_DEFAULT_CHARSET);
+            HA_CREATE_INFO *cinfo= &lex->create_info;
+            if ((cinfo->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
+                 cinfo->default_table_charset && $5 &&
+                 !my_charset_same(cinfo->default_table_charset,$5))
+            {
+              my_error(ER_CONFLICTING_DECLARATIONS, MYF(0),
+                       "CHARACTER SET ", cinfo->default_table_charset->csname,
+                       "CHARACTER SET ", $5->csname);
+              MYSQL_YYABORT;
+            }
+
+            cinfo->table_charset= cinfo->default_table_charset= $5;
+            cinfo->used_fields|= (HA_CREATE_USED_CHARSET |
+                                  HA_CREATE_USED_DEFAULT_CHARSET);
             lex->alter_info.flags|= Alter_info::ALTER_CONVERT;
           }
         | create_table_options_space_separated
@@ -11818,80 +11835,66 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
               YYABORT;
           }
-        | opt_var_type STATUS_SYM opt_wild_or_where
+        | opt_var_type STATUS_SYM opt_wild_or_where_for_show
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            lex->sql_command= SQLCOM_SHOW_STATUS;
             if (show_compatibility_56)
             {
               /* 5.6, DEPRECATED */
+              lex->sql_command= SQLCOM_SHOW_STATUS;
               lex->option_type= $1;
               if (prepare_schema_table(YYTHD, lex, 0, SCH_STATUS))
                 MYSQL_YYABORT;
             }
             else
             {
-              if (Select->where_cond() != NULL)
-              {
-                /*
-                  The syntax SHOW ... WHERE <expression>
-                  is not supported with SHOW_COMPATIBILITY_56 = OFF.
-                */
-                my_error(ER_WRONG_USAGE, MYF(0), "SHOW STATUS", "WHERE");
-                MYSQL_YYABORT;
-              }
+              Item *where_cond= Select->where_cond();
+              Select->set_where_cond(NULL);
 
               if ($1 == OPT_SESSION)
               {
                 /* 5.7, SUPPORTED */
-                if (build_show_session_status(@$, thd, lex->wild) == NULL)
+                if (build_show_session_status(@$, thd, lex->wild, where_cond) == NULL)
                   MYSQL_YYABORT;
               }
               else
               {
                 /* 5.7, SUPPORTED */
-                if (build_show_global_status(@$, thd, lex->wild) == NULL)
+                if (build_show_global_status(@$, thd, lex->wild, where_cond) == NULL)
                   MYSQL_YYABORT;
               }
             }
           }
         | opt_full PROCESSLIST_SYM
           { Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;}
-        | opt_var_type VARIABLES opt_wild_or_where
+        | opt_var_type VARIABLES opt_wild_or_where_for_show
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            lex->sql_command= SQLCOM_SHOW_VARIABLES;
             if (show_compatibility_56)
             {
               /* 5.6, DEPRECATED */
+              lex->sql_command= SQLCOM_SHOW_VARIABLES;
               lex->option_type= $1;
               if (prepare_schema_table(YYTHD, lex, 0, SCH_VARIABLES))
                 MYSQL_YYABORT;
             }
             else
             {
-              if (Select->where_cond() != NULL)
-              {
-                /*
-                  The syntax SHOW ... WHERE <expression>
-                  is not supported with SHOW_COMPATIBILITY_56 = OFF.
-                */
-                my_error(ER_WRONG_USAGE, MYF(0), "SHOW VARIABLES", "WHERE");
-                MYSQL_YYABORT;
-              }
+              Item *where_cond= Select->where_cond();
+              Select->set_where_cond(NULL);
 
               if ($1 == OPT_SESSION)
               {
                 /* 5.7, SUPPORTED */
-                if (build_show_session_variables(@$, thd, lex->wild) == NULL)
+                if (build_show_session_variables(@$, thd, lex->wild, where_cond) == NULL)
                   MYSQL_YYABORT;
               }
               else
               {
                 /* 5.7, SUPPORTED */
-                if (build_show_global_variables(@$, thd, lex->wild) == NULL)
+                if (build_show_global_variables(@$, thd, lex->wild, where_cond) == NULL)
                   MYSQL_YYABORT;
               }
             }
@@ -12074,6 +12077,40 @@ opt_wild_or_where:
             Select->set_where_cond($2);
             if ($2)
               $2->top_level_item();
+          }
+        ;
+
+opt_wild_or_where_for_show:
+          /* empty */
+        | LIKE TEXT_STRING_sys
+          {
+            Lex->wild= new (YYTHD->mem_root) String($2.str, $2.length,
+                                                    system_charset_info);
+            if (Lex->wild == NULL)
+              MYSQL_YYABORT;
+          }
+        | WHERE expr
+          {
+            if (show_compatibility_56)
+            {
+              /*
+                This parsed tree fragment is added as part of a
+                SQLCOM_SHOW_STATUS or SQLCOM_SHOW_VARIABLES command.
+              */
+              ITEMIZE($2, &$2);
+
+              Select->set_where_cond($2);
+              if ($2)
+                $2->top_level_item();
+            }
+            else
+            {
+              /*
+                This parsed tree fragment is used to build a
+                SQLCOM_SELECT statement, see sql/sql_show_status.cc
+              */
+              Select->set_where_cond($2);
+            }
           }
         ;
 
@@ -13205,6 +13242,7 @@ keyword_sp:
         | COMPACT_SYM              {}
         | COMPLETION_SYM           {}
         | COMPRESSED_SYM           {}
+        | COMPRESSION_SYM          {}
         | CONCURRENT               {}
         | CONNECTION_SYM           {}
         | CONSISTENT_SYM           {}

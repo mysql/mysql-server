@@ -1,0 +1,44 @@
+use test;
+reset master;
+create table t1 (a int primary key, b int) engine=ndb;
+Low level transport test
+set global debug='+d,ndb_injector_set_event_conflict_flags';
+Two inserts to the same table, with nothing else in the epoch,
+will be grouped together in one binlog event, as the 
+extra row info is the same.
+insert into test.t1 values (1,1), (2,2);
+A separate delete.
+delete from test.t1 where a=2;
+txt
+### Extra row data format: 0, len: 4 :0x0200FAFA
+### Extra row data format: 0, len: 4 :0x0200FAFA
+set global debug='';
+delete from test.t1;
+reset master;
+Specific flag settings test : Reflect
+set global debug='+d,ndb_set_reflect_anyvalue';
+Two inserts to the same table, with nothing else in the epoch,
+will be grouped together in one binlog event, as the 
+extra row info is the same.
+insert into test.t1 values (1,1), (2,2);
+A separate delete.
+delete from test.t1 where a=2;
+txt
+### Extra row data format: 0, len: 4 :0x02000100
+### Extra row data format: 0, len: 4 :0x02000100
+set global debug='';
+delete from test.t1;
+reset master;
+Specific flag settings test : Refresh
+set global debug='+d,ndb_set_refresh_anyvalue';
+Two inserts to the same table, with nothing else in the epoch,
+will be grouped together in one binlog event, as the 
+extra row info is the same.
+insert into test.t1 values (1,1), (2,2);
+A separate delete.
+delete from test.t1 where a=2;
+txt
+### Extra row data format: 0, len: 4 :0x02000200
+### Extra row data format: 0, len: 4 :0x02000200
+set global debug='';
+drop table t1;

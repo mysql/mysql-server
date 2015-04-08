@@ -36,16 +36,20 @@ class Ndb_binlog_extra_row_info
 public:
   static const Uint32 FLAGS_SIZE = sizeof(Uint16);
   static const Uint32 TRANSID_SIZE = sizeof(Uint64);
+  static const Uint32 CFT_FLAGS_SIZE = sizeof(Uint16);
   static const Uint32 MaxLen =
     EXTRA_ROW_INFO_HDR_BYTES +
     FLAGS_SIZE +
-    TRANSID_SIZE;
+    TRANSID_SIZE +
+    CFT_FLAGS_SIZE;
 
   static const Uint64 InvalidTransactionId = ~Uint64(0);
+  static const Uint16 UnsetConflictFlags = 0;
 
   enum Flags
   {
-    NDB_ERIF_TRANSID = 0x1
+    NDB_ERIF_TRANSID   = 0x1,
+    NDB_ERIF_CFT_FLAGS = 0x2
   };
 
   Ndb_binlog_extra_row_info();
@@ -57,9 +61,15 @@ public:
     return flags;
   }
   void setFlags(Uint16 _flags);
+  
   Uint64 getTransactionId() const
   { return transactionId; };
   void setTransactionId(Uint64 _transactionId);
+  
+  Uint16 getConflictFlags() const
+  { return conflictFlags; };
+  void setConflictFlags(Uint16 _conflictFlags);
+
   uchar* getBuffPtr()
   { return buff; };
   uchar* generateBuffer();
@@ -67,6 +77,7 @@ private:
   uchar buff[MaxLen];
   Uint16 flags;
   Uint64 transactionId;
+  Uint16 conflictFlags;
 };
 
 

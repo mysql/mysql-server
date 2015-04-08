@@ -1405,7 +1405,16 @@ static void register_used_fields(Sort_param *param)
     if ((field= sort_field->field))
     {
       if (field->table == table)
-      bitmap_set_bit(bitmap, field->field_index);
+      {
+        bitmap_set_bit(bitmap, field->field_index);
+        // Add base columns if it's a virtual generated column
+        if (field->gcol_info && !field->stored_in_db)
+        {
+          bitmap_fast_test_and_set(table->write_set, field->field_index);
+          field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
+                                            Item::WALK_PREFIX, (uchar *)&mf);
+        }
+      }
     }
     else
     {						// Item
@@ -1418,7 +1427,17 @@ static void register_used_fields(Sort_param *param)
   {
     Addon_fields_array::const_iterator addonf= param->addon_fields->begin();
     for ( ; addonf != param->addon_fields->end(); ++addonf)
-      bitmap_set_bit(bitmap, addonf->field->field_index);
+    {
+      Field *field= addonf->field;
+      bitmap_set_bit(bitmap, field->field_index);
+      // Add base columns if it's a virtual generated column
+      if (field->gcol_info && !field->stored_in_db)
+      {
+        bitmap_fast_test_and_set(table->write_set, field->field_index);
+        field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
+                                          Item::WALK_PREFIX, (uchar *)&mf);
+      }
+    }
   }
   else
   {

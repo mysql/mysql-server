@@ -37,7 +37,7 @@
 struct NDB_SCHEMA_OBJECT {
   native_mutex_t mutex;
   char *key;
-  uint key_length;
+  size_t key_length;
   uint use_count;
   MY_BITMAP slock_bitmap;
   uint32 slock[256/32]; // 256 bits for lock status of table

@@ -3669,6 +3669,8 @@ row_ins_step(
 
 	ut_ad(thr);
 
+	DEBUG_SYNC_C("innodb_row_ins_step_enter");
+
 	trx = thr_get_trx(thr);
 
 	trx_start_if_not_started_xa(trx, true);
