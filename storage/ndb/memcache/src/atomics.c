@@ -40,7 +40,7 @@ void atomic_set_ptr(void * volatile * target, void *newval) {
 #elif defined USE_GCC_ATOMICS
 
 void atomic_set_ptr(void * volatile * target, void *newval) {
-  bool r;
+  int r;
   do {
     void * old = *target;
     r = __sync_bool_compare_and_swap(target, old, newval);
