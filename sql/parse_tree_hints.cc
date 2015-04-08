@@ -236,7 +236,7 @@ void PT_qb_level_hint::append_args(THD *thd, String *str) const
   switch (type()) {
   case SEMIJOIN_HINT_ENUM:
   {
-    bool count= 0;
+    int count= 0;
     if (args & OPTIMIZER_SWITCH_FIRSTMATCH)
     {
       str->append(STRING_WITH_LEN(" FIRSTMATCH"));
@@ -244,19 +244,19 @@ void PT_qb_level_hint::append_args(THD *thd, String *str) const
     }
     if (args & OPTIMIZER_SWITCH_LOOSE_SCAN)
     {
-      if (count++)
+      if (count++ > 0)
         str->append(STRING_WITH_LEN(","));
       str->append(STRING_WITH_LEN(" LOOSESCAN"));
     }
     if (args & OPTIMIZER_SWITCH_MATERIALIZATION)
     {
-      if (count++)
+      if (count++ > 0)
         str->append(STRING_WITH_LEN(","));
       str->append(STRING_WITH_LEN(" MATERIALIZATION"));
     }
     if (args & OPTIMIZER_SWITCH_DUPSWEEDOUT)
     {
-      if (count++)
+      if (count++ > 0)
         str->append(STRING_WITH_LEN(","));
       str->append(STRING_WITH_LEN(" DUPSWEEDOUT"));
     }
