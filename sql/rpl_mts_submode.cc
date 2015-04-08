@@ -102,9 +102,9 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
   DBUG_ENTER("Mts_submode_database::wait_for_workers_to_finish");
 
   llstr(rli->get_event_relay_log_pos(), llbuf);
-  sql_print_information("Coordinator and workers enter synchronization procedure "
-                        "when scheduling event relay-log: %s pos: %s",
-                        rli->get_event_relay_log_name(), llbuf);
+  DBUG_PRINT("info", ("Coordinator and workers enter synchronization "
+                      "procedure when scheduling event relay-log: %s "
+                      "pos: %s", rli->get_event_relay_log_name(), llbuf));
 
   for (uint i= 0, ret= 0; i < hash->records; i++)
   {
@@ -159,9 +159,9 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
 
   if (!ignore)
   {
-    sql_print_information("Coordinator synchronized with Workers, "
-                          "waited entries: %d, cant_sync: %d",
-                          ret, cant_sync);
+    DBUG_PRINT("info", ("Coordinator synchronized with workers, "
+                        "waited entries: %d, cant_sync: %d",
+                        ret, cant_sync));
 
     rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   }
