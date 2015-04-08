@@ -622,6 +622,10 @@ srv_undo_tablespace_open(
 	bool		ret;
 	ulint		flags;
 	dberr_t		err	= DB_ERROR;
+	char		undo_name[sizeof "innodb_undo000"];
+
+	ut_snprintf(undo_name, sizeof(undo_name),
+		   "innodb_undo%03u", static_cast<unsigned>(space_id));
 
 	if (!srv_file_check_mode(name)) {
 		ib::error() << "UNDO tablespaces must be " <<
@@ -677,7 +681,7 @@ srv_undo_tablespace_open(
 		flags = fsp_flags_init(
 			univ_page_size, false, false, false, false);
 		space = fil_space_create(
-			name, space_id, flags, FIL_TYPE_TABLESPACE);
+			undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
 
 		ut_a(fil_validate());
 		ut_a(space);
@@ -2014,7 +2018,7 @@ innobase_start_or_create_for_mysql(void)
 
 		/* Disable the doublewrite buffer for log files. */
 		fil_space_t*	log_space = fil_space_create(
-			logfilename + dirnamelen,
+			"innodb_redo_log",
 			SRV_LOG_SPACE_FIRST_ID,
 			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
