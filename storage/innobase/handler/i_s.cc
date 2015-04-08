@@ -8235,7 +8235,7 @@ i_s_dict_fill_sys_tablespaces(
 	os_file_stat_t	stat;
 	os_file_size_t	file;
 
-	memset(&file, 0xff, 0);
+	memset(&file, 0xff, sizeof(file));
 	memset(&stat, 0x0, sizeof(stat));
 
 	if (filename != NULL) {
