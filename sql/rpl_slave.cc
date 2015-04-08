@@ -5859,19 +5859,19 @@ extern "C" void *handle_slave_worker(void *arg)
 
   struct timespec stats_end;
   set_timespec_nsec(&stats_end, 0);
-  sql_print_information("Worker %lu statistics: "
-                        "events processed = %lu "
-                        "online time = %llu "
-                        "events exec time = %llu "
-                        "events read time = %llu "
-                        "hungry waits = %lu "
-                        "priv queue overfills = %llu ",
-                        w->id, w->events_done,
-                        diff_timespec(&stats_end, &w->stats_begin),
-                        w->stats_exec_time,
-                        w->stats_read_time,
-                        w->wq_empty_waits,
-                        w->jobs.waited_overfill);
+  DBUG_PRINT("info", ("Worker %lu statistics: "
+                      "events processed = %lu "
+                      "online time = %llu "
+                      "events exec time = %llu "
+                      "events read time = %llu "
+                      "hungry waits = %lu "
+                      "priv queue overfills = %llu ",
+                      w->id, w->events_done,
+                      diff_timespec(&stats_end, &w->stats_begin),
+                      w->stats_exec_time,
+                      w->stats_read_time,
+                      w->wq_empty_waits,
+                      w->jobs.waited_overfill));
 
   w->running_status= Slave_worker::NOT_RUNNING;
   mysql_cond_signal(&w->jobs_cond);  // famous last goodbye
@@ -6617,8 +6617,9 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 
       mysql_mutex_unlock(&w->jobs_lock);
 
-      sql_print_information("Notifying worker %lu%s to exit, thd %p", w->id,
-                            w->get_for_channel_str(), w->info_thd);
+      DBUG_PRINT("info",
+                 ("Notifying worker %lu%s to exit, thd %p", w->id,
+                  w->get_for_channel_str(), w->info_thd));
     }
   }
   thd_proc_info(thd, "Waiting for workers to exit");
@@ -6678,23 +6679,22 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
   struct timespec stats_end;
   set_timespec_nsec(&stats_end, 0);
 
-  sql_print_information("Total MTS session statistics: "
-                        "events processed = %llu; "
-                        "online time = %llu "
-                        "worker queues filled over overrun level = %lu "
-                        "waited due a Worker queue full = %lu "
-                        "waited due the total size = %lu "
-                        "total wait at clock conflicts = %llu "
-                        "found (count) Workers occupied = %lu "
-                        "waited when Workers occupied = %llu",
-                        rli->mts_events_assigned,
-                        diff_timespec(&stats_end, &rli->stats_begin),
-                        rli->mts_wq_overrun_cnt,
-                        rli->mts_wq_overfill_cnt, rli->wq_size_waits_cnt,
-                        rli->mts_total_wait_overlap,
-                        rli->mts_wq_no_underrun_cnt,
-                        rli->mts_total_wait_worker_avail
-                        );
+  DBUG_PRINT("info", ("Total MTS session statistics: "
+                      "events processed = %llu; "
+                      "online time = %llu "
+                      "worker queues filled over overrun level = %lu "
+                      "waited due a Worker queue full = %lu "
+                      "waited due the total size = %lu "
+                      "total wait at clock conflicts = %llu "
+                      "found (count) workers occupied = %lu "
+                      "waited when workers occupied = %llu",
+                      rli->mts_events_assigned,
+                      diff_timespec(&stats_end, &rli->stats_begin),
+                      rli->mts_wq_overrun_cnt,
+                      rli->mts_wq_overfill_cnt, rli->wq_size_waits_cnt,
+                      rli->mts_total_wait_overlap,
+                      rli->mts_wq_no_underrun_cnt,
+                      rli->mts_total_wait_worker_avail));
 
   DBUG_ASSERT(rli->pending_jobs == 0);
   DBUG_ASSERT(rli->mts_pending_jobs_size == 0);
