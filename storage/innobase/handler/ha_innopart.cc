@@ -2423,10 +2423,11 @@ ha_innopart::position_in_last_part(
 
 		memcpy(ref_arg, m_prebuilt->row_id, DATA_ROW_ID_LEN);
 	} else {
-		store_key_val_for_row(m_primary_key,
-				(char*) ref_arg,
-				ref_length - PARTITION_BYTES_IN_POS,
-				record);
+
+		/* Copy primary key as the row reference */
+		KEY*	key_info = table->key_info + m_primary_key;
+		key_copy(ref_arg, (uchar*)record, key_info,
+			 key_info->key_length);
 	}
 }
 
