@@ -418,8 +418,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           }
           else
             cur_read_cost= prefix_rowcount *
-              table->cost_model()->io_block_read_cost(
-                min(tmp_fanout, tab->worst_seeks));
+              min(table->cost_model()->io_block_read_cost(tmp_fanout),
+                  tab->worst_seeks);
         }
       }
       else if ((found_part & 1) &&
@@ -612,8 +612,8 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         }
         else
           cur_read_cost= prefix_rowcount *
-            table->cost_model()->io_block_read_cost(
-              min(tmp_fanout, tab->worst_seeks));
+            min(table->cost_model()->io_block_read_cost(tmp_fanout),
+                tab->worst_seeks);
       }
       else
       {
