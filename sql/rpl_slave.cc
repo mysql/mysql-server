@@ -5235,19 +5235,20 @@ extern "C" void *handle_slave_io(void *arg)
 
   thd->thread_stack= (char*) &thd; // remember where our stack is
   mi->clear_error();
+  mi->slave_running = 1;
   if (init_slave_thread(thd, SLAVE_THD_IO))
   {
     mysql_cond_broadcast(&mi->start_cond);
     mysql_mutex_unlock(&mi->run_lock);
-    sql_print_error("Failed during slave I/O thread initialization%s",
-                    mi->get_for_channel_str());
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+               ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+               "Failed during slave I/O thread initialization ");
     goto err;
   }
 
   thd_manager->add_thd(thd);
   thd_added= true;
 
-  mi->slave_running = 1;
   mi->abort_slave = 0;
   mysql_mutex_unlock(&mi->run_lock);
   mysql_cond_broadcast(&mi->start_cond);
