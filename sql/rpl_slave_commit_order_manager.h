@@ -15,10 +15,11 @@
 
 #ifndef RPL_SLAVE_COMMIT_ORDER_MANAGER
 #define RPL_SLAVE_COMMIT_ORDER_MANAGER
+#ifdef HAVE_REPLICATION
 
 #include "my_global.h"
-#include "rpl_rli.h"          // is_slave_worker
 #include "sql_class.h"        // THD
+#include "rpl_rli_pdb.h"
 
 
 class Commit_order_manager
@@ -73,6 +74,8 @@ public:
     wait_for_its_turn(worker, true);
     unregister_trx(worker);
   }
+
+  void report_deadlock(Slave_worker *worker);
 private:
   enum order_commit_status
   {
@@ -129,4 +132,82 @@ inline bool has_commit_order_manager(THD *thd)
     thd->rli_slave->get_commit_order_manager() != NULL;
 }
 
+/**
+   Check if order commit deadlock happens.
+
+   Worker1(trx1)                     Worker2(trx2)
+   =============                     =============
+   ...                               ...
+   Engine acquires lock A
+   ...                               Engine acquires lock A(waiting for
+                                     trx1 to release it.
+   COMMIT(waiting for
+   trx2 to commit first).
+
+   Currently, there are two corner cases can cause the deadlock.
+   - Case 1
+     CREATE TABLE t1(c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
+     INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6)
+
+     INSERT INTO t1 VALUES(7, NULL);
+     DELETE FROM t1 WHERE c2 <= 3;
+
+   - Case 2
+     ANALYZE TABLE t1;
+     INSERT INTO t2 SELECT * FROM mysql.innodb_table_stats
+
+   Since this is not a real lock deadlock, it could not be handled by engine.
+   slave need to handle it separately.
+   Worker1(trx1)                     Worker2(trx2)
+   =============                     =============
+   ...                               ...
+   Engine acquires lock A
+   ...                               Engine acquires lock A.
+                                     1. found trx1 is holding the lock.)
+                                     2. report the lock wait to server code by
+                                        calling thd_report_row_lock_wait().
+                                        Then this function is called to check
+                                        if it causes a order commit deadlock.
+                                        Report the deadlock to worker1.
+                                     3. waiting for trx1 to release it.
+   COMMIT(waiting for
+   trx2 to commit first).
+   Found the deadlock flag set
+   by worker2 and then
+   return with ER_LOCK_DEADLOCK.
+
+   Rollback the transaction
+                                    Get lock A and go ahead.
+                                    ...
+   Retry the transaction
+
+   To conclude, The transaction A which is waiting for transaction B to commit
+   and is holding a lock which is required by transaction B will be rolled back
+   and try again later.
+
+   @param[in] thd_self     The THD object of self session which is acquiring
+                           a lock hold by another session.
+   @param[in] thd_wait_for The THD object of a session which is holding
+                           a lock being acquired by current session.
+*/
+inline void commit_order_manager_check_deadlock(THD* thd_self,
+                                                THD *thd_wait_for)
+{
+  DBUG_ENTER("commit_order_manager_check_deadlock");
+
+  Slave_worker *self_w= get_thd_worker(thd_self);
+  Slave_worker *wait_for_w= get_thd_worker(thd_wait_for);
+  Commit_order_manager *mngr= self_w->get_commit_order_manager();
+
+  /* Check if both workers are working for the same channel */
+  if (mngr != NULL && self_w->c_rli == wait_for_w->c_rli &&
+      wait_for_w->sequence_number() > self_w->sequence_number())
+  {
+    DBUG_PRINT("info", ("Found slave order commit deadlock"));
+    mngr->report_deadlock(wait_for_w);
+  }
+  DBUG_VOID_RETURN;
+}
+
+#endif //HAVE_REPLICATION
 #endif /*RPL_SLAVE_COMMIT_ORDER_MANAGER*/

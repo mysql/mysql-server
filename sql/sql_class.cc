@@ -34,7 +34,6 @@
 #include "parse_tree_nodes.h"                // PT_select_var
 #include "rpl_filter.h"                      // binlog_filter
 #include "rpl_rli.h"                         // Relay_log_info
-#include "rpl_rli_pdb.h"                     // Slave_worker
 #include "sp_cache.h"                        // sp_cache_clear
 #include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_audit.h"                       // mysql_audit_release
@@ -47,6 +46,10 @@
 #include "sql_time.h"                        // my_timeval_trunc
 #include "sql_timer.h"                       // thd_timer_destroy
 #include "transaction.h"                     // trans_rollback
+#ifdef HAVE_REPLICATION
+#include "rpl_rli_pdb.h"                     // Slave_worker
+#include "rpl_slave_commit_order_manager.h"
+#endif
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -4108,6 +4111,31 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
 }
 #endif
 #endif // INNODB_COMPATIBILITY_HOOKS */
+
+#ifndef EMBEDDED_LIBRARY
+/**
+   Interface for Engine to report row lock conflict.
+   The caller should guarantee thd_wait_for does not be freed, when it is
+   called.
+*/
+extern "C"
+void thd_report_row_lock_wait(THD* self, THD *wait_for)
+{
+  DBUG_ENTER("thd_report_row_lock_wait");
+
+  if (self != NULL && wait_for != NULL &&
+      is_mts_worker(self) && is_mts_worker(wait_for))
+    commit_order_manager_check_deadlock(self, wait_for);
+
+  DBUG_VOID_RETURN;
+}
+#else
+extern "C"
+void thd_report_row_lock_wait(THD *thd_wait_for)
+{
+  return;
+}
+#endif
 
 /****************************************************************************
   Handling of statement states in functions and triggers.

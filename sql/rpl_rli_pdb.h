@@ -567,6 +567,15 @@ public:
   */
   const char* get_for_channel_str(bool upper_case= false) const;
 
+  longlong sequence_number()
+  {
+    Slave_job_group* ptr_g= c_rli->gaq->get_job_group(gaq_index);
+    return ptr_g->sequence_number;
+  }
+
+  bool found_order_commit_deadlock() { return m_order_commit_deadlock; }
+  void report_order_commit_deadlock() { m_order_commit_deadlock= true; }
+
 protected:
 
   virtual void do_report(loglevel level, int err_code,
@@ -578,12 +587,16 @@ private:
   void end_info();
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
+  bool m_order_commit_deadlock;
+
   Slave_worker& operator=(const Slave_worker& info);
   Slave_worker(const Slave_worker& info);
   bool worker_sleep(ulong seconds);
   bool read_and_apply_events(uint start_relay_number, my_off_t start_relay_pos,
                              uint end_relay_number, my_off_t end_relay_pos);
   void assign_partition_db(Log_event *ev);
+
+  void reset_order_commit_deadlock() { m_order_commit_deadlock= false; }
 };
 
 void * head_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
@@ -599,6 +612,11 @@ TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
 bool append_item_to_jobs(slave_job_item *job_item,
                          Slave_worker *w, Relay_log_info *rli);
 Slave_job_item* de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
+
+inline Slave_worker* get_thd_worker(THD *thd)
+{
+  return static_cast<Slave_worker *>(thd->rli_slave);
+}
 
 #endif // HAVE_REPLICATION
 #endif
