@@ -5156,17 +5156,15 @@ NdbDictInterface::createEvent(class Ndb & ndb,
 }
 
 int
-NdbDictionaryImpl::executeSubscribeEvent(NdbEventOperationImpl & ev_op,
-                                         Uint32 & buckets)
+NdbDictionaryImpl::executeSubscribeEvent(NdbEventOperationImpl & ev_op)
 {
   // NdbDictInterface m_receiver;
-  return m_receiver.executeSubscribeEvent(m_ndb, ev_op, buckets);
+  return m_receiver.executeSubscribeEvent(m_ndb, ev_op);
 }
 
 int
 NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
-					NdbEventOperationImpl & ev_op,
-                                        Uint32 & buckets)
+					NdbEventOperationImpl & ev_op)
 {
   DBUG_ENTER("NdbDictInterface::executeSubscribeEvent");
   NdbApiSignal tSignal(m_reference);
@@ -5195,10 +5193,6 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
                        WAIT_CREATE_INDX_REQ /*WAIT_CREATE_EVNT_REQ*/,
                        -1, 100,
                        errCodes, -1);
-  if (ret == 0)
-  {
-    buckets = m_data.m_sub_start_conf.m_buckets;
-  }
 
   DBUG_RETURN(ret);
 }
@@ -5430,6 +5424,7 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_CONF");
   const SubStopConf * const subStopConf=
     CAST_CONSTPTR(SubStopConf, signal->getDataPtr());
+  const Uint32 sigLen = signal->getLength();
 
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subStopConf->subscriptionId,
@@ -5449,6 +5444,12 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
   data[0] = gci_hi;
   data[1] = gci_lo;
 
+  /*
+   * If this is the last subscription stopped NdbEventBuffer needs
+   * to be notified.  NdbEventBuffer will clear eventbuffer and
+   * start ignoring Suma signals such as SUB_GCP_COMPLETE_REP.
+   */
+  m_impl->m_ndb.theEventBuffer->execSUB_STOP_CONF(subStopConf, sigLen);
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -5460,6 +5461,7 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
   const SubStopRef * const subStopRef=
     CAST_CONSTPTR(SubStopRef, signal->getDataPtr());
+  const Uint32 sigLen = signal->getLength();
 
   m_error.code= subStopRef->errorCode;
 
@@ -5473,6 +5475,12 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
   {
     m_masterNodeId = subStopRef->m_masterNodeId;
   }
+  /*
+   * If this is the last subscription stopped NdbEventBuffer needs
+   * to be notified.  NdbEventBuffer will clear eventbuffer and
+   * start ignoring Suma signals such as SUB_GCP_COMPLETE_REP.
+   */
+  m_impl->m_ndb.theEventBuffer->execSUB_STOP_REF(subStopRef, sigLen);
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -5484,6 +5492,7 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_START_CONF");
   const SubStartConf * const subStartConf=
     CAST_CONSTPTR(SubStartConf, signal->getDataPtr());
+  const Uint32 sigLen = signal->getLength();
 
   SubscriptionData::Part part = 
     (SubscriptionData::Part)subStartConf->part;
@@ -5505,22 +5514,17 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
   }
   }
 
-  if (signal->getLength() == SubStartConf::SignalLength)
-  {
-    m_data.m_sub_start_conf.m_buckets = subStartConf->bucketCount;
-  }
-  else
-  {
-    /* 6.3 <-> 7.0 upgrade 
-     * 6.3 doesn't send required bucketCount.  
-     * ~0 indicates no bucketCount received
-     */
-    m_data.m_sub_start_conf.m_buckets = ~0;
-  }
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subStartConf->subscriptionId,
                      subStartConf->subscriptionKey,
                      subStartConf->subscriberData));
+  /*
+   * If this is the first subscription NdbEventBuffer needs to be
+   * notified.  NdbEventBuffer will start listen to Suma signals
+   * such as SUB_GCP_COMPLETE_REP.  Also NdbEventBuffer will use
+   * the total bucket count from signal.
+   */
+  m_impl->m_ndb.theEventBuffer->execSUB_START_CONF(subStartConf, sigLen);
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
