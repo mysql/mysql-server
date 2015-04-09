@@ -92,12 +92,12 @@ sub new {
   my $pkg = shift;
   # min/max wait refer to msec. wait during temporary errors.  Both powers of 2.
   # _timeout values are in seconds (possibly fractional)
-  bless { "created" => 1 , "error" => "OK" , "cf_gen" => 0,
-          "req_id" => 0, "min_wait" => 4,  "max_wait" => 8192, 
-          "temp_errors" => 0 , "total_wait" => 0, "has_cas" => 0,
-          "flags" => 0, "exptime" => 0, "get_results" => undef,
-          "get_with_cas" => 0, "already_failed" => 0, "last_get_len" => "unset",
-          "read_timeout" => 4, "write_timeout" => .5, "sysread_size" => 512
+  bless { "created" => 1 , "error" => "OK" , "cf_gen" => 0, "req_id" => 0,
+          "min_wait" => 4,  "max_wait" => 8192, "temp_errors" => 0 ,
+          "total_wait" => 0, "has_cas" => 0, "flags" => 0, "exptime" => 0,
+          "get_results" => undef, "get_with_cas" => 0, "already_failed" => 0,
+          "last_get_len" => undef, "io_timeout" => 1.0, "sysread_size" => 512,
+          "readbuf" => "", "buflen" => 0
         }, $pkg;
 }
 
@@ -259,6 +259,7 @@ sub wait_for_config_generation {
 #  --------------        Low-level Network Handling        ---------------
 #  -----------------------------------------------------------------------
 
+# Utility function sets error based on network error & returns false.
 sub socket_error {
   my $self = shift;
   my $retval = shift;
@@ -269,13 +270,12 @@ sub socket_error {
   } else {
     $self->{error} = "NETWORK_ERROR: " . $!;
   }
-print "CLOSING (" . $self->{error} .")\n";
   $self->{connection}->close();
-  return $self->{error};
+  return 0;
 }
 
+# $mc->write(packet).  Returns true on success, false on error.
 sub write {
-print("write\n");
   my $self = shift;
   my $packet = shift;
   my $len = length($packet);
@@ -296,6 +296,97 @@ print("write\n");
       return $self->socket_error($r);
     }
   }
+  return 1;
+}
+
+# $mc->read(desired_size).  Low-level read.  Returns true on success,
+# appends data to readbuf, and sets buflen.  Returns false on error.
+sub read {
+  my $self = shift;
+  my $length = shift;
+  my $sock = $self->{connection};
+  my $r;
+
+  Carp::croak "bogus length $length" if($length < 0);
+
+  $r = select($self->{fdset}, undef, undef, $self->{io_timeout});
+  return $self->socket_error($r) if($r < 1);
+
+  $r = $sock->sysread($self->{readbuf}, $length, $self->{buflen});
+  if($r > 0) {
+    $self->{buflen} += $r;
+  } elsif($! != Errno::EWOULDBLOCK) {
+    return $self->socket_error( $r == 0 ? 1 : $r);
+  }
+  return 1;
+}
+
+# Utility routine; assumes $len is available on buffer.
+sub chop_from_buffer {
+  my $self = shift;
+  my $len = shift;
+
+  my $line = substr($self->{readbuf}, 0, $len);
+  $self->{readbuf} = substr($self->{readbuf}, $len);
+  $self->{buflen} -= $len;
+  return $line;
+}
+
+# Returns a line if available; otherwise undef
+sub get_line_from_buffer {
+  my $self = shift;
+  my $line = undef;
+
+  my $idx = index($self->{readbuf}, "\r\n");
+  if($idx >= 0) {
+    $line = $self->chop_from_buffer($idx + 2);  # 2 for \r\n
+  }
+  return $line;
+}
+
+# Returns length if available; otherwise undef
+sub get_length_from_buffer {
+  my $self = shift;
+  my $len = shift;
+
+  if($self->{buflen} >= $len) {
+    return $self->chop_from_buffer($len);
+  }
+  return undef;
+}
+
+# Read up to newline.  Returns a line, or sets and returns error.
+sub read_line {
+  my $self = shift;
+  my $message;
+
+  while(1) {
+    $message = $self->get_line_from_buffer();
+    if(defined($message)) {
+      $self->normalize_error($message);  # handle server error responses
+      return $message;
+    }
+    if(! $self->read($self->{sysread_size})) {
+      return $self->{error};
+    }
+  }
+}
+
+# Read <length> bytes.  Returns the data, or returns undef and sets error.
+sub read_known_length {
+  my $self = shift;
+  my $len = shift;
+  my $data;
+
+  while(1) {
+    $data = $self->get_length_from_buffer($len);
+    if(defined($data)) {
+      return $data;  # No need to do normalize_error for fixed-length reads.
+    }
+    if(! $self->read($len - $self->{buflen})) {
+      return undef;
+    }
+  }
 }
 
 
@@ -307,29 +398,6 @@ sub protocol {
   return "ascii";
 }
 
-sub read_ascii_response {
-print("read\n");
-  my $self = shift;
-  my $message = "";
-  my $nread = 0;
-  my $r;
-
-  while(rindex($message, "END\r\n") + 5 != length($message)) {
-    $r = select($self->{fdset}, undef, undef, $self->{read_timeout});
-    return $self->socket_error($r) if($r < 1);
-    $r = $self->{connection}->sysread($message, $self->{sysread_size}, $nread);
-    if($r > 0) {
-      $nread += $r;
-    } elsif($! != Errno::EWOULDBLOCK) {
-      return $self->socket_error( $r == 0 ? 1 : $r);
-    }
-  }
-  $self->normalize_error($message);  # To handle errors returned from the server
-print("done\n");
-  return $message;
-}
-
-
 sub ascii_command {
   my $self = shift;
   my $packet = shift;
@@ -340,7 +408,7 @@ sub ascii_command {
   do {
     $self->new_request();
     $self->write($packet);
-    $reply = $self->read_ascii_response();
+    $reply = $self->read_line();
     if($self->{error} eq "SERVER_TEMPORARY_ERROR") {
       if($waitTime < $maxWait) {
         $self->{temp_errors} += 1;
@@ -422,18 +490,19 @@ sub get {
   my $command = $self->{get_with_cas} ? "gets" : "get";
   $self->{get_with_cas} = 0; # CHECK, THEN RESET FOR NEXT CALL
   my $response = $self->ascii_command("$command $keys\r\n");
-  my ($line, $unconsumed) = split("\r\n", $response, 2);
-  while ($line ne "END")
+  return undef if($self->{error} ne "OK");
+  while ($response ne "END\r\n")
   {
-    $line =~ /^VALUE (\S+) (\d+) (\d+) ?(\d+)?/;
+    $response =~ /^VALUE (\S+) (\d+) (\d+) ?(\d+)?/;
     my $result = My::Memcache::Result->new($1, $2, $4);
-    my $value = substr($unconsumed, 0, $3);
+    my $value = $self->read_known_length($3);
+    return undef if(!defined($value));
     $result->{value} = $value;
+    $self->read_line();  # Get trailing \r\n after value
     $self->{last_get_len} = $3;
     $self->{has_cas} = 1 if($4);
     push @results, $result;
-    $unconsumed = substr($unconsumed, $3 + 2);  # \r\n after value
-    ($line, $unconsumed) = split("\r\n", $unconsumed, 2);
+    $response = $self->read_line();
   }
   $self->{get_results} = \@results;
   return $results[0]->{value} if @results;
@@ -470,10 +539,9 @@ sub decr {
 sub stats {
   my $self = shift;
   my $key = shift || "";
-  my $sock = $self->{connection};
 
   $self->new_request();
-  $sock->print("stats $key\r\n") || Carp::confess "send error";
+  $self->write("stats $key\r\n");
   
   my %response = ();
   my $line = "";
@@ -482,7 +550,7 @@ sub stats {
     if(($line) && ($line =~ /^STAT(\s+)(\S+)(\s+)(\S+)/)) {
       $response{$2} = $4;
     }
-    $line = $sock->getline();
+    $line = $self->read_line();
   }
   
   return %response;
@@ -566,18 +634,19 @@ sub error_message {
    0x83 => "NOT_SUPPORTED",
    0x84 => "INTERNAL_ERROR",
    0x85 => "SERVER_BUSY",
-   0x86 => "SERVER_TEMPORARY_ERROR"
+   0x86 => "SERVER_TEMPORARY_ERROR",
+   0x100 => "Bad magic number in response",
+   0x101 => "NETWORK_ERROR"
   );
   return $error_messages{$code};
 }
 
-
+# Returns true on success, false on error
 sub send_binary_request {
   my $self = shift;
   my ($cmd, $key, $val, $extra_header, $cas) = @_;
 
   $cas = 0 unless $cas;
-  my $sock = $self->{connection};
   my $key_len    = length($key);
   my $val_len    = length($val);
   my $extra_len  = length($extra_header);
@@ -592,39 +661,25 @@ sub send_binary_request {
                     $self->{req_id}, $cas_hi, $cas_lo);
   my $packet = $header . $extra_header . $key . $val;
 
-  if($self->wait_writable()) {
-    $sock->send($packet) || Carp::confess "send failed";
-  } else {
-    $self->{connected} = 0;
-  }
+  return $self->write($packet);
 }
 
 
 sub get_binary_response {
   my $self = shift;
-  my $sock = $self->{connection};
   my $header_len = length(pack(BINARY_HEADER_FMT));
   my $header;
-  my $body="";
+  my $body;
 
-  if($self->{connected} && $self->wait_readable()) {
-    $sock->recv($header, $header_len);
-  } else {
-    $self->{connected} = 0;
-    $self->{error} = "SOCKET_TIMEOUT";
-    return (-1);
-  }
+  $header = $self->read_known_length($header_len);
+  return (0x101) if(! defined($header));
 
   my ($magic, $cmd, $key_len, $extra_len, $datatype, $status, $body_len,
       $sequence, $cas_hi, $cas_lo) = unpack(BINARY_HEADER_FMT, $header);
 
-  ($magic == BINARY_RESPONSE) || Carp::confess "Bad magic number in response";
-  
-  while($body_len - length($body) > 0) {
-    my $buf;
-    $sock->recv($buf, $body_len - length($body));
-    $body .= $buf;
-  }
+  return (0x100) if($magic != BINARY_RESPONSE);
+
+  $body = $self->read_known_length($body_len);
   $self->{error} = $self->error_message($status);
   $self->{last_get_len} = $body_len;
 
@@ -645,9 +700,11 @@ sub binary_command {
   my $waitTime = $self->{min_wait};
   my $maxWait = $self->{max_wait};
   my $status;
+  my $wr;
   
   do {
-    $self->send_binary_request($cmd, $key, $value, $extra_header, $cas);
+    $wr = $self->send_binary_request($cmd, $key, $value, $extra_header, $cas);
+    return undef unless $wr;
     ($status) = $self->get_binary_response();
     if($status == 0x86) {
       if($waitTime < $maxWait) {
@@ -679,12 +736,12 @@ sub bin_math {
   ($initial / (2 ** 32)),   # initial hi
   ($initial % (2 ** 32)),   # initial lo
   $expires;
-  $self->send_binary_request($cmd, $key, '', $extra_header);
-
-  my ($status, $packed_val) = $self->get_binary_response();
-  if($status == 0) {
-    my ($val_hi, $val_lo) = unpack("NN", $packed_val);
-    $value = ($val_hi * (2 ** 32)) + $val_lo;
+  if( $self->send_binary_request($cmd, $key, '', $extra_header)) {
+    my ($status, $packed_val) = $self->get_binary_response();
+    if($status == 0) {
+      my ($val_hi, $val_lo) = unpack("NN", $packed_val);
+      $value = ($val_hi * (2 ** 32)) + $val_lo;
+    }
   }
   return $value;
 }
@@ -704,17 +761,21 @@ sub get {
   my $self = shift;
   my $idx = $#_;   # Index of the final key
   my $cmd = BIN_CMD_GETKQ;  # GET + KEY + NOREPLY
+  my $wr;
+  my $sequence = 0;
+  my @results;
+
   for(my $i = 0 ; $i <= $idx ; $i++) {
     $cmd = BIN_CMD_GETK if($i == $idx);  # Final request gets replies
-    $self->send_binary_request($cmd, $_[$i], '', '');
+    $wr = $self->send_binary_request($cmd, $_[$i], '', '');
   }
+  return undef unless $wr;
 
-  my $sequence = 0;
-  my @results;  
   while($sequence < $self->{req_id}) {
     my ($status, $value, $key, $extra, $cas);
     ($status, $value, $key, $extra, $cas, $sequence) = $self->get_binary_response();
-    unless($status) {
+    return undef if($status > 0x01);
+    if($status == 0) {
       my $result = My::Memcache::Result->new($key, unpack("N", $extra), $cas);
       $result->{value} = $value;
       push @results, $result;
