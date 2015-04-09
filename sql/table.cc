@@ -1744,6 +1744,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
       next_chunk+= format_section_length;
     }
+
+    if (next_chunk + 2 <= buff_end)
+    {
+      share->compress.length = uint2korr(next_chunk);
+      if (! (share->compress.str= strmake_root(&share->mem_root,
+             (char*)next_chunk + 2, share->compress.length)))
+      {
+          goto err;
+      }
+      next_chunk+= 2 + share->compress.length;
+    }
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -2617,7 +2628,8 @@ bool unpack_gcol_info_from_frm(THD *thd,
   */
   Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
   Query_arena backup_arena;
-  Query_arena gcol_arena(&table->mem_root, Query_arena::STMT_INITIALIZED);
+  Query_arena gcol_arena(&table->mem_root,
+                         Query_arena::STMT_CONVENTIONAL_EXECUTION);
   thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
   thd->stmt_arena= &gcol_arena;
   ulong save_old_privilege= thd->want_privilege;

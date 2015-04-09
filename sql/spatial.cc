@@ -805,30 +805,108 @@ bool Geometry::envelope(MBR *mbr) const
 }
 
 
+class GeomColl_component_counter : public WKB_scanner_event_handler
+{
+public:
+  size_t num;
+
+  GeomColl_component_counter() :num(0)
+  {
+  }
+
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+                            Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool has_hdr)
+  {
+    if (geotype != Geometry::wkb_geometrycollection)
+      num++;
+  }
+
+  virtual void on_wkb_end(const void *wkb)
+  {
+  }
+};
+
+
 bool Geometry::envelope(String *result) const
 {
   MBR mbr;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
 
-  if (get_mbr(&mbr, &wkb) ||
-      result->reserve(1 + 4 * 3 + SIZEOF_STORED_DOUBLE * 10, 512))
+  if (result->reserve(1 + 4 * 3 + SIZEOF_STORED_DOUBLE * 10))
     return true;
 
-  result->q_append((char) wkb_ndr);
-  result->q_append((uint32) wkb_polygon);
-  result->q_append((uint32) 1);
-  result->q_append((uint32) 5);
-  result->q_append(mbr.xmin);
-  result->q_append(mbr.ymin);
-  result->q_append(mbr.xmax);
-  result->q_append(mbr.ymin);
-  result->q_append(mbr.xmax);
-  result->q_append(mbr.ymax);
-  result->q_append(mbr.xmin);
-  result->q_append(mbr.ymax);
-  result->q_append(mbr.xmin);
-  result->q_append(mbr.ymin);
+  if (get_mbr(&mbr, &wkb))
+  {
+    /*
+      The geometry has no effective components in this branch, which is
+      impossible for geometries other than geometry collections(GC).
+      A GC may have empty nested GCs.
+    */
+    if (get_type() != wkb_geometrycollection)
+      return true;
 
+    uint32 num= uint4korr(get_cptr());
+    if (num != 0)
+    {
+      GeomColl_component_counter counter;
+      uint32 wkb_len= get_data_size();
+
+      wkb_scanner(get_cptr(), &wkb_len,
+                  Geometry::wkb_geometrycollection, false, &counter);
+      // Non-empty nested geometry collections.
+      if (counter.num > 0)
+        return true;
+    }
+
+    // An empty geometry collection's envelope is an empty geometry.
+    write_wkb_header(result, wkb_geometrycollection, 0);
+    return false;
+  }
+
+  result->q_append(static_cast<char>(wkb_ndr));
+
+  int dim= mbr.dimension();
+  if (dim < 0)
+    return true;
+
+  uint32 num_elems, num_elems2;
+
+  if (dim == 0)
+  {
+    result->q_append(static_cast<uint32>(wkb_point));
+    result->q_append(mbr.xmin);
+    result->q_append(mbr.ymin);
+  }
+  else if (dim == 1)
+  {
+
+    result->q_append(static_cast<uint32>(wkb_linestring));
+    num_elems= 2;
+    result->q_append(num_elems);
+    result->q_append(mbr.xmin);
+    result->q_append(mbr.ymin);
+    result->q_append(mbr.xmax);
+    result->q_append(mbr.ymax);
+  }
+  else
+  {
+    result->q_append(static_cast<uint32>(wkb_polygon));
+    num_elems= 1;
+    result->q_append(num_elems);
+    num_elems2= 5;
+    result->q_append(num_elems2);
+    result->q_append(mbr.xmin);
+    result->q_append(mbr.ymin);
+    result->q_append(mbr.xmax);
+    result->q_append(mbr.ymin);
+    result->q_append(mbr.xmax);
+    result->q_append(mbr.ymax);
+    result->q_append(mbr.xmin);
+    result->q_append(mbr.ymax);
+    result->q_append(mbr.xmin);
+    result->q_append(mbr.ymin);
+  }
   return false;
 }
 

@@ -93,15 +93,17 @@ buf_read_page_handle_error(
 buffer buf_pool if it is not already there, in which case does nothing.
 Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
 flag is cleared and the x-lock released by an i/o-handler thread.
-@param[out]	err			DB_SUCCESS, DB_TABLESPACE_DELETED or
-DB_TABLESPACE_TRUNCATED if we are trying to read from a non-existent
-tablespace, a tablespace which is just now being dropped, or a tablespace
-which is truncated
-@param[in]	sync			true if synchronous aio is desired
-@param[in]	mode			BUF_READ_IBUF_PAGES_ONLY, ..., ORed
-to OS_AIO_SIMULATED_WAKE_LATER (see below at read-ahead functions)
-@param[in]	page_id			page id
-@param[in]	unzip			TRUE=request uncompressed page
+
+@param[out] err		DB_SUCCESS, DB_TABLESPACE_DELETED or
+			DB_TABLESPACE_TRUNCATED if we are trying
+			to read from a non-existent tablespace, a
+			tablespace which is just now being dropped,
+			or a tablespace which is truncated
+@param[in] sync		true if synchronous aio is desired
+@param[in] type		IO type, SIMULATED, IGNORE_MISSING
+@param[in] mode		BUF_READ_IBUF_PAGES_ONLY, ...,
+@param[in] page_id	page id
+@param[in] unzip	true=request uncompressed page
 @return 1 if a read request was queued, 0 if the page already resided
 in buf_pool, or if the page is in the doublewrite buffer blocks in
 which case it is never read into the pool, or if the tablespace does
@@ -111,22 +113,15 @@ ulint
 buf_read_page_low(
 	dberr_t*		err,
 	bool			sync,
+	ulint			type,
 	ulint			mode,
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	ibool			unzip)
+	bool			unzip)
 {
 	buf_page_t*	bpage;
-	ulint		wake_later;
-	ulint		ignore_nonexistent_pages;
 
 	*err = DB_SUCCESS;
-
-	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
-	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
-
-	ignore_nonexistent_pages = mode & BUF_READ_IGNORE_NONEXISTENT_PAGES;
-	mode &= ~BUF_READ_IGNORE_NONEXISTENT_PAGES;
 
 	if (page_id.space() == TRX_SYS_SPACE
 	    && buf_dblwr_page_inside(page_id.page_no())) {
@@ -152,6 +147,7 @@ buf_read_page_low(
 	pool for read, then DISCARD cannot proceed until the read has
 	completed */
 	bpage = buf_page_init_for_read(err, mode, page_id, page_size, unzip);
+
 	if (bpage == NULL) {
 
 		return(0);
@@ -176,12 +172,15 @@ buf_read_page_low(
 		dst = bpage->zip.data;
 	} else {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+
 		dst = ((buf_block_t*) bpage)->frame;
 	}
 
-	*err = fil_io(OS_FILE_READ | wake_later | ignore_nonexistent_pages,
-		      sync, page_id, page_size, 0, page_size.physical(), dst,
-		      bpage);
+	IORequest	request(type | IORequest::READ);
+
+	*err = fil_io(
+		request, sync, page_id, page_size, 0, page_size.physical(),
+		dst, bpage);
 
 	if (sync) {
 		thd_wait_end(NULL);
@@ -200,7 +199,7 @@ buf_read_page_low(
 				mutex_exit(&recv_sys->mutex);
 			}
 			return(0);
-		} else if ((ignore_nonexistent_pages != 0)
+		} else if (IORequest::ignore_missing(type)
 			   || *err == DB_TABLESPACE_DELETED) {
 			buf_read_page_handle_error(bpage);
 			return(0);
@@ -342,10 +341,13 @@ read_ahead:
 		const page_id_t	cur_page_id(page_id.space(), i);
 
 		if (!ibuf_bitmap_page(cur_page_id, page_size)) {
+
 			count += buf_read_page_low(
 				&err, false,
-				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
-				cur_page_id, page_size, FALSE);
+				IORequest::DO_NOT_WAKE,
+				ibuf_mode,
+				cur_page_id, page_size, false);
+
 			if (err == DB_TABLESPACE_DELETED) {
 				ib::warn() << "Random readahead trying to"
 					" access page " << cur_page_id
@@ -393,12 +395,18 @@ buf_read_page(
 	ulint		count;
 	dberr_t		err;
 
-	/* We do the i/o in the synchronous aio mode to save thread
-	switches: hence TRUE */
+	/* We do synchronous IO because our AIO completion code
+	is sub-optimal. See buf_page_io_complete(), we have to
+	acquire the buffer pool mutex before acquiring the block
+	mutex, required for updating the page state. The acquire
+	of the buffer pool mutex becomes an expensive bottleneck. */
 
-	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE, page_id,
-				  page_size, FALSE);
+	count = buf_read_page_low(
+		&err, true,
+		0, BUF_READ_ANY_PAGE, page_id, page_size, false);
+
 	srv_stats.buf_pool_reads.add(count);
+
 	if (err == DB_TABLESPACE_DELETED) {
 		ib::error() << "trying to read page " << page_id
 			<< " in nonexisting or being-dropped tablespace";
@@ -427,10 +435,12 @@ buf_read_page_background(
 	ulint		count;
 	dberr_t		err;
 
-	count = buf_read_page_low(&err, sync, BUF_READ_ANY_PAGE
-				  | OS_AIO_SIMULATED_WAKE_LATER
-				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
-				  page_id, page_size, FALSE);
+	count = buf_read_page_low(
+		&err, sync,
+		IORequest::DO_NOT_WAKE | IORequest::IGNORE_MISSING,
+		BUF_READ_ANY_PAGE,
+		page_id, page_size, false);
+
 	srv_stats.buf_pool_reads.add(count);
 
 	/* We do not increment number of I/O operations used for LRU policy
@@ -481,11 +491,9 @@ buf_read_ahead_linear(
 	buf_page_t*	pred_bpage	= NULL;
 	ulint		pred_offset;
 	ulint		succ_offset;
-	ulint		count;
 	int		asc_or_desc;
 	ulint		new_offset;
 	ulint		fail_count;
-	ulint		ibuf_mode;
 	ulint		low, high;
 	dberr_t		err;
 	ulint		i;
@@ -498,7 +506,7 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
+	if (srv_startup_is_before_trx_rollback_phase) {
 		/* No read-ahead to avoid thread deadlocks */
 		return(0);
 	}
@@ -671,13 +679,13 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
+	ulint	count = 0;
+
 	/* If we got this far, read-ahead can be sensible: do it */
 
-	ibuf_mode = inside_ibuf
-		? BUF_READ_IBUF_PAGES_ONLY | OS_AIO_SIMULATED_WAKE_LATER
-		: BUF_READ_ANY_PAGE | OS_AIO_SIMULATED_WAKE_LATER;
+	ulint	ibuf_mode;
 
-	count = 0;
+	ibuf_mode = inside_ibuf ? BUF_READ_IBUF_PAGES_ONLY : BUF_READ_ANY_PAGE;
 
 	/* Since Windows XP seems to schedule the i/o handler thread
 	very eagerly, and consequently it does not wait for the
@@ -692,9 +700,12 @@ buf_read_ahead_linear(
 		const page_id_t	cur_page_id(page_id.space(), i);
 
 		if (!ibuf_bitmap_page(cur_page_id, page_size)) {
+
 			count += buf_read_page_low(
-				&err, false, ibuf_mode, cur_page_id,
-				page_size, FALSE);
+				&err, false,
+				IORequest::DO_NOT_WAKE,
+				ibuf_mode, cur_page_id, page_size, false);
+
 			if (err == DB_TABLESPACE_DELETED) {
 				ib::warn() << "linear readahead trying to"
 					" access page "
@@ -747,13 +758,11 @@ buf_read_ibuf_merge_pages(
 	ulint		n_stored)	/*!< in: number of elements
 					in the arrays */
 {
-	ulint	i;
-
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(n_stored < UNIV_PAGE_SIZE);
 #endif
 
-	for (i = 0; i < n_stored; i++) {
+	for (ulint i = 0; i < n_stored; i++) {
 		const page_id_t	page_id(space_ids[i], page_nos[i]);
 
 		buf_pool_t*	buf_pool = buf_pool_get(page_id);
@@ -777,9 +786,11 @@ buf_read_ibuf_merge_pages(
 
 		dberr_t	err;
 
-		buf_read_page_low(&err, sync && (i + 1 == n_stored),
+		buf_read_page_low(&err,
+				  sync && (i + 1 == n_stored),
+				  0,
 				  BUF_READ_ANY_PAGE, page_id, page_size,
-				  TRUE);
+				  true);
 
 		if (err == DB_TABLESPACE_DELETED) {
 			/* We have deleted or are deleting the single-table
@@ -841,22 +852,28 @@ buf_read_recv_pages(
 			count++;
 
 			if (!(count % 1000)) {
-				ib::error() << "Waited for " << count / 100
+
+				ib::error()
+					<< "Waited for " << count / 100
 					<< " seconds for "
 					<< buf_pool->n_pend_reads
-					<< " pending reads ("
-					<< os_file_n_pending_preads
-					<< " pread calls) to finish";
+					<< " pending reads";
 			}
 		}
 
-		const bool	read_sync	= sync && i + 1 == n_stored;
-		const ulint	mode		= read_sync
-			? BUF_READ_ANY_PAGE
-			: BUF_READ_ANY_PAGE | OS_AIO_SIMULATED_WAKE_LATER;
-
-		buf_read_page_low(&err, read_sync, mode,
-				  cur_page_id, page_size, TRUE);
+		if ((i + 1 == n_stored) && sync) {
+			buf_read_page_low(
+				&err, true,
+				0,
+				BUF_READ_ANY_PAGE,
+				cur_page_id, page_size, true);
+		} else {
+			buf_read_page_low(
+				&err, false,
+				IORequest::DO_NOT_WAKE,
+				BUF_READ_ANY_PAGE,
+				cur_page_id, page_size, true);
+		}
 	}
 
 	os_aio_simulated_wake_handler_threads();
@@ -864,3 +881,4 @@ buf_read_recv_pages(
 	DBUG_PRINT("ib_buf", ("recovery read-ahead (%u pages)",
 			      unsigned(n_stored)));
 }
+

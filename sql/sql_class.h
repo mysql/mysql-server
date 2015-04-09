@@ -915,10 +915,20 @@ public:
       explain_single_table_modification
       explain_query
       mysql_explain_other
-    All explain code assumes that this mutex is already taken.
+    When doing EXPLAIN CONNECTION:
+      all explain code assumes that this mutex is already taken.
+    When doing ordinary EXPLAIN:
+      the mutex does need to be taken (no need to protect reading my own data,
+      moreover EXPLAIN CONNECTION can't run on an ordinary EXPLAIN).
   */
+private:
   mysql_mutex_t LOCK_query_plan;
-    
+
+public:
+  /// Locks the query plan of this THD
+  void lock_query_plan() { mysql_mutex_lock(&LOCK_query_plan); }
+  void unlock_query_plan() { mysql_mutex_unlock(&LOCK_query_plan); }
+
   /** All prepared statements of this connection. */
   Prepared_statement_map stmt_map;
   /*
@@ -1007,57 +1017,58 @@ public:
     /// True if query is run in prepared statement
     bool is_ps;
 
+    explicit Query_plan(const Query_plan&);     ///< not defined
+    Query_plan& operator=(const Query_plan&);   ///< not defined
+
   public:
-    Query_plan(THD *thd_arg) : thd(thd_arg), sql_command(SQLCOM_END),
-      modification_plan(NULL)
+    /// Asserts that current_thd has locked this plan, if it does not own it.
+    void assert_plan_is_locked_if_other() const
+#ifdef DBUG_OFF
     {}
-    explicit Query_plan(const Query_plan&); ///< not defined
-    Query_plan& operator=(const Query_plan&); ///< not defined
+#else
+    ;
+#endif
+
+    explicit Query_plan(THD *thd_arg)
+      : thd(thd_arg),
+        sql_command(SQLCOM_END),
+        modification_plan(NULL)
+    {}
+
     /**
       Set query plan.
 
       @note This function takes THD::LOCK_query_plan mutex.
     */
     void set_query_plan(enum_sql_command sql_cmd, LEX *lex_arg, bool ps);
-    /**
-      Change current command.
 
-      @details This function is needed for single UPDATE statement, for which
-      after opening tables we can find out that the statement have to be
-      converted multi UPDATE.
-
-      @note This function takes THD::LOCK_query_plan mutex.
-    */
-    void set_command(enum_sql_command sql_cmd);
     /*
-      5 functions below expect THD::LOCK_query_plan to be already taken by a
-      caller.
+      The 4 getters below expect THD::LOCK_query_plan to be already taken
+      if called from another thread.
     */
     enum_sql_command get_command() const
     {
-      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      assert_plan_is_locked_if_other();
       return sql_command;
     }
     LEX *get_lex() const
     {
-      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      assert_plan_is_locked_if_other();
       return lex;
     }
-    Modification_plan const *get_plan()
+    Modification_plan const *get_modification_plan() const
     {
-      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      assert_plan_is_locked_if_other();
       return modification_plan;
     }
     bool is_ps_query() const
     {
-      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+      assert_plan_is_locked_if_other();
       return is_ps;
     }
-    void set_modification_plan(Modification_plan *plan_arg)
-    {
-      mysql_mutex_assert_owner(&thd->LOCK_query_plan);
-      modification_plan= plan_arg;
-    }
+
+    void set_modification_plan(Modification_plan *plan_arg);
+
   } query_plan;
 
   const LEX_CSTRING &catalog() const
@@ -1164,6 +1175,7 @@ public:
     decremented each time before it returns from the function.
   */
   uint fill_status_recursion_level;
+  uint fill_variables_recursion_level;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];

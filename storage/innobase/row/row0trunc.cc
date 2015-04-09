@@ -390,12 +390,32 @@ public:
 
 		} while (err != DB_SUCCESS);
 
-		os_file_write(m_log_file_name, handle, log_buf, 0, sz);
+		dberr_t	io_err;
+
+		IORequest	request(IORequest::WRITE);
+
+		request.disable_compression();
+
+		io_err = os_file_write(
+			request, m_log_file_name, handle, log_buf, 0, sz);
+
+		if (io_err != DB_SUCCESS) {
+
+			ib::error()
+				<< "IO: Failed to write the file size to '"
+				<< m_log_file_name << "'";
+
+			/* Preserve the original error code */
+			if (err == DB_SUCCESS) {
+				err = io_err;
+			}
+		}
+
 		os_file_flush(handle);
 		os_file_close(handle);
 
 		ut_free(buf);
-		return(DB_SUCCESS);
+		return(err);
 	}
 
 	/**
@@ -429,8 +449,22 @@ public:
 		byte	buffer[sizeof(TruncateLogger::s_magic)];
 		mach_write_to_4(buffer, TruncateLogger::s_magic);
 
-		os_file_write(
+		dberr_t	err;
+
+		IORequest	request(IORequest::WRITE);
+
+		request.disable_compression();
+
+		err = os_file_write(
+			request,
 			m_log_file_name, handle, buffer, 0, sizeof(buffer));
+
+		if (err != DB_SUCCESS) {
+
+			ib::error()
+				<< "IO: Failed to write the magic number to '"
+				<< m_log_file_name << "'";
+		}
 
 		DBUG_EXECUTE_IF("ib_trunc_crash_after_updating_magic_no",
 				DBUG_SUICIDE(););
@@ -600,14 +634,18 @@ TruncateLogParser::parse(
 		return(DB_OUT_OF_MEMORY);
 	}
 
+	IORequest	request(IORequest::READ);
+
+	request.disable_compression();
+
 	/* Align the memory for file i/o if we might have O_DIRECT set*/
 	byte*	log_buf = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
 
 	do {
-		ret = os_file_read(handle, log_buf, 0, sz);
-		if (!ret) {
+		err = os_file_read(request, handle, log_buf, 0, sz);
+
+		if (err != DB_SUCCESS) {
 			os_file_close(handle);
-			err = DB_ERROR;
 			break;
 		}
 
@@ -1575,16 +1613,7 @@ dberr_t
 row_truncate_sanity_checks(
 	const dict_table_t* table)
 {
-	if (srv_sys_space.created_new_raw()) {
-
-		ib::info() << "A new raw disk partition was initialized:"
-			" we do not allow database modifications by the"
-			" user. Shut down mysqld and edit my.cnf so that"
-			" newraw is replaced with raw.";
-
-		return(DB_ERROR);
-
-	} else if (dict_table_is_discarded(table)) {
+	if (dict_table_is_discarded(table)) {
 
 		return(DB_TABLESPACE_DELETED);
 

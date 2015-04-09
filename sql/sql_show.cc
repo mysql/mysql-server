@@ -1872,6 +1872,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       end= longlong10_to_str(table->s->key_block_size, buff, 10);
       packet->append(buff, (uint) (end - buff));
     }
+    if (table->s->compress.length)
+    {
+      packet->append(STRING_WITH_LEN(" COMPRESS="));
+      append_unescaped(packet, share->compress.str, share->compress.length);
+    }
     table->file->append_create_info(packet);
     if (share->comment.length)
     {
@@ -4732,6 +4737,16 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       ptr= longlong10_to_str(share->key_block_size, ptr, 10);
     }
 
+    if (share->compress.length > 0)
+    {
+      /* In the .frm file this option has a max length of 2K. Currently,
+      InnoDB uses only the first 5 bytes and the only supported values
+      are (ZLIB | LZ4 | NONE). */
+      ptr= my_stpcpy(ptr, " COMPRESS=\"");
+      ptr= strxnmov(ptr, 7, share->compress.str, NullS);
+      ptr= my_stpcpy(ptr, "\"");
+    }
+
     if (is_partitioned)
       ptr= my_stpcpy(ptr, " partitioned");
 
@@ -6947,30 +6962,6 @@ void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
                       old_name, new_name);
 }
 
-/**
-  Issue a deprecation warning for SHOW commands with a WHERE clause.
-*/
-void push_show_where_warning(THD *thd, enum enum_var_type option_type, bool status)
-{
-  const char *old_name;
-  const char *new_name;
-  if (option_type == OPT_GLOBAL)
-  {
-    old_name= (status ? "SHOW GLOBAL STATUS WHERE" : "SHOW GLOBAL VARIABLES WHERE");
-    new_name= (status ? "SHOW GLOBAL STATUS [LIKE]" : "SHOW GLOBAL VARIABLES [LIKE]");
-  }
-  else
-  {
-    old_name= (status ? "SHOW SESSION STATUS WHERE" : "SHOW SESSION VARIABLES WHERE");
-    new_name= (status ? "SHOW SESSION STATUS [LIKE]" : "SHOW SESSION VARIABLES [LIKE]");
-  }
-
-  push_warning_printf(thd, Sql_condition::SL_WARNING,
-                      ER_WARN_DEPRECATED_SYNTAX,
-                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
-                      old_name, new_name);
-}
-
 int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
@@ -6999,16 +6990,9 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     option_type= OPT_SESSION;
   }
 
-  /* Issue deprecation warning. */
-  if (lex->sql_command == SQLCOM_SHOW_VARIABLES)
-  {
-    if (cond != NULL)
-    {
-      push_show_where_warning(thd, option_type, false);
-    }
-  }
 #ifndef EMBEDDED_LIBRARY
-  else
+  /* Issue deprecation warning. */
+  if (lex->sql_command != SQLCOM_SHOW_VARIABLES)
   {
     push_select_warning(thd, option_type, false);
   }
@@ -7020,7 +7004,11 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
     SHOW_VAR array and hold it until all variables are stored in the table.
   */
-  mysql_mutex_lock(&LOCK_plugin_delete);
+  if (thd->fill_variables_recursion_level++ == 0)
+  {
+    mysql_mutex_lock(&LOCK_plugin_delete);
+  }
+
   // Lock LOCK_system_variables_hash to prepare SHOW_VARs array.
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   DEBUG_SYNC(thd, "acquired_LOCK_system_variables_hash");
@@ -7030,7 +7018,11 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   res= show_status_array(thd, wild, sys_var_array.begin(), option_type, NULL, "",
                          tables, upper_case_names, cond);
 
-  mysql_mutex_unlock(&LOCK_plugin_delete);
+  if (thd->fill_variables_recursion_level-- == 1)
+  {
+    mysql_mutex_unlock(&LOCK_plugin_delete);
+  }
+
   DBUG_RETURN(res);
 }
 
@@ -7067,16 +7059,9 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     tmp1= &thd->status_var;
   }
 
-  /* Issue deprecation warning. */
-  if (lex->sql_command == SQLCOM_SHOW_STATUS)
-  {
-    if (cond != NULL)
-    {
-      push_show_where_warning(thd, option_type, true);
-    }
-  }
 #ifndef EMBEDDED_LIBRARY
-  else
+  /* Issue deprecation warning. */
+  if (lex->sql_command != SQLCOM_SHOW_STATUS)
   {
     push_select_warning(thd, option_type, true);
   }

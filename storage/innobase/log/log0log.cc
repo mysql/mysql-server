@@ -969,7 +969,7 @@ log_group_file_header_flush(
 	const ulint	page_no
 		= (ulint) (dest_offset / univ_page_size.physical());
 
-	fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
+	fil_io(IORequestLogWrite, true,
 	       page_id_t(group->space_id, page_no),
 	       univ_page_size,
 	       (ulint) (dest_offset % univ_page_size.physical()),
@@ -1092,7 +1092,7 @@ loop:
 	const ulint	page_no
 		= (ulint) (next_offset / univ_page_size.physical());
 
-	fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
+	fil_io(IORequestLogWrite, true,
 	       page_id_t(group->space_id, page_no),
 	       univ_page_size,
 	       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
@@ -1620,14 +1620,17 @@ log_group_checkpoint(
 				   LOG_CHECKPOINT);
 	}
 
+	/* Note: We alternate the physical place of the checkpoint info.
+	See the (next_checkpoint_no & 1) below. */
+
 	/* We send as the last parameter the group machine address
 	added with 1, as we want to distinguish between a normal log
 	file write and a checkpoint field write */
 
-	fil_io(OS_FILE_WRITE | OS_FILE_LOG, false,
+	fil_io(IORequestLogWrite, false,
 	       page_id_t(group->space_id, 0),
 	       univ_page_size,
-	       log_sys->next_checkpoint_no & 1
+	       (log_sys->next_checkpoint_no & 1)
 	       ? LOG_CHECKPOINT_2 : LOG_CHECKPOINT_1,
 	       OS_FILE_LOG_BLOCK_SIZE,
 	       buf, (byte*) group + 1);
@@ -1705,7 +1708,7 @@ log_group_read_checkpoint_info(
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, true,
+	fil_io(IORequestLogRead, true,
 	       page_id_t(group->space_id, field / univ_page_size.physical()),
 	       univ_page_size, field % univ_page_size.physical(),
 	       OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
@@ -2019,7 +2022,7 @@ loop:
 	const ulint	page_no
 		= (ulint) (source_offset / univ_page_size.physical());
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, true,
+	fil_io(IORequestLogRead, true,
 	       page_id_t(group->space_id, page_no),
 	       univ_page_size,
 	       (ulint) (source_offset % univ_page_size.physical()),

@@ -316,6 +316,177 @@ DECLARE_NDBINFO_TABLE(FRAG_MEM_USE, 15) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_BASE, 7) =
+{ { "disk_write_speed_base", 7, 0,
+      "Actual speed of disk writes per LDM thread, base data" },
+  {
+    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"thr_no",                      Ndbinfo::Number, "LDM thread instance"},
+    {"millis_ago",                  Ndbinfo::Number64,
+        "Milliseconds ago since period finished"},
+    {"millis_passed",               Ndbinfo::Number64,
+        "Milliseconds passed in the period reported"},
+    {"backup_lcp_bytes_written",    Ndbinfo::Number64,
+        "Bytes written in the period for backups and LCP"},
+    {"redo_bytes_written",               Ndbinfo::Number64,
+        "Bytes written in the period for REDO log"},
+    {"target_disk_write_speed",     Ndbinfo::Number64,
+        "Target disk write speed at time of measurement"},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_AGGREGATE, 16) =
+{ { "disk_write_speed_aggregate", 16, 0,
+      "Actual speed of disk writes per LDM thread, aggregate data" },
+  {
+    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"thr_no",                      Ndbinfo::Number, "LDM thread instance"},
+    {"backup_lcp_speed_last_sec",   Ndbinfo::Number64,
+               "Number of kBytes written by backup and LCP last second"},
+    {"redo_speed_last_sec",         Ndbinfo::Number64,
+               "Number of kBytes written to REDO log last second"},
+    {"backup_lcp_speed_last_10sec", Ndbinfo::Number64,
+               "Number of kBytes written by backup and LCP per second last"
+               " 10 seconds"},
+    {"redo_speed_last_10sec",       Ndbinfo::Number64,
+               "Number of kBytes written to REDO log per second last"
+               " 10 seconds"},
+    {"std_dev_backup_lcp_speed_last_10sec", Ndbinfo::Number64,
+         "Standard deviation of Number of kBytes written by backup and LCP"
+         " per second last 10 seconds"},
+    {"std_dev_redo_speed_last_10sec", Ndbinfo::Number64,
+         "Standard deviation of Number of kBytes written to REDO log"
+         " per second last 10 seconds"},
+    {"backup_lcp_speed_last_60sec", Ndbinfo::Number64,
+               "Number of kBytes written by backup and LCP per second last"
+               " 60 seconds"},
+    {"redo_speed_last_60sec",       Ndbinfo::Number64,
+               "Number of kBytes written to REDO log per second last"
+               " 60 seconds"},
+    {"std_dev_backup_lcp_speed_last_60sec", Ndbinfo::Number64,
+         "Standard deviation of Number of kBytes written by backup and LCP"
+         " per second last 60 seconds"},
+    {"std_dev_redo_speed_last_60sec", Ndbinfo::Number64,
+         "Standard deviation of Number of kBytes written to REDO log"
+         " per second last 60 seconds"},
+    {"slowdowns_due_to_io_lag",     Ndbinfo::Number64,
+         "Number of seconds that we got slowdown due to REDO IO lagging"},
+    {"slowdowns_due_to_high_cpu",   Ndbinfo::Number64,
+         "Number of seconds that we got slowdown due to high CPU usage"},
+    {"disk_write_speed_set_to_min", Ndbinfo::Number64,
+         "Number of seconds that we slowed down to a minimum disk write"
+         " speed"},
+    {"current_target_disk_write_speed", Ndbinfo::Number64,
+         "Current target of disk write speed"},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(FRAG_OPERATIONS, 27) =
+{ { "frag_operations", 27, 0, "Per fragment operational information" },
+  {
+    {"node_id",                 Ndbinfo::Number,    "node id"},
+    {"block_instance",          Ndbinfo::Number,    "LQH instance no"},
+    {"table_id",                Ndbinfo::Number,    "Table identity"},
+    {"fragment_num",            Ndbinfo::Number,    "Fragment number"},
+    {"tot_key_reads",           Ndbinfo::Number64,  
+     "Total number of key reads received"},
+    {"tot_key_inserts",         Ndbinfo::Number64,  
+     "Total number of key inserts received"},
+    {"tot_key_updates",         Ndbinfo::Number64,  
+     "Total number of key updates received"},
+    {"tot_key_writes",          Ndbinfo::Number64,  
+     "Total number of key writes received"},
+    {"tot_key_deletes",         Ndbinfo::Number64,
+     "Total number of key deletes received"},
+    {"tot_key_refs",            Ndbinfo::Number64,
+     "Total number of key operations refused by LDM"},
+    {"tot_key_attrinfo_bytes",  Ndbinfo::Number64,
+     "Total attrinfo bytes received for key operations"},
+    {"tot_key_keyinfo_bytes",   Ndbinfo::Number64,
+     "Total keyinfo bytes received for key operations"},
+    {"tot_key_prog_bytes",      Ndbinfo::Number64,
+     "Total bytes of filter programs for key operations"},
+    {"tot_key_inst_exec",       Ndbinfo::Number64,
+     "Total number of interpreter instructions executed for key operations"},
+    {"tot_key_bytes_returned",  Ndbinfo::Number64,
+     "Total number of bytes returned to client for key operations"},
+    {"tot_frag_scans",          Ndbinfo::Number64,
+     "Total number of fragment scans received"},
+    {"tot_scan_rows_examined",  Ndbinfo::Number64,
+     "Total number of rows examined by scans"},
+    {"tot_scan_rows_returned",  Ndbinfo::Number64,
+     "Total number of rows returned to client by scan"},
+    {"tot_scan_bytes_returned",  Ndbinfo::Number64,
+     "Total number of bytes returned to client by scans"},
+    {"tot_scan_prog_bytes",     Ndbinfo::Number64,
+     "Total bytes of scan filter programs"},
+    {"tot_scan_bound_bytes",     Ndbinfo::Number64,
+     "Total bytes of scan bounds"},
+    {"tot_scan_inst_exec",   Ndbinfo::Number64,
+     "Total number of interpreter instructions executed for scans"},
+    {"tot_qd_frag_scans",       Ndbinfo::Number64,
+     "Total number of fragment scans queued before exec"},
+    {"conc_frag_scans",         Ndbinfo::Number,
+     "Number of frag scans currently running"},
+    {"conc_qd_plain_frag_scans", Ndbinfo::Number,
+     "Number of non-tup frag scans currently queued"},
+    {"conc_qd_tup_frag_scans",  Ndbinfo::Number,
+     "Number of tup frag scans currently queued"},
+    {"tot_commits",  Ndbinfo::Number64,
+     "Total number of committed row changes"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(RESTART_INFO, 22) =
+{ { "restart_info", 22, 0,
+       "Times of restart phases in seconds and current state" },
+  {
+    {"node_id",                                             Ndbinfo::Number,
+     "node_id" },
+    {"node_restart_status",                                 Ndbinfo::String,
+     "Current state of node recovery"},
+    {"node_restart_status_int",                             Ndbinfo::Number,
+     "Current state of node recovery as number"},
+    {"secs_to_complete_node_failure",                       Ndbinfo::Number,
+     "Seconds to complete node failure handling" },
+    {"secs_to_allocate_node_id",                            Ndbinfo::Number,
+     "Seconds from node failure completion to allocation of node id" },
+    {"secs_to_include_in_heartbeat_protocol",               Ndbinfo::Number,
+     "Seconds from allocation of node id to inclusion in HB protocol" },
+    {"secs_until_wait_for_ndbcntr_master",                     Ndbinfo::Number,
+     "Seconds from included in HB protocol until we wait for ndbcntr master"},
+    {"secs_wait_for_ndbcntr_master",                        Ndbinfo::Number,
+     "Seconds we waited for being accepted by NDBCNTR master to start" },
+    {"secs_to_get_start_permitted",                         Ndbinfo::Number,
+     "Seconds from permit by master until all nodes accepted our start" },
+    {"secs_to_wait_for_lcp_for_copy_meta_data",             Ndbinfo::Number,
+     "Seconds waiting for LCP completion before copying meta data" },
+    {"secs_to_copy_meta_data",                              Ndbinfo::Number,
+     "Seconds to copy meta data to starting node from master" },
+    {"secs_to_include_node",                                Ndbinfo::Number,
+     "Seconds to wait for GCP and inclusion of all nodes into protocols" },
+    {"secs_starting_node_to_request_local_recovery",        Ndbinfo::Number,
+     "Seconds for starting node to request local recovery" },
+    {"secs_for_local_recovery",                             Ndbinfo::Number,
+     "Seconds for local recovery in starting node" },
+    {"secs_restore_fragments",                              Ndbinfo::Number,
+     "Seconds to restore fragments from LCP files" },
+    {"secs_undo_disk_data",                                 Ndbinfo::Number,
+     "Seconds to execute UNDO log on disk data part of records" },
+    {"secs_exec_redo_log",                                  Ndbinfo::Number,
+     "Seconds to execute REDO log on all restored fragments" },
+    {"secs_index_rebuild",                                  Ndbinfo::Number,
+     "Seconds to rebuild indexes on restored fragments" },
+    {"secs_to_synchronize_starting_node",                   Ndbinfo::Number,
+     "Seconds to synchronize starting node from live nodes" },
+    {"secs_wait_lcp_for_restart",                           Ndbinfo::Number,
+  "Seconds to wait for LCP start and completion before restart is completed" },
+    {"secs_wait_subscription_handover",                     Ndbinfo::Number,
+     "Seconds waiting for handover of replication subscriptions" },
+    {"total_restart_secs",                                  Ndbinfo::Number,
+     "Total number of seconds from node failure until node is started again" },
+  }
+};
 
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
@@ -343,7 +514,11 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(OPERATIONS),
   DBINFOTBL(MEMBERSHIP),
   DBINFOTBL(DICT_OBJ_INFO),
-  DBINFOTBL(FRAG_MEM_USE)
+  DBINFOTBL(FRAG_MEM_USE),
+  DBINFOTBL(DISK_WRITE_SPEED_BASE),
+  DBINFOTBL(DISK_WRITE_SPEED_AGGREGATE),
+  DBINFOTBL(FRAG_OPERATIONS),
+  DBINFOTBL(RESTART_INFO)
 };
 
 static int no_ndbinfo_tables =

@@ -110,7 +110,7 @@ password_lifetime	6
 CREATE USER u15@localhost,
 u16@localhost IDENTIFIED BY 'auth_string',
 u17@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string' PASSWORD EXPIRE;
-SELECT User,plugin,password_expired,password_lifetime FROM mysql.user WHERE USER BETWEEN 'u15' AND 'u17';
+SELECT User,plugin,password_expired,password_lifetime FROM mysql.user WHERE USER BETWEEN 'u15' AND 'u17' ORDER BY User;
 User	u15
 plugin	mysql_native_password
 password_expired	Y
@@ -131,17 +131,7 @@ u21@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 PASSWORD EXPIRE NEVER;
 SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject,
 max_questions,max_user_connections,password_expired,password_lifetime
-FROM mysql.user WHERE USER BETWEEN 'u18' AND 'u21';
-User	u2
-plugin	mysql_native_password
-ssl_type	
-ssl_cipher	
-x509_issuer	
-x509_subject	
-max_questions	0
-max_user_connections	0
-password_expired	N
-password_lifetime	NULL
+FROM mysql.user WHERE USER BETWEEN 'u18' AND 'u21' ORDER BY User;
 User	u18
 plugin	mysql_native_password
 ssl_type	SPECIFIED
@@ -162,6 +152,16 @@ max_questions	2
 max_user_connections	2
 password_expired	N
 password_lifetime	0
+User	u2
+plugin	mysql_native_password
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	0
+max_user_connections	0
+password_expired	N
+password_lifetime	NULL
 User	u20
 plugin	sha256_password
 ssl_type	SPECIFIED
@@ -968,8 +968,8 @@ Show what is logged:
 ------ rewrite ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
 argument
-CREATE USER 'u1'@'%' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' ACCOUNT UNLOCK
-CREATE USER 'u2'@'localhost' IDENTIFIED BY PASSWORD '*82DC221D557298F6CE9961037DB1C90604792F5C' ACCOUNT UNLOCK
+CREATE USER 'u1'@'%' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3'
+CREATE USER 'u2'@'localhost' IDENTIFIED BY PASSWORD '*82DC221D557298F6CE9961037DB1C90604792F5C'
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
 argument
 SET PASSWORD FOR `u3`@`localhost`=<secret>

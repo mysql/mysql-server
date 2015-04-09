@@ -742,8 +742,6 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
   leaf_table_count= 0;
   partitioned_table_count= 0;
 
-  Opt_hints_qb *qb_hints= context.select_lex->opt_hints_qb;
-
   for (TABLE_LIST *tr= leaf_tables; tr; tr= tr->next_leaf, tableno++)
   {
     TABLE *const table= tr->table;
@@ -768,10 +766,15 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
     table->pos_in_table_list= tr;
     tr->reset();
 
-    if (qb_hints &&                          // QB hints initialized
+    /*
+      Only set hints on first execution.  Otherwise, hints will refer to
+      wrong query block after semijoin transformation
+    */
+    if (first_execution &&                 
+        opt_hints_qb &&                      // QB hints initialized
         !tr->opt_hints_table)                // Table hints are not adjusted yet
     {
-      tr->opt_hints_table= qb_hints->adjust_table_hints(table, tr->alias);
+      tr->opt_hints_table= opt_hints_qb->adjust_table_hints(table, tr->alias);
     }
 
     if (tr->process_index_hints(table))
@@ -780,8 +783,8 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
       partitioned_table_count++;
   }
 
-  if (qb_hints)
-    qb_hints->check_unresolved(thd);
+  if (opt_hints_qb)
+    opt_hints_qb->check_unresolved(thd);
  
   DBUG_RETURN(false);
 }
@@ -1007,7 +1010,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       9. Parent select is not a confluent table-less select
       10. Neither parent nor child select have STRAIGHT_JOIN option.
   */
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
+  if (semijoin_enabled(thd) &&
       in_predicate &&                                                   // 1
       !is_part_of_union() &&                                            // 2
       !group_list.elements &&                                           // 3

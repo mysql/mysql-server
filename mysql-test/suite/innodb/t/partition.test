@@ -188,3 +188,95 @@ ALTER TABLE t1 TABLESPACE ts1;
 ALTER TABLE t1 DROP PRIMARY KEY, ALGORITHM=DEFAULT;
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+
+--echo #
+--echo # Bug #20593808: CRASH WITH PARTITIONED TABLES
+--echo # MULTITABLE DELETE
+--echo #
+
+--echo Test DML with index scan on partitioned table
+--echo #1. test delete with join using PK index scan on partitioned table
+eval CREATE TABLE t1 (
+  col_1_int int,
+  col_2_text text)
+  ENGINE=InnoDB;
+
+SHOW CREATE TABLE t1;
+
+--echo #insert two records in t1
+INSERT INTO t1 VALUES (5, 'row to delete');
+INSERT INTO t1 VALUES (3, 'row to keep');
+
+SELECT * FROM t1 ORDER BY col_1_int;
+
+eval CREATE TABLE t2 (
+  col_1_int int,
+  col_2_int int,
+  col_3_text text,
+  PRIMARY KEY(col_1_int, col_3_text(100)),
+  KEY idx1 (col_2_int, col_1_int))
+  ENGINE=InnoDB
+  PARTITION BY KEY(col_1_int) partitions 5;
+
+SHOW CREATE TABLE t2;
+
+--echo #insert five records in t2
+INSERT INTO t2 VALUES (91, 11, 'bigger value for no-op');
+INSERT INTO t2 VALUES ( 4, 25, 'smaller value to trigger delete');
+INSERT INTO t2 VALUES (35, 33, 'bigger value for no-op addlen');
+INSERT INTO t2 VALUES (55, 42, 'bigger value for no-op addlen + addlen + addlen');
+INSERT INTO t2 VALUES (82, 54, 'bigger value for no-op addlen + addlen');
+
+SELECT * FROM t2 ORDER BY col_1_int;
+
+--echo # test delete with join and index scan
+DELETE t1 FROM t2, t1  WHERE t2.col_1_int <= t1.col_1_int;
+
+--echo expect one record
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #2. test delete with join using secondary index scan on partitioned table
+eval CREATE TABLE t1 (
+  col_1_int int,
+  col_2_text text)
+  ENGINE=InnoDB;
+
+SHOW CREATE TABLE t1;
+
+--echo #insert two records in t1
+INSERT INTO t1 VALUES (5, 'row to delete');
+INSERT INTO t1 VALUES (3, 'row to keep');
+
+SELECT * FROM t1 ORDER BY col_1_int;
+
+eval CREATE TABLE t2 (
+  col_1_int int,
+  col_2_int int,
+  col_3_text text,
+  PRIMARY KEY(col_2_int, col_1_int),
+  KEY idx1(col_1_int, col_3_text(100)))
+  ENGINE=InnoDB
+  PARTITION BY KEY(col_2_int) partitions 5;
+
+SHOW CREATE TABLE t2;
+
+--echo #insert five records in t2
+INSERT INTO t2 VALUES (91, 11, 'bigger value for no-op');
+INSERT INTO t2 VALUES ( 4, 25, 'smaller value to trigger delete');
+INSERT INTO t2 VALUES (35, 33, 'bigger value for no-op addlen');
+INSERT INTO t2 VALUES (55, 42, 'bigger value for no-op addlen + addlen + addlen');
+INSERT INTO t2 VALUES (82, 54, 'bigger value for no-op addlen + addlen');
+
+SELECT * FROM t2 ORDER BY col_1_int;
+
+--echo # test delete with join and index scan
+DELETE t1 FROM t2, t1  WHERE t2.col_1_int <= t1.col_1_int;
+
+--echo expect one record
+SELECT * FROM t1;
+
+DROP TABLE t1;
+DROP TABLE t2;

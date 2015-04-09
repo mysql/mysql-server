@@ -265,35 +265,65 @@ dberr_t
 Datafile::read_first_page(bool read_only_mode)
 {
 	if (m_handle == OS_FILE_CLOSED) {
+
 		dberr_t err = open_or_create(read_only_mode);
+
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
 	}
 
-	m_first_page_buf = static_cast<byte*>
-		(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
+	m_first_page_buf = static_cast<byte*>(
+		ut_malloc_nokey(2 * UNIV_PAGE_SIZE_MAX));
 
 	/* Align the memory for a possible read from a raw device */
 
-	m_first_page = static_cast<byte*>
-		(ut_align(m_first_page_buf, UNIV_PAGE_SIZE));
+	m_first_page = static_cast<byte*>(
+		ut_align(m_first_page_buf, UNIV_PAGE_SIZE));
 
-	if (!os_file_read(m_handle, m_first_page, 0, UNIV_PAGE_SIZE)) {
+	IORequest	request;
+	dberr_t		err = DB_ERROR;
+	size_t		page_size = UNIV_PAGE_SIZE_MAX;
 
-		ib::error()
-			<< "Cannot read first page of '" << m_filepath << "'";
+	/* Don't want unnecessary complaints about partial reads. */
 
-		return(DB_IO_ERROR);
+	request.disable_partial_io_warnings();
+
+	while (page_size >= UNIV_PAGE_SIZE_MIN) {
+
+		ulint	n_read = 0;
+
+		err = os_file_read_no_error_handling(
+			request, m_handle, m_first_page, 0, page_size, &n_read);
+
+		if (err == DB_IO_ERROR && n_read >= UNIV_PAGE_SIZE_MIN) {
+
+			page_size >>= 1;
+
+		} else if (err == DB_SUCCESS) {
+
+			ut_a(n_read == page_size);
+
+			break;
+
+		} else {
+
+			ib::error()
+				<< "Cannot read first page of '"
+				<< m_filepath << "' "
+				<< ut_strerr(err);
+			break;
+		}
 	}
 
-	if (m_order == 0) {
+	if (err == DB_SUCCESS && m_order == 0) {
+
 		m_flags = fsp_header_get_flags(m_first_page);
 
 		m_space_id = fsp_header_get_space_id(m_first_page);
 	}
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /** Free the first page from memory when it is no longer needed. */
@@ -432,34 +462,40 @@ m_is_valid is set true on success, else false.
 dberr_t
 Datafile::validate_first_page(lsn_t* flush_lsn)
 {
-	m_is_valid = true;
-	const char* error_txt = NULL;
-	char* prev_name;
-	char* prev_filepath;
+	char*		prev_name;
+	char*		prev_filepath;
+	const char*	error_txt = NULL;
 
-	if ((m_first_page == NULL)
-	    && (read_first_page(srv_read_only_mode) != DB_SUCCESS)) {
+	m_is_valid = true;
+
+	if (m_first_page == NULL
+	    && read_first_page(srv_read_only_mode) != DB_SUCCESS) {
+
 		error_txt = "Cannot read first page";
 	} else {
 		ut_ad(m_first_page_buf);
 		ut_ad(m_first_page);
 
-		if (flush_lsn) {
+		if (flush_lsn != NULL) {
+
 			*flush_lsn = mach_read_from_8(
 				m_first_page + FIL_PAGE_FILE_FLUSH_LSN);
 		}
 	}
 
 	/* Check if the whole page is blank. */
-	if (error_txt == NULL && !m_space_id && !m_flags) {
-		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
+	if (error_txt == NULL
+	    && m_space_id == srv_sys_space.space_id()
+	    && !m_flags) {
 		const byte*	b		= m_first_page;
+		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
 
-		while (!*b && --nonzero_bytes) {
-			b++;
+		while (*b == 0 && --nonzero_bytes) {
+
+			++b;
 		}
 
-		if (!nonzero_bytes) {
+		if (nonzero_bytes == 0) {
 			error_txt = "Header page consists of zero bytes";
 		}
 	}
@@ -467,27 +503,36 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 	const page_size_t	page_size(m_flags);
 
 	if (error_txt != NULL) {
+
 		/* skip the next few tests */
 	} else if (univ_page_size.logical() != page_size.logical()) {
+
 		/* Page size must be univ_page_size. */
-		ib::error() << "Data file '" << m_filepath << "' uses page size "
+
+		ib::error()
+			<< "Data file '" << m_filepath << "' uses page size "
 			<< page_size.logical() << ", but the innodb_page_size"
 			" start-up parameter is "
 			<< univ_page_size.logical();
+
 		free_first_page();
+
 		return(DB_ERROR);
-	} else if (!fsp_flags_is_valid(m_flags)) {
-		/* Tablespace flags must be valid. */
-		error_txt = "Tablespace flags are invalid";
+
 	} else if (page_get_page_no(m_first_page) != 0) {
+
 		/* First page must be number 0 */
 		error_txt = "Header page contains inconsistent data";
+
 	} else if (m_space_id == ULINT_UNDEFINED) {
+
 		/* The space_id can be most anything, except -1. */
 		error_txt = "A bad Space ID was found";
+
 	} else if (buf_page_is_corrupted(
 			false, m_first_page, page_size,
 			fsp_is_checksum_disabled(m_space_id))) {
+
 		/* Look for checksum and other corruptions. */
 		error_txt = "Checksum mismatch";
 	}
@@ -497,11 +542,15 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 			<< ", Space ID:" << m_space_id  << ", Flags: "
 			<< m_flags << ". " << TROUBLESHOOT_DATADICT_MSG;
 		m_is_valid = false;
+
 		free_first_page();
+
 		return(DB_CORRUPTION);
+
 	} else if (fil_space_read_name_and_filepath(
 			   m_space_id, &prev_name, &prev_filepath)
 		   && (0 != strcmp(m_filepath, prev_filepath))) {
+
 		/* Make sure the space_id has not already been opened. */
 		ib::error() << "Attempted to open a previously opened"
 			" tablespace. Previous tablespace " << prev_name
@@ -514,7 +563,9 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 		ut_free(prev_filepath);
 
 		m_is_valid = false;
+
 		free_first_page();
+
 		return(DB_TABLESPACE_EXISTS);
 	}
 
@@ -528,7 +579,6 @@ pages from the beginning of the .ibd file.
 dberr_t
 Datafile::find_space_id()
 {
-	bool		st;
 	os_offset_t	file_size;
 
 	ut_ad(m_handle != OS_FILE_CLOSED);
@@ -545,39 +595,73 @@ Datafile::find_space_id()
 	in a map.  Find out which space_id is agreed on by majority of the
 	pages.  Choose that space_id. */
 	for (ulint page_size = UNIV_ZIP_SIZE_MIN;
-	     page_size <= UNIV_PAGE_SIZE_MAX; page_size <<= 1) {
+	     page_size <= UNIV_PAGE_SIZE_MAX;
+	     page_size <<= 1) {
 
 		/* map[space_id] = count of pages */
 		typedef std::map<
 			ulint,
 			ulint,
 			std::less<ulint>,
-			ut_allocator<std::pair<const ulint, ulint > > >
-			verify_t;
+			ut_allocator<std::pair<const ulint, ulint> > >
+			Pages;
 
-		verify_t	verify;
-
-		ulint		page_count = 64;
-		ulint		valid_pages = 0;
+		Pages	verify;
+		ulint	page_count = 64;
+		ulint	valid_pages = 0;
 
 		/* Adjust the number of pages to analyze based on file size */
 		while ((page_count * page_size) > file_size) {
 			--page_count;
 		}
 
-		ib::info() << "Page size:" << page_size
+		ib::info()
+			<< "Page size:" << page_size
 			<< ". Pages to analyze:" << page_count;
 
-		byte*	buf = static_cast<byte*>(ut_malloc_nokey(2*page_size));
-		byte*	page = static_cast<byte*>(ut_align(buf, page_size));
+		byte*	buf = static_cast<byte*>(
+			ut_malloc_nokey(2 * UNIV_PAGE_SIZE_MAX));
+
+		byte*	page = static_cast<byte*>(
+			ut_align(buf, UNIV_SECTOR_SIZE));
 
 		for (ulint j = 0; j < page_count; ++j) {
 
-			st = os_file_read(m_handle, page, j * page_size,
-					  page_size);
+			dberr_t		err;
+			ulint		n_bytes = j * page_size;
+			IORequest	request(IORequest::READ);
 
-			if (!st) {
-				ib::info() << "READ FAIL: page_no:" << j;
+			err = os_file_read(
+				request, m_handle, page, n_bytes, page_size);
+
+			if (err == DB_IO_DECOMPRESS_FAIL) {
+
+				/* If the page was compressed on the fly then
+				try and decompress the page */
+
+				n_bytes = os_file_compressed_page_size(page);
+
+				if (n_bytes != ULINT_UNDEFINED) {
+
+					err = os_file_read(
+						request,
+						m_handle, page, page_size,
+						UNIV_PAGE_SIZE_MAX);
+
+					if (err != DB_SUCCESS) {
+
+						ib::info()
+							<< "READ FAIL: "
+							<< "page_no:" << j;
+						continue;
+					}
+				}
+
+			} else if (err != DB_SUCCESS) {
+
+				ib::info()
+					<< "READ FAIL: page_no:" << j;
+
 				continue;
 			}
 
@@ -616,23 +700,30 @@ Datafile::find_space_id()
 					+ FIL_PAGE_SPACE_ID);
 
 				if (space_id > 0) {
-					ib::info() << "VALID: space:"
+
+					ib::info()
+						<< "VALID: space:"
 						<< space_id << " page_no:" << j
 						<< " page_size:" << page_size;
-					verify[space_id]++;
+
 					++valid_pages;
+
+					++verify[space_id];
 				}
 			}
 		}
 
 		ut_free(buf);
-		ib::info() << "Page size: " << page_size
+
+		ib::info()
+			<< "Page size: " << page_size
 			<< ". Possible space_id count:" << verify.size();
 
 		const ulint	pages_corrupted = 3;
+
 		for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
 
-			for (verify_t::const_iterator it = verify.begin();
+			for (Pages::const_iterator it = verify.begin();
 			     it != verify.end();
 			     ++it) {
 
@@ -674,7 +765,9 @@ Datafile::restore_from_doublewrite(
 		/* If the first page of the given user tablespace is not there
 		in the doublewrite buffer, then the recovery is going to fail
 		now. Hence this is treated as an error. */
-		ib::error() << "Corrupted page "
+
+		ib::error()
+			<< "Corrupted page "
 			<< page_id_t(m_space_id, restore_page_no)
 			<< " of datafile '" << m_filepath
 			<< "' could not be found in the doublewrite buffer.";
@@ -682,9 +775,9 @@ Datafile::restore_from_doublewrite(
 		return(DB_CORRUPTION);
 	}
 
-	const ulint		flags = mach_read_from_4(FSP_HEADER_OFFSET
-							 + FSP_SPACE_FLAGS
-							 + page);
+	const ulint		flags = mach_read_from_4(
+		FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
+
 	const page_size_t	page_size(flags);
 
 	ut_a(page_get_page_no(page) == restore_page_no);
@@ -696,12 +789,16 @@ Datafile::restore_from_doublewrite(
 		<< page_size.physical() << " bytes into file '"
 		<< m_filepath << "'";
 
-	if (!os_file_write(m_filepath, m_handle, page, 0,
-			   page_size.physical())) {
-		return(DB_CORRUPTION);
-	}
+	IORequest	request(IORequest::WRITE);
 
-	return(DB_SUCCESS);
+	/* Note: The pages are written out as uncompressed because we don't
+	have the compression algorithm information at this point. */
+
+	request.disable_compression();
+
+	return(os_file_write(
+			request,
+			m_filepath, m_handle, page, 0, page_size.physical()));
 }
 
 /** Opens a handle to the file linked to in an InnoDB Symbolic Link file
@@ -841,10 +938,15 @@ RemoteDatafile::create_link_file(
 		return(err);
 	}
 
-	if (!os_file_write(link_filepath, file, filepath,
-			   0, ::strlen(filepath))) {
-		err = DB_ERROR;
-	}
+	IORequest	request(IORequest::WRITE);
+
+	/* Note: The pages are written out as uncompressed because we don't
+	have the compression algorithm information at this point. */
+
+	request.disable_compression();
+
+	err = os_file_write(
+		request, link_filepath, file, filepath, 0, ::strlen(filepath));
 
 	/* Close the file, we only need it at startup */
 	os_file_close(file);
@@ -864,7 +966,8 @@ RemoteDatafile::delete_link_file(
 	char* link_filepath = fil_make_filepath(NULL, name, ISL, false);
 
 	if (link_filepath != NULL) {
-		os_file_delete_if_exists(innodb_data_file_key, link_filepath, NULL);
+		os_file_delete_if_exists(
+			innodb_data_file_key, link_filepath, NULL);
 
 		ut_free(link_filepath);
 	}

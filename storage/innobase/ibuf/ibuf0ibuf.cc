@@ -2351,16 +2351,22 @@ ibuf_get_merge_page_nos_func(
 		} else {
 			rec_page_no = ibuf_rec_get_page_no(mtr, rec);
 			rec_space_id = ibuf_rec_get_space(mtr, rec);
-			/* In the system tablespace, the smallest
-			possible secondary index leaf page number is
-			bigger than IBUF_TREE_ROOT_PAGE_NO (4). In
-			other tablespaces, the clustered index tree is
-			created at page 3, which makes page 4 the
+			/* In the system tablespace the smallest possible
+			secondary index leaf page number is bigger than
+			FSP_DICT_HDR_PAGE_NO (7).
+			In file-per-table and general tablespaces, pages up
+			to FSP_FIRST_INODE_PAGE_NO (2) are reserved and the
+			first clustered index tree is created at page 3.
+			So for file-per-table tablespaces, page 4 is the
 			smallest possible secondary index leaf page
-			(and that only after DROP INDEX). */
-			ut_ad(rec_page_no
-			      > (ulint) IBUF_TREE_ROOT_PAGE_NO
-			      - (rec_space_id != 0));
+			(and that only after DROP INDEX).
+			Shared General tablespaces also use page 3 as the
+			first clustered index root page, but that table may
+			be dropped, allowing page 3 to be used again as a
+			secondary index leaf page.
+			To keep this assert simple, just make sure the page
+			is > 2. */
+			ut_ad(rec_page_no > FSP_FIRST_INODE_PAGE_NO);
 		}
 
 #ifdef UNIV_IBUF_DEBUG

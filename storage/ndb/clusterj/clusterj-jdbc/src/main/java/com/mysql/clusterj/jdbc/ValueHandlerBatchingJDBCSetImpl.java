@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -447,6 +447,13 @@ public class ValueHandlerBatchingJDBCSetImpl implements ValueHandlerBatching {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Unsupported_Method",
                 "invoke(Object, Method, Object[])", "ValueHandlerBatching"));
+    }
+
+    @Override
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("ValueHandlerBatchingJDBCSetImpl.release");
+        this.delegate.release();
+        this.fieldNumberToParameterNumber = null;
     }
 
 }

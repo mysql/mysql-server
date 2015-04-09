@@ -4170,7 +4170,6 @@ fts_query_sort_result_on_rank(
 	result->rankings_by_rank = ranked;
 }
 
-#ifdef UNIV_DEBUG
 /*******************************************************************//**
 A debug function to print result doc_id set. */
 static
@@ -4198,7 +4197,6 @@ fts_print_doc_id(
 		}
 	}
 }
-#endif
 
 /*************************************************************//**
 This function implements a simple "blind" query expansion search:
@@ -4242,9 +4240,10 @@ fts_expand_query(
 	result_doc.is_ngram = index_cache->index->is_ngram;
 
 	query->total_size += SIZEOF_RBT_CREATE;
-#ifdef UNIV_DEBUG
-	fts_print_doc_id(query);
-#endif
+
+	if (fts_enable_diag_print) {
+		fts_print_doc_id(query);
+	}
 
 	for (node = rbt_first(query->doc_ids);
 	     node;

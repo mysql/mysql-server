@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -698,7 +698,12 @@ namespace undo {
 		byte*	log_buf = static_cast<byte*>(
 			ut_align(buf, UNIV_PAGE_SIZE));
 
-		os_file_write(log_file_name, handle, log_buf, 0, sz);
+		IORequest	request(IORequest::WRITE);
+
+		request.disable_compression();
+
+		err = os_file_write(
+			request, log_file_name, handle, log_buf, 0, sz);
 
 		os_file_flush(handle);
 		os_file_close(handle);
@@ -706,7 +711,7 @@ namespace undo {
 		ut_free(buf);
 		delete[] log_file_name;
 
-		return(DB_SUCCESS);
+		return(err);
 	}
 
 	/** Mark completion of undo truncate action by writing magic number to
@@ -758,7 +763,14 @@ namespace undo {
 
 		mach_write_to_4(log_buf, undo::s_magic);
 
-		os_file_write(log_file_name, handle, log_buf, 0, sz);
+		IORequest	request(IORequest::WRITE);
+
+		request.disable_compression();
+
+		err = os_file_write(
+			request, log_file_name, handle, log_buf, 0, sz);
+
+		ut_ad(err == DB_SUCCESS);
 
 		os_file_flush(handle);
 		os_file_close(handle);
@@ -788,10 +800,11 @@ namespace undo {
 		os_file_type_t	type;
 		os_file_status(log_file_name, &exist, &type);
 
-		/* Step-3: If file exist, check if for presence of magic number.
-		If found, then simple delete the file and report file
-		doesn't exist as presence of magic number suggest that truncate
-		action was complete. */
+		/* Step-3: If file exists, check it for presence of magic
+		number.  If found, then delete the file and report file
+		doesn't exist as presence of magic number suggest that
+		truncate action was complete. */
+
 		if (exist) {
 			bool    ret;
 			os_file_t	handle =
@@ -818,11 +831,38 @@ namespace undo {
 
 			byte*	log_buf = static_cast<byte*>(
 				ut_align(buf, UNIV_PAGE_SIZE));
-			os_file_read(handle, log_buf, 0, sz);
+
+			IORequest	request(IORequest::READ);
+
+			request.disable_compression();
+
+			dberr_t	err;
+
+			err = os_file_read(request, handle, log_buf, 0, sz);
+
 			os_file_close(handle);
 
+			if (err != DB_SUCCESS) {
+
+				ib::info()
+					<< "Unable to read '"
+					<< log_file_name << "' : "
+					<< ut_strerr(err);
+
+				os_file_delete(
+					innodb_log_file_key, log_file_name);
+
+				ut_free(buf);
+
+				delete[] log_file_name;
+
+				return(false);
+			}
+
 			ulint	magic_no = mach_read_from_4(log_buf);
+
 			ut_free(buf);
+
 			if (magic_no == undo::s_magic) {
 				/* Found magic number. */
 				os_file_delete(innodb_log_file_key,

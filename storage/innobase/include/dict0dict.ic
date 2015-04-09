@@ -1630,4 +1630,33 @@ dict_table_get_curr_table_sess_trx_id(
 	return(table->sess_trx_id);
 }
 
+/** Get reference count.
+@return current value of n_ref_count */
+inline
+ulint
+dict_table_t::get_ref_count() const
+{
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(this));
+	return(n_ref_count);
+}
+
+/** Acquire the table handle. */
+inline
+void
+dict_table_t::acquire()
+{
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(this));
+	++n_ref_count;
+}
+
+/** Release the table handle. */
+inline
+void
+dict_table_t::release()
+{
+	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(this));
+	ut_ad(n_ref_count > 0);
+	--n_ref_count;
+}
+
 #endif /* !UNIV_HOTBACKUP */

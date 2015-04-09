@@ -109,6 +109,11 @@ srv_path_copy(
 	const char*	table_name)	/*!< in: source table name */
 	__attribute__((warn_unused_result));
 
+/**
+Shutdown all background threads created by InnoDB. */
+void
+srv_shutdown_all_bg_threads();
+
 /** Get the meta-data filename from the table name for a
 single-table tablespace.
 @param[in]	table		table object

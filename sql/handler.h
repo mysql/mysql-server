@@ -491,6 +491,9 @@ given at all. */
 */
 #define HA_CREATE_USED_TABLESPACE       (1L << 25)
 
+/** COMPRESS="zlib|lz4|none" used during table create. */
+#define HA_CREATE_USED_COMPRESS         (1L << 26)
+
 /*
   This is master database for most of system tables. However there
   can be other databases which can hold system tables. Respective
@@ -970,6 +973,16 @@ typedef struct st_ha_create_information
   LEX_STRING connect_string;
   const char *password, *tablespace;
   LEX_STRING comment;
+
+  /**
+  Algorithm (and possible options) to be used for InnoDB's transparent
+  page compression. If this attribute is set then it is hint to the
+  storage engine to try and compress the data using the specified algorithm
+  where possible. Note: this value is interpreted by the storage engine only.
+  and ignored by the Server layer. */
+
+  LEX_STRING compress;
+
   const char *data_file_name, *index_file_name;
   const char *alias;
   ulonglong max_rows,min_rows;

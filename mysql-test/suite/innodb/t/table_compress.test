@@ -1,0 +1,175 @@
+--source include/no_valgrind_without_big.inc
+
+--source include/have_innodb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let MYSQLD_DATADIR = `SELECT @@datadir`;
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+# Create a table with ZLib compression
+# Will skip the test if compression is not available
+
+--disable_warnings
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION = "ZLIB" ENGINE = InnoDB;
+let COMPR_ZIP_WARN= `SHOW WARNINGS`;
+--enable_warnings
+perl;
+  use strict;
+  my $no_holes = ($ENV{COMPR_ZIP_WARN} =~ /Punch hole not supported/)? 1 : 0;
+### we do not expect any other warning
+  printf("Unexpected warning: %s\n",$ENV{COMPR_ZIP_WARN})
+    if (not $no_holes and $ENV{COMPR_ZIP_WARN} ne '');
+  open(DHF,">$ENV{'MYSQLD_DATADIR'}/compr.inc");
+  printf DHF "let \$no_holes= %s;\n",$no_holes;
+  close(DHF);
+EOF
+--source $MYSQLD_DATADIR/compr.inc
+--remove_file $MYSQLD_DATADIR/compr.inc
+if ($no_holes)
+{
+  DROP TABLE IF EXISTS t1;
+  eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
+  skip needs DATADIR on fs that supports hole punching, or innodb_page_size is too small;
+}
+
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(1),(2),(3),(4);
+# Force page to disk
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+SELECT * FROM t1;
+
+# Change compression with ALTER TABLE
+ALTER TABLE t1 COMPRESSION = "";
+# Force all pages to the new compression mode
+OPTIMIZE TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+ALTER TABLE t1 COMPRESSION = "ZLIB";
+# Force all pages to the new compression mode
+OPTIMIZE TABLE t1;
+SHOW CREATE TABLE t1;
+
+SELECT NAME, COMPRESSION
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME LIKE '%t1';
+SELECT * FROM t1;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 COMPRESSION = "BLAH";
+SHOW WARNINGS;
+
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 COMPRESSION = "NONE";
+# Force all pages to the new compression mode
+OPTIMIZE TABLE t1;
+SHOW CREATE TABLE t1;
+SELECT NAME, COMPRESSION
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+WHERE NAME LIKE '%t1';
+SELECT * FROM t1;
+
+
+DROP TABLE t1;
+
+--error ER_ILLEGAL_HA
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION = "zlibX" ENGINE = InnoDB;
+SHOW WARNINGS;
+
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE t1;
+
+# Check for too long string
+SET @long_str = REPEAT('ZLIB', 32768);
+SET @s = CONCAT('CREATE TABLE t1(c1 INT) ENGINE=InnoDB, COMPRESSION = "', @long_str, '"');
+
+PREPARE stmt from @s;
+--error ER_WRONG_STRING_LENGTH
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE t1;
+
+SET SESSION innodb_strict_mode = on;
+
+--error ER_ILLEGAL_HA
+CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION = "zlibX" ENGINE = InnoDB;
+SHOW WARNINGS;
+
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 COMPRESSION = "BLAH";
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+SET SESSION innodb_strict_mode = off;
+
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB;
+
+ALTER TABLE t1 COMPRESSION = 'abcdefghijklmnopqrstuvwxyz';
+
+SELECT TABLE_NAME, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA='test' AND TABLE_NAME = 't1';
+
+SELECT NAME, COMPRESSION
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+WHERE NAME LIKE '%t1';
+
+DROP TABLE t1;
+
+# This should work because we have said we don't want transparent compression
+--disable_warnings
+CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='NONE';
+--enable_warnings
+DROP TABLE t1;
+
+SET GLOBAL INNODB_FILE_PER_TABLE = 0;
+
+--error ER_UNSUPPORTED_EXTENSION
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="zlib";
+SHOW WARNINGS;
+
+--error ER_UNSUPPORTED_EXTENSION
+CREATE TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="blah";
+SHOW WARNINGS;
+
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE t1;
+
+--error ER_UNSUPPORTED_EXTENSION
+CREATE TEMPORARY TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="zlib";
+SHOW WARNINGS;
+
+--error ER_UNSUPPORTED_EXTENSION
+CREATE TEMPORARY TABLE t1(C1 INT) ENGINE=InnoDB COMPRESSION="blah";
+SHOW WARNINGS;
+
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE t1;
+
+--error ER_UNSUPPORTED_EXTENSION
+CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='ZLIB';
+
+--error ER_UNSUPPORTED_EXTENSION
+CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='LZ4';
+
+--error ER_UNSUPPORTED_EXTENSION
+CREATE TABLE t1(c1 INT) KEY_BLOCK_SIZE=1 COMPRESSION='BLAH';
+
+eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;

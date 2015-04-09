@@ -349,10 +349,11 @@ row_log_online_op(
 	b += size;
 
 	if (mrec_size >= avail_size) {
+		dberr_t			err;
+		IORequest		request(IORequest::WRITE);
 		const os_offset_t	byte_offset
 			= (os_offset_t) log->tail.blocks
 			* srv_sort_buf_size;
-		ibool			ret;
 
 		if (byte_offset + srv_sort_buf_size >= srv_online_max_size) {
 			goto write_failed;
@@ -365,6 +366,7 @@ row_log_online_op(
 			memcpy(log->tail.block + log->tail.bytes,
 			       log->tail.buf, avail_size);
 		}
+
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 
 		if (row_log_tmpfile(log) < 0) {
@@ -372,12 +374,13 @@ row_log_online_op(
 			goto err_exit;
 		}
 
-		ret = os_file_write(
+		err = os_file_write(
+			request,
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
 			log->tail.block, byte_offset, srv_sort_buf_size);
 		log->tail.blocks++;
-		if (!ret) {
+		if (err != DB_SUCCESS) {
 write_failed:
 			/* We set the flag directly instead of invoking
 			dict_set_corrupted_index_cache_only(index) here,
@@ -464,10 +467,11 @@ row_log_table_close_func(
 	ut_ad(mutex_own(&log->mutex));
 
 	if (size >= avail) {
+		dberr_t			err;
+		IORequest		request(IORequest::WRITE);
 		const os_offset_t	byte_offset
 			= (os_offset_t) log->tail.blocks
 			* srv_sort_buf_size;
-		ibool			ret;
 
 		if (byte_offset + srv_sort_buf_size >= srv_online_max_size) {
 			goto write_failed;
@@ -480,6 +484,7 @@ row_log_table_close_func(
 			memcpy(log->tail.block + log->tail.bytes,
 			       log->tail.buf, avail);
 		}
+
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 
 		if (row_log_tmpfile(log) < 0) {
@@ -487,12 +492,13 @@ row_log_table_close_func(
 			goto err_exit;
 		}
 
-		ret = os_file_write(
+		err = os_file_write(
+			request,
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
 			log->tail.block, byte_offset, srv_sort_buf_size);
 		log->tail.blocks++;
-		if (!ret) {
+		if (err != DB_SUCCESS) {
 write_failed:
 			log->error = DB_ONLINE_LOG_TOO_BIG;
 		}
@@ -2644,7 +2650,6 @@ all_done:
 		}
 	} else {
 		os_offset_t	ofs;
-		ibool		success;
 
 		ofs = (os_offset_t) index->online_log->head.blocks
 			* srv_sort_buf_size;
@@ -2662,14 +2667,19 @@ all_done:
 			goto func_exit;
 		}
 
-		success = os_file_read_no_error_handling(
+		IORequest	request;
+
+		dberr_t	err = os_file_read_no_error_handling(
+			request,
 			OS_FILE_FROM_FD(index->online_log->fd),
 			index->online_log->head.block, ofs,
-			srv_sort_buf_size);
+			srv_sort_buf_size,
+			NULL);
 
-		if (!success) {
-			ib::error() << "Unable to read temporary file"
-				" for table " << index->table->name;
+		if (err != DB_SUCCESS) {
+			ib::error()
+				<< "Unable to read temporary file"
+				" for table " << index->table_name;
 			goto corruption;
 		}
 
@@ -2678,14 +2688,6 @@ all_done:
 		posix_fadvise(index->online_log->fd,
 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
-#if 0 //def FALLOC_FL_PUNCH_HOLE
-		/* Try to deallocate the space for the file on disk.
-		This should work on ext4 on Linux 2.6.39 and later,
-		and be ignored when the operation is unsupported. */
-		fallocate(index->online_log->fd,
-			  FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-			  ofs, srv_buf_size);
-#endif /* FALLOC_FL_PUNCH_HOLE */
 
 		next_mrec = index->online_log->head.block;
 		next_mrec_end = next_mrec + srv_sort_buf_size;
@@ -3483,7 +3485,6 @@ all_done:
 		}
 	} else {
 		os_offset_t	ofs;
-		ibool		success;
 
 		ofs = (os_offset_t) index->online_log->head.blocks
 			* srv_sort_buf_size;
@@ -3499,13 +3500,18 @@ all_done:
 			goto func_exit;
 		}
 
-		success = os_file_read_no_error_handling(
+		IORequest	request;
+
+		dberr_t	err = os_file_read_no_error_handling(
+			request,
 			OS_FILE_FROM_FD(index->online_log->fd),
 			index->online_log->head.block, ofs,
-			srv_sort_buf_size);
+			srv_sort_buf_size,
+			NULL);
 
-		if (!success) {
-			ib::error() << "Unable to read temporary file"
+		if (err != DB_SUCCESS) {
+			ib::error()
+				<< "Unable to read temporary file"
 				" for index " << index->name;
 			goto corruption;
 		}
@@ -3515,14 +3521,6 @@ all_done:
 		posix_fadvise(index->online_log->fd,
 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
-#if 0 //def FALLOC_FL_PUNCH_HOLE
-		/* Try to deallocate the space for the file on disk.
-		This should work on ext4 on Linux 2.6.39 and later,
-		and be ignored when the operation is unsupported. */
-		fallocate(index->online_log->fd,
-			  FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-			  ofs, srv_buf_size);
-#endif /* FALLOC_FL_PUNCH_HOLE */
 
 		next_mrec = index->online_log->head.block;
 		next_mrec_end = next_mrec + srv_sort_buf_size;

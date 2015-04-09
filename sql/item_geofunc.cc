@@ -1616,7 +1616,7 @@ String *Item_func_make_envelope::val_str(String *str)
 
 Field::geometry_type Item_func_envelope::get_geometry_type() const
 {
-  return Field::GEOM_POLYGON;
+  return Field::GEOM_GEOMETRY;
 }
 
 
@@ -1630,15 +1630,12 @@ String *Item_func_envelope::val_str(String *str)
   uint32 srid;
 
   if ((null_value= (!swkb || args[0]->null_value)))
-    return 0;
-  if (!(geom= Geometry::construct(&buffer, swkb)))
   {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_str();
+    DBUG_ASSERT(!swkb && args[0]->null_value);
+    return NULL;
   }
 
-  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
-      geom->normalize_ring_order() == NULL)
+  if (!(geom= Geometry::construct(&buffer, swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -1648,9 +1645,15 @@ String *Item_func_envelope::val_str(String *str)
   str->set_charset(&my_charset_bin);
   str->length(0);
   if (str->reserve(SRID_SIZE, 512))
-    return 0;
+    return error_str();
   str->q_append(srid);
-  return (null_value= geom->envelope(str)) ? 0 : str;
+  if ((null_value= geom->envelope(str)))
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  return str;
 }
 
 

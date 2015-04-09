@@ -421,6 +421,7 @@ THD::THD(bool enable_plugins)
    current_cond(NULL),
    in_sub_stmt(0),
    fill_status_recursion_level(0),
+   fill_variables_recursion_level(0),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
@@ -1121,7 +1122,7 @@ void THD::release_resources()
 #endif
 
   /* modification plan for UPDATE/DELETE should be freed. */
-  DBUG_ASSERT(!query_plan.get_plan());
+  DBUG_ASSERT(query_plan.get_modification_plan() == NULL);
   mysql_mutex_unlock(&LOCK_query_plan);
   mysql_mutex_unlock(&LOCK_thd_data);
   mysql_mutex_lock(&LOCK_thd_query);
@@ -1495,7 +1496,6 @@ void THD::cleanup_after_query()
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
     binlog_accessed_db_names= NULL;
-    m_trans_fixed_log_file= NULL;
 
     /*
       Strictly speaking this is only needed when GTID_MODE!=OFF.
@@ -1518,6 +1518,14 @@ void THD::cleanup_after_query()
       auto_inc_intervals_forced.empty();
 #endif
   }
+
+  /*
+    In case of stored procedures, stored functions, triggers and events
+    m_trans_fixed_log_file will not be set to NULL. The memory will be reused.
+  */
+  if (!sp_runtime_ctx)
+    m_trans_fixed_log_file= NULL;
+
   /*
     Forget the binlog stmt filter for the next query.
     There are some code paths that:
@@ -2971,16 +2979,41 @@ void THD::time_out_user_resource_limits()
 }
 
 
+#ifndef DBUG_OFF
+void THD::Query_plan::assert_plan_is_locked_if_other() const
+{
+  if (current_thd != thd)
+    mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+}
+#endif
+
 void THD::Query_plan::set_query_plan(enum_sql_command sql_cmd,
                                      LEX *lex_arg, bool ps)
 {
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+  DBUG_ASSERT(current_thd == thd);
+
+  // No need to grab mutex for repeated (SQLCOM_END, NULL, false).
+  if (sql_command == sql_cmd &&
+      lex == lex_arg &&
+      is_ps == ps)
+  {
+    return;
+  }
+
+  thd->lock_query_plan();
   sql_command= sql_cmd;
   lex= lex_arg;
   is_ps= ps;
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  thd->unlock_query_plan();
 }
 
+
+void THD::Query_plan::set_modification_plan(Modification_plan *plan_arg)
+{
+  DBUG_ASSERT(current_thd == thd);
+  mysql_mutex_assert_owner(&thd->LOCK_query_plan);
+  modification_plan= plan_arg;
+}
 
 /**
   Push an error message into MySQL diagnostic area with line

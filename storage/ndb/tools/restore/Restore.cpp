@@ -321,11 +321,25 @@ RestoreMetaData::readMetaTableList() {
   const Uint32 tabCount = sectionInfo[1] - 2;
 
   void *tmp;
-  if (buffer_get_ptr(&tmp, 4, tabCount) != tabCount){
-    err << "readMetaTableList read tabCount error" << endl;
+  Uint32 tabsRead = 0;
+  while (tabsRead < tabCount){
+    int count = buffer_get_ptr(&tmp, 4, tabCount - tabsRead);
+    if(count == 0)
+      break;
+    tabsRead += count;
+  }
+  if (tabsRead != tabCount){
+    err << "readMetaTableList read tabCount error, expected count = " << tabCount << ", actual count =" << tabsRead << endl;
     return 0;
   }
-  
+#ifdef ERROR_INSERT
+  if(m_error_insert == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
+  {
+    // clear error insert
+    m_error_insert = 0;
+    m_buffer_sz = 64*1024;
+  }
+#endif  
   return tabCount;
 }
 
@@ -1328,6 +1342,9 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_file_size = 0;
   m_file_pos = 0;
   m_is_undolog = false;
+#ifdef ERROR_INSERT
+  m_error_insert = 0;
+#endif
 }
 
 BackupFile::~BackupFile()
@@ -1671,6 +1688,20 @@ BackupFile::validateFooter(){
   return true;
 }
 
+#ifdef ERROR_INSERT
+void BackupFile::error_insert(unsigned int code)
+{
+  if(code == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
+  {
+    // Reduce size of buffer to test buffer overflow
+    // handling. The buffer must still be large enough to
+    // accommodate the file header.
+    m_buffer_sz = 256;
+    m_error_insert = NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER;
+  }
+}
+#endif
+
 bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
 {
   BackupFormat::DataFile::FragmentHeader Header;
@@ -1774,6 +1805,7 @@ AttributeDesc::AttributeDesc(NdbDictionary::Column *c)
   size = 8*NdbColumnImpl::getImpl(* c).m_attrSize;
   arraySize = NdbColumnImpl::getImpl(* c).m_arraySize;
   staging = false;
+  parameterSz = 0;
 }
 
 void TableS::createAttr(NdbDictionary::Column *column)
@@ -2026,13 +2058,15 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     attr->Desc = tab->getAttributeDesc(ah->getAttributeId());
     assert(attr->Desc != 0);
 
-    const Uint32 sz = ah->getDataSize();
+    const Uint32 sz = ah->getByteSize();
     if(sz == 0){
       attr->Data.null = true;
       attr->Data.void_value = NULL;
+      attr->Data.size = 0;
     } else {
       attr->Data.null = false;
       attr->Data.void_value = ah->getDataPtr();
+      attr->Data.size = sz;
       Twiddle(attr->Desc, &(attr->Data));
     }
     
@@ -2058,8 +2092,16 @@ operator<<(NdbOut& ndbout, const AttributeS& attr){
   
   NdbRecAttr tmprec(0);
   tmprec.setup(desc.m_column, 0);
-  Uint32 length = (desc.size)/8 * (desc.arraySize);
-  tmprec.receive_data((Uint32*)data.void_value, length);
+
+  assert(desc.size % 8 == 0);
+#ifndef NDEBUG
+  const Uint32 length = (desc.size)/8 * (desc.arraySize);
+#endif
+  assert((desc.m_column->getArrayType() == NdbDictionary::Column::ArrayTypeFixed)
+         ? (data.size == length)
+         : (data.size <= length));
+
+  tmprec.receive_data((Uint32*)data.void_value, data.size);
 
   ndbrecattr_print_formatted(ndbout, tmprec, g_ndbrecord_print_format);
 

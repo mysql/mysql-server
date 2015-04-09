@@ -2394,10 +2394,12 @@ join_init_quick_read_record(QEP_TAB *tab)
   */
 
   DEBUG_SYNC(thd, "quick_created_before_mutex");
-  mysql_mutex_lock(&thd->LOCK_query_plan);
+
+  thd->lock_query_plan();
   tab->set_type(qck ? calc_join_type(qck->get_type()) : JT_ALL);
   tab->set_quick_optim();
-  mysql_mutex_unlock(&thd->LOCK_query_plan);
+  thd->unlock_query_plan();
+
   delete old_qck;
   DEBUG_SYNC(thd, "quick_droped_after_mutex");
 

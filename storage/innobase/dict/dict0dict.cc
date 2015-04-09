@@ -441,12 +441,12 @@ dict_table_try_drop_aborted(
 		ut_ad(table->id == table_id);
 	}
 
-	if (table && table->n_ref_count == ref_count && table->drop_aborted) {
+	if (table && table->get_ref_count() == ref_count && table->drop_aborted) {
 		/* Silence a debug assertion in row_merge_drop_indexes(). */
-		ut_d(table->n_ref_count++);
+		ut_d(table->acquire());
 		row_merge_drop_indexes(trx, table, TRUE);
-		ut_d(table->n_ref_count--);
-		ut_ad(table->n_ref_count == ref_count);
+		ut_d(table->release());
+		ut_ad(table->get_ref_count() == ref_count);
 		trx_commit_for_mysql(trx);
 	}
 
@@ -470,7 +470,7 @@ dict_table_try_drop_aborted_and_mutex_exit(
 	if (try_drop
 	    && table != NULL
 	    && table->drop_aborted
-	    && table->n_ref_count == 1
+	    && table->get_ref_count() == 1
 	    && dict_table_get_first_index(table)) {
 
 		/* Attempt to drop the indexes whose online creation
@@ -501,9 +501,9 @@ dict_table_close(
 	}
 
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
-	ut_a(table->n_ref_count > 0);
+	ut_a(table->get_ref_count() > 0);
 
-	--table->n_ref_count;
+	table->release();
 
 	/* Intrinsic table is not added to dictionary cache so skip other
 	cache specific actions. */
@@ -517,7 +517,7 @@ dict_table_close(
 	only if table reference count is 0 because we do not want too frequent
 	stats re-reads (e.g. in other cases than FLUSH TABLE). */
 	if (strchr(table->name.m_name, '/') != NULL
-	    && table->n_ref_count == 0
+	    && table->get_ref_count() == 0
 	    && dict_stats_is_persistent_enabled(table)) {
 
 		dict_stats_deinit(table);
@@ -541,7 +541,7 @@ dict_table_close(
 
 		drop_aborted = try_drop
 			&& table->drop_aborted
-			&& table->n_ref_count == 1
+			&& table->get_ref_count() == 1
 			&& dict_table_get_first_index(table);
 
 		mutex_exit(&dict_sys->mutex);
@@ -952,7 +952,7 @@ dict_table_open_on_id(
 			dict_move_to_mru(table);
 		}
 
-		++table->n_ref_count;
+		table->acquire();
 
 		MONITOR_INC(MONITOR_TABLE_REFERENCE);
 	}
@@ -1125,7 +1125,7 @@ dict_table_open_on_name(
 			dict_move_to_mru(table);
 		}
 
-		++table->n_ref_count;
+		table->acquire();
 
 		MONITOR_INC(MONITOR_TABLE_REFERENCE);
 	}
@@ -1320,7 +1320,7 @@ dict_table_can_be_evicted(
 	ut_a(table->foreign_set.empty());
 	ut_a(table->referenced_set.empty());
 
-	if (table->n_ref_count == 0) {
+	if (table->get_ref_count() == 0) {
 		dict_index_t*	index;
 
 		/* The transaction commit and rollback are called from
@@ -1966,7 +1966,7 @@ dict_table_remove_from_cache_low(
 
 	ut_ad(table);
 	ut_ad(dict_lru_validate());
-	ut_a(table->n_ref_count == 0);
+	ut_a(table->get_ref_count() == 0);
 	ut_a(table->n_rec_locks == 0);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -2029,10 +2029,10 @@ dict_table_remove_from_cache_low(
 		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 		/* Silence a debug assertion in row_merge_drop_indexes(). */
-		ut_d(table->n_ref_count++);
+		ut_d(table->acquire());
 		row_merge_drop_indexes(trx, table, TRUE);
-		ut_d(table->n_ref_count--);
-		ut_ad(table->n_ref_count == 0);
+		ut_d(table->release());
+		ut_ad(table->get_ref_count() == 0);
 		trx_commit_for_mysql(trx);
 		trx->dict_operation_lock_mode = 0;
 		trx_free_for_background(trx);

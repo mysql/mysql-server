@@ -866,7 +866,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (validate_default_values_of_unset_fields(thd, table))
     {
-      read_info.error= 1;
+      read_info.error= true;
       break;
     }
 
@@ -1023,7 +1023,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (validate_default_values_of_unset_fields(thd, table))
     {
-      read_info.error= 1;
+      read_info.error= true;
       break;
     }
 
@@ -1115,7 +1115,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->is_error())
-      read_info.error= 1;
+      read_info.error= true;
 
     if (read_info.error)
       break;
@@ -1287,7 +1287,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (validate_default_values_of_unset_fields(thd, table))
     {
-      read_info.error= 1;
+      read_info.error= true;
       break;
     }
     
@@ -1497,8 +1497,8 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
   if (!(buffer=(uchar*) my_malloc(key_memory_READ_INFO,
-                                  buff_length+1,MYF(0))))
-    error=1; /* purecov: inspected */
+                                  buff_length+1, MYF(MY_WME))))
+    error= true; /* purecov: inspected */
   else
   {
     end_of_buff=buffer+buff_length;
@@ -1509,7 +1509,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
     {
       my_free(buffer); /* purecov: inspected */
       buffer= NULL;
-      error=1;
+      error= true;
     }
     else
     {
@@ -1715,7 +1715,10 @@ int READ_INFO::read_field()
       GET_MBCHARLEN(read_charset, chr, ml);
       if (ml == 0)
       {
-        error= 1;
+        *to= '\0';
+        my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+                 read_charset->csname, buffer);
+        error= true;
         return 1;
       }
 
@@ -1748,6 +1751,12 @@ int READ_INFO::read_field()
           PUSH(*--to);
         chr= GET;
       }
+      else if (ml > 1)
+      {
+        // Buffer is too small, exit while loop, and reallocate.
+        PUSH(chr);
+        break;
+      }
       *to++ = (uchar) chr;
     }
     /*
@@ -1756,7 +1765,7 @@ int READ_INFO::read_field()
     if (!(new_buffer=(uchar*) my_realloc(key_memory_READ_INFO,
                                          (char*) buffer,buff_length+1+IO_SIZE,
 					MYF(MY_WME))))
-      return (error=1);
+      return (error= true);
     to=new_buffer + (to-buffer);
     buffer=new_buffer;
     buff_length+=IO_SIZE;

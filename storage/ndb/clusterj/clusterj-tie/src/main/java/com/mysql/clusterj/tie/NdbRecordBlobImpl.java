@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,6 +52,33 @@ class NdbRecordBlobImpl extends BlobImpl {
         this.operation = operation;
     }
 
+    /** Copy the data and column from the other NdbRecordBlobImpl but replace the operation.
+     * This constructor is used for scans to copy the data to the newly created NdbRecordOperation.
+     * While scanning, the operation used to fetch the blob data is the scan operation. But the
+     * operation for the new NdbRecordBlobImpl is a new operation that is not currently bound to
+     * an NdbOperation. Subsequent use of the blob will require a new NdbBlob with the NdbOperation.
+     * @param operation the new operation that is not connected to the database
+     * @param ndbRecordBlobImpl2 the other NdbRecordBlobImpl that is connected to the database
+     */
+    public NdbRecordBlobImpl(NdbRecordOperationImpl operation, NdbRecordBlobImpl ndbRecordBlobImpl2) {
+        this.operation = operation;
+        this.storeColumn = ndbRecordBlobImpl2.storeColumn;
+        this.data = ndbRecordBlobImpl2.data;
+    }
+
+    /** Release any resources associated with this object.
+     * This method is called by the owner of this object.
+     */
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("NdbRecordBlobImpl.release");
+        this.data = null;
+        this.operation = null;
+    }
+
+    public int getColumnId() {
+        return storeColumn.getColumnId();
+    }
+
     protected void setNdbBlob() {
         this.ndbBlob = operation.getNdbBlob(storeColumn);
     }
@@ -81,6 +108,9 @@ class NdbRecordBlobImpl extends BlobImpl {
      */
     public void readData() {
         int length = getLength().intValue();
+        if (logger.isDetailEnabled()) {
+            logger.detail("reading: " + length + " bytes.");
+        }
         data = new byte[length];
         readData(data, length);
     }

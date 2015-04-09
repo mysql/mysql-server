@@ -2665,3 +2665,59 @@ ALTER TABLE t TABLESPACE s;
 --echo # Drop table and tablespace.
 DROP TABLE t;
 DROP TABLESPACE s ENGINE InnoDB;
+
+--echo #
+--echo # Bug#20279241 - ALTER TABLE ... CHARACTER SET UTF8, CONVERT TO
+--echo #                CHARACTER SET LATIN1 SHOULD FAIL
+--echo #
+
+CREATE TABLE t1 (f1 INT);
+
+--echo # Case 1: Alter table with CHARACTER SET X, CHARACTER SET X
+--echo #         ALTER table operation should pass.
+ALTER TABLE t1 CHARACTER SET utf8, CHARACTER SET utf8;
+
+--echo # Case 2: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET X
+--echo #         ALTER table operation should pass.
+ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+
+--echo # Case 3: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET X
+--echo #         ALTER table operation should pass.
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET utf8;
+
+--echo # Case 4: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET X
+--echo #         ALTER table operation should pass.
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+
+--echo # Case 5: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y
+--echo #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+--error ER_CONFLICTING_DECLARATIONS
+ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+
+--echo # Case 6: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET Y
+--echo #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+--error ER_CONFLICTING_DECLARATIONS
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET latin1;
+
+--echo # Case 7: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET Y
+--echo #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+--error ER_CONFLICTING_DECLARATIONS
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+
+--echo # Case 8: Alter table with CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
+--echo #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+--error ER_COLLATION_CHARSET_MISMATCH
+ALTER TABLE t1 CHARACTER SET utf8 COLLATE latin1_danish_ci;
+
+--echo # Case 9: Alter table with CONVERT TO CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
+--echo #         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+--error ER_COLLATION_CHARSET_MISMATCH
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+
+--echo # Case 10: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y COLLATE INCORRECT_COLLATION_NAME
+--echo #          Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+--error ER_COLLATION_CHARSET_MISMATCH
+ALTER TABLE t1 CHARACTER SET latin1, CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+
+# Clean-up
+DROP TABLE t1;
