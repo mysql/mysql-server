@@ -14,12 +14,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sp_head.h"
 #include "event_parse_data.h"
-#include "sql_time.h"                           // TIME_to_timestamp
+
+#include "derror.h"                             // ER_THD
 #include "item_timefunc.h"                      // get_interval_value
 #include "mysqld.h"                             // server_id
-#include "derror.h"
+#include "sp_head.h"                            // sp_name
+#include "sql_class.h"                          // THD
+#include "sql_time.h"                           // TIME_to_timestamp
+
 
 /*
   Returns a new instance

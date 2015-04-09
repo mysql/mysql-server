@@ -13,11 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "opt_trace.h"
 #include "opt_explain_json.h"
-#include "current_thd.h"
-#include "sql_class.h"
-#include "query_result.h"
+
+#include "current_thd.h"            // current_thd
+#include "opt_trace.h"              // Opt_trace_object
+#include "opt_trace_context.h"      // Opt_trace_context
+#include "query_result.h"           // Query_result
+#include "protocol.h"               // Protocol
+#include "sql_class.h"              // THD
+
 
 /**
   Property names, former parts of traditional "extra" column

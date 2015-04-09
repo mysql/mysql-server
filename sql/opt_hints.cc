@@ -13,10 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "parse_tree_hints.h"
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "derror.h"
+#include "opt_hints.h"
+
+#include "derror.h"        // ER_THD
+#include "sql_class.h"     // THD
+#include "sql_error.h"     // Sql_condition
 
 /**
   Information about hints. Sould be

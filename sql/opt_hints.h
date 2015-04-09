@@ -21,16 +21,15 @@
 #ifndef OPT_HINTS_INCLUDED
 #define OPT_HINTS_INCLUDED
 
-#include "my_config.h"
-#include "parse_tree_node_base.h"
-#include "sql_alloc.h"
-#include "sql_list.h"
-#include "mem_root_array.h"
-#include "sql_string.h"
-#include "sql_bitmap.h"
-#include "sql_show.h"
-#include "item_subselect.h"
+#include "my_global.h"
+#include "item_subselect.h" // Item_exists_subselect
+#include "mem_root_array.h" // Mem_root_array
+#include "sql_alloc.h"      // Sql_alloc
+#include "sql_bitmap.h"     // Bitmap
+#include "sql_show.h"       // append_identifier
+#include "sql_string.h"     // String
 
+class Opt_hints_table;
 struct LEX;
 struct TABLE;
 

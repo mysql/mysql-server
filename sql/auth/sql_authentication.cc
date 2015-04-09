@@ -13,25 +13,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_base.h"                   /* close_mysql_tables */
-#include "sql_parse.h"                  /* check_access */
-#include "log.h"                        /* sql_print_warning, query_logger */
-#include <sql_common.h>                 /* mpvio_info */
-#include "sql_connect.h"                /* thd_init_client_charset */
-                                        /* get_or_create_user_conn */
-                                        /* check_for_max_user_connections */
-                                        /* release_user_connection */
-#include "hostname.h"                   /* Host_errors, inc_host_errors */
-#include "password.h"                 // my_make_scrambled_password
-#include "sql_db.h"                     /* mysql_change_db */
-#include "connection_handler_manager.h"
-#include "crypt_genhash_impl.h"         /* generate_user_salt */
-#include <mysql/plugin_validate_password.h> /* validate_password plugin */
-#include <mysql/service_my_plugin_log.h>
-#include "sys_vars.h"
-#include "current_thd.h"
-#include "psi_memory_key.h"
-#include "derror.h"
+#include "sql_authentication.h"
+
+#include "crypt_genhash_impl.h"         // generate_user_salt
+#include "mutex_lock.h"                 // Mutex_lock
+#include "password.h"                   // my_make_scrambled_password
+#include "sql_common.h"                 // mpvio_info
+#include "auth_internal.h"              // optimize_plugin_compare_by_pointer
+#include "connection_handler_manager.h" // Connection_handler_manager
+#include "current_thd.h"                // current_thd
+#include "derror.h"                     // ER_THD
+#include "hostname.h"                   // Host_errors, inc_host_errors
+#include "log.h"                        // sql_print_warning, query_logger
+#include "mysqld.h"                     // global_system_variables
+#include "psi_memory_key.h"             // key_memory_MPVIO_EXT_auth_info
+#include "read_write_lock.h"            // Write_lock, Read_lock, lock_at
+#include "sql_auth_cache.h"             // acl_cache
+#include "sql_class.h"                  // THD
+#include "sql_connect.h"                // thd_init_client_charset
+#include "sql_db.h"                     // mysql_change_db
+#include "sql_plugin.h"                 // my_plugin_lock_by_name
+#include "sql_time.h"                   // Interval
+#include "tztime.h"                     // Time_zone
 
 #include <fstream>                      /* std::fstream */
 #include <string>                       /* std::string */
@@ -46,12 +49,6 @@
 #include <openssl/err.h>
 #endif /* HAVE OPENSSL && !HAVE_YASSL */
 
-#include "auth_internal.h"
-#include "sql_auth_cache.h"
-#include "sql_authentication.h"
-#include "tztime.h"
-#include "sql_time.h"
-#include <mutex_lock.h>
 
 /****************************************************************************
    AUTHENTICATION CODE

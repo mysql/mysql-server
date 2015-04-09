@@ -18,8 +18,8 @@
 
 #include "my_global.h"
 #include "auth/sql_security_ctx.h"  // Security_context
-#include "handler.h"                // ha_commit_low
 
+struct TABLE_LIST;
 typedef ulonglong my_xid;
 
 #define TC_LOG_PAGE_SIZE   8192
@@ -102,15 +102,9 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  enum_result commit(THD *thd, bool all) {
-    return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
-  }
-  int rollback(THD *thd, bool all) {
-    return ha_rollback_low(thd, all);
-  }
-  int prepare(THD *thd, bool all) {
-    return ha_prepare_low(thd, all);
-  }
+  enum_result commit(THD *thd, bool all);
+  int rollback(THD *thd, bool all);
+  int prepare(THD *thd, bool all);
 };
 
 class TC_LOG_MMAP: public TC_LOG
@@ -165,8 +159,8 @@ public:
   int open(const char *opt_name);
   void close();
   enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
-  int prepare(THD *thd, bool all)       { return ha_prepare_low(thd, all); }
+  int rollback(THD *thd, bool all);
+  int prepare(THD *thd, bool all);
   int recover();
   uint size() const;
 

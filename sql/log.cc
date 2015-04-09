@@ -2014,6 +2014,24 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
 }
 
 
+TC_LOG::enum_result TC_LOG_DUMMY::commit(THD *thd, bool all)
+{
+  return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
+}
+
+
+int TC_LOG_DUMMY::rollback(THD *thd, bool all)
+{
+  return ha_rollback_low(thd, all);
+}
+
+
+int TC_LOG_DUMMY::prepare(THD *thd, bool all)
+{
+  return ha_prepare_low(thd, all);
+}
+
+
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
 
 /*
@@ -2277,6 +2295,18 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
     unlog(cookie, xid);
 
   DBUG_RETURN(RESULT_SUCCESS);
+}
+
+
+int TC_LOG_MMAP::rollback(THD *thd, bool all)
+{
+  return ha_rollback_low(thd, all);
+}
+
+
+int TC_LOG_MMAP::prepare(THD *thd, bool all)
+{
+  return ha_prepare_low(thd, all);
 }
 
 

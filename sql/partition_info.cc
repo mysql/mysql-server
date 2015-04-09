@@ -15,8 +15,6 @@
 
 /* Some general useful functions */
 
-// Required to get server definitions for mysql/plugin.h right
-#include "sql_plugin.h"
 #include "partition_info.h"                   // LIST_PART_ENTRY
                                               // NOT_A_PARTITION_ID
 #include "sql_parse.h"                        // test_if_data_home_dir

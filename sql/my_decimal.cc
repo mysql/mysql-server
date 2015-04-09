@@ -13,16 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
-#include <time.h>
+#include "my_decimal.h"
 
-#ifndef MYSQL_CLIENT
-#include "sql_class.h"                          // THD
-#include "current_thd.h"
-#include "derror.h"
-#endif
+#include "my_time.h"                            // TIME_to_ulonglong_date
+#include "mysql_time.h"                         // MYSQL_TIME
+#include "current_thd.h"                        // current_thd
+#include "derror.h"                             // ER_THD
+#include "field.h"                              // my_charset_numeric
+#include "mysqld_error.h"                       // ER_*
+#include "sql_error.h"                          // Sql_condition
 
-#ifndef MYSQL_CLIENT
+
 /**
    report result of decimal operation.
 
@@ -400,6 +401,3 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val)
 }
 
 #endif /*DBUG_OFF*/
-
-
-#endif /*MYSQL_CLIENT*/

@@ -14,9 +14,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "sql_string.h"
 #include "gcalc_slicescan.h"
-#include "psi_memory_key.h"
+#include "my_sys.h"                    // ALLOC_ROOT_MIN_BLOCK_SIZE
+#include "mysql/service_my_snprintf.h" // my_snprintf
+#include "psi_memory_key.h"            // key_memory_Gcalc_dyn_list_block
 
 
 #define PH_DATA_OFFSET 8
