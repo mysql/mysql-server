@@ -1994,7 +1994,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
 
 Field::geometry_type Item_func_convex_hull::get_geometry_type() const
 {
-  return Field::GEOM_POLYGON;
+  return Field::GEOM_GEOMETRY;
 }
 
 String *Item_func_convex_hull::val_str(String *str)
