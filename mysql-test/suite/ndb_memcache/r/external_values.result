@@ -1,3 +1,23 @@
+Testing ascii protocol
+Passed t1 .. t4
+Passed t5 .. t8
+Passed t9 .. t10
+Passed t11 .. t15
+Passed t16 .. t25
+Passed t26 .. t30
+Passed t31 .. t47
+Passed APPEND stress test
+Passed PREPEND stress test
+Testing binary protocol
+Passed t1 .. t4
+Passed t5 .. t8
+Passed t9 .. t10
+Passed t11 .. t15
+Passed t16 .. t25
+Passed t26 .. t30
+Passed t31 .. t47
+Passed APPEND stress test
+Passed PREPEND stress test
 USE ndbmemcache;
 SELECT mkey, string_value, ext_size, SUM(length(content)) AS total_parts
 FROM demo_table_large t1
