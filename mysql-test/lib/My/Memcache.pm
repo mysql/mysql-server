@@ -66,6 +66,7 @@ use IO::Socket::INET;
 use IO::File;
 use Carp;
 use Time::HiRes;
+use Errno qw( EWOULDBLOCK );
 
 ######## Memcache Result
 
@@ -90,11 +91,13 @@ package My::Memcache;
 sub new {
   my $pkg = shift;
   # min/max wait refer to msec. wait during temporary errors.  Both powers of 2.
+  # _timeout values are in seconds (possibly fractional)
   bless { "created" => 1 , "error" => "OK" , "cf_gen" => 0,
           "req_id" => 0, "min_wait" => 4,  "max_wait" => 8192, 
           "temp_errors" => 0 , "total_wait" => 0, "has_cas" => 0,
           "flags" => 0, "exptime" => 0, "get_results" => undef,
-          "get_with_cas" => 0, "already_failed" => 0, "last_get_len" => "unset"
+          "get_with_cas" => 0, "already_failed" => 0, "last_get_len" => "unset",
+          "read_timeout" => 4, "write_timeout" => .5, "sysread_size" => 512
         }, $pkg;
 }
 
@@ -141,8 +144,12 @@ sub connect {
   } while($retries && !$conn);
 
   if($conn) {
+    $conn->blocking(0);    # Set non-blocking
+    my $fd = fileno $conn;
+    my $fdset = '';
+    vec($fdset, $fd, 1) = 1;
+    $self->{fdset} = $fdset;
     $self->{connection} = $conn;
-    $self->{connected} = 1;
     $self->{server} = "$host:$port";
     return 1;
   }
@@ -249,6 +256,50 @@ sub wait_for_config_generation {
 }
 
 #  -----------------------------------------------------------------------
+#  --------------        Low-level Network Handling        ---------------
+#  -----------------------------------------------------------------------
+
+sub socket_error {
+  my $self = shift;
+  my $retval = shift;
+  if($retval == 1) {
+    $self->{error} = "CONNECTION_CLOSED";
+  } elsif($retval == 0) {
+    $self->{error} = "NETWORK_TIMEOUT";
+  } else {
+    $self->{error} = "NETWORK_ERROR: " . $!;
+  }
+print "CLOSING (" . $self->{error} .")\n";
+  $self->{connection}->close();
+  return $self->{error};
+}
+
+sub write {
+print("write\n");
+  my $self = shift;
+  my $packet = shift;
+  my $len = length($packet);
+  my $nsent = 0;
+  my $r;
+
+  if(! $self->{connection}->connected()) {
+    return $self->socket_error(0);
+  }
+
+  while($nsent < $len) {
+    $r = select(undef, $self->{fdset}, undef, $self->{write_timeout});
+    return $self->socket_error($r) if($r < 1);
+    $r = $self->{connection}->send(substr($packet, $nsent));
+    if($r > 0) {
+      $nsent += $r;
+    } elsif($! != Errno::EWOULDBLOCK) {
+      return $self->socket_error($r);
+    }
+  }
+}
+
+
+#  -----------------------------------------------------------------------
 #  ------------------          ASCII PROTOCOL         --------------------
 #  -----------------------------------------------------------------------
 
@@ -256,20 +307,40 @@ sub protocol {
   return "ascii";
 }
 
+sub read_ascii_response {
+print("read\n");
+  my $self = shift;
+  my $message = "";
+  my $nread = 0;
+  my $r;
+
+  while(rindex($message, "END\r\n") + 5 != length($message)) {
+    $r = select($self->{fdset}, undef, undef, $self->{read_timeout});
+    return $self->socket_error($r) if($r < 1);
+    $r = $self->{connection}->sysread($message, $self->{sysread_size}, $nread);
+    if($r > 0) {
+      $nread += $r;
+    } elsif($! != Errno::EWOULDBLOCK) {
+      return $self->socket_error( $r == 0 ? 1 : $r);
+    }
+  }
+  $self->normalize_error($message);  # To handle errors returned from the server
+print("done\n");
+  return $message;
+}
+
 
 sub ascii_command {
   my $self = shift;
   my $packet = shift;
-  my $sock = $self->{connection};
   my $waitTime = $self->{min_wait};
   my $maxWait = $self->{max_wait};
   my $reply;
   
   do {
     $self->new_request();
-    $sock->print($packet) || Carp::confess("send error: ". $packet);
-    $reply = $sock->getline();
-    $self->normalize_error($reply);
+    $self->write($packet);
+    $reply = $self->read_ascii_response();
     if($self->{error} eq "SERVER_TEMPORARY_ERROR") {
       if($waitTime < $maxWait) {
         $self->{temp_errors} += 1;
@@ -281,7 +352,7 @@ sub ascii_command {
       }
     }
   } while($self->{error} eq "SERVER_TEMPORARY_ERROR" && $waitTime <= $maxWait);
-    
+
   return $reply;
 }
 
@@ -345,23 +416,24 @@ sub replace {
 
 sub get {
   my $self = shift;
+  my @results;
   my $keys = "";
   $keys .= shift(@_) . " " while(@_);
-  my $sock = $self->{connection};
-  my @results;
   my $command = $self->{get_with_cas} ? "gets" : "get";
   $self->{get_with_cas} = 0; # CHECK, THEN RESET FOR NEXT CALL
   my $response = $self->ascii_command("$command $keys\r\n");
-  while ($response ne "END\r\n") 
+  my ($line, $unconsumed) = split("\r\n", $response, 2);
+  while ($line ne "END")
   {
-    $response =~ /^VALUE (\S+) (\d+) (\d+) ?(\d+)?/;
+    $line =~ /^VALUE (\S+) (\d+) (\d+) ?(\d+)?/;
     my $result = My::Memcache::Result->new($1, $2, $4);
+    my $value = substr($unconsumed, 0, $3);
+    $result->{value} = $value;
     $self->{last_get_len} = $3;
-    $sock->read($result->{value}, $3);
     $self->{has_cas} = 1 if($4);
     push @results, $result;
-    $sock->getline();  # \r\n after value
-    $response = $sock->getline();
+    $unconsumed = substr($unconsumed, $3 + 2);  # \r\n after value
+    ($line, $unconsumed) = split("\r\n", $unconsumed, 2);
   }
   $self->{get_results} = \@results;
   return $results[0]->{value} if @results;
@@ -375,7 +447,6 @@ sub _txt_math {
   my $response = $self->ascii_command("$cmd $key $delta \r\n");
   
   if ($response =~ "^NOT_FOUND" || $response =~ "ERROR") {
-    $self->normalize_error($response);
     return undef;
   }
 
@@ -521,7 +592,11 @@ sub send_binary_request {
                     $self->{req_id}, $cas_hi, $cas_lo);
   my $packet = $header . $extra_header . $key . $val;
 
-  $sock->send($packet) || Carp::confess "send failed";
+  if($self->wait_writable()) {
+    $sock->send($packet) || Carp::confess "send failed";
+  } else {
+    $self->{connected} = 0;
+  }
 }
 
 
@@ -532,7 +607,13 @@ sub get_binary_response {
   my $header;
   my $body="";
 
-  $sock->recv($header, $header_len);
+  if($self->{connected} && $self->wait_readable()) {
+    $sock->recv($header, $header_len);
+  } else {
+    $self->{connected} = 0;
+    $self->{error} = "SOCKET_TIMEOUT";
+    return (-1);
+  }
 
   my ($magic, $cmd, $key_len, $extra_len, $datatype, $status, $body_len,
       $sequence, $cas_hi, $cas_lo) = unpack(BINARY_HEADER_FMT, $header);
