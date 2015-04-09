@@ -37,6 +37,8 @@ my $cf_gen = $mc->wait_for_reconf();
 if($cf_gen > 0) {
   $r = $mc->set("test_key_1", 1515);
   print "SET result: $r \n";
+} else {
+  print "UNEXPECTED: $cf_gen (". $mc->{error} . ") \n";
 }
 
 EOF
