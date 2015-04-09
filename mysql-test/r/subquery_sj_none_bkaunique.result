@@ -9345,6 +9345,8 @@ x
 x
 DROP TABLE t1, t2, t3;
 # End of test for bug#13545215.
+set @tmp_opt_switch=@@optimizer_switch;
+set optimizer_switch='loosescan=off';
 #
 # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
 # MATERIALIZATION + SEMIJOIN ON
@@ -9410,6 +9412,7 @@ v	v	v
 v	v	v
 v	v	v
 DROP TABLE t1;
+set @@optimizer_switch=@tmp_opt_switch;
 #
 # Bug#13541406: Wrong result with loosescan on select .. where .. in
 #
