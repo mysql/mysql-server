@@ -490,9 +490,6 @@ SHOW CREATE TABLE t4;
 ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4;
-ALTER TABLE t4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t4;
 DROP TABLE t4;
 SET GLOBAL innodb_file_per_table = ON;
 
