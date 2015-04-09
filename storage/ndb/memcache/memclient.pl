@@ -121,7 +121,7 @@ sub run_get_cmd {
   push @keys, split(" ", $_[1]);
   my $value = $mc->get(@keys);
   my $with_cas = ( $proto eq "binary" || $mc->{has_cas} );
-  return "NOT_FOUND" if $mc->{error} eq "NOT_FOUND";
+  return $mc->{error} if $mc->{error} ne "OK";
 
   ### Header line
   my $response = UNDERSCORE . "       KEY        | FLAGS |";
