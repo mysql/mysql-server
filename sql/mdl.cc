@@ -16,6 +16,7 @@
 
 #include "mdl.h"
 #include "debug_sync.h"
+#include "prealloced_array.h"
 #include <lf.h>
 #include <mysqld_error.h>
 #include <mysql/plugin.h>
@@ -24,7 +25,6 @@
 #include <mysql/psi/mysql_mdl.h>
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
-#include "sql_class.h"
 #include <my_murmur3.h>
 #include <algorithm>
 #include <functional>
@@ -3596,7 +3596,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       break;
     case MDL_wait::KILLED:
-      if ((get_thd())->killed == THD::KILL_TIMEOUT)
+      if (get_owner()->is_killed() == ER_QUERY_TIMEOUT)
         my_error(ER_QUERY_TIMEOUT, MYF(0));
       else
         my_error(ER_QUERY_INTERRUPTED, MYF(0));
