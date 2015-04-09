@@ -5557,7 +5557,7 @@ os_file_handle_error(
 @param[in]	operation	operation name that failed
 @param[in]	on_error_silent	if true then don't print any message to the log.
 @return true if we should retry the operation */
-static __attribute__((warn_unused_result))
+static
 bool
 os_file_handle_error_no_exit(
 	const char*	name,
