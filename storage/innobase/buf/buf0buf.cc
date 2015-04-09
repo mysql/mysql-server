@@ -653,6 +653,8 @@ buf_page_is_corrupted(
 		return(FALSE);
 	}
 
+	DBUG_EXECUTE_IF("buf_page_is_corrupt_failure", return(TRUE); );
+
 	ulint	page_no = mach_read_from_4(read_buf + FIL_PAGE_OFFSET);
 	ulint	space_id = mach_read_from_4(read_buf + FIL_PAGE_SPACE_ID);
 	const srv_checksum_algorithm_t	curr_algo =
@@ -760,13 +762,12 @@ buf_page_is_corrupted(
 
 	case SRV_CHECKSUM_ALGORITHM_NONE:
 		/* should have returned FALSE earlier */
-		ut_error;
+		break;
 	/* no default so the compiler will emit a warning if new enum
 	is added and not handled here */
 	}
 
-	DBUG_EXECUTE_IF("buf_page_is_corrupt_failure", return(TRUE); );
-
+	ut_error;
 	return(FALSE);
 }
 
