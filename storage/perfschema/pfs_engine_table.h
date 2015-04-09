@@ -19,7 +19,6 @@
 #include "auth_common.h"                            /* struct ACL_* */
 #include "my_thread_local.h"                        /* thread_local_key_t */
 #include "my_base.h"
-#include "handler.h"                                /* ha_stat_type */
 
 typedef struct st_thr_lock THR_LOCK;
 typedef struct st_table_field_def TABLE_FIELD_DEF;
@@ -549,9 +548,6 @@ struct PFS_triple_index
     m_index_3= other->m_index_3 + 1;
   }
 };
-
-bool pfs_show_status(handlerton *hton, THD *thd,
-                     stat_print_fn *print, enum ha_stat_type stat);
 
 /** @} */
 #endif
