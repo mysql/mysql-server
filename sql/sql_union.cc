@@ -657,8 +657,6 @@ bool st_select_lex_unit::optimize(THD *thd)
 
   DBUG_ASSERT(is_prepared() && !is_optimized());
 
-  bool status= false;          // Optimization error status
-
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     thd->lex->set_current_select(sl);
@@ -677,8 +675,8 @@ bool st_select_lex_unit::optimize(THD *thd)
       /* purecov: end */
     }
 
-    if ((status= sl->optimize(thd)))
-      break;
+    if (sl->optimize(thd))
+      DBUG_RETURN(true);
 
     /*
       Accumulate estimated number of rows.
@@ -715,13 +713,13 @@ bool st_select_lex_unit::optimize(THD *thd)
                 fake_select_lex->where_cond() == NULL &&
                 fake_select_lex->having_cond() == NULL);
 
-    status= fake_select_lex->optimize(thd);
+    if (fake_select_lex->optimize(thd))
+      DBUG_RETURN(true);
   }
-  if (!status)
-    set_optimized();    // All query blocks optimized, update the state
+  set_optimized();    // All query blocks optimized, update the state
   thd->lex->set_current_select(save_select);
 
-  DBUG_RETURN(status);
+  DBUG_RETURN(false);
 }
 
 
