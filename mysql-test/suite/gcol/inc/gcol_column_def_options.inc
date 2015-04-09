@@ -197,3 +197,9 @@ create table tt as select * from t1;
 select * from t1;
 select * from tt;
 drop table t1,tt;
+
+--echo # Bug#20745142: GENERATED COLUMNS: ASSERTION FAILED:
+--echo #   THD->CHANGE_LIST.IS_EMPTY()
+--echo # 
+--error ER_GENERATED_COLUMN_NON_PRIOR
+CREATE TABLE t1(a bigint AS (a between 1 and 1));

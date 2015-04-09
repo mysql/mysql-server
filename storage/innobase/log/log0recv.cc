@@ -267,7 +267,8 @@ fil_name_process(
 				Enable some more diagnostics when
 				forcing recovery. */
 
-				ib::info() << "At " << recv_sys->recovered_lsn
+				ib::info()
+					<< "At LSN: " << recv_sys->recovered_lsn
 					<< ": unable to open file " << name
 					<< " for tablespace " << space_id;
 			}
@@ -2299,18 +2300,24 @@ recv_apply_log_recs_for_backup(void)
 						recv_addr->page_no);
 
 			if (page_size.is_compressed()) {
-				error = fil_io(OS_FILE_READ, true, page_id,
-					       page_size, 0, page_size.bytes(),
-					       block->page.zip.data, NULL);
+
+				error = fil_io(
+					IORequestRead, true,
+					page_id,
+					page_size, 0, page_size.bytes(),
+					block->page.zip.data, NULL);
 
 				if (error == DB_SUCCESS
 				    && !buf_zip_decompress(block, TRUE)) {
 					ut_error;
 				}
 			} else {
-				error = fil_io(OS_FILE_READ, true, page_id,
-					       page_size, 0, page_size.bytes(),
-					       block->frame, NULL);
+
+				error = fil_io(
+					IORequestRead, true,
+					page_id, page_size, 0,
+					page_size.bytes(),
+					block->frame, NULL);
 			}
 
 			if (error != DB_SUCCESS) {
@@ -2332,13 +2339,16 @@ recv_apply_log_recs_for_backup(void)
 					block->page.id.space()));
 
 			if (page_size.is_compressed()) {
-				error = fil_io(OS_FILE_WRITE, true, page_id,
-					       0, page_size.bytes(),
-					       block->page.zip.data, NULL);
+
+				error = fil_io(
+					IORequestWrite, true, page_id,
+					0, page_size.bytes(),
+					block->page.zip.data, NULL);
 			} else {
-				error = fil_io(OS_FILE_WRITE, true, page_id,
-					       0, page_size.bytes(),
-					       block->frame, NULL);
+				error = fil_io(
+					IORequestWrite, true,
+					page_id, 0, page_size.bytes(),
+					block->frame, NULL);
 			}
 skip_this_recv_addr:
 			recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
@@ -3434,7 +3444,7 @@ recv_recovery_from_checkpoint_start(
 
 	const page_id_t	page_id(max_cp_group->space_id, 0);
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, true, page_id, univ_page_size, 0,
+	fil_io(IORequestLogRead, true, page_id, univ_page_size, 0,
 	       LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);
 
 	if (0 == ut_memcmp(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
@@ -3462,8 +3472,9 @@ recv_recovery_from_checkpoint_start(
 
 		memset(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
 		       ' ', 4);
+
 		/* Write to the log file to wipe over the label */
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, page_id,
+		fil_io(IORequestLogWrite, true, page_id,
 		       univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf,
 		       max_cp_group);
 	}
@@ -3875,8 +3886,14 @@ recv_reset_log_files_for_backup(
 		ib::fatal() << "Cannot open " << name << ".";
 	}
 
-	os_file_write(name, log_file, buf, 0,
-		      LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+	IORequest	request(IORequest::WRITE);
+
+	dberr_t	err = os_file_write(
+		request, name, log_file, buf, 0,
+		LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+
+	ut_a(err == DB_SUCCESS);
+
 	os_file_flush(log_file);
 	os_file_close(log_file);
 

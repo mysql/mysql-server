@@ -125,7 +125,6 @@ enum dberr_t {
 	DB_ONLINE_LOG_TOO_BIG,		/*!< Modification log grew too big
 					during online index creation */
 
-	DB_IO_ERROR,			/*!< Generic IO error */
 	DB_IDENTIFIER_TOO_LONG,		/*!< Identifier name too long */
 	DB_FTS_EXCEED_RESULT_CACHE_LIMIT,	/*!< FTS query memory
 					exceeds result cache limit */
@@ -136,10 +135,26 @@ enum dberr_t {
 	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
 					/*< Too many words in a phrase */
 
+	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */
+
+	DB_IO_ERROR = 100,		/*!< Generic IO error */
+
+	DB_IO_DECOMPRESS_FAIL,		/*!< Failure to decompress a page
+					after reading it from disk */
+
+	DB_IO_NO_PUNCH_HOLE,		/*!< Punch hole not supported by
+					InnoDB */
+
+	DB_IO_NO_PUNCH_HOLE_FS,		/*!< The file system doesn't support
+					punch hole */
+
+	DB_IO_NO_PUNCH_HOLE_TABLESPACE,	/*!< The tablespace doesn't support
+					punch hole */
+
+	DB_IO_PARTIAL_FAILED,		/*!< Partial IO request failed */
+
 	DB_FORCED_ABORT,		/*!< Transaction was forced to rollback
 					by a higher priority transaction */
-
-	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */
 
 	DB_TABLE_CORRUPT,		/*!< Table/clustered index is
 					corrupted */

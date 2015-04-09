@@ -1,0 +1,70 @@
+--echo #
+--echo # Bug #20031570 INNODB_CHECKSUM_ALGORITHM VARIABLE LEADS TO CRASHING
+--echo #
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+# Embedded mode doesn't support restart
+--source include/not_embedded.inc
+
+set global innodb_checksum_algorithm=crc32;
+
+# Table is created with crc32 checksum algorithm.
+# First few pages have crc32 checksum algorithm
+
+create table t1(f1 int not null primary key)engine=innodb;
+SET GLOBAL innodb_buffer_pool_dump_at_shutdown=OFF;
+# Restart the server to load the table t1 again.
+
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+--echo # Restart the server with --log-error
+--replace_result $SEARCH_FILE SEARCH_FILE
+--let $restart_parameters = restart: --log-error=$SEARCH_FILE --no-console
+--source include/restart_mysqld.inc
+
+set global innodb_checksum_algorithm=strict_innodb;
+set global innodb_limit_optimistic_insert_debug = 2;
+
+select count(*) from t1;
+
+let SEARCH_PATTERN=\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to "strict_innodb" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
+--source include/search_pattern_in_file.inc
+
+# Write the records in new pages with innodb checksum format.
+insert into t1 values(4),(5),(6);
+SET GLOBAL innodb_buffer_pool_dump_at_shutdown=OFF;
+
+# Restart the server to load the table t1 again.
+--echo # Restart the server with --log-error
+--replace_result $SEARCH_FILE SEARCH_FILE
+--source include/restart_mysqld.inc
+
+set global innodb_checksum_algorithm=strict_none;
+set global innodb_limit_optimistic_insert_debug = 2;
+
+select count(*) from t1;
+
+# Write the records in new pages with none checksum format.
+insert into t1 values(7),(8),(9);
+
+let SEARCH_PATTERN=\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to "strict_none" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
+
+--source include/search_pattern_in_file.inc
+
+SET GLOBAL innodb_buffer_pool_dump_at_shutdown=OFF;
+# Restart the server to load the table t1 again.
+--echo # Restart the server with --log-error
+--replace_result $SEARCH_FILE SEARCH_FILE
+--source include/restart_mysqld.inc
+
+set global innodb_checksum_algorithm=strict_crc32;
+
+# Load the table t1 content with crc32, innodb, none checksum pages.
+select count(*) from t1;
+
+let SEARCH_PATTERN=\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to "strict_crc32" but the page \\[page id: space=\d+, page number=\d+\\] contains a valid checksum .*. Accepting the page as valid. Change innodb_checksum_algorithm to .* to silently accept such pages or rewrite all pages so that they contain .* checksum.;
+
+--source include/search_pattern_in_file.inc
+
+drop table t1;
+--remove_file $SEARCH_FILE

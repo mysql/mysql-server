@@ -79,6 +79,10 @@
           Type="string"
           Name="Version"
           Value="[ProductVersion]"/>
+        <RegistryValue
+          Type="string"
+          Name="DataLocation"
+          Value="[DATADIR]"/>
       </RegistryKey>
     </Component>
     </DirectoryRef>
