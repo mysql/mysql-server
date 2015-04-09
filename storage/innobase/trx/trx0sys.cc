@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -965,10 +965,13 @@ trx_sys_read_file_format_id(
 
 	/* Read the page on which file format is stored */
 
-	success = os_file_read_no_error_handling(
-		file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE);
+	IORequest	read_req(IORequest::READ)
 
-	if (!success) {
+	dberr_t	err = os_file_read_no_error_handling(
+		read_req, file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE,
+		UNIV_PAGE_SIZE, NULL);
+
+	if (err != DB_SUCCESS) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
@@ -1036,11 +1039,14 @@ trx_sys_read_pertable_file_format_id(
 		return(FALSE);
 	}
 
+	IORequest	read_req(IORequest::READ);
+
 	/* Read the first page of the per-table datafile */
 
-	success = os_file_read_no_error_handling(file, page, 0, UNIV_PAGE_SIZE);
+	dberr_t	err = os_file_read_no_error_handling(
+		read_req, file, page, 0, UNIV_PAGE_SIZE, NULL);
 
-	if (!success) {
+	if (err != DB_SUCCESS) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
@@ -1114,8 +1120,6 @@ trx_sys_close(void)
 	/* Free the double write data structures. */
 	buf_dblwr_free();
 
-	trx_sys_mutex_enter();
-
 	/* Only prepared transactions may be left in the system. Free them. */
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
 
@@ -1159,8 +1163,6 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->serialisation_list) == 0);
-
-	trx_sys_mutex_exit();
 
 	/* We used placement new to create this mutex. Call the destructor. */
 	mutex_free(&trx_sys->mutex);
