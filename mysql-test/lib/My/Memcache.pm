@@ -91,13 +91,14 @@ package My::Memcache;
 sub new {
   my $pkg = shift;
   # min/max wait refer to msec. wait during temporary errors.  Both powers of 2.
-  # _timeout values are in seconds (possibly fractional)
+  # io_timeout is in seconds (possibly fractional)
+  # io_timeout * max_read_tries = read timeout
   bless { "created" => 1 , "error" => "OK" , "cf_gen" => 0, "req_id" => 0,
           "min_wait" => 4,  "max_wait" => 8192, "temp_errors" => 0 ,
           "total_wait" => 0, "has_cas" => 0, "flags" => 0, "exptime" => 0,
           "get_results" => undef, "get_with_cas" => 0, "already_failed" => 0,
           "last_get_len" => undef, "io_timeout" => 1.0, "sysread_size" => 512,
-          "readbuf" => "", "buflen" => 0
+          "readbuf" => "", "buflen" => 0, "max_read_tries" => 4
         }, $pkg;
 }
 
@@ -307,8 +308,6 @@ sub read {
   my $sock = $self->{connection};
   my $r;
 
-  Carp::croak "bogus length $length" if($length < 0);
-
   $r = select($self->{fdset}, undef, undef, $self->{io_timeout});
   return $self->socket_error($r) if($r < 1);
 
@@ -359,8 +358,10 @@ sub get_length_from_buffer {
 sub read_line {
   my $self = shift;
   my $message;
+  my $n = 0;
 
-  while(1) {
+  while($n < $self->{max_read_tries}) {
+    $n++;
     $message = $self->get_line_from_buffer();
     if(defined($message)) {
       $self->normalize_error($message);  # handle server error responses
@@ -370,15 +371,19 @@ sub read_line {
       return $self->{error};
     }
   }
+  $self->socket_error(0);  # timeout
+  return $self->{error};
 }
 
 # Read <length> bytes.  Returns the data, or returns undef and sets error.
 sub read_known_length {
   my $self = shift;
   my $len = shift;
+  my $n = 0;
   my $data;
 
-  while(1) {
+  while($n < $self->{max_read_tries}) {
+    $n++;
     $data = $self->get_length_from_buffer($len);
     if(defined($data)) {
       return $data;  # No need to do normalize_error for fixed-length reads.
@@ -387,6 +392,8 @@ sub read_known_length {
       return undef;
     }
   }
+  $self->socket_error(0);  # timeout
+  return undef;
 }
 
 
@@ -396,6 +403,14 @@ sub read_known_length {
 
 sub protocol {
   return "ascii";
+}
+
+sub protocol_error {
+  my $self = shift;
+  if($self->{error} eq "OK") {
+    $self->{error} = "PROTOCOL_ERROR";
+  }
+  return undef;
 }
 
 sub ascii_command {
@@ -424,12 +439,14 @@ sub ascii_command {
   return $reply;
 }
 
-  
+
 sub delete {
   my $self = shift;
   my $key = shift;
-  
-  return ($self->ascii_command("delete $key\r\n") =~ "^DELETED");
+  my $response = $self->ascii_command("delete $key\r\n");
+  return 1 if($response =~ "^DELETED");
+  return 0 if($response =~ "^NOT_FOUND");
+  return $self->protocol_error();
 }
 
 
@@ -448,8 +465,12 @@ sub store {
     $packet = sprintf("%s %s %d %d %d\r\n%s\r\n",
                       $cmd, $key, $flags, $exptime, length($value), $value);
   }
-  $self->ascii_command($packet);
-  return ($self->{error} eq "OK");
+  my $response = $self->ascii_command($packet);
+  return 1 if($response =~ "^STORED");
+  return 0 if($response =~ "^NOT_STORED");
+  return 0 if($response =~ "^EXISTS");
+  return 0 if($response =~ "^NOT_FOUND");
+  return $self->protocol_error();
 }
  
 sub set {
@@ -494,6 +515,9 @@ sub get {
   while ($response ne "END\r\n")
   {
     $response =~ /^VALUE (\S+) (\d+) (\d+) ?(\d+)?/;
+    if(! (defined($1) && defined($2) && defined($3))) {
+      return $self->protocol_error();
+    }
     my $result = My::Memcache::Result->new($1, $2, $4);
     my $value = $self->read_known_length($3);
     return undef if(!defined($value));
@@ -520,6 +544,7 @@ sub _txt_math {
   }
 
   $response =~ /(\d+)/;
+  return $self->protocol_error() unless defined($1);
   return $1;
 }
 
@@ -544,11 +569,13 @@ sub stats {
   $self->write("stats $key\r\n");
   
   my %response = ();
-  my $line = "";
+  my $line = $self->read_line();
   while($line !~ "^END") {
     return %response if $line eq "ERROR\r\n";
     if(($line) && ($line =~ /^STAT(\s+)(\S+)(\s+)(\S+)/)) {
       $response{$2} = $4;
+    } else {
+      return $self->protocol_error();
     }
     $line = $self->read_line();
   }
@@ -559,7 +586,7 @@ sub stats {
 sub flush {
   my $self = shift;
   my $key = shift;
-  my $result = $self->ascii_command("flush_all\r\n");  
+  my $result = $self->ascii_command("flush_all\r\n");
   return ($self->{error} eq "OK");
 }
 
@@ -635,7 +662,7 @@ sub error_message {
    0x84 => "INTERNAL_ERROR",
    0x85 => "SERVER_BUSY",
    0x86 => "SERVER_TEMPORARY_ERROR",
-   0x100 => "Bad magic number in response",
+   0x100 => "PROTOCOL_ERROR",
    0x101 => "NETWORK_ERROR"
   );
   return $error_messages{$code};
