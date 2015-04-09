@@ -5289,13 +5289,14 @@ bool JOIN::estimate_rowcount()
     tab->read_time= static_cast<ha_rows>(table_scan_time.total_cost());
 
     /*
-      Set a max range of how many seeks we can expect when using keys
-      This is can't be to high as otherwise we are likely to use table scan.
+      Set a max value for the cost of seek operations we can expect
+      when using key lookup. This can't be too high as otherwise we
+      are likely to use table scan.
     */
-    tab->worst_seeks= 
+    tab->worst_seeks=
       min(cost_model->io_block_read_cost((double) tab->found_records / 10),
           (double) tab->read_time * 3);
-    double min_worst_seek= cost_model->io_block_read_cost(2.0);
+    const double min_worst_seek= cost_model->io_block_read_cost(2.0);
     if (tab->worst_seeks < min_worst_seek)      // Fix for small tables
       tab->worst_seeks= min_worst_seek;
 
