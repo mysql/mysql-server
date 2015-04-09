@@ -88,7 +88,9 @@ select ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), 
 --replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
 select ST_astext(ST_buffer(ST_geometryfromtext('point(1 1)'), 1));
 create table t1(geom geometrycollection);
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 values (ST_GeomFromText('POLYGON((0 0, 10 10, 0 8, 0 0))'));
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 values (ST_GeomFromText('POLYGON((1 1, 10 10, 0 8, 1 1))'));
 --replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
 select ST_astext(geom), ST_area(geom),ST_area(ST_buffer(geom,2)) from t1;

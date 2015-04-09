@@ -76,11 +76,9 @@ p1	14	1535	12
 p2	14	1535	12
 # NOT NULL POINT will use ''
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p1 = '';
-Expect 4
-4
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 = '';
-Expect 4
-4
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p1;
 ST_AsText(p)	ST_AsText(p1)
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p2;
