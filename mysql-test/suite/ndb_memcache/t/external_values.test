@@ -34,7 +34,8 @@ run_test($mcBin);    # Test with binary protocol
 
 sub run_test() {
   my $mc = shift;
-  
+  print "Testing " . $mc->protocol() . " protocol\n";
+
   # Flush all
   $mc->flush();
 
@@ -45,6 +46,7 @@ sub run_test() {
   # Do two DELETES.  The first should succeed, the second should fail.
   $mc->delete("b:long_val_1")  || $mc->fail("t3 Failed delete");
   $mc->delete("b:long_val_1")  && $mc->fail("t4 Delete should fail");
+  print "Passed t1 .. t4\n";
 
   # Do an insert, then a read, then a delete, then a read
   $mc->add("b:long_val_2", $val_100k)     || $mc->fail("t5 Failed insert");
@@ -57,11 +59,13 @@ sub run_test() {
   }
   $mc->delete("b:long_val_2")             || $mc->fail("t7 Failed delete");
   $mc->get("b:long_val_2")                && $mc->fail("t8 GET should fail");
+  print  "Passed t5 .. t8\n";
 
   # INSERT, read, and delete a short value 
   $mc->add("b:short", $val_40);
   ($mc->get("b:short") eq $val_40)    || $mc->fail("t9 GET results unexpected");
   $mc->delete("b:short")              || $mc->fail("t10 delete failed");
+  print  "Passed t9 .. t10\n";
 
   # Insert using SET.  Then read.  Then attempt an ADD, which should fail.
   # Short values
@@ -72,6 +76,7 @@ sub run_test() {
   $mc->set("b:test_set", $val_60k)     || $mc->fail("t13 Failed SET as insert");
   ($mc->get("b:test_set") eq $val_60k) || $mc->fail("t14 GET results unexpected");
   $mc->add("b:test_set", $val_100k)    && $mc->fail("t15 ADD should fail");
+  print  "Passed t11 .. t15\n";
 
   # UPDATE via SET from a long value to a long value
   $mc->set("b:test_set", $val_100k)     || $mc->fail("t16 Failed SET as update");
@@ -93,6 +98,7 @@ sub run_test() {
   # UPDATE via SET from a long value to a short value
   $mc->set("b:test7", $val_50);
   ($mc->get("b:test7") eq $val_50) || $mc->fail("t25 results unexpected");
+  print  "Passed t16 .. t25\n";
 
   # UPDATE via SET from a short value to a short value
   $mc->set("b:test7", $val_40);
@@ -105,6 +111,7 @@ sub run_test() {
   $mc->replace("b:r", $val_60k)  || $mc->fail("t28 failed REPLACE");
   $mc->replace("b:r", $val_50)   || $mc->fail("t29 failed REPLACE");
   ($mc->get("b:r") eq $val_50)   || $mc->fail("t30 results unexpected");
+  print  "Passed t26 .. t30\n";
 
 
   ################## APPEND and PREPEND tests 
@@ -161,6 +168,7 @@ sub run_test() {
   $mc->append("b:test8c", "?");
   my $r2 = $mc->get("b:test8c");
   ($r2 eq $val_13949 . "!?")    ||  $mc->fail("t47 results unexpected");
+  print  "Passed t31 .. t47\n";
 
   # APPEND stress test.  This uses non-logging tables.
   $mc->add("bxx:t9", $val_50);
@@ -169,7 +177,8 @@ sub run_test() {
     my $r = $mc->get("bxx:t9");
     ($r eq $val_50 x $i) || $mc->fail("t48 results unexpected");
   } 
-    
+  print  "Passed APPEND stress test\n";
+
   # PREPEND stress test.  This uses non-logging tables.
   $mc->add("bxx:t10", $val_50);
   for my $i (2 .. 300) {
@@ -178,6 +187,7 @@ sub run_test() {
     if ($r ne $val_50 x $i) { print $r ; $mc->fail("t49 results unexpected "
                                . "at iteration " . $i); }
   } 
+  print  "Passed PREPEND stress test\n";
 
   # DISABLED.
   # Debug output shows this being sent from memcached core to ndb engine
