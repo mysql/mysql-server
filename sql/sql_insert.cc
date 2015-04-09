@@ -2540,6 +2540,12 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!cr_field)
       DBUG_RETURN(NULL);
 
+    /*
+      Inheriting vitual generated information is not allowed.
+    */
+    cr_field->gcol_info= NULL;
+    cr_field->stored_in_db= TRUE;
+
     if (item->maybe_null)
       cr_field->flags &= ~NOT_NULL_FLAG;
     alter_info->create_list.push_back(cr_field);
