@@ -21,18 +21,23 @@
   Sum functions (COUNT, MIN...)
 */
 
-#include "sql_select.h"
-#include "sql_tmp_table.h"                 // create_tmp_table
-#include "sql_resolver.h"                  // setup_order, fix_inner_refs
-#include "sql_optimizer.h"                 // JOIN
-#include "uniques.h"
-#include "parse_tree_helpers.h"
-#include "parse_tree_nodes.h"
-#include "aggregate_check.h"
-#include "current_thd.h"
-#include "mysqld.h"                        // my_thread_get_THR_MALLOC
-#include "derror.h"
+#include "item_sum.h"
 
+#include "aggregate_check.h"               // Distinct_check
+#include "current_thd.h"                   // current_thd
+#include "derror.h"                        // ER_THD
+#include "mysqld.h"                        // my_thread_get_THR_MALLOC
+#include "parse_tree_helpers.h"            // PT_item_list
+#include "parse_tree_nodes.h"              // PT_order_list
+#include "sql_class.h"                     // THD
+#include "sql_executor.h"                  // copy_fields
+#include "sql_resolver.h"                  // setup_order
+#include "sql_select.h"                    // count_field_types
+#include "sql_tmp_table.h"                 // create_tmp_table
+#include "temp_table_param.h"              // Temp_table_param
+#include "uniques.h"                       // Unique
+
+#include <algorithm>
 using std::min;
 using std::max;
 

@@ -73,16 +73,17 @@
   we are forced to use mysql_lock_merge.
 */
 
-#include "debug_sync.h"
 #include "lock.h"
+
+#include "hash.h"
+#include "debug_sync.h"
 #include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_parse.h"                     // is_log_table_write_query
 #include "psi_memory_key.h"
 #include "auth_common.h"                   // SUPER_ACL
 #include "sql_class.h"
 #include "mysqld.h"                        // opt_readonly
-#include <hash.h>
-#include <assert.h>
+
 
 /**
   @defgroup Locking Locking

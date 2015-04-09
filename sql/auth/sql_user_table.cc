@@ -34,6 +34,7 @@
 #include "tztime.h"
 #include "sql_time.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
+#include "read_write_lock.h"    // Write_lock
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {

@@ -19,6 +19,7 @@
 
 /* compare and test functions */
 
+#include "my_global.h"
 #include "mem_root_array.h"  // Mem_root_array
 #include "my_regex.h"        // my_regex_t
 #include "item_func.h"       // Item_int_func

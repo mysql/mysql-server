@@ -16,13 +16,13 @@
 #ifndef LOCK_INCLUDED
 #define LOCK_INCLUDED
 
-#include "thr_lock.h"                           /* thr_lock_type */
 #include "mdl.h"
 
 // Forward declarations
 struct TABLE;
 struct TABLE_LIST;
 class THD;
+typedef struct st_thr_lock_data THR_LOCK_DATA;
 
 typedef struct st_mysql_lock
 {

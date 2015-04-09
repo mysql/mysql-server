@@ -13,20 +13,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_show.h"                   /* append_identifier */
-#include "log.h"                        /* sql_print_warning */
-#include "sql_base.h"                   /* MYSQL_LOCK_IGNORE_TIMEOUT */
-#include "key.h"                        /* key_copy, key_cmp_if_same */
-                                        /* key_restore */
-
-#include "auth_internal.h"
 #include "sql_auth_cache.h"
-#include "sql_authentication.h"
-#include "sql_time.h"
-#include "sql_plugin.h"                         // lock_plugin_data etc.
-#include "psi_memory_key.h"
-#include "field.h"
-#include "sql_class.h"
+
+#include "m_string.h"           // LEX_CSTRING
+#include "mysql/plugin_auth.h"  // st_mysql_auth
+#include "auth_common.h"        // ACL_internal_schema_access
+#include "auth_internal.h"      // auth_plugin_is_built_in
+#include "field.h"              // Field
+#include "log.h"                // sql_print_warning
+#include "psi_memory_key.h"     // key_memory_acl_mem
+#include "read_write_lock.h"    // Write_lock
+#include "records.h"            // READ_RECORD
+#include "sql_authentication.h" // sha256_password_plugin_name
+#include "sql_base.h"           // open_and_lock_tables
+#include "sql_class.h"          // THD
+#include "sql_plugin.h"         // my_plugin_lock_by_name
+#include "sql_time.h"           // str_to_time_with_warn
+#include "table.h"              // TABLE
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 

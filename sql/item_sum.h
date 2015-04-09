@@ -19,6 +19,7 @@
 
 /* classes for sum functions */
 
+#include "my_global.h"
 #include "my_tree.h"        // TREE
 #include "item.h"           // Item_result_field
 #include "sql_alloc.h"      // Sql_alloc

@@ -23,7 +23,6 @@ The actual communication is handled by the net_xxx functions in net_serv.cc
 #include "protocol_classic.h"
 #include "sql_class.h"                          // THD
 #include "mysqld.h"                             // global_system_variables
-#include <stdarg.h>
 
 using std::min;
 using std::max;

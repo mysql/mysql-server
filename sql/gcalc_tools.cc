@@ -14,13 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "my_global.h"
-#include "sql_string.h"
 #include "gcalc_tools.h"
-#include "gstream.h"                            // Gis_read_stream
-#include "spatial.h"
+
+#include "prealloced_array.h"                   // Prealloced_array
+#include "spatial.h"                            // Geometry
 #include "sql_class.h"                          // THD
-#include "prealloced_array.h"
 
 #include <algorithm>
 #include <functional>

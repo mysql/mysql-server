@@ -17,8 +17,10 @@
 #ifndef GCALC_TOOLS_INCLUDED
 #define GCALC_TOOLS_INCLUDED
 
-#include "gcalc_slicescan.h"
+#include "my_global.h"
+#include "gcalc_slicescan.h"            // Gcalc_dyn_list
 #include "sql_string.h"                 // String
+
 
 /*
   The Gcalc_function class objects are used to check for a binary relation.

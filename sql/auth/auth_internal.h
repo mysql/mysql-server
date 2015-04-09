@@ -22,6 +22,7 @@
 #include "mysql_time.h"                 /* MYSQL_TIME */
 
 #include "auth_common.h"
+#include "table.h"                      /* LEX_ALTER */
 
 class ACL_USER;
 class ACL_PROXY_USER;

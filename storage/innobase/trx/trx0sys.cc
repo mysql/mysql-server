@@ -643,8 +643,6 @@ trx_sys_close(void)
 	/* Free the double write data structures. */
 	buf_dblwr_free();
 
-	trx_sys_mutex_enter();
-
 	/* Only prepared transactions may be left in the system. Free them. */
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
 
@@ -688,8 +686,6 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->serialisation_list) == 0);
-
-	trx_sys_mutex_exit();
 
 	/* We used placement new to create this mutex. Call the destructor. */
 	mutex_free(&trx_sys->mutex);

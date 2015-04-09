@@ -21,21 +21,21 @@
   This file defines all compare functions
 */
 
-#include <m_ctype.h>
-#include "current_thd.h"
-#include "sql_select.h"
-#include "sql_optimizer.h"             // JOIN_TAB
-#include "sql_parse.h"                          // check_stack_overrun
-#include "sql_time.h"                  // make_truncated_value_warning
-#include "opt_trace.h"
-#include "parse_tree_helpers.h"
-#include "template_utils.h"
-#include "mysqld.h"                             // log10
+#include "item_cmpfunc.h"
+
+#include "aggregate_check.h"    // Distinct_check
+#include "current_thd.h"        // current_thd
+#include "item_subselect.h"     // Item_subselect
+#include "item_sum.h"           // Item_sum_hybrid
+#include "mysqld.h"             // log_10
+#include "parse_tree_helpers.h" // PT_item_list
+#include "sql_class.h"          // THD
+#include "sql_optimizer.h"      // JOIN
+#include "sql_time.h"           // str_to_datetime
 
 #include <algorithm>
 using std::min;
 using std::max;
-#include "aggregate_check.h"
 
 static bool convert_constant_item(THD *, Item_field *, Item **);
 static longlong

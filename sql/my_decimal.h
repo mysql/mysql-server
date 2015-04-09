@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,15 +28,11 @@
 #ifndef my_decimal_h
 #define my_decimal_h
 
-#if defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
+#include "my_global.h"
 #include "sql_string.h"                         /* String */
-#endif
 
-C_MODE_START
 #include <decimal.h>
-C_MODE_END
 
-class String;
 typedef struct st_mysql_time MYSQL_TIME;
 
 #define DECIMAL_LONGLONG_DIGITS 22
@@ -362,11 +358,8 @@ inline bool str_set_decimal(const my_decimal *val, String *str,
   return str_set_decimal(E_DEC_FATAL_ERROR, val, 0, 0, 0, str, cs);
 }
 
-#ifndef MYSQL_CLIENT
-class String;
 int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
 		      uint fixed_dec, char filler, String *str);
-#endif
 
 inline
 int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
@@ -405,7 +398,6 @@ inline int str2my_decimal(uint mask, const char *str,
 int str2my_decimal(uint mask, const char *from, size_t length,
                    const CHARSET_INFO *charset, my_decimal *decimal_value);
 
-#if defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
 inline
 int string2my_decimal(uint mask, const String *str, my_decimal *d)
 {
@@ -416,8 +408,6 @@ int string2my_decimal(uint mask, const String *str, my_decimal *d)
 my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
 my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
 my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec);
-
-#endif /*defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY) */
 
 inline
 int double2my_decimal(uint mask, double val, my_decimal *d)

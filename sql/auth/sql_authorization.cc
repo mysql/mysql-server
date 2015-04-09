@@ -33,6 +33,7 @@
 #include "sql_authentication.h"
 #include "sql_authorization.h"
 #include "template_utils.h"
+#include "read_write_lock.h"    // Write_lock
 
 const char *command_array[]=
 {
