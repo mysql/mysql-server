@@ -1038,6 +1038,12 @@ a	b	c	d	a	b	c	d	a	b	c	d
 4	4	4	4	4	2	5	1	4	2	5	1
 4	4	4	4	4	3	1	2	4	3	1	2
 4	4	4	4	4	4	4	4	4	4	4	4
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	37
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	33
+NDB_SORTED_SCAN_COUNT	0
 create table t1_myisam (
 a int not null,
 b int not null,
@@ -1068,6 +1074,12 @@ join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 where t1.a=2 and t1.b=2;
 a	b	c	d	a	b	c	d	a	b	c	d
 2	2	1	1	1	1	1	1	1	1	1	1
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	39
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	34
+NDB_SORTED_SCAN_COUNT	0
 drop table t1_myisam;
 set ndb_join_pushdown=true;
 explain extended select *
@@ -2360,6 +2372,12 @@ where t2.a = 4 and t2.b=4
 group by t2.c order by t2.c;
 c	count(distinct t2.a)
 4	1
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	116
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	65
+NDB_SORTED_SCAN_COUNT	5
 create table tx like t1;
 insert into tx 
 select x1.a+x2.a*16, x1.b+x2.b*16, x1.c+x2.c*16, x1.d+x2.d*16 
@@ -2376,6 +2394,12 @@ select count(*) from tx as x1
 left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
 count(*)
 304
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	116
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	65
+NDB_SORTED_SCAN_COUNT	5
 drop table tx;
 alter table t1 partition by key(a);
 explain select count(*) from t1 
@@ -2392,6 +2416,12 @@ join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t1.d;
 count(*)
 176
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	118
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	66
+NDB_SORTED_SCAN_COUNT	5
 CREATE TABLE tx (
 a int NOT NULL,
 PRIMARY KEY (`a`)
@@ -2415,6 +2445,12 @@ join t1 as x3 on x3.a = x1.d;
 count(*)
 20000
 set global debug=@save_debug;
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	120
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	67
+NDB_SORTED_SCAN_COUNT	5
 drop table t1;
 drop table tx;
 create table t1 (
@@ -2440,6 +2476,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	121
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	67
+NDB_SORTED_SCAN_COUNT	5
 set new=on;
 alter table t1 partition by hash(a);
 explain extended
@@ -2454,6 +2496,12 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	Table 't1' is not pushable: has user defined partioning
 Note	1003	Table 't2' is not pushable: has user defined partioning
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	121
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	67
+NDB_SORTED_SCAN_COUNT	5
 alter table t1 partition by list(a) (
 partition p1 values in (1),
 partition p2 values in (2),
@@ -2472,6 +2520,12 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	Table 't1' is not pushable: has user defined partioning
 Note	1003	Table 't2' is not pushable: has user defined partioning
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	121
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	67
+NDB_SORTED_SCAN_COUNT	5
 alter table t1 partition by range(a) partitions 4 (
 partition p1 values less than (0),
 partition p2 values less than (2),
@@ -2490,6 +2544,12 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	Table 't1' is not pushable: has user defined partioning
 Note	1003	Table 't2' is not pushable: has user defined partioning
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	121
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	67
+NDB_SORTED_SCAN_COUNT	5
 drop table t1;
 set new=default;
 create table t1 (a int, b int, primary key(a) using hash) engine = ndb;
@@ -2520,6 +2580,12 @@ a	b	a	b
 3
 This should yield 3 executes (for now...buh)
 set autocommit=on;
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	123
+NDB_PUSHED_QUERIES_DROPPED	0
+NDB_PUSHED_QUERIES_EXECUTED	70
+NDB_SORTED_SCAN_COUNT	5
 drop table t1;
 create table t1 (a int, b int, primary key(a)) engine = ndb;
 insert into t1 values (1, 2);
@@ -2569,6 +2635,12 @@ order by t1.a desc;
 a	b	a	b
 3	1	1	2
 1	2	2	3
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	127
+NDB_PUSHED_QUERIES_DROPPED	3
+NDB_PUSHED_QUERIES_EXECUTED	71
+NDB_SORTED_SCAN_COUNT	5
 drop table t1;
 set ndb_join_pushdown=true;
 create table t1 (a int, b int, primary key(a)) engine = ndb;
@@ -2653,6 +2725,12 @@ Note	1003	/* select#1 */ select straight_join `test`.`x`.`a` AS `a`,`test`.`x`.`
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 a	b	a	b
 63	31	31	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	131
+NDB_PUSHED_QUERIES_DROPPED	3
+NDB_PUSHED_QUERIES_EXECUTED	73
+NDB_SORTED_SCAN_COUNT	5
 create unique index t3_d3 on t3(d3);
 create unique index t3_d3 on t3_hash(d3);
 commit;
@@ -3001,6 +3079,12 @@ join t3 as x17 on x15.b3=x17.a3
 join t3 as x18 on x16.b3=x18.d3;
 count(*)
 4
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	160
+NDB_PUSHED_QUERIES_DROPPED	5
+NDB_PUSHED_QUERIES_EXECUTED	94
+NDB_SORTED_SCAN_COUNT	5
 drop table t1,t2,t3, t3_hash;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
 primary key(b3, a3)) engine = ndb;
@@ -3095,6 +3179,12 @@ select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3
 and x.a3=0x2f and x.b3=0x3f;
 pk	a3	b3	c3	d3	pk	a3	b3	c3	d3
 1002	47	63	2	47	1002	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	172
+NDB_PUSHED_QUERIES_DROPPED	5
+NDB_PUSHED_QUERIES_EXECUTED	100
+NDB_SORTED_SCAN_COUNT	5
 drop table t3, t3_hash, t3_unq;
 create table t3 (a3 int, b3 int, c3 int, d3 int,
 primary key(a3), unique key(d3)) engine = ndb;
@@ -3196,6 +3286,12 @@ a3	b3	c3	d3	a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	31	47	1	31	31	47	1	31
 47	63	2	47	47	63	2	47	47	63	2	47
 63	31	3	63	63	31	3	63	63	31	3	63
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	182
+NDB_PUSHED_QUERIES_DROPPED	6
+NDB_PUSHED_QUERIES_EXECUTED	104
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int not null, b3 int not null, c3 int, d3 int,
 primary key(a3), unique key(b3,d3), unique key(c3,b3), unique key(c3,d3)) engine = ndb;
@@ -3438,6 +3534,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	ref	b3	b3	9	test.x.b3,const	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`b3`) and (`test`.`y`.`d3` = 0x2f))
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	205
+NDB_PUSHED_QUERIES_DROPPED	6
+NDB_PUSHED_QUERIES_EXECUTED	117
+NDB_SORTED_SCAN_COUNT	5
 drop index b3 on t3;
 execute stmt1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3531,6 +3633,12 @@ a3	b3	c3	d3	a3	b3	c3	d3
 set @a=null;
 execute stmt1 using @a;
 a3	b3	c3	d3	a3	b3	c3	d3
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	214
+NDB_PUSHED_QUERIES_DROPPED	6
+NDB_PUSHED_QUERIES_EXECUTED	121
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 set @a=47;
 execute stmt1 using @a;
@@ -3635,6 +3743,12 @@ a	(select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.
 4	NULL
 5	NULL
 6	1
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	218
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	137
+NDB_SORTED_SCAN_COUNT	5
 drop table t1;
 create table t1 (a int primary key, b int) engine = ndb;
 create table t2 (a int primary key, b int) engine = myisam;
@@ -3660,6 +3774,12 @@ a	b	a	b	a	b
 2	2	2	2	2	2
 3	3	3	3	3	3
 4	4	4	4	4	4
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	218
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	137
+NDB_SORTED_SCAN_COUNT	5
 drop table t1, t2;
 create table t1 (a int primary key, b int, c blob) engine = ndb;
 create table t2 (a int primary key, b int) engine = ndb;
@@ -3816,6 +3936,12 @@ where t1.a = t2.b
 and t2.a = 3;
 a	b	c	a	b
 3	3	kalle	3	3
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	226
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	141
+NDB_SORTED_SCAN_COUNT	5
 drop table t1, t2;
 create table t3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3833,6 +3959,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	228
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	142
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 tinyint unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3850,6 +3982,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	230
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	143
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 smallint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3867,6 +4005,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	232
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	144
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 smallint unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3884,6 +4028,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	234
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	145
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 mediumint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3901,6 +4051,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	236
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	146
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 mediumint unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3918,6 +4074,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	238
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	147
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 int, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3935,6 +4097,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	240
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	148
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 int unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3952,6 +4120,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	242
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	149
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 bigint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3969,6 +4143,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	244
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	150
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 bigint unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3986,6 +4166,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	246
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	151
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 boolean, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4003,6 +4189,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	1	2	47	47	1	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	248
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	152
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 float, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4020,6 +4212,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3	2	47	47	3	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	250
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	153
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 float unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4037,6 +4235,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3	2	47	47	3	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	252
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	154
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 double, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4054,6 +4258,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3.14	2	47	47	3.14	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	254
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	155
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 double unsigned, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4071,6 +4281,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3.14	2	47	47	3.14	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	256
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	156
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 decimal, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4088,6 +4304,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	63	2	47	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	258
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	157
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 decimal(12,4), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4105,6 +4327,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 a3	b3	c3	d3	a3	b3	c3	d3
 47	3.1400	2	47	47	3.1400	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	260
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	158
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 date, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4122,6 +4350,18 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	2000-02-28	2	47	47	2000-02-28	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	262
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	159
+NDB_SORTED_SCAN_COUNT	5
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	262
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	159
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 char(16), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4139,6 +4379,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	264
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	160
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 varchar(16), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4156,6 +4402,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	266
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	161
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 varchar(512), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4173,6 +4425,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	268
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	162
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 binary(16), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4189,6 +4447,12 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	270
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	163
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 varbinary(16), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4206,6 +4470,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	272
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	164
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 int, b3 tinyint, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4224,6 +4494,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where y.a3=x.b3 and y.b3="63";
 a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	47	63	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	272
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	164
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t3 (a3 varchar(16), b3 int, c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -4252,6 +4528,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	276
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	166
+NDB_SORTED_SCAN_COUNT	5
 drop table t3;
 create table t1 (k int primary key, b int) engine = ndb;
 insert into t1 values (1,1), (2,1), (3,1), (4,1);
@@ -4309,6 +4591,12 @@ k	b	k	b	k	b	k	b
 2	1	1	1	1	1	1	1
 3	1	1	1	1	1	1	1
 4	1	1	1	1	1	1	1
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	284
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	170
+NDB_SORTED_SCAN_COUNT	5
 drop table t1;
 set global debug='+d,max_64rows_in_spj_batches';
 create table t1 (
@@ -4372,6 +4660,12 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c;
 count(*)
 8988
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	290
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	173
+NDB_SORTED_SCAN_COUNT	5
 alter table t1 partition by key(a);
 explain extended
 select count(*)
@@ -4391,6 +4685,12 @@ join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 count(*)
 8990
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	292
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	174
+NDB_SORTED_SCAN_COUNT	5
 drop table t1;
 set global debug=@save_debug;
 create logfile group lg1
@@ -4479,6 +4779,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,`t
 select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.a=11 and t1.b = t2.a;
 a	c	a	b
 11	12	12	13
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	0
+NDB_PUSHED_QUERIES_DEFINED	304
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	180
+NDB_SORTED_SCAN_COUNT	5
 drop table t1;
 drop table t2;
 alter tablespace ts1
@@ -4826,6 +5132,12 @@ and x.a = y.pk
 where y.pk = 2;
 pk	a	pk	a
 NULL	NULL	2	20
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	333
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	198
+NDB_SORTED_SCAN_COUNT	6
 drop table t1;
 create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
 create index ix1 on t1(b,a);
@@ -4844,6 +5156,12 @@ select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
 pk	u	a	b	pk	u	a	b	pk	u	a	b
 0	1	10	20	1	2	20	30	0	1	10	20
 1	2	20	30	2	3	30	40	1	2	20	30
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	335
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	199
+NDB_SORTED_SCAN_COUNT	6
 drop table t1;
 create table t1 (pk int primary key, u int not null) engine=ndb;
 insert into t1 values (0,-1), (1,-1), (2,-1), (3,-1), (4,-1), (5,-1), (6,-1), 
@@ -4875,6 +5193,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`pk` AS `pk`,`test`.`x`.`u` AS `u`,`t
 select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 pk	u	pk	u
 set global debug=@save_debug;
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	337
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	200
+NDB_SORTED_SCAN_COUNT	7
 drop table t1;
 create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
 create index ix1 on t1(b,a);
@@ -5268,6 +5592,12 @@ count(*)
 156
 set global debug=@save_debug;
 update t1 set u=u-100;
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	367
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	238
+NDB_SORTED_SCAN_COUNT	7
 drop index ix2 on t1;
 create unique index ix2 on t1(a,u);
 set ndb_join_pushdown=on;
@@ -5305,6 +5635,12 @@ pk	u	a	b	pk	u	a	b	pk	u	a	b
 7	7	10	10	3	3	10	10	7	7	10	10
 8	8	10	10	3	3	10	10	8	8	10	10
 9	9	10	10	3	3	10	10	9	9	10	10
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	367
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	238
+NDB_SORTED_SCAN_COUNT	7
 drop table t1;
 CREATE TABLE t1 (
 a int NOT NULL,
@@ -5360,6 +5696,12 @@ join t1 as x2 on x1.c=x2.a and x2.d=2
 join t3 as x3 on x1.d=x3.a;
 count(*)
 300
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	371
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	240
+NDB_SORTED_SCAN_COUNT	7
 set global debug=@save_debug;
 drop table t1;
 drop table t2;
@@ -5409,6 +5751,12 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	373
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	241
+NDB_SORTED_SCAN_COUNT	7
 alter table t1 partition by key (a) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
@@ -5428,6 +5776,12 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	374
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	242
+NDB_SORTED_SCAN_COUNT	7
 alter table t1 partition by key (a,b) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
@@ -5447,6 +5801,12 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	375
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	243
+NDB_SORTED_SCAN_COUNT	7
 alter table t1 partition by key (b,a) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
@@ -5466,6 +5826,12 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	376
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	244
+NDB_SORTED_SCAN_COUNT	7
 alter table t1 partition by key (b) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 d	e	f	a	b	c	d	e	f	a	b	c
@@ -5485,6 +5851,12 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	377
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	245
+NDB_SORTED_SCAN_COUNT	7
 alter table t1 partition by key (a) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
@@ -5506,6 +5878,12 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	7	8	9	1	2	3	1	2	4
 select straight_join * from t1 x, t1 y where y.a=0 and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	379
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	247
+NDB_SORTED_SCAN_COUNT	7
 alter table t1 partition by key (a,b) partitions 8;
 select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
 d	e	f	a	b	c	d	e	f	a	b	c
@@ -5543,6 +5921,12 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	3	6	7	8	1	2	3	1	2	4
 1	2	3	7	8	9	1	2	3	1	2	3
 1	2	3	7	8	9	1	2	3	1	2	4
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	381
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	249
+NDB_SORTED_SCAN_COUNT	7
 alter table t1 drop primary key, add primary key using hash (d,b,a,c);
 alter table t1 partition by key (b) partitions 8;
 create index ix1 on t1(b,d,a);
@@ -5554,6 +5938,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join `test`.`x`.`d` AS `d`,`test`.`x`.`e` AS `e`,`test`.`x`.`f` AS `f`,`test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c` AS `c`,`test`.`y`.`d` AS `d`,`test`.`y`.`e` AS `e`,`test`.`y`.`f` AS `f`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c` AS `c` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`b` = `test`.`x`.`e`) and (`test`.`y`.`a` = `test`.`x`.`d`))
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	382
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	249
+NDB_SORTED_SCAN_COUNT	7
 insert into t1(a,b,c,d,e,f) values
 (8, 9, 0, 1,  null, 3),
 (9, 9, 0, 1,  2,    null);
@@ -5582,6 +5972,12 @@ pruned
 56
 const_pruned
 24
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	383
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	250
+NDB_SORTED_SCAN_COUNT	7
 drop table t1;
 create table t1 (pk int primary key, a int, b int) engine=ndb;
 create index ix1 on t1(b,a);
@@ -5690,6 +6086,12 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where ((`test`.`x1`.`b` = 3) and (`test`.`x2`.`b` = `test`.`x1`.`a`))
 select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 pk	a	b	pk	a	b
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	387
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	252
+NDB_SORTED_SCAN_COUNT	8
 drop table t1;
 create table t (pk int primary key, a int) engine=ndb;
 insert into t values 
@@ -5726,6 +6128,12 @@ where  table2.pk != 6;
 pk
 1
 2
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	389
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	253
+NDB_SORTED_SCAN_COUNT	8
 drop table t;
 create table t (b int, a int, primary key (a,b)) engine=ndb;
 insert into t values(0,0);
@@ -5740,6 +6148,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`t
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 b	a	b	a
 0	0	0	0
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	391
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	254
+NDB_SORTED_SCAN_COUNT	8
 drop table t;
 create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
 insert into t values (1,3), (3,6), (6,9), (9,1);
@@ -5762,6 +6176,12 @@ pk1	pk2	pk1	pk2
 9	1	1	3
 3	6	6	9
 1	3	3	6
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	393
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	256
+NDB_SORTED_SCAN_COUNT	10
 drop table t;
 create table t (k int, uq int, unique key ix1 (uq)) engine = ndb;
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
@@ -5785,6 +6205,12 @@ k	uq	k	uq
 6	9	6	9
 9	1	3	NULL
 9	1	9	1
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	393
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	256
+NDB_SORTED_SCAN_COUNT	10
 drop table t;
 create table t (k int primary key, uq int) engine = ndb;
 insert into t values (1,3), (3,NULL), (6,9), (9,1);
@@ -5805,6 +6231,12 @@ k	uq	k	uq
 3	NULL	NULL	NULL
 6	9	NULL	NULL
 9	1	NULL	NULL
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	393
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	256
+NDB_SORTED_SCAN_COUNT	10
 drop table t;
 create table tc(
 a varchar(10) not null,
@@ -5849,6 +6281,12 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c` from `test`.`tc` `x1` join `test`.`tc` `x2` where (`test`.`x2`.`a` = `test`.`x1`.`b`)
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	7
+NDB_PUSHED_QUERIES_DEFINED	396
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	259
+NDB_SORTED_SCAN_COUNT	10
 drop table tc;
 create table t1 (
 a varchar(16) not null,
@@ -5869,6 +6307,12 @@ Note	1003	/* select#1 */ select `test`.`q1`.`a` AS `a`,`test`.`q1`.`b` AS `b`,`t
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 a	b	c	d	a	b	c	d
 aaa	1	aaa	1	aaa	1	aaa	1
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	398
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	260
+NDB_SORTED_SCAN_COUNT	10
 drop table t1;
 CREATE TABLE t1 (
 id int NOT NULL AUTO_INCREMENT,
@@ -5971,6 +6415,12 @@ LEFT OUTER JOIN t2 as t3 ON t3.id = t1.t2_id;
 id	t2_id	id	t3_id	id	t3_id
 20	NULL	NULL	NULL	NULL	NULL
 23	24	24	NULL	24	NULL
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	406
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	264
+NDB_SORTED_SCAN_COUNT	10
 DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1 (
 a int NOT NULL,
@@ -6069,6 +6519,12 @@ on x2.c is null or x1.a=x4.d)
 on x0.d=x1.a;
 count(*)
 2052
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	410
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	552
+NDB_SORTED_SCAN_COUNT	10
 drop table t1;
 create table t1 (pk char(10) primary key, u int not null) engine=ndb;
 create table t2 (pk int primary key, u int not null) engine=ndb;
@@ -6091,6 +6547,12 @@ cu	3	3	4
 ik	2	2	3
 pw	4	4	5
 wh	1	1	2
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	412
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	553
+NDB_SORTED_SCAN_COUNT	11
 drop table t1;
 drop table t2;
 create table t1 (
@@ -6143,6 +6605,12 @@ Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x1` joi
 select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
 count(*)
 3
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	414
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	554
+NDB_SORTED_SCAN_COUNT	11
 drop table t1;
 create table t1 
 (a int not null,
@@ -6183,6 +6651,12 @@ join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b
 join t1 as x3 on x3.a=x2.c and x3.b=x1.d and x3.c=0x4f;
 a	b	c	d	a	b	c	d	a	b	c	d
 79	79	79	79	79	79	79	79	79	79	79	79
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	418
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	556
+NDB_SORTED_SCAN_COUNT	11
 drop table t1;
 create table t1 (
 k1 int primary key,
@@ -6280,6 +6754,12 @@ Note	1003	/* select#1 */ select `test`.`x`.`a` AS `a` from `test`.`t1` `x` join 
 select x.a from t1 as x join t1 as y on y.a = x.b where x.a=4;
 a
 drop table t1;
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	418
+NDB_PUSHED_QUERIES_DROPPED	7
+NDB_PUSHED_QUERIES_EXECUTED	556
+NDB_SORTED_SCAN_COUNT	11
 CREATE TABLE t1 (
 a int NOT NULL,
 b int DEFAULT NULL,
@@ -6314,6 +6794,12 @@ where old.variable_name = 'Ndb_scan_count';
 VARIABLE_NAME	old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE
 NDB_SCAN_COUNT	2
 drop table scan_count;
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	420
+NDB_PUSHED_QUERIES_DROPPED	8
+NDB_PUSHED_QUERIES_EXECUTED	556
+NDB_SORTED_SCAN_COUNT	11
 drop table t1;
 CREATE TABLE table1 (
 col_int_unique int(11), 
@@ -6365,6 +6851,12 @@ table6 ON table4.pk = table6.col_int_unique
 ON table1.col_int_unique = table6.col_int;
 col_int_unique	col_int	col_int	pk	col_int	col_int_unique
 set global debug=@save_debug;
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	422
+NDB_PUSHED_QUERIES_DROPPED	8
+NDB_PUSHED_QUERIES_EXECUTED	557
+NDB_SORTED_SCAN_COUNT	11
 drop table table6;
 drop table table4;
 drop table table3;
@@ -6454,6 +6946,12 @@ count(*)
 16
 set optimizer_switch='materialization=default';
 set global debug=@save_debug;
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	424
+NDB_PUSHED_QUERIES_DROPPED	8
+NDB_PUSHED_QUERIES_EXECUTED	558
+NDB_SORTED_SCAN_COUNT	11
 drop table t1;
 CREATE TABLE ndb_order_test (
 node_id int(10) unsigned NOT NULL,
@@ -6505,13 +7003,14 @@ ORDER BY sort_number ASC;
 user_id	node_id	sort_number	name
 1	68	549053	Shawn
 1	68	1398029	Shawn
+variable_name	variable_value
+NDB_PRUNED_SCAN_COUNT	8
+NDB_PUSHED_QUERIES_DEFINED	428
+NDB_PUSHED_QUERIES_DROPPED	8
+NDB_PUSHED_QUERIES_EXECUTED	560
+NDB_SORTED_SCAN_COUNT	13
 DROP TABLE ndb_order_test, ndb_user_test;
-select new.variable_name, new.variable_value - old.variable_value
-from server_counts_at_startup as old,
-information_schema.global_status as new
-where new.variable_name = old.variable_name
-order by new.variable_name;
-variable_name	new.variable_value - old.variable_value
+variable_name	variable_value
 NDB_PRUNED_SCAN_COUNT	8
 NDB_PUSHED_QUERIES_DEFINED	428
 NDB_PUSHED_QUERIES_DROPPED	8
