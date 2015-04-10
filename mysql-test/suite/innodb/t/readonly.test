@@ -23,3 +23,23 @@ let $restart_parameters = restart;
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+--echo #
+--echo # Bug#20578834 - INNODB READ ONLY MODE AND NON EXISTENT TMP DIR CRASHES SERVER
+--echo #
+
+CREATE TABLE t1(a int PRIMARY KEY) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(1);
+
+SET GLOBAL innodb_fast_shutdown=0;
+let $restart_parameters = restart: --tmpdir=/non/existent/dir/ --innodb-read-only;
+--source include/restart_mysqld.inc
+
+SELECT * FROM t1;
+
+# Restart in normal mode to drop tables
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
