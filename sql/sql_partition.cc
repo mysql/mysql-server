@@ -2063,6 +2063,13 @@ engine may include the filename.
 static int add_keyword_path(File fptr, const char *keyword,
                             const char *path)
 {
+
+  if (strlen(path) >= FN_REFLEN)
+  {
+    my_error(ER_PATH_LENGTH, MYF(0), "data/index directory (>=512 bytes)");
+    return 1;
+  }
+
   int err= add_string(fptr, keyword);
 
   err+= add_space(fptr);
@@ -2070,7 +2077,8 @@ static int add_keyword_path(File fptr, const char *keyword,
   err+= add_space(fptr);
 
   char temp_path[FN_REFLEN];
-  strcpy(temp_path, path);
+  strncpy(temp_path, path, FN_REFLEN-1);
+  temp_path[FN_REFLEN-1] = '\0';
 #ifdef __WIN__
   /* Convert \ to / to be able to create table on unix */
   char *pos, *end;
