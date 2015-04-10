@@ -25,6 +25,7 @@ Created 2013-7-26 by Kevin Lewis
 
 #include "ha_prototypes.h"
 
+#include "fsp0file.h"
 #include "fil0fil.h"
 #include "fsp0sysspace.h"
 #include "os0file.h"
@@ -565,9 +566,7 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		free_first_page();
 
-		return(is_predefined_tablespace(m_space_id)
-		       ? DB_CORRUPTION
-		       : DB_TABLESPACE_EXISTS);
+		return(DB_TABLESPACE_EXISTS);
 	}
 
 	return(DB_SUCCESS);

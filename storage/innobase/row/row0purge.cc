@@ -723,6 +723,7 @@ skip_secondaries:
 			index = dict_table_get_first_index(node->table);
 			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
+			mtr.set_undo_space(rseg->space);
 			mtr.set_named_space(index->space);
 
 			/* NOTE: we must also acquire an X-latch to the

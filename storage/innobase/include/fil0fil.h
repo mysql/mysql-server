@@ -649,6 +649,46 @@ fil_delete_tablespace(
 	ulint		id,
 	buf_remove_t	buf_remove);
 
+#ifndef UNIV_HOTBACKUP
+/** Return values of fil_space_system_check() */
+enum fil_space_system_t {
+	/** One file name matched */
+	FIL_SPACE_SYSTEM_OK,
+	/** All file names matched */
+	FIL_SPACE_SYSTEM_ALL,
+	/** File name or size mismatch */
+	FIL_SPACE_SYSTEM_MISMATCH
+};
+
+/** Check if a file name exists in the system tablespace.
+@param[in]	first_page_no	first page number (0=first file)
+@param[in]	file_name	tablespace file name
+@return whether the name matches the system tablespace
+@retval	FIL_SPACE_SYSTEM_OK		if file_name starts at first_page_no
+in the system tablespace
+@retval	FIL_SPACE_SYSTEM_ALL		if file_name starts at first_page_no
+in the system tablespace
+and this function has been invoked for every file in the system tablespace
+@retval	FIL_SPACE_SYSTEM_MISMATCH	in case of mismatch */
+
+enum fil_space_system_t
+fil_space_system_check(
+	ulint		first_page_no,
+	const char*	file_name)
+	__attribute__((warn_unused_result));
+
+/** Check if an undo tablespace was opened during crash recovery.
+@param[in]	name		tablespace name
+@param[in]	space_id	undo tablespace id
+@retval DB_SUCCESS		if it was already opened
+@retval DB_TABLESPACE_NOT_FOUND	if not yet opened
+@retval DB_ERROR		if the data is inconsistent */
+dberr_t
+fil_space_undo_check_if_opened(
+	const char*	name,
+	ulint		space_id)
+	__attribute__((warn_unused_result));
+
 /** Truncate the tablespace to needed size.
 @param[in]	space_id	id of tablespace to truncate
 @param[in]	size_in_pages	truncate size.
@@ -685,7 +725,6 @@ fil_close_tablespace(
 /*=================*/
 	trx_t*	trx,	/*!< in/out: Transaction covering the close */
 	ulint	id);	/*!< in: space id */
-#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
 memory cache. Discarding is like deleting a tablespace, but
@@ -1214,16 +1253,14 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	__attribute__((warn_unused_result));
 
-/** Note that a non-predefined persistent tablespace has been modified
-by redo log.
+/** Note that a persistent tablespace has been modified by redo log.
 @param[in,out]	space	tablespace */
 void
 fil_names_dirty(
 	fil_space_t*	space);
 
-/** Write MLOG_FILE_NAME records when a non-predefined persistent
-tablespace was modified for the first time since the latest
-fil_names_clear().
+/** Write MLOG_FILE_NAME records when a persistent tablespace
+was modified for the first time since the latest fil_names_clear().
 @param[in,out]	space	tablespace
 @param[in,out]	mtr	mini-transaction */
 void

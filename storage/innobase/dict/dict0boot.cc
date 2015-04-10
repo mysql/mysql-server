@@ -82,6 +82,8 @@ dict_hdr_get_new_id(
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
+
 	if (table) {
 		dict_disable_redo_if_temporary(table, &mtr);
 	} else if (disable_redo) {
@@ -158,6 +160,7 @@ dict_hdr_flush_row_id(void)
 	id = dict_sys->row_id;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	dict_hdr = dict_hdr_get(&mtr);
 
@@ -531,6 +534,7 @@ dict_create(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	dict_hdr_create(&mtr);
 

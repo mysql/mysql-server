@@ -2128,6 +2128,11 @@ trx_commit_low(
 
 		mtr->set_sync();
 
+		if (trx_is_redo_rseg_updated(trx)) {
+			mtr->set_undo_space(trx->rsegs.m_redo.rseg->space);
+			mtr->set_sys_modified();
+		}
+
 		serialised = trx_write_serialisation_history(trx, mtr);
 
 		/* The following call commits the mini-transaction, making the
@@ -2192,8 +2197,8 @@ trx_commit(
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
 		mtr_start_sync(mtr);
+		mtr->set_sys_modified();
 	} else {
-
 		mtr = NULL;
 	}
 
@@ -2764,6 +2769,8 @@ trx_prepare_low(
 
 		if (noredo_logging) {
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_undo_space(rseg->space);
 		}
 
 		/* Change the undo log segment states from TRX_UNDO_ACTIVE to

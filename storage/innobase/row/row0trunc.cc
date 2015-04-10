@@ -64,6 +64,8 @@ public:
 
 		if (noredo) {
 			mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
+		} else {
+			m_mtr.set_sys_modified();
 		}
 
 		btr_pcur_open_on_user_rec(
@@ -958,6 +960,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		mtr_commit(mtr);
 
 		mtr_start(mtr);
+		mtr->set_sys_modified();
 		mtr->set_log_mode(log_mode);
 
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
@@ -1049,7 +1052,7 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		mtr_commit(mtr);
 
 		mtr_start(mtr);
-
+		mtr->set_sys_modified();
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 
 	} else {
@@ -2715,6 +2718,8 @@ truncate_t::drop_indexes(
 			/* Do not log changes for single-table
 			tablespaces, we are in recovery mode. */
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_sys_modified();
 		}
 
 		if (root_page_no != FIL_NULL) {
@@ -2755,6 +2760,8 @@ truncate_t::create_indexes(
 		/* Do not log changes for single-table tablespaces, we
 		are in recovery mode. */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	} else {
+		mtr.set_sys_modified();
 	}
 
 	/* Create all new index trees with table format, index ids, index

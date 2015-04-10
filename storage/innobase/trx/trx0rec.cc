@@ -1298,17 +1298,21 @@ trx_undo_report_row_operation(
 		}
 	}
 
-	/* If object is temporary, disable REDO logging that is done to track
-	changes done to UNDO logs. This is feasible given that temporary tables
-	are not restored on restart. */
 	mtr_start(&mtr);
-	dict_disable_redo_if_temporary(index->table, &mtr);
-	mutex_enter(&trx->undo_mutex);
 
-	/* If object is temp-table then select noredo rseg as changes
-	to undo logs don't need REDO logging given that they are not
-	restored on restart as corresponding object doesn't exist on restart.*/
-	undo_ptr = is_temp_table ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
+	if (is_temp_table) {
+		/* If object is temporary, disable REDO logging that
+		is done to track changes done to UNDO logs. This is
+		feasible given that temporary tables and temporary
+		undo logs are not restored on restart. */
+		undo_ptr = &trx->rsegs.m_noredo;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	} else {
+		undo_ptr = &trx->rsegs.m_redo;
+		mtr.set_undo_space(undo_ptr->rseg->space);
+	}
+
+	mutex_enter(&trx->undo_mutex);
 
 	switch (op_type) {
 	case TRX_UNDO_INSERT_OP:
@@ -1401,8 +1405,13 @@ trx_undo_report_row_operation(
 
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
-				dict_disable_redo_if_temporary(
-					index->table, &mtr);
+
+				if (dict_table_is_temporary(index->table)) {
+					mtr.set_log_mode(MTR_LOG_NO_REDO);
+				} else {
+					mtr.set_undo_space(
+						undo_ptr->rseg->space);
+				}
 
 				mutex_enter(&undo_ptr->rseg->mutex);
 				trx_undo_free_last_page(trx, undo, &mtr);
@@ -1441,7 +1450,11 @@ trx_undo_report_row_operation(
 
 		ut_ad(++loop_count < 2);
 		mtr_start(&mtr);
-		dict_disable_redo_if_temporary(index->table, &mtr);
+		if (dict_table_is_temporary(index->table)) {
+			mtr.set_log_mode(MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_undo_space(undo_ptr->rseg->space);
+		}
 
 		/* When we add a page to an undo log, this is analogous to
 		a pessimistic insert in a B-tree, and we must reserve the

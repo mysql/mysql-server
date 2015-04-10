@@ -518,6 +518,7 @@ ibuf_init_at_db_start(void)
 	mutex_create("ibuf_pessimistic_insert", &ibuf_pessimistic_insert_mutex);
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	mtr_x_lock_space(IBUF_SPACE_ID, &mtr);
 
@@ -3454,6 +3455,7 @@ ibuf_insert_low(
 	}
 
 	ibuf_mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	btr_pcur_open(ibuf->index, ibuf_entry, PAGE_CUR_LE, mode, &pcur, &mtr);
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
@@ -4314,6 +4316,7 @@ ibuf_delete_rec(
 	dberr_t		err;
 
 	ut_ad(ibuf_inside(mtr));
+	ut_ad(mtr->is_named_space(IBUF_SPACE_ID));
 	ut_ad(page_rec_is_user_rec(btr_pcur_get_rec(pcur)));
 	ut_ad(ibuf_rec_get_page_no(mtr, btr_pcur_get_rec(pcur)) == page_no);
 	ut_ad(ibuf_rec_get_space(mtr, btr_pcur_get_rec(pcur)) == space);
@@ -4382,6 +4385,7 @@ ibuf_delete_rec(
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 	ibuf_mtr_start(mtr);
+	mtr->set_sys_modified();
 	mutex_enter(&ibuf_mutex);
 
 	if (!ibuf_restore_pos(space, page_no, search_tuple,
@@ -4578,6 +4582,7 @@ ibuf_merge_or_delete_for_page(
 
 loop:
 	ibuf_mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	/* Position pcur in the insert buffer at the first entry for this
 	index page */
@@ -4706,6 +4711,7 @@ loop:
 				ibuf_btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
 				ibuf_mtr_start(&mtr);
+				mtr.set_sys_modified();
 				mtr.set_named_space(page_id.space());
 
 				success = buf_page_get_known_nowait(
@@ -4834,6 +4840,7 @@ ibuf_delete_for_discarded_space(
 	memset(dops, 0, sizeof(dops));
 loop:
 	ibuf_mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	/* Position pcur in the insert buffer at the first entry for the
 	space */

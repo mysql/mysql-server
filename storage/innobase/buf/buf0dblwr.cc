@@ -190,6 +190,7 @@ buf_dblwr_create(void)
 
 start_again:
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 	buf_dblwr_being_created = TRUE;
 
 	doublewrite = buf_dblwr_get(&mtr);
@@ -305,6 +306,7 @@ start_again:
 			are active, restart the MTR occasionally. */
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
+			mtr.set_sys_modified();
 			doublewrite = buf_dblwr_get(&mtr);
 			fseg_header = doublewrite
 				      + TRX_SYS_DOUBLEWRITE_FSEG;

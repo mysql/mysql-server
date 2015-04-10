@@ -789,7 +789,8 @@ srv_purge_wakeup(void);
 
 /** Call exit(3) */
 void
-srv_fatal_error();
+srv_fatal_error()
+	__attribute__((noreturn));
 
 /** Check if tablespace is being truncated.
 (Ignore system-tablespace as we don't re-create the tablespace

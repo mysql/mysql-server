@@ -105,10 +105,10 @@ char*	srv_data_home	= NULL;
 char*	srv_undo_dir = NULL;
 
 /** The number of tablespaces to use for rollback segments. */
-ulong	srv_undo_tablespaces = 8;
+ulong	srv_undo_tablespaces = 0;
 
 /** The number of UNDO tablespaces that are open and ready to use. */
-ulint	srv_undo_tablespaces_open = 8;
+ulint	srv_undo_tablespaces_open = 0;
 
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;

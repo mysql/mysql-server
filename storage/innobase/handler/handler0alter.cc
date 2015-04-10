@@ -6496,6 +6496,7 @@ ha_innobase::commit_inplace_alter_table(
 	} else {
 		mtr_t	mtr;
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		for (inplace_alter_handler_ctx** pctx = ctx_array;
 		     *pctx; pctx++) {

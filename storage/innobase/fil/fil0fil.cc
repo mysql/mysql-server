@@ -2052,12 +2052,10 @@ fil_op_write_log(
 	byte*		log_ptr;
 	ulint		len;
 
-	ut_ad(first_page_no == 0);
-
-	/* fil_name_parse() requires that there be at least one path
-	separator and that the file path end with ".ibd". */
+	/* TODO: support user-created multi-file tablespaces */
+	ut_ad(first_page_no == 0 || space_id == TRX_SYS_SPACE);
+	/* fil_name_parse() requires this */
 	ut_ad(strchr(path, OS_PATH_SEPARATOR) != NULL);
-	ut_ad(strcmp(&path[strlen(path) - strlen(DOT_IBD)], DOT_IBD) == 0);
 
 	log_ptr = mlog_open(mtr, 11 + 2 + 1);
 
@@ -2660,6 +2658,114 @@ fil_check_pending_operations(
 	return(DB_SUCCESS);
 }
 
+#ifndef UNIV_HOTBACKUP
+/** Check if a file name exists in the system tablespace.
+@param[in]	first_page_no	first page number (0=first file)
+@param[in]	file_name	tablespace file name
+@return whether the name matches the system tablespace
+@retval	FIL_SPACE_SYSTEM_OK		if file_name starts at first_page_no
+in the system tablespace
+@retval	FIL_SPACE_SYSTEM_ALL		if file_name starts at first_page_no
+in the system tablespace
+and this function has been invoked for every file in the system tablespace
+@retval	FIL_SPACE_SYSTEM_MISMATCH	in case of mismatch */
+
+enum fil_space_system_t
+fil_space_system_check(
+	ulint		first_page_no,
+	const char*	file_name)
+{
+	const fil_space_t*	space;
+	enum fil_space_system_t	status	= FIL_SPACE_SYSTEM_MISMATCH;
+	static ulint		fil_space_system_checked_max;
+	ulint			i	= 0;
+
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(TRX_SYS_SPACE);
+	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
+
+	for (const fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
+	     node != NULL;
+	     node = UT_LIST_GET_NEXT(chain, node)) {
+		i++;
+		ut_ad(i <= UT_LIST_GET_LEN(space->chain));
+		ut_ad(node->size > 0);
+
+		if (first_page_no != 0) {
+			first_page_no -= node->size;
+			continue;
+		}
+
+		if (strcmp(node->name, file_name)) {
+			/* Name mismatch */
+		} else if (i < fil_space_system_checked_max + 1) {
+			status = FIL_SPACE_SYSTEM_OK;
+		} else {
+			fil_space_system_checked_max = i;
+			status = (i == UT_LIST_GET_LEN(space->chain))
+				? FIL_SPACE_SYSTEM_ALL
+				: FIL_SPACE_SYSTEM_OK;
+		}
+
+		break;
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(status);
+}
+
+/** Check if an undo tablespace was opened during crash recovery.
+@param[in]	name		tablespace name
+@param[in]	space_id	undo tablespace id
+@retval DB_SUCCESS		if it was already opened
+@retval DB_TABLESPACE_NOT_FOUND	if not yet opened
+@retval DB_ERROR		if the data is inconsistent */
+
+dberr_t
+fil_space_undo_check_if_opened(
+	const char*	name,
+	ulint		space_id)
+{
+	dberr_t		err	= DB_SUCCESS;
+
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*	space	= fil_space_get_by_id(space_id);
+	ut_ad(space == NULL || space->purpose == FIL_TYPE_TABLESPACE);
+	ut_ad(space == NULL || UT_LIST_GET_LEN(space->chain) == 1);
+
+	if (space == NULL) {
+		err = DB_TABLESPACE_NOT_FOUND;
+	} else if (space->flags
+		   != fsp_flags_set_page_size(0, univ_page_size)
+		   || strcmp(space->name, name)) {
+		ib::error()
+			<< "Cannot load UNDO tablespace '" << name
+			<< "' (" << space_id
+			<< ") because tablespace '"
+			<< UT_LIST_GET_FIRST(space->chain)->name
+			<< "' was loaded during redo log apply with flags "
+			<< space->flags;
+		err = DB_ERROR;
+	} else if (fil_space_belongs_in_lru(space)) {
+		fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+
+		if (node->is_open) {
+			ut_a(UT_LIST_GET_LEN(fil_system->LRU) > 0);
+			ut_d(UT_LIST_CHECK(fil_system->LRU));
+
+			/* The node is in the LRU list, remove it */
+			UT_LIST_REMOVE(fil_system->LRU, node);
+			ut_d(UT_LIST_CHECK(fil_system->LRU));
+		}
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(err);
+}
+
 /*******************************************************************//**
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
@@ -2720,6 +2826,7 @@ fil_close_tablespace(
 
 	return(err);
 }
+#endif /* UNIV_HOTBACKUP */
 
 /** Deletes an IBD tablespace, either general or single-table.
 The tablespace must be cached in the memory cache. This will delete the
@@ -4082,15 +4189,21 @@ fil_path_to_space_name(
 	ut_ad(tablename > dbname);
 	ut_ad(tablename < end);
 	ut_ad(end - tablename > 4);
-	ut_ad(memcmp(end - 4, DOT_IBD, 4) == 0);
 
-	char*	name = mem_strdupl(dbname, end - dbname - 4);
+	char*	name;
 
-	ut_ad(name[tablename - dbname - 1] == OS_PATH_SEPARATOR);
+	if (!memcmp(end - 4, DOT_IBD, 4)) {
+		name = mem_strdupl(dbname, (end - 4) - dbname);
+
+		ut_ad(name[tablename - dbname - 1] == OS_PATH_SEPARATOR);
 #if OS_PATH_SEPARATOR != '/'
-	/* space->name uses '/', not OS_PATH_SEPARATOR. */
-	name[tablename - dbname - 1] = '/';
+		/* space->name uses '/', not OS_PATH_SEPARATOR. */
+		name[tablename - dbname - 1] = '/';
 #endif
+	} else {
+		ut_ad(!memcmp(tablename, "undo", 4));
+		name = mem_strdupl(filename, filename_len);
+	}
 
 	return(name);
 }
@@ -6297,7 +6410,6 @@ fil_space_validate_for_mtr_commit(
 	ut_ad(!mutex_own(&fil_system->mutex));
 	ut_ad(space != NULL);
 	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
-	ut_ad(!is_predefined_tablespace(space->id));
 
 	/* We are serving mtr_commit(). While there is an active
 	mini-transaction, we should have !space->stop_new_ops. This is
@@ -6326,12 +6438,17 @@ fil_names_write(
 	const fil_space_t*	space,
 	mtr_t*			mtr)
 {
-	ut_ad(UT_LIST_GET_LEN(space->chain) == 1);
-	fil_name_write(space, 0, UT_LIST_GET_FIRST(space->chain), mtr);
+	ulint	first_page_no = 0;
+
+	for (const fil_node_t* file = UT_LIST_GET_FIRST(space->chain);
+	     file != NULL;
+	     file = UT_LIST_GET_NEXT(chain, file)) {
+		fil_name_write(space, first_page_no, file, mtr);
+		first_page_no += file->size;
+	}
 }
 
-/** Note that a non-predefined persistent tablespace has been modified
-by redo log.
+/** Note that a persistent tablespace has been modified by redo log.
 @param[in,out]	space	tablespace */
 void
 fil_names_dirty(
@@ -6347,9 +6464,8 @@ fil_names_dirty(
 	space->max_lsn = log_sys->lsn;
 }
 
-/** Write MLOG_FILE_NAME records when a non-predefined persistent
-tablespace was modified for the first time since the latest
-fil_names_clear().
+/** Write MLOG_FILE_NAME records when a persistent tablespace was modified
+for the first time since the latest fil_names_clear().
 @param[in,out]	space	tablespace
 @param[in,out]	mtr	mini-transaction */
 void

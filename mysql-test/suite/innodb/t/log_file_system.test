@@ -1,0 +1,143 @@
+# WL#7806 InnoDB: Log-based discovery of built-in tablespaces
+# Test the detection of innodb_data_file_path mismatch.
+
+--source include/have_innodb.inc
+# Embedded server does not support restarting
+--source include/not_embedded.inc
+
+let MYSQLD_DATADIR= `select @@datadir`;
+let OLD_IBDATA= `select @@innodb_data_file_path`;
+let NEW_IBDATA_PREFIX= `select replace(@@innodb_data_file_path, 'ibdata1:10M:autoextend', 'ibdata1:10M')`;
+
+let NEW_CNF= $MYSQLTEST_VARDIR/tmp/new-my.cnf;
+
+if ($OLD_IBDATA == $NEW_IBDATA_PREFIX)
+{
+  --skip Needs default innodb_data_file_path
+}
+
+let NEW_CNF_VARS = $MYSQLTEST_VARDIR/tmp/config.txt;
+
+perl;
+my $cmd = $ENV{MYSQLD_CMD};
+my $cnf = $cmd;
+my $new_cnf = $ENV{NEW_CNF};
+$cnf =~ s/.*--defaults-file=([^ ]*).*/$1/ || die "no --defaults-file in $cmd";
+$cmd =~ s/--defaults-file=([^ ]*)/--defaults-file=$ENV{NEW_CNF}/ || die;
+
+$ENV{NEW_IBDATA_PREFIX} =~ s/:[0-9]+[MG]$//;
+my @files = split(';', $ENV{NEW_IBDATA_PREFIX});
+my $file = $ENV{MYSQLD_DATADIR} . '/' . $files[$#files];
+
+my $size = (stat($file))[7] || die "cannot stat $file";
+
+open(FILE, ">$ENV{NEW_CNF_VARS}") || die "cannot open $ENV{NEW_CNF_VARS}";
+print FILE "let NEW_CMD= $cmd;\n";
+close(FILE);
+
+my $path = "$ENV{NEW_IBDATA_PREFIX}:" . ($size / 1048576) . "M;foo:1M";
+
+open(CNF, "<$cnf") || die "cannot read $cnf";
+open(NEW_CNF, ">$new_cnf") || die "cannot write $new_cnf";
+
+while (<CNF>) {
+      s/innodb_data_file_path=.*/innodb_data_file_path=$path/;
+      print NEW_CNF;
+}
+close(CNF);
+close(NEW_CNF);
+EOF
+
+--source $NEW_CNF_VARS
+--remove_file $NEW_CNF_VARS
+
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+
+--disable_query_log
+# Work around Bug#18605064 INNODB CREATES NEW DATA FILE BEFORE APPLYING REDO LOG
+call mtr.add_suppression("InnoDB: Tablespace size stored in header is [0-9]* pages, but the sum of data file sizes is [0-9]* pages");
+--enable_query_log
+
+# Kill the server to inject faults.
+--source include/kill_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+let $old_mysqld=$MYSQLD_CMD --console > $SEARCH_FILE 2>&1;
+let $new_mysqld=$NEW_CMD --console > $SEARCH_FILE 2>&1;
+
+--echo # Fault 1: Extra file in innodb_data_file_path
+
+--error 1
+--exec $new_mysqld
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Some file names in innodb_data_file_path do not occur in the redo log;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+# Work around Bug#18605064 INNODB CREATES NEW DATA FILE BEFORE APPLYING REDO LOG
+--remove_file $MYSQLD_DATADIR/foo
+
+--echo # Recovery and clean shutdown with old data file path
+--error 1
+# Empty the undo logs and the change buffer with innodb_fast_shutdown=0.
+# Otherwise, log_write_requests=0 could be violated after the last restart.
+--exec $old_mysqld --innodb-fast-shutdown=0 --innodb-nonexistent-option
+let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+# Create empty data file
+perl;
+die unless open(FILE, ">$ENV{MYSQLD_DATADIR}/foo");
+print FILE "\0" x 1048576;
+close(FILE);
+EOF
+
+--echo # Start with new data file path
+
+--exec echo "restart: --defaults-file=$NEW_CNF" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+INSERT INTO t1 VALUES (1);
+# Kill the server to inject faults.
+--source include/kill_mysqld.inc
+
+--echo # Fault 2: Missing file in innodb_data_file_path
+
+--error 1
+--exec $old_mysqld
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Redo log refers to system tablespace file '.*foo' starting at page \d+, which disagrees with innodb_data_file_path;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo # Recovery and shutdown with innodb-force-recovery (ignore unknown file)
+--error 1
+--exec $old_mysqld --innodb-force-recovery=1 --innodb-fast-shutdown=0 --innodb-nonexistent-option
+let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo # Cleanup
+
+--remove_file $MYSQLD_DATADIR/foo
+--remove_file $NEW_CNF
+
+--source include/start_mysqld.inc
+
+--echo # No log should be generated while persistent tablespaces are idle
+--echo # FIXME: WL#6205 violates this in SysTablespace::replace_in_dictionary()
+CREATE TEMPORARY TABLE t (a SERIAL) ENGINE=InnoDB;
+
+#SELECT count FROM information_schema.innodb_metrics
+#WHERE name='log_write_requests';
+
+SELECT * FROM t1;
+
+#SELECT count FROM information_schema.innodb_metrics
+#WHERE name='log_write_requests';
+
+DROP TABLE t1;
+
+SELECT count>0 FROM information_schema.innodb_metrics
+WHERE name='log_write_requests';
