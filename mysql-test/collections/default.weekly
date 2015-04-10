@@ -88,3 +88,6 @@ perl mysql-test-run.pl --vardir=var-innodb-zip --force --big-test --comment=comp
 
 # Run all tests under the suite interactive_utilities
 perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=interactive-tests  --suite=interactive_utilities
+
+# Run some tests that use no_parallel.inc
+perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --comment=serial_tests  --vardir=serial-tests main.blackhole_plugin main.archive_plugin innodb.mysqldump_max_recordsize innodb.innodb_pagesize_max_recordsize innodb.log_based_discovery
