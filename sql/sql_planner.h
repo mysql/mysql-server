@@ -18,12 +18,16 @@
 
 /** @file Join planner classes */
 
-#include "sql_class.h"
-#include "sql_select.h"
-#include "sql_test.h"
-#include "sql_optimizer.h"
+#include "my_global.h"
 
+class JOIN;
+class JOIN_TAB;
+class Key_use;
 class Opt_trace_object;
+class THD;
+struct TABLE_LIST;
+typedef ulonglong nested_join_map;
+typedef struct st_position POSITION;
 
 /**
   This class determines the optimal join order for tables within
@@ -44,18 +48,7 @@ class Opt_trace_object;
 class Optimize_table_order
 {
 public:
-  Optimize_table_order(THD *thd_arg, JOIN *join_arg, TABLE_LIST *sjm_nest_arg)
-  : thd(thd_arg), join(join_arg),
-    search_depth(determine_search_depth(thd->variables.optimizer_search_depth,
-                                        join->tables - join->const_tables)),
-    prune_level(thd->variables.optimizer_prune_level),
-    cur_embedding_map(0), emb_sjm_nest(sjm_nest_arg),
-    excluded_tables((emb_sjm_nest ?
-                     (join->all_table_map & ~emb_sjm_nest->sj_inner_tables) : 0) |
-                    (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
-    has_sj(!(join->select_lex->sj_nests.is_empty() || emb_sjm_nest)),
-    test_all_ref_keys(false), found_plan_with_allowed_sj(false)
-  {}
+  Optimize_table_order(THD *thd_arg, JOIN *join_arg, TABLE_LIST *sjm_nest_arg);
   ~Optimize_table_order()
   {}
   /**

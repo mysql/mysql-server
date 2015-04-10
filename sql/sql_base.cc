@@ -16,44 +16,40 @@
 /* Basic functions needed by many modules */
 
 #include "sql_base.h"
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "psi_memory_key.h"
-#include "debug_sync.h"
-#include "lock.h"        // mysql_lock_remove,
-                         // mysql_unlock_tables,
-                         // mysql_lock_have_duplicate
-#include "mysqld.h"      // slave_open_temp_tables table_def_size ..
-#include "sql_show.h"    // append_identifier
-#include "strfunc.h"     // find_type
-#include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
-#include "sql_parse.h"   // check_table_access
-#include "auth_common.h" // *_ACL, check_grant_all_columns,
-                         // check_column_grant_in_table_ref,
-                         // get_column_grant
-#include "sql_handler.h" // mysql_ha_flush
-#include "partition_info.h"                     // partition_info
-#include "log_event.h"                          // Query_log_event
-#include "sql_select.h"
-#include "sp_head.h"
-#include "sp.h"
-#include "sp_cache.h"
-#include "trigger_loader.h"   // Trigger_loader::trg_file_exists()
+
+#include "my_atomic.h"                // my_atomic_add32
+#include "auth_common.h"              // check_table_access
+#include "binlog.h"                   // mysql_bin_log
+#include "datadict.h"                 // dd_frm_type
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_THD
+#include "error_handler.h"            // Internal_error_handler
+#include "item_cmpfunc.h"             // Item_func_eq
+#include "log.h"                      // sql_print_error
+#include "lock.h"                     // mysql_lock_remove
+#include "log_event.h"                // Query_log_event
+#include "mysqld.h"                   // slave_open_temp_tables
+#include "partition_info.h"           // partition_info
+#include "psi_memory_key.h"           // key_memory_TABLE
+#include "rpl_handler.h"              // RUN_HOOK
+#include "sp.h"                       // Sroutine_hash_entry
+#include "sp_cache.h"                 // sp_cache_version
+#include "sp_head.h"                  // sp_head
+#include "sql_class.h"                // THD
+#include "sql_error.h"                // Sql_condition
+#include "sql_handler.h"              // mysql_ha_flush_tables
+#include "sql_hset.h"                 // Hash_set
+#include "sql_parse.h"                // is_update_query
+#include "sql_prepare.h"              // Reprepare_observer
+#include "sql_show.h"                 // append_identifier
+#include "sql_table.h"                // build_table_filename
+#include "sql_tmp_table.h"            // free_tmp_table
+#include "sql_view.h"                 // mysql_make_view
+#include "table.h"                    // TABLE_LIST
+#include "table_cache.h"              // table_cache_manager
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#include "transaction.h"
-#include "sql_prepare.h"   // Reprepare_observer
-#include <m_ctype.h>
-#include <my_dir.h>
-#include <hash.h>
-#include "rpl_filter.h"
-#include "rpl_handler.h"
-#include "sql_table.h"                          // build_table_filename
-#include "datadict.h"   // dd_frm_type()
-#include "sql_hset.h"   // Hash_set
-#include "sql_tmp_table.h" // free_tmp_table
-#include "table_cache.h" // Table_cache_manager, Table_cache
-#include "log.h"
-#include "binlog.h"
-#include "derror.h"
+#include "transaction.h"              // trans_rollback_stmt
+#include "trigger_loader.h"           // Trigger_loader
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
@@ -1836,31 +1832,23 @@ bool close_temporary_tables(THD *thd)
   DBUG_RETURN(error);
 }
 
-/*
-  Find table in list.
 
-  SYNOPSIS
-    find_table_in_list()
-    table		Pointer to table list
-    offset		Offset to which list in table structure to use
-    db_name		Data base name
-    table_name		Table name
+/**
+  Find table in global list.
 
-  NOTES:
-    This is called by find_table_in_local_list() and
-    find_table_in_global_list().
+  @param table          Pointer to table list
+  @param db_name        Data base name
+  @param table_name     Table name
 
-  RETURN VALUES
-    NULL	Table not found
-    #		Pointer to found table.
+  @retval NULL  Table not found
+  @retval #     Pointer to found table.
 */
 
-TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               TABLE_LIST *TABLE_LIST::*link,
-                               const char *db_name,
-                               const char *table_name)
+TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
+                                      const char *db_name,
+                                      const char *table_name)
 {
-  for (; table; table= table->*link )
+  for (; table; table= table->next_global)
   {
     if ((table->table == 0 || table->table->s->tmp_table == NO_TMP_TABLE) &&
         strcmp(table->db, db_name) == 0 &&

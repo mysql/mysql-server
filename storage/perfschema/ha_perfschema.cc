@@ -23,6 +23,7 @@
 #include "my_atomic.h"
 #include "hostname.h"
 #include "mysqld.h"
+#include "sql_class.h"
 #include "sql_plugin.h"
 #include "mysql/plugin.h"
 #include "ha_perfschema.h"
@@ -1543,5 +1544,13 @@ void ha_perfschema::print_error(int error, myf errflag)
      handler::print_error(error, errflag);
      break;
   }
+}
+
+
+bool ha_perfschema::is_executed_by_slave() const
+{
+  DBUG_ASSERT(table != NULL);
+  DBUG_ASSERT(table->in_use != NULL);
+  return table->in_use->slave_thread;
 }
 

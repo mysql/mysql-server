@@ -40,6 +40,7 @@
 #include "psi_memory_key.h"
 #include "sql_base.h"                           // TEMP_PREFIX
 #include "sql_sort.h"
+#include "table.h"
 
 #include <algorithm>
 

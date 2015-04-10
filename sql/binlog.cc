@@ -96,6 +96,15 @@ static int binlog_xa_commit(handlerton *hton,  XID *xid);
 static int binlog_xa_rollback(handlerton *hton,  XID *xid);
 
 
+#ifdef HAVE_REPLICATION
+static inline bool has_commit_order_manager(THD *thd)
+{
+  return is_mts_worker(thd) &&
+    thd->rli_slave->get_commit_order_manager() != NULL;
+}
+#endif
+
+
 bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
 {
   DBUG_ENTER("normalize_binlog_name");

@@ -18,12 +18,16 @@
 
 #include "my_global.h"
 #include "hash.h"                   // my_hash_value_type
+#include "my_base.h"                // ha_extra_function
+#include "thr_lock.h"               // thr_lock_type
+#include "mdl.h"                    // MDL_savepoint
 #include "sql_array.h"              // Bounds_checked_array
-#include "table.h"                  // TABLE_LIST
+#include "sql_bitmap.h"             // Key_map
 #include "trigger_def.h"            // enum_trigger_event_type
 
+class Field;
+class Item;
 class Item_ident;
-class MDL_savepoint;
 class Open_table_context;
 class Open_tables_backup;
 class Open_tables_state;
@@ -31,12 +35,16 @@ class Prelocking_strategy;
 class Query_tables_list;
 class sp_head;
 class Sroutine_hash_entry;
+class String;
+struct handlerton;
 struct Name_resolution_context;
-
+struct TABLE;
+struct TABLE_LIST;
+template <class T> class List;
+template <class T> class List_iterator;
 typedef struct st_open_table_list OPEN_TABLE_LIST;
 typedef class st_select_lex SELECT_LEX;
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
-
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 
 #define TEMP_PREFIX	"MY"
@@ -220,10 +228,6 @@ my_bool mysql_rm_tmp_tables(void);
 bool rm_temporary_table(THD *thd, handlerton *base, const char *path);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
-TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               TABLE_LIST *TABLE_LIST::*link,
-                               const char *db_name,
-                               const char *table_name);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 TABLE *find_temporary_table(THD *thd, const char *table_key,
@@ -356,30 +360,9 @@ extern Field *not_found_field;
 extern Field *view_ref_found;
 extern HASH table_def_cache;
 
-/**
-  clean/setup table fields and map.
-
-  @param table        TABLE structure pointer (which should be setup)
-  @param table_list   TABLE_LIST structure pointer (owner of TABLE)
-  @param tableno      table number
-*/
-
-inline TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
-                                             const char *db_name,
-                                             const char *table_name)
-{
-  return find_table_in_list(table, &TABLE_LIST::next_global,
-                            db_name, table_name);
-}
-
-inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
-                                            const char *db_name,
-                                            const char *table_name)
-{
-  return find_table_in_list(table, &TABLE_LIST::next_local,
-                            db_name, table_name);
-}
-
+TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
+                                      const char *db_name,
+                                      const char *table_name);
 
 /**
   An abstract class for a strategy specifying how the prelocking
@@ -577,30 +560,6 @@ private:
   */
   bool m_has_protection_against_grl;
 };
-
-
-/**
-  Check if a TABLE_LIST instance represents a pre-opened temporary table.
-*/
-
-inline bool is_temporary_table(TABLE_LIST *tl)
-{
-  if (tl->is_view() || tl->schema_table)
-    return FALSE;
-
-  if (!tl->table)
-    return FALSE;
-
-  /*
-    NOTE: 'table->s' might be NULL for specially constructed TABLE
-    instances. See SHOW TRIGGERS for example.
-  */
-
-  if (!tl->table->s)
-    return FALSE;
-
-  return tl->table->s->tmp_table != NO_TMP_TABLE;
-}
 
 void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set);
 

@@ -19,7 +19,9 @@
 
 /** @file Classes for query execution */
 
+#include "my_global.h"
 #include "records.h"               // READ_RECORD
+#include "sql_class.h"             // THD
 #include "sql_opt_exec_shared.h"   // QEP_shared_owner
 #include "temp_table_param.h"      // Temp_table_param
 

@@ -17,9 +17,12 @@
 #define SQL_SHOW_STATUS_H
 
 #include "my_global.h"
-#include "sql_class.h" // THD
+#include "parse_tree_node_base.h"  // POS
 
+class Item;
 class String;
+class THD;
+typedef class st_select_lex SELECT_LEX;
 
 SELECT_LEX*
 build_show_global_status(const POS &pos, THD *thd, const String *wild, Item *where_cond);

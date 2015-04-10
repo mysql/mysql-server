@@ -19,9 +19,9 @@
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
 #include "my_base.h"
-#include "item.h"        // Item
-#include "sql_alloc.h"   // Sql_alloc
-#include "sql_class.h"   // Temp_table_param
+#include "item.h"               // Item
+#include "sql_alloc.h"          // Sql_alloc
+#include "temp_table_param.h"   // Temp_table_param
 
 class JOIN;
 class Item_func_match;
