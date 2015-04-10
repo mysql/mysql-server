@@ -375,6 +375,7 @@ from t1
   straight_join t1 as t2 on t2.a = t1.b+0
   straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
 
+--source ndb_join_pushdown_counters.inc
 
 ## Create a non-ndb table used as a tool to force part of
 ## a query to be non-pushable.
@@ -415,6 +416,8 @@ from t1_myisam as t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 where t1.a=2 and t1.b=2;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1_myisam;
@@ -1143,6 +1146,8 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4 and t2.b=4
 group by t2.c order by t2.c;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 create table tx like t1;
 
@@ -1159,6 +1164,8 @@ explain select count(*) from tx as x1
 select count(*) from tx as x1 
   left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table tx;
 
@@ -1174,6 +1181,8 @@ explain select count(*) from t1
 select count(*) from t1 
   join t1 as t2 on t2.a = t1.c 
   join t1 as t3 on t3.a = t1.d;
+
+--source ndb_join_pushdown_counters.inc
 
 # Test bushy join with pruned scan and larger result set.
 
@@ -1203,6 +1212,8 @@ select count(*) from t1 as x1
 
 --error 0,1193
 set global debug=@save_debug;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -1238,6 +1249,8 @@ select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 set new=on;
 alter table t1 partition by hash(a);
@@ -1246,6 +1259,8 @@ explain extended
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 alter table t1 partition by list(a) (
@@ -1260,6 +1275,8 @@ select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 alter table t1 partition by range(a) partitions 4 (
   partition p1 values less than (0),
@@ -1272,6 +1289,8 @@ explain extended
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -1317,6 +1336,8 @@ where t1.a in (1,3,5)
 --echo This should yield 3 executes (for now...buh)
 
 set autocommit=on;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -1377,6 +1398,7 @@ where t1.a in (1,3,5)
   and t2.a = t1.b
 order by t1.a desc;
 
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -1441,6 +1463,7 @@ explain extended
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 
+--source ndb_join_pushdown_counters.inc
 
 # Tests usage of unique index
 connection ddl;
@@ -1663,6 +1686,8 @@ select count(*) from t3 as x0
  join t3 as x17 on x15.b3=x17.a3
  join t3 as x18 on x16.b3=x18.d3;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t1,t2,t3, t3_hash;
 
@@ -1727,6 +1752,8 @@ select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3
   and x.a3=0x2f and x.b3=0x3f;
 select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3
   and x.a3=0x2f and x.b3=0x3f;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t3, t3_hash, t3_unq;
@@ -1797,6 +1824,7 @@ select * from t3 as t1
  left outer join t3 as t3 on t3.a3 = t2.d3
  where t1.d3 is not null;
 
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t3;
@@ -1963,6 +1991,8 @@ execute stmt1;
 commit;
 execute stmt1;
 
+--source ndb_join_pushdown_counters.inc
+
 # Drop index used by query -> Query plan should change to unpushed join
 connection ddl;
 drop index b3 on t3;
@@ -2027,6 +2057,8 @@ set @a=0;
 execute stmt1 using @a;
 set @a=null;
 execute stmt1 using @a;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t3;
@@ -2100,6 +2132,8 @@ select t1.a, (select straight_join x.a from t1 as x join t1 as y on x.a=y.b wher
 --sorted_result
 select t1.a, (select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b) from t1;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t1;
 
@@ -2121,6 +2155,8 @@ where t2.a = t1.b
 select * from t1, t2, t1 as t3
 where t2.a = t1.b
   and t3.a = t2.b /* mixed engines */;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1, t2;
@@ -2226,6 +2262,8 @@ from t1, t2
 where t1.a = t2.b
   and t2.a = 3;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t1, t2;
 
@@ -2245,6 +2283,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 tinyint unsigned, c3 int not null, d3 int not null, 
@@ -2256,6 +2296,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2269,6 +2311,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 smallint unsigned, c3 int not null, d3 int not null, 
@@ -2280,6 +2324,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2293,6 +2339,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 mediumint unsigned, c3 int not null, d3 int not null, 
@@ -2304,6 +2352,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2317,6 +2367,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 int unsigned, c3 int not null, d3 int not null, 
@@ -2328,6 +2380,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2341,6 +2395,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 bigint unsigned, c3 int not null, d3 int not null, 
@@ -2352,6 +2408,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2365,6 +2423,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 float, c3 int not null, d3 int not null, 
@@ -2376,6 +2436,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2389,6 +2451,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 double, c3 int not null, d3 int not null, 
@@ -2400,6 +2464,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2413,6 +2479,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 decimal, c3 int not null, d3 int not null, 
@@ -2424,6 +2492,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2437,6 +2507,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 date, c3 int not null, d3 int not null, 
@@ -2448,6 +2520,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
+
+--source ndb_join_pushdown_counters.inc
 
 ## Temp removed due to lack of DATETIME2 support
 #connection ddl;
@@ -2462,6 +2536,8 @@ connection spj;
 #  select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28 23:59';
 #  select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28 23:59';
 #
+#--source ndb_join_pushdown_counters.inc
+#
 #connection ddl;
 #  drop table t3;
 #  create table t3 (a3 int, b3 time, c3 int not null, d3 int not null, 
@@ -2473,6 +2549,8 @@ connection spj;
 #  explain extended
 #  select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='23:59';
 #  select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='23:59';
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2486,6 +2564,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 varchar(16), c3 int not null, d3 int not null, 
@@ -2497,6 +2577,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2510,6 +2592,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
   create table t3 (a3 int, b3 binary(16), c3 int not null, d3 int not null, 
@@ -2522,6 +2606,8 @@ connection spj;
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
   drop table t3;
     create table t3 (a3 int, b3 varbinary(16), c3 int not null, d3 int not null, 
@@ -2533,6 +2619,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
   select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2552,6 +2640,8 @@ connection spj;
   explain extended
   select * from t3 x, t3 y where y.a3=x.b3 and y.b3="63";
   select * from t3 x, t3 y where y.a3=x.b3 and y.b3="63";
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
   drop table t3;
@@ -2579,6 +2669,8 @@ select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=
 explain extended
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t3;
@@ -2626,6 +2718,8 @@ from t1
   straight_join t1 as t3 on t3.k = t2.b
   straight_join t1 as t4 on t4.k = t1.b
 where t2.k = 1;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -2686,6 +2780,8 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 alter table t1 partition by key(a);
 
@@ -2699,6 +2795,8 @@ select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -2764,6 +2862,8 @@ select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.b = t2.a;
 
 explain extended select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.a=11 and t1.b = t2.a;
 select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.a=11 and t1.b = t2.a;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -3177,6 +3277,8 @@ select * from t1 as x right join t1 as y
  and x.a = y.pk
 where y.pk = 2;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t1;
 
@@ -3199,6 +3301,8 @@ insert into t1 values (2,3,30,40);
 explain extended select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
 --sorted_result
 select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -3235,6 +3339,8 @@ select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 
 --error 0,1193
 set global debug=@save_debug;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -3554,6 +3660,8 @@ update t1 set u=u-100;
 
 ##############
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop index ix2 on t1;
 create unique index ix2 on t1(a,u);
@@ -3573,6 +3681,8 @@ t1 as table1 join
  (t1 as table2 join t1 as table3 on table3.a = table2.a)
  on table3.u = table1.u
  where table2.pk = 3;
+
+--source ndb_join_pushdown_counters.inc
 
 ##############
 connection ddl;
@@ -3645,6 +3755,8 @@ select straight_join count(*) from t1 as x1
    join t1 as x2 on x1.c=x2.a and x2.d=2
    join t3 as x3 on x1.d=x3.a;
 
+--source ndb_join_pushdown_counters.inc
+
 #####
 # Bug #18175080 
 # INCORRECT 'LOCAL_RANGE_SCAN' REPORTED FROM NDB_JOIN_PUSHDOWN_*.TEST
@@ -3703,12 +3815,16 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 alter table t1 partition by key (a) partitions 8;
 
 connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 alter table t1 partition by key (a,b) partitions 8;
@@ -3717,12 +3833,16 @@ connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 alter table t1 partition by key (b,a) partitions 8;
 
 connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
+
+--source ndb_join_pushdown_counters.inc
 
 #########
 # const pruned testcase 
@@ -3734,6 +3854,8 @@ connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 alter table t1 partition by key (a) partitions 8;
 
@@ -3741,6 +3863,8 @@ connection spj;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
 select straight_join * from t1 x, t1 y where y.a=0 and y.b=x.e;
+
+--source ndb_join_pushdown_counters.inc
 
 # Non-const pruned as both partition keys are not const
 connection ddl;
@@ -3751,6 +3875,8 @@ connection spj;
 select straight_join * from t1 x, t1 y where y.a=1 and y.b=x.e;
 --sorted_result
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=2;
+
+--source ndb_join_pushdown_counters.inc
 
 ##########
 # Test pruned scan using an index:
@@ -3767,6 +3893,8 @@ connection spj;
 --replace_column 10 # 11 #
 explain extended
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
+
+--source ndb_join_pushdown_counters.inc
 
 ###########
 # Partition keys may evaluate to null-values:
@@ -3787,6 +3915,8 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 --eval select sum(val) - $pruned_range as pruned from ndbinfo.counters where block_name='DBSPJ' and counter_name='PRUNED_RANGE_SCANS_RECEIVED'
 --eval select sum(val) - $const_pruned_range as const_pruned from ndbinfo.counters where block_name='DBSPJ' and counter_name='CONST_PRUNED_RANGE_SCANS_RECEIVED'
 --enable_query_log
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -3829,6 +3959,8 @@ select x1.pk,x1.a,x1.b from t1 as x1
 explain extended select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t1;
 
@@ -3864,6 +3996,8 @@ select distinct straight_join table1.pk FROM
    on table1.a =  table4.pk
    where  table2.pk != 6;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t;
 
@@ -3881,6 +4015,8 @@ insert into t values(0,0);
 explain extended
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t;
@@ -3911,6 +4047,8 @@ select * from t as t1 join t as t2
   where t1.pk1 != 6
   order by t1.pk1 DESC;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t;
 
@@ -3934,6 +4072,8 @@ select straight_join * from t as a join t as b
 select straight_join * from t as a join t as b 
   on a.uq=b.uq or b.uq is null;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t;
 
@@ -3955,6 +4095,8 @@ select * from t as a left join t as b
 --sorted_result
 select * from t as a left join t as b 
   on a.k is null and a.uq=b.uq;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t;
@@ -3992,6 +4134,8 @@ explain extended select * from tc as x1, tc as x2 where x1.b=x2.a for update;
 
 explain extended select * from tc as x1, tc as x2 where x1.b=x2.a;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table tc;
 
@@ -4012,6 +4156,8 @@ insert into t1  values ('aaa', 1, 'aaa', 1);
 explain extended
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -4103,6 +4249,8 @@ SELECT *
        LEFT OUTER JOIN t2 ON t2.id = t1.t2_id
        LEFT OUTER JOIN t2 as t3 ON t3.id = t1.t2_id;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 DROP TABLE t1,t2,t3,t4;
 
@@ -4170,6 +4318,8 @@ select count(*) from t1 as x0
       on x2.c is null or x1.a=x4.d) 
    on x0.d=x1.a;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t1;
 
@@ -4189,6 +4339,8 @@ insert into t2 values (1,2), (2,3), (3,4), (4,5);
 
 explain select * from t1 join t2 on t1.u = t2.pk order by t1.pk;
 select * from t1 join t2 on t1.u = t2.pk order by t1.pk;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -4249,6 +4401,8 @@ explain select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
 
 select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t1;
 
@@ -4284,6 +4438,8 @@ explain select * from t1 as x1
 select * from t1 as x1 
 	join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
 	join t1 as x3 on x3.a=x2.c and x3.b=x1.d and x3.c=0x4f;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -4428,6 +4584,8 @@ select x.a from t1 as x join t1 as y on y.a = x.b where x.a=4;
 
 drop table t1; 
 
+--source ndb_join_pushdown_counters.inc
+
 ####################################################
 # Regression test for Bug#14644936 "INEFFICIENT AND INCORRECT EXECUTION OF 
 # PUSHABLE OUTER JOINS".
@@ -4469,6 +4627,8 @@ select scan_count.VARIABLE_NAME,
        where old.variable_name = 'Ndb_scan_count';
 
 drop table scan_count;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table t1;
@@ -4533,6 +4693,8 @@ EXPLAIN EXTENDED
 
 --error 0,1193
 set global debug=@save_debug;
+
+--source ndb_join_pushdown_counters.inc
 
 connection ddl;
 drop table table6;
@@ -4611,6 +4773,8 @@ set optimizer_switch='materialization=default';
 --error 0,1193
 set global debug=@save_debug;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 drop table t1;
 
@@ -4664,23 +4828,14 @@ SELECT *
  WHERE node_id = 68
  ORDER BY sort_number ASC;
 
+--source ndb_join_pushdown_counters.inc
+
 connection ddl;
 DROP TABLE ndb_order_test, ndb_user_test;
 
 ########################################
 # Verify counters for entire test:
-# Note: These tables are 'temporary' withing 'connection spj'
-
-connection spj;
-
-# Calculate the change in mysqld counters.
---disable_warnings ONCE
-select new.variable_name, new.variable_value - old.variable_value
-       from server_counts_at_startup as old,
-         information_schema.global_status as new
-       where new.variable_name = old.variable_name
-       order by new.variable_name;
-
+--source ndb_join_pushdown_counters.inc
 drop table server_counts_at_startup;
 
 --source ndbinfo_drop.inc
