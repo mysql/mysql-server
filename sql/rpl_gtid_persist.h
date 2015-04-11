@@ -102,7 +102,10 @@ class Gtid_table_persistor
 public:
   static const uint number_fields= 3;
 
-  Gtid_table_persistor() : m_count(0) { };
+  Gtid_table_persistor()
+  {
+    m_count.atomic_set(0);
+  };
   virtual ~Gtid_table_persistor() { };
 
   /**
@@ -207,7 +210,7 @@ public:
 
 private:
   /* Count the append size of the table */
-  ulong m_count;
+  Atomic_int64 m_count;
   /**
     Compress the gtid_executed table, read each row by the
     PK(sid, gno_start) in increasing order, compress the first
