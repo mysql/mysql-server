@@ -42,7 +42,6 @@
 
 // the following is for checking tables
 
-#define HA_ADMIN_VIEW_REPAIR_IS_DONE 2
 #define HA_ADMIN_ALREADY_DONE	  1
 #define HA_ADMIN_OK               0
 #define HA_ADMIN_NOT_IMPLEMENTED -1
@@ -57,7 +56,6 @@
 #define HA_ADMIN_NEEDS_UPGRADE  -10
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
-#define HA_ADMIN_NEEDS_REPAIR   -13
 
 /* Bits in table_flags() to show what database can do */
 

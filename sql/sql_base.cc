@@ -3023,7 +3023,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   else if (table_list->open_strategy == TABLE_LIST::OPEN_STUB)
     DBUG_RETURN(FALSE);
 
-
 retry_share:
 
   mysql_mutex_lock(&LOCK_open);

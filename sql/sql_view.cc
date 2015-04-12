@@ -882,7 +882,7 @@ int mariadb_fix_view(THD *thd, TABLE_LIST *view, bool wrong_checksum,
                         "MERGE":"TEMPTABLE");
 
 
-  DBUG_RETURN(HA_ADMIN_VIEW_REPAIR_IS_DONE);
+  DBUG_RETURN(HA_ADMIN_OK);
 }
 
 
@@ -2049,11 +2049,11 @@ int view_check(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt)
        !view->mariadb_version))
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                            ER_NO_MARIADB_SERVER_FIELD,
-                            ER(ER_NO_MARIADB_SERVER_FIELD),
+                            ER_TABLE_NEEDS_UPGRADE,
+                            ER(ER_TABLE_NEEDS_UPGRADE),
                             view->db,
                             view->table_name);
-    DBUG_RETURN(HA_ADMIN_NEEDS_REPAIR);
+    DBUG_RETURN(HA_ADMIN_NEEDS_UPGRADE);
   }
   DBUG_RETURN(HA_ADMIN_OK);
 }

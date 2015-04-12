@@ -879,22 +879,6 @@ send_result_message:
       fatal_error=1;
       break;
     }
-    case HA_ADMIN_VIEW_REPAIR_IS_DONE:
-    {
-      protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-      protocol->store(ER(ER_VIEW_REPAIR_IS_DONE),
-                      strlen(ER(ER_VIEW_REPAIR_IS_DONE)),
-                      system_charset_info);
-      break;
-    }
-    case HA_ADMIN_NEEDS_REPAIR:
-    {
-      protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-      protocol->store(ER(ER_NEEDS_REPAIR),
-                      strlen(ER(ER_NEEDS_REPAIR)),
-                      system_charset_info);
-      break;
-    }
 
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
