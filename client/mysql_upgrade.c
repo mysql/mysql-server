@@ -36,6 +36,8 @@
 # endif
 #endif
 
+static int phase = 1;
+static int phases_total = 4;
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
@@ -738,7 +740,7 @@ static void print_conn_args(const char *tool_name)
 
 static int run_mysqlcheck_upgrade(void)
 {
-  verbose("Phase 2/3: Checking and upgrading tables");
+  verbose("Phase %d/%d: Checking and upgrading tables", phase++, phases_total);
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
@@ -779,8 +781,11 @@ static my_bool is_mysql()
 static int run_mysqlcheck_views(void)
 {
   if (!is_mysql())
+  {
+    verbose("Phase %d/%d: Fixing views - skipped - not required", phase++, phases_total);
     return 0;
-  verbose("Phase 0: Fixing views");
+  }
+  verbose("Phase %d/%d: Fixing views", phase++, phases_total);
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
@@ -796,7 +801,7 @@ static int run_mysqlcheck_views(void)
 
 static int run_mysqlcheck_fixnames(void)
 {
-  verbose("Phase 1/3: Fixing table and database names");
+  verbose("Phase %d/%d: Fixing table and database names", phase++, phases_total);
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
@@ -877,7 +882,7 @@ static int run_sql_fix_privilege_tables(void)
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
-  verbose("Phase 3/3: Running 'mysql_fix_privilege_tables'...");
+  verbose("Phase %d/%d: Running 'mysql_fix_privilege_tables'...", phase++, phases_total);
   run_query(mysql_fix_privilege_tables,
             &ds_result, /* Collect result */
             TRUE);
