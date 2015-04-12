@@ -216,7 +216,7 @@ static int process_selected_tables(char *db, char **table_names, int tables);
 static int process_all_tables_in_db(char *database);
 static int process_one_db(char *database);
 static int use_db(char *database);
-static int handle_request_for_tables(char *tables, uint length);
+static int handle_request_for_tables(char *tables, uint length, my_bool view);
 static int dbConnect(char *host, char *user,char *passwd);
 static void dbDisconnect(char *host);
 static void DBerror(MYSQL *mysql, const char *when);
@@ -480,8 +480,39 @@ static int process_databases(char **db_names)
 } /* process_databases */
 
 
+/* returns: -1 for error, 1 for view, 0 for table */
+static int is_view(const char *table, uint length)
+{
+  char *query, *ptr;
+  MYSQL_RES *res;
+  MYSQL_FIELD *field;
+  int view;
+  DBUG_ENTER("is_view");
+
+  if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
+    DBUG_RETURN(-1);
+  ptr= strmov(query, "SHOW CREATE TABLE ");
+  ptr= strxmov(ptr, table, NullS);
+  if (mysql_query(sock, query))
+  {
+    fprintf(stderr, "Failed to %s\n", query);
+    fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    DBUG_RETURN(-1);
+  }
+  res= mysql_store_result(sock);
+  field= mysql_fetch_field(res);
+  view= (strcmp(field->name,"View")==0) ? 1 : 0;
+  mysql_free_result(res);
+  my_free(query);
+
+  DBUG_RETURN(view);
+}
+
 static int process_selected_tables(char *db, char **table_names, int tables)
 {
+  int view;
+  char *table;
+  uint table_len;
   DBUG_ENTER("process_selected_tables");
 
   if (use_db(db))
@@ -511,12 +542,24 @@ static int process_selected_tables(char *db, char **table_names, int tables)
       *end++= ',';
     }
     *--end = 0;
-    handle_request_for_tables(table_names_comma_sep + 1, (uint) (tot_length - 1));
+    table= table_names_comma_sep + 1;
+    table_len= tot_length - 1;
+    view= is_view(table, table_len);
+    if (view < 0)
+      DBUG_RETURN(1);
+    handle_request_for_tables(table, table_len, (view==1));
     my_free(table_names_comma_sep);
   }
   else
     for (; tables > 0; tables--, table_names++)
-      handle_request_for_tables(*table_names, fixed_name_length(*table_names));
+    {
+      table= *table_names;
+      table_len= fixed_name_length(*table_names);
+      view= is_view(table, table_len);
+      if (view < 0)
+        continue;
+      handle_request_for_tables(table, table_len, (view==1));
+    }
   DBUG_RETURN(0);
 } /* process_selected_tables */
 
@@ -563,6 +606,7 @@ static int process_all_tables_in_db(char *database)
   MYSQL_ROW row;
   uint num_columns;
   my_bool system_database= 0;
+  my_bool view= FALSE;
   DBUG_ENTER("process_all_tables_in_db");
 
   if (use_db(database))
@@ -592,8 +636,16 @@ static int process_all_tables_in_db(char *database)
     char *tables, *end;
     uint tot_length = 0;
 
+    char *views, *views_end;
+    uint tot_views_length = 0;
+
     while ((row = mysql_fetch_row(res)))
-      tot_length+= fixed_name_length(row[0]) + 2;
+    {
+      if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
+        tot_views_length+= fixed_name_length(row[0]) + 2;
+      else
+        tot_length+= fixed_name_length(row[0]) + 2;
+    }
     mysql_data_seek(res, 0);
 
     if (!(tables=(char *) my_malloc(sizeof(char)*tot_length+4, MYF(MY_WME))))
@@ -601,26 +653,36 @@ static int process_all_tables_in_db(char *database)
       mysql_free_result(res);
       DBUG_RETURN(1);
     }
-    for (end = tables + 1; (row = mysql_fetch_row(res)) ;)
+    if (!(views=(char *) my_malloc(sizeof(char)*tot_views_length+4, MYF(MY_WME))))
+    {
+      my_free(tables);
+      mysql_free_result(res);
+      DBUG_RETURN(1);
+    }
+
+    for (end = tables + 1, views_end= views + 1; (row = mysql_fetch_row(res)) ;)
     {
       if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
       {
         if (!opt_fix_view_algorithm)
           continue;
+        views_end= fix_table_name(views_end, row[0]);
+        *views_end++= ',';
       }
       else
       {
-        if (opt_fix_view_algorithm)
-          continue;
+        end= fix_table_name(end, row[0]);
+        *end++= ',';
       }
-
-      end= fix_table_name(end, row[0]);
-      *end++= ',';
     }
     *--end = 0;
+    *--views_end = 0;
     if (tot_length)
-      handle_request_for_tables(tables + 1, tot_length - 1);
+      handle_request_for_tables(tables + 1, tot_length - 1, FALSE);
+    if (tot_views_length)
+      handle_request_for_tables(views + 1, tot_views_length - 1, TRUE);
     my_free(tables);
+    my_free(views);
   }
   else
   {
@@ -631,18 +693,16 @@ static int process_all_tables_in_db(char *database)
       {
         if (!opt_fix_view_algorithm)
           continue;
+        view= TRUE;
       }
       else
-      {
-        if (opt_fix_view_algorithm)
-          continue;
-      }
+        view= FALSE;
       if (system_database &&
           (!strcmp(row[0], "general_log") ||
            !strcmp(row[0], "slow_log")))
         continue;                               /* Skip logging tables */
 
-      handle_request_for_tables(row[0], fixed_name_length(row[0]));
+      handle_request_for_tables(row[0], fixed_name_length(row[0]), view);
     }
   }
   mysql_free_result(res);
@@ -760,15 +820,17 @@ static int disable_binlog()
   return run_query(stmt);
 }
 
-static int handle_request_for_tables(char *tables, uint length)
+static int handle_request_for_tables(char *tables, uint length, my_bool view)
 {
   char *query, *end, options[100], message[100];
   char table_name_buff[NAME_CHAR_LEN*2*2+1], *table_name;
   uint query_length= 0;
   const char *op = 0;
+  const char *tab_view;
   DBUG_ENTER("handle_request_for_tables");
 
   options[0] = 0;
+  tab_view= view ? " VIEW " : " TABLE ";
   end = options;
   switch (what_to_do) {
   case DO_CHECK:
@@ -781,12 +843,12 @@ static int handle_request_for_tables(char *tables, uint length)
     if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
-    op= ((opt_write_binlog || opt_fix_view_algorithm) ?
-         "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG");
+    op= (opt_write_binlog) ?
+         "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG";
     if (opt_quick)              end = strmov(end, " QUICK");
     if (opt_extended)           end = strmov(end, " EXTENDED");
     if (opt_frm)                end = strmov(end, " USE_FRM");
-    if (opt_fix_view_algorithm)      end = strmov(end, " FROM MYSQL");
+    if (opt_fix_view_algorithm && view) end = strmov(end, " FROM MYSQL");
     break;
   case DO_ANALYZE:
     op= (opt_write_binlog) ? "ANALYZE" : "ANALYZE NO_WRITE_TO_BINLOG";
@@ -803,17 +865,15 @@ static int handle_request_for_tables(char *tables, uint length)
   if (opt_all_in_1)
   {
     /* No backticks here as we added them before */
-    query_length= sprintf(query, "%s %s %s %s", op,
-                          (opt_fix_view_algorithm ? "VIEW" : "TABLE"),
-                          tables, options);
+    query_length= sprintf(query, "%s%s%s %s", op,
+                          tab_view, tables, options);
     table_name= tables;
   }
   else
   {
     char *ptr, *org;
 
-    org= ptr= strmov(strmov(query, op),
-                     (opt_fix_view_algorithm ? " VIEW " : " TABLE "));
+    org= ptr= strmov(strmov(query, op), tab_view);
     ptr= fix_table_name(ptr, tables);
     strmake(table_name_buff, org, min((int) sizeof(table_name_buff)-1,
                                       (int) (ptr - org)));
@@ -823,7 +883,8 @@ static int handle_request_for_tables(char *tables, uint length)
   }
   if (mysql_real_query(sock, query, query_length))
   {
-    sprintf(message, "when executing '%s TABLE ... %s'", op, options);
+    sprintf(message, "when executing '%s%s... %s'", op, tab_view, options);
+    /* sprintf(message, "when executing '%s'", query); */
     DBerror(sock, message);
     my_free(query);
     DBUG_RETURN(1);
@@ -1093,7 +1154,7 @@ int main(int argc, char **argv)
     for (i = 0; i < tables4repair.elements ; i++)
     {
       char *name= (char*) dynamic_array_ptr(&tables4repair, i);
-      handle_request_for_tables(name, fixed_name_length(name));
+      handle_request_for_tables(name, fixed_name_length(name), FALSE);
     }
     for (i = 0; i < tables4rebuild.elements ; i++)
       rebuild_table((char*) dynamic_array_ptr(&tables4rebuild, i));
