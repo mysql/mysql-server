@@ -199,7 +199,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"mysql-upgrade", 'y',
    "Fix view algorithm view field if it is not new MariaDB view.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_mysql_upgrade, &opt_mysql_upgrade, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -339,10 +339,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version(); exit(0);
     break;
-  case 'y':
-    what_to_do= DO_REPAIR;
-    opt_mysql_upgrade= 1;
-    break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
@@ -373,6 +369,17 @@ static int get_options(int *argc, char ***argv)
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
+  if (opt_mysql_upgrade && what_to_do!=DO_REPAIR)
+  {
+    if (!what_to_do)
+      what_to_do= DO_REPAIR;
+    else
+    {
+      fprintf(stderr, "Error:  %s doesn't support non-repair command with option mysql-upgrade.\n",
+              my_progname);
+      exit(1);
+    }
+  }
   if (!what_to_do)
   {
     size_t pnlen= strlen(my_progname);
