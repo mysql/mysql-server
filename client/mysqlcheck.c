@@ -43,7 +43,7 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
                tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
                opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_mysql_upgrade= 0;
+               opt_fix_view_algorithm= 0;
 static my_bool opt_write_binlog= 1, opt_flush_tables= 0;
 static uint verbose = 0, opt_mysql_port=0;
 static int my_end_arg;
@@ -197,9 +197,9 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"mysql-upgrade", 'y',
+  {"fix-view-algorithm", 'y',
    "Fix view algorithm view field if it is not new MariaDB view.",
-   &opt_mysql_upgrade, &opt_mysql_upgrade, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_fix_view_algorithm, &opt_fix_view_algorithm, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -369,13 +369,13 @@ static int get_options(int *argc, char ***argv)
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if (opt_mysql_upgrade && what_to_do!=DO_REPAIR)
+  if (opt_fix_view_algorithm && what_to_do!=DO_REPAIR)
   {
     if (!what_to_do)
       what_to_do= DO_REPAIR;
     else
     {
-      fprintf(stderr, "Error:  %s doesn't support non-repair command with option mysql-upgrade.\n",
+      fprintf(stderr, "Error:  %s doesn't support non-repair command with option fix-view-algorithm.\n",
               my_progname);
       exit(1);
     }
@@ -605,12 +605,12 @@ static int process_all_tables_in_db(char *database)
     {
       if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
       {
-        if (!opt_mysql_upgrade)
+        if (!opt_fix_view_algorithm)
           continue;
       }
       else
       {
-        if (opt_mysql_upgrade)
+        if (opt_fix_view_algorithm)
           continue;
       }
 
@@ -629,12 +629,12 @@ static int process_all_tables_in_db(char *database)
       /* Skip views if we don't perform renaming. */
       if ((what_to_do != DO_UPGRADE) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
       {
-        if (!opt_mysql_upgrade)
+        if (!opt_fix_view_algorithm)
           continue;
       }
       else
       {
-        if (opt_mysql_upgrade)
+        if (opt_fix_view_algorithm)
           continue;
       }
       if (system_database &&
@@ -781,12 +781,12 @@ static int handle_request_for_tables(char *tables, uint length)
     if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
-    op= ((opt_write_binlog || opt_mysql_upgrade) ?
+    op= ((opt_write_binlog || opt_fix_view_algorithm) ?
          "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG");
     if (opt_quick)              end = strmov(end, " QUICK");
     if (opt_extended)           end = strmov(end, " EXTENDED");
     if (opt_frm)                end = strmov(end, " USE_FRM");
-    if (opt_mysql_upgrade)      end = strmov(end, " FROM MYSQL");
+    if (opt_fix_view_algorithm)      end = strmov(end, " FROM MYSQL");
     break;
   case DO_ANALYZE:
     op= (opt_write_binlog) ? "ANALYZE" : "ANALYZE NO_WRITE_TO_BINLOG";
@@ -804,7 +804,7 @@ static int handle_request_for_tables(char *tables, uint length)
   {
     /* No backticks here as we added them before */
     query_length= sprintf(query, "%s %s %s %s", op,
-                          (opt_mysql_upgrade ? "VIEW" : "TABLE"),
+                          (opt_fix_view_algorithm ? "VIEW" : "TABLE"),
                           tables, options);
     table_name= tables;
   }
@@ -813,7 +813,7 @@ static int handle_request_for_tables(char *tables, uint length)
     char *ptr, *org;
 
     org= ptr= strmov(strmov(query, op),
-                     (opt_mysql_upgrade ? " VIEW " : " TABLE "));
+                     (opt_fix_view_algorithm ? " VIEW " : " TABLE "));
     ptr= fix_table_name(ptr, tables);
     strmake(table_name_buff, org, min((int) sizeof(table_name_buff)-1,
                                       (int) (ptr - org)));

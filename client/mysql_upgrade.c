@@ -792,7 +792,7 @@ static int run_mysqlcheck_views(void)
                   "--no-defaults",
                   ds_args.str,
                   "--all-databases",
-                  "--mysql-upgrade",
+                  "--fix-view-algorithm",
                   opt_verbose ? "--verbose": "",
                   opt_silent ? "--silent": "",
                   "2>&1",
