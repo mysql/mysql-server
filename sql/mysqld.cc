@@ -2199,7 +2199,7 @@ static void start_signal_handler()
 }
 
 
-/** This threads handles all signals and alarms. */
+/** This thread handles SIGTERM, SIGQUIT and SIGHUP signals. */
 /* ARGSUSED */
 extern "C" void *signal_hand(void *arg __attribute__((unused)))
 {
@@ -2276,10 +2276,10 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
         mysql_mutex_unlock(&LOCK_socket_listener_active);
 
         close_connections();
-        my_thread_end();
-        my_thread_exit(0);
-        return NULL;  // Avoid compiler warnings
       }
+      my_thread_end();
+      my_thread_exit(0);
+      return NULL;  // Avoid compiler warnings
       break;
     case SIGHUP:
       if (!abort_loop)
@@ -4878,15 +4878,7 @@ int mysqld_main(int argc, char **argv)
   my_str_free= &my_str_free_mysqld;
   my_str_realloc= &my_str_realloc_mysqld;
 
-  /*
-    init signals & alarm
-    After this we can't quit by a simple unireg_abort
-  */
   error_handler_hook= my_message_sql;
-
-#ifndef _WIN32
-  start_signal_handler();
-#endif
 
   /* Save pid of this process in a file */
   if (!opt_bootstrap)
@@ -4902,10 +4894,6 @@ int mysqld_main(int argc, char **argv)
   {
     abort_loop= true;
 
-#ifndef _WIN32
-    (void) pthread_kill(signal_thread_id.thread, SIGTERM);
-#endif
-
     delete_pid_file(MYF(MY_WME));
 
     if (mysqld_socket_acceptor != NULL)
@@ -4913,7 +4901,8 @@ int mysqld_main(int argc, char **argv)
       delete mysqld_socket_acceptor;
       mysqld_socket_acceptor= NULL;
     }
-    exit(MYSQLD_ABORT_EXIT);
+
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   if (!opt_noacl)
@@ -4971,6 +4960,11 @@ int mysqld_main(int argc, char **argv)
 
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(MYSQLD_ABORT_EXIT);
+
+#ifndef _WIN32
+  //  Start signal handler thread.
+  start_signal_handler();
+#endif
 
   if (opt_bootstrap)
   {
