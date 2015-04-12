@@ -795,6 +795,7 @@ static int run_mysqlcheck_views(void)
                   "--fix-view-algorithm",
                   opt_verbose ? "--verbose": "",
                   opt_silent ? "--silent": "",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   "2>&1",
                   NULL);
 }
