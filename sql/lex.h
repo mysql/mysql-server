@@ -376,6 +376,7 @@ static SYMBOL symbols[] = {
   { "MULTIPOINT",	SYM(MULTIPOINT)},
   { "MULTIPOLYGON",	SYM(MULTIPOLYGON)},
   { "MUTEX",  SYM(MUTEX_SYM)},
+  { "MYSQL",            SYM(MYSQL_SYM)},
   { "MYSQL_ERRNO",      SYM(MYSQL_ERRNO_SYM)},
   { "NAME",             SYM(NAME_SYM)},
   { "NAMES",		SYM(NAMES_SYM)},

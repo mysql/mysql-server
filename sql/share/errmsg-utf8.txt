@@ -6565,3 +6565,9 @@ ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT
 ER_NO_SUCH_TABLE_IN_ENGINE 42S02 
         eng "Table '%-.192s.%-.192s' doesn't exist in engine"
         swe "Det finns ingen tabell som heter '%-.192s.%-.192s' i handlern"
+ER_NO_MARIADB_SERVER_FIELD
+        eng "view '%-.192s.%-.192s' has no field mariadb server in its .frm file"
+ER_VIEW_REPAIR_IS_DONE
+        eng "view is repaired"
+ER_NEEDS_REPAIR
+        eng "needs repair"

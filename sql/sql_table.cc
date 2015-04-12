@@ -28,7 +28,7 @@
 #include "sql_base.h"   // open_table_uncached, lock_table_names
 #include "lock.h"       // mysql_unlock_tables
 #include "strfunc.h"    // find_type2, find_set
-#include "sql_view.h" // view_checksum 
+#include "sql_view.h" // view_check
 #include "sql_truncate.h"                       // regenerate_locked_table 
 #include "sql_partition.h"                      // mem_alloc_error,
                                                 // generate_partition_syntax,
