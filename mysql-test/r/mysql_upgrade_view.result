@@ -1,0 +1,74 @@
+drop table if exists t1,v1,v2,v3,v4;
+drop view if exists t1,v1,v2,v3,v4;
+flush tables;
+create table t1(a int);
+create algorithm=temptable view v4 as select a from t1;
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v4;
+View	Create View	character_set_client	collation_connection
+v4	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+MySQL upgrade detected
+Phase 0: Fixing views
+test.v1                                            view is repaired
+test.v2                                            view is repaired
+test.v3                                            view is repaired
+test.v4                                            OK
+Phase 1/3: Fixing table and database names
+Phase 2/3: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+mysql
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.ev_bk                                        OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.servers                                      OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+performance_schema
+test
+test.t1                                            OK
+Phase 3/3: Running 'mysql_fix_privilege_tables'...
+OK
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v4;
+View	Create View	character_set_client	collation_connection
+v4	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+flush tables;
+drop view v1,v2,v3,v4;
+drop table t1;

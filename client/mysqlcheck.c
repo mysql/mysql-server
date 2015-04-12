@@ -42,7 +42,8 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_medium_check = 0, opt_quick = 0, opt_all_in_1 = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
                tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
-               opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0;
+               opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
+               opt_mysql_upgrade= 0;
 static my_bool opt_write_binlog= 1, opt_flush_tables= 0;
 static uint verbose = 0, opt_mysql_port=0;
 static int my_end_arg;
@@ -196,6 +197,9 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"mysql-upgrade", 'y',
+   "Fix view algorithm view field if it is not new MariaDB view.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -332,7 +336,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'v':
     verbose++;
     break;
-  case 'V': print_version(); exit(0);
+  case 'V':
+    print_version(); exit(0);
+    break;
+  case 'y':
+    what_to_do= DO_REPAIR;
+    opt_mysql_upgrade= 1;
+    break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
@@ -587,7 +597,15 @@ static int process_all_tables_in_db(char *database)
     for (end = tables + 1; (row = mysql_fetch_row(res)) ;)
     {
       if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
-        continue;
+      {
+        if (!opt_mysql_upgrade)
+          continue;
+      }
+      else
+      {
+        if (opt_mysql_upgrade)
+          continue;
+      }
 
       end= fix_table_name(end, row[0]);
       *end++= ',';
@@ -603,7 +621,15 @@ static int process_all_tables_in_db(char *database)
     {
       /* Skip views if we don't perform renaming. */
       if ((what_to_do != DO_UPGRADE) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
-        continue;
+      {
+        if (!opt_mysql_upgrade)
+          continue;
+      }
+      else
+      {
+        if (opt_mysql_upgrade)
+          continue;
+      }
       if (system_database &&
           (!strcmp(row[0], "general_log") ||
            !strcmp(row[0], "slow_log")))
@@ -748,10 +774,12 @@ static int handle_request_for_tables(char *tables, uint length)
     if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
-    op= (opt_write_binlog) ? "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG";
+    op= ((opt_write_binlog || opt_mysql_upgrade) ?
+         "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG");
     if (opt_quick)              end = strmov(end, " QUICK");
     if (opt_extended)           end = strmov(end, " EXTENDED");
     if (opt_frm)                end = strmov(end, " USE_FRM");
+    if (opt_mysql_upgrade)      end = strmov(end, " FROM MYSQL");
     break;
   case DO_ANALYZE:
     op= (opt_write_binlog) ? "ANALYZE" : "ANALYZE NO_WRITE_TO_BINLOG";
@@ -768,14 +796,17 @@ static int handle_request_for_tables(char *tables, uint length)
   if (opt_all_in_1)
   {
     /* No backticks here as we added them before */
-    query_length= sprintf(query, "%s TABLE %s %s", op, tables, options);
+    query_length= sprintf(query, "%s %s %s %s", op,
+                          (opt_mysql_upgrade ? "VIEW" : "TABLE"),
+                          tables, options);
     table_name= tables;
   }
   else
   {
     char *ptr, *org;
 
-    org= ptr= strmov(strmov(query, op), " TABLE ");
+    org= ptr= strmov(strmov(query, op),
+                     (opt_mysql_upgrade ? " VIEW " : " TABLE "));
     ptr= fix_table_name(ptr, tables);
     strmake(table_name_buff, org, min((int) sizeof(table_name_buff)-1,
                                       (int) (ptr - org)));

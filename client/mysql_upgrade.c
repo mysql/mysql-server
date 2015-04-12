@@ -40,7 +40,8 @@ static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
 static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag,
-               opt_systables_only, opt_version_check;
+               opt_systables_only, opt_version_check,
+               opt_mysql_upgrade= 0, opt_skip_mysql_upgrade= 0;
 static my_bool opt_not_used, opt_silent;
 static uint my_end_arg= 0;
 static char *opt_user= (char*)"root";
@@ -150,6 +151,14 @@ static struct my_option my_long_options[]=
    &opt_not_used, &opt_not_used, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"mysql-upgrade", 'y',
+    "Skip automatic detection MySQL and assume that we upgrade it",
+    &opt_mysql_upgrade, &opt_mysql_upgrade, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0},
+  {"skip-mysql-upgrade", 'Y',
+    "Skip view algorithm upgrade from MySQL",
+    &opt_skip_mysql_upgrade, &opt_skip_mysql_upgrade, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0},
   {"version-check", 'k', "Run this program only if its \'server version\' "
    "matches the version of the server to which it's connecting, (enabled by "
    "default); use --skip-version-check to avoid this check. Note: the \'server "
@@ -343,6 +352,14 @@ get_one_option(int optid, const struct my_option *opt,
   case OPT_PLUGIN_DIR:                          /* --plugin-dir */
   case OPT_DEFAULT_AUTH:                        /* --default-auth */
     add_one_option(&conn_args, opt, argument);
+    break;
+  case 'y':
+    opt_mysql_upgrade= 1;
+    add_option= FALSE;
+    break;
+  case 'Y':
+    opt_skip_mysql_upgrade= 1;
+    add_option= FALSE;
     break;
   }
 
@@ -754,6 +771,23 @@ static int run_mysqlcheck_upgrade(void)
                   NULL);
 }
 
+static int run_mysqlcheck_views(void)
+{
+  if (!opt_mysql_upgrade)
+    return 0;
+  verbose("Phase 0: Fixing views");
+  print_conn_args("mysqlcheck");
+  return run_tool(mysqlcheck_path,
+                  NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
+                  ds_args.str,
+                  "--all-databases",
+                  "--mysql-upgrade",
+                  opt_verbose ? "--verbose": "",
+                  opt_silent ? "--silent": "",
+                  "2>&1",
+                  NULL);
+}
 
 static int run_mysqlcheck_fixnames(void)
 {
@@ -928,6 +962,28 @@ static int check_version_match(void)
     return 0;
 }
 
+#define EVENTS_STRUCT_LEN 7000
+
+my_bool is_mysql()
+{
+  my_bool ret= TRUE;
+  DYNAMIC_STRING ds_events_struct;
+
+  if (init_dynamic_string(&ds_events_struct, NULL,
+                          EVENTS_STRUCT_LEN, EVENTS_STRUCT_LEN))
+    die("Out of memory");
+
+  if (run_query("show create table mysql.event",
+                &ds_events_struct, FALSE) ||
+      strstr(ds_events_struct.str, "IGNORE_BAD_TABLE_OPTIONS") != NULL)
+    ret= FALSE;
+  else
+    verbose("MySQL upgrade detected");
+
+  dynstr_free(&ds_events_struct);
+  return(ret);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -997,11 +1053,20 @@ int main(int argc, char **argv)
   if (opt_version_check && check_version_match())
     die("Upgrade failed");
 
+  if (!opt_systables_only && !opt_skip_mysql_upgrade)
+  {
+    if (!opt_mysql_upgrade)
+      opt_mysql_upgrade= is_mysql();
+  }
+  else
+    opt_mysql_upgrade= 0;
+
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
   if ((!opt_systables_only &&
-       (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
+       (run_mysqlcheck_views() ||
+        run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
       run_sql_fix_privilege_tables())
   {
     /*

@@ -1,0 +1,53 @@
+
+--disable_warnings
+drop table if exists t1,v1,v2,v3,v4;
+drop view if exists t1,v1,v2,v3,v4;
+--enable_warnings
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--copy_file $MYSQLD_DATADIR/mysql/event.MYI $MYSQLD_DATADIR/mysql/ev_bk.MYI
+--copy_file $MYSQLD_DATADIR/mysql/event.MYD $MYSQLD_DATADIR/mysql/ev_bk.MYD
+--copy_file $MYSQLD_DATADIR/mysql/event.frm $MYSQLD_DATADIR/mysql/ev_bk.frm
+--remove_file $MYSQLD_DATADIR/mysql/event.MYI
+--remove_file $MYSQLD_DATADIR/mysql/event.MYD
+--remove_file $MYSQLD_DATADIR/mysql/event.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYI $MYSQLD_DATADIR/mysql/event.MYI
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYD $MYSQLD_DATADIR/mysql/event.MYD
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.frm $MYSQLD_DATADIR/mysql/event.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v1.frm $MYSQLD_DATADIR/test/v1.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v2.frm $MYSQLD_DATADIR/test/v2.frm
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v3.frm $MYSQLD_DATADIR/test/v3.frm
+
+flush tables;
+
+create table t1(a int);
+create algorithm=temptable view v4 as select a from t1;
+show create view v1;
+show create view v2;
+show create view v3;
+show create view v4;
+
+--replace_result $MYSQLTEST_VARDIR var
+--exec $MYSQL_UPGRADE --force 2>&1
+
+show create view v1;
+show create view v2;
+show create view v3;
+show create view v4;
+
+--remove_file $MYSQLD_DATADIR/mysql/event.MYI
+--remove_file $MYSQLD_DATADIR/mysql/event.MYD
+--remove_file $MYSQLD_DATADIR/mysql/event.frm
+--copy_file $MYSQLD_DATADIR/mysql/ev_bk.MYI $MYSQLD_DATADIR/mysql/event.MYI
+--copy_file $MYSQLD_DATADIR/mysql/ev_bk.MYD $MYSQLD_DATADIR/mysql/event.MYD
+--copy_file $MYSQLD_DATADIR/mysql/ev_bk.frm $MYSQLD_DATADIR/mysql/event.frm
+--remove_file $MYSQLD_DATADIR/mysql/ev_bk.MYI
+--remove_file $MYSQLD_DATADIR/mysql/ev_bk.MYD
+--remove_file $MYSQLD_DATADIR/mysql/ev_bk.frm
+flush tables;
+
+drop view v1,v2,v3,v4;
+drop table t1;
+
+#select sleep(100);
