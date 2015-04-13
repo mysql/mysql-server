@@ -818,8 +818,7 @@ int mariadb_fix_view(THD *thd, TABLE_LIST *view, bool wrong_checksum,
   LEX_STRING dir, file, path;
   DBUG_ENTER("mariadb_fix_view");
 
-  if (view->algorithm == VIEW_ALGORITHM_UNDEFINED &&
-      !wrong_checksum && view->mariadb_version)
+  if (view->mariadb_version)
     DBUG_RETURN(HA_ADMIN_OK);
 
   make_view_filename(&dir, dir_buff, sizeof(dir_buff),
