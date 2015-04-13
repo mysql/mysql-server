@@ -9,3 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+innodb.log_file @windows  : Bug#19363615 2014-08-22 erlend innodb.log_file fails sporadically on PB2
+innodb.log_file @solaris  : Bug#19363615 2015-04-13 agopi innodb.log_file fails sporadically on PB2
