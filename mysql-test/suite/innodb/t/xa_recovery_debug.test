@@ -1,0 +1,32 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# Embedded server does not support restarting
+--source include/not_embedded.inc
+
+--echo #
+--echo # Bug#20872655 XA ROLLBACK IS NOT CRASH-SAFE
+--echo #
+
+CREATE TABLE t(a INT PRIMARY KEY, b INT UNIQUE) ENGINE=INNODB;
+connect (con1,localhost,root);
+XA START 'zombie';
+insert into t(a) values (0);
+update t set b=a;
+SELECT COUNT(*) FROM t;
+XA END 'zombie';
+XA PREPARE 'zombie';
+SET DEBUG_SYNC='trx_xa_rollback SIGNAL s1 WAIT_FOR s2';
+--send XA ROLLBACK 'zombie'
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR s1';
+# Ensure that the state change from XA PREPARE to ACTIVE gets flushed
+# to the redo log. Without this, it could be that we will recover to
+# a state that precedes the start of the XA ROLLBACK.
+SET GLOBAL innodb_log_checkpoint_now=ON;
+--source include/kill_and_restart_mysqld.inc
+disconnect con1;
+--error ER_XAER_NOTA
+XA COMMIT 'zombie';
+SELECT COUNT(*) FROM t;
+DROP TABLE t;
