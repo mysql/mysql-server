@@ -793,6 +793,7 @@ static int run_mysqlcheck_views(void)
                   ds_args.str,
                   "--all-databases",
                   "--fix-view-algorithm",
+                  "--skip-fix-tables",
                   opt_verbose ? "--verbose": "",
                   opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",

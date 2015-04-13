@@ -43,7 +43,7 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
                tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
                opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_fix_view_algorithm= 0;
+               opt_fix_view_algorithm= 0, opt_fix_tables= 1;
 static my_bool opt_write_binlog= 1, opt_flush_tables= 0;
 static uint verbose = 0, opt_mysql_port=0;
 static int my_end_arg;
@@ -200,6 +200,9 @@ static struct my_option my_long_options[] =
   {"fix-view-algorithm", 'y',
    "Fix view algorithm view field if it is not new MariaDB view.",
    &opt_fix_view_algorithm, &opt_fix_view_algorithm, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"fix-tables", 'Y',
+   "Fix tables. Usually the default however mysql_upgrade will run with --skip-fix-tables.",
+   &opt_fix_tables, &opt_fix_tables, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -369,6 +372,12 @@ static int get_options(int *argc, char ***argv)
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
+  if (what_to_do==DO_REPAIR && !(opt_fix_view_algorithm || opt_fix_tables))
+  {
+    fprintf(stderr, "Error:  %s doesn't support repair command without either fix-view-algorithm or fix-tables specified.\n",
+            my_progname);
+    exit(1);
+  }
   if (opt_fix_view_algorithm && what_to_do!=DO_REPAIR)
   {
     if (!what_to_do)
@@ -641,9 +650,10 @@ static int process_all_tables_in_db(char *database)
 
     while ((row = mysql_fetch_row(res)))
     {
-      if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
+      if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0) &&
+          opt_fix_view_algorithm)
         tot_views_length+= fixed_name_length(row[0]) + 2;
-      else
+      else if (opt_fix_tables)
         tot_length+= fixed_name_length(row[0]) + 2;
     }
     mysql_data_seek(res, 0);
@@ -671,6 +681,8 @@ static int process_all_tables_in_db(char *database)
       }
       else
       {
+        if (!opt_fix_tables)
+          continue;
         end= fix_table_name(end, row[0]);
         *end++= ',';
       }
@@ -696,7 +708,11 @@ static int process_all_tables_in_db(char *database)
         view= TRUE;
       }
       else
+      {
+        if (!opt_fix_tables)
+          continue;
         view= FALSE;
+      }
       if (system_database &&
           (!strcmp(row[0], "general_log") ||
            !strcmp(row[0], "slow_log")))

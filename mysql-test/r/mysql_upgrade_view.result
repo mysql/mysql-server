@@ -16,13 +16,13 @@ show create view v4;
 View	Create View	character_set_client	collation_connection
 v4	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
 MySQL upgrade detected
-Phase 0: Fixing views
-test.v1                                            view is repaired
-test.v2                                            view is repaired
-test.v3                                            view is repaired
+Phase 1/4: Fixing views
+test.v1                                            OK
+test.v2                                            OK
+test.v3                                            OK
 test.v4                                            OK
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -55,7 +55,7 @@ mysql.user                                         OK
 performance_schema
 test
 test.t1                                            OK
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
 OK
 show create view v1;
 View	Create View	character_set_client	collation_connection
