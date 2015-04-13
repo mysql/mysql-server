@@ -856,6 +856,8 @@ int mariadb_fix_view(THD *thd, TABLE_LIST *view, bool wrong_checksum,
     else
       view->algorithm= VIEW_ALGORITHM_MERGE;
   }
+  else
+    swap_alg= 0;
   if (wrong_checksum)
   {
     if (view->md5.length != 32)
@@ -875,10 +877,14 @@ int mariadb_fix_view(THD *thd, TABLE_LIST *view, bool wrong_checksum,
                     view->db, view->table_name);
     DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
   }
-  sql_print_information("View '%-.192s'.'%-.192s': algorithm swapped to '%s'",
-                        view->db, view->table_name,
-                        (view->algorithm == VIEW_ALGORITHM_MERGE)?
-                        "MERGE":"TEMPTABLE");
+  sql_print_information("View '%-.192s'.'%-.192s': versioned to %llu%s%s",
+                        view->db, view->table_name, view->mariadb_version,
+                        (wrong_checksum ? ", and checksum corrected" : ""),
+                        (swap_alg ?
+                          ((view->algorithm == VIEW_ALGORITHM_MERGE) ?
+                            ", and algorithm swapped to 'MERGE'"
+                           : ", and algorithm swapped to 'TEMPTABLE'")
+                         : ""));
 
 
   DBUG_RETURN(HA_ADMIN_OK);
