@@ -5061,6 +5061,11 @@ DROP TABLE t1, t2, t3;
 
 --echo # End of test for bug#13545215.
 
+# Below test case gives valgrind warning when using LooseScan (see Bug#20858778)
+# Temporarily disable LooseScan until bug is fixed
+set @tmp_opt_switch=@@optimizer_switch;
+set optimizer_switch='loosescan=off';
+
 --echo #
 --echo # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
 --echo # MATERIALIZATION + SEMIJOIN ON
@@ -5101,6 +5106,8 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1;
+
+set @@optimizer_switch=@tmp_opt_switch;
 
 --echo #
 --echo # Bug#13541406: Wrong result with loosescan on select .. where .. in

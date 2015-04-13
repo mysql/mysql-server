@@ -844,6 +844,7 @@ buf_page_is_corrupted(
 					read_buf + FIL_PAGE_OFFSET));
 #endif /* UNIV_INNOCHECKSUM */
 
+	DBUG_EXECUTE_IF("buf_page_import_corrupt_failure", return(TRUE); );
 	const srv_checksum_algorithm_t	curr_algo =
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm);
 
@@ -1044,13 +1045,12 @@ buf_page_is_corrupted(
 
 	case SRV_CHECKSUM_ALGORITHM_NONE:
 		/* should have returned FALSE earlier */
-		ut_error;
+		break;
 	/* no default so the compiler will emit a warning if new enum
 	is added and not handled here */
 	}
 
-	DBUG_EXECUTE_IF("buf_page_import_corrupt_failure", return(TRUE); );
-
+	ut_error;
 	return(FALSE);
 }
 

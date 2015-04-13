@@ -241,7 +241,7 @@ extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
-extern uint gtid_executed_compression_period;
+extern uint32 gtid_executed_compression_period;
 extern my_bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
 extern ulong locked_account_connection_count;
@@ -409,6 +409,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
+extern PSI_mutex_key key_LOCK_reset_gtid_table;
 extern PSI_mutex_key key_LOCK_compress_gtid_table;
 extern PSI_mutex_key key_mts_gaq_LOCK;
 #ifdef HAVE_MY_TIMER
@@ -803,6 +804,7 @@ extern mysql_mutex_t LOCK_des_key_file;
 #endif
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_cond_t COND_server_started;
+extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
 extern mysql_cond_t COND_compress_gtid_table;
 extern mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
