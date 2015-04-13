@@ -98,7 +98,7 @@ sub new {
           "total_wait" => 0, "has_cas" => 0, "flags" => 0, "exptime" => 0,
           "get_results" => undef, "get_with_cas" => 0, "already_failed" => 0,
           "last_get_len" => undef, "io_timeout" => 1.0, "sysread_size" => 512,
-          "readbuf" => "", "buflen" => 0, "max_read_tries" => 4
+          "readbuf" => "", "buflen" => 0, "max_read_tries" => 8
         }, $pkg;
 }
 
@@ -218,16 +218,14 @@ sub wait_for_reconf {
     $self->{cf_gen} = $cfgen;
   }
   
-  print STDERR "Config generation is : " . $self->{cf_gen} . "\n";
   my $wait_for = $self->{cf_gen} + 1 ;
-  print STDERR "Waiting for: $wait_for \n";
-  
+
   my $new_gen = $self->wait_for_config_generation($wait_for);
   if($new_gen > 0) {
     $self->{cf_gen} = $new_gen;
   }
   else {
-    print STDERR "Timed out.\n";
+    print STDERR "Wait for config generation $wait_for timed out.\n";
   }
   
   return $new_gen;
