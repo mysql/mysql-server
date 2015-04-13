@@ -818,7 +818,7 @@ int mariadb_fix_view(THD *thd, TABLE_LIST *view, bool wrong_checksum,
   LEX_STRING dir, file, path;
   DBUG_ENTER("mariadb_fix_view");
 
-  if (view->mariadb_version)
+  if (!wrong_checksum && view->mariadb_version)
     DBUG_RETURN(HA_ADMIN_OK);
 
   make_view_filename(&dir, dir_buff, sizeof(dir_buff),
@@ -2073,12 +2073,10 @@ int view_check(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt)
 int view_repair(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("view_repair");
-  bool swap_alg=
-    ((check_opt->sql_flags & TT_FROM_MYSQL) &&
-     (!view->mariadb_version));
+  bool swap_alg= (check_opt->sql_flags & TT_FROM_MYSQL);
   bool wrong_checksum= view_checksum(thd, view);
   int ret;
-  if (wrong_checksum || swap_alg)
+  if (wrong_checksum || swap_alg || (!view->mariadb_version))
   {
     ret= mariadb_fix_view(thd, view, wrong_checksum, swap_alg);
     DBUG_RETURN(ret);
