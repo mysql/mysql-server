@@ -7197,11 +7197,6 @@ repair:
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_REPAIR;
             lex->no_write_to_binlog= $2;
-            if (lex->no_write_to_binlog && lex->only_view)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
             lex->check_opt.init();
             lex->alter_info.reset();
             /* Will be overriden during execution. */
