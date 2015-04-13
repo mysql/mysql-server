@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -222,6 +222,41 @@ trx_rollback_for_mysql(
 
 	case TRX_STATE_PREPARED:
 		ut_ad(!trx_is_autocommit_non_locking(trx));
+		if (trx->rsegs.m_redo.rseg != NULL
+		    && trx_is_redo_rseg_updated(trx)) {
+			/* Change the undo log state back from
+			TRX_UNDO_PREPARED to TRX_UNDO_ACTIVE
+			so that if the system gets killed,
+			recovery will perform the rollback. */
+			trx_undo_ptr_t*	undo_ptr = &trx->rsegs.m_redo;
+			mtr_t		mtr;
+			mtr.start();
+			mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
+			if (undo_ptr->insert_undo != NULL) {
+				trx_undo_set_state_at_prepare(
+					trx, undo_ptr->insert_undo,
+					true, &mtr);
+			}
+			if (undo_ptr->update_undo != NULL) {
+				trx_undo_set_state_at_prepare(
+					trx, undo_ptr->update_undo,
+					true, &mtr);
+			}
+			mutex_exit(&trx->rsegs.m_redo.rseg->mutex);
+			/* Persist the XA ROLLBACK, so that crash
+			recovery will replay the rollback in case
+			the redo log gets applied past this point. */
+			mtr.commit();
+			ut_ad(mtr.commit_lsn() > 0);
+		}
+#ifdef ENABLED_DEBUG_SYNC
+		if (trx->mysql_thd != NULL) {
+			/* This is not reachable when
+			executing XA ROLLBACK after XA PREPARE
+			followed by a server restart. */
+			DEBUG_SYNC_C("trx_xa_rollback");
+		}
+#endif /* ENABLED_DEBUG_SYNC */
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
