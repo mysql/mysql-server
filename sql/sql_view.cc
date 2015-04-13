@@ -2077,9 +2077,11 @@ int view_repair(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt)
     ((check_opt->sql_flags & TT_FROM_MYSQL) &&
      (!view->mariadb_version));
   bool wrong_checksum= view_checksum(thd, view);
+  int ret;
   if (wrong_checksum || swap_alg)
   {
-    DBUG_RETURN(mariadb_fix_view(thd, view, wrong_checksum, swap_alg));
+    ret= mariadb_fix_view(thd, view, wrong_checksum, swap_alg);
+    DBUG_RETURN(ret);
   }
   DBUG_RETURN(HA_ADMIN_OK);
 }
