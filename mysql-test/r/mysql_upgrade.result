@@ -1,6 +1,7 @@
 Run mysql_upgrade once
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 1/4: Fixing views - skipped - not required
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -31,13 +32,14 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
 OK
 Run it again - should say already completed
 This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
 Force should run it regardless of wether it's been run before
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 1/4: Fixing views - skipped - not required
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -68,13 +70,14 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
 OK
 CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
 GRANT ALL ON *.* TO mysqltest1@'%';
 Run mysql_upgrade with password protected account
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 1/4: Fixing views - skipped - not required
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -105,7 +108,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
 OK
 DROP USER mysqltest1@'%';
 Version check failed. Got the following error when calling the 'mysql' command line client
@@ -115,8 +118,9 @@ Run mysql_upgrade with a non existing server socket
 mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
 FATAL ERROR: Upgrade failed
 set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 1/4: Fixing views - skipped - not required
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -147,7 +151,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
 OK
 set GLOBAL sql_mode=default;
 #
@@ -158,8 +162,9 @@ CREATE PROCEDURE testproc() BEGIN END;
 UPDATE mysql.proc SET character_set_client = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET collation_connection = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET db_collation = NULL WHERE name LIKE 'testproc';
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 1/4: Fixing views - skipped - not required
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -190,7 +195,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
 OK
 CALL testproc();
 DROP PROCEDURE testproc;
@@ -204,8 +209,9 @@ WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been
 GRANT USAGE ON *.* TO 'user3'@'%';
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 Run mysql_upgrade with all privileges on a user
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 1/4: Fixing views - skipped - not required
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -236,7 +242,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
 OK
 SHOW GRANTS FOR 'user3'@'%';
 Grants for user3@%
@@ -245,7 +251,7 @@ GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%'
 DROP USER 'user3'@'%';
 End of 5.1 tests
 The --upgrade-system-tables option was used, databases won't be touched.
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 1/4: Running 'mysql_fix_privilege_tables'...
 OK
 #
 # Bug#11827359 60223: MYSQL_UPGRADE PROBLEM WITH OPTION
@@ -253,8 +259,9 @@ OK
 #
 # Droping the previously created mysql_upgrade_info file..
 # Running mysql_upgrade with --skip-write-binlog..
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 1/4: Fixing views - skipped - not required
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -285,7 +292,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
 OK
 #
 # MDEV-4332 Increase username length from 16 characters
@@ -313,8 +320,9 @@ GRANT INSERT ON mysql.user TO very_long_user_name_number_2;
 GRANT UPDATE (User) ON mysql.db TO very_long_user_name_number_1;
 GRANT UPDATE (User) ON mysql.db TO very_long_user_name_number_2;
 CREATE PROCEDURE test.pr() BEGIN END;
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 1/4: Fixing views - skipped - not required
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -345,7 +353,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
 OK
 SELECT definer FROM mysql.proc WHERE db = 'test' AND name = 'pr';
 definer
