@@ -308,15 +308,19 @@ trx_undo_set_state_at_finish(
 /*=========================*/
 	trx_undo_t*	undo,	/*!< in: undo log memory copy */
 	mtr_t*		mtr);	/*!< in: mtr */
-/******************************************************************//**
-Sets the state of the undo log segment at a transaction prepare.
+
+/** Set the state of the undo log segment at a XA PREPARE or XA ROLLBACK.
+@param[in,out]	trx		transaction
+@param[in,out]	undo		insert_undo or update_undo log
+@param[in]	rollback	false=XA PREPARE, true=XA ROLLBACK
+@param[in,out]	mtr		mini-transaction
 @return undo log segment header page, x-latched */
 page_t*
 trx_undo_set_state_at_prepare(
-/*==========================*/
-	trx_t*		trx,	/*!< in: transaction */
-	trx_undo_t*	undo,	/*!< in: undo log memory copy */
-	mtr_t*		mtr);	/*!< in: mtr */
+	trx_t*		trx,
+	trx_undo_t*	undo,
+	bool		rollback,
+	mtr_t*		mtr);
 
 /**********************************************************************//**
 Adds the update undo log header as the first in the history list, and

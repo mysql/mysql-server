@@ -2786,12 +2786,12 @@ trx_prepare_low(
 			because only a single OS thread is allowed to do the
 			transaction prepare for this transaction. */
 			trx_undo_set_state_at_prepare(
-				trx, undo_ptr->insert_undo, &mtr);
+				trx, undo_ptr->insert_undo, false, &mtr);
 		}
 
 		if (undo_ptr->update_undo != NULL) {
 			trx_undo_set_state_at_prepare(
-				trx, undo_ptr->update_undo, &mtr);
+				trx, undo_ptr->update_undo, false, &mtr);
 		}
 
 		mutex_exit(&rseg->mutex);
