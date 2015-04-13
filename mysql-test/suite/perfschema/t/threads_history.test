@@ -3,6 +3,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+--source ../include/no_protocol.inc
 
 create user user1@localhost;
 create user user2@localhost;
