@@ -436,9 +436,30 @@ void PFS_thread::reset_session_connect_attrs()
   }
 }
 
-void PFS_thread::set_enabled(bool enabled)
+void PFS_thread::set_history_derived_flags()
 {
-  m_enabled= enabled;
+  if (m_history)
+  {
+    m_flag_events_waits_history= flag_events_waits_history;
+    m_flag_events_waits_history_long= flag_events_waits_history_long;
+    m_flag_events_stages_history= flag_events_stages_history;
+    m_flag_events_stages_history_long= flag_events_stages_history_long;
+    m_flag_events_statements_history= flag_events_statements_history;
+    m_flag_events_statements_history_long= flag_events_statements_history_long;
+    m_flag_events_transactions_history= flag_events_transactions_history;
+    m_flag_events_transactions_history_long= flag_events_transactions_history_long;
+  }
+  else
+  {
+    m_flag_events_waits_history= false;
+    m_flag_events_waits_history_long= false;
+    m_flag_events_stages_history= false;
+    m_flag_events_stages_history_long= false;
+    m_flag_events_statements_history= false;
+    m_flag_events_statements_history_long= false;
+    m_flag_events_transactions_history= false;
+    m_flag_events_transactions_history_long= false;
+  }
 }
 
 void PFS_thread::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
@@ -498,7 +519,8 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
     pfs->m_event_id= 1;
     pfs->m_stmt_lock.set_allocated();
     pfs->m_session_lock.set_allocated();
-    pfs->m_enabled= true;
+    pfs->set_enabled(true);
+    pfs->set_history(true);
     pfs->m_class= klass;
     pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
     pfs->m_waits_history_full= false;
@@ -2136,9 +2158,14 @@ void update_metadata_derived_flags()
   global_mdl_container.apply_all(fct_update_metadata_derived_flags);
 }
 
+static void fct_update_thread_derived_flags(PFS_thread *pfs)
+{
+  pfs->set_history_derived_flags();
+}
+
 void update_thread_derived_flags()
 {
-  /* None */
+  global_thread_container.apply(fct_update_thread_derived_flags);
 }
 
 void update_instruments_derived_flags()

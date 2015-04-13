@@ -15,10 +15,10 @@ create table test.setup_actors as
 # throw error
 --error ER_DUP_KEY
 insert into performance_schema.setup_actors
-  values ('%','%','%','YES');
+  values ('%','%','%','YES', 'YES');
 --error ER_DUP_KEY
 insert into performance_schema.setup_actors
-  values ('%','%','%','NO');
+  values ('%','%','%','NO', 'NO');
 
 truncate table performance_schema.setup_actors;
 
@@ -42,7 +42,12 @@ insert into performance_schema.setup_actors
 # Insert with wrong value for ENABLED column
 --error 1265
 insert into performance_schema.setup_actors
-  values ('localhost', 'user1', '%', 'NO%');
+  values ('localhost', 'user1', '%', 'NO%', 'NO');
+
+# Insert with wrong value for HISTORY column
+--error 1265
+insert into performance_schema.setup_actors
+  values ('localhost', 'user1', '%', 'NO', 'KO');
 
 select * from performance_schema.setup_actors
   order by USER, HOST;
@@ -63,6 +68,10 @@ update performance_schema.setup_actors
 update performance_schema.setup_actors
   set ENABLED='YES';
 
+# update on HISTORY column is allowed
+update performance_schema.setup_actors
+  set HISTORY='YES';
+
 # update on ENABLED column with wrong values
 #throws error
 --error 1265
@@ -80,6 +89,18 @@ update performance_schema.setup_actors
 --error ER_BAD_NULL_ERROR
 update performance_schema.setup_actors
   set ENABLED=NULL;
+
+--error 1265
+update performance_schema.setup_actors
+  set HISTORY='YESS';
+
+--error 1265
+update performance_schema.setup_actors
+  set HISTORY='NO%';
+
+--error ER_BAD_NULL_ERROR
+update performance_schema.setup_actors
+  set HISTORY=NULL;
 
 select * from performance_schema.setup_actors
   order by USER, HOST;

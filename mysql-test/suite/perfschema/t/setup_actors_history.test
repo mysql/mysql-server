@@ -1,0 +1,177 @@
+# Check the impact of changes done in HISTORY column in
+# performance_schema.setup_actors.
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# The initial number of rows is 1. The initial row always looks like this:
+# mysql> select * from performance_schema.setup_actors;
+# +------+------+------+---------+---------+
+# | HOST | USER | ROLE | ENABLED | HISTORY |
+# +------+------+------+---------+---------+
+# | %    | %    | %    | YES     | YES     |
+# +------+------+------+---------+---------+
+select * from performance_schema.setup_actors;
+
+truncate table performance_schema.setup_actors;
+
+insert into performance_schema.setup_actors
+values ('localhost', 'user1', '%', 'YES', 'YES');
+
+insert into performance_schema.setup_actors
+values ('localhost', 'user2', '%', 'YES', 'NO');
+
+insert into performance_schema.setup_actors
+values ('localhost', 'user3', '%', 'NO', 'YES');
+
+insert into performance_schema.setup_actors
+values ('localhost', 'user4', '%', 'NO', 'NO');
+
+create user user1@localhost;
+create user user2@localhost;
+create user user3@localhost;
+create user user4@localhost;
+
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+
+flush privileges;
+
+--echo # Switch to (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+
+# Expecting INSTRUMENTED=YES, HISTORY=YES
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to (con2, localhost, user2, , )
+connect (con2, localhost, user2, , );
+
+# Expecting INSTRUMENTED=YES, HISTORY=NO
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to (con3, localhost, user3, , )
+connect (con3, localhost, user3, , );
+
+# Expecting INSTRUMENTED=NO, HISTORY=YES
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to (con4, localhost, user4, , )
+connect (con4, localhost, user4, , );
+
+# Expecting INSTRUMENTED=NO, HISTORY=NO
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to connection default
+--connection default
+update performance_schema.setup_actors
+  set HISTORY='NO' where USER in ('user1', 'user3');
+update performance_schema.setup_actors
+  set HISTORY='YES' where USER in ('user2', 'user4');
+
+--echo # Switch to connection con1
+--connection con1
+
+# Expecting INSTRUMENTED=YES, HISTORY=YES
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to connection con2
+--connection con2
+
+# Expecting INSTRUMENTED=YES, HISTORY=NO
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to connection con3
+--connection con3
+
+# Expecting INSTRUMENTED=NO, HISTORY=YES
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to connection con4
+--connection con4
+
+# Expecting INSTRUMENTED=NO, HISTORY=NO
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Disconnect all con
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disconnect con4
+
+# Now reconnect
+--echo # Switch to (con1, localhost, user1, , )
+connect (con1, localhost, user1, , );
+
+# Expecting INSTRUMENTED=YES, HISTORY=NO
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to (con2 localhost, user2, , )
+connect (con2, localhost, user2, , );
+
+# Expecting INSTRUMENTED=YES, HISTORY=YES
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to (con3, localhost, user3, , )
+connect (con3, localhost, user3, , );
+
+# Expecting INSTRUMENTED=NO, HISTORY=NO
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Switch to (con4 localhost, user4, , )
+connect (con4, localhost, user4, , );
+
+# Expecting INSTRUMENTED=NO, HISTORY=YES
+select NAME, TYPE, INSTRUMENTED, HISTORY, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+
+--echo # Disconnect all con
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disconnect con4
+
+--echo # Switch to connection default
+--connection default
+
+revoke all privileges, grant option from user1@localhost;
+revoke all privileges, grant option from user2@localhost;
+revoke all privileges, grant option from user3@localhost;
+revoke all privileges, grant option from user4@localhost;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+flush privileges;
+
+truncate table performance_schema.setup_actors;
+
+insert into performance_schema.setup_actors
+values ('%', '%', '%', 'YES', 'YES');
+
+select * from performance_schema.setup_actors;
+
