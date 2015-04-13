@@ -8206,11 +8206,11 @@ static int fix_paths(void)
       if (my_realpath(buff, opt_secure_file_priv, MYF(MY_WME)))
       {
         char err_buffer[FN_REFLEN];
-        snprintf(err_buffer, FN_REFLEN-1,
-                 "Failed to access directory for --secure-file-priv."
-                 " Please make sure that directory exists and is accessible "
-                 "by MySQL Server. Supplied value : %s",
-                 opt_secure_file_priv);
+        my_snprintf(err_buffer, FN_REFLEN-1,
+                    "Failed to access directory for --secure-file-priv."
+                    " Please make sure that directory exists and is "
+                    "accessible by MySQL Server. Supplied value : %s",
+                    opt_secure_file_priv);
         err_buffer[FN_REFLEN-1]='\0';
         sql_print_error("%s", err_buffer);
         return 1;
