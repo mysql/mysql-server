@@ -35,6 +35,7 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 extern TYPELIB myisam_recover_typelib;
 extern const char *myisam_recover_names[];
 extern ulonglong myisam_recover_options;
+extern const char *myisam_stats_method_names[];
 
 C_MODE_START
 ICP_RESULT index_cond_func_myisam(void *arg);

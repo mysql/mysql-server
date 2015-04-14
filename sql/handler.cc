@@ -198,9 +198,9 @@ static handlerton *installed_htons[128];
 KEY_CREATE_INFO default_key_create_info=
   { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0}, true };
 
-/* number of entries in handlertons[] */
-ulong total_ha= 0;
-/* number of storage engines (from handlertons[]) that support 2pc */
+/* number of entries in installed_htons[] */
+static ulong total_ha= 0;
+/* number of storage engines (from installed_htons[]) that support 2pc */
 ulong total_ha_2pc= 0;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size= 0;
@@ -226,82 +226,12 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
-#ifndef DBUG_OFF
-
-const char *ha_legacy_type_name(legacy_db_type legacy_type)
-{
-  switch (legacy_type)
-  {
-  case DB_TYPE_UNKNOWN:
-    return "DB_TYPE_UNKNOWN";
-  case DB_TYPE_DIAB_ISAM:
-    return "DB_TYPE_DIAB_ISAM";
-  case DB_TYPE_HASH:
-    return "DB_TYPE_HASH";
-  case DB_TYPE_MISAM:
-    return "DB_TYPE_MISAM";
-  case DB_TYPE_PISAM:
-    return "DB_TYPE_PISAM";
-  case DB_TYPE_RMS_ISAM:
-    return "DB_TYPE_RMS_ISAM";
-  case DB_TYPE_HEAP:
-    return "DB_TYPE_HEAP";
-  case DB_TYPE_ISAM:
-    return "DB_TYPE_ISAM";
-  case DB_TYPE_MRG_ISAM:
-    return "DB_TYPE_MRG_ISAM";
-  case DB_TYPE_MYISAM:
-    return "DB_TYPE_MYISAM";
-  case DB_TYPE_MRG_MYISAM:
-    return "DB_TYPE_MRG_MYISAM";
-  case DB_TYPE_BERKELEY_DB:
-    return "DB_TYPE_BERKELEY_DB";
-  case DB_TYPE_INNODB:
-    return "DB_TYPE_INNODB";
-  case DB_TYPE_GEMINI:
-    return "DB_TYPE_GEMINI";
-  case DB_TYPE_NDBCLUSTER:
-    return "DB_TYPE_NDBCLUSTER";
-  case DB_TYPE_EXAMPLE_DB:
-    return "DB_TYPE_EXAMPLE_DB";
-  case DB_TYPE_ARCHIVE_DB:
-    return "DB_TYPE_ARCHIVE_DB";
-  case DB_TYPE_CSV_DB:
-    return "DB_TYPE_CSV_DB";
-  case DB_TYPE_FEDERATED_DB:
-    return "DB_TYPE_FEDERATED_DB";
-  case DB_TYPE_BLACKHOLE_DB:
-    return "DB_TYPE_BLACKHOLE_DB";
-  case DB_TYPE_PARTITION_DB:
-    return "DB_TYPE_PARTITION_DB";
-  case DB_TYPE_BINLOG:
-    return "DB_TYPE_BINLOG";
-  case DB_TYPE_SOLID:
-    return "DB_TYPE_SOLID";
-  case DB_TYPE_PBXT:
-    return "DB_TYPE_PBXT";
-  case DB_TYPE_TABLE_FUNCTION:
-    return "DB_TYPE_TABLE_FUNCTION";
-  case DB_TYPE_MEMCACHE:
-    return "DB_TYPE_MEMCACHE";
-  case DB_TYPE_FALCON:
-    return "DB_TYPE_FALCON";
-  case DB_TYPE_MARIA:
-    return "DB_TYPE_MARIA";
-  case DB_TYPE_PERFORMANCE_SCHEMA:
-    return "DB_TYPE_PERFORMANCE_SCHEMA";
-  default:
-    return "DB_TYPE_DYNAMIC";
-  }
-}
-#endif
-
 /**
   Database name that hold most of mysqld system tables.
   Current code assumes that, there exists only some
   specific "database name" designated as system database.
 */
-const char* mysqld_system_database= "mysql";
+static const char* mysqld_system_database= "mysql";
 
 // System tables that belong to mysqld_system_database.
 st_system_tablename mysqld_system_tables[]= {
@@ -344,6 +274,10 @@ static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
 static my_bool check_engine_system_table_handlerton(THD *unused,
                                                     plugin_ref plugin,
                                                     void *arg);
+
+static int ha_discover(THD *thd, const char *db, const char *name,
+                       uchar **frmblob, size_t *frmlen);
+
 /**
   Structure used by SE during check for system table.
   This structure is passed to each SE handlerton and the status (OUT param)
@@ -5203,8 +5137,9 @@ static my_bool discover_handlerton(THD *thd, plugin_ref plugin,
   return FALSE;
 }
 
-int ha_discover(THD *thd, const char *db, const char *name,
-		uchar **frmblob, size_t *frmlen)
+
+static int ha_discover(THD *thd, const char *db, const char *name,
+                       uchar **frmblob, size_t *frmlen)
 {
   int error= -1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
@@ -5729,7 +5664,7 @@ Cost_estimate handler::read_cost(uint index, double ranges, double rows)
   @retval FALSE  No
 */
 
-bool key_uses_partial_cols(TABLE *table, uint keyno)
+static bool key_uses_partial_cols(TABLE *table, uint keyno)
 {
   KEY_PART_INFO *kp= table->key_info[keyno].key_part;
   KEY_PART_INFO *kp_end= kp + table->key_info[keyno].user_defined_key_parts;

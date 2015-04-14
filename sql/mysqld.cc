@@ -7025,7 +7025,6 @@ static int mysql_init_variables(void)
   log_bin_index= NULL;
 
   /* Handler variables */
-  total_ha= 0;
   total_ha_2pc= 0;
   /* Variables in libraries */
   charsets_dir= 0;
