@@ -685,6 +685,7 @@ public:
   // used by user thread 
   Uint64 getLatestGCI();
   Uint32 getEventId(int bufferId);
+  Uint64 getHighestQueuedEpoch();
 
   int pollEvents2(int aMillisecondNumber, Uint64 *HighestQueuedEpoch= 0);
   int flushIncompleteEvents(Uint64 gci);
