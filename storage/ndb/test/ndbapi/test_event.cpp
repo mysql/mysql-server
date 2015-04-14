@@ -2438,6 +2438,7 @@ errorInjectBufferOverflowOnly(NDBT_Context* ctx, NDBT_Step* step)
   {
     return NDBT_FAILED;
   }
+  restarter.insertErrorInAllNodes(0);
   return NDBT_OK;
 }
 
@@ -4101,6 +4102,155 @@ int runPollBCLongWait(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+/*************************************************************
+ * Test backward compatibility of the pollEvents related to
+ * inconsistent epochs.
+ * An inconsistent event data can be found at the head of the
+ * event queue or after the head.
+ * It it is at the head:
+ *  - the backward compatible pollEvents will return 1 and
+ *  - the following nextEvent call will return NULL.
+ * The test writes out which case (head or after) is found.
+ *
+ * For each poll, nextEvent round will end the test when
+ * it finds an inconsistent epoch, or process the whole queue.
+ *
+ * After each poll (before nextEvent call) event queue is checked
+ * for inconsistency.
+ * Test will fail :
+ * a) if no inconsistent epoch is found after 10 poll rounds
+ * b) If the inconsistent epoch found by poll is not equal to
+ *    the one found by the nextEvent
+ * c) if the poll found an inconsistent epoch, but bot the next
+ *    or vice versa.
+ */
+int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp, *pCreate = NULL;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  Uint32 n_ins = 0, n_dels = 0, n_unknown = 0;
+  Uint32 n_inconsis_poll = 0, n_inconsis_next = 0;
+
+  Uint64 inconsis_epoch_poll = 0; // inconsistent epoch seen by pollEvents
+  Uint64 inconsis_epoch_next = 0;// inconsistent epoch seen by nextEvent
+
+  Uint64 current_gci = 0, poll_gci = 0;
+
+  // Wait max 10 sec for event data to start flowing
+  Uint32 retries = 10;
+  while (retries-- > 0)
+  {
+    if (ndb->pollEvents(1000, &poll_gci) == 1)
+        break;
+  }
+  CHK(retries > 0, "No epoch has received in 10 secs");
+
+  // if no inconsistency is found within 20 secs, fail
+  retries = 20;
+  do
+  {
+    // Check whether an inconsistent epoch is in the queue
+    if (!ndb->isConsistent(inconsis_epoch_poll))
+    {
+      n_inconsis_poll++;
+    }
+
+    pOp = ndb->nextEvent();
+    // Check whether an inconsistent epoch is at the head
+    if (pOp == NULL)
+    {
+      // pollEvents returned 1, but nextEvent returned 0,
+      // Should be an inconsistent epoch
+      CHK(!ndb->isConsistent(inconsis_epoch_next),
+          "Expected inconsistent epoch");
+      g_info << "Next event found inconsistent epoch at the"
+             << " head of the event queue" << endl;
+      CHK((inconsis_epoch_poll != 0 &&
+           inconsis_epoch_poll == inconsis_epoch_next),
+          "pollEvents and nextEvent found different inconsitent epochs");
+      n_inconsis_next++;
+      goto end_test;
+
+      g_err << "pollEvents returned 1, but nextEvent found no data"
+            << endl;
+      return NDBT_FAILED;
+    }
+
+    while (pOp)
+    {
+      current_gci = pOp->getGCI();
+
+      switch (pOp->getEventType())
+      {
+      case NdbDictionary::Event::TE_INSERT:
+        n_ins ++;
+        break;
+      case NdbDictionary::Event::TE_DELETE:
+        n_dels ++;
+        break;
+      default:
+        n_unknown ++;
+        break;
+      }
+
+      pOp = ndb->nextEvent();
+      if (pOp == NULL)
+      {
+        // pOp returned NULL, check it is an inconsistent epoch.
+        if (!ndb->isConsistent(inconsis_epoch_next))
+        {
+          g_info << "Next event found inconsistent epoch"
+                 << " in the event queue" << endl;
+          CHK((inconsis_epoch_poll != 0 &&
+               inconsis_epoch_poll == inconsis_epoch_next),
+              "pollEvents and nextEvent found different inconsistent epochs");
+          goto end_test;
+        }
+        // Check whether we have processed the entire queue
+        CHK(current_gci == poll_gci, "Expected inconsistent epoch");
+      }
+    }
+    if (retries-- == 0)
+      goto end_test;
+
+  } while (ndb->pollEvents(1000, &poll_gci));
+
+end_test:
+  if (n_inconsis_poll == 0 ||
+      n_unknown != 0 )
+  {
+    g_err << "Test failed :" << endl;
+    g_err << " #inconsistent epochs found by pollEvents "
+          << n_inconsis_poll << endl;
+    g_err << " #inconsistent epochs found by nextEvent "
+          << n_inconsis_next << endl;
+    g_err << " Inconsis epoch found by pollEvents "
+          << inconsis_epoch_poll << endl;
+    g_err << " inconsis epoch found by nextEvent "
+          << inconsis_epoch_next << endl;
+    g_err << " Inserts " << n_ins << ", deletes " << n_dels
+          << ", unknowns " << n_unknown << endl;
+    return NDBT_FAILED;
+  }
+
+  // Stop the transaction load to data nodes
+  ctx->stopTest();
+
+  CHK(ndb->dropEventOperation(pCreate) == 0, "dropEventOperation failed");
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -4392,6 +4542,16 @@ TESTCASE("BackwardCompatiblePollLongWait",
   INITIALIZER(runCreateEvent);
   STEP(runPollBCLongWaitConsumer);
   STEP(runPollBCLongWait);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("BackwardCompatiblePollInconsistency",
+         "Check backward compatibility of pollEvents"
+          "when handling data node buffer overflow")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runInsertDeleteUntilStopped);
+  STEP(runPollBCInconsistency);
+  STEP(errorInjectBufferOverflowOnly);
   FINALIZER(runDropEvent);
 }
 #if 0

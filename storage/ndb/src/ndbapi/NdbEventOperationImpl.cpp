@@ -785,7 +785,7 @@ NdbEventOperationImpl::isErrorEpoch(NdbDictionary::Event::TableEvent *error_type
 {
   const NdbDictionary::Event::TableEvent type = getEventType2();
   // Error types are defined from TE_INCONSISTENT
-  if (type > NdbDictionary::Event::TE_INCONSISTENT)
+  if (type >= NdbDictionary::Event::TE_INCONSISTENT)
   {
     if (error_type)
       *error_type = type;
