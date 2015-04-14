@@ -1332,7 +1332,7 @@ public:
    *
    * @param aMillisecondNumber
    *        maximum time to wait
-   * aMillisecondNumber < 0 will cause a long wait
+   * aMillisecondNumber < 0 : returns -1
    *
    * @param OUT highestQueuedEpoch: if highestQueuedEpoch is non-null and
    * there is some new event data available in the event queue,
@@ -1341,7 +1341,7 @@ public:
    * @return > 0 if events available, 0 if no events available, < 0 on failure.
    *
    * @pollEvents2 will also return >0 when there is an event data
-   * representing empty or error epoch available.
+   * representing empty or error epoch available on the head of the event queue.
    */
   int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch= 0);
 
