@@ -790,6 +790,11 @@ static int run_mysqlcheck_views(void)
     upgrade_views="--upgrade-views=FROM_MYSQL";
     verbose("Phase %d/%d: Fixing views from mysql", phase++, phases_total);
   }
+  else if (opt_systables_only)
+  {
+    verbose("Phase %d/%d: Fixing views - skipped - not required", phase++, phases_total);
+    return 0;
+  }
   else
     verbose("Phase %d/%d: Fixing views", phase++, phases_total);
 
