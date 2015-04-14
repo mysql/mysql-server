@@ -3026,6 +3026,12 @@ NdbEventBuffer::getLatestGCI()
   return m_latestGCI;
 }
 
+Uint64
+NdbEventBuffer::getHighestQueuedEpoch()
+{
+  return m_latest_poll_GCI;
+}
+
 int
 NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 			    const SubTableData * const sdata, 

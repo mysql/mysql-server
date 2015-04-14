@@ -2152,3 +2152,7 @@ args: -n BackwardCompatiblePollLongWait T1
 max-time: 1200
 cmd: test_event
 args: -n BackwardCompatiblePollInconsistency T1
+
+max-time: 1000
+cmd: test_event
+args: -n Apiv2HQE-latestGCI T1
