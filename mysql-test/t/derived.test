@@ -492,5 +492,17 @@ update t1 set balance=(select sum(balance) from (SELECT balance FROM t1 where ac
 set optimizer_switch=@save_derived_optimizer_switch_bug;
 drop table t1;
 
-
 set optimizer_switch=@save_derived_optimizer_switch;
+
+--echo #
+--echo # MDEV-6892: WHERE does not apply
+--echo #
+create table t1 (id int);
+create table t2 (id int);
+insert into t1 values(1),(2),(3);
+insert into t2 values(4),(5),(6);
+#explain extended
+select x.id, message from (select id from t1) x left join
+(select id, 1 as message from t2) y on x.id=y.id
+where coalesce(message,0) <> 0;
+drop table t1,t2;

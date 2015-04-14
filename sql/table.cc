@@ -5034,7 +5034,8 @@ TABLE *TABLE_LIST::get_real_join_table()
   TABLE_LIST *tbl= this;
   while (tbl->table == NULL || tbl->table->reginfo.join_tab == NULL)
   {
-    if (tbl->view == NULL && tbl->derived == NULL)
+    if ((tbl->view == NULL && tbl->derived == NULL) ||
+        tbl->is_materialized_derived())
       break;
     /* we do not support merging of union yet */
     DBUG_ASSERT(tbl->view == NULL ||
@@ -5043,28 +5044,25 @@ TABLE *TABLE_LIST::get_real_join_table()
                tbl->derived->first_select()->next_select() == NULL);
 
     {
-      List_iterator_fast<TABLE_LIST> ti;
+      List_iterator_fast<TABLE_LIST>
+        ti(tbl->view != NULL ?
+           tbl->view->select_lex.top_join_list :
+           tbl->derived->first_select()->top_join_list);
+      for (;;)
       {
-        List_iterator_fast<TABLE_LIST>
-          ti(tbl->view != NULL ?
-             tbl->view->select_lex.top_join_list :
-             tbl->derived->first_select()->top_join_list);
-        for (;;)
-        {
-          tbl= NULL;
-          /*
-            Find left table in outer join on this level
-            (the list is reverted).
-          */
-          for (TABLE_LIST *t= ti++; t; t= ti++)
-            tbl= t;
-          if (!tbl)
-            return NULL; // view/derived with no tables
-          if (!tbl->nested_join)
-            break;
-          /* go deeper if we've found nested join */
-          ti= tbl->nested_join->join_list;
-        }
+        tbl= NULL;
+        /*
+          Find left table in outer join on this level
+          (the list is reverted).
+        */
+        for (TABLE_LIST *t= ti++; t; t= ti++)
+          tbl= t;
+        if (!tbl)
+          return NULL; // view/derived with no tables
+        if (!tbl->nested_join)
+          break;
+        /* go deeper if we've found nested join */
+        ti= tbl->nested_join->join_list;
       }
     }
   }
