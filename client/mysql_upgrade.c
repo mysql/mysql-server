@@ -784,19 +784,22 @@ static my_bool is_mysql()
 
 static int run_mysqlcheck_views(void)
 {
-  if (!is_mysql())
+  const char *upgrade_views="--upgrade-views=YES";
+  if (is_mysql())
   {
-    verbose("Phase %d/%d: Fixing views - skipped - not required", phase++, phases_total);
-    return 0;
+    upgrade_views="--upgrade-views=FROM_MYSQL";
+    verbose("Phase %d/%d: Fixing views from mysql", phase++, phases_total);
   }
-  verbose("Phase %d/%d: Fixing views", phase++, phases_total);
+  else
+    verbose("Phase %d/%d: Fixing views", phase++, phases_total);
+
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
                   "--no-defaults",
                   ds_args.str,
                   "--all-databases",
-                  "--fix-view-algorithm",
+                  upgrade_views,
                   "--skip-fix-tables",
                   opt_verbose ? "--verbose": "",
                   opt_silent ? "--silent": "",

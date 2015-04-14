@@ -21,7 +21,7 @@ flush tables;
 --replace_result $MYSQLTEST_VARDIR var
 --exec $MYSQL_UPGRADE --force 2>&1
 
-# "Phase 1/4: Fixing views - skipped - not required"  expected
+# "Phase 1/4: Fixing views"  expected (without from_mysql)
 
 show create view v1;
 show create view v2;
@@ -89,7 +89,7 @@ show create view v2;
 show create view v3;
 show create view v4;
 
-# here we test the fixing views does occur
+# here we test the fixing views from mysql to occur
 --replace_result $MYSQLTEST_VARDIR var
 --exec $MYSQL_UPGRADE --force 2>&1
 
@@ -123,7 +123,7 @@ drop view if exists v1,v2,v3;
 flush tables;
 
 # check of binlog
---exec $MYSQL_CHECK --write-binlog --fix-view-algorithm --skip-fix-tables --all-databases 2>&1
+--exec $MYSQL_CHECK --write-binlog --upgrade-views=FROM_MYSQL --skip-fix-tables --all-databases 2>&1
 
 --source include/show_binlog_events.inc
 

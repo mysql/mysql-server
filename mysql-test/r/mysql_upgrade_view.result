@@ -4,7 +4,11 @@ drop view if exists t1,v1,v2,v3,v4,v1badcheck;
 create table t1(a int);
 create table kv(k varchar(30) NOT NULL PRIMARY KEY,v  varchar(50));
 flush tables;
-Phase 1/4: Fixing views - skipped - not required
+Phase 1/4: Fixing views
+test.v1                                            OK
+test.v1badcheck                                    OK
+test.v2                                            OK
+test.v3                                            OK
 Phase 2/4: Fixing table and database names
 Phase 3/4: Checking and upgrading tables
 Processing databases
@@ -118,7 +122,7 @@ show create view v4;
 View	Create View	character_set_client	collation_connection
 v4	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
 MySQL upgrade detected
-Phase 1/4: Fixing views
+Phase 1/4: Fixing views from mysql
 test.v1                                            OK
 test.v2                                            OK
 test.v3                                            OK
