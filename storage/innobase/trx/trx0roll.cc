@@ -252,7 +252,8 @@ trx_rollback_for_mysql(
 			ut_ad(mtr.commit_lsn() > 0);
 		}
 #ifdef ENABLED_DEBUG_SYNC
-		if (trx->mysql_thd != NULL) {
+		if (trx->mysql_thd != NULL
+		    && thd_sql_command(trx->mysql_thd) == SQLCOM_XA_ROLLBACK) {
 			/* This is not reachable when
 			executing XA ROLLBACK after XA PREPARE
 			followed by a server restart. */
