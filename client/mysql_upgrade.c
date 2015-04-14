@@ -740,9 +740,10 @@ static void print_conn_args(const char *tool_name)
 
 static int run_mysqlcheck_upgrade(void)
 {
+  int retch;
   verbose("Phase %d/%d: Checking and upgrading tables", phase++, phases_total);
   print_conn_args("mysqlcheck");
-  return run_tool(mysqlcheck_path,
+  retch= run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
                   "--no-defaults",
                   ds_args.str,
@@ -754,6 +755,9 @@ static int run_mysqlcheck_upgrade(void)
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   "2>&1",
                   NULL);
+  if (retch || opt_systables_only)
+    verbose("Phase %d/%d: Skipping 'mysql_fix_privilege_tables'... not needed", phase++, phases_total);
+  return retch;
 }
 
 #define EVENTS_STRUCT_LEN 7000
