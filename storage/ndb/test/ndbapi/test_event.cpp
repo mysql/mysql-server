@@ -27,6 +27,13 @@
 #include <NdbEnv.h>
 #include <Bitmask.hpp>
 
+#define CHK(b,e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    return NDBT_FAILED; \
+  }
+
 static int createEvent(Ndb *pNdb,
                        const NdbDictionary::Table &tab,
                        bool merge_events,
@@ -3887,6 +3894,213 @@ int runTryGetEvent(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+// Waits until the event buffer is filled upto fill_percent.
+void wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
+{
+  Ndb::EventBufferMemoryUsage mem_usage;
+  ndb->get_event_buffer_memory_usage(mem_usage);
+  Uint32 usage_before_wait = mem_usage.usage_percent;
+  Uint64 prev_gci = ndb->getLatestGCI();
+  Uint32 retries = 10;
+
+  do
+  {
+    if (fill_percent < 100 && usage_before_wait >= fill_percent)
+    {
+      return;
+    }
+
+    // Assume that latestGCI will increase in this sleep time
+    // (with default TimeBetweenEpochs 100 mill).
+    NdbSleep_SecSleep(1);
+
+    const Uint64 latest_gci = ndb->getLatestGCI();
+
+    /* fill_percent == 100 :
+     * It is not enough to test usage_after_wait >= 100 to decide
+     * whether a gap has occurred, because a gap can occur
+     * at a fill_percent < 100, eg at 99%, when there is no space
+     * for a new epoch. Therefore, we have to wait until the
+     * latest_gci (and usage) becomes stable, because epochs are
+     * discarded during a gap.
+     */
+    if (prev_gci == latest_gci && retries-- == 0)
+    {
+      /* No new epoch is buffered despite waiting with continuous
+       * load generation. A gap must have occurred. Enough waiting.
+       * Check usage is unchanged as well.
+       */
+      ndb->get_event_buffer_memory_usage(mem_usage);
+      const Uint32 usage_after_wait = mem_usage.usage_percent;
+      usage_before_wait = usage_after_wait;
+      if (usage_before_wait != usage_after_wait)
+      {
+        g_err << "prev_gci " << prev_gci << "latest_gci " << latest_gci
+              << " usage before wait " << usage_before_wait
+              << " usage after wait " <<  usage_after_wait << endl;
+      }
+      assert(usage_before_wait == usage_after_wait);
+      return;
+    }
+    prev_gci = latest_gci;
+  } while (true);
+}
+
+/*********************************************************
+ * Test the backward compatible pollEvents returns 1
+ * when the event buffer overflows. However, the test cannot
+ * guarantee that overflow epoch data is found at the
+ * head of the event queue.
+ * The following nextEvent call will crash with 'out of memory' error.
+ * The test will fail if there is no crash.
+ */
+int runPollBCOverflowEB(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+  ndb->set_eventbuf_max_alloc(2621440); // max event buffer size
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = NULL;
+  pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  // Wait until event buffer get filled 100%, to get a gap event
+  wait_to_fill_buffer(ndb, 100);
+
+  g_err << endl << "The test is expected to crash with"
+        << " Event buffer out of memory." << endl << endl;
+
+  Uint64 poll_gci = 0;
+  while (ndb->pollEvents(100, &poll_gci))
+  {
+    while ((pOp = ndb->nextEvent()))
+    {}
+  }
+  // The test should not come here. Expected to crash in nextEvent.
+  return NDBT_FAILED;
+}
+
+/*************************************************************
+ * Test: pollEvents(0) returns immediately :
+ * The coumer waits max 10 secs to see an event.
+ * Then it polls with 0 wait time. If it could not see
+ * event data with the same epoch, it fails.
+ */
+int runPollBCNoWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+  ndb->set_eventbuf_max_alloc(2621440); // max event buffer size
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = NULL, *pCreate = NULL;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  // Wait max 10 sec for event data to start flowing
+  Uint32 retries = 10;
+  Uint64 poll_gci = 0;
+  while (retries-- > 0)
+  {
+    if (ndb->pollEvents(1000, &poll_gci) == 1)
+        break;
+  }
+  CHK(retries > 0, "No epoch has received in 10 secs");
+
+  // pollEvents with aMilliSeconds = 0 will poll only once (no wait),
+  // and it should see the event data seen above
+  Uint64 poll_gci2 = 0;
+  CHK((ndb->pollEvents(0, &poll_gci2) != 1),
+      "pollEvents(0) hasn't seen the event data");
+  CHK(poll_gci == poll_gci2,
+      "pollEvents(0) hasn't seen the same epoch");
+
+  CHK((ndb->dropEventOperation(pCreate) == 0), "dropEventOperation failed");
+  return NDBT_OK;
+}
+
+int runPollBCNoWait(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Insert one record, to test pollEvents(0).
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  CHK((hugoTrans.loadTable(GETNDB(step), 1, 1) == 0), "Insert failed");
+  return NDBT_OK;
+}
+
+/*************************************************************
+ * Test: pollEvents(-1) will wait long (2^32 mill secs) :
+ *    To test it within a reasonable time, this wait will be
+ *    ended after 10 secs by peroforming an insert by runPollBCLong()
+ *    and the pollEvents sees it.
+ *    If the wait will not end or it ends prematuerly (< 10 secs),
+ *    the test will fail.
+ */
+int runPollBCLongWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+  ndb->set_eventbuf_max_alloc(2621440); // max event buffer size
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = NULL, *pCreate = NULL;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
+
+  Uint64 poll_gci = 0;
+  ndb->pollEvents(-1, &poll_gci);
+
+  // poll has seen the insert event data now.
+  CHK((ndb->dropEventOperation(pCreate) == 0), "dropEventOperation failed");
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int runPollBCLongWait(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* runPollWaitLong() is blocked by pollEvent(-1).
+   * We do not want to wait 2^32 millsec, so we end it
+   * after 10 secs by sending an insert.
+   */
+  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
+  NdbSleep_SecSleep(10);
+
+  // Insert one record, to end the consumer's long wait
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  CHK((hugoTrans.loadTable(GETNDB(step), 1, 1) == 0), "Insert failed");
+
+  // Give max 10 sec for the consumer to see the insert
+  Uint32 retries = 10;
+  while (!ctx->isTestStopped() && retries-- > 0)
+  {
+    NdbSleep_SecSleep(1);
+  }
+  CHK((ctx->isTestStopped() || retries > 0),
+      "Consumer hasn't seen the insert in 10 secs");
+
+  const Uint32 duration =
+    (Uint32)NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).milliSec();
+
+  if (duration < 10000)
+  {
+    g_err << "pollEvents(-1) returned earlier (" << duration
+          << " secs) than expected minimum of 10 secs." << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -4161,7 +4375,37 @@ TESTCASE("Apiv2EmptyEpochs",
   INITIALIZER(runCreateEvent);
   STEP(runListenEmptyEpochs);
   FINALIZER(runDropEvent);
-};
+}
+TESTCASE("BackwardCompatiblePollNoWait",
+         "Check backward compatibility for pollEvents"
+         "when poll does not wait")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runPollBCNoWaitConsumer);
+  STEP(runPollBCNoWait);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("BackwardCompatiblePollLongWait",
+         "Check backward compatibility for pollEvents"
+         "when poll waits long")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runPollBCLongWaitConsumer);
+  STEP(runPollBCLongWait);
+  FINALIZER(runDropEvent);
+}
+#if 0
+TESTCASE("BackwardCompatiblePollCOverflowEB",
+         "Check whether backward compatibility of pollEvents  manually"
+         "to see it causes process exit when nextEvent() processes an"
+         "event buffer overflow event data fom the queue")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runPollBCOverflowEB);
+  STEP(runInsertDeleteUntilStopped);
+  FINALIZER(runDropEvent);
+}
+#endif
 NDBT_TESTSUITE_END(test_event);
 
 int main(int argc, const char** argv){

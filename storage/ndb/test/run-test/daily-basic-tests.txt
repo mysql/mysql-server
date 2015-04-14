@@ -2140,3 +2140,11 @@ args: -n AccCommitOrder T1
 max-time: 1200
 cmd: test_event
 args: -n EmptyUpdates T1
+
+max-time: 1200
+cmd: test_event
+args: -n BackwardCompatiblePollNoWait T1
+
+max-time: 1200
+cmd: test_event
+args: -n BackwardCompatiblePollLongWait T1
