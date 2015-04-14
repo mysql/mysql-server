@@ -7440,7 +7440,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       return 1;
     }
   }
@@ -7514,7 +7514,7 @@ bool User_var_log_event::write(IO_CACHE* file)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       return 0;
     }
     int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
@@ -7642,7 +7642,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       return;
     }
   }
@@ -7717,7 +7717,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       DBUG_RETURN(0);
     }
   }

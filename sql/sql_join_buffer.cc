@@ -1379,7 +1379,7 @@ bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
     uchar *prev_rec_ptr= prev_cache->get_rec_ref(rec_ptr);
     return prev_cache->get_match_flag_by_pos(prev_rec_ptr);
   } 
-  DBUG_ASSERT(1);
+  DBUG_ASSERT(false);
   return FALSE;
 }
 

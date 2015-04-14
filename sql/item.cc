@@ -4417,7 +4417,7 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
   default:
     /* That can not happen. */
 
-    DBUG_ASSERT(TRUE);  // Abort in debug mode.
+    DBUG_ASSERT(false);  // Abort in debug mode.
 
     set_null();         // Set to NULL in release mode.
     item_type= Item::NULL_ITEM;
