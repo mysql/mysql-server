@@ -494,6 +494,7 @@ public:
 				m_page_no, new_checksum,
 				buf_calc_page_crc32(m_read_buf),
 				checksum_field1);
+			break;
 
 		case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
 			fprintf(log_file, "page::%" PRIuMAX ";"
@@ -506,7 +507,7 @@ public:
 				" %lu; recorded checksum  = %lu\n",
 				m_page_no, new_checksum,
 				checksum_field1);
-
+			break;
 		case SRV_CHECKSUM_ALGORITHM_CRC32:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 		case SRV_CHECKSUM_ALGORITHM_NONE:
