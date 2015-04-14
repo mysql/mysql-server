@@ -18,7 +18,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.7.1"
+#define CHECK_VERSION "2.7.2-MariaDB"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -526,12 +526,14 @@ static int is_view(const char *table, uint length)
 
   if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
     DBUG_RETURN(-1);
-  ptr= strmov(query, "SHOW CREATE TABLE ");
+  ptr= strmov(query, "SHOW CREATE TABLE `");
   ptr= strxmov(ptr, table, NullS);
+  ptr= strxmov(ptr, "`", NullS);
   if (mysql_query(sock, query))
   {
     fprintf(stderr, "Failed to %s\n", query);
     fprintf(stderr, "Error: %s\n", mysql_error(sock));
+    my_free(query);
     DBUG_RETURN(-1);
   }
   res= mysql_store_result(sock);
