@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -307,9 +307,8 @@ page_zip_write_blob_ptr(
 	dict_index_t*	index,	/*!< in: index of the page */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	ulint		n,	/*!< in: column index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle,
+	mtr_t*		mtr);	/*!< in: mini-transaction handle,
 				or NULL if no logging is needed */
-	__attribute__((nonnull(1,2,3,4)));
 
 /***********************************************************//**
 Parses a log record of writing the node pointer of a record.
@@ -331,8 +330,7 @@ page_zip_write_node_ptr(
 	byte*		rec,	/*!< in/out: record */
 	ulint		size,	/*!< in: data size of rec */
 	ulint		ptr,	/*!< in: node pointer */
-	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
-	__attribute__((nonnull(1,2)));
+	mtr_t*		mtr);	/*!< in: mini-transaction, or NULL */
 
 /**********************************************************************//**
 Write the trx_id and roll_ptr of a record on a B-tree leaf node page. */
@@ -468,8 +466,7 @@ page_zip_copy_recs(
 	const page_zip_des_t*	src_zip,	/*!< in: compressed page */
 	const page_t*		src,		/*!< in: page */
 	dict_index_t*		index,		/*!< in: index of the B-tree */
-	mtr_t*			mtr)		/*!< in: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*			mtr);		/*!< in: mini-transaction */
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
@@ -478,11 +475,10 @@ Parses a log record of compressing an index page.
 byte*
 page_zip_parse_compress(
 /*====================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
-	page_t*		page,	/*!< out: uncompressed page */
-	page_zip_des_t*	page_zip)/*!< out: compressed page */
-	__attribute__((nonnull(1,2)));
+	byte*		ptr,		/*!< in: buffer */
+	byte*		end_ptr,	/*!< in: buffer end */
+	page_t*		page,		/*!< out: uncompressed page */
+	page_zip_des_t*	page_zip);	/*!< out: compressed page */
 
 #endif /* !UNIV_INNOCHECKSUM */
 /**********************************************************************//**

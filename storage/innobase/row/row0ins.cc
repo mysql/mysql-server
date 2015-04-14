@@ -2889,8 +2889,7 @@ row_ins_sec_index_entry_low(
 				ut_ad(!thr_get_trx(thr)
 				      ->dict_operation_lock_mode);
 				mutex_enter(&dict_sys->mutex);
-				dict_set_corrupted_index_cache_only(
-					index, index->table);
+				dict_set_corrupted_index_cache_only(index);
 				mutex_exit(&dict_sys->mutex);
 				/* Do not return any error to the
 				caller. The duplicate will be reported

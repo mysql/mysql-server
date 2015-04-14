@@ -436,7 +436,7 @@ trx_undo_page_init(
 Creates a new undo log segment in file.
 @return DB_SUCCESS if page creation OK possible error codes are:
 DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 trx_undo_seg_create(
 /*================*/
@@ -460,7 +460,9 @@ trx_undo_seg_create(
 	bool		success;
 	dberr_t		err = DB_SUCCESS;
 
-	ut_ad(mtr && id && rseg_hdr);
+	ut_ad(mtr != NULL);
+	ut_ad(id != NULL);
+	ut_ad(rseg_hdr != NULL);
 	ut_ad(mutex_own(&(rseg->mutex)));
 
 	/*	fputs(type == TRX_UNDO_INSERT
