@@ -252,11 +252,19 @@ trx_rollback_for_mysql(
 			ut_ad(mtr.commit_lsn() > 0);
 		}
 #ifdef ENABLED_DEBUG_SYNC
-		if (trx->mysql_thd != NULL
-		    && thd_sql_command(trx->mysql_thd) == SQLCOM_XA_ROLLBACK) {
-			/* This is not reachable when
-			executing XA ROLLBACK after XA PREPARE
-			followed by a server restart. */
+		if (trx->mysql_thd == NULL) {
+			/* We could be executing XA ROLLBACK after
+			XA PREPARE and a server restart. */
+		} else if (!trx_is_redo_rseg_updated(trx)) {
+			/* innobase_close_connection() may roll back a
+			transaction that did not generate any
+			persistent undo log. The DEBUG_SYNC
+			would cause an assertion failure for a
+			disconnected thread.
+
+			NOTE: InnoDB will not know about the XID
+			if no persistent undo log was generated. */
+		} else {
 			DEBUG_SYNC_C("trx_xa_rollback");
 		}
 #endif /* ENABLED_DEBUG_SYNC */
