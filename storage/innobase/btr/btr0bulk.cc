@@ -120,8 +120,8 @@ PageBulk::init()
 		btr_page_set_level(new_page, NULL, m_level, mtr);
 	}
 
-        if (dict_index_is_sec_or_ibuf(m_index)
-            && !dict_table_is_temporary(m_index->table)
+	if (dict_index_is_sec_or_ibuf(m_index)
+	    && !dict_table_is_temporary(m_index->table)
 	    && page_is_leaf(new_page)) {
 		page_update_max_trx_id(new_block, NULL, m_trx_id, mtr);
 	}

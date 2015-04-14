@@ -3480,7 +3480,7 @@ btr_cur_pessimistic_insert(
 /*************************************************************//**
 For an update, checks the locks and does the undo logging.
 @return DB_SUCCESS, DB_WAIT_LOCK, or error number */
-UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,6,7)))
+UNIV_INLINE __attribute__((warn_unused_result))
 dberr_t
 btr_cur_upd_lock_and_undo(
 /*======================*/
@@ -3499,7 +3499,7 @@ btr_cur_upd_lock_and_undo(
 	const rec_t*	rec;
 	dberr_t		err;
 
-	ut_ad(thr || (flags & BTR_NO_LOCKING_FLAG));
+	ut_ad(thr != NULL || (flags & BTR_NO_LOCKING_FLAG));
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;

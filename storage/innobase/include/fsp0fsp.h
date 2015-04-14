@@ -471,8 +471,7 @@ fseg_free_page(
 	ulint		page,	/*!< in: page offset */
 	bool		ahi,	/*!< in: whether we may need to drop
 				the adaptive hash index */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
 Checks if a single page of a segment is free.
 @return true if free */
@@ -499,7 +498,7 @@ fseg_free_step(
 	bool		ahi,	/*!< in: whether we may need to drop
 				the adaptive hash index */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Frees part of a segment. Differs from fseg_free_step because this function
 leaves the header page unfreed.
@@ -512,7 +511,7 @@ fseg_free_step_not_header(
 	bool		ahi,	/*!< in: whether we may need to drop
 				the adaptive hash index */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Checks if a page address is an extent descriptor page address.
 @param[in]	page_id		page id

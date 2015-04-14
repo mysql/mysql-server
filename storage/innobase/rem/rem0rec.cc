@@ -1357,7 +1357,9 @@ rec_convert_dtuple_to_rec(
 {
 	rec_t*	rec;
 
-	ut_ad(buf && index && dtuple);
+	ut_ad(buf != NULL);
+	ut_ad(index != NULL);
+	ut_ad(dtuple != NULL);
 	ut_ad(dtuple_validate(dtuple));
 	ut_ad(dtuple_check_typed(dtuple));
 
