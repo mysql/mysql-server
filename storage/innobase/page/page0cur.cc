@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -926,20 +926,12 @@ page_cur_parse_insert_rec(
 
         if (UNIV_UNLIKELY(mismatch_index >= UNIV_PAGE_SIZE)) {
 
-		ib::error() << "is_short " << is_short << ", "
+		ib::fatal() << "is_short " << is_short << ", "
 			<< "info_and_status_bits " << info_and_status_bits
 			<< ", offset " << page_offset(cursor_rec) << ","
 			" o_offset " << origin_offset << ", mismatch index "
 			<< mismatch_index << ", end_seg_len " << end_seg_len
 			<< " parsed len " << (ptr - ptr2);
-
-		fputs("Dump of 300 bytes of log:\n", stderr);
-		ut_print_buf(stderr, ptr2, 300);
-		putc('\n', stderr);
-
-		buf_page_print(page, univ_page_size, 0);
-
-		ut_error;
 	}
 
 	ut_memcpy(buf, rec_get_start(cursor_rec, offsets), mismatch_index);

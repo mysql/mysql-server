@@ -1879,7 +1879,6 @@ btr_search_validate(void)
 /*=====================*/
 {
 	ha_node_t*	node;
-	ulint		n_page_dumps	= 0;
 	ibool		ok		= TRUE;
 	ulint		i;
 	ulint		cell_count;
@@ -2005,13 +2004,7 @@ btr_search_validate(void)
 					(void*) page, (void*) block->index,
 					(ulong) block->curr_n_fields,
 					(ulong) block->curr_left_side);
-
-				if (n_page_dumps < 20) {
-					buf_page_print(
-						page, univ_page_size,
-						BUF_PAGE_PRINT_NO_CRASH);
-					n_page_dumps++;
-				}
+				ut_ad(0);
 			}
 		}
 	}
