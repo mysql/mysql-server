@@ -827,7 +827,6 @@ public:
   Item_func_conv_charset(Item *a, CHARSET_INFO *cs, bool cache_if_const) 
     :Item_str_func(a) 
   {
-    DBUG_ASSERT(args[0]->fixed);
     conv_charset= cs;
     if (cache_if_const && args[0]->const_item() && !args[0]->is_expensive())
     {

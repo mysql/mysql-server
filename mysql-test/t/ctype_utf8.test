@@ -1597,5 +1597,13 @@ UNION ALL
 SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1;
 
 --echo #
+--echo # MDEV-7814 Assertion `args[0]->fixed' fails in Item_func_conv_charset::Item_func_conv_charset
+--echo #
+CREATE TABLE t1(a CHAR(1) CHARACTER SET latin1, b INT NOT NULL);
+CREATE TABLE t2(a CHAR(1) CHARACTER SET utf8 COLLATE utf8_general_ci, b INT NOT NULL);
+SELECT (SELECT t2.a FROM t2 WHERE t2.a=t1.a) AS aa, b, COUNT(b) FROM t1 GROUP BY aa;
+DROP TABLE t1,t2;
+
+--echo #
 --echo # End of 5.5 tests
 --echo #
