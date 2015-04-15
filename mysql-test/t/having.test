@@ -756,3 +756,53 @@ SELECT 1 FROM t1 AS GroupHaving4 GROUP BY 1 HAVING a);
 DROP TABLE t1, t2;
 
 SET @@sql_mode = @old_sql_mode;
+
+--echo #
+--echo # Bug#17055185: WRONG RESULTS WHEN RUNNING A SELECT THAT INCLUDE
+--echo #               A HAVING BASED ON A FUNCTION.
+--echo #
+
+# Generate series 1, 0, 1, 0....
+CREATE TABLE series (
+  val INT(10) UNSIGNED NOT NULL
+);
+INSERT INTO series VALUES(1);
+
+DELIMITER |;
+CREATE FUNCTION next_seq_value() RETURNS INT
+BEGIN
+ DECLARE next_val INT;
+ SELECT val INTO next_val FROM series;
+ UPDATE series SET val=mod(val + 1, 2);
+ RETURN next_val;
+END;
+|
+DELIMITER ;|
+
+CREATE TABLE t1 (t INT, u INT, KEY(t));
+INSERT INTO t1 VALUES(10, 10), (11, 11), (12, 12), (12, 13),(14, 15), (15, 16),
+                     (16, 17), (17, 17);
+ANALYZE TABLE t1;
+SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
+       GROUP BY t HAVING r = 1  ORDER BY t1.u;
+SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
+       WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
+
+# Prepare statement.
+PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
+              GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
+              ORDER BY t1.u';
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+# Loose-index scan.
+INSERT INTO t1 SELECT * FROM t1;
+ALTER TABLE t1 ADD KEY(t, u);
+ANALYZE TABLE t1;
+SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
+
+# Cleanup
+DROP TABLE t1;
+DROP FUNCTION next_seq_value;
+DROP TABLE series;
