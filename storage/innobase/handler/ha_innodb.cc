@@ -1022,14 +1022,22 @@ innodb_enable_monitor_at_startup(
 /*=============================*/
 	char*	str);	/*!< in: monitor counter enable list */
 
-/***********************************************************************
-Store doc_id value into FTS_DOC_ID field */
+/** Store doc_id value into FTS_DOC_ID field
+@param[in,out]	tbl	table containing FULLTEXT index
+@param[in]	doc_id	FTS_DOC_ID value */
 static
 void
 innobase_fts_store_docid(
-/*=====================*/
-		TABLE * tbl,		/*!< in: FTS table */
-		ulonglong doc_id);	/*!< in: FTS_DOC_ID value */
+	TABLE*		tbl,
+	ulonglong	doc_id)
+{
+	my_bitmap_map*	old_map
+		= dbug_tmp_use_all_columns(tbl, tbl->write_set);
+
+	tbl->fts_doc_id_field->store(static_cast<longlong>(doc_id), true);
+
+	dbug_tmp_restore_column_map(tbl->write_set, old_map);
+}
 
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
@@ -4534,9 +4542,9 @@ ha_innobase::primary_key_is_clustered() const
 }
 
 /** Normalizes a table name string.
-A normalized name consists of the database name catenated to '/' and
-table name. Example: test/mytable.
-On Windows normalization puts both the database name and the
+A normalized name consists of the database name catenated to '/'
+and table name. For example: test/mytable.
+On Windows, normalization puts both the database name and the
 table name always to lower case if "set_lower_case" is set to TRUE.
 @param[out]	norm_name	Normalized name, null-terminated.
 @param[in]	name		Name to normalize.
@@ -16975,23 +16983,6 @@ innobase_fts_retrieve_docid(
 	}
 
 	return(ft_prebuilt->fts_doc_id);
-}
-
-
-/***********************************************************************
-Store doc_id value into FTS_DOC_ID field */
-static
-void
-innobase_fts_store_docid(
-/*=====================*/
-	TABLE*		tbl,		/*!< in: FTS table */
-	ulonglong	doc_id)		/*!< in: FTS_DOC_ID value */
-{
-	my_bitmap_map*	old_map = dbug_tmp_use_all_columns(tbl, tbl->write_set);
-
-	tbl->fts_doc_id_field->store(static_cast<longlong>(doc_id), true);
-
-	dbug_tmp_restore_column_map(tbl->write_set, old_map);
 }
 
 /***********************************************************************
