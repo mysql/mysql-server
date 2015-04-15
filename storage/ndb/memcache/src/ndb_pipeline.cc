@@ -170,7 +170,9 @@ void pipeline_add_stats(ndb_pipeline *self,
     }
   }
   else if(strncasecmp(stat_key,"errors",6) == 0) {
-    ndb_error_logger_stats(add_stat, cookie);    
+    ndb_error_logger_stats(add_stat, cookie);
+    ndbmc_debug_flush();
+    add_stat("log", 3, "flushed", 7, cookie);
   }
   else if((strncasecmp(stat_key,"scheduler",9) == 0)
           || (strncasecmp(stat_key,"reconf",6) == 0)) {
