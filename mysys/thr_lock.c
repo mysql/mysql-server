@@ -1092,39 +1092,6 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Abort all threads waiting for a lock. The lock will be upgraded to
-  TL_WRITE_ONLY to abort any new accesses to the lock
-*/
-
-void thr_abort_locks(THR_LOCK *lock, my_bool upgrade_lock)
-{
-  THR_LOCK_DATA *data;
-  DBUG_ENTER("thr_abort_locks");
-  mysql_mutex_lock(&lock->mutex);
-
-  for (data=lock->read_wait.data; data ; data=data->next)
-  {
-    data->type=TL_UNLOCK;			/* Mark killed */
-    /* It's safe to signal the cond first: we're still holding the mutex. */
-    mysql_cond_signal(data->cond);
-    data->cond=0;				/* Removed from list */
-  }
-  for (data=lock->write_wait.data; data ; data=data->next)
-  {
-    data->type=TL_UNLOCK;
-    mysql_cond_signal(data->cond);
-    data->cond=0;
-  }
-  lock->read_wait.last= &lock->read_wait.data;
-  lock->write_wait.last= &lock->write_wait.data;
-  lock->read_wait.data=lock->write_wait.data=0;
-  if (upgrade_lock && lock->write.data)
-    lock->write.data->type=TL_WRITE_ONLY;
-  mysql_mutex_unlock(&lock->mutex);
-  DBUG_VOID_RETURN;
-}
-
 
 /*
   Abort all locks for specific table/thread combination

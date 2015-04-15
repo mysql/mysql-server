@@ -22,7 +22,6 @@
 #include "thr_lock.h"               // thr_lock_type
 #include "mdl.h"                    // MDL_savepoint
 #include "sql_array.h"              // Bounds_checked_array
-#include "sql_bitmap.h"             // Key_map
 #include "trigger_def.h"            // enum_trigger_event_type
 
 class Field;
@@ -30,22 +29,21 @@ class Item;
 class Item_ident;
 class Open_table_context;
 class Open_tables_backup;
-class Open_tables_state;
 class Prelocking_strategy;
 class Query_tables_list;
 class sp_head;
 class Sroutine_hash_entry;
-class String;
 struct handlerton;
 struct Name_resolution_context;
 struct TABLE;
 struct TABLE_LIST;
 template <class T> class List;
 template <class T> class List_iterator;
+typedef struct st_bitmap MY_BITMAP;
 typedef struct st_open_table_list OPEN_TABLE_LIST;
 typedef class st_select_lex SELECT_LEX;
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
-typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
+
 
 #define TEMP_PREFIX	"MY"
 
@@ -127,16 +125,7 @@ enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
                                  TDC_RT_REMOVE_UNUSED,
                                  TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE};
 
-/* bits for last argument to remove_table_from_cache() */
-#define RTFC_NO_FLAG                0x0000
-#define RTFC_OWNED_BY_THD_FLAG      0x0001
-#define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
-#define RTFC_CHECK_KILLED_FLAG      0x0004
-
-bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
 extern mysql_mutex_t LOCK_open;
-bool table_cache_init(void);
-void table_cache_free(void);
 bool table_def_init(void);
 void table_def_free(void);
 void table_def_start_shutdown(void);
@@ -212,13 +201,10 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
 
 bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx);
 
-bool get_key_map_from_key_list(Key_map *map, TABLE *table,
-                               List<String> *index_list);
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
                            bool add_to_temporary_tables_list,
                            bool open_in_engine);
-TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
                                        TABLE_LIST *table_list,
@@ -230,8 +216,6 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
-TABLE *find_temporary_table(THD *thd, const char *table_key,
-                            size_t table_key_length);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
@@ -332,10 +316,6 @@ void close_mysql_tables(THD *thd);
 TABLE *open_system_table_for_update(THD *thd, TABLE_LIST *one_table);
 TABLE *open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup);
 void close_log_table(THD *thd, Open_tables_backup *backup);
-
-TABLE *open_performance_schema_table(THD *thd, TABLE_LIST *one_table,
-                                     Open_tables_state *backup);
-void close_performance_schema_table(THD *thd, Open_tables_state *backup);
 
 bool close_cached_tables(THD *thd, TABLE_LIST *tables,
                          bool wait_for_refresh, ulong timeout);
@@ -560,7 +540,5 @@ private:
   */
   bool m_has_protection_against_grl;
 };
-
-void update_indexed_column_map(TABLE *table, MY_BITMAP *read_set);
 
 #endif /* SQL_BASE_INCLUDED */

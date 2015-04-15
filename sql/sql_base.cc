@@ -241,7 +241,9 @@ has_write_table_with_auto_increment(TABLE_LIST *tables);
 static bool
 has_write_table_with_auto_increment_and_select(TABLE_LIST *tables);
 static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
-
+static TABLE *find_temporary_table(THD *thd,
+                                   const char *table_key,
+                                   size_t table_key_length);
 
 /**
   Create a table cache/table definition cache key
@@ -2118,9 +2120,9 @@ TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl)
   @return TABLE instance if a temporary table has been found; NULL otherwise.
 */
 
-TABLE *find_temporary_table(THD *thd,
-                            const char *table_key,
-                            size_t table_key_length)
+static TABLE *find_temporary_table(THD *thd,
+                                   const char *table_key,
+                                   size_t table_key_length)
 {
   for (TABLE *table= thd->temporary_tables; table; table= table->next)
   {
@@ -3366,7 +3368,8 @@ err_unlock:
    @return Pointer to the TABLE object found, 0 if no table found.
 */
 
-TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
+static TABLE *find_locked_table(TABLE *list, const char *db,
+                                const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
   size_t key_length= create_table_def_key((THD*)NULL, key, db, table_name,

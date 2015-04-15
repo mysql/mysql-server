@@ -1948,15 +1948,6 @@ public:
     DBUG_RETURN(TRUE);
   }
 
-  /**
-    @brief  update_indexed_column_map
-    Update columns map for index.
-
-    @param int_arg It's useless 
-    @return  false successfully update 
-    */
-  virtual bool update_indexed_column_map(uchar *int_arg) { return false; }
-
   /*
     For SP local variable returns pointer to Item representing its
     current value and pointer to current Item otherwise.
