@@ -1091,3 +1091,15 @@ insert into t1 values ('a'),('b');
 select 1 from t1 where a in (select group_concat(a) from t1);
 1
 drop table t1;
+CREATE TABLE t1 (f1 VARCHAR(10)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('a'),('b');
+CREATE TABLE t2 (f2 VARCHAR(10)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('c');
+CREATE TABLE t3 (f3 VARCHAR(10)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES ('d'),('e');
+SELECT GROUP_CONCAT( f2 ORDER BY ( f2 IN ( SELECT f1 FROM t1 WHERE f1 <= f2 ) ) ) AS field
+FROM ( SELECT * FROM t2 ) AS sq2, t3
+ORDER BY field;
+field
+c,c
+drop table t3, t2, t1;

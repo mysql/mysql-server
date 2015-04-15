@@ -7256,7 +7256,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         Item_field for tables.
       */
       Item_ident *item_ref= (Item_ident *) item;
-      if (item_ref->name && item_ref->table_name &&
+      if (field_name && item_ref->name && item_ref->table_name &&
           !my_strcasecmp(system_charset_info, item_ref->name, field_name) &&
           !my_strcasecmp(table_alias_charset, item_ref->table_name,
                          table_name) &&
