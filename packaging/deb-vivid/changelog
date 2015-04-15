@@ -1,0 +1,115 @@
+mysql-community (5.6.25-2ubuntu15.04) vivid; urgency=low
+
+  * new upstream release
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 29 May 2015 17:07:34 +0530
+
+mysql-community (5.6.24-3ubuntu15.04) vivid; urgency=low
+
+  * updated Standards-Version to 3.9.6 in d/control
+  * apparmor profile updated to allow read on all files under /etc/mysql
+  * added new conf files under d/extra/*.conf
+  * mysql_plugin moved from client to server pkg
+  * innochecksum moved from client to server pkg
+  * server pkg now replaces client pkg
+  * added systemd service profile and script
+  * new /etc/mysql/my.cnf management scheme added for Ubuntu 15.04
+    as discussed in Dec 2014 for native packaging source
+  * added dh "--with systemd" for enabling systemd
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 27 May 2015 11:35:35 +0530
+
+mysql-community (5.6.24-2ubuntu15.04) vivid; urgency=low
+
+  * new upstream release
+  * forked packaging source from utopic to vivid
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 15 Apr 2015 18:52:22 +0530
+
+mysql-community (5.6.24-1ubuntu14.10) utopic; urgency=low
+
+  * new upstream release
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 16 Feb 2014 15:45:09 +0530
+
+mysql-community (5.6.23-1ubuntu14.10) utopic; urgency=low
+
+  * new upstream release
+  * mysql-community-server now recommends mysql-client
+  * mysql-community-server now depends on apparmor
+  * removed template install-test-db; not installed by default
+  * d/compat incremented to 9 from 8
+  * d/control updated to build depend on debhelper 9
+  * added d/*.lintian-overrides and d/source/lintian-overrides
+  * d/rules updated to reflect correct file permissions
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 31 Dec 2014 10:51:07 +0530
+
+mysql-community (5.6.22-2ubuntu14.10) utopic; urgency=low
+
+  * new upstream release
+  * mysql-common now replaces mysql-server-{,core-}5.6
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 28 Nov 2014 15:18:07 +0530
+
+mysql-community (5.6.22-1ubuntu14.10) utopic; urgency=low
+
+  * new upstream release
+  * fixed d/*server.postinst to allow dropping test db without
+    setting root password
+  * init script will now run my_i_db if data dir is not present or empty
+  * updated init script to read app armor profile on startup
+  * forked packaging source from trusty and rebranded for utopic
+  * updated d/m-c-source.install to pack *.xz packaging source archive
+  * added more system resources to app armor profile
+  * dh_apparmor to now run before dh_installinit in d/rules
+  * libmysqlclient-dev now replaces mysql-client-{,core-}5.6
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 05 Nov 2014 17:04:07 +0530
+
+mysql-community (5.6.21-1ubuntu14.04) trusty; urgency=low
+
+  * new upstream release
+  * updated d/rules to increment -j8 as make option
+  * updated d/source/include-binaries to add mysql_no_login plugin
+  * updated CMake option WITH_EXTRA_CHARSETS from complex to all
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 20 Aug 2014 19:12:30 +0530
+
+mysql-community (5.6.20-1ubuntu14.04) trusty; urgency=low
+
+  * new upstream release
+  * added fakeroot as build-dep in d/control
+  * added d/*.dirs for bench, dev and test pkg
+  * updated d/rules to make compilation verbose
+  * removed default CFLAGS, CXXFLAGS in d/rules
+  * added patch for testsuite search paths under d/patches
+  * modified cmake option for testsuite in d/rules
+  * updated patch d/fix-mysql_install_db.patch
+  * enabled two patches in d/patches/series
+  * removed extra permissions check in d/rules when fixed in source
+  * modified d/mysql-*-server.postinst to stop removing /usr/my.cnf
+  * modified d/*-test.* for updated location of testsuite
+  * updated d/{mysql-*-server.install,rules} to include debug plugins
+  * updated d/rules to remove storage engine cmake options
+  * modified data dir permission in d/*server.{pre,post}inst
+  * updated d/source/include-binaries to add debug plugins
+  * updated d/rules to rename debug plugins
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 02 Jul 2014 17:45:30 +0530
+
+mysql-community (5.6.19-1ubuntu14.04) trusty; urgency=low
+
+  * new upstream release
+  * d/rules updated to rid of files removed from source
+  * modified path for source tar in source pkg
+  * obscured actual filenames in d/source/include-binaries
+  * modified d/rules to handle obscured filenames
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 05 May 2014 15:45:10 +0530
+
+mysql-community (5.6.17-1ubuntu14.04) trusty; urgency=low
+
+  * new upstream release
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 28 Feb 2014 18:06:30 +0530
