@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4897,6 +4897,57 @@ bool JOIN::change_result(select_result *res)
   DBUG_RETURN(FALSE);
 }
 
+/**
+  Add having condition as a where clause condition of the given temp table.
+
+  @param    curr_tmp_table  Table number to which having conds are added.
+
+  @returns  false if success, true if error.
+*/
+
+bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table)
+{
+  having->update_used_tables();
+  JOIN_TAB *curr_table= &join_tab[curr_tmp_table];
+  table_map used_tables= curr_table->table->map | OUTER_REF_TABLE_BIT;
+
+  /* If tmp table is not used then consider conditions of const table also */
+  if (!need_tmp)
+    used_tables|= const_table_map;
+
+  DBUG_ENTER("JOIN::add_having_as_table_conds");
+
+  Item* sort_table_cond= make_cond_for_table(having, used_tables,
+                                           (table_map) 0, false);
+  if (sort_table_cond)
+  {
+    if (!curr_table->select)
+      if (!(curr_table->select= new SQL_SELECT))
+        DBUG_RETURN(true);
+    if (!curr_table->select->cond)
+      curr_table->select->cond= sort_table_cond;
+    else
+    {
+      if (!(curr_table->select->cond=
+              new Item_cond_and(curr_table->select->cond,
+                                sort_table_cond)))
+        DBUG_RETURN(true);
+      curr_table->select->cond->fix_fields(thd, 0);
+    }
+    curr_table->set_condition(curr_table->select->cond, __LINE__);
+    curr_table->condition()->top_level_item();
+    DBUG_EXECUTE("where",print_where(curr_table->select->cond,
+                                     "select and having",
+                                     QT_ORDINARY););
+
+    having= make_cond_for_table(having, ~ (table_map) 0,
+                                ~used_tables, false);
+    DBUG_EXECUTE("where",
+                 print_where(having, "having after sort", QT_ORDINARY););
+  }
+
+  DBUG_RETURN(false);
+}
 
 /**
   Init tmp tables usage info.
@@ -5002,24 +5053,6 @@ bool JOIN::make_tmp_tables_info()
         join_tab[const_tables].position->sj_strategy != SJ_OPT_LOOSE_SCAN &&
         join_tab[const_tables].use_order()));
 
-    /*
-      We don't have to store rows in temp table that doesn't match HAVING if:
-      - we are sorting the table and writing complete group rows to the
-        temp table.
-      - We are using DISTINCT without resolving the distinct as a GROUP BY
-        on all columns.
-
-      If having is not handled here, it will be checked before the row
-      is sent to the client.
-    */
-    if (having &&
-        (sort_and_group || (exec_tmp_table->distinct && !group_list)))
-    {
-      // Attach HAVING to tmp table's condition
-      join_tab[curr_tmp_table].having= having;
-      having= NULL; // Already done
-    }
-
     /* Change sum_fields reference to calculated fields in tmp_table */
     DBUG_ASSERT(items1.is_null());
     items1= ref_ptr_array_slice(2);
@@ -5046,7 +5079,33 @@ bool JOIN::make_tmp_tables_info()
     join_tab[curr_tmp_table].all_fields= &tmp_all_fields1;
     join_tab[curr_tmp_table].fields= &tmp_fields_list1;
     setup_tmptable_write_func(&join_tab[curr_tmp_table]);
- 
+
+    /*
+      If having is not handled here, it will be checked before the row is sent
+      to the client.
+    */
+    if (having &&
+        (sort_and_group || (exec_tmp_table->distinct && !group_list)))
+    {
+      /*
+        If there is no select distinct then move the having to table conds of
+        tmp table.
+        NOTE : We cannot apply having after distinct. If columns of having are
+               not part of select distinct, then distinct may remove rows
+               which can satisfy having.
+      */
+      if (!select_distinct && add_having_as_tmp_table_cond(curr_tmp_table))
+	DBUG_RETURN(true);
+
+      /*
+        Having condition which we are not able to add as tmp table conds are
+        kept as before. And, this will be applied before storing the rows in
+        tmp table.
+      */
+      join_tab[curr_tmp_table].having= having;
+      having= NULL; // Already done
+    }
+
     tmp_table_param.func_count= 0;
     tmp_table_param.field_count+= tmp_table_param.func_count;
     if (sort_and_group || join_tab[curr_tmp_table].table->group)
@@ -5249,39 +5308,8 @@ bool JOIN::make_tmp_tables_info()
     /* If we have already done the group, add HAVING to sorted table */
     if (having && !group_list && !sort_and_group)
     {
-      // Some tables may have been const
-      having->update_used_tables();
-      JOIN_TAB *curr_table= &join_tab[curr_tmp_table];
-      table_map used_tables= (const_table_map | curr_table->table->map);
-
-      Item* sort_table_cond= make_cond_for_table(having, used_tables,
-                                                 (table_map) 0, false);
-      if (sort_table_cond)
-      {
-	if (!curr_table->select)
-	  if (!(curr_table->select= new SQL_SELECT))
-	    DBUG_RETURN(true);
-	if (!curr_table->select->cond)
-	  curr_table->select->cond= sort_table_cond;
-	else
-	{
-	  if (!(curr_table->select->cond=
-		new Item_cond_and(curr_table->select->cond,
-				  sort_table_cond)))
-	    DBUG_RETURN(true);
-	  curr_table->select->cond->fix_fields(thd, 0);
-	}
-        curr_table->set_condition(curr_table->select->cond, __LINE__);
-        curr_table->condition()->top_level_item();
-	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
-					 "select and having",
-                                         QT_ORDINARY););
-
-        having= make_cond_for_table(having, ~ (table_map) 0,
-                                    ~used_tables, false);
-        DBUG_EXECUTE("where",
-                     print_where(having, "having after sort", QT_ORDINARY););
-      }
+      if (add_having_as_tmp_table_cond(curr_tmp_table))
+        DBUG_RETURN(true);
     }
 
     if (group)
