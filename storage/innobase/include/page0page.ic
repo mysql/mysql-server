@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -860,8 +860,6 @@ page_rec_get_next_low(
 			(void*) rec,
 			(ulong) page_get_space_id(page),
 			(ulong) page_get_page_no(page));
-		buf_page_print(page, univ_page_size, 0);
-
 		ut_error;
 	} else if (offs == 0) {
 

@@ -7869,5 +7869,49 @@ a
 DEALLOCATE PREPARE s;
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#20615023 SIGNAL 11 IN ITEM_FIELD::RESULT_TYPE DURING 1ST EXECUTION OF PREPARED STMT
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(1),(2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL WHERE 0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `col` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from DUAL  where 0))
+SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL WHERE 0);
+col
+EXPLAIN SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL HAVING 0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `col` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` having 0))
+SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL HAVING 0);
+col
+SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL LIMIT 0);
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+EXPLAIN SELECT 1 as col FROM t1
+WHERE a IN (SELECT a FROM DUAL WHERE 3 IN (SELECT a FROM t1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `col` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from DUAL  where 0))
+PREPARE s FROM 'SELECT 1 as col FROM t1
+WHERE a IN (SELECT a FROM DUAL WHERE 3 IN (SELECT a FROM t1))';
+EXECUTE s;
+col
+EXECUTE s;
+col
+DROP TABLE t1;
 set optimizer_switch=default;
 set optimizer_switch=default;

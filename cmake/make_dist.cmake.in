@@ -93,14 +93,14 @@ IF(NOT GIT_EXECUTABLE)
 
     # Save bison output first.
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
-       ${CMAKE_BINARY_DIR}/sql_yacc.cc COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql_yacc.cc COPYONLY)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
-       ${CMAKE_BINARY_DIR}/sql_yacc.h COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql_yacc.h COPYONLY)
     #
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
-       ${CMAKE_BINARY_DIR}/sql_hints.yy.cc COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql_hints.yy.cc COPYONLY)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
-       ${CMAKE_BINARY_DIR}/sql_hints.yy.h COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql_hints.yy.h COPYONLY)
 
     IF(CMAKE_GENERATOR MATCHES "Makefiles")
     # make clean
@@ -112,16 +112,16 @@ IF(NOT GIT_EXECUTABLE)
     
     # Restore bison output
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.cc
-       ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc COPYONLY)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.h 
-       ${CMAKE_BINARY_DIR}/sql/sql_yacc.h COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql/sql_yacc.h COPYONLY)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.cc)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.h)
     #
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_hints.yy.cc
-       ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc COPYONLY)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_hints.yy.h
-       ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h COPYONLY)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_hints.yy.cc)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_hints.yy.h)
   ENDIF()

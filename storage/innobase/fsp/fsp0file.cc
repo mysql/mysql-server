@@ -489,9 +489,9 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 		const byte*	b		= m_first_page;
 		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
 
-		while (*b == 0 && --nonzero_bytes) {
+		while (*b == '\0' && --nonzero_bytes != 0) {
 
-			++b;
+			b++;
 		}
 
 		if (nonzero_bytes == 0) {
