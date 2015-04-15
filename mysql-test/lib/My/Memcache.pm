@@ -97,36 +97,58 @@ sub new {
           "min_wait" => 4,  "max_wait" => 8192, "temp_errors" => 0 ,
           "total_wait" => 0, "has_cas" => 0, "flags" => 0, "exptime" => 0,
           "get_results" => undef, "get_with_cas" => 0, "already_failed" => 0,
-          "last_get_len" => undef, "io_timeout" => 1.0, "sysread_size" => 512,
-          "readbuf" => "", "buflen" => 0, "max_read_tries" => 8
+          "io_timeout" => 1.0, "sysread_size" => 512, "max_read_tries" => 8,
+          "readbuf" => "", "buflen" => 0
         }, $pkg;
 }
 
 
-# Common code to ASCII and BINARY protocols:
+# fail() is called when an MTR test fails
 
 sub fail {
   my $self = shift;
   my $msg = 
       "error: "       . $self->{error}       ."\t".
-      "last_get_len: ". $self->{last_get_len}."\n".
+      "protocol: "    . $self->protocol()    ."\n";
       "req_id: "      . $self->{req_id}      ."\t".
       "temp_errors: " . $self->{temp_errors} ."\t".
-      "total_wait: "  . $self->{total_wait}  ."\t".
-      "protocol: "    . $self->protocol()    ."\n";
+      "total_wait: "  . $self->{total_wait}  ."\n";
+
+  my $r = $self->next_result();
+  if($r) {
+    my $val = $r->{value};
+    my $len = length $val;
+    $msg .= "value: ";
+    if($len > 25) {
+      $msg .= substr($val,0,10) . "..." . substr($val,-10) . " [len $len]\n";
+    } else {
+      $msg .= $val;
+    }
+  }
 
   while(my $extra = shift) {
     $msg .= $extra;
   }
-  $msg .= "\n====~~~~____~~~~====\n";
+  $msg .= "\n";
 
   if(! $self->{already_failed}) {
     $self->{already_failed} = 1;
-    $self->stats("log");  # hack to get memcached to flush its error log
+    my %stats = $self->stats("errors");  # also flushes memcached error log
+    $msg .= "Server error stats:\n";
+    $msg .= sprintf("%s : %s\n", $_, $stats{$_}) for keys(%stats);
   }
+
+  # Load Average on linux
+  my $fd;
+  $msg .= ("Load Avg: " . <$fd>) if(open($fd, "/proc/loadavg"));
+
+  $msg .= "====~~~~____~~~~====\n";
 
   Carp::confess($msg);
 }
+
+
+# Common code to ASCII and BINARY protocols:
 
 sub connect {
   my $self = shift;
@@ -182,6 +204,7 @@ sub new_request {
   $self->{error} = "OK";
   $self->{has_cas} = 0;
   $self->{req_id}++;
+  $self->{get_results} = undef;
 }
 
 sub next_result {
@@ -521,7 +544,6 @@ sub get {
     return undef if(!defined($value));
     $result->{value} = $value;
     $self->read_line();  # Get trailing \r\n after value
-    $self->{last_get_len} = $3;
     $self->{has_cas} = 1 if($4);
     push @results, $result;
     $response = $self->read_line();
@@ -706,7 +728,6 @@ sub get_binary_response {
 
   $body = $self->read_known_length($body_len);
   $self->{error} = $self->error_message($status);
-  $self->{last_get_len} = $body_len;
 
   # Packet structure is: header .. extras .. key .. value 
   my $cas = ($cas_hi * (2 ** 32)) + $cas_lo;
