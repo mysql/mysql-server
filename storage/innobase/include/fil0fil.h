@@ -79,6 +79,8 @@ fil_type_is_data(
 	       || type == FIL_TYPE_TABLESPACE);
 }
 
+struct fil_node_t;
+
 /** Tablespace or log data space */
 struct fil_space_t {
 	char*		name;	/*!< Tablespace name */
@@ -171,6 +173,55 @@ struct fil_space_t {
 
 /** Value of fil_space_t::magic_n */
 #define	FIL_SPACE_MAGIC_N	89472
+
+/** File node of a tablespace or the log data space */
+struct fil_node_t {
+	fil_space_t*	space;	/*!< backpointer to the space where this node
+				belongs */
+	char*		name;	/*!< path to the file */
+	bool		is_open;/*!< true if file is open */
+	os_file_t	handle;	/*!< OS handle to the file, if file open */
+	os_event_t	sync_event;/*!< Condition event to group and
+				serialize calls to fsync */
+	bool		is_raw_disk;/*!< true if the 'file' is actually a raw
+				device or a raw disk partition */
+	ulint		size;	/*!< size of the file in database pages, 0 if
+				not known yet; the possible last incomplete
+				megabyte may be ignored if space == 0 */
+	ulint		n_pending;
+				/*!< count of pending i/o's on this file;
+				closing of the file is not allowed if
+				this is > 0 */
+	ulint		n_pending_flushes;
+				/*!< count of pending flushes on this file;
+				closing of the file is not allowed if
+				this is > 0 */
+	bool		being_extended;
+				/*!< true if the node is currently
+				being extended. */
+	int64_t		modification_counter;/*!< when we write to the file we
+				increment this by one */
+	int64_t		flush_counter;/*!< up to what
+				modification_counter value we have
+				flushed the modifications to disk */
+	UT_LIST_NODE_T(fil_node_t) chain;
+				/*!< link field for the file chain */
+	UT_LIST_NODE_T(fil_node_t) LRU;
+				/*!< link field for the LRU list */
+	ulint		magic_n;/*!< FIL_NODE_MAGIC_N */
+
+	/** true if the FS where the file is located supports PUNCH HOLE */
+	bool		punch_hole;
+
+	/** Block size to use for punching holes */
+	ulint           block_size;
+
+	/** True if atomic write is enabled for this file */
+	bool		atomic_write;
+};
+
+/** Value of fil_node_t::magic_n */
+#define	FIL_NODE_MAGIC_N	89389
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and mysqlbackup it is not the default
@@ -375,12 +426,14 @@ fil_space_get_latch(
 	ulint	id,
 	ulint*	flags);
 
+#ifdef UNIV_DEBUG
 /** Gets the type of a file space.
 @param[in]	id	tablespace identifier
 @return file type */
 fil_type_t
 fil_space_get_type(
 	ulint	id);
+#endif /* UNIV_DEBUG */
 
 /** Note that a tablespace has been imported.
 It is initially marked as FIL_TYPE_IMPORT so that no logging is
@@ -417,6 +470,7 @@ fil_node_create(
 	bool		is_raw,
 	bool		atomic_write)
 	__attribute__((warn_unused_result));
+
 /** Create a space memory object and put it to the fil_system hash table.
 The tablespace name is independent from the tablespace file-name.
 Error messages are issued to the server log.
