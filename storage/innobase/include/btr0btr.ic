@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -255,15 +255,7 @@ btr_node_ptr_get_child_page_no(
 	ut_ad(len == 4);
 
 	page_no = mach_read_from_4(field);
-
-	if (page_no == 0) {
-		fprintf(stderr,
-			"InnoDB: a nonsensical page number 0"
-			" in a node ptr record at offset %lu\n",
-			(ulong) page_offset(rec));
-		buf_page_print(page_align(rec), univ_page_size, 0);
-		ut_ad(0);
-	}
+	ut_ad(page_no > 1);
 
 	return(page_no);
 }
