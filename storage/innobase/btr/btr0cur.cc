@@ -642,6 +642,13 @@ btr_cur_will_modify_tree(
 	if (lock_intention >= BTR_INTENTION_BOTH) {
 		/* check insert will cause. BTR_INTENTION_BOTH
 		or BTR_INTENTION_INSERT*/
+
+		/* Once we invoke the btr_cur_limit_optimistic_insert_debug,
+		we should check it here in advance, since the max allowable
+		records in a page is limited. */
+		LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page),
+					      return(true));
+
 		/* needs 2 records' space for the case the single split and
 		insert cannot fit.
 		page_get_max_insert_size_after_reorganize() includes space
