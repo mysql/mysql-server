@@ -3962,9 +3962,8 @@ ibuf_insert_to_index_page(
 		ib::warn() << "Trying to insert a record from the insert"
 			" buffer to an index page but the number of fields"
 			" does not match!";
+		rec_print(stderr, rec, index);
 dump:
-		buf_page_print(page, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
-
 		dtuple_print(stderr, entry);
 		ut_ad(0);
 
@@ -4535,27 +4534,7 @@ ibuf_merge_or_delete_for_page(
 		if (!fil_page_index_page_check(block->frame)
 		    || !page_is_leaf(block->frame)) {
 
-			page_t*	bitmap_page;
-
 			corruption_noticed = true;
-
-			ibuf_mtr_start(&mtr);
-
-			ib::info() << "Dump of the ibuf bitmap page:";
-
-			ut_ad(page_size != NULL);
-
-			bitmap_page = ibuf_bitmap_get_map_page(
-				page_id, *page_size, &mtr);
-
-			buf_page_print(bitmap_page, univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-			ibuf_mtr_commit(&mtr);
-
-			fputs("\nInnoDB: Dump of the page:\n", stderr);
-
-			buf_page_print(block->frame, univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
 
 			ib::error() << "Corruption in the tablespace. Bitmap"
 				" shows insert buffer records to page "
