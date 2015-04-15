@@ -5,6 +5,10 @@
 --source include/have_perfschema.inc
 --source ../include/no_protocol.inc
 
+# Presence of the query cache changes query stages,
+# causing noise in the test output
+--source include/have_query_cache_disabled.inc
+
 create user user1@localhost;
 create user user2@localhost;
 create user user3@localhost;
