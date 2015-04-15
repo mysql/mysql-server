@@ -1998,7 +1998,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
   {
     Item *orig_item= select->item_list.head()->real_item();
 
-    if (select->table_list.elements)
+    if (select->table_list.elements || select->where_cond())
     {
       bool tmp;
       Item_bool_func *item= func->create(expr, orig_item);
@@ -2126,9 +2126,13 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
       }
       else
       {
-	// it is single select without tables => possible optimization
-        // remove the dependence mark since the item is moved to upper
-        // select and is not outer anymore.
+	/*
+          Single query block, without tables, without WHERE, HAVING, LIMIT:
+          its content has one row and is equal to the item in the SELECT list,
+          so we can replace the IN(subquery) with an equality.
+          The expression is moved to the immediately outer query block, so it
+          may no longer contain outer references.
+        */
         orig_item->walk(&Item::remove_dependence_processor, WALK_POSTFIX,
                         (uchar *) select->outer_select());
         /*
