@@ -170,22 +170,21 @@ sub run_test() {
   ($r2 eq $val_13949 . "!?")    ||  $mc->fail("t47 results unexpected");
   print  "Passed t31 .. t47\n";
 
-  # APPEND stress test.  This uses non-logging tables.
+  # APPEND stress test.
   $mc->add("bxx:t9", $val_50);
   for my $i (2 .. 300) {
     $mc->append("bxx:t9", $val_50);
     my $r = $mc->get("bxx:t9");
-    ($r eq $val_50 x $i) || $mc->fail("t48 results unexpected");
+    ($r eq $val_50 x $i) || $mc->fail("t48 results unexpected at iteration $i");
   } 
   print  "Passed APPEND stress test\n";
 
-  # PREPEND stress test.  This uses non-logging tables.
+  # PREPEND stress test.
   $mc->add("bxx:t10", $val_50);
   for my $i (2 .. 300) {
     $mc->prepend("bxx:t10", $val_50);
     my $r = $mc->get("bxx:t10");
-    if ($r ne $val_50 x $i) { print $r ; $mc->fail("t49 results unexpected "
-                               . "at iteration " . $i); }
+    ($r eq $val_50 x $i) || $mc->fail("t49 results unexpected at iteration $i");
   } 
   print  "Passed PREPEND stress test\n";
 
