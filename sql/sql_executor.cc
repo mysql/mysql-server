@@ -2855,6 +2855,20 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
   if (!end_of_records)
   {
     int error;
+
+    /*
+      If group ref array exist then set it as current ref array. Result values
+      of non-deterministic expressions are saved here and corresponding Item_ref
+      should look for their values here rather than re-evaluation of the same.
+      Example : Loose index scan with having, where having refers to
+                non-deterministic function like rand() in select.
+    */
+    if (!join->items3.is_null() && !join->set_group_rpa)
+    {
+      join->set_group_rpa= true;
+      join->set_items_ref_array(join->items3);
+    }
+
     if (join->tables &&
         // In case filesort has been used and zeroed quick():
         (join->qep_tab[0].quick_optim() &&
@@ -3280,6 +3294,14 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   }
   if (!end_of_records)
   {
+    /*
+      Set the ref_ptrs to current temp table ref_array. Below we evaluate
+      having, Item_ref of non-deterministic expressions in having should refer
+      to their result values in temp table instead of re-evaluating the same.
+    */
+    if (join->current_ref_ptrs != *(qep_tab->ref_array))
+      join->set_items_ref_array(*(qep_tab->ref_array));
+
     Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
     if (copy_fields(tmp_tbl, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
@@ -3511,6 +3533,14 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
       if (end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
+
+      /*
+        Set the ref_ptrs to current temp table ref_array. Below we evaluate
+        having, Item_ref of non-deterministic expressions in having should refer
+        to their result values in temp table instead of re-evaluating the same.
+      */
+      join->set_items_ref_array(*(qep_tab->ref_array));
+
       (void)(test_if_item_cache_changed(join->group_fields));
     }
     if (idx < (int) join->send_group_parts)
