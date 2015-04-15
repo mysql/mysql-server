@@ -385,7 +385,7 @@ ibuf_header_page_get(
 }
 
 /******************************************************************//**
-Gets the root page and x-latches it.
+Gets the root page and sx-latches it.
 @return insert buffer tree root page */
 static
 page_t*
@@ -3612,9 +3612,9 @@ fail_exit:
 		ut_ad(BTR_LATCH_MODE_WITHOUT_INTENTION(mode)
 		      == BTR_MODIFY_TREE);
 
-		/* We acquire an x-latch to the root page before the insert,
+		/* We acquire an sx-latch to the root page before the insert,
 		because a pessimistic insert releases the tree x-latch,
-		which would cause the x-latching of the root after that to
+		which would cause the sx-latching of the root after that to
 		break the latching order. */
 
 		root = ibuf_tree_root_get(&mtr);
