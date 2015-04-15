@@ -2130,7 +2130,7 @@ truncate_t::fixup_tables_in_non_system_tablespace()
 
 	for (tables_t::iterator it = s_tables.begin(); it != end; ++it) {
 
-		/* All tables in the system tablesapce have already been
+		/* All tables in the system tablespace have already been
 		done and erased from this list. */
 		ut_a((*it)->m_space_id != TRX_SYS_SPACE);
 

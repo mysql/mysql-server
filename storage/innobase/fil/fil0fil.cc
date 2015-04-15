@@ -112,8 +112,8 @@ out of the LRU-list and keep a count of pending operations. When an operation
 completes, we decrement the count and return the file node to the LRU-list if
 the count drops to zero. */
 
-/* This tablespace name is used internally during recovery to open a
-general tablesapce before the data dictionary are recovered and available. */
+/** This tablespace name is used internally during recovery to open a
+general tablespace before the data dictionary are recovered and available. */
 const char general_space_name[] = "innodb_general";
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
@@ -137,55 +137,6 @@ ulint	fil_n_file_opened			= 0;
 
 /** The null file address */
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
-
-/** File node of a tablespace or the log data space */
-struct fil_node_t {
-	fil_space_t*	space;	/*!< backpointer to the space where this node
-				belongs */
-	char*		name;	/*!< path to the file */
-	bool		is_open;/*!< true if file is open */
-	os_file_t	handle;	/*!< OS handle to the file, if file open */
-	os_event_t	sync_event;/*!< Condition event to group and
-				serialize calls to fsync */
-	bool		is_raw_disk;/*!< true if the 'file' is actually a raw
-				device or a raw disk partition */
-	ulint		size;	/*!< size of the file in database pages, 0 if
-				not known yet; the possible last incomplete
-				megabyte may be ignored if space == 0 */
-	ulint		n_pending;
-				/*!< count of pending i/o's on this file;
-				closing of the file is not allowed if
-				this is > 0 */
-	ulint		n_pending_flushes;
-				/*!< count of pending flushes on this file;
-				closing of the file is not allowed if
-				this is > 0 */
-	bool		being_extended;
-				/*!< true if the node is currently
-				being extended. */
-	int64_t		modification_counter;/*!< when we write to the file we
-				increment this by one */
-	int64_t		flush_counter;/*!< up to what
-				modification_counter value we have
-				flushed the modifications to disk */
-	UT_LIST_NODE_T(fil_node_t) chain;
-				/*!< link field for the file chain */
-	UT_LIST_NODE_T(fil_node_t) LRU;
-				/*!< link field for the LRU list */
-	ulint		magic_n;/*!< FIL_NODE_MAGIC_N */
-
-	/** true if the FS where the file is located supports PUNCH HOLE */
-	bool		punch_hole;
-
-	/** Block size to use for punching holes */
-	ulint           block_size;
-
-	/** True if atomic write is enabled for this file */
-	bool		atomic_write;
-};
-
-/** Value of fil_node_t::magic_n */
-#define	FIL_NODE_MAGIC_N	89389
 
 /** The tablespace memory cache; also the totality of logs (the log
 data space) is stored here; below we talk about tablespaces, but also
@@ -497,6 +448,7 @@ fil_space_get_latch(
 	return(&(space->latch));
 }
 
+#ifdef UNIV_DEBUG
 /** Gets the type of a file space.
 @param[in]	id	tablespace identifier
 @return file type */
@@ -518,6 +470,7 @@ fil_space_get_type(
 
 	return(space->purpose);
 }
+#endif /* UNIV_DEBUG */
 
 /** Note that a tablespace has been imported.
 It is initially marked as FIL_TYPE_IMPORT so that no logging is
@@ -6548,8 +6501,7 @@ fil_names_clear(
 	return(do_write);
 }
 
-/**
-Truncate a single-table tablespace. The tablespace must be cached
+/** Truncate a single-table tablespace. The tablespace must be cached
 in the memory cache.
 @param space_id			space id
 @param dir_path			directory path

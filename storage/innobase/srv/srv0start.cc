@@ -615,7 +615,7 @@ static
 dberr_t
 srv_undo_tablespace_open(
 /*=====================*/
-	const char*	name,		/*!< in: tablespace name */
+	const char*	name,		/*!< in: tablespace file name */
 	ulint		space_id)	/*!< in: tablespace id */
 {
 	os_file_t	fh;
