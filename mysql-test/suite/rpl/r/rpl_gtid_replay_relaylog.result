@@ -1,0 +1,28 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(i INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+SET @save_debug=@@global.debug;
+SET GLOBAL DEBUG='d,stop_io_after_reading_gtid_log_event';
+[connection master]
+INSERT INTO t1 VALUES (2);
+[connection slave]
+include/wait_for_slave_io_to_stop.inc
+include/assert.inc [Slave MASTER_AUTO_POSITION should be enabled for this test]
+SET GLOBAL DEBUG= @save_debug;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+DROP TABLE t1;
+RESET MASTER;
+include/assert.inc [Check that there is one tuple in the table]
+DROP TABLE t1;
+RESET MASTER;
+include/assert.inc [Check that there are two tuples in the table]
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc
