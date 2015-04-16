@@ -3916,7 +3916,8 @@ static struct st_mysql_auth native_password_handler=
   native_password_authenticate,
   generate_native_password,
   validate_native_password_hash,
-  set_native_salt
+  set_native_salt,
+  AUTH_FLAG_USES_INTERNAL_STORAGE
 };
 
 #if defined(HAVE_OPENSSL)
@@ -3927,7 +3928,8 @@ static struct st_mysql_auth sha256_password_handler=
   sha256_password_authenticate,
   generate_sha256_password,
   validate_sha256_password_hash,
-  set_sha256_salt
+  set_sha256_salt,
+  AUTH_FLAG_USES_INTERNAL_STORAGE
 };
 
 #endif /* HAVE_OPENSSL */

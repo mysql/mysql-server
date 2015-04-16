@@ -149,4 +149,5 @@ struct st_mysql_auth
   int (*validate_authentication_string)(char* const inbuf, unsigned int buflen);
   int (*set_salt)(const char *password, unsigned int password_len,
                   unsigned char* salt, unsigned char *salt_len);
+  const unsigned long authentication_flags;
 };
