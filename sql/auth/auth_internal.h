@@ -127,6 +127,7 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to);
 
 /* sql_authorization */
+bool is_privileged_user_for_credential_change(THD *thd);
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 

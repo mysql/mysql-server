@@ -41,6 +41,8 @@ plug@localhost	plug_dest@%
 ## test SET PASSWORD
 Setting password is allowed but it won't affect the authentication mechanism.
 SET PASSWORD = 'plug_dest';
+Warnings:
+Note	1699	SET PASSWORD has no significance for user 'plug'@'%' as authentication plugin does not support it.
 ## test bad credentials
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 ## test bad default plugin : should get CR_AUTH_PLUGIN_CANNOT_LOAD
@@ -544,6 +546,8 @@ SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
 SET PASSWORD = 'bruhaha';
+Warnings:
+Note	1699	SET PASSWORD has no significance for user 'bug12818542'@'localhost' as authentication plugin does not support it.
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
@@ -562,6 +566,8 @@ SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
 SET PASSWORD = 'bruhaha';
+Warnings:
+Note	1699	SET PASSWORD has no significance for user 'bug12818542'@'localhost' as authentication plugin does not support it.
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 bug12818542@localhost	bug12818542_dest@localhost
