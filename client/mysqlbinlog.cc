@@ -1087,9 +1087,66 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case FORMAT_DESCRIPTION_EVENT:
       delete glob_description_event;
       glob_description_event= (Format_description_log_event*) ev;
+      /*
+        The first FD event in log is always generated
+        from the local server. So if it is first FD event to be
+        processed (i.e., if server_id_from_fd_event is 0),
+        get server_id from the FD event and keep it in
+        server_id_from_fd_event to differentiate between FDs
+        (originated from local server vs another server).
+       */
+      if (print_event_info->server_id_from_fd_event == 0)
+        print_event_info->server_id_from_fd_event= ev->server_id;
+
       print_event_info->common_header_len=
         glob_description_event->common_header_len;
       ev->print(result_file, print_event_info);
+      /*
+        At this point, if we are in transaction that means
+        we are reading a relay log file (transaction cannot
+        spawn across two binary log files, they are writen
+        at once in binlog). When AUTO_POSITION is enabled
+        and if IO thread stopped in between the GTID transaction,
+        upon IO thread restart, Master will send the GTID events
+        again from the begin of the transaction. Hence, we should
+        rollback the old transaction.
+
+        If you are reading FD event that came from Master
+        (first FD event is from the server that owns the relaylog
+        and second one is from Master) and if it's log_pos is > 0
+        then it represents the begin of a master's binary log
+        (any unfinished transaction will not be finished) or that
+        auto_position is enabled (any partial transaction left will
+        not be finished but will be fully retrieved again). On both
+        cases, the next transaction in the relay log will start from the
+        beginning and we must rollback any unfinished transaction
+      */
+      if (ev->server_id !=0 &&
+          ev->server_id != print_event_info->server_id_from_fd_event &&
+          ev->log_pos > 0)
+      {
+        if (in_transaction)
+        {
+          my_b_printf(&print_event_info->head_cache,
+                      "ROLLBACK /* added by mysqlbinlog */ %s\n",
+                      print_event_info->delimiter);
+        }
+        else if (print_event_info->is_gtid_next_set &&
+                 print_event_info->is_gtid_next_valid)
+        {
+          /*
+            If we are here, then we have seen only GTID_LOG_EVENT
+            of a transaction and did not see even a BEGIN event
+            (in_transaction flag is false). So generate BEGIN event
+            also along with ROLLBACK event.
+          */
+          my_b_printf(&print_event_info->head_cache,
+                      "BEGIN /*added by mysqlbinlog */ %s\n"
+                      "ROLLBACK /* added by mysqlbinlog */ %s\n",
+                      print_event_info->delimiter,
+                      print_event_info->delimiter);
+        }
+      }
       if (head->error == -1)
         goto err;
       if (opt_remote_proto == BINLOG_LOCAL)
@@ -1331,7 +1388,21 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           Fake rotate events have 'when' set to zero. @c fake_rotate_event(...).
         */
         bool is_fake= (rev->when.tv_sec == 0);
-        if (!in_transaction && !is_fake)
+        /*
+          'in_transaction' flag is not set to true even after GTID_LOG_EVENT
+          of a transaction is seen. ('mysqlbinlog' tool assumes that there
+          is only one event per DDL transaction other than BEGIN and COMMIT
+          events. Using 'in_transaction' flag and 'starts_group', 'ends_group'
+          flags, DDL transaction generation is handled. Hence 'in_transaction'
+          cannot be set to true after seeing GTID_LOG_EVENT). So in order to
+          see if we are out of a transaction or not, we should check that
+          'in_transaction' is false and we have not seen GTID_LOG_EVENT.
+          To see if a GTID_LOG_EVENT of a transaction is seen or not,
+          we should check is_gtid_next_valid flag is false.
+        */
+        if (!is_fake && !in_transaction &&
+            print_event_info->is_gtid_next_set &&
+            !print_event_info->is_gtid_next_valid)
         {
           /*
             If processing multiple files, we must reset this flag,
