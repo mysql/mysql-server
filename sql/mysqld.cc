@@ -3913,8 +3913,13 @@ static int init_server_components()
 #else
       res= reopen_fstreams(log_error_file, NULL, stderr);
 #endif
-      if (!res)
-        setbuf(stderr, NULL);
+
+      if (res)
+      {
+        sql_print_error("Could not open %s file for error logging: %s.",
+                        log_error_file, strerror(errno));
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
     }
   }
   else
