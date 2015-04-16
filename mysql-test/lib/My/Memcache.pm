@@ -97,7 +97,7 @@ sub new {
           "min_wait" => 4,  "max_wait" => 8192, "temp_errors" => 0 ,
           "total_wait" => 0, "has_cas" => 0, "flags" => 0, "exptime" => 0,
           "get_results" => undef, "get_with_cas" => 0, "failed" => 0,
-          "io_timeout" => 1.0, "sysread_size" => 512, "max_read_tries" => 8,
+          "io_timeout" => 2.0, "sysread_size" => 512, "max_read_tries" => 6,
           "readbuf" => "", "buflen" => 0, "error_detail" => ""
         }, $pkg;
 }
