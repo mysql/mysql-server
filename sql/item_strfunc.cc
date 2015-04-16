@@ -1316,7 +1316,7 @@ void Item_func_to_base64::fix_length_and_dec()
   }
   else
   {
-    int length= base64_needed_encoded_length((int) args[0]->max_length);
+    uint64 length= base64_needed_encoded_length((uint64) args[0]->max_length);
     DBUG_ASSERT(length > 0);
     fix_char_length_ulonglong((ulonglong) length - 1);
   }
@@ -1327,11 +1327,11 @@ String *Item_func_to_base64::val_str_ascii(String *str)
 {
   String *res= args[0]->val_str(str);
   bool too_long= false;
-  int length;
+  uint64 length;
   if (!res ||
       res->length() > (uint) base64_encode_max_arg_length() ||
       (too_long=
-       ((uint) (length= base64_needed_encoded_length((int) res->length())) >
+       ((uint64) (length= base64_needed_encoded_length((uint64) res->length())) >
         current_thd->variables.max_allowed_packet)) ||
       tmp_value.alloc((uint) length))
   {
@@ -1362,7 +1362,7 @@ void Item_func_from_base64::fix_length_and_dec()
   }
   else
   {
-    int length= base64_needed_decoded_length((int) args[0]->max_length);
+    uint64 length= base64_needed_decoded_length((uint64) args[0]->max_length);
     fix_char_length_ulonglong((ulonglong) length);
   }
   maybe_null= 1; // Can be NULL, e.g. in case of badly formed input string
@@ -1373,16 +1373,16 @@ String *Item_func_from_base64::val_str(String *str)
 {
   String *res= args[0]->val_str_ascii(str);
   bool too_long= false;
-  int length;
+  int64 length;
   const char *end_ptr;
 
   if (!res ||
       res->length() > (uint) base64_decode_max_arg_length() ||
       (too_long=
-       ((uint) (length= base64_needed_decoded_length((int) res->length())) >
+       ((uint64) (length= base64_needed_decoded_length((uint64) res->length())) >
         current_thd->variables.max_allowed_packet)) ||
       tmp_value.alloc((uint) length) ||
-      (length= base64_decode(res->ptr(), (int) res->length(),
+      (length= base64_decode(res->ptr(), (uint64) res->length(),
                              (char *) tmp_value.ptr(), &end_ptr, 0)) < 0 ||
       end_ptr < res->ptr() + res->length())
   {
