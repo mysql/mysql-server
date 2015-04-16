@@ -2503,7 +2503,7 @@ void Log_event::print_base64(IO_CACHE* file,
   uint32 size= uint4korr(ptr + EVENT_LEN_OFFSET);
   DBUG_ENTER("Log_event::print_base64");
 
-  size_t const tmp_str_sz= base64_needed_encoded_length((int) size);
+  uint64 const tmp_str_sz= base64_needed_encoded_length((uint64) size);
   char *const tmp_str= (char *) my_malloc(tmp_str_sz, MYF(MY_WME));
   if (!tmp_str) {
     fprintf(stderr, "\nError: Out of memory. "

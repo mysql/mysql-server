@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3335,7 +3335,11 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   }
 
   BaseString encoded;
-  encoded.assfmt("%*s", base64_needed_encoded_length(buf.length()), "Z");
+  /*
+    The base64 encoded data of BaseString can be of max length (1024*1024)/3*4
+    hence using int to store the length.
+  */
+  encoded.assfmt("%*s", (int)base64_needed_encoded_length(buf.length()), "Z");
   (void) base64_encode(buf.get_data(), buf.length(), (char*)encoded.c_str());
 
   Properties args;
