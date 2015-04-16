@@ -2097,3 +2097,46 @@ ERROR HY000: Plugin 'invalid_plugin' is not loaded
 GRANT ALL ON *.* TO u1 IDENTIFIED WITH 'invalid_plugin' AS 'secret';
 ERROR HY000: Plugin 'invalid_plugin' is not loaded
 DROP USER u1;
+
+Bug #20364862 MYSQLADMIN PASSWORD AFFECTS EXTERNAL AUTH ACCOUNTS
+
+call mtr.add_suppression("Did not write failed");
+CREATE USER bug20364862_user@localhost IDENTIFIED WITH test_plugin_server AS 'bug20364862_dest';
+CREATE USER bug20364862_dest@localhost IDENTIFIED BY 'dest_password';
+GRANT PROXY ON bug20364862_dest@localhost TO bug20364862_user@localhost;
+CREATE DATABASE db1;
+GRANT ALL PRIVILEGES ON db1.* TO bug20364862_dest@localhost WITH GRANT OPTION;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000) at line 1: Access denied for user 'bug20364862_dest'@'localhost' (using password: YES)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000) at line 1: Access denied for user 'bug20364862_dest'@'localhost' (using password: YES)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Level	Code	Message
+Note	1699	SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as authentication plugin does not support it.
+SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_user';
+USER	AUTHENTICATION_STRING
+bug20364862_user	bug20364862_dest
+GRANT UPDATE ON mysql.* TO bug20364862_dest@localhost;
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Level	Code	Message
+Note	1699	SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as authentication plugin does not support it.
+SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_user';
+USER	AUTHENTICATION_STRING
+bug20364862_user	bug20364862_dest
+REVOKE UPDATE ON mysql.* FROM bug20364862_dest@localhost;
+GRANT CREATE USER ON *.* TO bug20364862_dest@localhost;
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Level	Code	Message
+Note	1699	SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as authentication plugin does not support it.
+SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_user';
+USER	AUTHENTICATION_STRING
+bug20364862_user	bug20364862_dest
+DROP DATABASE db1;
+DROP USER bug20364862_user@localhost;
+DROP USER bug20364862_dest@localhost;

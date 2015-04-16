@@ -18,6 +18,8 @@ noauthdb.f1()
 # Connect as noauth - should fail.
 #try to set password of this plugin user with password function - should warn
 SET PASSWORD FOR noauth@localhost = '';
+Warnings:
+Note	1699	SET PASSWORD has no significance for user 'noauth'@'localhost' as authentication plugin does not support it.
 #try to set password of this plugin user with password hash - should warn
 grant all on *.* to noauth@localhost identified by password '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29';
 Warnings:
