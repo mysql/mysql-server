@@ -1232,10 +1232,14 @@ end:
 }
 
 /**
- * This method expects the listener to consume an inconsistent gci,
- * and then it expects to move on to the following epochs.
- * Listener stops the test when it either 1) receives 10 more epochs after
- * it consumed an inconsistent epoch or 2) has received 200 epochs.
+ * This method checks that the nextEvent() removes inconsistent epoch
+ * from the event queue (Bug#18716991 - INCONSISTENT EVENT DATA IS NOT
+ * REMOVED FROM EVENT QUEUE CAUSING CONSUMPTION STOP) and continues
+ * delivering the following epoch event data.
+ *
+ * Listener stops the test when it either 1) receives 10 more epochs
+ * after it consumed an inconsistent epoch or 2) has polled 120 more
+ * poll rounds after the first event data is polled.
  * Test succeeds for case 1 and fails for case 2.
  */
 int runEventListenerCheckProgressUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
@@ -1245,45 +1249,50 @@ int runEventListenerCheckProgressUntilStopped(NDBT_Context* ctx, NDBT_Step* step
   const NdbDictionary::Table * table= ctx->getTab();
   HugoTransactions hugoTrans(* table);
   Ndb* ndb= GETNDB(step);
-  Uint64 poll_gci = 0, incons_gci = 0;
+  Uint64 poll_gci = 0;
+  // First inconsistent epoch found after pollEvents call
+  Uint64 incons_gci_by_poll = 0;
+  // First inconsistent epoch found after nextEvent call
+  Uint64 incons_gci_by_next = 0;
   Uint64 op_gci = 0, curr_gci = 0, consumed_gci = 0;
-  bool found_gap = false;
-  Uint32 consumed_epochs = 0;
+
+  Uint32 consumed_epochs = 0; // Total epochs consumed
   int32 consumed_epochs_after = 0; // epochs consumed after inconsis epoch
 
   char buf[1024];
   sprintf(buf, "%s_EVENT", table->getName());
   NdbEventOperation *pOp, *pCreate = 0;
   pCreate = pOp = ndb->createEventOperation(buf);
-  if ( pOp == NULL ) {
-    g_err << "Event operation creation failed on %s" << buf << endl;
-    return NDBT_FAILED;
-  }
 
-  int i;
-  int n_columns= table->getNoOfColumns();
-  NdbRecAttr* recAttr[1024];
-  NdbRecAttr* recAttrPre[1024];
-  for (i = 0; i < n_columns; i++) {
-    recAttr[i]    = pOp->getValue(table->getColumn(i)->getName());
-    recAttrPre[i] = pOp->getPreValue(table->getColumn(i)->getName());
-  }
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "execute operation execution failed");
 
-  if (pOp->execute())
-  { // This starts changes to "start flowing"
-    g_err << "execute operation execution failed: \n";
-    g_err << pOp->getNdbError().code << " "
-      << pOp->getNdbError().message << endl;
-    result = NDBT_FAILED;
-    goto end;
-  }
+  // Syncronise event listening and error injection
+  ctx->setProperty("Inject_error", (Uint32)0);
+  ctx->setProperty("Found_inconsistency", (Uint32)0);
 
-  while (!ctx->isTestStopped())
+  // Wait max 10 sec for event data to start flowing
+  Uint32 retries = 10;
+  while (retries-- > 0)
   {
-    ndb->pollEvents(100, &poll_gci);
-    if (!found_gap && !ndb->isConsistent(incons_gci))
+    if (ndb->pollEvents(1000, &poll_gci) == 1)
+        break;
+  }
+  CHK(retries > 0, "No epoch has received in 10 secs");
+
+  // Event data have started flowing, inject error after one sec
+  NdbSleep_SecSleep(1);
+  ctx->setProperty("Inject_error", (Uint32)1);
+
+  // if no inconsistency is found after 120 poll rounds, fail
+  retries = 120;
+  while (!ctx->isTestStopped() && retries-- > 0)
+  {
+    ndb->pollEvents(1000, &poll_gci);
+    if (incons_gci_by_poll == 0 && !ndb->isConsistent(incons_gci_by_poll))
     {
-      found_gap = true;
+      // found the first inconsistency
+      ctx->setProperty("Found_inconsistency", (Uint32)1);
     }
 
     /**
@@ -1300,49 +1309,62 @@ int runEventListenerCheckProgressUntilStopped(NDBT_Context* ctx, NDBT_Step* step
         consumed_gci = curr_gci;
         curr_gci = op_gci;
         consumed_epochs ++;
-
-        if (found_gap && consumed_gci > incons_gci)
+        if (incons_gci_by_next > 0 &&
+            consumed_gci > incons_gci_by_next &&
+            consumed_epochs_after++ == 10)
         {
-            consumed_epochs_after ++;
+          ctx->stopTest();
+          break;
         }
-	if (consumed_epochs_after == 10 ||
-	    consumed_epochs == 200)
-	    ctx->stopTest();
       }
     }
-    consumed_gci = curr_gci; // epoch boundary
+
+    // nextEvent returned NULL: either queue is empty or
+    // an inconsistent epoch is found
+    if (incons_gci_by_poll != 0 && incons_gci_by_next == 0 &&
+        !ndb->isConsistent(incons_gci_by_next))
+    {
+      CHK(incons_gci_by_poll == incons_gci_by_next,
+          "pollEvents and nextEvent found different inconsistent epochs");
+
+      // Start counting epochs consumed after the first inconsistent epoch
+      consumed_epochs_after = 0;
+      g_info << "Epochs consumed at inconsistent epoch : "
+             << consumed_epochs << endl;
+    }
+
+    // Note epoch boundary when event queue becomes empty
+    consumed_gci = curr_gci;
   }
 
-  g_info << "Epochs consumed totally: " << consumed_epochs
-         << ". Epochs consumed after inconsistent epoch : "
-         << consumed_epochs_after << endl;
-
-  if (incons_gci == 0)
+  if (incons_gci_by_poll == 0)
   {
-    // not found gap
-    g_err << "Inconsistent event data has not been seen. Either fault injection did not work or test stopped earlier." << endl;
+    g_err << "Inconsistent event data has not been seen. "
+          << "Either fault injection did not work or test stopped earlier."
+          << endl;
     result =  NDBT_FAILED;
   }
-  else if (incons_gci >= op_gci)
+  else if (consumed_epochs_after == 0)
   {
     g_err << "Listener : consumption stalled after inconsistent gci : "
-          << incons_gci
+          << incons_gci_by_poll
           << ". Last consumed gci : " << consumed_gci
           << ". Last polled gci " << poll_gci << endl;
     result =  NDBT_FAILED;
   }
   else {
-    g_err << "Listener : progressed from inconsis_gci : "
-          << incons_gci << " to last consumed gci " << consumed_gci
+    g_info << "Epochs consumed totally: " << consumed_epochs
+           << ". Epochs consumed after inconsistent epoch : "
+           << consumed_epochs_after
+           << ". Poll rounds " << (120 - retries) << endl;
+
+    g_info << "Listener : progressed from inconsis_gci : " << incons_gci_by_poll
+          << " to last consumed gci " << consumed_gci
           << ". Last polled gci : " << poll_gci << endl;
   }
-end:
-  if (ndb->dropEventOperation(pCreate)) {
-    g_err << "dropEventOperation execution failed "
-          << ndb->getNdbError().code << " "
-          << ndb->getNdbError().message << endl;
-    result = NDBT_FAILED;
-  }
+
+  CHK(retries > 0, "Test failed despite 120 poll rounds");
+  CHK((ndb->dropEventOperation(pCreate) == 0), "dropEventOperation failed");
   return result;
 }
 
@@ -2283,7 +2305,6 @@ runInsertDeleteUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
   }
-  
   return NDBT_OK;
 }
 
@@ -2432,13 +2453,25 @@ int
 errorInjectBufferOverflowOnly(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
+  assert(ctx->getProperty("Inject_error", (Uint32)0) == 0);
+  // Wait for the signal from the listener
+  while (ctx->getProperty("Inject_error", (Uint32)0) != 1)
+  {
+    NdbSleep_SecSleep(1);
+  }
+  ctx->setProperty("Inject_error", (Uint32)0);
 
-  NdbSleep_SecSleep(1);
   if (restarter.insertErrorInAllNodes(13036) != 0)
   {
     return NDBT_FAILED;
   }
-  restarter.insertErrorInAllNodes(0);
+  while (ctx->getProperty("Found_inconsistency", (Uint32)0) != 1)
+  {
+    NdbSleep_SecSleep(1);
+  }
+  ctx->setProperty("Inject_error", (Uint32)0);
+
+  restarter.insertErrorInAllNodes(0); //Remove the injected error
   return NDBT_OK;
 }
 
@@ -4119,11 +4152,9 @@ int runPollBCLongWait(NDBT_Context* ctx, NDBT_Step* step)
  * After each poll (before nextEvent call) event queue is checked
  * for inconsistency.
  * Test will fail :
- * a) if no inconsistent epoch is found after 10 poll rounds
- * b) If the inconsistent epoch found by poll is not equal to
- *    the one found by the nextEvent
- * c) if the poll found an inconsistent epoch, but bot the next
- *    or vice versa.
+ * a) if no inconsistent epoch is found after 120 poll rounds
+ * b) If the  pollEvents and nextEvent found different inconsistent epochs
+ * c) if the pollEvents and nextEvent found unequal #inconsistent epochs
  */
 int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -4146,6 +4177,10 @@ int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
 
   Uint64 current_gci = 0, poll_gci = 0;
 
+  // Syncronise event listening and error injection
+  ctx->setProperty("Inject_error", (Uint32)0);
+  ctx->setProperty("Found_inconsistency", (Uint32)0);
+
   // Wait max 10 sec for event data to start flowing
   Uint32 retries = 10;
   while (retries-- > 0)
@@ -4155,14 +4190,19 @@ int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
   }
   CHK(retries > 0, "No epoch has received in 10 secs");
 
-  // if no inconsistency is found within 20 secs, fail
-  retries = 20;
+  // Event data have started flowing, inject error after a sec
+  NdbSleep_SecSleep(1);
+  ctx->setProperty("Inject_error", (Uint32)1);
+
+  // if no inconsistency is found within 120 poll rounds, fail
+  retries = 120;
   do
   {
     // Check whether an inconsistent epoch is in the queue
     if (!ndb->isConsistent(inconsis_epoch_poll))
     {
       n_inconsis_poll++;
+      ctx->setProperty("Found_inconsistency", (Uint32)1);
     }
 
     pOp = ndb->nextEvent();
@@ -4177,7 +4217,7 @@ int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
              << " head of the event queue" << endl;
       CHK((inconsis_epoch_poll != 0 &&
            inconsis_epoch_poll == inconsis_epoch_next),
-          "pollEvents and nextEvent found different inconsitent epochs");
+          "pollEvents and nextEvent found different inconsistent epochs");
       n_inconsis_next++;
       goto end_test;
 
@@ -4214,6 +4254,7 @@ int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
           CHK((inconsis_epoch_poll != 0 &&
                inconsis_epoch_poll == inconsis_epoch_next),
               "pollEvents and nextEvent found different inconsistent epochs");
+          n_inconsis_next++;
           goto end_test;
         }
         // Check whether we have processed the entire queue
@@ -4226,10 +4267,14 @@ int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
   } while (ndb->pollEvents(1000, &poll_gci));
 
 end_test:
-  if (n_inconsis_poll == 0 ||
+
+  if (retries == 0 ||
+      n_inconsis_poll == 0 ||
+      n_inconsis_poll != n_inconsis_next ||
       n_unknown != 0 )
   {
     g_err << "Test failed :" << endl;
+    g_err << "Retries " << 120 - retries << endl;
     g_err << " #inconsistent epochs found by pollEvents "
           << n_inconsis_poll << endl;
     g_err << " #inconsistent epochs found by nextEvent "
