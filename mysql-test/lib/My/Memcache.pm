@@ -96,50 +96,56 @@ sub new {
   bless { "created" => 1 , "error" => "OK" , "cf_gen" => 0, "req_id" => 0,
           "min_wait" => 4,  "max_wait" => 8192, "temp_errors" => 0 ,
           "total_wait" => 0, "has_cas" => 0, "flags" => 0, "exptime" => 0,
-          "get_results" => undef, "get_with_cas" => 0, "already_failed" => 0,
+          "get_results" => undef, "get_with_cas" => 0, "failed" => 0,
           "io_timeout" => 1.0, "sysread_size" => 512, "max_read_tries" => 8,
-          "readbuf" => "", "buflen" => 0
+          "readbuf" => "", "buflen" => 0, "error_detail" => ""
         }, $pkg;
 }
 
+
+sub summarize {
+  my $val = shift;
+  my $len = length $val;
+
+  if($len > 25) {
+    return substr($val,0,10) . "..." . substr($val,-10) . " [len $len]";
+  } else {
+    return $val;
+  }
+}
 
 # fail() is called when an MTR test fails
 
 sub fail {
   my $self = shift;
-  my $msg = 
+  my $fd;
+
+  return if($self->{failed});   # Already failed.
+  $self->{failed} = 1;
+
+  my $msg =
       "error: "       . $self->{error}       ."\t".
-      "protocol: "    . $self->protocol()    ."\n";
+      "protocol: "    . $self->protocol()    ."\n".
       "req_id: "      . $self->{req_id}      ."\t".
       "temp_errors: " . $self->{temp_errors} ."\t".
       "total_wait: "  . $self->{total_wait}  ."\n";
 
+  $msg .= "detail: " . $self->{error_detail} . "\n";
+  $msg .= "buffer: " . summarize($self->{readbuf}) . "\n";
+
   my $r = $self->next_result();
-  if($r) {
-    my $val = $r->{value};
-    my $len = length $val;
-    $msg .= "value: ";
-    if($len > 25) {
-      $msg .= substr($val,0,10) . "..." . substr($val,-10) . " [len $len]\n";
-    } else {
-      $msg .= $val;
-    }
-  }
+  $msg .= "value: " . summarize($r->{value}) . "\n" if($r);
 
   while(my $extra = shift) {
     $msg .= $extra;
   }
   $msg .= "\n";
 
-  if(! $self->{already_failed}) {
-    $self->{already_failed} = 1;
-    my %stats = $self->stats("errors");  # also flushes memcached error log
-    $msg .= "Server error stats:\n";
-    $msg .= sprintf("%s : %s\n", $_, $stats{$_}) for keys(%stats);
-  }
+  my %stats = $self->stats("errors");  # also flushes memcached error log
+  $msg .= "Server error stats:\n";
+  $msg .= sprintf("%s : %s\n", $_, $stats{$_}) for keys(%stats);
 
   # Load Average on linux
-  my $fd;
   $msg .= ("Load Avg: " . <$fd>) if(open($fd, "/proc/loadavg"));
 
   $msg .= "====~~~~____~~~~====\n";
@@ -285,6 +291,8 @@ sub wait_for_config_generation {
 sub socket_error {
   my $self = shift;
   my $retval = shift;
+  my $detail = shift;
+
   if($retval == 1) {
     $self->{error} = "CONNECTION_CLOSED";
   } elsif($retval == 0) {
@@ -293,6 +301,8 @@ sub socket_error {
     $self->{error} = "NETWORK_ERROR: " . $!;
   }
   $self->{connection}->close();
+  $self->{error_detail} = $detail if($detail);
+
   return 0;
 }
 
@@ -305,17 +315,17 @@ sub write {
   my $r;
 
   if(! $self->{connection}->connected()) {
-    return $self->socket_error(0);
+    return $self->socket_error(0, "write(): not connected");
   }
 
   while($nsent < $len) {
     $r = select(undef, $self->{fdset}, undef, $self->{write_timeout});
-    return $self->socket_error($r) if($r < 1);
+    return $self->socket_error($r, "write(): select() returned $r") if($r < 1);
     $r = $self->{connection}->send(substr($packet, $nsent));
     if($r > 0) {
       $nsent += $r;
     } elsif($! != Errno::EWOULDBLOCK) {
-      return $self->socket_error($r);
+      return $self->socket_error($r, "write(): send() errno $!");
     }
   }
   return 1;
@@ -330,13 +340,13 @@ sub read {
   my $r;
 
   $r = select($self->{fdset}, undef, undef, $self->{io_timeout});
-  return $self->socket_error($r) if($r < 1);
+  return $self->socket_error($r, "read(): select() returned $r") if($r < 1);
 
   $r = $sock->sysread($self->{readbuf}, $length, $self->{buflen});
   if($r > 0) {
     $self->{buflen} += $r;
   } elsif($! != Errno::EWOULDBLOCK) {
-    return $self->socket_error( $r == 0 ? 1 : $r);
+    return $self->socket_error( $r == 0 ? 1 : $r, "read(): sysread() $!");
   }
   return 1;
 }
@@ -392,7 +402,7 @@ sub read_line {
       return $self->{error};
     }
   }
-  $self->socket_error(0);  # timeout
+  $self->socket_error(0, "read_line(): timeout");
   return $self->{error};
 }
 
@@ -413,7 +423,7 @@ sub read_known_length {
       return undef;
     }
   }
-  $self->socket_error(0);  # timeout
+  $self->socket_error(0, "read_known_length(): timeout");
   return undef;
 }
 
@@ -428,8 +438,13 @@ sub protocol {
 
 sub protocol_error {
   my $self = shift;
+  my $detail = shift;
+
   if($self->{error} eq "OK") {
     $self->{error} = "PROTOCOL_ERROR";
+  }
+  if($detail) {
+    $self->{error_detail} = $detail;
   }
   return undef;
 }
@@ -445,15 +460,10 @@ sub ascii_command {
     $self->new_request();
     $self->write($packet);
     $reply = $self->read_line();
-    if($self->{error} eq "SERVER_TEMPORARY_ERROR") {
-      if($waitTime < $maxWait) {
-        $self->{temp_errors} += 1;
-        $self->{total_wait} += ( Time::HiRes::usleep($waitTime * 1000) / 1000);
-        $waitTime *= 2;
-      }
-      else {
-        $self->fail("Too Many Temporary Errors", $waitTime);
-      }
+    if($self->{error} eq "SERVER_TEMPORARY_ERROR" && $waitTime < $maxWait) {
+      $self->{temp_errors} += 1;
+      $self->{total_wait} += ( Time::HiRes::usleep($waitTime * 1000) / 1000);
+      $waitTime *= 2;
     }
   } while($self->{error} eq "SERVER_TEMPORARY_ERROR" && $waitTime <= $maxWait);
 
@@ -467,7 +477,7 @@ sub delete {
   my $response = $self->ascii_command("delete $key\r\n");
   return 1 if($response =~ "^DELETED");
   return 0 if($response =~ "^NOT_FOUND");
-  return $self->protocol_error();
+  return $self->protocol_error("delete() got response: $response");
 }
 
 
@@ -491,7 +501,7 @@ sub store {
   return 0 if($response =~ "^NOT_STORED");
   return 0 if($response =~ "^EXISTS");
   return 0 if($response =~ "^NOT_FOUND");
-  return $self->protocol_error();
+  return $self->protocol_error("store() got response: $response");
 }
  
 sub set {
@@ -537,7 +547,7 @@ sub get {
   {
     $response =~ /^VALUE (\S+) (\d+) (\d+) ?(\d+)?/;
     if(! (defined($1) && defined($2) && defined($3))) {
-      return $self->protocol_error();
+      return $self->protocol_error("GET response: $response");
     }
     my $result = My::Memcache::Result->new($1, $2, $4);
     my $value = $self->read_known_length($3);
@@ -564,7 +574,7 @@ sub _txt_math {
   }
 
   $response =~ /(\d+)/;
-  return $self->protocol_error() unless defined($1);
+  return $self->protocol_error("MATH response: $response") unless defined($1);
   return $1;
 }
 
@@ -595,13 +605,14 @@ sub stats {
     if(($line) && ($line =~ /^STAT(\s+)(\S+)(\s+)(\S+)/)) {
       $response{$2} = $4;
     } else {
-      return $self->protocol_error();
+      return $self->protocol_error("STATS response line: $line");
     }
     $line = $self->read_line();
   }
   
   return %response;
 }
+
 
 sub flush {
   my $self = shift;
@@ -724,7 +735,10 @@ sub get_binary_response {
   my ($magic, $cmd, $key_len, $extra_len, $datatype, $status, $body_len,
       $sequence, $cas_hi, $cas_lo) = unpack(BINARY_HEADER_FMT, $header);
 
-  return (0x100) if($magic != BINARY_RESPONSE);
+  if($magic != BINARY_RESPONSE) {
+    $self->{error_detail} = "Magic number in response: $magic";
+    return (0x100);
+  }
 
   $body = $self->read_known_length($body_len);
   $self->{error} = $self->error_message($status);
@@ -752,15 +766,10 @@ sub binary_command {
     $wr = $self->send_binary_request($cmd, $key, $value, $extra_header, $cas);
     return undef unless $wr;
     ($status) = $self->get_binary_response();
-    if($status == 0x86) {
-      if($waitTime < $maxWait) {
-        $self->{temp_errors} += 1;
-        $self->{total_wait} += ( Time::HiRes::usleep($waitTime * 1000) / 1000);
-        $waitTime *= 2;
-      }
-      else {
-        $self->fail("Too Many Temporary Errors", $waitTime);
-      }
+    if($status == 0x86 && $waitTime < $maxWait) {
+      $self->{temp_errors} += 1;
+      $self->{total_wait} += ( Time::HiRes::usleep($waitTime * 1000) / 1000);
+      $waitTime *= 2;
     }
   } while($status == 0x86 && $waitTime <= $maxWait);
 
