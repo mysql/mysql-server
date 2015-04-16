@@ -1823,8 +1823,6 @@ struct st_trg_chistics
 
 extern sys_var *trg_new_row_fake_var;
 
-extern const LEX_STRING null_lex_str;
-
 class Sroutine_hash_entry;
 
 /*
@@ -3670,7 +3668,6 @@ extern bool is_lex_native_function(const LEX_STRING *name);
   @} (End of group Semantic_Analysis)
 */
 
-void my_missing_function_error(const LEX_STRING &token, const char *name);
 bool is_keyword(const char *name, size_t len);
 bool db_is_default_db(const char *db, size_t db_len, const THD *thd);
 

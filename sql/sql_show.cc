@@ -73,6 +73,81 @@
 using std::max;
 using std::min;
 
+/* Define fields' indexes for COLUMNS table of I_S tables */
+#define IS_COLUMNS_TABLE_CATALOG                0
+#define IS_COLUMNS_TABLE_SCHEMA                 1
+#define IS_COLUMNS_TABLE_NAME                   2
+#define IS_COLUMNS_COLUMN_NAME                  3
+#define IS_COLUMNS_ORDINAL_POSITION             4
+#define IS_COLUMNS_COLUMN_DEFAULT               5
+#define IS_COLUMNS_IS_NULLABLE                  6
+#define IS_COLUMNS_DATA_TYPE                    7
+#define IS_COLUMNS_CHARACTER_MAXIMUM_LENGTH     8
+#define IS_COLUMNS_CHARACTER_OCTET_LENGTH       9
+#define IS_COLUMNS_NUMERIC_PRECISION           10
+#define IS_COLUMNS_NUMERIC_SCALE               11
+#define IS_COLUMNS_DATETIME_PRECISION          12
+#define IS_COLUMNS_CHARACTER_SET_NAME          13
+#define IS_COLUMNS_COLLATION_NAME              14
+#define IS_COLUMNS_COLUMN_TYPE                 15
+#define IS_COLUMNS_COLUMN_KEY                  16
+#define IS_COLUMNS_EXTRA                       17
+#define IS_COLUMNS_PRIVILEGES                  18
+#define IS_COLUMNS_COLUMN_COMMENT              19
+#define IS_COLUMNS_GENERATION_EXPRESSION       20
+
+/* Define fields' indexes for ROUTINES table of I_S tables */
+#define IS_ROUTINES_SPECIFIC_NAME               0
+#define IS_ROUTINES_ROUTINE_CATALOG             1
+#define IS_ROUTINES_ROUTINE_SCHEMA              2
+#define IS_ROUTINES_ROUTINE_NAME                3
+#define IS_ROUTINES_ROUTINE_TYPE                4
+#define IS_ROUTINES_DATA_TYPE                   5
+#define IS_ROUTINES_CHARACTER_MAXIMUM_LENGTH    6
+#define IS_ROUTINES_CHARACTER_OCTET_LENGTH      7
+#define IS_ROUTINES_NUMERIC_PRECISION           8
+#define IS_ROUTINES_NUMERIC_SCALE               9
+#define IS_ROUTINES_DATETIME_PRECISION         10
+#define IS_ROUTINES_CHARACTER_SET_NAME         11
+#define IS_ROUTINES_COLLATION_NAME             12
+#define IS_ROUTINES_DTD_IDENTIFIER             13
+#define IS_ROUTINES_ROUTINE_BODY               14
+#define IS_ROUTINES_ROUTINE_DEFINITION         15
+#define IS_ROUTINES_EXTERNAL_NAME              16
+#define IS_ROUTINES_EXTERNAL_LANGUAGE          17
+#define IS_ROUTINES_PARAMETER_STYLE            18
+#define IS_ROUTINES_IS_DETERMINISTIC           19
+#define IS_ROUTINES_SQL_DATA_ACCESS            20
+#define IS_ROUTINES_SQL_PATH                   21
+#define IS_ROUTINES_SECURITY_TYPE              22
+#define IS_ROUTINES_CREATED                    23
+#define IS_ROUTINES_LAST_ALTERED               24
+#define IS_ROUTINES_SQL_MODE                   25
+#define IS_ROUTINES_ROUTINE_COMMENT            26
+#define IS_ROUTINES_DEFINER                    27
+#define IS_ROUTINES_CHARACTER_SET_CLIENT       28
+#define IS_ROUTINES_COLLATION_CONNECTION       29
+#define IS_ROUTINES_DATABASE_COLLATION         30
+
+
+/* Define fields' indexes for PARAMETERS table of I_S tables */
+#define IS_PARAMETERS_SPECIFIC_CATALOG          0
+#define IS_PARAMETERS_SPECIFIC_SCHEMA           1
+#define IS_PARAMETERS_SPECIFIC_NAME             2
+#define IS_PARAMETERS_ORDINAL_POSITION          3
+#define IS_PARAMETERS_PARAMETER_MODE            4
+#define IS_PARAMETERS_PARAMETER_NAME            5
+#define IS_PARAMETERS_DATA_TYPE                 6
+#define IS_PARAMETERS_CHARACTER_MAXIMUM_LENGTH  7
+#define IS_PARAMETERS_CHARACTER_OCTET_LENGTH    8
+#define IS_PARAMETERS_NUMERIC_PRECISION         9
+#define IS_PARAMETERS_NUMERIC_SCALE            10
+#define IS_PARAMETERS_DATETIME_PRECISION       11
+#define IS_PARAMETERS_CHARACTER_SET_NAME       12
+#define IS_PARAMETERS_COLLATION_NAME           13
+#define IS_PARAMETERS_DTD_IDENTIFIER           14
+#define IS_PARAMETERS_ROUTINE_TYPE             15
+
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
 /**
@@ -168,6 +243,8 @@ static void
 append_algorithm(TABLE_LIST *table, String *buff);
 
 static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table);
+
+static int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 /***************************************************************************
 ** List all table types supported
@@ -2035,7 +2112,7 @@ void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
 }
 
 
-int
+static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
   my_bool compact_view_name= TRUE;
@@ -7243,6 +7320,7 @@ ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name)
 }
 
 
+static
 ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
 {
   return &schema_tables[schema_table_idx];

@@ -8008,7 +8008,8 @@ table_map Item_func_sp::get_initial_pseudo_tables() const
 }
 
 
-void my_missing_function_error(const LEX_STRING &token, const char *func_name)
+static void my_missing_function_error(const LEX_STRING &token,
+                                      const char *func_name)
 {
   if (token.length && is_lex_native_function (&token))
     my_error(ER_FUNC_INEXISTENT_NAME_COLLISION, MYF(0), func_name);

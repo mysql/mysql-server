@@ -23,7 +23,6 @@
 #include "my_compare.h"                         // portable_sizeof_char_ptr
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "binary_log_funcs.h"                   // my_time_binary_length
-#include "handler.h"                            // column_format_type
 #include "mysqld_error.h"                       // ER_*
 #include "sql_error.h"                          // Sql_condition
 #include "sql_string.h"                         // String
@@ -103,6 +102,13 @@ enum Derivation
   DERIVATION_IMPLICIT= 2,
   DERIVATION_NONE= 1,
   DERIVATION_EXPLICIT= 0
+};
+
+/* Specifies data storage format for individual columns */
+enum column_format_type {
+  COLUMN_FORMAT_TYPE_DEFAULT=   0, /* Not specified (use engine default) */
+  COLUMN_FORMAT_TYPE_FIXED=     1, /* FIXED format */
+  COLUMN_FORMAT_TYPE_DYNAMIC=   2  /* DYNAMIC format */
 };
 
 /**
