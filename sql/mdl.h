@@ -318,6 +318,7 @@ public:
      - EVENT is for event scheduler events.
      - COMMIT is for enabling the global read lock to block commits.
      - USER_LEVEL_LOCK is for user-level locks.
+     - LOCKING_SERVICE is for the name plugin RW-lock service
     Note that although there isn't metadata locking on triggers,
     it's necessary to have a separate namespace for them since
     MDL_key is also used outside of the MDL subsystem.
@@ -334,6 +335,7 @@ public:
                             EVENT,
                             COMMIT,
                             USER_LEVEL_LOCK,
+                            LOCKING_SERVICE,
                             /* This should be the last ! */
                             NAMESPACE_END };
 
@@ -794,6 +796,26 @@ private:
 
 
 /**
+  Base class to find out if the lock represented by a given ticket
+  should be released. Users of release_locks() need to subclass
+  this and specify an implementation of release(). Only for locks
+  with explicit duration.
+*/
+
+class MDL_release_locks_visitor
+{
+public:
+  virtual ~MDL_release_locks_visitor() {}
+  /**
+    Check if the given ticket represents a lock that should be released.
+
+    @retval true if the lock should be released, false otherwise.
+  */
+  virtual bool release(MDL_ticket *ticket) = 0;
+};
+
+
+/**
   Abstract visitor class for inspecting MDL_context.
 */
 
@@ -840,6 +862,7 @@ public:
   bool clone_ticket(MDL_request *mdl_request);
 
   void release_all_locks_for_name(MDL_ticket *ticket);
+  void release_locks(MDL_release_locks_visitor *visitor);
   void release_lock(MDL_ticket *ticket);
 
   bool owns_equal_or_stronger_lock(MDL_key::enum_mdl_namespace mdl_namespace,

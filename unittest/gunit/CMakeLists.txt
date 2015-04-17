@@ -318,6 +318,7 @@ SET(SERVER_TESTS
   item_timefunc
   item_like
   join_tab_sort
+  locking_service
   log_throttle
   make_sortkey
   mdl_sync
