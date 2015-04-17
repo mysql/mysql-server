@@ -15,13 +15,16 @@
 
 #include "event_scheduler.h"
 
+#include "current_thd.h"
 #include "events.h"
 #include "event_data_objects.h"
 #include "event_queue.h"
 #include "event_db_repository.h"
+#include "mysqld.h"                  // my_localhost slave_net_timeout
 #include "auth_common.h"             // SUPER_ACL
 #include "log.h"
 #include "mysqld_thd_manager.h"      // Global_THD_manager
+#include "psi_memory_key.h"
 #include "sql_error.h"               // Sql_condition
 #include "sql_class.h"               // THD
 

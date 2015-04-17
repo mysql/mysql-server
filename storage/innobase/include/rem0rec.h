@@ -132,8 +132,7 @@ void
 rec_set_next_offs_old(
 /*==================*/
 	rec_t*	rec,	/*!< in: old-style physical record */
-	ulint	next)	/*!< in: offset of the next record */
-	__attribute__((nonnull));
+	ulint	next);	/*!< in: offset of the next record */
 /******************************************************//**
 The following function is used to set the next record offset field
 of a new-style record. */
@@ -142,8 +141,7 @@ void
 rec_set_next_offs_new(
 /*==================*/
 	rec_t*	rec,	/*!< in/out: new-style physical record */
-	ulint	next)	/*!< in: offset of the next record */
-	__attribute__((nonnull));
+	ulint	next);	/*!< in: offset of the next record */
 /******************************************************//**
 The following function is used to get the number of fields
 in an old-style record.
@@ -197,8 +195,7 @@ void
 rec_set_n_owned_old(
 /*================*/
 	rec_t*	rec,		/*!< in: old-style physical record */
-	ulint	n_owned)	/*!< in: the number of owned */
-	__attribute__((nonnull));
+	ulint	n_owned);	/*!< in: the number of owned */
 /******************************************************//**
 The following function is used to get the number of records owned by the
 previous directory record.
@@ -217,8 +214,7 @@ rec_set_n_owned_new(
 /*================*/
 	rec_t*		rec,	/*!< in/out: new-style physical record */
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
-	ulint		n_owned)/*!< in: the number of owned */
-	__attribute__((nonnull(1)));
+	ulint		n_owned);/*!< in: the number of owned */
 /******************************************************//**
 The following function is used to retrieve the info bits of
 a record.
@@ -237,8 +233,7 @@ void
 rec_set_info_bits_old(
 /*==================*/
 	rec_t*	rec,	/*!< in: old-style physical record */
-	ulint	bits)	/*!< in: info bits */
-	__attribute__((nonnull));
+	ulint	bits);	/*!< in: info bits */
 /******************************************************//**
 The following function is used to set the info bits of a record. */
 UNIV_INLINE
@@ -246,8 +241,7 @@ void
 rec_set_info_bits_new(
 /*==================*/
 	rec_t*	rec,	/*!< in/out: new-style physical record */
-	ulint	bits)	/*!< in: info bits */
-	__attribute__((nonnull));
+	ulint	bits);	/*!< in: info bits */
 /******************************************************//**
 The following function retrieves the status bits of a new-style record.
 @return status bits */
@@ -265,8 +259,7 @@ void
 rec_set_status(
 /*===========*/
 	rec_t*	rec,	/*!< in/out: physical record */
-	ulint	bits)	/*!< in: info bits */
-	__attribute__((nonnull));
+	ulint	bits);	/*!< in: info bits */
 
 /******************************************************//**
 The following function is used to retrieve the info and status
@@ -287,8 +280,7 @@ void
 rec_set_info_and_status_bits(
 /*=========================*/
 	rec_t*	rec,	/*!< in/out: compact physical record */
-	ulint	bits)	/*!< in: info bits */
-	__attribute__((nonnull));
+	ulint	bits);	/*!< in: info bits */
 
 /******************************************************//**
 The following function tells if record is delete marked.
@@ -307,8 +299,7 @@ void
 rec_set_deleted_flag_old(
 /*=====================*/
 	rec_t*	rec,	/*!< in: old-style physical record */
-	ulint	flag)	/*!< in: nonzero if delete marked */
-	__attribute__((nonnull));
+	ulint	flag);	/*!< in: nonzero if delete marked */
 /******************************************************//**
 The following function is used to set the deleted bit. */
 UNIV_INLINE
@@ -317,8 +308,7 @@ rec_set_deleted_flag_new(
 /*=====================*/
 	rec_t*		rec,	/*!< in/out: new-style physical record */
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
-	ulint		flag)	/*!< in: nonzero if delete marked */
-	__attribute__((nonnull(1)));
+	ulint		flag);	/*!< in: nonzero if delete marked */
 /******************************************************//**
 The following function tells if a new-style record is a node pointer.
 @return TRUE if node pointer */
@@ -346,8 +336,7 @@ void
 rec_set_heap_no_old(
 /*================*/
 	rec_t*	rec,	/*!< in: physical record */
-	ulint	heap_no)/*!< in: the heap number */
-	__attribute__((nonnull));
+	ulint	heap_no);/*!< in: the heap number */
 /******************************************************//**
 The following function is used to get the order number
 of a new-style record in the heap of the index page.
@@ -366,8 +355,7 @@ void
 rec_set_heap_no_new(
 /*================*/
 	rec_t*	rec,	/*!< in/out: physical record */
-	ulint	heap_no)/*!< in: the heap number */
-	__attribute__((nonnull));
+	ulint	heap_no);/*!< in: the heap number */
 /******************************************************//**
 The following function is used to test whether the data offsets
 in the record are stored in one-byte or two-byte format.
@@ -386,8 +374,7 @@ void
 rec_set_1byte_offs_flag(
 /*====================*/
 	rec_t*	rec,	/*!< in: physical record */
-	ibool	flag)	/*!< in: TRUE if 1byte form */
-	__attribute__((nonnull));
+	ibool	flag);	/*!< in: TRUE if 1byte form */
 
 /******************************************************//**
 Returns the offset of nth field end if the record is stored in the 1-byte
@@ -438,7 +425,7 @@ rec_get_n_extern_new(
 	const rec_t*		rec,	/*!< in: compact physical record */
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	ulint			n)	/*!< in: number of columns to scan */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /******************************************************//**
 The following function determines the offsets to each field
@@ -462,9 +449,9 @@ rec_get_offsets_func(
 #endif /* UNIV_DEBUG */
 	mem_heap_t**		heap)	/*!< in/out: memory heap */
 #ifdef UNIV_DEBUG
-	__attribute__((nonnull(1,2,5,7),warn_unused_result));
+	__attribute__((warn_unused_result));
 #else /* UNIV_DEBUG */
-	__attribute__((nonnull(1,2,5),warn_unused_result));
+	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
 
 #ifdef UNIV_DEBUG
@@ -488,9 +475,8 @@ rec_get_offsets_reverse(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	ulint			node_ptr,/*!< in: nonzero=node pointer,
 					0=leaf node */
-	ulint*			offsets)/*!< in/out: array consisting of
+	ulint*			offsets);/*!< in/out: array consisting of
 					offsets[0] allocated elements */
-	__attribute__((nonnull));
 #ifdef UNIV_DEBUG
 /************************************************************//**
 Validates offsets returned by rec_get_offsets().
@@ -503,7 +489,7 @@ rec_offs_validate(
 	const dict_index_t*	index,	/*!< in: record descriptor or NULL */
 	const ulint*		offsets)/*!< in: array returned by
 					rec_get_offsets() */
-	__attribute__((nonnull(3), warn_unused_result));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Updates debug data in offsets, in order to avoid bogus
 rec_offs_validate() failures. */
@@ -513,9 +499,8 @@ rec_offs_make_valid(
 /*================*/
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index,	/*!< in: record descriptor */
-	ulint*			offsets)/*!< in: array returned by
+	ulint*			offsets);/*!< in: array returned by
 					rec_get_offsets() */
-	__attribute__((nonnull));
 #else
 # define rec_offs_make_valid(rec, index, offsets) ((void) 0)
 #endif /* UNIV_DEBUG */
@@ -529,9 +514,8 @@ rec_get_nth_field_offs_old(
 /*=======================*/
 	const rec_t*	rec,	/*!< in: record */
 	ulint		n,	/*!< in: index of the field */
-	ulint*		len)	/*!< out: length of the field; UNIV_SQL_NULL
+	ulint*		len);	/*!< out: length of the field; UNIV_SQL_NULL
 				if SQL null */
-	__attribute__((nonnull));
 #define rec_get_nth_field_old(rec, n, len) \
 ((rec) + rec_get_nth_field_offs_old(rec, n, len))
 /************************************************************//**
@@ -556,9 +540,8 @@ rec_get_nth_field_offs(
 /*===================*/
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	ulint		n,	/*!< in: index of the field */
-	ulint*		len)	/*!< out: length of the field; UNIV_SQL_NULL
+	ulint*		len);	/*!< out: length of the field; UNIV_SQL_NULL
 				if SQL null */
-	__attribute__((nonnull));
 #define rec_get_nth_field(rec, offsets, n, len) \
 ((rec) + rec_get_nth_field_offs(offsets, n, len))
 /******************************************************//**
@@ -653,12 +636,11 @@ rec_set_nth_field(
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	ulint		n,	/*!< in: index number of the field */
 	const void*	data,	/*!< in: pointer to the data if not SQL null */
-	ulint		len)	/*!< in: length of the data or UNIV_SQL_NULL.
+	ulint		len);	/*!< in: length of the data or UNIV_SQL_NULL.
 				If not SQL null, must have the same
 				length as the previous value.
 				If SQL null, previous value must be
 				SQL null. */
-	__attribute__((nonnull(1,2)));
 /**********************************************************//**
 The following function returns the data size of an old-style physical
 record, that is the sum of field lengths. SQL null fields
@@ -690,8 +672,7 @@ rec_offs_set_n_alloc(
 /*=================*/
 	ulint*	offsets,	/*!< out: array for rec_get_offsets(),
 				must be allocated */
-	ulint	n_alloc)	/*!< in: number of elements */
-	__attribute__((nonnull));
+	ulint	n_alloc);	/*!< in: number of elements */
 #define rec_offs_init(offsets) \
 	rec_offs_set_n_alloc(offsets, (sizeof offsets) / sizeof *offsets)
 /**********************************************************//**
@@ -769,8 +750,7 @@ rec_copy(
 /*=====*/
 	void*		buf,	/*!< in: buffer */
 	const rec_t*	rec,	/*!< in: physical record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull));
+	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 #ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Determines the size of a data tuple prefix in a temporary file.
@@ -782,7 +762,7 @@ rec_get_converted_size_temp(
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
 	ulint*			extra)	/*!< out: extra size */
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((warn_unused_result));
 
 /******************************************************//**
 Determine the offset to each field in temporary file.
@@ -792,9 +772,8 @@ rec_init_offsets_temp(
 /*==================*/
 	const rec_t*		rec,	/*!< in: temporary file record */
 	const dict_index_t*	index,	/*!< in: record descriptor */
-	ulint*			offsets)/*!< in/out: array of offsets;
+	ulint*			offsets);/*!< in/out: array of offsets;
 					in: n=rec_offs_n_fields(offsets) */
-	__attribute__((nonnull));
 
 /*********************************************************//**
 Builds a temporary file record out of a data tuple.
@@ -805,8 +784,7 @@ rec_convert_dtuple_to_temp(
 	rec_t*			rec,		/*!< out: record */
 	const dict_index_t*	index,		/*!< in: record descriptor */
 	const dfield_t*		fields,		/*!< in: array of data fields */
-	ulint			n_fields)	/*!< in: number of fields */
-	__attribute__((nonnull));
+	ulint			n_fields);	/*!< in: number of fields */
 
 /**************************************************************//**
 Copies the first n fields of a physical record to a new physical record in
@@ -822,21 +800,21 @@ rec_copy_prefix_to_buf(
 	byte**			buf,		/*!< in/out: memory buffer
 						for the copied prefix,
 						or NULL */
-	ulint*			buf_size)	/*!< in/out: buffer size */
-	__attribute__((nonnull));
-/************************************************************//**
-Folds a prefix of a physical record to a ulint.
+	ulint*			buf_size);	/*!< in/out: buffer size */
+/** Compute a hash value of a prefix of a leaf page record.
+@param[in]	rec		leaf page record
+@param[in]	offsets		rec_get_offsets(rec)
+@param[in]	n_fields	number of fields to include;
+will be clamped to the number of fields in the record
+@param[in]	fold		fold value of the index identifier
 @return the folded value */
 UNIV_INLINE
 ulint
 rec_fold(
-/*=====*/
-	const rec_t*	rec,		/*!< in: the physical record */
-	const ulint*	offsets,	/*!< in: array returned by
-					rec_get_offsets() */
-	ulint		n_fields,	/*!< in: number of complete
-					fields to fold */
-	index_id_t	tree_id)	/*!< in: index tree id */
+	const rec_t*	rec,
+	const ulint*	offsets,
+	ulint		n_fields,
+	ulint		fold)
 	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************//**
@@ -852,7 +830,7 @@ rec_convert_dtuple_to_rec(
 	const dtuple_t*		dtuple,	/*!< in: data tuple */
 	ulint			n_ext)	/*!< in: number of
 					externally stored columns */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************//**
 Returns the extra size of an old-style physical record if we know its
 data size and number of fields.
@@ -875,7 +853,7 @@ rec_get_converted_size_comp_prefix(
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
 	ulint*			extra)	/*!< out: extra size */
-	__attribute__((warn_unused_result, nonnull(1,2)));
+	__attribute__((warn_unused_result));
 /**********************************************************//**
 Determines the size of a data tuple in ROW_FORMAT=COMPACT.
 @return total size */
@@ -889,8 +867,7 @@ rec_get_converted_size_comp(
 	ulint			status,	/*!< in: status bits of the record */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
-	ulint*			extra)	/*!< out: extra size */
-	__attribute__((nonnull(1,3)));
+	ulint*			extra);	/*!< out: extra size */
 /**********************************************************//**
 The following function returns the size of a data tuple when converted to
 a physical record.
@@ -902,7 +879,7 @@ rec_get_converted_size(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	const dtuple_t*	dtuple,	/*!< in: data tuple */
 	ulint		n_ext)	/*!< in: number of externally stored columns */
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /**************************************************************//**
 Copies the first n fields of a physical record to a data tuple.
@@ -915,8 +892,7 @@ rec_copy_prefix_to_dtuple(
 	const dict_index_t*	index,		/*!< in: record descriptor */
 	ulint			n_fields,	/*!< in: number of fields
 						to copy */
-	mem_heap_t*		heap)		/*!< in: memory heap */
-	__attribute__((nonnull));
+	mem_heap_t*		heap);		/*!< in: memory heap */
 #endif /* !UNIV_HOTBACKUP */
 /***************************************************************//**
 Validates the consistency of a physical record.
@@ -925,16 +901,14 @@ ibool
 rec_validate(
 /*=========*/
 	const rec_t*	rec,	/*!< in: physical record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull));
+	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 /***************************************************************//**
 Prints an old-style physical record. */
 void
 rec_print_old(
 /*==========*/
 	FILE*		file,	/*!< in: file where to print */
-	const rec_t*	rec)	/*!< in: physical record */
-	__attribute__((nonnull));
+	const rec_t*	rec);	/*!< in: physical record */
 #ifndef UNIV_HOTBACKUP
 /***************************************************************//**
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
@@ -944,8 +918,7 @@ rec_print_comp(
 /*===========*/
 	FILE*		file,	/*!< in: file where to print */
 	const rec_t*	rec,	/*!< in: physical record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull));
+	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 /***************************************************************//**
 Prints a spatial index record. */
 void
@@ -953,8 +926,7 @@ rec_print_mbr_rec(
 /*==========*/
 	FILE*		file,	/*!< in: file where to print */
 	const rec_t*	rec,	/*!< in: physical record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull));
+	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 /***************************************************************//**
 Prints a physical record. */
 void
@@ -962,8 +934,7 @@ rec_print_new(
 /*==========*/
 	FILE*		file,	/*!< in: file where to print */
 	const rec_t*	rec,	/*!< in: physical record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull));
+	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 /***************************************************************//**
 Prints a physical record. */
 void
@@ -971,8 +942,7 @@ rec_print(
 /*======*/
 	FILE*			file,	/*!< in: file where to print */
 	const rec_t*		rec,	/*!< in: physical record */
-	const dict_index_t*	index)	/*!< in: record descriptor */
-	__attribute__((nonnull));
+	const dict_index_t*	index);	/*!< in: record descriptor */
 
 /** Pretty-print a record.
 @param[in,out]	o	output stream
@@ -1094,7 +1064,7 @@ rec_get_trx_id(
 /*===========*/
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index)	/*!< in: clustered index */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 # endif /* UNIV_DEBUG */
 #endif /* UNIV_HOTBACKUP */
 

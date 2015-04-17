@@ -16,7 +16,7 @@
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
-#include "sql_class.h"                    // Query_result_interceptor
+#include "query_result.h"                 // Query_result_interceptor
 #include "sp_pcontext.h"                  // sp_condition_value
 #include "sql_array.h"
 #include "prealloced_array.h"
@@ -242,12 +242,13 @@ public:
 
   /// Create a new sp_cursor instance and push it to the cursor stack.
   ///
+  /// @param thd        Thread handle
   /// @param i          Cursor-push instruction.
   ///
   /// @return error flag.
   /// @retval false on success.
   /// @retval true on error.
-  bool push_cursor(sp_instr_cpush *i);
+  bool push_cursor(THD *thd, sp_instr_cpush *i);
 
   /// Pop and delete given number of sp_cursor instance from the cursor stack.
   ///
@@ -398,18 +399,20 @@ private:
     List<sp_variable> *spvar_list;
     uint field_count;
   public:
-    Query_fetch_into_spvars() {}               /* Remove gcc warning */
+    Query_fetch_into_spvars(THD *thd)
+      : Query_result_interceptor(thd) {}
     uint get_field_count() { return field_count; }
     void set_spvar_list(List<sp_variable> *vars) { spvar_list= vars; }
 
     virtual bool send_eof() { return FALSE; }
     virtual bool send_data(List<Item> &items);
     virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-};
+  };
 
 public:
-  sp_cursor(sp_instr_cpush *i)
-   :m_server_side_cursor(NULL),
+  sp_cursor(THD *thd, sp_instr_cpush *i)
+   :m_result(thd),
+    m_server_side_cursor(NULL),
     m_push_instr(i)
   { }
 

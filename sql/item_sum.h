@@ -19,6 +19,7 @@
 
 /* classes for sum functions */
 
+#include "my_global.h"
 #include "my_tree.h"        // TREE
 #include "item.h"           // Item_result_field
 #include "sql_alloc.h"      // Sql_alloc
@@ -1211,8 +1212,6 @@ class Item_sum_xor :public Item_sum_bit
   User defined aggregates
 */
 
-#ifdef HAVE_DLOPEN
-
 class Item_udf_sum : public Item_sum
 {
   typedef Item_sum super;
@@ -1386,7 +1385,6 @@ public:
   Item *copy_or_same(THD* thd);
 };
 
-#endif /* HAVE_DLOPEN */
 
 C_MODE_START
 int group_concat_key_cmp_with_distinct(const void* arg, const void* key1,

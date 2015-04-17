@@ -642,6 +642,13 @@ btr_cur_will_modify_tree(
 	if (lock_intention >= BTR_INTENTION_BOTH) {
 		/* check insert will cause. BTR_INTENTION_BOTH
 		or BTR_INTENTION_INSERT*/
+
+		/* Once we invoke the btr_cur_limit_optimistic_insert_debug,
+		we should check it here in advance, since the max allowable
+		records in a page is limited. */
+		LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page),
+					      return(true));
+
 		/* needs 2 records' space for the case the single split and
 		insert cannot fit.
 		page_get_max_insert_size_after_reorganize() includes space
@@ -2832,7 +2839,7 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return pointer to inserted record if succeed, else NULL */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 rec_t*
 btr_cur_insert_if_possible(
 /*=======================*/
@@ -2876,7 +2883,7 @@ btr_cur_insert_if_possible(
 /*************************************************************//**
 For an insert, checks the locks and does the undo logging if desired.
 @return DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
-UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,5,6)))
+UNIV_INLINE __attribute__((warn_unused_result))
 dberr_t
 btr_cur_ins_lock_and_undo(
 /*======================*/
@@ -3473,7 +3480,7 @@ btr_cur_pessimistic_insert(
 /*************************************************************//**
 For an update, checks the locks and does the undo logging.
 @return DB_SUCCESS, DB_WAIT_LOCK, or error number */
-UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,6,7)))
+UNIV_INLINE __attribute__((warn_unused_result))
 dberr_t
 btr_cur_upd_lock_and_undo(
 /*======================*/
@@ -5562,17 +5569,20 @@ inexact:
 	return(n_rows);
 }
 
-/*******************************************************************//**
-Estimates the number of rows in a given index range.
+/** Estimates the number of rows in a given index range.
+@param[in]	index	index
+@param[in]	tuple1	range start, may also be empty tuple
+@param[in]	mode1	search mode for range start
+@param[in]	tuple2	range end, may also be empty tuple
+@param[in]	mode2	search mode for range end
 @return estimated number of rows */
 int64_t
 btr_estimate_n_rows_in_range(
-/*=========================*/
-	dict_index_t*	index,	/*!< in: index */
-	const dtuple_t*	tuple1,	/*!< in: range start, may also be empty tuple */
-	page_cur_mode_t	mode1,	/*!< in: search mode for range start */
-	const dtuple_t*	tuple2,	/*!< in: range end, may also be empty tuple */
-	page_cur_mode_t	mode2)	/*!< in: search mode for range end */
+	dict_index_t*	index,
+	const dtuple_t*	tuple1,
+	page_cur_mode_t	mode1,
+	const dtuple_t*	tuple2,
+	page_cur_mode_t	mode2)
 {
 	btr_path_t	path1[BTR_PATH_ARRAY_N_SLOTS];
 	btr_path_t	path2[BTR_PATH_ARRAY_N_SLOTS];
@@ -5944,6 +5954,12 @@ btr_estimate_number_of_different_key_vals(
 	mem_heap_t*	heap		= NULL;
 	ulint*		offsets_rec	= NULL;
 	ulint*		offsets_next_rec = NULL;
+
+	/* For spatial index, there is no such stats can be
+	fetched. */
+	if (dict_index_is_spatial(index)) {
+		return(false);
+	}
 
 	n_cols = dict_index_get_n_unique(index);
 
@@ -7122,11 +7138,11 @@ btr_check_blob_fil_page_type(
 		ulint	flags = fil_space_get_flags(space_id);
 
 #ifndef UNIV_DEBUG /* Improve debug test coverage */
-		if (dict_tf_get_format(flags) == UNIV_FORMAT_A) {
+		if (!DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
 			/* Old versions of InnoDB did not initialize
 			FIL_PAGE_TYPE on BLOB pages.  Do not print
 			anything about the type mismatch when reading
-			a BLOB page that is in Antelope format.*/
+			a BLOB page that may be from old versions. */
 			return;
 		}
 #endif /* !UNIV_DEBUG */

@@ -22,6 +22,7 @@
 #include "sql_tmp_table.h"                     // create_virtual_tmp_table
 #include "sp_instr.h"
 #include "template_utils.h"
+#include "derror.h"
 
 extern "C" void sql_alloc_error_handler(void);
 
@@ -158,7 +159,7 @@ bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 }
 
 
-bool sp_rcontext::push_cursor(sp_instr_cpush *i)
+bool sp_rcontext::push_cursor(THD *thd, sp_instr_cpush *i)
 {
   /*
     We should create cursors on the system heap because:
@@ -167,7 +168,7 @@ bool sp_rcontext::push_cursor(sp_instr_cpush *i)
      - a cursor can be pushed/popped many times in a loop, having these objects
        on callers' mem-root would lead to a memory leak in every iteration.
   */
-  sp_cursor *c= new (std::nothrow) sp_cursor(i);
+  sp_cursor *c= new (std::nothrow) sp_cursor(thd, i);
 
   if (!c)
   {
@@ -514,8 +515,7 @@ bool sp_cursor::open(THD *thd)
 {
   if (m_server_side_cursor)
   {
-    my_message(ER_SP_CURSOR_ALREADY_OPEN, ER(ER_SP_CURSOR_ALREADY_OPEN),
-               MYF(0));
+    my_error(ER_SP_CURSOR_ALREADY_OPEN, MYF(0));
     return true;
   }
 
@@ -527,7 +527,7 @@ bool sp_cursor::close(THD *thd)
 {
   if (! m_server_side_cursor)
   {
-    my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
+    my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }
 
@@ -547,21 +547,20 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 {
   if (! m_server_side_cursor)
   {
-    my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
+    my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }
 
   if (vars->elements != m_result.get_field_count())
   {
-    my_message(ER_SP_WRONG_NO_OF_FETCH_ARGS,
-               ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
+    my_error(ER_SP_WRONG_NO_OF_FETCH_ARGS, MYF(0));
     return true;
   }
 
   DBUG_EXECUTE_IF("bug23032_emit_warning",
                   push_warning(thd, Sql_condition::SL_WARNING,
                                ER_UNKNOWN_ERROR,
-                               ER(ER_UNKNOWN_ERROR)););
+                               ER_THD(thd, ER_UNKNOWN_ERROR)););
 
   m_result.set_spvar_list(vars);
 
@@ -578,7 +577,7 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
   */
   if (! m_server_side_cursor->is_open())
   {
-    my_message(ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA), MYF(0));
+    my_error(ER_SP_FETCH_NO_DATA, MYF(0));
     return true;
   }
 

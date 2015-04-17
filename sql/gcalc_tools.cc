@@ -14,13 +14,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "my_global.h"
-#include "sql_string.h"
 #include "gcalc_tools.h"
-#include "gstream.h"                            // Gis_read_stream
-#include "spatial.h"
+
+#include "prealloced_array.h"                   // Prealloced_array
+#include "spatial.h"                            // Geometry
 #include "sql_class.h"                          // THD
-#include "prealloced_array.h"
 
 #include <algorithm>
 #include <functional>
@@ -165,10 +163,9 @@ const char *Gcalc_function::shape_name(int code)
   Trace spatial operation buffer into debug log
   and optionally into client side warnings.
 */
-void Gcalc_function::debug_print_function_buffer()
+void Gcalc_function::debug_print_function_buffer(THD *thd)
 {
   int i, nelements= function_buffer.length() / function_buffer_item_size;
-  THD *thd= current_thd;
   DBUG_PRINT("info", ("nelements=%d", nelements));
   for (i= 0; i < nelements; i++)
   {

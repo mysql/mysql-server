@@ -47,10 +47,9 @@ SELECT_LEX), by calling explain_unit() for each of them.
 
 #include <my_base.h>
 #include "opt_explain_format.h"
+#include "query_result.h"                // Query_result_send
 
 class JOIN;
-class Query_result;
-class Query_result_interceptor;
 struct TABLE;
 class THD;
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -137,8 +136,10 @@ protected:
   Query_result *interceptor;
 
 public:
-  Query_result_explain(st_select_lex_unit *unit_arg, Query_result *interceptor_arg)
-  : prepared(false), prepared2(false), initialized(false),
+  Query_result_explain(THD *thd, st_select_lex_unit *unit_arg,
+                       Query_result *interceptor_arg)
+  : Query_result_send(thd),
+    prepared(false), prepared2(false), initialized(false),
     interceptor(interceptor_arg)
   { unit= unit_arg; }
 

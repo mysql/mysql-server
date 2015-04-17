@@ -32,7 +32,7 @@ insert into t1 values
 select ST_astext(g) from t1 where ST_Within(g, ST_GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'));
 select 'Contains';
 select ST_astext(g) from t1 where ST_Contains(ST_GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
-select 'Intersects';
+select 'st_Intersects';
 select ST_astext(g) from t1 where ST_Intersects(ST_GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
 select 'Contains';
 select ST_astext(g) from t1 where ST_Contains(ST_GeomFromText('POLYGON((5 1, 7 1, 7 7, 5 7, 3 3, 5 3, 5 1))'), g);
@@ -158,7 +158,7 @@ ST_GeomFromText('POLYGON((525298.67 183511.53,525296.57
 
 SET @a=0x0000000001030000000200000005000000000000000000000000000000000000000000000000002440000000000000000000000000000024400000000000002440000000000000000000000000000024400000000000000000000000000000000000000000000000000000F03F000000000000F03F0000000000000040000000000000F03F00000000000000400000000000000040000000000000F03F0000000000000040000000000000F03F000000000000F03F;
 --error ER_GIS_INVALID_DATA
-SELECT ST_ASTEXT(TOUCHES(@a, ST_GEOMFROMTEXT('point(0 0)'))) t;
+SELECT ST_ASTEXT(ST_TOUCHES(@a, ST_GEOMFROMTEXT('point(0 0)'))) t;
 
 
 --echo #
@@ -418,17 +418,17 @@ select ST_AsText(ST_GeometryFromWKB(ST_AsWKB(GeometryCollection(POINT(0, 0),
                                                       MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1, 1),
                                                                                       Point(0, 0)))))))) as Result;
 
-select st_touches(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))'));
-select st_overlaps(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))'));
-select st_crosses(GeometryFromText('geometrycollection(multipoint(0 0, 1 0, 1 1, 0 1, 0 0))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))'));
-select st_astext(st_union(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
-select st_astext(st_union(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
-select st_astext(st_intersection(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
-select st_astext(st_intersection(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
-select st_astext(st_difference(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
-select st_astext(st_difference(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
-select st_astext(st_symdifference(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
-select st_astext(st_symdifference(GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
+select st_touches(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+select st_overlaps(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))'));
+select st_crosses(ST_GeometryFromText('geometrycollection(multipoint(0 0, 1 0, 1 1, 0 1, 0 0))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))'));
+select st_astext(st_union(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
+select st_astext(st_union(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
+select st_astext(st_intersection(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
+select st_astext(st_intersection(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
+select st_astext(st_difference(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
+select st_astext(st_difference(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
+select st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
+select st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
 
 select ST_astext(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))));
 --error ER_GIS_INVALID_DATA
@@ -647,10 +647,10 @@ SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GeometryCollection(POLYGON((0 0)))
 --error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(ST_GeomFromText('POLYGON((0 0, 1 1))'), ST_GeomFromText('POLYGON((1 0, 0 1))'));
 
-select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), geomfromtext('point(2 2)')));
-select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), geomfromtext('point(-22 -11)')));
+select st_astext(st_makeenvelope(st_geomfromtext('point(0 0)'), st_geomfromtext('point(2 2)')));
+select st_astext(st_makeenvelope(st_geomfromtext('point(0 0)'), st_geomfromtext('point(-22 -11)')));
 --replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
-select st_distance_sphere(geomfromtext('point(-120 45)'), geomfromtext('point(30.24 68.37)'));
+select st_distance_sphere(st_geomfromtext('point(-120 45)'), st_geomfromtext('point(30.24 68.37)'));
 
 --echo #
 --echo # Bug #19552241   MBRTOUCHES() FUNCTION RETURNS INCORRECT RESULT
@@ -745,18 +745,18 @@ insert into tbl_polygon (id, geom) values
 insert into tbl_polygon (id, geom) values
 ('POLY2',ST_GeomFromText('POLYGON((0 0,0 -10,10 -10,10 0,0 0))'));
 
-select 100, area(t.geom) from tbl_polygon t
+select 100, st_area(t.geom) from tbl_polygon t
 where t.id like 'POLY%'; 
 
-select 1, touches(t.geom, p.geom)
+select 1, ST_touches(t.geom, p.geom)
 from tbl_polygon t, tbl_polygon p
 where t.id = 'POLY1' and p.id = 'POLY2'; 
 
-select 1, intersects(t.geom, p.geom)
+select 1, st_intersects(t.geom, p.geom)
 from tbl_polygon t, tbl_polygon p
 where t.id = 'POLY1' and p.id = 'POLY2'; 
 
-select 0, overlaps(t.geom, p.geom)
+select 0, st_overlaps(t.geom, p.geom)
 from tbl_polygon t, tbl_polygon p
 where t.id = 'POLY1' and p.id = 'POLY2'; 
 
@@ -998,11 +998,11 @@ SELECT ST_CONTAINS(ST_UNION(ST_INTERSECTION(ST_GEOMFROMTEXT('POINT(-3 3)'),
                    ST_UNION(ST_GEOMFROMTEXT('POINT(4 1)'), 
                             ST_GEOMFROMTEXT('MULTIPOINT(-10 -10,5 -2,-6 -7,1 5,-3 0)'))) as result;
 
-SELECT ST_CONTAINS(ST_UNION(ST_INTERSECTION(GEOMFROMTEXT('POINT(-3 3)'),
-                                            GEOMFROMTEXT('POLYGON((8 3,-2 9,-10 2,-10 -9,7 -1,4 1,7 6,5 -10,5 3,2 1,-10 0))')), 
-                            ST_CONVEXHULL(GEOMFROMTEXT('MULTIPOINT(8 -8,-7 5)'))), 
-                   ST_UNION(GEOMFROMTEXT('POINT(4 1)'), 
-                            GEOMFROMTEXT('MULTIPOINT(-10 -10,5 -2,-6 -7,1 5,-3 0)'))) as result;
+SELECT ST_CONTAINS(ST_UNION(ST_INTERSECTION(st_GEOMFROMTEXT('POINT(-3 3)'),
+                                            st_GEOMFROMTEXT('POLYGON((8 3,-2 9,-10 2,-10 -9,7 -1,4 1,7 6,5 -10,5 3,2 1,-10 0))')), 
+                            ST_CONVEXHULL(st_GEOMFROMTEXT('MULTIPOINT(8 -8,-7 5)'))), 
+                   ST_UNION(st_GEOMFROMTEXT('POINT(4 1)'), 
+                            st_GEOMFROMTEXT('MULTIPOINT(-10 -10,5 -2,-6 -7,1 5,-3 0)'))) as result;
 
 
 --echo #

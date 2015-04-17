@@ -105,6 +105,11 @@ Created 2/16/1996 Heikki Tuuri
 # include "ut0crc32.h"
 # include "ut0new.h"
 
+#ifdef HAVE_LZO1X
+#include <lzo/lzo1x.h>
+extern bool srv_lzo_disabled;
+#endif /* HAVE_LZO1X */
+
 /** Log sequence number immediately after startup */
 lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
@@ -166,7 +171,6 @@ static char*	srv_monitor_file_name;
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
 /** */
-#define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
 #ifdef UNIV_PFS_THREAD
@@ -226,8 +230,8 @@ srv_file_check_mode(
 
 		/* Note: stat.rw_perm is only valid of files */
 
-		if (stat.type == OS_FILE_TYPE_FILE
-		    || stat.type == OS_FILE_TYPE_BLOCK) {
+		if (stat.type == OS_FILE_TYPE_FILE) {
+
 			if (!stat.rw_perm) {
 				const char*	mode = srv_read_only_mode
 					? "read" : "read-write";
@@ -319,7 +323,7 @@ DECLARE_THREAD(io_handler_thread)(
 /*********************************************************************//**
 Creates a log file.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 create_log_file(
 /*============*/
@@ -433,17 +437,21 @@ create_log_files(
 
 	logfile0 = fil_node_create(
 		logfilename, (ulint) srv_log_file_size,
-		log_space, false);
+		log_space, false, false);
 	ut_a(logfile0);
 
 	for (unsigned i = 1; i < srv_n_log_files; i++) {
+
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
 
 		if (!fil_node_create(logfilename,
 				     (ulint) srv_log_file_size,
-				     log_space, false)) {
-			ib::error() << "Cannot create file node for log file "
+				     log_space, false, false)) {
+
+			ib::error()
+				<< "Cannot create file node for log file "
 				<< logfilename;
+
 			return(DB_ERROR);
 		}
 	}
@@ -512,7 +520,7 @@ create_log_files_rename(
 /*********************************************************************//**
 Opens a log file.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 open_log_file(
 /*==========*/
@@ -607,19 +615,29 @@ static
 dberr_t
 srv_undo_tablespace_open(
 /*=====================*/
-	const char*	name,		/*!< in: tablespace name */
+	const char*	name,		/*!< in: tablespace file name */
 	ulint		space_id)	/*!< in: tablespace id */
 {
 	os_file_t	fh;
 	bool		ret;
 	ulint		flags;
 	dberr_t		err	= DB_ERROR;
+	char		undo_name[sizeof "innodb_undo000"];
+
+	ut_snprintf(undo_name, sizeof(undo_name),
+		   "innodb_undo%03u", static_cast<unsigned>(space_id));
 
 	if (!srv_file_check_mode(name)) {
 		ib::error() << "UNDO tablespaces must be " <<
 			(srv_read_only_mode ? "writable" : "readable") << "!";
 
 		return(DB_ERROR);
+	}
+
+	err = fil_space_undo_check_if_opened(name, space_id);
+
+	if (err != DB_TABLESPACE_NOT_FOUND) {
+		return(err);
 	}
 
 	fh = os_file_create(
@@ -638,10 +656,16 @@ srv_undo_tablespace_open(
 		os_offset_t	size;
 		fil_space_t*	space;
 
+		bool	atomic_write;
+
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 		if (!srv_use_doublewrite_buf) {
-			fil_fusionio_enable_atomic_write(fh);
+			atomic_write = fil_fusionio_enable_atomic_write(fh);
+		} else {
+			atomic_write = false;
 		}
+#else
+		atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 		size = os_file_get_size(fh);
@@ -663,7 +687,7 @@ srv_undo_tablespace_open(
 		flags = fsp_flags_init(
 			univ_page_size, false, false, false, false);
 		space = fil_space_create(
-			name, space_id, flags, FIL_TYPE_TABLESPACE);
+			undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
 
 		ut_a(fil_validate());
 		ut_a(space);
@@ -674,7 +698,9 @@ srv_undo_tablespace_open(
 		is 64 bits. It is OK to cast the n_pages to ulint because
 		the unit has been scaled to pages and page number is always
 		32 bits. */
-		if (fil_node_create(name, (ulint) n_pages, space, false)) {
+		if (fil_node_create(
+			name, (ulint) n_pages, space, false, atomic_write)) {
+
 			err = DB_SUCCESS;
 		}
 	}
@@ -953,16 +979,14 @@ srv_undo_tablespaces_init(
 	if (create_new_db) {
 		mtr_t	mtr;
 
-		mtr_start(&mtr);
-
 		/* The undo log tablespace */
 		for (i = 1; i <= n_undo_tablespaces; ++i) {
-
+			mtr_start(&mtr);
+			mtr.set_undo_space(i);
 			fsp_header_init(
 				i, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+			mtr_commit(&mtr);
 		}
-
-		mtr_commit(&mtr);
 	}
 
 	if (!undo::Truncate::s_fix_up_spaces.empty()) {
@@ -1068,11 +1092,13 @@ srv_start_wait_for_purge_to_start()
 }
 
 /** Create the temporary file tablespace.
+@param[in]	create_new_db	whether we are creating a new database
 @param[in,out]	tmp_space	Shared Temporary SysTablespace
 @return DB_SUCCESS or error code. */
 static
 dberr_t
 srv_open_tmp_tablespace(
+	bool		create_new_db,
 	SysTablespace*	tmp_space)
 {
 	ulint	sum_of_new_sizes;
@@ -1109,7 +1135,7 @@ srv_open_tmp_tablespace(
 			<< tmp_space->name() << ".";
 
 	} else if ((err = tmp_space->open_or_create(
-			    true, &sum_of_new_sizes, NULL))
+			    true, create_new_db, &sum_of_new_sizes, NULL))
 		   != DB_SUCCESS) {
 
 		ib::error() << "Unable to create the shared "
@@ -1171,11 +1197,10 @@ srv_start_state_is_set(
 	return(srv_start_state & state);
 }
 
-/****************************************************************//**
+/**
 Shutdown all background threads created by InnoDB. */
 void
 srv_shutdown_all_bg_threads()
-/*=========================*/
 {
 	ulint	i;
 
@@ -1372,7 +1397,6 @@ innobase_start_or_create_for_mysql(void)
 	ulint		tablespace_size_in_header;
 	dberr_t		err;
 	ulint		srv_n_log_files_found = srv_n_log_files;
-	ulint		io_limit;
 	mtr_t		mtr;
 	purge_pq_t*	purge_queue;
 	char		logfilename[10000];
@@ -1394,6 +1418,24 @@ innobase_start_or_create_for_mysql(void)
 		doublewrite mechanism completely. */
 		srv_use_doublewrite_buf = FALSE;
 	}
+
+#ifdef HAVE_LZO1X
+	if (lzo_init() != LZO_E_OK) {
+		ib::warn() << "lzo_init() failed, support disabled";
+		srv_lzo_disabled = true;
+	} else {
+		ib::info() << "LZO1X support available";
+		srv_lzo_disabled = false;
+	}
+#endif /* HAVE_LZO1X */
+
+#ifdef UNIV_LINUX
+# ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
+	ib::info() << "PUNCH HOLE support available";
+# else
+	ib::info() << "PUNCH HOLE support not available";
+# endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
+#endif /* UNIV_LINUX */
 
 	if (sizeof(ulint) != sizeof(void*)) {
 		ib::error() << "Size of InnoDB's ulint is " << sizeof(ulint)
@@ -1687,19 +1729,7 @@ innobase_start_or_create_for_mysql(void)
 
 	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
 
-	io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
-
-	/* On Windows when using native aio the number of aio requests
-	that a thread can handle at a given time is limited to 32
-	i.e.: SRV_N_PENDING_IOS_PER_THREAD */
-# ifdef _WIN32
-	if (srv_use_native_aio) {
-		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
-	}
-# endif /* _WIN32 */
-
-	if (!os_aio_init(io_limit,
-			 srv_n_read_io_threads,
+	if (!os_aio_init(srv_n_read_io_threads,
 			 srv_n_write_io_threads,
 			 SRV_MAX_N_PENDING_SYNC_IOS)) {
 
@@ -1846,7 +1876,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint	sum_of_new_sizes;
 
 	err = srv_sys_space.open_or_create(
-		false, &sum_of_new_sizes, &flushed_lsn);
+		false, create_new_db, &sum_of_new_sizes, &flushed_lsn);
 
 	switch (err) {
 	case DB_SUCCESS:
@@ -1992,7 +2022,7 @@ innobase_start_or_create_for_mysql(void)
 
 		/* Disable the doublewrite buffer for log files. */
 		fil_space_t*	log_space = fil_space_create(
-			logfilename + dirnamelen,
+			"innodb_redo_log",
 			SRV_LOG_SPACE_FIRST_ID,
 			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
@@ -2009,7 +2039,7 @@ innobase_start_or_create_for_mysql(void)
 
 			if (!fil_node_create(logfilename,
 					     (ulint) srv_log_file_size,
-					     log_space, false)) {
+					     log_space, false, false)) {
 				return(srv_init_abort(DB_ERROR));
 			}
 		}
@@ -2027,35 +2057,27 @@ files_checked:
 
 	fil_open_log_and_system_tablespace_files();
 
-	err = srv_undo_tablespaces_init(
-		create_new_db,
-		srv_undo_tablespaces,
-		&srv_undo_tablespaces_open);
-
-	/* If the force recovery is set very high then we carry on regardless
-	of all errors. Basically this is fingers crossed mode. */
-
-	if (err != DB_SUCCESS
-	    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-
-		return(srv_init_abort(err));
-	}
-
 	/* Initialize objects used by dict stats gathering thread, which
 	can also be used by recovery if it tries to drop some table */
 	if (!srv_read_only_mode) {
 		dict_stats_thread_init();
 	}
 
-	trx_sys_file_format_init();
-
 	trx_sys_create();
 
 	if (create_new_db) {
-
 		ut_a(!srv_read_only_mode);
 
+		err = srv_undo_tablespaces_init(
+			true, srv_undo_tablespaces,
+			&srv_undo_tablespaces_open);
+
+		if (err != DB_SUCCESS) {
+			return(srv_init_abort(err));
+		}
+
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		fsp_header_init(0, sum_of_new_sizes, &mtr);
 
@@ -2089,27 +2111,8 @@ files_checked:
 		create_log_files_rename(
 			logfilename, dirnamelen, flushed_lsn, logfile0);
 
+		buf_flush_sync_all_buf_pools();
 	} else {
-
-		/* Check if we support the max format that is stamped
-		on the system tablespace.
-		Note:  We are NOT allowed to make any modifications to
-		the TRX_SYS_PAGE_NO page before recovery  because this
-		page also contains the max_trx_id etc. important system
-		variables that are required for recovery.  We need to
-		ensure that we return the system to a state where normal
-		recovery is guaranteed to work. We do this by
-		invalidating the buffer cache, this will force the
-		reread of the page and restoration to its last known
-		consistent state, this is REQUIRED for the recovery
-		process to work. */
-		err = trx_sys_file_format_max_check(
-			srv_max_file_format_at_startup);
-
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(err));
-		}
-
 		/* Invalidate the buffer pool to ensure that we reread
 		the page that we read above, during recovery.
 		Note that this is not as heavy weight as it seems. At
@@ -2137,7 +2140,25 @@ files_checked:
 		}
 
 		if (err != DB_SUCCESS) {
-			return(srv_init_abort(DB_ERROR));
+			return(srv_init_abort(err));
+		}
+
+		err = srv_undo_tablespaces_init(
+			false, srv_undo_tablespaces,
+			&srv_undo_tablespaces_open);
+
+		if (err != DB_SUCCESS
+		    && srv_force_recovery
+		    < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+
+			if (err == DB_TABLESPACE_NOT_FOUND) {
+				/* A tablespace was not found.
+				The user must force recovery. */
+
+				srv_fatal_error();
+			}
+
+			return(srv_init_abort(err));
 		}
 
 		purge_queue = trx_sys_init_at_db_start();
@@ -2164,6 +2185,10 @@ files_checked:
 				" to check that they are ok!"
 				" It may be safest to recover your"
 				" InnoDB database from a backup!";
+		}
+
+		if (!srv_force_recovery && !srv_read_only_mode) {
+			buf_flush_sync_all_buf_pools();
 		}
 
 		/* The purge system needs to create the purge view and
@@ -2288,32 +2313,27 @@ files_checked:
 
 		recv_recovery_rollback_active();
 
-		/* It is possible that file_format tag has never
-		been set. In this case we initialize it to minimum
-		value.  Important to note that we can do it ONLY after
-		we have finished the recovery process so that the
-		image of TRX_SYS_PAGE_NO is not stale. */
-		trx_sys_file_format_tag_init();
-	}
+		if (sum_of_new_sizes > 0) {
+			/* New data file(s) were added */
+			mtr_start(&mtr);
+			mtr.set_sys_modified();
 
-	if (!create_new_db && sum_of_new_sizes > 0) {
-		/* New data file(s) were added */
-		mtr_start(&mtr);
+			fsp_header_inc_size(0, sum_of_new_sizes, &mtr);
 
-		fsp_header_inc_size(0, sum_of_new_sizes, &mtr);
+			mtr_commit(&mtr);
 
-		mtr_commit(&mtr);
+			/* Immediately write the log record about
+			increased tablespace size to disk, so that it
+			is durable even if mysqld would crash
+			quickly */
 
-		/* Immediately write the log record about increased tablespace
-		size to disk, so that it is durable even if mysqld would crash
-		quickly */
-
-		log_buffer_flush_to_disk();
+			log_buffer_flush_to_disk();
+		}
 	}
 
 	/* Open temp-tablespace and keep it open until shutdown. */
 
-	err = srv_open_tmp_tablespace(&srv_tmp_space);
+	err = srv_open_tmp_tablespace(create_new_db, &srv_tmp_space);
 
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
@@ -2396,7 +2416,6 @@ files_checked:
 	operations */
 
 	if (!srv_read_only_mode) {
-
 		os_thread_create(
 			srv_master_thread,
 			NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
@@ -2640,9 +2659,8 @@ innobase_shutdown_for_mysql(void)
 
 	ibuf_close();
 	log_shutdown();
-	lock_sys_close();
-	trx_sys_file_format_close();
 	trx_sys_close();
+	lock_sys_close();
 
 	trx_pool_close();
 

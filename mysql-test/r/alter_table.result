@@ -2654,24 +2654,23 @@ SET sql_mode= '';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Test with '767' as index size limit.
-SET GLOBAL innodb_large_prefix=OFF;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB;
-INSERT INTO t1 VALUES('a');
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+DROP TABLE t1;
+CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) ENGINE= INNODB,
+ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES('a');
+ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(3073), ALGORITHM= INPLACE;
 Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	1071	Specified key was too long; max key length is 3072 bytes
 # Without patch, the below statement will assert in a debug build.
 SELECT COUNT(*) FROM t1 WHERE fld1= 'a';
 COUNT(*)
 1
 # Cleanup.
 DROP TABLE t1;
-SET GLOBAL innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-# Test with innodb large prefix indexes(Upto 3072).
+# Test with innodb prefix indexes up to 3072 bytes.
 CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) ENGINE= INNODB
 ROW_FORMAT= DYNAMIC;
 INSERT INTO t1 VALUES('a');
@@ -3365,3 +3364,45 @@ ALTER TABLE t TABLESPACE s;
 # Drop table and tablespace.
 DROP TABLE t;
 DROP TABLESPACE s ENGINE InnoDB;
+#
+# Bug#20279241 - ALTER TABLE ... CHARACTER SET UTF8, CONVERT TO
+#                CHARACTER SET LATIN1 SHOULD FAIL
+#
+CREATE TABLE t1 (f1 INT);
+# Case 1: Alter table with CHARACTER SET X, CHARACTER SET X
+#         ALTER table operation should pass.
+ALTER TABLE t1 CHARACTER SET utf8, CHARACTER SET utf8;
+# Case 2: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET X
+#         ALTER table operation should pass.
+ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+# Case 3: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET X
+#         ALTER table operation should pass.
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET utf8;
+# Case 4: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET X
+#         ALTER table operation should pass.
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
+# Case 5: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y
+#         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8' and 'CHARACTER SET latin1'
+# Case 6: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET Y
+#         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET latin1;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8' and 'CHARACTER SET latin1'
+# Case 7: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET Y
+#         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
+ERROR HY000: Conflicting declarations: 'CHARACTER SET utf8' and 'CHARACTER SET latin1'
+# Case 8: Alter table with CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
+#         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+ALTER TABLE t1 CHARACTER SET utf8 COLLATE latin1_danish_ci;
+ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
+# Case 9: Alter table with CONVERT TO CHARACTER SET X COLLATE INCORRECT_COLLATION_NAME
+#         Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
+# Case 10: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y COLLATE INCORRECT_COLLATION_NAME
+#          Alter table operation should fail with an error "ER_COLLATION_CHARSET_MISMATCH"
+ALTER TABLE t1 CHARACTER SET latin1, CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
+ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
+DROP TABLE t1;

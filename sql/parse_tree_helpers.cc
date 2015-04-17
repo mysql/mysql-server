@@ -20,6 +20,8 @@
 #include "sp_head.h"
 #include "sp_instr.h"
 #include "auth/auth_common.h"
+#include "current_thd.h"
+#include "derror.h"
 
 
 /**
@@ -96,7 +98,7 @@ bool setup_select_in_parentheses(SELECT_LEX *sel)
       sel->master_unit()->first_select()->linkage ==
       UNION_TYPE)
   {
-    my_syntax_error(ER(ER_SYNTAX_ERROR));
+    my_syntax_error(ER_THD(current_thd, ER_SYNTAX_ERROR));
     return true;
   }
   if (sel->linkage == UNION_TYPE &&
@@ -132,7 +134,7 @@ void my_syntax_error(const char *s)
 
   /* Push an error into the diagnostic area */
   ErrConvString err(yytext, thd->variables.character_set_client);
-  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
+  my_printf_error(ER_PARSE_ERROR,  ER_THD(thd, ER_PARSE_ERROR), MYF(0), s,
                   err.ptr(), lip->yylineno);
 }
 

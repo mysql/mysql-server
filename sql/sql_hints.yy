@@ -22,6 +22,8 @@
 #include "sql_class.h"
 #include "parse_tree_hints.h"
 #include "sql_lex_hints.h"
+#include "sql_const.h"
+#include "derror.h"
 
 #define NEW_PTN new (thd->mem_root)
 %}
@@ -44,17 +46,24 @@
 
 %token BKA_HINT
 %token BNL_HINT
+%token DUPSWEEDOUT_HINT
+%token FIRSTMATCH_HINT
 %token ICP_HINT
 %token INDEX_MERGE_HINT
+%token INTOEXISTS_HINT
+%token LOOSESCAN_HINT
+%token MATERIALIZATION_HINT
 %token NO_BKA_HINT
 %token NO_BNL_HINT
 %token NO_ICP_HINT
 %token NO_INDEX_MERGE_HINT
 %token NO_MRR_HINT
 %token NO_RANGE_OPTIMIZATION_HINT
+%token NO_SEMIJOIN_HINT
 %token MRR_HINT
-
 %token QB_NAME_HINT
+%token SEMIJOIN_HINT
+%token SUBQUERY_HINT
 
 /* Other tokens */
 
@@ -77,6 +86,7 @@
   max_execution_time_hint
   index_level_hint
   table_level_hint
+  qb_level_hint
   qb_name_hint
 
 %type <hint_list> hint_list
@@ -102,6 +112,9 @@
   HINT_ARG_QB_NAME
   opt_qb_name
 
+%type <ulong_num>
+  semijoin_strategy semijoin_strategies
+  subquery_strategy
 %%
 
 
@@ -131,6 +144,7 @@ hint_list:
 hint:
           index_level_hint
         | table_level_hint
+        | qb_level_hint
         | qb_name_hint
         | max_execution_time_hint
         ;
@@ -251,6 +265,55 @@ opt_qb_name:
           /* empty */ { $$= NULL_CSTR; }
         | HINT_ARG_QB_NAME
         ;
+
+qb_level_hint:
+          SEMIJOIN_HINT '(' opt_qb_name semijoin_strategies ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, SEMIJOIN_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          NO_SEMIJOIN_HINT '(' opt_qb_name semijoin_strategies ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, FALSE, SEMIJOIN_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          |
+          SUBQUERY_HINT '(' opt_qb_name subquery_strategy ')'
+          {
+            $$= NEW_PTN PT_qb_level_hint($3, TRUE, SUBQUERY_HINT_ENUM, $4);
+            if ($$ == NULL)
+              YYABORT; // OOM
+          }
+          ;
+
+semijoin_strategies:
+          /* empty */ { $$= 0; }
+	| semijoin_strategy
+          {
+            $$= $1;
+          }
+        | semijoin_strategies ',' semijoin_strategy
+          {
+            $$= $1 | $3;
+          }
+        ;
+
+semijoin_strategy:
+          FIRSTMATCH_HINT      { $$= OPTIMIZER_SWITCH_FIRSTMATCH; }
+        | LOOSESCAN_HINT       { $$= OPTIMIZER_SWITCH_LOOSE_SCAN; }
+        | MATERIALIZATION_HINT { $$= OPTIMIZER_SWITCH_MATERIALIZATION; }
+        | DUPSWEEDOUT_HINT     { $$= OPTIMIZER_SWITCH_DUPSWEEDOUT; }
+        ;
+
+subquery_strategy:
+          MATERIALIZATION_HINT { $$=
+                                   Item_exists_subselect::EXEC_MATERIALIZATION; }
+        | INTOEXISTS_HINT      { $$= Item_exists_subselect::EXEC_EXISTS; }
+        ;
+
 
 table_level_hint:
           table_level_hint_type_on '(' opt_hint_param_table_list ')'

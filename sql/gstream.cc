@@ -20,8 +20,8 @@
 
 #include "gstream.h"
 #include "mysql/mysql_lex_string.h"              // LEX_STRING
-/* key_memory_Gis_read_stream_err_msg */
-#include "mysqld.h"
+#include "m_string.h"                            // my_stpcpy
+#include "psi_memory_key.h"
 
 enum Gis_read_stream::enum_tok_types Gis_read_stream::get_next_toc_type()
 {

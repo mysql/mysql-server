@@ -16,6 +16,7 @@
 
 #include "mdl.h"
 #include "debug_sync.h"
+#include "prealloced_array.h"
 #include <lf.h>
 #include <mysqld_error.h>
 #include <mysql/plugin.h>
@@ -24,7 +25,6 @@
 #include <mysql/psi/mysql_mdl.h>
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
-#include "sql_class.h"
 #include <my_murmur3.h>
 #include <algorithm>
 #include <functional>
@@ -1183,7 +1183,7 @@ void MDL_map::destroy()
                                    (i.e. it is an object for GLOBAL or COMMIT
                                    namespaces).
 
-  @retval MY_ERRPTR      - Failure (OOM)
+  @retval MY_LF_ERRPTR   - Failure (OOM)
   @retval other-non-NULL - MDL_lock object found.
   @retval NULL           - Object not found.
 */
@@ -1216,7 +1216,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   lock= static_cast<MDL_lock *>(lf_hash_search(&m_locks, pins, mdl_key->ptr(),
                                           mdl_key->length()));
 
-  if (lock == NULL || lock == MY_ERRPTR)
+  if (lock == NULL || lock == MY_LF_ERRPTR)
   {
     lf_hash_search_unpin(pins);
     *pinned= false; // Avoid warnings on older compilers.
@@ -1269,7 +1269,7 @@ MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
       my_atomic_add32(&m_unused_lock_objects, 1);
     }
   }
-  if (lock == MY_ERRPTR)
+  if (lock == MY_LF_ERRPTR)
   {
     /* If OOM in lf_hash_search. */
     return NULL;
@@ -1331,7 +1331,7 @@ void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
                                             pins, &mdl_lock_match_unused,
                                             ctx->get_random()));
 
-  if (lock == NULL || lock == MY_ERRPTR)
+  if (lock == NULL || lock == MY_LF_ERRPTR)
   {
     /*
       We were unlucky and no unused objects were found. This can happen,
@@ -3596,7 +3596,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       break;
     case MDL_wait::KILLED:
-      if ((get_thd())->killed == THD::KILL_TIMEOUT)
+      if (get_owner()->is_killed() == ER_QUERY_TIMEOUT)
         my_error(ER_QUERY_TIMEOUT, MYF(0));
       else
         my_error(ER_QUERY_INTERRUPTED, MYF(0));
@@ -4418,7 +4418,7 @@ bool MDL_context::find_lock_owner(const MDL_key *mdl_key,
     return true;
 
 retry:
-  if ((lock= mdl_locks.find(m_pins, mdl_key, &pinned)) == MY_ERRPTR)
+  if ((lock= mdl_locks.find(m_pins, mdl_key, &pinned)) == MY_LF_ERRPTR)
     return true;
 
   /* No MDL_lock object, no owner, nothing to visit. */

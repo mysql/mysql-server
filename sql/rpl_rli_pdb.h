@@ -239,23 +239,7 @@ public:
   /* the being assigned group index in GAQ */
   ulong assigned_group_index;
 
-  Slave_committed_queue (const char *log, ulong max, uint n)
-    : circular_buffer_queue<Slave_job_group>(max), inited(false),
-      last_done(key_memory_Slave_job_group_group_relay_log_name)
-  {
-    if (max >= (ulong) -1 || !inited_queue)
-      return;
-    else
-      inited= TRUE;
-
-    last_done.resize(n);
-
-    lwm.group_relay_log_name=
-      (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
-                         FN_REFLEN + 1, MYF(0));
-    lwm.group_relay_log_name[0]= 0;
-    lwm.sequence_number= SEQ_UNINIT;
-  }
+  Slave_committed_queue (const char *log, ulong max, uint n);
 
   ~Slave_committed_queue ()
   {
@@ -464,7 +448,7 @@ public:
     of the last executing transaction if no transaction is currently
     executing.  This is used to fill the last_seen_transaction column
     of the table
-    performance_schema.replication_execute_status_by_worker.
+    performance_schema.replication_applier_status_by_worker.
   */
   Gtid_specification currently_executing_gtid;
 

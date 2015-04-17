@@ -18,12 +18,12 @@
 
 #include "my_global.h"
 
+#include "decimal.h"                            // E_DEC_OOM
 #include "my_base.h"                            // ha_storage_media
 #include "my_compare.h"                         // portable_sizeof_char_ptr
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "binary_log_funcs.h"                   // my_time_binary_length
 #include "handler.h"                            // column_format_type
-#include "mysqld.h"                             // system_charset_info
 #include "mysqld_error.h"                       // ER_*
 #include "sql_error.h"                          // Sql_condition
 #include "sql_string.h"                         // String
@@ -601,10 +601,10 @@ public:
   const char	**table_name, *field_name;
   LEX_STRING	comment;
   /* Field is part of the following keys */
-  key_map key_start;                /* Keys that starts with this field */
-  key_map part_of_key;              /* All keys that includes this field */
-  key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
-  key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
+  Key_map key_start;                /* Keys that starts with this field */
+  Key_map part_of_key;              /* All keys that includes this field */
+  Key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
+  Key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
   /* 
     We use three additional unireg types for TIMESTAMP to overcome limitation 
     of current binary format of .frm file. We'd like to be able to support 
@@ -2548,10 +2548,7 @@ protected:
     check_date(), number_to_datetime(), str_to_datetime().
     Similar to the above when we don't have a THD value.
   */
-  my_time_flags_t date_flags()
-  {
-    return date_flags(table ? table->in_use : current_thd);
-  }
+  my_time_flags_t date_flags();
 
   /**
     Set a single warning using make_truncated_value_warning().
@@ -2581,7 +2578,7 @@ public:
                  enum utype unireg_check_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field(ptr_arg,
-           len_arg + ((dec= normalize_dec(dec_arg)) ? dec + 1 : 0),
+           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            null_ptr_arg, null_bit_arg,
            unireg_check_arg, field_name_arg)
     { flags|= BINARY_FLAG; }
@@ -2595,7 +2592,7 @@ public:
   Field_temporal(bool maybe_null_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field((uchar *) 0, 
-           len_arg + ((dec= normalize_dec(dec_arg)) ? dec + 1 : 0),
+           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            maybe_null_arg ? (uchar *) "" : 0, 0,
            NONE, field_name_arg)
     { flags|= BINARY_FLAG; }
@@ -3626,9 +3623,8 @@ public:
                   l_char_length <= 16777215 ? 3 : 4;
     }
   }
-  Field_blob(uint32 packlength_arg)
-    :Field_longstr((uchar*) 0, 0, (uchar*) "", 0, NONE, "temp", system_charset_info),
-    packlength(packlength_arg) {}
+  explicit Field_blob(uint32 packlength_arg);
+
   /* Note that the default copy constructor is used, in clone() */
   enum_field_types type() const { return MYSQL_TYPE_BLOB;}
   bool match_collation_to_optimize_range() const { return true; }

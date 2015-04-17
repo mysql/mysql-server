@@ -19,8 +19,10 @@
 
 #include "my_global.h"                  /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "violite.h"                    /* SSL_type */
+#include "mysql_time.h"                 /* MYSQL_TIME */
 
 #include "auth_common.h"
+#include "table.h"                      /* LEX_ALTER */
 
 class ACL_USER;
 class ACL_PROXY_USER;
@@ -28,6 +30,7 @@ class GRANT_NAME;
 class GRANT_TABLE;
 class GRANT_COLUMN;
 struct TABLE;
+typedef struct user_resources USER_RESOURCES;
 
 /* sql_authentication */
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);
@@ -120,10 +123,11 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                           const char *db, const char *routine_name,
                           bool is_proc, ulong rights, bool revoke_grant);
 int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
-int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
+int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to);
 
 /* sql_authorization */
+bool is_privileged_user_for_credential_change(THD *thd);
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 

@@ -70,7 +70,7 @@ fsp_free_extent(
 /********************************************************************//**
 Marks a page used. The page must reside within the extents of the given
 segment. */
-static __attribute__((nonnull))
+static
 void
 fseg_mark_page_used(
 /*================*/
@@ -215,8 +215,8 @@ fsp_flags_to_dict_tf(
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
 They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
-The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
-so they should have a file format number plus the DICT_TF_COMPACT bit set.
+The newer row formats, COMPRESSED and DYNAMIC, will have at least
+the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
 bool
@@ -241,7 +241,7 @@ fsp_flags_is_valid(
 		return(true);
 	}
 
-	/* Barracuda row formats COMPRESSED and DYNAMIC use a feature called
+	/* Row_FORMAT=COMPRESSED and ROW_FORMAT=DYNAMIC use a feature called
 	ATOMIC_BLOBS which builds on the page structure introduced for the
 	COMPACT row format by allowing long fields to be broken into prefix
 	and externally stored parts. So if it is Post_antelope, it uses
@@ -275,9 +275,6 @@ fsp_flags_is_valid(
 		return(false);
 	}
 
-#if UNIV_FORMAT_MAX != UNIV_FORMAT_B
-# error UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations.
-#endif
 #if FSP_FLAGS_POS_UNUSED != 13
 # error You have added a new FSP_FLAG without adding a validation check.
 #endif
@@ -286,7 +283,7 @@ fsp_flags_is_valid(
 }
 
 /** Check if tablespace is system temporary.
-@param[in]	space_id	Tablespace ID
+@param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
 bool
 fsp_is_system_temporary(
@@ -296,7 +293,7 @@ fsp_is_system_temporary(
 }
 
 /** Check if checksum is disabled for the given space.
-@param[in]	space_id	Tablespace ID
+@param[in]	space_id	tablespace ID
 @return true if checksum is disabled for given space. */
 bool
 fsp_is_checksum_disabled(
@@ -306,8 +303,8 @@ fsp_is_checksum_disabled(
 }
 
 /** Check if tablespace is file-per-table.
-@param[in]	space_id	Tablespace ID
-@param[in]	fsp_flags	Tablespace Flags
+@param[in]	space_id	tablespace ID
+@param[in]	fsp_flags	tablespace flags
 @return true if tablespace is file-per-table. */
 bool
 fsp_is_file_per_table(
@@ -1053,15 +1050,15 @@ fsp_try_extend_data_file_with_pages(
 @param[in,out]	header	tablespace header
 @param[in,out]	mtr	mini-transaction
 @return whether the tablespace was extended */
-static UNIV_COLD __attribute__((nonnull))
+static UNIV_COLD
 ulint
 fsp_try_extend_data_file(
 	fil_space_t*	space,
 	fsp_header_t*	header,
 	mtr_t*		mtr)
 {
-	ulint	size;
-	ulint	size_increase;
+	ulint	size;		/* current number of pages in the datafile */
+	ulint	size_increase;	/* number of pages to extend this file */
 	const char* OUT_OF_SPACE_MSG =
 		"ran out of space. Please add another file or use"
 		" 'autoextend' for the last file in setting";
@@ -1101,8 +1098,8 @@ fsp_try_extend_data_file(
 	size = mach_read_from_4(header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
 
-	const page_size_t	page_size(mach_read_from_4(header
-							   + FSP_SPACE_FLAGS));
+	const page_size_t	page_size(
+		mach_read_from_4(header + FSP_SPACE_FLAGS));
 
 	if (space->id == srv_sys_space.space_id()) {
 
@@ -1406,7 +1403,7 @@ fsp_alloc_free_extent(
 
 /**********************************************************************//**
 Allocates a single free page from a space. */
-static __attribute__((nonnull))
+static
 void
 fsp_alloc_from_free_frag(
 /*=====================*/
@@ -3103,7 +3100,7 @@ fsp_get_available_space_in_free_extents(
 /********************************************************************//**
 Marks a page used. The page must reside within the extents of the given
 segment. */
-static __attribute__((nonnull))
+static
 void
 fseg_mark_page_used(
 /*================*/
@@ -3347,7 +3344,7 @@ fseg_page_is_free(
 
 /**********************************************************************//**
 Frees an extent of a segment to the space free list. */
-static __attribute__((nonnull))
+static
 void
 fseg_free_extent(
 /*=============*/

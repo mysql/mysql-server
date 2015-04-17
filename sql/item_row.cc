@@ -15,6 +15,7 @@
 
 #include "item_row.h"
 
+#include "current_thd.h"
 #include "sql_class.h"  // THD
 
 Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail):

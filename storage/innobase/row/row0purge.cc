@@ -115,7 +115,7 @@ row_purge_reposition_pcur(
 Removes a delete marked clustered index record if possible.
 @retval true if the row was not found, or it was successfully removed
 @retval false if the row was modified after the delete marking */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 row_purge_remove_clust_if_poss_low(
 /*===============================*/
@@ -195,7 +195,7 @@ marking.
 @retval true if the row was not found, or it was successfully removed
 @retval false the purge needs to be suspended because of running out
 of file space. */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 row_purge_remove_clust_if_poss(
 /*===========================*/
@@ -261,7 +261,7 @@ row_purge_poss_sec(
 Removes a secondary index entry if possible, by modifying the
 index tree.  Does not try to buffer the delete.
 @return TRUE if success or if not found */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 ibool
 row_purge_remove_sec_if_poss_tree(
 /*==============================*/
@@ -381,7 +381,7 @@ Removes a secondary index entry without modifying the index tree,
 if possible.
 @retval true if success or if not found
 @retval false if row_purge_remove_sec_if_poss_tree() should be invoked */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 row_purge_remove_sec_if_poss_leaf(
 /*==============================*/
@@ -538,7 +538,7 @@ func_exit_no_pcur:
 
 /***********************************************************//**
 Removes a secondary index entry if possible. */
-UNIV_INLINE __attribute__((nonnull(1,2)))
+UNIV_INLINE
 void
 row_purge_remove_sec_if_poss(
 /*=========================*/
@@ -585,7 +585,7 @@ Purges a delete marking of a record.
 @retval true if the row was not found, or it was successfully removed
 @retval false the purge needs to be suspended because of
 running out of file space */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 row_purge_del_mark(
 /*===============*/
@@ -723,6 +723,7 @@ skip_secondaries:
 			index = dict_table_get_first_index(node->table);
 			mtr_sx_lock(dict_index_get_lock(index), &mtr);
 
+			mtr.set_undo_space(rseg->space);
 			mtr.set_named_space(index->space);
 
 			/* NOTE: we must also acquire an X-latch to the
@@ -879,7 +880,7 @@ err_exit:
 /***********************************************************//**
 Purges the parsed record.
 @return true if purged, false if skipped */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 row_purge_record_func(
 /*==================*/
@@ -943,7 +944,7 @@ row_purge_record_func(
 Fetches an undo log record and does the purge for the recorded operation.
 If none left, or the current purge completed, returns the control to the
 parent node, which is always a query thread node. */
-static __attribute__((nonnull))
+static
 void
 row_purge(
 /*======*/

@@ -16,8 +16,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_error.h"
-#include "my_decimal.h"                         /* my_decimal */
+#include "my_global.h"
+#include "mysql_com.h"                 // mysql_enum_shutdown_level
+#include "mysql/mysql_lex_string.h"    // LEX_STRING
+#include "sql_string.h"                // String
 
 #ifdef HAVE_OPENSSL
 #include "violite.h"                            /* SSL */
@@ -26,14 +28,11 @@
 #define SSL_handle void*
 #endif
 
-#ifdef __cplusplus
-class THD;
-#define MYSQL_THD THD*
-#else
-#define MYSQL_THD void*
-#endif
-
+class my_decimal;
+class Proto_field;
 class Send_field;
+typedef struct st_mysql_time MYSQL_TIME;
+typedef struct st_mysql_lex_string LEX_STRING;
 
 struct COM_INIT_DB_DATA
 {

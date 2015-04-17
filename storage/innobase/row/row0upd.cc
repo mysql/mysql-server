@@ -171,7 +171,7 @@ NOTE that this function will temporarily commit mtr and lose the
 pcur position!
 
 @return DB_SUCCESS or an error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_check_references_constraints(
 /*=================================*/
@@ -1318,6 +1318,40 @@ copy_dfield:
 			dfield = &dfield_ext;
 		}
 
+		/* For spatial index update, since the different geometry
+		data could generate same MBR, so, if the new index entry is
+		same as old entry, which means the MBR is not changed, we
+		don't need to do anything. */
+		if (dict_index_is_spatial(index) && i == 0) {
+			double		mbr1[SPDIMS * 2];
+			double		mbr2[SPDIMS * 2];
+			rtr_mbr_t*	old_mbr;
+			rtr_mbr_t*	new_mbr;
+			uchar*		dptr = NULL;
+			ulint		dlen = 0;
+
+			dptr = static_cast<uchar*>(dfield->data);
+			dlen = dfield->len;
+			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+					   static_cast<uint>(dlen
+					   - GEO_DATA_HEADER_SIZE),
+					   SPDIMS, mbr1);
+			old_mbr = reinterpret_cast<rtr_mbr_t*>(mbr1);
+
+			dptr = static_cast<uchar*>(upd_field->new_val.data);
+			dlen = upd_field->new_val.len;
+			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+					   static_cast<uint>(dlen
+					   - GEO_DATA_HEADER_SIZE),
+					   SPDIMS, mbr2);
+			new_mbr = reinterpret_cast<rtr_mbr_t*>(mbr2);
+			if (!MBR_EQUAL_CMP(old_mbr, new_mbr)) {
+				return(TRUE);
+			} else {
+				continue;
+			}
+		}
+
 		if (!dfield_datas_are_binary_equal(
 			    dfield, &upd_field->new_val,
 			    ind_field->prefix_len)) {
@@ -1538,10 +1572,10 @@ row_upd_store_row(
 	offsets = rec_get_offsets(rec, clust_index, offsets_,
 				  ULINT_UNDEFINED, &heap);
 
-	if (dict_table_get_format(node->table) >= UNIV_FORMAT_B) {
-		/* In DYNAMIC or COMPRESSED format, there is no prefix
-		of externally stored columns in the clustered index
-		record. Build a cache of column prefixes. */
+	if (dict_table_has_atomic_blobs(node->table)) {
+		/* There is no prefix of externally stored columns in
+		the clustered index record. Build a cache of column
+		prefixes. */
 		ext = &node->ext;
 	} else {
 		/* REDUNDANT and COMPACT formats store a local
@@ -1591,7 +1625,7 @@ srv_mbr_print(const byte* data)
 Updates a secondary index entry of a row.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_sec_index_entry(
 /*====================*/
@@ -1822,7 +1856,7 @@ Updates the secondary index record if it is changed in the row update or
 deletes it if this is a delete.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_sec_step(
 /*=============*/
@@ -1940,7 +1974,7 @@ fields of the clustered index record change. This should be quite rare in
 database applications.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_clust_rec_by_insert(
 /*========================*/
@@ -2067,7 +2101,7 @@ Updates a clustered index record of a row when the ordering fields do
 not change.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_clust_rec(
 /*==============*/
@@ -2205,7 +2239,7 @@ func_exit:
 /***********************************************************//**
 Delete marks a clustered index record.
 @return DB_SUCCESS if operation successfully completed, else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_del_mark_clust_rec(
 /*=======================*/
@@ -2258,7 +2292,7 @@ row_upd_del_mark_clust_rec(
 Updates the clustered index record.
 @return DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT
 in case of a lock wait, else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_upd_clust_step(
 /*===============*/

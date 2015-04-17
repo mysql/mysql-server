@@ -24,6 +24,8 @@
 */
 
 #include "sql_select.h"
+
+#include "current_thd.h"
 #include "sql_table.h"                          // primary_key_name
 #include "sql_derived.h"
 #include "probes_mysql.h"
@@ -31,9 +33,11 @@
 #include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
 #include "lock.h"                // mysql_unlock_some_tables,
                                  // mysql_unlock_read_tables
+#include "mysqld.h"              // stage_init
 #include "sql_show.h"            // append_identifier
 #include "sql_base.h"
 #include "auth_common.h"         // *_ACL
+#include "opt_range.h"           // QUICK_SELECT_I
 #include "sql_test.h"            // misc. debug printing utilities
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
@@ -45,6 +49,7 @@
 #include "item_sum.h"            // Item_sum
 #include "sql_planner.h"         // calculate_condition_filter
 #include "opt_hints.h"           // hint_key_state()
+#include "sql_cache.h"           // query_cache
 
 #include <algorithm>
 
@@ -58,7 +63,7 @@ static store_key *get_store_key(THD *thd,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
-uint find_shortest_key(TABLE *table, const key_map *usable_keys);
+uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 /**
   Handle a data manipulation query, from preparation through cleanup
 
@@ -2291,8 +2296,7 @@ bool error_if_full_join(JOIN *join)
 
     if (tab->type() == JT_ALL && (!tab->quick()))
     {
-      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-                 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
       return true;
     }
   }
@@ -3718,7 +3722,7 @@ bool JOIN::make_tmp_tables_info()
         used_tables= 1;
       }
 
-      Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
+      Item* sort_table_cond= make_cond_for_table(thd, having_cond, used_tables,
                                                  (table_map) 0, false);
       if (sort_table_cond)
       {
@@ -3735,7 +3739,7 @@ bool JOIN::make_tmp_tables_info()
 					 "select and having",
                                          QT_ORDINARY););
 
-        having_cond= make_cond_for_table(having_cond, ~ (table_map) 0,
+        having_cond= make_cond_for_table(thd, having_cond, ~ (table_map) 0,
                                          ~used_tables, false);
         DBUG_EXECUTE("where",
                      print_where(having_cond, "having after sort",
@@ -3931,7 +3935,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
 
 bool
 test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
-                         key_map usable_keys,  int ref_key,
+                         Key_map usable_keys,  int ref_key,
                          ha_rows select_limit,
                          int *new_key, int *new_key_direction,
                          ha_rows *new_select_limit, uint *new_used_key_parts,
@@ -3949,7 +3953,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   if (join)
     ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   uint nr;
-  key_map keys;
+  Key_map keys;
   uint best_key_parts= 0;
   int best_key_direction= 0;
   ha_rows best_records= 0;

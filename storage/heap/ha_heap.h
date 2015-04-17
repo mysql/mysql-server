@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,14 +17,16 @@
 
 /* class for the the heap handler */
 
-#include <heap.h>
-#include "sql_class.h"                          /* THD */
+#include "my_global.h"
+#include "heap.h"
+#include "handler.h"
+#include "table.h"
 
 class ha_heap: public handler
 {
   HP_INFO *file;
   HP_SHARE *internal_share;
-  key_map btree_keys;
+  Key_map btree_keys;
   /* number of records changed since last statistics update */
   uint    records_changed;
   uint    key_stat_version;
@@ -33,11 +35,7 @@ public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}
   handler *clone(const char *name, MEM_ROOT *mem_root);
-  const char *table_type() const
-  {
-    return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?
-           "HEAP" : "MEMORY";
-  }
+  const char *table_type() const;
   const char *index_type(uint inx)
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
@@ -59,7 +57,7 @@ public:
             HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE :
             HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
-  const key_map *keys_to_use_for_scanning() { return &btree_keys; }
+  const Key_map *keys_to_use_for_scanning() { return &btree_keys; }
   uint max_supported_keys()          const { return MAX_KEY; }
   uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
   double scan_time()

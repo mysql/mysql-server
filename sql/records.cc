@@ -23,9 +23,11 @@
 #include "records.h"
 #include "sql_list.h"
 #include "filesort.h"            // filesort_free_buffers
-#include "sql_class.h"                          // THD
+#include "opt_range.h"           // QUICK_SELECT_I
+#include "sql_class.h"           // THD
+#include "sql_executor.h"        // QEP_TAB
 #include "sql_select.h"          // JOIN_TAB
-
+#include "psi_memory_key.h"
 
 static int rr_quick(READ_RECORD *info);
 int rr_sequential(READ_RECORD *info);

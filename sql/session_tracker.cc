@@ -16,7 +16,9 @@
 
 #include "session_tracker.h"
 
+#include "current_thd.h"
 #include "hash.h"
+#include "psi_memory_key.h"
 #include "rpl_gtid.h"
 #include "sql_class.h"
 #include "sql_show.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -133,8 +133,6 @@
 /* inet_aton needs winsock library */
 #pragma comment(lib, "ws2_32")
 #endif
-
-#ifdef HAVE_DLOPEN
 
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
 static native_mutex_t LOCK_hostname;
@@ -1224,5 +1222,3 @@ longlong my_median(UDF_INIT* initid, UDF_ARGS* args,
   std::nth_element(data->vec.begin(), data->vec.begin() + ix, data->vec.end());
   return data->vec[ix];
 }
-
-#endif /* HAVE_DLOPEN */

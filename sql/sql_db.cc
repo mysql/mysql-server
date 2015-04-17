@@ -17,8 +17,10 @@
 
 /* create and drop of databases */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_db.h"
+
+#include "mysqld.h"                      // lower_case_table_names ...
+#include "psi_memory_key.h"
 #include "sql_cache.h"                   // query_cache_*
 #include "lock.h"                        // lock_schema_name
 #include "sql_table.h"                   // build_table_filename,
@@ -37,6 +39,7 @@
 #include "log.h"
 #include "binlog.h"                             // mysql_bin_log
 #include "log_event.h"
+#include "derror.h"
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -368,7 +371,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
 */
 
-bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
+static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 {
   File file;
   char buf[256];
@@ -416,7 +419,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
               get_charset_by_name(pos+1, MYF(0))))
         {
           sql_print_error("Error while loading database options: '%s':",path);
-          sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+          sql_print_error(ER_DEFAULT(ER_UNKNOWN_CHARACTER_SET),pos+1);
           create->default_table_charset= default_charset_info;
         }
       }
@@ -426,7 +429,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
                                                            MYF(0))))
         {
           sql_print_error("Error while loading database options: '%s':",path);
-          sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
+          sql_print_error(ER_DEFAULT(ER_UNKNOWN_COLLATION),pos+1);
           create->default_table_charset= default_charset_info;
         }
       }
@@ -597,7 +600,8 @@ int mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info,
       goto exit;
     }
     push_warning_printf(thd, Sql_condition::SL_NOTE,
-			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
+			ER_DB_CREATE_EXISTS,
+                        ER_THD(thd, ER_DB_CREATE_EXISTS), db);
     error= 0;
     goto not_silent;
   }
@@ -831,7 +835,8 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
     else
     {
       push_warning_printf(thd, Sql_condition::SL_NOTE,
-			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db.str);
+			  ER_DB_DROP_EXISTS,
+                          ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
       error= false;
       goto update_binlog;
     }
@@ -899,7 +904,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
 
     ha_drop_database(path);
     tmp_disable_binlog(thd);
-    query_cache.invalidate(db.str);
+    query_cache.invalidate(thd, db.str);
     (void) sp_drop_db_routines(thd, db.str); /* @todo Do not ignore errors */
 #ifndef EMBEDDED_LIBRARY
     Events::drop_schema_events(thd, db.str);
@@ -1561,7 +1566,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     }
     else
     {
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
+      my_error(ER_NO_DB_ERROR, MYF(0));
 
       DBUG_RETURN(TRUE);
     }
@@ -1629,7 +1634,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
              sctx->priv_host().str,
              new_db_file_name.str);
     query_logger.general_log_print(thd, COM_INIT_DB,
-                                   ER(ER_DBACCESS_DENIED_ERROR),
+                                   ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
                                    sctx->priv_user().str,
                                    sctx->priv_host().str,
                                    new_db_file_name.str);
@@ -1647,7 +1652,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
       /* Throw a warning and free new_db_file_name. */
 
       push_warning_printf(thd, Sql_condition::SL_NOTE,
-                          ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR),
+                          ER_BAD_DB_ERROR, ER_THD(thd, ER_BAD_DB_ERROR),
                           new_db_file_name.str);
 
       my_free(new_db_file_name.str);
@@ -1827,8 +1832,10 @@ bool mysql_upgrade_db(THD *thd, const LEX_CSTRING &old_db)
       table_str.length= filename_to_tablename(file->name,
                                               tname, sizeof(tname)-1);
       table_str.str= (char*) sql_memdup(tname, table_str.length + 1);
-      Table_ident *old_ident= new Table_ident(thd, old_db, table_str, 0);
-      Table_ident *new_ident= new Table_ident(thd, new_db, table_str, 0);
+      Table_ident *old_ident= new Table_ident(thd->get_protocol(),
+                                              old_db, table_str, 0);
+      Table_ident *new_ident= new Table_ident(thd->get_protocol(),
+                                              new_db, table_str, 0);
       if (!old_ident || !new_ident ||
           !sl->add_table_to_list(thd, old_ident, NULL,
                                  TL_OPTION_UPDATING, TL_IGNORE,

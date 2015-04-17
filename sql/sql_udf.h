@@ -1,7 +1,7 @@
 #ifndef SQL_UDF_INCLUDED
 #define SQL_UDF_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,18 @@
 
 
 /* This file defines structures needed by udf functions */
+
+#include "my_global.h"
+#include "mysql_com.h"               // Item_result
+#include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "sql_alloc.h"               // Sql_alloc
+
+class Item;
+class Item_result_field;
+class my_decimal;
+class String;
+typedef struct st_mysql_lex_string LEX_STRING;
+
 
 enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};
 
@@ -44,8 +56,6 @@ typedef struct st_udf_func
   Udf_func_add func_add;
   ulong usage_count;
 } udf_func;
-
-class Item_result_field;
 
 class udf_handler :public Sql_alloc
 {
@@ -132,11 +142,9 @@ class udf_handler :public Sql_alloc
 };
 
 
-#ifdef HAVE_DLOPEN
 void udf_init(void),udf_free(void);
 udf_func *find_udf(const char *name, size_t len=0,bool mark_used=0);
 void free_udf(udf_func *udf);
 int mysql_create_function(THD *thd,udf_func *udf);
 int mysql_drop_function(THD *thd,const LEX_STRING *name);
-#endif
 #endif /* SQL_UDF_INCLUDED */

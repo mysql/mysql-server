@@ -72,7 +72,7 @@ is set to TRUE by the page_cleaner thread when it is spawned and is set
 back to FALSE at shutdown by the page_cleaner as well. Therefore no
 need to protect it by a mutex. It is only ever read by the thread
 doing the shutdown */
-ibool buf_page_cleaner_is_active = FALSE;
+bool buf_page_cleaner_is_active = false;
 
 /** Factor for scan length to determine n_pages for intended oldest LSN
 progress */
@@ -799,7 +799,10 @@ buf_flush_update_zip_checksum(
 {
 	ut_a(size > 0);
 
-	ib_uint32_t	checksum = page_zip_calc_checksum(
+	BlockReporter	reporter = BlockReporter(
+		false, NULL, univ_page_size, false);
+
+	ib_uint32_t	checksum = reporter.calc_zip_checksum(
 		page, size,
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 
@@ -1030,13 +1033,18 @@ buf_flush_write_block_low(
 		ut_error;
 		break;
 	case BUF_BLOCK_ZIP_DIRTY:
-		frame = bpage->zip.data;
+		{
+			frame = bpage->zip.data;
+			BlockReporter	reporter = BlockReporter(
+				false, frame, bpage->size,
+				fsp_is_checksum_disabled(bpage->id.space()));
 
-		ut_a(page_zip_verify_checksum(frame, bpage->size.physical()));
+			ut_a(reporter.verify_zip_checksum());
 
-		mach_write_to_8(frame + FIL_PAGE_LSN,
-				bpage->newest_modification);
-		break;
+			mach_write_to_8(frame + FIL_PAGE_LSN,
+					bpage->newest_modification);
+			break;
+		}
 	case BUF_BLOCK_FILE_PAGE:
 		frame = bpage->zip.data;
 		if (!frame) {
@@ -1055,17 +1063,23 @@ buf_flush_write_block_low(
 	/* Disable use of double-write buffer for temporary tablespace.
 	Given the nature and load of temporary tablespace doublewrite buffer
 	adds an overhead during flushing. */
+
 	if (!srv_use_doublewrite_buf
-	    || !buf_dblwr
+	    || buf_dblwr == NULL
 	    || srv_read_only_mode
 	    || fsp_is_system_temporary(bpage->id.space())) {
 
 		ut_ad(!srv_read_only_mode
 		      || fsp_is_system_temporary(bpage->id.space()));
 
-		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
+		ulint	type = IORequest::WRITE | IORequest::DO_NOT_WAKE;
+
+		IORequest	request(type);
+
+		fil_io(request,
 		       sync, bpage->id, bpage->size, 0, bpage->size.physical(),
 		       frame, bpage);
+
 	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE) {
 		buf_dblwr_write_single_page(bpage, sync);
 	} else {
@@ -3026,7 +3040,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	}
 #endif /* UNIV_LINUX */
 
-	buf_page_cleaner_is_active = TRUE;
+	buf_page_cleaner_is_active = true;
 
 	while (!srv_read_only_mode
 	       && srv_shutdown_state == SRV_SHUTDOWN_NONE
@@ -3075,6 +3089,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	ulint		warn_interval = 1;
 	ulint		warn_count = 0;
 	int64_t		sig_count = os_event_reset(buf_flush_event);
+
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* The page_cleaner skips sleep if the server is
@@ -3192,7 +3207,9 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			ulint tm = ut_time_ms();
 
 			/* Coordinator also treats requests */
-			while (pc_flush_slot() > 0) {}
+			while (pc_flush_slot() > 0) {
+				/* No op */
+			}
 
 			/* only coordinator is using these counters,
 			so no need to protect by lock. */
@@ -3202,9 +3219,10 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			/* Wait for all slots to be finished */
 			ulint	n_flushed_lru = 0;
 			ulint	n_flushed_list = 0;
+
 			pc_wait_finished(&n_flushed_lru, &n_flushed_list);
 
-			if (n_flushed_list || n_flushed_lru) {
+			if (n_flushed_list > 0 || n_flushed_lru > 0) {
 				buf_flush_stats(n_flushed_list, n_flushed_lru);
 			}
 
@@ -3232,6 +3250,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 					MONITOR_FLUSH_ADAPTIVE_PAGES,
 					n_flushed_list);
 			}
+
 		} else if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
 			/* no activity, slept enough */
 			buf_flush_lists(PCT_IO(100), LSN_MAX, &n_flushed);
@@ -3244,7 +3263,9 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 					MONITOR_FLUSH_BACKGROUND_COUNT,
 					MONITOR_FLUSH_BACKGROUND_PAGES,
 					n_flushed);
+
 			}
+
 		} else {
 			/* no activity, but woken up by event */
 			n_flushed = 0;
@@ -3342,7 +3363,7 @@ thread_exit:
 
 	buf_flush_page_cleaner_close();
 
-	buf_page_cleaner_is_active = FALSE;
+	buf_page_cleaner_is_active = false;
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -3379,9 +3400,11 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 
 	while (true) {
 		os_event_wait(page_cleaner->is_requested);
+
 		if (!page_cleaner->is_running) {
 			break;
 		}
+
 		pc_flush_slot();
 	}
 

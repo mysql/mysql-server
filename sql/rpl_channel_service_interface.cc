@@ -15,6 +15,9 @@
 
 #include "my_global.h"
 #include "rpl_channel_service_interface.h"
+
+#include "current_thd.h"
+#include "mysqld.h"          // opt_mts_slave_parallel_workers
 #include "rpl_slave.h"
 #include "rpl_info_factory.h"
 #include "rpl_mi.h"

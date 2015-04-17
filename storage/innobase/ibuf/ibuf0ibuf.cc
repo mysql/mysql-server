@@ -385,7 +385,7 @@ ibuf_header_page_get(
 }
 
 /******************************************************************//**
-Gets the root page and x-latches it.
+Gets the root page and sx-latches it.
 @return insert buffer tree root page */
 static
 page_t*
@@ -518,6 +518,7 @@ ibuf_init_at_db_start(void)
 	mutex_create("ibuf_pessimistic_insert", &ibuf_pessimistic_insert_mutex);
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	mtr_x_lock_space(IBUF_SPACE_ID, &mtr);
 
@@ -2431,7 +2432,7 @@ ibuf_get_merge_page_nos_func(
 /*******************************************************************//**
 Get the matching records for space id.
 @return current rec or NULL */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 const rec_t*
 ibuf_get_user_rec(
 /*===============*/
@@ -2453,7 +2454,7 @@ ibuf_get_user_rec(
 Reads page numbers for a space id from an ibuf tree.
 @return a lower limit for the combined volume of records which will be
 merged */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 ulint
 ibuf_get_merge_pages(
 /*=================*/
@@ -3454,6 +3455,7 @@ ibuf_insert_low(
 	}
 
 	ibuf_mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	btr_pcur_open(ibuf->index, ibuf_entry, PAGE_CUR_LE, mode, &pcur, &mtr);
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
@@ -3610,9 +3612,9 @@ fail_exit:
 		ut_ad(BTR_LATCH_MODE_WITHOUT_INTENTION(mode)
 		      == BTR_MODIFY_TREE);
 
-		/* We acquire an x-latch to the root page before the insert,
+		/* We acquire an sx-latch to the root page before the insert,
 		because a pessimistic insert releases the tree x-latch,
-		which would cause the x-latching of the root after that to
+		which would cause the sx-latching of the root after that to
 		break the latching order. */
 
 		root = ibuf_tree_root_get(&mtr);
@@ -3838,7 +3840,7 @@ skip_watch:
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer.
 @return	newly inserted record */
-static __attribute__((nonnull))
+static
 rec_t*
 ibuf_insert_to_index_page_low(
 /*==========================*/
@@ -3962,9 +3964,8 @@ ibuf_insert_to_index_page(
 		ib::warn() << "Trying to insert a record from the insert"
 			" buffer to an index page but the number of fields"
 			" does not match!";
+		rec_print(stderr, rec, index);
 dump:
-		buf_page_print(page, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
-
 		dtuple_print(stderr, entry);
 		ut_ad(0);
 
@@ -4244,7 +4245,7 @@ ibuf_delete(
 /*********************************************************************//**
 Restores insert buffer tree cursor position
 @return TRUE if the position was restored; FALSE if not */
-static __attribute__((nonnull))
+static
 ibool
 ibuf_restore_pos(
 /*=============*/
@@ -4314,6 +4315,7 @@ ibuf_delete_rec(
 	dberr_t		err;
 
 	ut_ad(ibuf_inside(mtr));
+	ut_ad(mtr->is_named_space(IBUF_SPACE_ID));
 	ut_ad(page_rec_is_user_rec(btr_pcur_get_rec(pcur)));
 	ut_ad(ibuf_rec_get_page_no(mtr, btr_pcur_get_rec(pcur)) == page_no);
 	ut_ad(ibuf_rec_get_space(mtr, btr_pcur_get_rec(pcur)) == space);
@@ -4382,6 +4384,7 @@ ibuf_delete_rec(
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 	ibuf_mtr_start(mtr);
+	mtr->set_sys_modified();
 	mutex_enter(&ibuf_mutex);
 
 	if (!ibuf_restore_pos(space, page_no, search_tuple,
@@ -4535,27 +4538,7 @@ ibuf_merge_or_delete_for_page(
 		if (!fil_page_index_page_check(block->frame)
 		    || !page_is_leaf(block->frame)) {
 
-			page_t*	bitmap_page;
-
 			corruption_noticed = true;
-
-			ibuf_mtr_start(&mtr);
-
-			ib::info() << "Dump of the ibuf bitmap page:";
-
-			ut_ad(page_size != NULL);
-
-			bitmap_page = ibuf_bitmap_get_map_page(
-				page_id, *page_size, &mtr);
-
-			buf_page_print(bitmap_page, univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-			ibuf_mtr_commit(&mtr);
-
-			fputs("\nInnoDB: Dump of the page:\n", stderr);
-
-			buf_page_print(block->frame, univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
 
 			ib::error() << "Corruption in the tablespace. Bitmap"
 				" shows insert buffer records to page "
@@ -4578,6 +4561,7 @@ ibuf_merge_or_delete_for_page(
 
 loop:
 	ibuf_mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	/* Position pcur in the insert buffer at the first entry for this
 	index page */
@@ -4706,6 +4690,7 @@ loop:
 				ibuf_btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
 				ibuf_mtr_start(&mtr);
+				mtr.set_sys_modified();
 				mtr.set_named_space(page_id.space());
 
 				success = buf_page_get_known_nowait(
@@ -4834,6 +4819,7 @@ ibuf_delete_for_discarded_space(
 	memset(dops, 0, sizeof(dops));
 loop:
 	ibuf_mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	/* Position pcur in the insert buffer at the first entry for the
 	space */

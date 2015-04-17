@@ -190,6 +190,9 @@ struct mtr_t {
 		/** Persistent user tablespace associated with the
 		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
 		ulint		m_user_space_id;
+		/** Undo tablespace associated with the
+		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
+		ulint		m_undo_space_id;
 #endif /* UNIV_DEBUG */
 		/** User tablespace that is being modified by the
 		mini-transaction */
@@ -200,6 +203,10 @@ struct mtr_t {
 		/** System tablespace if it is being modified by the
 		mini-transaction */
 		fil_space_t*	m_sys_space;
+
+		/** Set if this mini-transaction modifies the system
+		tablespace. */
+		bool		m_modifies_sys_space;
 
 		/** State of the transaction */
 		mtr_state_t	m_state;
@@ -293,6 +300,7 @@ struct mtr_t {
 	@return the system tablespace */
 	fil_space_t* set_sys_modified()
 	{
+		m_impl.m_modifies_sys_space = true;
 		if (!m_impl.m_sys_space) {
 			lookup_sys_space();
 		}
@@ -305,12 +313,16 @@ struct mtr_t {
 	the same set of tablespaces as this one */
 	void set_spaces(const mtr_t& mtr)
 	{
+		ut_ad(!m_impl.m_modifies_sys_space);
 		ut_ad(m_impl.m_user_space_id == TRX_SYS_SPACE);
+		ut_ad(m_impl.m_undo_space_id == TRX_SYS_SPACE);
 		ut_ad(!m_impl.m_user_space);
 		ut_ad(!m_impl.m_undo_space);
 		ut_ad(!m_impl.m_sys_space);
 
+		m_impl.m_modifies_sys_space = mtr.m_impl.m_modifies_sys_space;
 		ut_d(m_impl.m_user_space_id = mtr.m_impl.m_user_space_id);
+		ut_d(m_impl.m_undo_space_id = mtr.m_impl.m_undo_space_id);
 		m_impl.m_user_space = mtr.m_impl.m_user_space;
 		m_impl.m_undo_space = mtr.m_impl.m_undo_space;
 		m_impl.m_sys_space = mtr.m_impl.m_sys_space;
@@ -333,16 +345,37 @@ struct mtr_t {
 	}
 
 	/** Set the tablespace associated with the mini-transaction
-	(needed for generating a MLOG_FILE_NAME record)
 	@param[in]	space	user or system tablespace */
 	void set_named_space(fil_space_t* space);
 
+	/** Set the undo tablespace associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space_id	undo tablespace id
+	@return the undo tablespace */
+	fil_space_t* set_undo_space(ulint space_id)
+	{
+		ut_ad(m_impl.m_undo_space_id == TRX_SYS_SPACE);
+		ut_d(m_impl.m_undo_space_id = space_id);
+		if (space_id == TRX_SYS_SPACE) {
+			return(set_sys_modified());
+		} else {
+			lookup_undo_space(space_id);
+			return(m_impl.m_undo_space);
+		}
+	}
+
 #ifdef UNIV_DEBUG
-	/** Check the tablespace associated with the mini-transaction
+	/** Check if a tablespace is associated with the mini-transaction
 	(needed for generating a MLOG_FILE_NAME record)
 	@param[in]	space	tablespace
 	@return whether the mini-transaction is associated with the space */
 	bool is_named_space(ulint space) const;
+
+	/** Check if an undo tablespace is associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	undo tablespace
+	@return whether the mini-transaction is associated with the undo */
+	bool is_undo_space(ulint space) const;
 #endif /* UNIV_DEBUG */
 
 	/** Read 1 - 4 bytes from a file page buffered in the buffer pool.
@@ -553,7 +586,10 @@ struct mtr_t {
 private:
 	/** Look up the system tablespace. */
 	void lookup_sys_space();
-	/** Look up the user tablespace.
+	/** Look up an undo tablespace.
+	@param[in]	space_id	tablespace ID  */
+	void lookup_undo_space(ulint space_id);
+	/** Look up a user tablespace.
 	@param[in]	space_id	tablespace ID  */
 	void lookup_user_space(ulint space_id);
 

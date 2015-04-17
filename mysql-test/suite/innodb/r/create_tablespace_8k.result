@@ -432,9 +432,6 @@ DROP TABLE t_red_in_8k;
 DROP TABLE t_com_in_8k;
 DROP TABLE t_dyn_in_8k;
 SET SESSION innodb_strict_mode = ON;
-SET GLOBAL innodb_file_format = 'barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET GLOBAL innodb_file_per_table = ON;
 #
 # Create compressed tables explicitly as file_per_table tablespaces.

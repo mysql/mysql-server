@@ -6378,3 +6378,33 @@ EXECUTE s;
 DEALLOCATE PREPARE s;
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20615023 SIGNAL 11 IN ITEM_FIELD::RESULT_TYPE DURING 1ST EXECUTION OF PREPARED STMT
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(1),(2);
+ANALYZE TABLE t1;
+# 3 clauses which should block the replacement with an equality:
+let $query=
+SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL WHERE 0);
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL HAVING 0);
+eval EXPLAIN $query;
+eval $query;
+
+--error ER_NOT_SUPPORTED_YET
+SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL LIMIT 0);
+
+let $query=SELECT 1 as col FROM t1
+WHERE a IN (SELECT a FROM DUAL WHERE 3 IN (SELECT a FROM t1));
+eval EXPLAIN $query;
+eval PREPARE s FROM '$query';
+EXECUTE s;
+EXECUTE s;
+
+DROP TABLE t1;

@@ -836,11 +836,12 @@ int ndb_to_mysql_error(const NdbError *ndberr)
     */
     if (ndberr->status == NdbError::TemporaryError)
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
+                          ER_GET_TEMPORARY_ERRMSG,
+                          ER_THD(current_thd, ER_GET_TEMPORARY_ERRMSG),
                           ndberr->code, ndberr->message, "NDB");
     else
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ER_GET_ERRMSG, ER_THD(current_thd, ER_GET_ERRMSG),
                           ndberr->code, ndberr->message, "NDB");
   }
   return error;
@@ -1000,7 +1001,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                     nonMaskedError.code, nonMaskedError.message);
         push_warning_printf(current_thd, Sql_condition::SL_ERROR,
                             ER_EXCEPTIONS_WRITE_ERROR,
-                            ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
         /* Slave will stop replication. */
         DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
       }
@@ -3796,7 +3797,7 @@ ha_ndbcluster::log_exclusive_read(const NdbRecord *key_rec,
                 m_thd_ndb->trans->getNdbError().message);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_EXCEPTIONS_WRITE_ERROR,
-                        ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                        ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
     /*
       By returning -1 the caller (pk_unique_index_read_key) will return
       NULL and error on transaction object will be returned.
@@ -3835,7 +3836,7 @@ ha_ndbcluster::scan_log_exclusive_read(NdbScanOperation *cursor,
                 m_thd_ndb->trans->getNdbError().message);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_EXCEPTIONS_WRITE_ERROR,
-                        ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                        ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
     DBUG_RETURN(-1);
   }
 
@@ -5522,7 +5523,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   }
   DBUG_ASSERT(trans);
 
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
 
   /*
      Setup OperationOptions
@@ -5851,7 +5852,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
 
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_EXCEPTIONS_WRITE_ERROR,
-                            ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
 
         DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
       }
@@ -5956,7 +5957,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                       err.message);
           push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                               ER_EXCEPTIONS_WRITE_ERROR,
-                              ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
           /* Slave will stop replication. */
           DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
         }
@@ -6004,7 +6005,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                       err.message);
           push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                               ER_EXCEPTIONS_WRITE_ERROR,
-                              ER(ER_EXCEPTIONS_WRITE_ERROR), msg);
+                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
           /* Slave will stop replication. */
           DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
         }
@@ -6239,7 +6240,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       DBUG_RETURN(peek_res);
   }
 
-  ha_statistic_increment(&SSV::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count);
 
   bool skip_partition_for_unique_index= FALSE;
   if (m_use_partition_pruning)
@@ -6627,7 +6628,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   if (unlikely(error))
     DBUG_RETURN(error);
 
-  ha_statistic_increment(&SSV::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count);
   m_rows_changed++;
 
   bool skip_partition_for_unique_index= FALSE;
@@ -7145,7 +7146,7 @@ int ha_ndbcluster::index_read(uchar *buf,
 int ha_ndbcluster::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
   const int error= next_result(buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
@@ -7155,7 +7156,7 @@ int ha_ndbcluster::index_next(uchar *buf)
 int ha_ndbcluster::index_prev(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_prev");
-  ha_statistic_increment(&SSV::ha_read_prev_count);
+  ha_statistic_increment(&System_status_var::ha_read_prev_count);
   const int error= next_result(buf);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
@@ -7165,7 +7166,7 @@ int ha_ndbcluster::index_prev(uchar *buf)
 int ha_ndbcluster::index_first(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_first");
-  ha_statistic_increment(&SSV::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
@@ -7178,7 +7179,7 @@ int ha_ndbcluster::index_first(uchar *buf)
 int ha_ndbcluster::index_last(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_last");
-  ha_statistic_increment(&SSV::ha_read_last_count);
+  ha_statistic_increment(&System_status_var::ha_read_last_count);
   const int error= ordered_index_scan(0, 0, m_sorted, TRUE, buf, NULL);
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
@@ -7371,7 +7372,7 @@ int ha_ndbcluster::rnd_end()
 int ha_ndbcluster::rnd_next(uchar *buf)
 {
   DBUG_ENTER("rnd_next");
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
   int error;
   if (m_active_cursor || m_active_query)
@@ -7393,7 +7394,7 @@ int ha_ndbcluster::rnd_next(uchar *buf)
 int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
 {
   DBUG_ENTER("rnd_pos");
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   // The primary key for the record is stored in pos
   // Perform a pk_read using primary key "index"
   {
@@ -10281,7 +10282,7 @@ int ha_ndbcluster::create(const char *name,
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_ILLEGAL_HA_CREATE_OPTION,
-                            ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                            ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
                             ndbcluster_hton_name,
                             "Index on field "
                             "declared with "
@@ -10674,7 +10675,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
 			  ER_ILLEGAL_HA_CREATE_OPTION,
-			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
+			  ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
 			  ndbcluster_hton_name,
 			  "Ndb does not support non-unique "
 			  "hash based indexes");
@@ -10755,7 +10756,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
                           "Index on field "
                           "declared with "
@@ -13090,7 +13091,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error: %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
-    m_part_info->print_no_partition_found(table);
+    m_part_info->print_no_partition_found(current_thd, table);
   else
   {
     if (error == HA_ERR_FOUND_DUPP_KEY &&
@@ -15028,7 +15029,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
   mrr_need_range_assoc = !MY_TEST(mode & HA_MRR_NO_ASSOCIATION);
   if (mrr_need_range_assoc)
   {
-    ha_statistic_increment(&SSV::ha_multi_range_read_init_count);
+    ha_statistic_increment(&System_status_var::ha_multi_range_read_init_count);
   }
 
   /*
@@ -16702,7 +16703,7 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
     {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ER_THD(current_thd, ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
                           "LIST, RANGE and HASH partition disabled by default,"
                           " use --new option to enable");

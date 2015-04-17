@@ -14,6 +14,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server
 --source include/wait_until_disconnected.inc
+--error 0,1
 --remove_file $server_log
 --exec echo "restart: --secure-file-priv=$MYSQLTEST_VARDIR/mysqld.1/Data" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect

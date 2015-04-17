@@ -17,8 +17,10 @@
 #define BINLOG_H_INCLUDED
 
 #include "my_global.h"
+#include "my_atomic.h"                 // my_atomic_load32
 #include "binlog_event.h"              // enum_binlog_checksum_alg
 #include "log.h"                       // TC_LOG
+#include "atomic_class.h"
 
 class Relay_log_info;
 class Master_info;
@@ -30,7 +32,20 @@ class Rows_query_log_event;
 class Incident_log_event;
 class Log_event;
 class Gtid_set;
+class user_var_entry;
 struct Gtid;
+
+typedef int64 query_id_t;
+
+struct Binlog_user_var_event
+{
+  user_var_entry *user_var_event;
+  char *value;
+  ulong length;
+  Item_result type;
+  uint charset_number;
+  bool unsigned_flag;
+};
 
 /**
   Logical timestamp generator for logical timestamping binlog transactions.
@@ -347,7 +362,6 @@ class MYSQL_BIN_LOG: public TC_LOG
   char db[NAME_LEN + 1];
   bool write_error, inited;
   IO_CACHE log_file;
-  volatile enum_log_state log_state;
   const enum cache_type io_cache_type;
 #ifdef HAVE_PSI_INTERFACE
   /** Instrumentation key to use for file io in @c log_file */
@@ -431,7 +445,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   uint sync_counter;
 
   mysql_cond_t m_prep_xids_cond;
-  volatile int32 m_prep_xids;
+  Atomic_int32 m_prep_xids;
 
   /**
     Increment the prepared XID counter.
@@ -446,7 +460,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   void dec_prep_xids(THD *thd);
 
   int32 get_prep_xids() {
-    int32 result= my_atomic_load32(&m_prep_xids);
+    int32 result= m_prep_xids.atomic_get();
     return result;
   }
 
@@ -481,7 +495,7 @@ class MYSQL_BIN_LOG: public TC_LOG
 public:
   const char *generate_name(const char *log_name, const char *suffix,
                             char *buff);
-  bool is_open() const { return log_state != LOG_CLOSED; }
+  bool is_open() { return log_state.atomic_get() != LOG_CLOSED; }
 
   /* This is relay log */
   bool is_relay_log;
@@ -662,7 +676,9 @@ public:
   */
   int gtid_end_transaction(THD *thd);
 private:
-  /* The prevoius gtid set in relay log. */
+  Atomic_int32 log_state; /* atomic enum_log_state */
+
+  /* The previous gtid set in relay log. */
   Gtid_set* previous_gtid_set_relaylog;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
@@ -944,66 +960,6 @@ extern bool opt_binlog_order_commits;
   @returns true if a problem occurs, false otherwise.
  */
 
-inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
-{
-  DBUG_ENTER("normalize_binlog_name");
-  bool error= false;
-  char buff[FN_REFLEN];
-  char *ptr= (char*) from;
-  char *opt_name= is_relay_log ? opt_relay_logname : opt_bin_logname;
+bool normalize_binlog_name(char *to, const char *from, bool is_relay_log);
 
-  DBUG_ASSERT(from);
-
-  /* opt_name is not null and not empty and from is a relative path */
-  if (opt_name && opt_name[0] && from && !test_if_hard_path(from))
-  {
-    // take the path from opt_name
-    // take the filename from from 
-    char log_dirpart[FN_REFLEN], log_dirname[FN_REFLEN];
-    size_t log_dirpart_len, log_dirname_len;
-    dirname_part(log_dirpart, opt_name, &log_dirpart_len);
-    dirname_part(log_dirname, from, &log_dirname_len);
-
-    /* log may be empty => relay-log or log-bin did not 
-        hold paths, just filename pattern */
-    if (log_dirpart_len > 0)
-    {
-      /* create the new path name */
-      if(fn_format(buff, from+log_dirname_len, log_dirpart, "",
-                   MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
-      {
-        error= true;
-        goto end;
-      }
-
-      ptr= buff;
-    }
-  }
-
-  DBUG_ASSERT(ptr);
-  if (ptr)
-  {
-    size_t length= strlen(ptr);
-
-    // Strips the CR+LF at the end of log name and \0-terminates it.
-    if (length && ptr[length-1] == '\n')
-    {
-      ptr[length-1]= 0;
-      length--;
-      if (length && ptr[length-1] == '\r')
-      {
-        ptr[length-1]= 0;
-        length--;
-      }
-    }
-    if (!length)
-    {
-      error= true;
-      goto end;
-    }
-    strmake(to, ptr, length);
-  }
-end:
-  DBUG_RETURN(error);
-}
 #endif /* BINLOG_H_INCLUDED */

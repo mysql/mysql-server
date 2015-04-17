@@ -1677,9 +1677,6 @@ public:
 };
 
 
-
-#ifdef HAVE_DLOPEN
-
 class Item_udf_func :public Item_func
 {
   typedef Item_func super;
@@ -1889,7 +1886,6 @@ public:
   void fix_length_and_dec();
 };
 
-#endif /* HAVE_DLOPEN */
 
 void mysql_ull_cleanup(THD *thd);
 void mysql_ull_set_explicit_lock_duration(THD *thd);
@@ -2077,6 +2073,187 @@ public:
 /* Handling of user definable variables */
 
 class user_var_entry;
+// this is needed for user_vars hash
+class user_var_entry
+{
+  static const size_t extra_size= sizeof(double);
+  char *m_ptr;          // Value
+  size_t m_length;      // Value length
+  Item_result m_type;   // Value type
+  THD *m_owner;
+
+  void reset_value()
+  { m_ptr= NULL; m_length= 0; }
+  void set_value(char *value, size_t length)
+  { m_ptr= value; m_length= length; }
+
+  /**
+    Position inside a user_var_entry where small values are stored:
+    double values, longlong values and string values with length
+    up to extra_size (should be 8 bytes on all platforms).
+    String values with length longer than 8 are stored in a separate
+    memory buffer, which is allocated when needed using the method realloc().
+  */
+  char *internal_buffer_ptr() const
+  { return (char *) this + ALIGN_SIZE(sizeof(user_var_entry)); }
+
+  /**
+    Position inside a user_var_entry where a null-terminates array
+    of characters representing the variable name is stored.
+  */
+  char *name_ptr() const
+  { return internal_buffer_ptr() + extra_size; }
+
+  /**
+    Initialize m_ptr to the internal buffer (if the value is small enough),
+    or allocate a separate buffer.
+    @param length - length of the value to be stored.
+  */
+  bool mem_realloc(size_t length);
+
+  /**
+    Check if m_ptr point to an external buffer previously alloced by realloc().
+    @retval true  - an external buffer is alloced.
+    @retval false - m_ptr is null, or points to the internal buffer.
+  */
+  bool alloced()
+  { return m_ptr && m_ptr != internal_buffer_ptr(); }
+
+  /**
+    Free the external value buffer, if it's allocated.
+  */
+  void free_value()
+  {
+    if (alloced())
+      my_free(m_ptr);
+  }
+
+  /**
+    Copy the array of characters from the given name into the internal
+    name buffer and initialize entry_name to point to it.
+  */
+  void copy_name(const Simple_cstring &name)
+  {
+    name.strcpy(name_ptr());
+    entry_name= Name_string(name_ptr(), name.length());
+  }
+
+  /**
+    Initialize all members
+    @param name - Name of the user_var_entry instance.
+    @cs         - charset information of the user_var_entry instance.
+  */
+  void init(THD *thd, const Simple_cstring &name, const CHARSET_INFO *cs);
+
+  /**
+    Store a value of the given type into a user_var_entry instance.
+    @param from    Value
+    @param length  Size of the value
+    @param type    type
+    @return
+    @retval        false on success
+    @retval        true on memory allocation error
+  */
+  bool store(const void *from, size_t length, Item_result type);
+
+  /**
+    Assert the user variable is locked.
+    This is debug code only.
+    The thread LOCK_thd_data mutex protects:
+    - the thd->user_vars hash itself
+    - the values in the user variable itself.
+    The protection is required for monitoring,
+    as a different thread can inspect this session
+    user variables, on a live session.
+  */
+  void assert_locked() const;
+
+  /**
+    Currently selected catalog.
+  */
+  LEX_CSTRING m_catalog;
+public:
+  user_var_entry() {}                         /* Remove gcc warning */
+
+  Simple_cstring entry_name;  // Variable name
+  DTCollation collation;      // Collation with attributes
+  query_id_t update_query_id, used_query_id;
+  bool unsigned_flag;         // true if unsigned, false if signed
+
+  /**
+    Store a value of the given type and attributes (collation, sign)
+    into a user_var_entry instance.
+    @param from         Value
+    @param length       Size of the value
+    @param type         type
+    @param cs           Character set and collation of the value
+    @param dv           Collationd erivation of the value
+    @param unsigned_arg Signess of the value
+    @return
+    @retval        false on success
+    @retval        true on memory allocation error
+  */
+  bool store(const void *from, size_t length, Item_result type,
+             const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
+  /**
+    Set type of to the given value.
+    @param type  Data type.
+  */
+  void set_type(Item_result type)
+  {
+    assert_locked();
+    m_type= type;
+  }
+  /**
+    Set value to NULL
+    @param type  Data type.
+  */
+
+  void set_null_value(Item_result type)
+  {
+    assert_locked();
+    free_value();
+    reset_value();
+    m_type= type;
+  }
+
+  /**
+    Allocate and initialize a user variable instance.
+    @param namec  Name of the variable.
+    @param cs     Charset of the variable.
+    @return
+    @retval  Address of the allocated and initialized user_var_entry instance.
+    @retval  NULL on allocation error.
+  */
+  static user_var_entry *create(THD *thd,
+                                const Name_string &name,
+                                const CHARSET_INFO *cs);
+
+  /**
+    Free all memory used by a user_var_entry instance
+    previously created by create().
+  */
+  void destroy()
+  {
+    assert_locked();
+    free_value();  // Free the external value buffer
+    my_free(this); // Free the instance itself
+  }
+
+  void lock();
+  void unlock();
+
+  /* Routines to access the value and its type */
+  const char *ptr() const { return m_ptr; }
+  size_t length() const { return m_length; }
+  Item_result type() const { return m_type; }
+  /* Item-alike routines to access the value */
+  double val_real(my_bool *null_value) const;
+  longlong val_int(my_bool *null_value) const;
+  String *val_str(my_bool *null_value, String *str, uint decimals) const;
+  my_decimal *val_decimal(my_bool *null_value, my_decimal *result) const;
+};
+
 
 class Item_func_set_user_var :public Item_var_func
 {
@@ -2853,13 +3030,7 @@ class Item_func_version : public Item_static_string_func
 {
   typedef Item_static_string_func super;
 public:
-  explicit Item_func_version(const POS &pos)
-    : Item_static_string_func(pos, NAME_STRING("version()"),
-                              server_version,
-                              strlen(server_version),
-                              system_charset_info,
-                              DERIVATION_SYSCONST)
-  {}
+  explicit Item_func_version(const POS &pos);
 
   virtual bool itemize(Parse_context *pc, Item **res);
 };

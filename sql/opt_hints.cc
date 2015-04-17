@@ -13,10 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "parse_tree_hints.h"
-#include "sql_class.h"
-#include "sql_lex.h"
+#include "opt_hints.h"
 
+#include "derror.h"        // ER_THD
+#include "sql_class.h"     // THD
+#include "sql_error.h"     // Sql_condition
 
 /**
   Information about hints. Sould be
@@ -38,6 +39,8 @@ struct st_opt_hint_info opt_hint_info[]=
   {"NO_RANGE_OPTIMIZATION", true, true},
   {"MAX_EXECUTION_TIME", false, false},
   {"QB_NAME", false, false},
+  {"SEMIJOIN", false, false},
+  {"SUBQUERY", false, false},
   {0, 0, 0}
 };
 
@@ -99,13 +102,14 @@ void Opt_hints::print(THD *thd, String *str)
 {
   for (uint i= 0; i < MAX_HINT_ENUM; i++)
   {
-    if (is_specified(static_cast<opt_hints_enum>(i)) && is_resolved())
+    opt_hints_enum hint= static_cast<opt_hints_enum>(i);
+    if (is_specified(hint) && is_resolved())
     {
-      append_hint_type(str, static_cast<opt_hints_enum>(i));
+      append_hint_type(str, hint);
       str->append(STRING_WITH_LEN("("));
       append_name(thd, str);
       if (!opt_hint_info[i].switch_hint)
-        get_complex_hints(i)->append_args(thd, str);
+        get_complex_hints(hint)->append_args(thd, str);
       str->append(STRING_WITH_LEN(") "));
     }
   }
@@ -158,7 +162,7 @@ void Opt_hints::check_unresolved(THD *thd)
 }
 
 
-PT_hint *Opt_hints_global::get_complex_hints(uint type)
+PT_hint *Opt_hints_global::get_complex_hints(opt_hints_enum type)
 {
   if (type == MAX_EXEC_TIME_HINT_ENUM)
     return max_exec_time;
@@ -172,11 +176,24 @@ Opt_hints_qb::Opt_hints_qb(Opt_hints *opt_hints_arg,
                            MEM_ROOT *mem_root_arg,
                            uint select_number_arg)
   : Opt_hints(NULL, opt_hints_arg, mem_root_arg),
-    select_number(select_number_arg)
+    select_number(select_number_arg), subquery_hint(NULL), semijoin_hint(NULL)
 {
   sys_name.str= buff;
   sys_name.length= my_snprintf(buff, sizeof(buff), "%s%lx",
                                sys_qb_prefix.str, select_number);
+}
+
+
+PT_hint *Opt_hints_qb::get_complex_hints(opt_hints_enum type)
+{
+  if (type == SEMIJOIN_HINT_ENUM)
+    return semijoin_hint;
+
+  if (type == SUBQUERY_HINT_ENUM)
+    return subquery_hint;
+
+  DBUG_ASSERT(0);
+  return NULL;
 }
 
 
@@ -193,6 +210,56 @@ Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE *table,
 
   tab->adjust_key_hints(table);
   return tab;
+}
+
+
+bool Opt_hints_qb::semijoin_enabled(THD *thd) const
+{
+  if (subquery_hint) // SUBQUERY hint disables semi-join
+    return false;
+
+  if (semijoin_hint)
+  {
+    // SEMIJOIN hint will always force semijoin regardless of optimizer_switch
+    if (semijoin_hint->switch_on())
+      return true;
+
+    // NO_SEMIJOIN hint.  If strategy list is empty, do not use SEMIJOIN
+    if (semijoin_hint->get_args() == 0)
+      return false;
+
+    // Fall through: NO_SEMIJOIN w/ strategies neither turns SEMIJOIN off nor on
+  }
+
+  return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN);
+}
+
+
+uint Opt_hints_qb::sj_enabled_strategies(uint opt_switches) const
+{
+  // Hints override switches
+  if (semijoin_hint)
+  {
+    const uint strategies= semijoin_hint->get_args();
+    if (semijoin_hint->switch_on())  // SEMIJOIN hint
+      return (strategies == 0) ? opt_switches : strategies;
+
+    // NO_SEMIJOIN hint. Hints and optimizer_switch both affect strategies
+    return ~strategies & opt_switches;
+  }
+
+  return opt_switches;
+}
+
+
+Item_exists_subselect::enum_exec_method
+Opt_hints_qb::subquery_strategy() const
+{
+  if (subquery_hint)
+    return static_cast<Item_exists_subselect::enum_exec_method>
+      (subquery_hint->get_args());
+
+  return Item_exists_subselect::EXEC_UNSPECIFIED;
 }
 
 

@@ -15,6 +15,7 @@
 
 #include "filesort_utils.h"
 #include "opt_costmodel.h"
+#include "psi_memory_key.h"
 #include "sql_const.h"
 #include "sql_sort.h"
 #include "table.h"
@@ -23,7 +24,9 @@
 #include <functional>
 #include <vector>
 
+extern "C" {
 PSI_memory_key key_memory_Filesort_buffer_sort_keys;
+}
 
 namespace {
 /**

@@ -14,6 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_base.h"                   /* open_normal_and_derived_tables */
+#include "key_spec.h"                   /* Key_spec */
 #include "sql_table.h"                  /* build_table_filename */
 #include "sql_show.h"                   /* append_identifier */
 #include "sql_view.h"                   /* VIEW_ANY_ACL */
@@ -23,12 +24,16 @@
 #include "binlog.h"                     /* mysql_bin_log */
 #include "sp.h"                         /* sp_exist_routines */
 #include "sql_insert.h"                 /* Sql_cmd_insert_base */
+#include "sql_class.h"
+#include "derror.h"
 
 #include "sql_update.h"
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "sql_authorization.h"
+#include "template_utils.h"
+#include "read_write_lock.h"    // Write_lock
 
 const char *command_array[]=
 {
@@ -271,8 +276,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       !select_lex->where_cond())
   {
-    my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-               ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
@@ -766,8 +770,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   {
     DBUG_PRINT("error",("No database"));
     if (!no_errors)
-      my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR),
-                 MYF(0));                       /* purecov: tested */
+      my_error(ER_NO_DB_ERROR, MYF(0));         /* purecov: tested */
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
 
@@ -848,8 +851,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
                  sctx->priv_user().str,
                  sctx->priv_host().str,
                  (thd->password ?
-                  ER(ER_YES) :
-                  ER(ER_NO)));                    /* purecov: tested */
+                  ER_THD(thd, ER_YES) :
+                  ER_THD(thd, ER_NO)));         /* purecov: tested */
     }
     DBUG_RETURN(TRUE);				/* purecov: tested */
   }
@@ -1083,6 +1086,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_set= 0;
+  bool is_privileged_user= false;
 
   DBUG_ENTER("mysql_table_grant");
 
@@ -1094,8 +1098,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
   if (rights & ~TABLE_ACLS)
   {
-    my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
-               MYF(0));
+    my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -1250,6 +1253,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool result= FALSE;
   bool is_partial_execution= false;
 
+  is_privileged_user= is_privileged_user_for_credential_change(thd);
+
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
@@ -1268,7 +1273,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       continue;
     }
 
-    if (set_and_validate_user_attributes(thd, Str, what_to_set))
+    if (set_and_validate_user_attributes(thd, Str, what_to_set,
+                                         is_privileged_user))
     {
       result= TRUE;
       continue;
@@ -1463,6 +1469,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_set= 0;
+  bool is_privileged_user= false;
 
   DBUG_ENTER("mysql_routine_grant");
 
@@ -1474,8 +1481,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
   if (rights & ~PROC_ACLS)
   {
-    my_message(ER_ILLEGAL_GRANT_FOR_TABLE, ER(ER_ILLEGAL_GRANT_FOR_TABLE),
-               MYF(0));
+    my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -1538,6 +1544,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
+
+  is_privileged_user= is_privileged_user_for_credential_change(thd);
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
@@ -1557,7 +1565,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       continue;
     }
 
-    if (set_and_validate_user_attributes(thd, Str, what_to_set))
+    if (set_and_validate_user_attributes(thd, Str, what_to_set,
+                                         is_privileged_user))
     {
       result= TRUE;
       continue;
@@ -1690,6 +1699,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_set= 0;
+  bool is_privileged_user= false;
+
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
@@ -1774,6 +1785,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
 
+  is_privileged_user= is_privileged_user_for_credential_change(thd);
   /* go through users in user_list */
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
@@ -1791,7 +1803,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       continue;
     }
 
-    if (set_and_validate_user_attributes(thd, Str, what_to_set))
+    if (set_and_validate_user_attributes(thd, Str, what_to_set,
+                                         is_privileged_user))
     {
       result= TRUE;
       continue;
@@ -2210,7 +2223,7 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
         return FALSE;
       }
       table_ref->belong_to_view->allowed_show= FALSE;
-      my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+      my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
       return TRUE;
     }
   }
@@ -3245,7 +3258,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   mysql_mutex_unlock(&acl_cache->lock);
 
   if (result)
-    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+    my_error(ER_REVOKE_GRANTS, MYF(0));
 
   /*
     Before ACLs are changed to execute fully or none at all, when
@@ -3669,6 +3682,12 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
 
 #else /* NO_EMBEDDED_ACCESS_CHECKS */
 
+bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
+{
+  table->grant.privilege= want_access;
+  return false;
+}
+
 /****************************************************************************
  Dummy wrappers when we don't have any access checks
 ****************************************************************************/
@@ -3995,6 +4014,18 @@ err:
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool
+is_privileged_user_for_credential_change(THD *thd)
+{
+#ifdef HAVE_REPLICATION
+  if (thd->slave_thread)
+    return true;
+#endif /* HAVE_REPLICATION */
+  return (!check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) ||
+          thd->security_context()->check_access(CREATE_USER_ACL, false));
+}
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /**
   Check if user has enough privileges for execution of SHOW statement,
@@ -4134,8 +4165,8 @@ bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info)
 {
-  Key *key;
-  List_iterator<Key> key_iterator(alter_info->key_list);
+  Key_spec *key;
+  List_iterator<Key_spec> key_iterator(alter_info->key_list);
   handlerton *db_type= create_info->db_type ? create_info->db_type :
                                              ha_default_handlerton(thd);
 
@@ -4149,7 +4180,7 @@ bool check_fk_parent_table_access(THD *thd,
     {
       TABLE_LIST parent_table;
       bool is_qualified_table_name;
-      Foreign_key *fk_key= (Foreign_key *)key;
+      Foreign_key_spec *fk_key= down_cast<Foreign_key_spec*>(key);
       LEX_STRING db_name;
       LEX_STRING table_name= { (char *) fk_key->ref_table.str,
                                fk_key->ref_table.length };

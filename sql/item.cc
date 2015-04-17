@@ -19,12 +19,15 @@
 #include "mysql.h"           // IS_NUM
 #include "aggregate_check.h" // Distinct_check
 #include "auth_common.h"     // get_column_grant
+#include "current_thd.h"
+#include "derror.h"          // ER_THD
 #include "item_cmpfunc.h"    // COND_EQUAL
 #include "item_create.h"     // create_temporal_literal
 #include "item_func.h"       // item_func_sleep_init
 #include "item_strfunc.h"    // Item_func_conv_charset
 #include "item_sum.h"        // Item_sum
 #include "log_event.h"       // append_query_string
+#include "mysqld.h"          // lower_case_table_names files_charset_info
 #include "sp.h"              // sp_map_item_type
 #include "sp_rcontext.h"     // sp_rcontext
 #include "sql_base.h"        // view_ref_found
@@ -341,7 +344,8 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
     ErrConvString err(res);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "DECIMAL",
                         err.ptr());
   }
   return decimal_value;
@@ -1157,11 +1161,13 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
     ErrConvString tmp(str_arg, static_cast<uint>(length_arg), cs_arg);
     if (length() == 0)
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_NAME_BECOMES_EMPTY, ER(ER_NAME_BECOMES_EMPTY),
+                          ER_NAME_BECOMES_EMPTY,
+                          ER_THD(current_thd, ER_NAME_BECOMES_EMPTY),
                           tmp.ptr());
     else
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_REMOVED_SPACES, ER(ER_REMOVED_SPACES),
+                          ER_REMOVED_SPACES,
+                          ER_THD(current_thd, ER_REMOVED_SPACES),
                           tmp.ptr());
   }
 }
@@ -3451,7 +3457,8 @@ double_from_string_with_check (const CHARSET_INFO *cs,
     ErrConvString err(cptr, org_end - cptr, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "DOUBLE",
                         err.ptr());
   }
   return tmp;
@@ -3486,7 +3493,8 @@ longlong_from_string_with_check (const CHARSET_INFO *cs,
     ErrConvString err(cptr, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "INTEGER",
                         err.ptr());
   }
   return tmp;
@@ -3722,20 +3730,19 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
 
   value.time= *tm;
   value.time.time_type= time_type;
+  decimals= tm->second_part ? DATETIME_MAX_DECIMALS : 0;
 
   if (check_datetime_range(&value.time))
   {
-    make_truncated_value_warning(ErrConvString(&value.time,
-                                               MY_MIN(decimals,
-                                                      DATETIME_MAX_DECIMALS)),
-                                 time_type);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(&value.time, decimals),
+                                 time_type, NullS);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 
   state= TIME_VALUE;
   maybe_null= 0;
   max_length= max_length_arg;
-  decimals= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -4410,7 +4417,7 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
   default:
     /* That can not happen. */
 
-    DBUG_ASSERT(TRUE);  // Abort in debug mode.
+    DBUG_ASSERT(false);  // Abort in debug mode.
 
     set_null();         // Set to NULL in release mode.
     item_type= Item::NULL_ITEM;
@@ -4877,7 +4884,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
     uint sel_nr= (last->select_number < INT_MAX) ? last->select_number :
                   last->master_unit()->first_select()->select_number;
     push_warning_printf(thd, Sql_condition::SL_NOTE,
-		 ER_WARN_FIELD_RESOLVED, ER(ER_WARN_FIELD_RESOLVED),
+		 ER_WARN_FIELD_RESOLVED, ER_THD(thd, ER_WARN_FIELD_RESOLVED),
                  db_name, (db_name[0] ? "." : ""),
                  table_name, (table_name [0] ? "." : ""),
                  resolved_item->field_name,
@@ -5131,7 +5138,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     Search for a column or derived column named as 'ref' in the SELECT
     clause of the current select.
   */
-  if (!(select_ref= find_item_in_list(ref, *(select->get_item_list()),
+  if (!(select_ref= find_item_in_list(thd, ref, *(select->get_item_list()),
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &resolution)))
     return NULL; /* Some error occurred. */
@@ -5149,8 +5156,8 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     {
       ambiguous_fields= TRUE;
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
-                          ER(ER_NON_UNIQ_ERROR), ref->full_name(),
-                          current_thd->where);
+                          ER_THD(thd, ER_NON_UNIQ_ERROR), ref->full_name(),
+                          thd->where);
 
     }
   }
@@ -5568,7 +5575,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       {
         uint counter;
         enum_resolution_type resolution;
-        Item** res= find_item_in_list(this, thd->lex->current_select()->item_list,
+        Item** res= find_item_in_list(thd, this,
+                                      thd->lex->current_select()->item_list,
                                       &counter, REPORT_EXCEPT_NOT_FOUND,
                                       &resolution);
         if (!res)
@@ -6098,7 +6106,8 @@ String *Item::check_well_formed_result(String *str, bool send_error)
     }
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_INVALID_CHARACTER_STRING,
-                        ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
+                        ER_THD(thd, ER_INVALID_CHARACTER_STRING),
+                        cs->csname, hexbuf);
   }
   return str;
 }
@@ -8337,8 +8346,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
     {
       if (field_arg->reset())
       {
-        my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-                   ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+        my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
         return TYPE_ERR_BAD_VALUE;
       }
 
@@ -8348,7 +8356,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
         push_warning_printf(field_arg->table->in_use,
                             Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
-                            ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
+                            ER_THD(field_arg->table->in_use, ER_NO_DEFAULT_FOR_VIEW_FIELD),
                             view->view_db.str,
                             view->view_name.str);
       }
@@ -8357,7 +8365,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
         push_warning_printf(field_arg->table->in_use,
                             Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_FIELD,
-                            ER(ER_NO_DEFAULT_FOR_FIELD),
+                            ER_THD(field_arg->table->in_use, ER_NO_DEFAULT_FOR_FIELD),
                             field_arg->field_name);
       }
       return TYPE_ERR_BAD_VALUE;
@@ -9992,7 +10000,7 @@ bool Item_ident::aggregate_check_distinct(uchar *arg)
   uint counter;
   enum_resolution_type resolution;
   Item **const res=
-    find_item_in_list(this,
+    find_item_in_list(current_thd, this,
                       sl->item_list,
                       &counter, REPORT_EXCEPT_NOT_FOUND,
                       &resolution);

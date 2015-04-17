@@ -24,18 +24,11 @@
   classes to use when handling where clause
 */
 
-#include "procedure.h"
-#include <myisam.h>
-#include "sql_array.h"                        /* Array */
-#include "records.h"                          /* READ_RECORD */
-#include "opt_range.h"                        /* QUICK_SELECT_I */
-#include "filesort.h"
 
-#include "mem_root_array.h"
-#include "sql_executor.h"
-#include "opt_explain_format.h" // for Extra_tag
-#include "sql_opt_exec_shared.h"
+#include "my_global.h"
 #include "item_cmpfunc.h"             // Item_cond_and
+#include "sql_class.h"                // THD
+#include "sql_opt_exec_shared.h"      // join_type
 
 #include <functional>
 /**
@@ -239,9 +232,6 @@ public:
   double read_cost;
 };
 
-
-// Key_use has a trivial destructor, no need to run it from Mem_root_array.
-typedef Mem_root_array<Key_use, true> Key_use_array;
 
 /// @returns join type according to quick select type used
 join_type calc_join_type(int quick_type);
@@ -616,11 +606,27 @@ private:
   Item          **m_join_cond_ref;
 public:
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression*/
+
+  /**
+    The maximum value for the cost of seek operations for key lookup
+    during ref access. The cost model for ref access assumes every key
+    lookup will cause reading a block from disk. With many key lookups
+    into the same table, most of the blocks will soon be in a memory
+    buffer. As a consequence, there will in most cases be an upper
+    limit on the number of actual disk accesses the ref access will
+    cause. This variable is used for storing a maximum cost estimate
+    for the disk accesses for ref access. It is used for limiting the
+    cost estimate for ref access to a more realistic value than
+    assuming every key lookup causes a random disk access. Without
+    having this upper limit for the cost of ref access, table scan
+    would be more likely to be chosen for cases where ref access
+    performs better.
+  */
   double	worst_seeks;
   /** Keys with constant part. Subset of keys. */
-  key_map	const_keys;
-  key_map	checked_keys;			/**< Keys checked */
-  key_map	needed_reg;
+  Key_map	const_keys;
+  Key_map	checked_keys;			/**< Keys checked */
+  Key_map	needed_reg;
 
   /**
     Used to avoid repeated range analysis for the same key in
@@ -630,7 +636,7 @@ public:
     this JOIN_TAB changes since a new condition may give another plan
     and cost from range analysis.
    */
-  key_map       quick_order_tested;
+  Key_map       quick_order_tested;
 
   /*
     Number of records that will be scanned (yes scanned, not returned) by the
@@ -846,8 +852,6 @@ public:
 };
 
 
-typedef Bounds_checked_array<Item_null_result*> Item_null_array;
-
 typedef struct st_select_check {
   uint const_ref,reg_ref;
 } SELECT_CHECK;
@@ -856,7 +860,7 @@ typedef struct st_select_check {
 void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param, 
                        List<Item> &fields, bool reset_with_sum_func,
                        bool save_sum_fields);
-uint find_shortest_key(TABLE *table, const key_map *usable_keys);
+uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
@@ -1120,7 +1124,7 @@ int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
                          uint *used_key_parts= NULL);
 bool test_if_cheaper_ordering(const JOIN_TAB *tab,
                               ORDER *order, TABLE *table,
-                              key_map usable_keys, int key,
+                              Key_map usable_keys, int key,
                               ha_rows select_limit,
                               int *new_key, int *new_key_direction,
                               ha_rows *new_select_limit,

@@ -19,12 +19,16 @@
 
 /** @file Classes for query execution */
 
+#include "my_global.h"
 #include "records.h"               // READ_RECORD
+#include "sql_class.h"             // THD
 #include "sql_opt_exec_shared.h"   // QEP_shared_owner
+#include "temp_table_param.h"      // Temp_table_param
 
 class JOIN;
 class JOIN_TAB;
 class QEP_TAB;
+typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_table_ref TABLE_REF;
 typedef struct st_position POSITION;
 

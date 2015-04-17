@@ -31,13 +31,16 @@
   user-submitted one. (see sql_parse.cc)
 */
 
+#include "sql_rewrite.h"
 
-#include "auth_common.h"    // append_user
-#include "sql_parse.h"  // get_current_user
-#include "sql_show.h"   // append_identifier
-#include "sp_head.h"    // struct set_var_base
-#include "rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
-#include "mysqld.h"     // opt_log_backward_compatible_user_definitions
+#include "auth_common.h"    // GRANT_ACL
+#include "mysqld.h"         // opt_log_backward_compatible_user_definitions
+#include "rpl_slave.h"      // SLAVE_SQL, SLAVE_IO
+#include "sql_class.h"      // THD
+#include "sql_lex.h"        // LEX
+#include "sql_parse.h"      // get_current_user
+#include "sql_show.h"       // append_identifier
+#include "sql_string.h"     // String
 
 
 /**
@@ -166,21 +169,15 @@ void rewrite_user_resources(LEX *lex, String *rlb)
   }
 }
 
-void rewrite_account_lock(LEX *lex, String *rlb, bool lock_only)
+void rewrite_account_lock(LEX *lex, String *rlb)
 {
-  if (!lex->alter_password.account_locked)
+  if (lex->alter_password.account_locked)
   {
-    if (lock_only)
-    {
-      /* Do not write account enable state. */
-      return;
-    }
-
-    rlb->append(STRING_WITH_LEN(" ACCOUNT UNLOCK"));
+    rlb->append(STRING_WITH_LEN(" ACCOUNT LOCK"));
   }
   else
   {
-    rlb->append(STRING_WITH_LEN(" ACCOUNT LOCK"));
+    rlb->append(STRING_WITH_LEN(" ACCOUNT UNLOCK"));
   }
 }
 
@@ -395,7 +392,11 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb)
   else
     rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE NEVER"));
 
-  rewrite_account_lock(lex, rlb, false);
+  if (!opt_log_backward_compatible_user_definitions ||
+      lex->alter_password.update_account_locked_column)
+  {
+    rewrite_account_lock(lex, rlb);
+  }
 }
 
 /**

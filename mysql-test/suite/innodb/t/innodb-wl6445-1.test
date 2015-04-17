@@ -63,8 +63,7 @@ SELECT * FROM otherlocation ORDER BY id;
 
 #
 
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 SET GLOBAL innodb_file_per_table = 1;
 

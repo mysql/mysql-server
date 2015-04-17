@@ -26,6 +26,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 /* Include necessary SQL headers */
 #include <debug_sync.h>
 #include <log.h>
+#include <mysqld.h>
 #include <strfunc.h>
 #include <sql_acl.h>
 #include <sql_class.h>
@@ -63,7 +64,6 @@ const char* sub_sep = "#sp#";
 const char* part_sep = "#P#";
 const char* sub_sep = "#SP#";
 #endif /* _WIN32 */
-extern char*	innobase_file_format_max;
 
 Ha_innopart_share::Ha_innopart_share(
 	TABLE_SHARE*	table_share)
@@ -215,7 +215,17 @@ Ha_innopart_share::open_table_parts(
 	m_ref_count++;
 	if (m_table_parts != NULL) {
 		ut_ad(m_ref_count > 1);
-		ut_ad(m_tot_parts);
+		ut_ad(m_tot_parts > 0);
+
+		/* Increment dict_table_t reference count for all partitions */
+		mutex_enter(&dict_sys->mutex);
+		for (uint i = 0; i < m_tot_parts; i++) {
+			dict_table_t*	table = m_table_parts[i];
+			table->acquire();
+			ut_ad(table->get_ref_count() >= m_ref_count);
+		}
+		mutex_exit(&dict_sys->mutex);
+
 		return(false);
 	}
 	ut_ad(m_ref_count == 1);
@@ -366,6 +376,16 @@ Ha_innopart_share::close_table_parts()
 #endif /* DBUG_OFF */
 	m_ref_count--;
 	if (m_ref_count != 0) {
+
+		/* Decrement dict_table_t reference count for all partitions */
+		mutex_enter(&dict_sys->mutex);
+		for (uint i = 0; i < m_tot_parts; i++) {
+			dict_table_t*	table = m_table_parts[i];
+			table->release();
+			ut_ad(table->get_ref_count() >= m_ref_count);
+		}
+		mutex_exit(&dict_sys->mutex);
+
 		return;
 	}
 
@@ -1166,15 +1186,6 @@ share_error:
 
 	/* Index block size in InnoDB: used by MySQL in query optimization. */
 	stats.block_size = UNIV_PAGE_SIZE;
-
-	if (m_prebuilt->table != NULL) {
-		/* We update the highest file format in the system table
-		space, if this table has higher file format setting. */
-
-		trx_sys_file_format_max_upgrade(
-			(const char**) &innobase_file_format_max,
-			dict_table_get_format(m_prebuilt->table));
-	}
 
 	/* Only if the table has an AUTOINC column. */
 	if (m_prebuilt->table != NULL
@@ -2340,7 +2351,7 @@ ha_innopart::rnd_next_in_part(
 		}
 		m_start_of_scan = 0;
 	} else {
-		ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+		ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 		error = ha_innobase::general_fetch(buf, ROW_SEL_NEXT, 0);
 	}
 
@@ -2366,7 +2377,7 @@ ha_innopart::rnd_pos(
 	ut_ad(PARTITION_BYTES_IN_POS == 2);
 	DBUG_DUMP("pos", pos, ref_length);
 
-	ha_statistic_increment(&SSV::ha_read_rnd_count);
+	ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
 	ut_a(m_prebuilt->trx == thd_to_trx(ha_thd()));
 
@@ -2412,10 +2423,11 @@ ha_innopart::position_in_last_part(
 
 		memcpy(ref_arg, m_prebuilt->row_id, DATA_ROW_ID_LEN);
 	} else {
-		store_key_val_for_row(m_primary_key,
-				(char*) ref_arg,
-				ref_length - PARTITION_BYTES_IN_POS,
-				record);
+
+		/* Copy primary key as the row reference */
+		KEY*	key_info = table->key_info + m_primary_key;
+		key_copy(ref_arg, (uchar*)record, key_info,
+			 key_info->key_length);
 	}
 }
 
@@ -3388,22 +3400,6 @@ ha_innopart::info_low(
 			m_prebuilt->trx->op_info =
 				"returning various info to MySQL";
 		}
-
-		char		path[FN_REFLEN];
-		os_file_stat_t	stat_info;
-		/* Use the first partition for create time until new DD. */
-		ib_table = m_part_share->get_table_part(0);
-		my_snprintf(path, sizeof(path), "%s/%s%s",
-			    mysql_data_home, ib_table->name, reg_ext);
-
-		unpack_filename(path,path);
-
-		/* Note that we do not know the access time of the table,
-		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
-
-		if (os_file_get_status(path, &stat_info, false, false) == DB_SUCCESS) {
-			stats.create_time = (ulong) stat_info.ctime;
-		}
 	}
 
 	if ((flag & HA_STATUS_VARIABLE) != 0) {
@@ -3731,6 +3727,21 @@ ha_innopart::info_low(
 
 		if ((flag & HA_STATUS_NO_LOCK) == 0) {
 			dict_table_stats_unlock(ib_table, RW_S_LATCH);
+		}
+
+		char		path[FN_REFLEN];
+		os_file_stat_t	stat_info;
+		/* Use the first partition for create time until new DD. */
+		ib_table = m_part_share->get_table_part(0);
+		my_snprintf(path, sizeof(path), "%s/%s%s",
+			    mysql_data_home,
+			    table->s->normalized_path.str,
+			    reg_ext);
+
+		unpack_filename(path,path);
+
+		if (os_file_get_status(path, &stat_info, false, true) == DB_SUCCESS) {
+			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
 

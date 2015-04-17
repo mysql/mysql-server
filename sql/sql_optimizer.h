@@ -27,7 +27,16 @@
    Only such indexes are involved in range analysis.
 */
 
-#include "sql_select.h"        // Item_null_array
+#include "my_global.h"
+#include "opt_explain_format.h"                 // Explain_sort_clause
+#include "mem_root_array.h"
+#include "sql_select.h"                         // Key_use
+#include "sql_executor.h"                       // Next_select_func
+
+typedef Bounds_checked_array<Item_null_result*> Item_null_array;
+
+// Key_use has a trivial destructor, no need to run it from Mem_root_array.
+typedef Mem_root_array<Key_use, true> Key_use_array;
 
 class Cost_model_server;
 
@@ -871,7 +880,8 @@ Item_equal *find_item_equal(COND_EQUAL *cond_equal, Item_field *item_field,
                             bool *inherited_fl);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *
-make_cond_for_table(Item *cond, table_map tables, table_map used_table,
+make_cond_for_table(THD *thd, Item *cond, table_map tables,
+                    table_map used_table,
                     bool exclude_expensive_cond);
 
 /**

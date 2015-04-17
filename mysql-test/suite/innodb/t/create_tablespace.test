@@ -17,11 +17,9 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 --echo # It rejects all invalid input, as if strict mode is always ON.
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 
---echo # Neither file_format=antelope nor file_per_table=OFF will prevent
+--echo # innodb_file_per_table=OFF will not prevent
 --echo # CREATE TABLESPACE from working because the tablespace is an empty
 --echo # shell that can contain multiple row formats.
-SET GLOBAL innodb_file_format = 'antelope';
-SHOW VARIABLES LIKE 'innodb_file_format';
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 
 --echo #
@@ -208,6 +206,36 @@ DROP TABLESPACE `InnoDB_Custom`;
 CREATE TABLESPACE `INNODB_CUSTOM` ADD DATAFILE 's_INNODB_CUSTOM.ibd';
 DROP TABLESPACE `INNODB_CUSTOM`;
 
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE `ib_logfile0`;
+SHOW WARNINGS;
+CREATE TABLESPACE `ib_logfile0` ADD DATAFILE 'ib_logfile0.ibd';
+DROP TABLESPACE `ib_logfile0`;
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE `ib_logfile1`;
+SHOW WARNINGS;
+CREATE TABLESPACE `ib_logfile1` ADD DATAFILE 'ib_logfile1.ibd';
+DROP TABLESPACE `ib_logfile1`;
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE `ibdata1`;
+SHOW WARNINGS;
+CREATE TABLESPACE `ibdata1` ADD DATAFILE 'ibdata1.ibd';
+DROP TABLESPACE `ibdata1`;
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE `undo001`;
+SHOW WARNINGS;
+CREATE TABLESPACE `undo001` ADD DATAFILE 'undo001.ibd';
+DROP TABLESPACE `undo001`;
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE `undo002`;
+SHOW WARNINGS;
+CREATE TABLESPACE `undo002` ADD DATAFILE 'undo002.ibd';
+DROP TABLESPACE `undo002`;
+
 --echo #
 --echo # Test various forms of ADD DATAFILE
 --echo #
@@ -344,7 +372,7 @@ CREATE TABLESPACE s_red ADD DATAFILE 's_red.ibd' ROW_FORMAT=redundant;
 CREATE TABLE t_def_in_def (a int, b text) TABLESPACE s_def;
 CREATE TABLE t_red_in_def (a int, b text) ROW_FORMAT=Redundant TABLESPACE s_def;
 # Since these are creating tables within existing general tablespaces the value
-# of INNODB_FILE_FORMAT and INNODB_FILE_PER_TABLE do not matter.
+# of INNODB_FILE_PER_TABLE does not matter.
 SET GLOBAL innodb_file_per_table = OFF;
 CREATE TABLE t_dyn_in_def (a int, b text) ROW_FORMAT=Dynamic TABLESPACE s_def;
 
@@ -416,7 +444,6 @@ SHOW WARNINGS;
 --echo #
 --echo # Try to add a second table to a single-table tablespace
 --echo #
-SET GLOBAL innodb_file_format = 'barracuda';
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE s_single (a int, b text) ROW_FORMAT=dynamic;
 --error ER_TABLESPACE_MISSING
@@ -431,28 +458,19 @@ DROP TABLE s_single;
 --echo #
 --echo # Try to use both TABLESPACE and DATA DIRECTORY in the same CREATE TABLE.
 --echo #
-# Strict mode, file_format and file_per_table should make no difference
+# Strict mode, innodb_file_per_table should make no difference
 # when using general tablespaces.
 SET innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION
 eval CREATE TABLE t3 (a int, b text) DATA DIRECTORY='$MYSQL_TMP_DIR' TABLESPACE s_def;
 SHOW WARNINGS;
-
---echo # Cannot use both a general tablespace and a DATA DIRECTORY
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION
-eval CREATE TABLE t4 (a int, b text) TABLESPACE=s_def DATA DIRECTORY='$MYSQL_TMP_DIR';
+eval CREATE TABLE t4 (a int, b text) TABLESPACE s_def DATA DIRECTORY='$MYSQL_TMP_DIR';
 SHOW WARNINGS;
-
---echo # Do not allow an empty string in DATA DIRECTORY=''
---error ER_WRONG_TABLE_NAME
-CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
-SHOW WARNINGS;
-
---echo # TABLESPACE=innodb_file_per_table can be used with DATA DIRECTORY='...'
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
+eval CREATE TABLE t4 (a int, b text) TABLESPACE innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
 SHOW WARNINGS;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4;
@@ -467,9 +485,6 @@ SHOW CREATE TABLE t4;
 
 --echo # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY=
 ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t4;
-ALTER TABLE t4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4;
 DROP TABLE t4;

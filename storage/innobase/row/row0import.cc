@@ -50,7 +50,7 @@ reads to fail. If you set the buffer size to be greater than a multiple of the
 file size then it will assert. TODO: Fix this limitation of the IO functions.
 @param n page size of the tablespace.
 @retval number of pages */
-#define IO_BUFFER_SIZE(n)	((1024 * 1024) / n)
+#define IO_BUFFER_SIZE(m, n)	((m) / (n))
 
 /** For gathering stats on records during phase I */
 struct row_stats_t {
@@ -68,7 +68,7 @@ struct row_stats_t {
 
 /** Index information required by IMPORT. */
 struct row_index_t {
-	index_id_t	m_id;			/*!< Index id of the table
+	space_index_t	m_id;			/*!< Index id of the table
 						in the exporting server */
 	byte*		m_name;			/*!< Index name */
 
@@ -587,12 +587,12 @@ struct FetchIndexRootPages : public AbstractCallback {
 	/** Index information gathered from the .ibd file. */
 	struct Index {
 
-		Index(index_id_t id, ulint page_no)
+		Index(space_index_t id, ulint page_no)
 			:
 			m_id(id),
 			m_page_no(page_no) { }
 
-		index_id_t	m_id;		/*!< Index id */
+		space_index_t	m_id;		/*!< Index id */
 		ulint		m_page_no;	/*!< Root page number */
 	};
 
@@ -710,7 +710,7 @@ FetchIndexRootPages::operator() (
 		   && !is_free(block->page.id.page_no())
 		   && is_root_page(page)) {
 
-		index_id_t	id = btr_page_get_index_id(page);
+		space_index_t	id = btr_page_get_index_id(page);
 
 		m_indexes.push_back(Index(id, block->page.id.page_no()));
 
@@ -951,7 +951,7 @@ private:
 
 	/** Find an index with the matching id.
 	@return row_index_t* instance or 0 */
-	row_index_t* find_index(index_id_t id) UNIV_NOTHROW
+	row_index_t* find_index(space_index_t id) UNIV_NOTHROW
 	{
 		row_index_t*	index = &m_cfg->m_indexes[0];
 
@@ -1841,7 +1841,7 @@ dberr_t
 PageConverter::update_index_page(
 	buf_block_t*	block) UNIV_NOTHROW
 {
-	index_id_t	id;
+	space_index_t	id;
 	buf_frame_t*	page = block->frame;
 
 	if (is_free(block->page.id.page_no())) {
@@ -1917,9 +1917,6 @@ PageConverter::update_header(
 
 		return(DB_UNSUPPORTED);
 	}
-
-	mach_write_to_8(
-		get_frame(block) + FIL_PAGE_FILE_FLUSH_LSN, m_current_lsn);
 
 	/* Write space_id to the tablespace header, page 0. */
 	mach_write_to_4(
@@ -2012,30 +2009,20 @@ PageConverter::validate(
 	the file. Flag as corrupt if it doesn't. Disable the check
 	for LSN in buf_page_is_corrupted() */
 
-	if (buf_page_is_corrupted(
+	BlockReporter	reporter(
 		false, page, get_page_size(),
-		fsp_is_checksum_disabled(block->page.id.space()))
+		fsp_is_checksum_disabled(block->page.id.space()));
+
+	if (reporter.is_corrupted()
 	    || (page_get_page_no(page) != offset / m_page_size.physical()
 		&& page_get_page_no(page) != 0)) {
 
 		return(IMPORT_PAGE_STATUS_CORRUPTED);
 
 	} else if (offset > 0 && page_get_page_no(page) == 0) {
-		const byte*	b = page;
-		const byte*	e = b + m_page_size.physical();
 
-		/* If the page number is zero and offset > 0 then
-		the entire page MUST consist of zeroes. If not then
-		we flag it as corrupt. */
-
-		while (b != e) {
-
-			if (*b++ && !trigger_corruption()) {
-				return(IMPORT_PAGE_STATUS_CORRUPTED);
-			}
-		}
-
-		/* The page is all zero: do nothing. */
+		/* The page is all zero: do nothing. We already checked
+		for all NULs in buf_page_is_corrupted() */
 		return(IMPORT_PAGE_STATUS_ALL_ZERO);
 	}
 
@@ -2123,7 +2110,7 @@ PageConverter::operator() (
 Clean up after import tablespace failure, this function will acquire
 the dictionary latches on behalf of the transaction if the transaction
 hasn't already acquired them. */
-static	__attribute__((nonnull))
+static
 void
 row_import_discard_changes(
 /*=======================*/
@@ -2168,7 +2155,7 @@ row_import_discard_changes(
 
 /*****************************************************************//**
 Clean up after import tablespace. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_import_cleanup(
 /*===============*/
@@ -2203,7 +2190,7 @@ row_import_cleanup(
 
 /*****************************************************************//**
 Report error during tablespace import. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_import_error(
 /*=============*/
@@ -2231,7 +2218,7 @@ row_import_error(
 Adjust the root page index node and leaf node segment headers, update
 with the new space id. For all the table's secondary indexes.
 @return error code */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_import_adjust_root_pages_of_secondary_indexes(
 /*==============================================*/
@@ -2341,7 +2328,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 /*****************************************************************//**
 Ensure that dict_sys->row_id exceeds SELECT MAX(DB_ROW_ID).
 @return error code */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_import_set_sys_max_row_id(
 /*==========================*/
@@ -2486,7 +2473,7 @@ row_import_cfg_read_string(
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_import_cfg_read_index_fields(
 /*=============================*/
@@ -2576,7 +2563,7 @@ row_import_cfg_read_index_fields(
 Read the index names and root page numbers of the indexes and set the values.
 Row format [root_page_no, len of str, str ... ]
 @return DB_SUCCESS or error code. */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_import_read_index_data(
 /*=======================*/
@@ -2586,7 +2573,7 @@ row_import_read_index_data(
 {
 	byte*		ptr;
 	row_index_t*	cfg_index;
-	byte		row[sizeof(index_id_t) + sizeof(ib_uint32_t) * 9];
+	byte		row[sizeof(space_index_t) + sizeof(ib_uint32_t) * 9];
 
 	/* FIXME: What is the max value? */
 	ut_a(cfg->m_n_indexes > 0);
@@ -2642,7 +2629,7 @@ row_import_read_index_data(
 		ptr = row;
 
 		cfg_index->m_id = mach_read_from_8(ptr);
-		ptr += sizeof(index_id_t);
+		ptr += sizeof(space_index_t);
 
 		cfg_index->m_space = mach_read_from_4(ptr);
 		ptr += sizeof(ib_uint32_t);
@@ -2776,7 +2763,7 @@ row_import_read_indexes(
 /*********************************************************************//**
 Read the meta data (table columns) config file. Deserialise the contents of
 dict_col_t structure, along with the column name. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_import_read_columns(
 /*====================*/
@@ -2909,7 +2896,7 @@ row_import_read_columns(
 /*****************************************************************//**
 Read the contents of the <tablespace>.cfg file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_import_read_v1(
 /*===============*/
@@ -3086,7 +3073,7 @@ row_import_read_v1(
 /**
 Read the contents of the <tablespace>.cfg file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_import_read_meta_data(
 /*======================*/
@@ -3129,7 +3116,7 @@ row_import_read_meta_data(
 /**
 Read the contents of the <tablename>.cfg file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_import_read_cfg(
 /*================*/
@@ -3215,7 +3202,7 @@ row_import_update_index_root(
 		ib_uint32_t	page;
 		ib_uint32_t	space;
 		ib_uint32_t	type;
-		index_id_t	index_id;
+		space_index_t	index_id;
 		table_id_t	table_id;
 
 		info = (graph != 0) ? graph->info : pars_info_create();
@@ -3513,7 +3500,9 @@ row_import_for_mysql(
 		FetchIndexRootPages	fetchIndexRootPages(table, trx);
 
 		err = fil_tablespace_iterate(
-			table, IO_BUFFER_SIZE(cfg.m_page_size.physical()),
+			table, IO_BUFFER_SIZE(
+				cfg.m_page_size.physical(),
+				cfg.m_page_size.physical()),
 			fetchIndexRootPages);
 
 		if (err == DB_SUCCESS) {
@@ -3549,7 +3538,9 @@ row_import_for_mysql(
 	/* Set the IO buffer size in pages. */
 
 	err = fil_tablespace_iterate(
-		table, IO_BUFFER_SIZE(cfg.m_page_size.physical()), converter);
+		table, IO_BUFFER_SIZE(
+			cfg.m_page_size.physical(),
+			cfg.m_page_size.physical()), converter);
 
 	DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);

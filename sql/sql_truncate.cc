@@ -25,6 +25,7 @@
 #include "auth_common.h" // DROP_ACL
 #include "sql_parse.h"   // check_one_table_access()
 #include "sql_show.h"    //append_identifier()
+#include "sql_cache.h"   // query_cache
 
 
 /**
@@ -308,7 +309,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     thd->thread_specific_used= TRUE;
   }
   else
-    rm_temporary_table(table_type, share->path.str);
+    rm_temporary_table(thd, table_type, share->path.str);
 
   free_table_share(share);
   my_free(table);

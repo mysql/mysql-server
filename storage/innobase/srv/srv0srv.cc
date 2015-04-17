@@ -105,10 +105,10 @@ char*	srv_data_home	= NULL;
 char*	srv_undo_dir = NULL;
 
 /** The number of tablespaces to use for rollback segments. */
-ulong	srv_undo_tablespaces = 8;
+ulong	srv_undo_tablespaces = 0;
 
 /** The number of UNDO tablespaces that are open and ready to use. */
-ulint	srv_undo_tablespaces_open = 8;
+ulint	srv_undo_tablespaces_open = 0;
 
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
@@ -141,16 +141,6 @@ my_bool	srv_read_only_mode;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 my_bool	srv_file_per_table;
-/** The file format to use on new *.ibd files. */
-ulint	srv_file_format = 0;
-/** Whether to check file format during startup.  A value of
-UNIV_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
-set it to the highest format we support. */
-ulint	srv_max_file_format_at_startup = UNIV_FORMAT_MAX;
-
-#if UNIV_FORMAT_A
-# error "UNIV_FORMAT_A must be 0!"
-#endif
 
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
@@ -165,6 +155,11 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 my_bool	srv_use_native_aio = TRUE;
+
+#ifdef UNIV_DEBUG
+/** Force all user tables to use page compression. */
+ulong	srv_debug_compress;
+#endif /* UNIV_DEBUG */
 
 /*------------------------- LOG FILES ------------------------ */
 char*	srv_log_group_home_dir	= NULL;
@@ -2287,13 +2282,12 @@ suspend_thread:
 	DBUG_RETURN(0);
 }
 
-/*********************************************************************//**
+/**
 Check if purge should stop.
 @return true if it should shutdown. */
 static
 bool
 srv_purge_should_exit(
-/*==============*/
 	ulint		n_purged)	/*!< in: pages purged in last batch */
 {
 	switch (srv_shutdown_state) {
@@ -2813,4 +2807,18 @@ srv_is_tablespace_truncated(ulint space_id)
 
 }
 
+/** Call exit(3) */
+void
+srv_fatal_error()
+{
 
+	ib::error() << "Cannot continue operation.";
+
+	fflush(stderr);
+
+	ut_d(innodb_calling_exit = true);
+
+	srv_shutdown_all_bg_threads();
+
+	exit(3);
+}

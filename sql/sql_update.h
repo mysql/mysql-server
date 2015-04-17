@@ -16,7 +16,7 @@
 #ifndef SQL_UPDATE_INCLUDED
 #define SQL_UPDATE_INCLUDED
 
-#include "sql_class.h"       // Query_result_interceptor
+#include "query_result.h"    // Query_result_interceptor
 #include "sql_cmd_dml.h"     // Sql_cmd_dml
 #include "sql_data_change.h" // enum_duplicates
 
@@ -28,7 +28,7 @@ typedef class st_select_lex SELECT_LEX;
 
 bool mysql_update_prepare_table(THD *thd, SELECT_LEX *select);
 bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
-                          key_map *covering_keys_for_cond,
+                          Key_map *covering_keys_for_cond,
                           List<Item> &update_value_list);
 bool mysql_update(THD *thd, List<Item> &fields,
                   List<Item> &values, ha_rows limit,
@@ -86,9 +86,16 @@ class Query_result_update :public Query_result_interceptor
   COPY_INFO **update_operations;
 
 public:
-  Query_result_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
-                      List<Item> *fields, List<Item> *values,
-                      enum_duplicates handle_duplicates);
+  Query_result_update(THD *thd, TABLE_LIST *table_list, TABLE_LIST *leaves_list,
+                      List<Item> *field_list, List<Item> *value_list,
+                      enum_duplicates handle_duplicates_arg)
+  :Query_result_interceptor(thd),
+   all_tables(table_list), leaves(leaves_list), update_tables(0),
+   tmp_tables(0), updated(0), found(0), fields(field_list),
+   values(value_list), table_count(0), copy_field(0),
+   handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(1),
+   transactional_tables(0), error_handled(0), update_operations(NULL)
+  {}
   ~Query_result_update();
   virtual bool need_explain_interceptor() const { return true; }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);

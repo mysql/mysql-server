@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,9 +27,6 @@ Created 1/20/1994 Heikki Tuuri
 #define ut0rnd_h
 
 #include "univ.i"
-
-#ifndef UNIV_INNOCHECKSUM
-
 #include "ut0byte.h"
 
 /** The 'character code' for end of field or string (used
@@ -109,8 +106,6 @@ ut_find_prime(
 /*==========*/
 	ulint	n)	/*!< in: positive number > 100 */
 	__attribute__((const));
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 /*************************************************************//**
 Folds a pair of ulints.

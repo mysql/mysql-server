@@ -19,6 +19,9 @@
 /* 2006-12 Erik Wetterberg : LOAD XML added */
 
 #include "sql_load.h"
+
+#include "mysqld.h"                             // mysql_real_data_home
+#include "psi_memory_key.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"          // fill_record_n_invoke_before_triggers
 #include <my_dir.h>
@@ -37,6 +40,7 @@
 #include "sql_show.h"
 #include "item_timefunc.h"  // Item_func_now_local
 #include "rpl_rli.h"     // Relay_log_info
+#include "derror.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -221,8 +225,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (escaped->length() > 1 || enclosed->length() > 1)
   {
-    my_message(ER_WRONG_FIELD_TERMINATORS,ER(ER_WRONG_FIELD_TERMINATORS),
-	       MYF(0));
+    my_error(ER_WRONG_FIELD_TERMINATORS, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -233,7 +236,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
-                 ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
+                 ER_THD(thd, WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   } 
 
   if (open_and_lock_tables(thd, table_list, 0))
@@ -357,7 +360,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (info.add_function_default_columns(table, table->write_set))
     DBUG_RETURN(TRUE);
 
-  prepare_triggers_for_insert_stmt(table);
+  prepare_triggers_for_insert_stmt(thd, table);
 
   uint tot_length=0;
   bool use_blobs= 0, use_vars= 0;
@@ -384,8 +387,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
   if (use_blobs && !ex->line.line_term->length() && !field_term->length())
   {
-    my_message(ER_BLOBS_AND_NO_TERMINATED,ER(ER_BLOBS_AND_NO_TERMINATED),
-	       MYF(0));
+    my_error(ER_BLOBS_AND_NO_TERMINATED, MYF(0));
     DBUG_RETURN(TRUE);
   }
   if (use_vars && !field_term->length() && !enclosed->length())
@@ -633,7 +635,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
 
   my_snprintf(name, sizeof(name),
-              ER(ER_LOAD_INFO),
+              ER_THD(thd, ER_LOAD_INFO),
               (long) info.stats.records, (long) info.stats.deleted,
               (long) (info.stats.records - info.stats.copied),
               (long) thd->get_stmt_da()->current_statement_cond_count());
@@ -864,7 +866,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (validate_default_values_of_unset_fields(thd, table))
     {
-      read_info.error= 1;
+      read_info.error= true;
       break;
     }
 
@@ -892,7 +894,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         thd->cuted_fields++;			/* Not enough fields */
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_TOO_FEW_RECORDS,
-                            ER(ER_WARN_TOO_FEW_RECORDS),
+                            ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                             thd->get_stmt_da()->current_row_for_condition());
         if (field->type() == FIELD_TYPE_TIMESTAMP && !field->maybe_null())
         {
@@ -919,7 +921,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       thd->cuted_fields++;			/* To long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
-                          ER(ER_WARN_TOO_MANY_RECORDS),
+                          ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
                           thd->get_stmt_da()->current_row_for_condition());
     }
 
@@ -953,7 +955,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       thd->cuted_fields++;			/* To long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
-                          ER(ER_WARN_TOO_MANY_RECORDS),
+                          ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
                           thd->get_stmt_da()->current_row_for_condition());
     }
     thd->get_stmt_da()->inc_current_row_for_condition();
@@ -1021,7 +1023,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (validate_default_values_of_unset_fields(thd, table))
     {
-      read_info.error= 1;
+      read_info.error= true;
       break;
     }
 
@@ -1113,7 +1115,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->is_error())
-      read_info.error= 1;
+      read_info.error= true;
 
     if (read_info.error)
       break;
@@ -1155,7 +1157,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           thd->cuted_fields++;
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
-                              ER(ER_WARN_TOO_FEW_RECORDS),
+                              ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
         }
         else if (item->type() == Item::STRING_ITEM)
@@ -1224,7 +1226,8 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     {
       thd->cuted_fields++;			/* To long row */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_TOO_MANY_RECORDS, ER(ER_WARN_TOO_MANY_RECORDS),
+                          ER_WARN_TOO_MANY_RECORDS,
+                          ER_THD(thd, ER_WARN_TOO_MANY_RECORDS),
                           thd->get_stmt_da()->current_row_for_condition());
       if (thd->killed)
         DBUG_RETURN(1);
@@ -1284,7 +1287,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     */
     if (validate_default_values_of_unset_fields(thd, table))
     {
-      read_info.error= 1;
+      read_info.error= true;
       break;
     }
     
@@ -1375,7 +1378,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           thd->cuted_fields++;
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
-                              ER(ER_WARN_TOO_FEW_RECORDS),
+                              ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
         }
         else
@@ -1494,8 +1497,8 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   stack=stack_pos=(int*) sql_alloc(sizeof(int)*length);
 
   if (!(buffer=(uchar*) my_malloc(key_memory_READ_INFO,
-                                  buff_length+1,MYF(0))))
-    error=1; /* purecov: inspected */
+                                  buff_length+1, MYF(MY_WME))))
+    error= true; /* purecov: inspected */
   else
   {
     end_of_buff=buffer+buff_length;
@@ -1506,7 +1509,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
     {
       my_free(buffer); /* purecov: inspected */
       buffer= NULL;
-      error=1;
+      error= true;
     }
     else
     {
@@ -1712,7 +1715,10 @@ int READ_INFO::read_field()
       GET_MBCHARLEN(read_charset, chr, ml);
       if (ml == 0)
       {
-        error= 1;
+        *to= '\0';
+        my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+                 read_charset->csname, buffer);
+        error= true;
         return 1;
       }
 
@@ -1745,6 +1751,12 @@ int READ_INFO::read_field()
           PUSH(*--to);
         chr= GET;
       }
+      else if (ml > 1)
+      {
+        // Buffer is too small, exit while loop, and reallocate.
+        PUSH(chr);
+        break;
+      }
       *to++ = (uchar) chr;
     }
     /*
@@ -1753,7 +1765,7 @@ int READ_INFO::read_field()
     if (!(new_buffer=(uchar*) my_realloc(key_memory_READ_INFO,
                                          (char*) buffer,buff_length+1+IO_SIZE,
 					MYF(MY_WME))))
-      return (error=1);
+      return (error= true);
     to=new_buffer + (to-buffer);
     buffer=new_buffer;
     buff_length+=IO_SIZE;

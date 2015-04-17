@@ -420,10 +420,6 @@ fi
 if test -d $MY_BASEDIR_VERSION/data/mysql
 then
   DATADIR=$MY_BASEDIR_VERSION/data
-  if test -z "$defaults" -a -r "$DATADIR/my.cnf"
-  then
-    defaults="--defaults-extra-file=$DATADIR/my.cnf"
-  fi
 # Next try where the source installs put it
 elif test -d $MY_BASEDIR_VERSION/var/mysql
 then
@@ -435,23 +431,7 @@ fi
 
 if test -z "$MYSQL_HOME"
 then 
-  if test -r "$MY_BASEDIR_VERSION/my.cnf" && test -r "$DATADIR/my.cnf"
-  then
-    log_error "WARNING: Found two instances of my.cnf -
-$MY_BASEDIR_VERSION/my.cnf and
-$DATADIR/my.cnf
-IGNORING $DATADIR/my.cnf"
-
-    MYSQL_HOME=$MY_BASEDIR_VERSION
-  elif test -r "$DATADIR/my.cnf"
-  then
-    log_error "WARNING: Found $DATADIR/my.cnf
-The data directory is a deprecated location for my.cnf, please move it to
-$MY_BASEDIR_VERSION/my.cnf"
-    MYSQL_HOME=$DATADIR
-  else
-    MYSQL_HOME=$MY_BASEDIR_VERSION
-  fi
+  MYSQL_HOME=$MY_BASEDIR_VERSION
 fi
 export MYSQL_HOME
 
@@ -589,6 +569,32 @@ then
 
     case "$err_log" in
       /* ) ;;
+      ./*|../*)
+          # Preparing absolute path from the relative path value specified for the
+          # --log-error argument.
+          #
+          # Absolute path will be prepared for the value of following form
+          #    ./bar/foo OR
+          #   ../old_bar/foo
+          # for --log-error argument.
+          #
+          # Note: If directory of log file name does not exists or
+          #       if write or execute permissions are missing on directory then
+          #       --log-error is set  $DATADIR/`@HOSTNAME@`.err
+
+          log_dir_name="$(dirname "$err_log")";
+          if [ ! -d "$log_dir_name" ]
+          then
+            log_notice "Directory "$log_dir_name" does not exists.";
+            err_log=$DATADIR/`@HOSTNAME@`.err
+          elif [ ! -x "$log_dir_name" -o ! -w "$log_dir_name" ]
+          then
+            log_notice "Do not have Execute or Write permissions on directory "$log_dir_name".";
+            err_log=$DATADIR/`@HOSTNAME@`.err
+          else
+            err_log=$(cd $log_dir_name && pwd -P)/$(basename "$err_log")
+          fi
+          ;;
       * ) err_log="$DATADIR/$err_log" ;;
     esac
   else

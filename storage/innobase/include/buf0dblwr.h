@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,8 +53,9 @@ At a database startup initializes the doublewrite buffer memory structure if
 we already have a doublewrite buffer created in the data files. If we are
 upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
-recovery, this function loads the pages from double write buffer into memory. */
-void
+recovery, this function loads the pages from double write buffer into memory.
+@return DB_SUCCESS or error code */
+dberr_t
 buf_dblwr_init_or_load_pages(
 	os_file_t	file,
 	const char*	path);

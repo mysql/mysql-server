@@ -1,4 +1,4 @@
-mysql-community (5.7.7-rc-1ubuntu14.10) utopic; urgency=low
+mysql-community (5.8.0-m17-1ubuntu14.10) utopic; urgency=low
 
   * new upstream release
   * updated d/extra/my.cnf to remove option sql_mode

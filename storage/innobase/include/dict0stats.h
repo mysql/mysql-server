@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -74,8 +74,7 @@ dict_stats_set_persistent(
 /*======================*/
 	dict_table_t*	table,	/*!< in/out: table */
 	ibool		ps_on,	/*!< in: persistent stats explicitly enabled */
-	ibool		ps_off)	/*!< in: persistent stats explicitly disabled */
-	__attribute__((nonnull));
+	ibool		ps_off);	/*!< in: persistent stats explicitly disabled */
 
 /*********************************************************************//**
 Check whether persistent statistics is enabled for a given table.
@@ -85,7 +84,7 @@ ibool
 dict_stats_is_persistent_enabled(
 /*=============================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Set the auto recalc flag for a given table (only honored for a persistent
@@ -124,8 +123,7 @@ UNIV_INLINE
 void
 dict_stats_deinit(
 /*==============*/
-	dict_table_t*	table)	/*!< in/out: table */
-	__attribute__((nonnull));
+	dict_table_t*	table);	/*!< in/out: table */
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
@@ -172,8 +170,7 @@ Fetches or calculates new estimates for index statistics. */
 void
 dict_stats_update_for_index(
 /*========================*/
-	dict_index_t*	index)	/*!< in/out: index */
-	__attribute__((nonnull));
+	dict_index_t*	index);	/*!< in/out: index */
 
 /*********************************************************************//**
 Renames a table in InnoDB persistent stats storage.

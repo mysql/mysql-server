@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,7 +44,7 @@ row_import_for_mysql(
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct
 						in MySQL */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*****************************************************************//**
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
@@ -61,7 +61,7 @@ row_import_update_discarded_flag(
 	bool		dict_locked)		/*!< in: Set to true if the
 						caller already owns the
 						dict_sys_t:: mutex. */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*****************************************************************//**
 Update the (space, root page) of a table's indexes from the values
@@ -79,7 +79,7 @@ row_import_update_index_root(
 	bool			dict_locked)	/*!< in: Set to true if the
 						caller already owns the
 						dict_sys_t:: mutex. */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 #ifndef UNIV_NONINL
 #include "row0import.ic"
 #endif

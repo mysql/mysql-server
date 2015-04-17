@@ -33,7 +33,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0types.h"
 
 /** Flag indicating if the page_cleaner is in active state. */
-extern ibool buf_page_cleaner_is_active;
+extern bool buf_page_cleaner_is_active;
 
 /** Event to synchronise with the flushing. */
 extern os_event_t	buf_flush_event;

@@ -22,9 +22,12 @@
 */
 #include "item_geofunc.h"
 
+#include "current_thd.h"
 #include "gstream.h"      // Gis_read_stream
+#include "psi_memory_key.h"
 #include "sql_class.h"    // THD
 #include "gis_bg_traits.h"
+#include "derror.h"       // ER_THD
 
 #include "parse_tree_helpers.h"
 #include <rapidjson/document.h>
@@ -2750,7 +2753,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);
     goto err;
   }
@@ -2994,7 +2997,7 @@ int Item_func_spatial_rel::func_touches()
     goto mem_error;
 
 #ifndef DBUG_OFF
-  func.debug_print_function_buffer();
+  func.debug_print_function_buffer(current_thd);
 #endif
 
   collector.prepare_operation();
@@ -3077,6 +3080,12 @@ int Item_func_spatial_rel::func_equals()
   return 1;
 }
 
+
+BG_geometry_collection::BG_geometry_collection()
+  :comp_no_overlapped(false), m_srid(0), m_num_isolated(0),
+   m_geobufs(key_memory_Geometry_objects_data),
+   m_geosdata(key_memory_Geometry_objects_data)
+{}
 
 
 

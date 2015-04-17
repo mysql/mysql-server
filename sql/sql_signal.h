@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,14 @@
 #ifndef SQL_SIGNAL_H
 #define SQL_SIGNAL_H
 
-#include "sql_alloc.h"
-#include "sp_pcontext.h"
+#include "my_global.h"
+#include "sql_alloc.h"       // Sql_alloc
+#include "sql_cmd.h"         // Sql_cmd
+#include "sql_error.h"       // Sql_condition
+
+class Item;
+class sp_condition_value;
+
 
 /**
    This enumeration list all the condition item names of a condition in the
@@ -96,12 +102,14 @@ protected:
   /**
     Assign the condition items 'MYSQL_ERRNO', 'level' and 'MESSAGE_TEXT'
     default values of a condition.
+    @param thd the current thread.
     @param cond the condition to update.
     @param set_level_code true if 'level' and 'MYSQL_ERRNO' needs to be overwritten
     @param level the level to assign
     @param sqlcode the sql code to assign
   */
-  static void assign_defaults(Sql_condition *cond,
+  static void assign_defaults(THD *thd,
+                              Sql_condition *cond,
                               bool set_level_code,
                               Sql_condition::enum_severity_level level,
                               int sqlcode);

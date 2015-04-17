@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,10 @@
 #include <functional>
 #include <vector>
 
-#include "sql_select.h"
+#include "sql_optimizer.h"                      // Key_use_array
 #include "mem_root_array.h"
+#include "mysqld.h"                             // THR_MALLOC
+#include "current_thd.h"
 
 /**
    WL#5774 Decrease number of malloc's for normal DML queries.

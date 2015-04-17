@@ -14,20 +14,28 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
 #include "trigger_loader.h"
-#include "sql_class.h"
-#include "sp_head.h"      // sp_name
-#include "sql_base.h"     // is_equal(LEX_STRING, LEX_STRING)
-#include "sql_table.h"    // build_table_filename()
-#include <mysys_err.h>    // EE_OUTOFMEMORY
+
+#include "m_string.h"     // C_STRING_WITH_LEN
+#include "mysqld_error.h" // ER_*
+#include "current_thd.h"  // current_thd
+#include "derror.h"       // ER_THD
+#include "mysqld.h"       // key_file_trn
 #include "parse_file.h"   // File_option
-#include "trigger.h"
+#include "sql_base.h"     // is_equal(LEX_STRING, LEX_STRING)
+#include "sql_class.h"    // THD
+#include "sql_error.h"    // Sql_condition
+#include "sql_list.h"     // List
+#include "sql_string.h"   // String
+#include "sql_table.h"    // build_table_filename
+#include "table.h"        // TABLE_LIST
+#include "trigger.h"      // Trigger
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
 #include "mysql/psi/mysql_sp.h"
+
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -435,7 +443,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     push_warning_printf(current_thd,
                         Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
-                        ER(ER_OLD_FILE_FORMAT),
+                        ER_THD(current_thd, ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
@@ -480,7 +488,7 @@ bool Handle_old_incorrect_trigger_table_hook::process_unknown_string(
     push_warning_printf(current_thd,
                         Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
-                        ER(ER_OLD_FILE_FORMAT),
+                        ER_THD(current_thd, ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
 
     if (!(ptr= parse_escaped_string(ptr, end, mem_root, trigger_table_value)))
@@ -637,7 +645,7 @@ bool Trigger_loader::load_triggers(THD *thd,
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_TRG_NO_CREATION_CTX,
-                        ER(ER_TRG_NO_CREATION_CTX),
+                        ER_THD(thd, ER_TRG_NO_CREATION_CTX),
                         (const char*) db_name,
                         (const char*) table_name);
 

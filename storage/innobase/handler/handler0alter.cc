@@ -28,6 +28,7 @@ Smart ALTER TABLE
 #include <sql_lex.h>
 #include <sql_class.h>
 #include <mysql/plugin.h>
+#include <key_spec.h>
 
 /* Include necessary InnoDB headers */
 #include "dict0crea.h"
@@ -228,7 +229,7 @@ private:
 };
 
 /* Report an InnoDB error to the client by invoking my_error(). */
-static UNIV_COLD __attribute__((nonnull))
+static UNIV_COLD
 void
 my_error_innodb(
 /*============*/
@@ -346,7 +347,7 @@ innobase_spatial_exist(
 Determine if ALTER TABLE needs to rebuild the table.
 @param ha_alter_info the DDL operation
 @return whether it is necessary to rebuild the table */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_need_rebuild(
 /*==================*/
@@ -676,7 +677,7 @@ ha_innobase::check_if_supported_inplace_alter(
 /*************************************************************//**
 Initialize the dict_foreign_t structure with supplied info
 @return true if added, false if duplicate foreign->id */
-static __attribute__((nonnull(1,3,5,7)))
+static
 bool
 innobase_init_foreign(
 /*==================*/
@@ -765,7 +766,7 @@ innobase_init_foreign(
 /*************************************************************//**
 Check whether the foreign key options is legit
 @return true if it is */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_check_fk_option(
 /*=====================*/
@@ -797,12 +798,12 @@ innobase_check_fk_option(
 /*************************************************************//**
 Set foreign key options
 @return true if successfully set */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_set_foreign_key_option(
 /*============================*/
 	dict_foreign_t*	foreign,	/*!< in:InnoDB Foreign key */
-	Foreign_key*	fk_key)		/*!< in: Foreign key info from
+	Foreign_key_spec*	fk_key)	/*!< in: Foreign key info from
 					MySQL */
 {
 	ut_ad(!foreign->type);
@@ -842,7 +843,7 @@ innobase_set_foreign_key_option(
 Check if a foreign key constraint can make use of an index
 that is being created.
 @return useable index, or NULL if none found */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 const KEY*
 innobase_find_equiv_index(
 /*======================*/
@@ -899,7 +900,7 @@ no_match:
 Find an index whose first fields are the columns in the array
 in the same order and is not marked for deletion
 @return matching index, NULL if not found */
-static __attribute__((nonnull(1,2,6), warn_unused_result))
+static __attribute__((warn_unused_result))
 dict_index_t*
 innobase_find_fk_index(
 /*===================*/
@@ -946,7 +947,7 @@ next_rec:
 Create InnoDB foreign key structure from MySQL alter_info
 @retval true if successful
 @retval false on error (will call my_error()) */
-static __attribute__((nonnull(1,2,3,7,8), warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_get_foreign_key_info(
 /*==========================*/
@@ -964,8 +965,8 @@ innobase_get_foreign_key_info(
 					constraints added */
 	const trx_t*	trx)		/*!< in: user transaction */
 {
-	Key*		key;
-	Foreign_key*	fk_key;
+	Key_spec*	key;
+	Foreign_key_spec*	fk_key;
 	dict_table_t*	referenced_table = NULL;
 	char*		referenced_table_name = NULL;
 	ulint		num_fk = 0;
@@ -975,7 +976,7 @@ innobase_get_foreign_key_info(
 
 	*n_add_fk = 0;
 
-	List_iterator<Key> key_iterator(alter_info->key_list);
+	List_iterator<Key_spec> key_iterator(alter_info->key_list);
 
 	while ((key=key_iterator++)) {
 		if (key->type != KEYTYPE_FOREIGN) {
@@ -998,7 +999,7 @@ innobase_get_foreign_key_info(
 		char		tbl_name[MAX_TABLE_NAME_LEN];
 #endif
 
-		fk_key = static_cast<Foreign_key*>(key);
+		fk_key = static_cast<Foreign_key_spec*>(key);
 
 		if (fk_key->columns.elements > 0) {
 			ulint	i = 0;
@@ -1429,7 +1430,7 @@ innobase_rec_reset(
 /*******************************************************************//**
 This function checks that index keys are sensible.
 @return 0 or error number */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 int
 innobase_check_index_keys(
 /*======================*/
@@ -1632,7 +1633,7 @@ index on the table
 @param[in]	key_clustered		true if this is the new clustered index
 @param[out]	index			index definition
 @param[in]	heap			heap where memory is allocated */
-static __attribute__((nonnull))
+static
 void
 innobase_create_index_def(
 	const TABLE*		altered_table,
@@ -1938,7 +1939,7 @@ ELSE
 ENDIF
 
 @return key definitions */
-static __attribute__((nonnull, warn_unused_result, malloc))
+static __attribute__((warn_unused_result, malloc))
 index_def_t*
 innobase_create_key_defs(
 /*=====================*/
@@ -2147,7 +2148,7 @@ created_clustered:
 /*******************************************************************//**
 Check each index column size, make sure they do not exceed the max limit
 @return true if index column size exceeds limit */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_check_column_length(
 /*=========================*/
@@ -2180,7 +2181,7 @@ online_retry_drop_indexes_low(
 	may have prebuilt->table pointing to the table. However, these
 	other threads should be between statements, waiting for the
 	next statement to execute, or for a meta-data lock. */
-	ut_ad(table->n_ref_count >= 1);
+	ut_ad(table->get_ref_count() >= 1);
 
 	if (table->drop_aborted) {
 		row_merge_drop_indexes(trx, table, TRUE);
@@ -2190,7 +2191,7 @@ online_retry_drop_indexes_low(
 /********************************************************************//**
 Drop any indexes that we were not able to free previously due to
 open table handles. */
-static __attribute__((nonnull))
+static
 void
 online_retry_drop_indexes(
 /*======================*/
@@ -2220,7 +2221,7 @@ online_retry_drop_indexes(
 /********************************************************************//**
 Commit a dictionary transaction and drop any indexes that we were not
 able to free previously due to open table handles. */
-static __attribute__((nonnull))
+static
 void
 online_retry_drop_indexes_with_trx(
 /*===============================*/
@@ -2446,7 +2447,7 @@ innobase_build_default_mysql_point(
 @param dfield InnoDB data field to copy to
 @param field MySQL value for the column
 @param comp nonzero if in compact format */
-static __attribute__((nonnull))
+static
 void
 innobase_build_col_map_add(
 /*=======================*/
@@ -2492,7 +2493,7 @@ adding columns.
 @param heap Memory heap where allocated
 @return array of integers, mapping column numbers in the table
 to column numbers in altered_table */
-static __attribute__((nonnull(1,2,3,4,5,7), warn_unused_result))
+static __attribute__((warn_unused_result))
 const ulint*
 innobase_build_col_map(
 /*===================*/
@@ -2629,7 +2630,7 @@ innobase_drop_fts_index_table(
 @param user_table	InnoDB table as it is before the ALTER operation
 @param heap		Memory heap for the allocation
 @return array of new column names in rebuilt_table, or NULL if not renamed */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 const char**
 innobase_get_col_names(
 	Alter_inplace_info*	ha_alter_info,
@@ -2904,7 +2905,7 @@ while preparing ALTER TABLE.
 @retval true Failure
 @retval false Success
 */
-static __attribute__((warn_unused_result, nonnull(1,2,3,4)))
+static __attribute__((warn_unused_result))
 bool
 prepare_inplace_alter_table_dict(
 /*=============================*/
@@ -3204,11 +3205,32 @@ prepare_inplace_alter_table_dict(
 			ctx->new_table->fts->doc_col = fts_doc_id_col;
 		}
 
+		const char*	compression;
+
+		compression = ha_alter_info->create_info->compress.str;
+
+                if (Compression::validate(compression) != DB_SUCCESS) {
+
+                        compression = NULL;
+                }
+
 		error = row_create_table_for_mysql(
-			ctx->new_table, ctx->trx, false);
+			ctx->new_table, compression, ctx->trx, false);
 
 		switch (error) {
 			dict_table_t*	temp_table;
+		case DB_IO_NO_PUNCH_HOLE_FS:
+
+			push_warning_printf(
+				ctx->prebuilt->trx->mysql_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"XPunch hole not supported by the file system. "
+				"Compression disabled for '%s'",
+				ctx->new_table->name.m_name);
+
+			error = DB_SUCCESS;
+
 		case DB_SUCCESS:
 			/* We need to bump up the table ref count and
 			before we can use it we need to open the
@@ -3223,7 +3245,7 @@ prepare_inplace_alter_table_dict(
 			/* n_ref_count must be 1, because purge cannot
 			be executing on this very table as we are
 			holding dict_operation_lock X-latch. */
-			DBUG_ASSERT(ctx->new_table->n_ref_count == 1);
+			DBUG_ASSERT(ctx->new_table->get_ref_count() == 1);
 			break;
 		case DB_TABLESPACE_EXISTS:
 			my_error(ER_TABLESPACE_EXISTS, MYF(0),
@@ -3233,13 +3255,17 @@ prepare_inplace_alter_table_dict(
 			my_error(HA_ERR_TABLE_EXIST, MYF(0),
 				 altered_table->s->table_name.str);
 			goto new_clustered_failed;
+		case DB_UNSUPPORTED:
+			my_error(ER_UNSUPPORTED_EXTENSION, MYF(0),
+				 ctx->new_table->name.m_name);
+			goto new_clustered_failed;
 		default:
 			my_error_innodb(error, table_name, flags);
 		new_clustered_failed:
 			DBUG_ASSERT(ctx->trx != ctx->prebuilt->trx);
 			trx_rollback_to_savepoint(ctx->trx, NULL);
 
-			ut_ad(user_table->n_ref_count == 1);
+			ut_ad(user_table->get_ref_count() == 1);
 
 			online_retry_drop_indexes_with_trx(
 				user_table, ctx->trx);
@@ -3557,7 +3583,7 @@ error_handled:
 		/* n_ref_count must be 1, because purge cannot
 		be executing on this very table as we are
 		holding dict_operation_lock X-latch. */
-		DBUG_ASSERT(user_table->n_ref_count == 1 || ctx->online);
+		DBUG_ASSERT(user_table->get_ref_count() == 1 || ctx->online);
 
 		online_retry_drop_indexes_with_trx(user_table, ctx->trx);
 	} else {
@@ -3593,7 +3619,7 @@ err_exit:
 /* Check whether an index is needed for the foreign key constraint.
 If so, if it is dropped, is there an equivalent index can play its role.
 @return true if the index is needed and can't be dropped */
-static __attribute__((nonnull(1,2,3,5), warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_check_foreign_key_index(
 /*=============================*/
@@ -4727,7 +4753,7 @@ temparary index prefix
 @param locked TRUE=table locked, FALSE=may need to do a lazy drop
 @param trx the transaction
 */
-static __attribute__((nonnull))
+static
 void
 innobase_rollback_sec_index(
 /*========================*/
@@ -4761,7 +4787,7 @@ during prepare, but might not be during commit).
 @retval true Failure
 @retval false Success
 */
-inline __attribute__((nonnull, warn_unused_result))
+inline __attribute__((warn_unused_result))
 bool
 rollback_inplace_alter_table(
 /*=========================*/
@@ -4880,7 +4906,7 @@ func_exit:
 @param foreign_id Foreign key constraint identifier
 @retval true Failure
 @retval false Success */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_drop_foreign_try(
 /*======================*/
@@ -4937,7 +4963,7 @@ innobase_drop_foreign_try(
 @param new_clustered whether the table has been rebuilt
 @retval true Failure
 @retval false Success */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_rename_column_try(
 /*=======================*/
@@ -5146,7 +5172,7 @@ rename_foreign:
 @param table_name Table name in MySQL
 @retval true Failure
 @retval false Success */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_rename_columns_try(
 /*========================*/
@@ -5199,7 +5225,7 @@ processed_field:
 @param new_len new column length, in bytes
 @retval true Failure
 @retval false Success */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_enlarge_column_try(
 /*========================*/
@@ -5278,7 +5304,7 @@ innobase_enlarge_column_try(
 @param table_name Table name in MySQL
 @retval true Failure
 @retval false Success */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_enlarge_columns_try(
 /*=========================*/
@@ -5317,7 +5343,7 @@ as part of commit_cache_norebuild().
 @param ha_alter_info Data used during in-place alter.
 @param table the TABLE
 @param user_table InnoDB table that was being altered */
-static __attribute__((nonnull))
+static
 void
 innobase_rename_or_enlarge_columns_cache(
 /*=====================================*/
@@ -5364,7 +5390,7 @@ innobase_rename_or_enlarge_columns_cache(
 @param altered_table MySQL table that is being altered
 @param old_table MySQL table as it is before the ALTER operation
 @return the next auto-increment value (0 if not present) */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 ulonglong
 commit_get_autoinc(
 /*===============*/
@@ -5445,7 +5471,7 @@ but do not touch the data dictionary cache.
 @retval true Failure
 @retval false Success
 */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 innobase_update_foreign_try(
 /*========================*/
@@ -5528,7 +5554,7 @@ after the changes to data dictionary tables were committed.
 @param ctx	In-place ALTER TABLE context
 @param user_thd	MySQL connection
 @return		InnoDB error code (should always be DB_SUCCESS) */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 innobase_update_foreign_cache(
 /*==========================*/
@@ -5642,7 +5668,7 @@ when rebuilding the table.
 @retval true Failure
 @retval false Success
 */
-inline __attribute__((nonnull, warn_unused_result))
+inline __attribute__((warn_unused_result))
 bool
 commit_try_rebuild(
 /*===============*/
@@ -5768,12 +5794,12 @@ commit_try_rebuild(
 		user_table, rebuilt_table, ctx->tmp_name, trx);
 
 	/* We must be still holding a table handle. */
-	DBUG_ASSERT(user_table->n_ref_count >= 1);
+	DBUG_ASSERT(user_table->get_ref_count() >= 1);
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_after_rename", DBUG_SUICIDE(););
 	DBUG_EXECUTE_IF("ib_rebuild_cannot_rename", error = DB_ERROR;);
 
-	if (user_table->n_ref_count > 1) {
+	if (user_table->get_ref_count() > 1) {
 		/* This should only occur when an innodb_memcached
 		connection with innodb_api_enable_mdl=off was started
 		before commit_inplace_alter_table() locked the data
@@ -5791,11 +5817,11 @@ commit_try_rebuild(
 	case DB_SUCCESS:
 		DBUG_RETURN(false);
 	case DB_TABLESPACE_EXISTS:
-		ut_a(rebuilt_table->n_ref_count == 1);
+		ut_a(rebuilt_table->get_ref_count() == 1);
 		my_error(ER_TABLESPACE_EXISTS, MYF(0), ctx->tmp_name);
 		DBUG_RETURN(true);
 	case DB_DUPLICATE_KEY:
-		ut_a(rebuilt_table->n_ref_count == 1);
+		ut_a(rebuilt_table->get_ref_count() == 1);
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), ctx->tmp_name);
 		DBUG_RETURN(true);
 	default:
@@ -5807,7 +5833,7 @@ commit_try_rebuild(
 /** Apply the changes made during commit_try_rebuild(),
 to the data dictionary cache and the file system.
 @param ctx In-place ALTER TABLE context */
-inline __attribute__((nonnull))
+inline
 void
 commit_cache_rebuild(
 /*=================*/
@@ -5847,7 +5873,7 @@ when not rebuilding the table.
 @retval true Failure
 @retval false Success
 */
-inline __attribute__((nonnull, warn_unused_result))
+inline __attribute__((warn_unused_result))
 bool
 commit_try_norebuild(
 /*=================*/
@@ -5978,7 +6004,7 @@ after a successful commit_try_norebuild() call.
 @param trx Data dictionary transaction object
 (will be started and committed)
 @return whether all replacements were found for dropped indexes */
-inline __attribute__((nonnull, warn_unused_result))
+inline __attribute__((warn_unused_result))
 bool
 commit_cache_norebuild(
 /*===================*/
@@ -6470,6 +6496,7 @@ ha_innobase::commit_inplace_alter_table(
 	} else {
 		mtr_t	mtr;
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		for (inplace_alter_handler_ctx** pctx = ctx_array;
 		     *pctx; pctx++) {
@@ -6851,8 +6878,12 @@ foreign_fail:
 		}
 	}
 
-	innobase_parse_hint_from_comment(m_user_thd, m_prebuilt->table,
-					 altered_table->s);
+	/* We don't support compression for the system tablespace nor
+	the temporary tablespace. Only because they are shared tablespaces.
+	There is no other technical reason. */
+
+	innobase_parse_hint_from_comment(
+		m_user_thd, m_prebuilt->table, altered_table->s);
 
 	/* TODO: Also perform DROP TABLE and DROP INDEX after
 	the MDL downgrade. */

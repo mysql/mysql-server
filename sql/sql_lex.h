@@ -51,7 +51,6 @@
 /* YACC and LEX Definitions */
 
 /* These may not be declared yet */
-class Table_ident;
 class sql_exchange;
 class sp_head;
 class sp_name;
@@ -262,6 +261,50 @@ enum enum_drop_mode
 #define TL_OPTION_FORCE_INDEX	2
 #define TL_OPTION_IGNORE_LEAVES 4
 #define TL_OPTION_ALIAS         8
+
+/* Structure for db & table in sql_yacc */
+extern LEX_CSTRING EMPTY_CSTR;
+extern LEX_CSTRING NULL_CSTR;
+extern char internal_table_name[2];
+
+class Table_ident :public Sql_alloc
+{
+public:
+  LEX_CSTRING db;
+  LEX_CSTRING table;
+  SELECT_LEX_UNIT *sel;
+  Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
+              const LEX_CSTRING &table_arg, bool force);
+  Table_ident(const LEX_CSTRING &db_arg, const LEX_CSTRING &table_arg)
+    :db(db_arg), table(table_arg), sel(NULL)
+  {}
+  Table_ident(const LEX_CSTRING &table_arg)
+    :table(table_arg), sel(NULL)
+  {
+    db= NULL_CSTR;
+  }
+  /*
+    This constructor is used only for the case when we create a derived
+    table. A derived table has no name and doesn't belong to any database.
+    Later, if there was an alias specified for the table, it will be set
+    by add_table_to_list.
+  */
+  Table_ident(SELECT_LEX_UNIT *s) : sel(s)
+  {
+    /* We must have a table name here as this is used with add_table_to_list */
+    db= EMPTY_CSTR;                    /* a subject to casedn_str */
+    table.str= internal_table_name;
+    table.length=1;
+  }
+  // True if we can tell from syntax that this is an unnamed derived table.
+  bool is_derived_table() const { return MY_TEST(sel); }
+  void change_db(const char *db_name)
+  {
+    db.str= db_name;
+    db.length= strlen(db_name);
+  }
+};
+
 
 typedef List<Item> List_item;
 typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
@@ -1083,6 +1126,7 @@ public:
   table_map select_list_tables;
   table_map outer_join;       ///< Bitmap of all inner tables from outer joins
 
+  /// Query-block-level hints, for this query block
   Opt_hints_qb *opt_hints_qb;
 
 
@@ -1383,6 +1427,43 @@ public:
   bool optimize(THD *thd);
   void reset_nj_counters(List<TABLE_LIST> *join_list= NULL);
   bool check_only_full_group_by(THD *thd);
+
+  /**
+    Returns which subquery execution strategies can be used for this query block.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+
+    @retval EXEC_MATERIALIZATION  Subquery Materialization should be used
+    @retval EXEC_EXISTS           In-to-exists execution should be used
+    @retval EXEC_EXISTS_OR_MAT    A cost-based decision should be made
+  */
+  Item_exists_subselect::enum_exec_method subquery_strategy(THD *thd) const;
+
+  /**
+    Returns whether semi-join is enabled for this query block
+
+    @see @c Opt_hints_qb::semijoin_enabled for details on how hints
+    affect this decision.  If there are no hints for this query block,
+    optimizer_switch setting determines whether semi-join is used.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+
+    @return true if semijoin is enabled,
+            false otherwise
+  */
+  bool semijoin_enabled(THD *thd) const;
+  /**
+    Update available semijoin strategies for semijoin nests.
+
+    Available semijoin strategies needs to be updated on every execution since
+    optimizer_switch setting may have changed.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+  */
+  void update_semijoin_strategies(THD *thd);
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -2904,12 +2985,17 @@ private:
 
 public:
   inline SELECT_LEX *current_select() { return m_current_select; }
+
+  /*
+    We want to keep current_thd out of header files, so the debug assert 
+    is moved to the .cc file.
+  */
+  void assert_ok_set_current_select();
   inline void set_current_select(SELECT_LEX *select)
   {
-    // (2) Only owning thread could change m_current_select
-    // (1) bypass for bootstrap and "new THD"
-    DBUG_ASSERT(!current_thd || !thd || //(1)
-                thd == current_thd);    //(2)
+#ifndef DBUG_OFF
+    assert_ok_set_current_select();
+#endif
     m_current_select= select;
   }
   /// @return true if this is an EXPLAIN statement

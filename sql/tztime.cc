@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,26 +19,28 @@
    (We will refer to this code as to elsie-code further.)
 */
 
-#include <my_global.h>
-#include <algorithm>
+#include "tztime.h"
+
+#include "m_string.h"          // strmake
+#include "my_time.h"           // MY_TIME_T_MIN
+#include "tzfile.h"            // TZ_MAX_REV_RANGES
+#include "mysql/psi/mysql_file.h"
 
 #if !defined(TZINFO2SQL)
-#include "tztime.h"
-#include "sql_time.h"                           // localtime_to_TIME
-#include "sql_base.h"                           // open_trans_system_tables_for_read,
-                                                // close_trans_system_tables
-#include "log.h"
-#else
-#include <my_time.h>
-#include "tztime.h"
-#include <my_sys.h>
+#include "hash.h"              // HASH
+#include "debug_sync.h"        // DEBUG_SYNC
+#include "log.h"               // sql_print_error
+#include "mysqld.h"            // global_system_variables
+#include "sql_base.h"          // close_trans_system_tables
+#include "sql_class.h"         // THD
+#include "sql_string.h"        // String
+#include "sql_time.h"          // localtime_to_TIME
+#include "table.h"             // TABLE_LIST
 #endif
 
-#include "tzfile.h"
-#include <m_string.h>
-#include <my_dir.h>
-#include <mysql/psi/mysql_file.h>
-#include "debug_sync.h"
+#include <algorithm>
+using std::min;
+
 
 /*
   Macro for reading 32-bit integer from network byte order (big-endian)
@@ -48,8 +50,6 @@
                                   (((uint32) ((uchar) (A)[2])) << 8)  | \
                                   (((uint32) ((uchar) (A)[1])) << 16) | \
                                   (((uint32) ((uchar) (A)[0])) << 24))
-
-using std::min;
 
 /*
   Now we don't use abbreviations in server but we will do this in future.

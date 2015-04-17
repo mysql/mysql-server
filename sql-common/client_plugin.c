@@ -75,6 +75,14 @@ static void init_client_plugin_psi_keys()
 }
 #endif /* HAVE_PSI_INTERFACE */
 
+#ifdef _WIN32
+#define SO_EXT ".dll"
+#elif defined(__APPLE__)
+#define SO_EXT ".dylib"
+#else
+#define SO_EXT ".so"
+#endif
+
 struct st_client_plugin_int {
   struct st_client_plugin_int *next;
   void   *dlhandle;
@@ -110,7 +118,8 @@ static int is_not_initialized(MYSQL *mysql, const char *name)
     return 0;
 
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD,
-                           unknown_sqlstate, ER(CR_AUTH_PLUGIN_CANNOT_LOAD),
+                           unknown_sqlstate,
+                           ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
                            name, "not initialized");
   return 1;
 }
@@ -239,7 +248,7 @@ err2:
     plugin->deinit();
 err1:
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
-                           ER(CR_AUTH_PLUGIN_CANNOT_LOAD), plugin->name,
+                           ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD), plugin->name,
                            errmsg);
   if (dlhandle)
     dlclose(dlhandle);
@@ -404,7 +413,7 @@ mysql_client_register_plugin(MYSQL *mysql,
   if (find_plugin(plugin->name, plugin->type))
   {
     set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD,
-                             unknown_sqlstate, ER(CR_AUTH_PLUGIN_CANNOT_LOAD),
+                             unknown_sqlstate, ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
                              plugin->name, "it is already loaded");
     plugin= NULL;
   }
@@ -532,7 +541,7 @@ err:
   mysql_mutex_unlock(&LOCK_load_client_plugin);
   DBUG_PRINT ("leave", ("plugin load error : %s", errmsg));
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
-                           ER(CR_AUTH_PLUGIN_CANNOT_LOAD), name, errmsg);
+                           ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD), name, errmsg);
   DBUG_RETURN (NULL);
 }
 
@@ -562,7 +571,7 @@ mysql_client_find_plugin(MYSQL *mysql, const char *name, int type)
   if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS)
   {
     set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
-                             ER(CR_AUTH_PLUGIN_CANNOT_LOAD), name,
+                             ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD), name,
                              "invalid type");
   }
 

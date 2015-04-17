@@ -24,15 +24,19 @@
   @{
 */
 
-#include "sql_select.h"
 #include "sql_resolver.h"
-#include "sql_optimizer.h"
-#include "opt_trace.h"
-#include "sql_base.h"
-#include "auth_common.h"
-#include "opt_explain_format.h"
+
+#include "auth_common.h"         // check_single_table_access
+#include "aggregate_check.h"     // Group_check
+#include "derror.h"              // ER_THD
+#include "item_sum.h"            // Item_sum
+#include "opt_range.h"           // prune_partitions
+#include "opt_trace.h"           // Opt_trace_object
+#include "query_result.h"        // Query_result
+#include "sql_base.h"            // setup_fields
+#include "sql_optimizer.h"       // Prepare_error_tracker
 #include "sql_test.h"            // print_where
-#include "aggregate_check.h"
+
 
 static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
 
@@ -738,8 +742,6 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
   leaf_table_count= 0;
   partitioned_table_count= 0;
 
-  Opt_hints_qb *qb_hints= context.select_lex->opt_hints_qb;
-
   for (TABLE_LIST *tr= leaf_tables; tr; tr= tr->next_leaf, tableno++)
   {
     TABLE *const table= tr->table;
@@ -764,10 +766,15 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
     table->pos_in_table_list= tr;
     tr->reset();
 
-    if (qb_hints &&                          // QB hints initialized
+    /*
+      Only set hints on first execution.  Otherwise, hints will refer to
+      wrong query block after semijoin transformation
+    */
+    if (first_execution &&                 
+        opt_hints_qb &&                      // QB hints initialized
         !tr->opt_hints_table)                // Table hints are not adjusted yet
     {
-      tr->opt_hints_table= qb_hints->adjust_table_hints(table, tr->alias);
+      tr->opt_hints_table= opt_hints_qb->adjust_table_hints(table, tr->alias);
     }
 
     if (tr->process_index_hints(table))
@@ -776,8 +783,8 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
       partitioned_table_count++;
   }
 
-  if (qb_hints)
-    qb_hints->check_unresolved(thd);
+  if (opt_hints_qb)
+    opt_hints_qb->check_unresolved(thd);
  
   DBUG_RETURN(false);
 }
@@ -1003,7 +1010,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       9. Parent select is not a confluent table-less select
       10. Neither parent nor child select have STRAIGHT_JOIN option.
   */
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
+  if (semijoin_enabled(thd) &&
       in_predicate &&                                                   // 1
       !is_part_of_union() &&                                            // 2
       !group_list.elements &&                                           // 3
@@ -3060,7 +3067,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
     return FALSE;
   }
   /* Lookup the current GROUP/ORDER field in the SELECT clause. */
-  select_item= find_item_in_list(order_item, fields, &counter,
+  select_item= find_item_in_list(thd, order_item, fields, &counter,
                                  REPORT_EXCEPT_NOT_FOUND, &resolution);
   if (!select_item)
     return TRUE; /* The item is not unique, or some other error occured. */
@@ -3139,9 +3146,9 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
         overshadows the column reference from the SELECT list.
       */
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
-                          ER(ER_NON_UNIQ_ERROR),
+                          ER_THD(thd, ER_NON_UNIQ_ERROR),
                           ((Item_ident*) order_item)->field_name,
-                          current_thd->where);
+                          thd->where);
     }
   }
 

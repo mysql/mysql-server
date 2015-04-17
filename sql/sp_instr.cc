@@ -29,6 +29,8 @@
 #include "prealloced_array.h"
 #include "binlog.h"
 #include "item_cmpfunc.h" // Item_func_eq
+#include "mysqld.h"       // next_query_id
+#include "sql_cache.h"
 
 #include <algorithm>
 #include <functional>
@@ -1507,7 +1509,7 @@ bool sp_instr_cpush::execute(THD *thd, uint *nextp)
 
   // sp_instr_cpush::execute() just registers the cursor in the runtime context.
 
-  return thd->sp_runtime_ctx->push_cursor(this);
+  return thd->sp_runtime_ctx->push_cursor(thd, this);
 }
 
 

@@ -272,7 +272,6 @@ DROP TABLE t_com_in_8k;
 DROP TABLE t_dyn_in_8k;
 
 SET SESSION innodb_strict_mode = ON;
-SET GLOBAL innodb_file_format = 'barracuda';
 SET GLOBAL innodb_file_per_table = ON;
 
 --echo #

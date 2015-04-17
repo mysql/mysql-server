@@ -20,21 +20,26 @@
 
 #include "mutex_lock.h"                     // Mutex_lock
 #include "my_dir.h"                         // MY_DIR
+#include "keycache.h"                       // dflt_key_cache
 #include "prealloced_array.h"               // Prealloced_array
 #include "template_utils.h"                 // delete_container_pointers
 #include "auth_common.h"                    // check_grant_db
 #include "datadict.h"                       // dd_frm_type
 #include "debug_sync.h"                     // DEBUG_SYNC
+#include "derror.h"                         // ER_THD
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
 #include "item.h"                           // Item_empty_string
 #include "item_cmpfunc.h"                   // Item_cond
 #include "log.h"                            // sql_print_warning
+#include "mysqld.h"                         // lower_case_table_names
 #include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "opt_trace.h"                      // fill_optimizer_trace_info
 #include "protocol.h"                       // Protocol
+#include "psi_memory_key.h"
 #include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
+#include "sp_pcontext.h"                    // sp_pcontext
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_class.h"                      // THD
 #include "sql_db.h"                         // check_db_dir_existence
@@ -69,6 +74,34 @@ using std::max;
 using std::min;
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
+
+/**
+  @class CSET_STRING
+  @brief Character set armed LEX_CSTRING
+*/
+class CSET_STRING
+{
+private:
+  LEX_CSTRING string;
+  const CHARSET_INFO *cs;
+public:
+  CSET_STRING() : cs(&my_charset_bin)
+  {
+    string.str= NULL;
+    string.length= 0;
+  }
+  CSET_STRING(const char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
+  cs(cs_arg)
+  {
+    DBUG_ASSERT(cs_arg != NULL);
+    string.str= str_arg;
+    string.length= length_arg;
+  }
+
+  inline const char *str() const { return string.str; }
+  inline size_t length() const { return string.length; }
+  const CHARSET_INFO *charset() const { return cs; }
+};
 
 enum enum_i_s_events_fields
 {
@@ -767,13 +800,13 @@ private:
      failed is not available at this point. The only way for us to check is by
      reconstructing the actual error message and see if it's the same.
   */
-  const char* get_view_access_denied_message()
+  const char* get_view_access_denied_message(THD *thd)
   {
     if (!m_view_access_denied_message_ptr)
     {
       m_view_access_denied_message_ptr= m_view_access_denied_message;
       my_snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
-                  ER(ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
+                  ER_THD(thd, ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
                   m_sctx->priv_user().str,
                   m_sctx->host_or_ip().str, m_top_view->get_table_name());
     }
@@ -801,7 +834,7 @@ public:
     switch (sql_errno)
     {
     case ER_TABLEACCESS_DENIED_ERROR:
-      if (!strcmp(get_view_access_denied_message(), msg))
+      if (!strcmp(get_view_access_denied_message(thd), msg))
       {
         /* Access to top view is not granted, don't interfere. */
         is_handled= false;
@@ -823,7 +856,7 @@ public:
       /* Established behavior: warn if underlying functions are missing. */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_VIEW_INVALID,
-                          ER(ER_VIEW_INVALID),
+                          ER_THD(thd, ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
                           m_top_view->get_table_name());
       is_handled= true;
@@ -999,7 +1032,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user().str, sctx->host_or_ip().str, dbname);
-    query_logger.general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+    query_logger.general_log_print(thd,COM_INIT_DB,
+                                   ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
                                    sctx->priv_user().str,
                                    sctx->host_or_ip().str, dbname);
     DBUG_RETURN(TRUE);
@@ -1837,6 +1871,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" KEY_BLOCK_SIZE="));
       end= longlong10_to_str(table->s->key_block_size, buff, 10);
       packet->append(buff, (uint) (end - buff));
+    }
+    if (table->s->compress.length)
+    {
+      packet->append(STRING_WITH_LEN(" COMPRESS="));
+      append_unescaped(packet, share->compress.str, share->compress.length);
     }
     table->file->append_create_info(packet);
     if (share->comment.length)
@@ -2692,7 +2731,7 @@ inline void make_upper(char *buf)
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              enum_var_type value_type, SHOW_TYPE show_type,
-                             system_status_var *status_var,
+                             System_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length)
 {
@@ -2705,7 +2744,7 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
     null_lex_str.length= 0;
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
-    value= (char*) var->value_ptr(current_thd, thd, value_type, &null_lex_str);
+    value= (char*) var->value_ptr(thd, thd, value_type, &null_lex_str);
     *charset= var->charset(thd);
   }
   else
@@ -2836,7 +2875,7 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
 static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
                               enum enum_var_type value_type,
-                              struct system_status_var *status_var,
+                              struct System_status_var *status_var,
                               const char *prefix, TABLE_LIST *tl,
                               bool ucase_names,
                               Item *cond)
@@ -2924,18 +2963,18 @@ end:
 class Add_status : public Do_THD_Impl
 {
 public:
-  Add_status(STATUS_VAR* value) : m_stat_var(value) {}
+  Add_status(System_status_var* value) : m_stat_var(value) {}
   virtual void operator()(THD *thd)
   {
-    STATUS_VAR* stat = &(thd->status_var);
+    System_status_var* stat = &(thd->status_var);
     add_to_status(m_stat_var, stat, true);
   }
 private:
   /* Status of all threads are summed into this. */
-  STATUS_VAR* m_stat_var;
+  System_status_var* m_stat_var;
 };
 
-void calc_sum_of_all_status(STATUS_VAR *to)
+void calc_sum_of_all_status(System_status_var *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
   /* Get global values as base. */
@@ -3017,7 +3056,7 @@ static int make_table_list(THD *thd, SELECT_LEX *sel,
                            const LEX_CSTRING &table_name)
 {
   Table_ident *table_ident;
-  table_ident= new Table_ident(thd, db_name, table_name, 1);
+  table_ident= new Table_ident(thd->get_protocol(), db_name, table_name, 1);
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
@@ -4072,7 +4111,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_I_S_SKIPPED_TABLE,
-                        ER(ER_WARN_I_S_SKIPPED_TABLE),
+                        ER_THD(thd, ER_WARN_I_S_SKIPPED_TABLE),
                         table_list.db, table_list.table_name);
     return 0;
   }
@@ -4696,6 +4735,16 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     {
       ptr= my_stpcpy(ptr, " KEY_BLOCK_SIZE=");
       ptr= longlong10_to_str(share->key_block_size, ptr, 10);
+    }
+
+    if (share->compress.length > 0)
+    {
+      /* In the .frm file this option has a max length of 2K. Currently,
+      InnoDB uses only the first 5 bytes and the only supported values
+      are (ZLIB | LZ4 | NONE). */
+      ptr= my_stpcpy(ptr, " COMPRESS=\"");
+      ptr= strxnmov(ptr, 7, share->compress.str, NullS);
+      ptr= my_stpcpy(ptr, "\"");
     }
 
     if (is_partitioned)
@@ -6913,30 +6962,6 @@ void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
                       old_name, new_name);
 }
 
-/**
-  Issue a deprecation warning for SHOW commands with a WHERE clause.
-*/
-void push_show_where_warning(THD *thd, enum enum_var_type option_type, bool status)
-{
-  const char *old_name;
-  const char *new_name;
-  if (option_type == OPT_GLOBAL)
-  {
-    old_name= (status ? "SHOW GLOBAL STATUS WHERE" : "SHOW GLOBAL VARIABLES WHERE");
-    new_name= (status ? "SHOW GLOBAL STATUS [LIKE]" : "SHOW GLOBAL VARIABLES [LIKE]");
-  }
-  else
-  {
-    old_name= (status ? "SHOW SESSION STATUS WHERE" : "SHOW SESSION VARIABLES WHERE");
-    new_name= (status ? "SHOW SESSION STATUS [LIKE]" : "SHOW SESSION VARIABLES [LIKE]");
-  }
-
-  push_warning_printf(thd, Sql_condition::SL_WARNING,
-                      ER_WARN_DEPRECATED_SYNTAX,
-                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
-                      old_name, new_name);
-}
-
 int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
@@ -6965,16 +6990,9 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     option_type= OPT_SESSION;
   }
 
-  /* Issue deprecation warning. */
-  if (lex->sql_command == SQLCOM_SHOW_VARIABLES)
-  {
-    if (cond != NULL)
-    {
-      push_show_where_warning(thd, option_type, false);
-    }
-  }
 #ifndef EMBEDDED_LIBRARY
-  else
+  /* Issue deprecation warning. */
+  if (lex->sql_command != SQLCOM_SHOW_VARIABLES)
   {
     push_select_warning(thd, option_type, false);
   }
@@ -6986,7 +7004,11 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
     SHOW_VAR array and hold it until all variables are stored in the table.
   */
-  mysql_mutex_lock(&LOCK_plugin_delete);
+  if (thd->fill_variables_recursion_level++ == 0)
+  {
+    mysql_mutex_lock(&LOCK_plugin_delete);
+  }
+
   // Lock LOCK_system_variables_hash to prepare SHOW_VARs array.
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   DEBUG_SYNC(thd, "acquired_LOCK_system_variables_hash");
@@ -6996,7 +7018,11 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   res= show_status_array(thd, wild, sys_var_array.begin(), option_type, NULL, "",
                          tables, upper_case_names, cond);
 
-  mysql_mutex_unlock(&LOCK_plugin_delete);
+  if (thd->fill_variables_recursion_level-- == 1)
+  {
+    mysql_mutex_unlock(&LOCK_plugin_delete);
+  }
+
   DBUG_RETURN(res);
 }
 
@@ -7008,7 +7034,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
 
-  STATUS_VAR *tmp1, tmp;
+  System_status_var *tmp1, tmp;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
   enum enum_var_type option_type;
@@ -7033,16 +7059,9 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     tmp1= &thd->status_var;
   }
 
-  /* Issue deprecation warning. */
-  if (lex->sql_command == SQLCOM_SHOW_STATUS)
-  {
-    if (cond != NULL)
-    {
-      push_show_where_warning(thd, option_type, true);
-    }
-  }
 #ifndef EMBEDDED_LIBRARY
-  else
+  /* Issue deprecation warning. */
+  if (lex->sql_command != SQLCOM_SHOW_STATUS)
   {
     push_select_warning(thd, option_type, true);
   }
@@ -7693,7 +7712,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd,
-                              new Table_ident(thd,
+                              new Table_ident(thd->get_protocol(),
                                               to_lex_cstring(db),
                                               to_lex_cstring(table),
                                               0),

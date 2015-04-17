@@ -24,6 +24,7 @@
 #include "tztime.h"                             // struct Time_zone
 #include "auth_common.h"                        // EVENT_ACL
 #include "records.h"          // init_read_record, end_read_record
+#include "mysqld.h"           // LOCK_global_system_variables
 #include "event_data_objects.h"
 #include "event_db_repository.h"
 #include "event_queue.h"

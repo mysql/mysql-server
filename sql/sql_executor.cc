@@ -30,12 +30,17 @@
 #include "item_sum.h"         // Item_sum
 #include "key.h"              // key_cmp
 #include "log.h"              // sql_print_error
+#include "filesort.h"         // Filesort
+#include "opt_range.h"        // QUICK_SELECT_I
 #include "opt_trace.h"        // Opt_trace_object
+#include "psi_memory_key.h"
+#include "query_result.h"     // Query_result
 #include "sql_base.h"         // fill_record
 #include "sql_join_buffer.h"  // st_cache_field
 #include "sql_optimizer.h"    // JOIN
 #include "sql_show.h"         // get_schema_tables_result
 #include "sql_tmp_table.h"    // create_tmp_table
+#include "mysqld.h"           // stage_executing
 
 #include <algorithm>
 using std::max;
@@ -81,6 +86,15 @@ static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
+
+
+void Temp_table_param::cleanup(void)
+{
+  delete [] copy_field;
+  copy_field= NULL;
+  copy_field_end= NULL;
+}
+
 
 /**
   Execute select, executor entry point.
@@ -673,7 +687,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
       {
         Field *field= item_field->field;
         JOIN_TAB *stat= field->table->reginfo.join_tab;
-        key_map possible_keys= field->key_start;
+        Key_map possible_keys= field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);
         stat[0].const_keys.merge(possible_keys);
         stat[0].keys().merge(possible_keys);
@@ -2357,7 +2371,7 @@ join_init_quick_read_record(QEP_TAB *tab)
       (tab->table()->file->inited != handler::NONE))
       tab->table()->file->ha_index_or_rnd_end();
 
-  key_map needed_reg_dummy;
+  Key_map needed_reg_dummy;
   QUICK_SELECT_I *old_qck= tab->quick();
   QUICK_SELECT_I *qck;
   DEBUG_SYNC(thd, "quick_not_created");
@@ -2855,6 +2869,20 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
   if (!end_of_records)
   {
     int error;
+
+    /*
+      If group ref array exist then set it as current ref array. Result values
+      of non-deterministic expressions are saved here and corresponding Item_ref
+      should look for their values here rather than re-evaluation of the same.
+      Example : Loose index scan with having, where having refers to
+                non-deterministic function like rand() in select.
+    */
+    if (!join->items3.is_null() && !join->set_group_rpa)
+    {
+      join->set_group_rpa= true;
+      join->set_items_ref_array(join->items3);
+    }
+
     if (join->tables &&
         // In case filesort has been used and zeroed quick():
         (join->qep_tab[0].quick_optim() &&
@@ -3280,6 +3308,14 @@ end_write(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
   }
   if (!end_of_records)
   {
+    /*
+      Set the ref_ptrs to current temp table ref_array. Below we evaluate
+      having, Item_ref of non-deterministic expressions in having should refer
+      to their result values in temp table instead of re-evaluating the same.
+    */
+    if (join->current_ref_ptrs != *(qep_tab->ref_array))
+      join->set_items_ref_array(*(qep_tab->ref_array));
+
     Temp_table_param *const tmp_tbl= qep_tab->tmp_table_param;
     if (copy_fields(tmp_tbl, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
@@ -3511,6 +3547,14 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
       if (end_of_records)
 	DBUG_RETURN(NESTED_LOOP_OK);
       join->first_record=1;
+
+      /*
+        Set the ref_ptrs to current temp table ref_array. Below we evaluate
+        having, Item_ref of non-deterministic expressions in having should refer
+        to their result values in temp table instead of re-evaluating the same.
+      */
+      join->set_items_ref_array(*(qep_tab->ref_array));
+
       (void)(test_if_item_cache_changed(join->group_fields));
     }
     if (idx < (int) join->send_group_parts)

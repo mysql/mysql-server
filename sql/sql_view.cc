@@ -18,6 +18,8 @@
 #include "auth_common.h" // CREATE_VIEW_ACL
 #include "binlog.h"      // mysql_bin_log
 #include "datadict.h"    // dd_frm_type
+#include "derror.h"      // ER_THD
+#include "mysqld.h"      // stage_end reg_ext key_file_frm
 #include "opt_trace.h"   // Opt_trace_object
 #include "parse_file.h"  // File_option
 #include "sp_cache.h"    // sp_cache_invalidate
@@ -546,7 +548,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       {
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_NO_SUCH_USER,
-                            ER(ER_NO_SUCH_USER),
+                            ER_THD(thd, ER_NO_SUCH_USER),
                             lex->definer->user.str,
                             lex->definer->host.str);
       }
@@ -622,7 +624,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
     if (lex->view_list.elements != select_lex->item_list.elements)
     {
-      my_message(ER_VIEW_WRONG_LIST, ER(ER_VIEW_WRONG_LIST), MYF(0));
+      my_error(ER_VIEW_WRONG_LIST, MYF(0));
       res= TRUE;
       goto err;
     }
@@ -958,7 +960,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
       !can_be_merged)
   {
     push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_VIEW_MERGE,
-                 ER(ER_WARN_VIEW_MERGE));
+                 ER_THD(thd, ER_WARN_VIEW_MERGE));
     lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
   }
   view->algorithm= lex->create_view_algorithm;
@@ -1266,7 +1268,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
                 !view_ref->definer.user.length &&
                 !view_ref->definer.host.length);
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
+                        ER_VIEW_FRM_NO_USER, ER_THD(thd, ER_VIEW_FRM_NO_USER),
                         view_ref->db, view_ref->table_name);
     get_default_definer(thd, &view_ref->definer);
   }
@@ -1445,7 +1447,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
     {
       if (view_ref->view_no_explain)
       {
-        my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+        my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
         result= true;
         DBUG_RETURN(true);
       }
@@ -1768,8 +1770,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
         tbl_name.append('.');
         tbl_name.append(String(view->table_name,system_charset_info));
 	push_warning_printf(thd, Sql_condition::SL_NOTE,
-			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-			    tbl_name.c_ptr());
+                            ER_BAD_TABLE_ERROR,
+                            ER_THD(thd, ER_BAD_TABLE_ERROR),
+                            tbl_name.c_ptr());
 	continue;
       }
       if (type == FRMTYPE_TABLE)
@@ -1949,7 +1952,8 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
         {
           /* update allowed, but issue warning */
           push_warning(thd, Sql_condition::SL_NOTE,
-                       ER_WARN_VIEW_WITHOUT_KEY, ER(ER_WARN_VIEW_WITHOUT_KEY));
+                       ER_WARN_VIEW_WITHOUT_KEY,
+                       ER_THD(thd, ER_WARN_VIEW_WITHOUT_KEY));
           DBUG_RETURN(FALSE);
         }
         /* prohibit update */

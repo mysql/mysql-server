@@ -17,7 +17,8 @@
 #define SQL_UNION_INCLUDED
 
 #include "my_global.h"          // ulong
-#include "sql_class.h"          // Query_result_interceptor
+#include "query_result.h"       // Query_result_interceptor
+#include "temp_table_param.h"   // Temp_table_param
 
 struct LEX;
 
@@ -30,8 +31,9 @@ public:
   TABLE *table;
   bool is_union_mixed_with_union_all; // Mark the mixed operation
 
-  Query_result_union() :table(0),
-  is_union_mixed_with_union_all(false){}
+  Query_result_union(THD *thd)
+    : Query_result_interceptor(thd), table(0),
+    is_union_mixed_with_union_all(false) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   /**
     Do prepare() and prepare2() if they have been postponed until

@@ -19,6 +19,7 @@
 
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "mysqld.h"                      // connection_errors_internal
 #include "mysqld_error.h"                // ER_*
 #include "mysqld_thd_manager.h"          // Global_THD_manager
 #include "sql_audit.h"                   // mysql_audit_release

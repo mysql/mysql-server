@@ -25,6 +25,10 @@
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
+#include "current_thd.h"
+#include "field.h"
+#include "sql_class.h"
+#include "mysqld.h"
 
 THR_LOCK table_global_status::m_table_lock;
 

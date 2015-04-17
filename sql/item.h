@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "field.h"       // Derivation
+#include "my_decimal.h"  // my_decimal
 #include "parse_tree_node_base.h" // Parse_tree_node
 #include "sql_array.h"   // Bounds_checked_array
 #include "trigger_def.h" // enum_trigger_variable_type
@@ -1946,15 +1947,6 @@ public:
       ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
-
-  /**
-    @brief  update_indexed_column_map
-    Update columns map for index.
-
-    @param int_arg It's useless 
-    @return  false successfully update 
-    */
-  virtual bool update_indexed_column_map(uchar *int_arg) { return false; }
 
   /*
     For SP local variable returns pointer to Item representing its

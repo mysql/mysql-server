@@ -21,12 +21,16 @@
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
 #include "debug_sync.h"                  // DEBUG_SYNC
+#include "derror.h"                      // ER_THD
 #include "item_cmpfunc.h"                // and_conds
 #include "key.h"                         // find_ref_key
 #include "log.h"                         // sql_print_warning
+#include "mysqld.h"                      // reg_ext key_file_frm ...
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
+#include "psi_memory_key.h"
+#include "query_result.h"                // Query_result
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_parse.h"                   // check_stack_overrun
@@ -80,8 +84,6 @@ LEX_STRING PARSE_GCOL_KEYWORD= {C_STRING_WITH_LEN("parse_gcol_expr")};
 
 	/* Functions defined in this file */
 
-void open_table_error(TABLE_SHARE *share, int error, int db_errno,
-                      myf errortype, int errarg);
 static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                            uchar *head, File file);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
@@ -175,7 +177,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
   {
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_NO_CREATION_CTX,
-                        ER(ER_VIEW_NO_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_NO_CREATION_CTX),
                         (const char *) view->db,
                         (const char *) view->table_name);
 
@@ -209,7 +211,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
-                        ER(ER_VIEW_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_INVALID_CREATION_CTX),
                         (const char *) view->db,
                         (const char *) view->table_name);
   }
@@ -819,7 +821,7 @@ err_not_open:
   if (error && !error_given)
   {
     share->error= error;
-    open_table_error(share, error, (share->open_errno= my_errno), 0);
+    open_table_error(thd, share, error, (share->open_errno= my_errno), 0);
   }
 
   DBUG_RETURN(error);
@@ -1742,6 +1744,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
       next_chunk+= format_section_length;
     }
+
+    if (next_chunk + 2 <= buff_end)
+    {
+      share->compress.length = uint2korr(next_chunk);
+      if (! (share->compress.str= strmake_root(&share->mem_root,
+             (char*)next_chunk + 2, share->compress.length)))
+      {
+          goto err;
+      }
+      next_chunk+= 2 + share->compress.length;
+    }
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -2392,7 +2405,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete handler_file;
   my_hash_free(&share->name_hash);
 
-  open_table_error(share, error, share->open_errno, errarg);
+  open_table_error(thd, share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
 } /* open_binary_frm */
 
@@ -2615,7 +2628,8 @@ bool unpack_gcol_info_from_frm(THD *thd,
   */
   Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
   Query_arena backup_arena;
-  Query_arena gcol_arena(&table->mem_root, Query_arena::STMT_INITIALIZED);
+  Query_arena gcol_arena(&table->mem_root,
+                         Query_arena::STMT_CONVENTIONAL_EXECUTION);
   thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
   thd->stmt_arena= &gcol_arena;
   ulong save_old_privilege= thd->want_privilege;
@@ -3077,7 +3091,7 @@ partititon_err:
 
  err:
   if (! error_reported)
-    open_table_error(share, error, my_errno, 0);
+    open_table_error(thd, share, error, my_errno, 0);
   delete outparam->file;
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
@@ -3325,7 +3339,8 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 
 	/* error message when opening a form file */
 
-void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
+void open_table_error(THD *thd, TABLE_SHARE *share,
+                      int error, int db_errno, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
@@ -3359,7 +3374,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
 
     if (share->db_type() != NULL)
     {
-      if ((file= get_new_handler(share, current_thd->mem_root,
+      if ((file= get_new_handler(share, thd->mem_root,
                                  share->db_type())))
       {
         if (!(datext= *file->bas_ext()))
@@ -3957,7 +3972,8 @@ bool check_column_name(const char *name)
 */
 
 bool
-Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
+Table_check_intact::check(THD *thd, TABLE *table,
+                          const TABLE_FIELD_DEF *table_def)
 {
   uint i;
   my_bool error= FALSE;
@@ -3978,7 +3994,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   ER_THD(thd, ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
                    table->s->db.str, table->alias,
                    table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
@@ -3988,7 +4004,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
+                   ER_THD(thd, ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
                    table->s->db.str, table->s->table_name.str,
                    table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
@@ -4299,6 +4315,18 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     DBUG_ASSERT(0);
     return TRUE;
   }
+}
+
+Blob_mem_storage::Blob_mem_storage()
+  : truncated_value(false)
+{
+  init_alloc_root(key_memory_blob_mem_storage,
+                  &storage, MAX_FIELD_VARCHARLENGTH, 0);
+}
+
+Blob_mem_storage::~Blob_mem_storage()
+{
+  free_root(&storage, MYF(0));
 }
 
 
@@ -5084,7 +5112,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
       {
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_NO_SUCH_USER, 
-                            ER(ER_NO_SUCH_USER),
+                            ER_THD(thd, ER_NO_SUCH_USER),
                             definer.user.str, definer.host.str);
       }
       else
@@ -5104,7 +5132,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
             my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
                      thd->security_context()->priv_user().str,
                      thd->security_context()->priv_host().str,
-                     (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+                     (thd->password ?  ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
         }
         DBUG_RETURN(TRUE);
       }
@@ -5890,9 +5918,9 @@ void TABLE::mark_auto_increment_column()
     retrieve the row again.
 */
 
-void TABLE::mark_columns_needed_for_delete()
+void TABLE::mark_columns_needed_for_delete(THD *thd)
 {
-  mark_columns_per_binlog_row_image();
+  mark_columns_per_binlog_row_image(thd);
 
   if (triggers)
     triggers->mark_fields(TRG_EVENT_DELETE);
@@ -5956,11 +5984,11 @@ void TABLE::mark_columns_needed_for_delete()
     Table_trigger_dispatcher::mark_used_fields(TRG_EVENT_UPDATE)!
 */
 
-void TABLE::mark_columns_needed_for_update()
+void TABLE::mark_columns_needed_for_update(THD *thd)
 {
 
   DBUG_ENTER("mark_columns_needed_for_update");
-  mark_columns_per_binlog_row_image();
+  mark_columns_per_binlog_row_image(thd);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
@@ -6034,7 +6062,7 @@ void TABLE::mark_columns_needed_for_update()
   we only want to log a PK and we needed other fields for
   execution).
  */
-void TABLE::mark_columns_per_binlog_row_image()
+void TABLE::mark_columns_per_binlog_row_image(THD *thd)
 {
   DBUG_ENTER("mark_columns_per_binlog_row_image");
   DBUG_ASSERT(read_set->bitmap);
@@ -6048,9 +6076,6 @@ void TABLE::mark_columns_per_binlog_row_image()
        in_use->is_current_stmt_binlog_format_row() &&
        !ha_check_storage_engine_flag(s->db_type(), HTON_NO_BINLOG_ROW_OPT)))
   {
-
-    THD *thd= current_thd;
-
     /* if there is no PK, then mark all columns for the BI. */
     if (s->primary_key >= MAX_KEY)
       bitmap_set_all(read_set);
@@ -6326,9 +6351,9 @@ void TABLE::use_index(int key_to_save)
   as changed.
 */
 
-void TABLE::mark_columns_needed_for_insert()
+void TABLE::mark_columns_needed_for_insert(THD *thd)
 {
-  mark_columns_per_binlog_row_image();
+  mark_columns_per_binlog_row_image(thd);
   if (triggers)
   {
     /*
@@ -6587,9 +6612,9 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
   if (index_hints)
   {
     /* Temporary variables used to collect hints of each kind. */
-    key_map index_join[INDEX_HINT_FORCE + 1];
-    key_map index_order[INDEX_HINT_FORCE + 1];
-    key_map index_group[INDEX_HINT_FORCE + 1];
+    Key_map index_join[INDEX_HINT_FORCE + 1];
+    Key_map index_order[INDEX_HINT_FORCE + 1];
+    Key_map index_group[INDEX_HINT_FORCE + 1];
     Index_hint *hint;
     bool have_empty_use_join= FALSE, have_empty_use_order= FALSE, 
          have_empty_use_group= FALSE;

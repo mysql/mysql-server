@@ -24,9 +24,10 @@
 #include "key.h"                             // key_rec_cmp
 #include "sql_class.h"                       // THD
 #include "myisam.h"                          // MI_MAX_MSG_BUF
+#include "derror.h"
 
 // In sql_class.cc:
-extern "C" int thd_binlog_format(const MYSQL_THD thd);
+int thd_binlog_format(const MYSQL_THD thd);
 
 /** operation names for the enum_part_operation. */
 static const char *opt_op_name[]= {"optimize", "analyze", "check", "repair",
@@ -327,6 +328,41 @@ const char *Partition_share::get_partition_name(size_t part_id) const
   }
   return reinterpret_cast<const char*>(partition_names[part_id]);
 }
+
+
+int Partition_handler::truncate_partition()
+{
+  handler *file= get_handler();
+  if (!file)
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
+  DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
+              file->m_lock_type == F_WRLCK);
+  file->mark_trx_read_write();
+  return truncate_partition_low();
+}
+
+
+int Partition_handler::change_partitions(HA_CREATE_INFO *create_info,
+                                         const char *path,
+                                         ulonglong * const copied,
+                                         ulonglong * const deleted)
+{
+  handler *file= get_handler();
+  if (!file)
+  {
+    my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
+    return HA_ERR_WRONG_COMMAND;
+  }
+  DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
+              file->m_lock_type != F_UNLCK);
+  file->mark_trx_read_write();
+  return change_partitions_low(create_info, path, copied, deleted);
+}
+
+
+
 /*
   Implementation of Partition_helper class.
 */
@@ -426,6 +462,22 @@ void Partition_helper::close_partitioning()
   DBUG_ASSERT(!m_ordered_rec_buffer);
   destroy_record_priority_queue();
 }
+
+
+void Partition_helper::lock_auto_increment()
+{
+  /* lock already taken */
+  if (m_auto_increment_safe_stmt_log_lock)
+    return;
+  DBUG_ASSERT(!m_auto_increment_lock);
+  if(m_table->s->tmp_table == NO_TMP_TABLE)
+  {
+    m_auto_increment_lock= true;
+    m_part_share->lock_auto_inc();
+  }
+}
+
+
 
 /****************************************************************************
                 MODULE change record
@@ -978,7 +1030,7 @@ bool Partition_helper::print_partition_error(int error, myf errflag)
   if ((error == HA_ERR_NO_PARTITION_FOUND) &&
       ! (thd->lex->alter_info.flags & Alter_info::ALTER_TRUNCATE_PARTITION))
   {
-    m_part_info->print_no_partition_found(m_table);
+    m_part_info->print_no_partition_found(thd, m_table);
     // print_no_partition_found() reports an error, so we can just return here.
     DBUG_RETURN(false);
   }
@@ -1033,7 +1085,8 @@ bool Partition_helper::print_partition_error(int error, myf errflag)
                       m_table->s->table_name.str,
                       str.c_ptr_safe());
 
-      max_length= (MYSQL_ERRMSG_SIZE - strlen(ER(ER_ROW_IN_WRONG_PARTITION)));
+      max_length= (MYSQL_ERRMSG_SIZE -
+                   strlen(ER_THD(thd, ER_ROW_IN_WRONG_PARTITION)));
       if (str.length() >= max_length)
       {
         str.length(max_length-4);
@@ -2163,19 +2216,20 @@ int Partition_helper::init_record_priority_queue()
     uint alloc_len;
     /*
       Allocate record buffer for each used partition.
-      If we need to do a secondary sort by PK, then it is already in the
-      record, so we only need to allocate for part id and a full record per
-      partition.
-      Otherwise we do a secondary sort by rowid (handler::ref) and must
-      allocate for ref (includes part id) and full record per partition.
-      We don't know yet if we need to do secondary sort by rowid, so we must
+      If PK is clustered index, it is either the primary sort key or is
+      added as secondary sort. So we only need to allocate for part id
+      and a full record per partition.
+      Otherwise if the clustered index was generated, we might need to
+      do a secondary sort by rowid (handler::ref) and must allocate for
+      ref (includes part id) and full record per partition. We don't
+      know yet if we need to do secondary sort by rowid, so we must
       allocate space for it.
       TODO: enhance ha_index_init() for HA_EXTRA_SECONDARY_SORT_ROWID to
       avoid allocating space for handler::ref when not needed.
       When enhancing ha_index_init() care must be taken on ph_position(),
       so InnoDB's row_id is correctly handled (taken from m_last_part).
     */
-    if (m_curr_key_info[1])
+    if (m_pkey_is_clustered && m_table->s->primary_key != MAX_KEY)
     {
       m_rec_offset= PARTITION_BYTES_IN_POS;
       m_ref_usage= REF_NOT_USED;

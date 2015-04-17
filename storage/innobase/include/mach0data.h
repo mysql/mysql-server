@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,8 +26,6 @@ Created 11/28/1995 Heikki Tuuri
 
 #ifndef mach0data_h
 #define mach0data_h
-
-#ifndef UNIV_INNOCHECKSUM
 
 #include "univ.i"
 #include "mtr0types.h"
@@ -391,7 +389,6 @@ mach_read_ulint(
 	__attribute__((warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP */
-#endif /* !UNIV_INNOCHECKSUM */
 
 #ifndef UNIV_NONINL
 #include "mach0data.ic"

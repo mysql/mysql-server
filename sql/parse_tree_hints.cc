@@ -16,6 +16,7 @@
 #include "parse_tree_hints.h"
 #include "sql_class.h"
 #include "sql_lex.h"
+#include "derror.h"
 
 
 extern struct st_opt_hint_info opt_hint_info[];
@@ -123,7 +124,7 @@ static Opt_hints_table *get_table_hints(Parse_context *pc,
                                         Hint_param_table *table_name,
                                         Opt_hints_qb *qb)
 {
-  Opt_hints_table *tab= 
+  Opt_hints_table *tab=
     static_cast<Opt_hints_table *> (qb->find_by_name(&table_name->table));
   if (!tab)
   {
@@ -193,6 +194,90 @@ void PT_hint::print_warn(THD *thd, uint err_code,
 
   push_warning_printf(thd, Sql_condition::SL_WARNING,
                       err_code, ER_THD(thd, err_code), str.c_ptr_safe());
+}
+
+
+bool PT_qb_level_hint::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  Opt_hints_qb *qb= find_qb_hints(pc, &qb_name, this);
+  if (qb == NULL)
+    return false;  // TODO: Should this generate a warning?
+
+  bool conflict= false;  // true if this hint conflicts with a previous hint
+  switch (type()) {
+  case SEMIJOIN_HINT_ENUM:
+    if (qb->subquery_hint)
+      conflict= true;
+    else if(!qb->semijoin_hint)
+      qb->semijoin_hint= this;
+    break;
+  case SUBQUERY_HINT_ENUM:
+    if (qb->semijoin_hint)
+      conflict= true;
+    else if (!qb->subquery_hint)
+      qb->subquery_hint= this;
+    break;
+  default:
+      DBUG_ASSERT(0);
+  }
+
+  if (conflict ||
+      // Set hint or detect if hint has been set before
+      qb->set_switch(switch_on(), type(), false))
+    print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &qb_name, NULL, NULL, this);
+
+  return false;
+}
+
+void PT_qb_level_hint::append_args(THD *thd, String *str) const
+{
+  switch (type()) {
+  case SEMIJOIN_HINT_ENUM:
+  {
+    int count= 0;
+    if (args & OPTIMIZER_SWITCH_FIRSTMATCH)
+    {
+      str->append(STRING_WITH_LEN(" FIRSTMATCH"));
+      ++count;
+    }
+    if (args & OPTIMIZER_SWITCH_LOOSE_SCAN)
+    {
+      if (count++ > 0)
+        str->append(STRING_WITH_LEN(","));
+      str->append(STRING_WITH_LEN(" LOOSESCAN"));
+    }
+    if (args & OPTIMIZER_SWITCH_MATERIALIZATION)
+    {
+      if (count++ > 0)
+        str->append(STRING_WITH_LEN(","));
+      str->append(STRING_WITH_LEN(" MATERIALIZATION"));
+    }
+    if (args & OPTIMIZER_SWITCH_DUPSWEEDOUT)
+    {
+      if (count++ > 0)
+        str->append(STRING_WITH_LEN(","));
+      str->append(STRING_WITH_LEN(" DUPSWEEDOUT"));
+    }
+    break;
+  }
+  case SUBQUERY_HINT_ENUM:
+    switch (args) {
+    case Item_exists_subselect::EXEC_MATERIALIZATION:
+      str->append(STRING_WITH_LEN(" MATERIALIZATION"));
+      break;
+    case Item_exists_subselect::EXEC_EXISTS:
+      str->append(STRING_WITH_LEN(" INTOEXISTS"));
+      break;
+    default:      // Exactly one of above strategies should always be specified
+      DBUG_ASSERT(false);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
 }
 
 
@@ -291,7 +376,7 @@ bool PT_key_level_hint::contextualize(Parse_context *pc)
       key= new Opt_hints_key(key_name, tab, pc->thd->mem_root);
       tab->register_child(key);
     }
-    
+
     if (key->set_switch(switch_on(), type(), true))
       print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
                  &table_name.opt_query_block,

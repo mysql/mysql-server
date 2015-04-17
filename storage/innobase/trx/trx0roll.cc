@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -222,6 +222,52 @@ trx_rollback_for_mysql(
 
 	case TRX_STATE_PREPARED:
 		ut_ad(!trx_is_autocommit_non_locking(trx));
+		if (trx->rsegs.m_redo.rseg != NULL
+		    && trx_is_redo_rseg_updated(trx)) {
+			/* Change the undo log state back from
+			TRX_UNDO_PREPARED to TRX_UNDO_ACTIVE
+			so that if the system gets killed,
+			recovery will perform the rollback. */
+			trx_undo_ptr_t*	undo_ptr = &trx->rsegs.m_redo;
+			mtr_t		mtr;
+			mtr.start();
+			mtr.set_undo_space(trx->rsegs.m_redo.rseg->space);
+
+			mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
+			if (undo_ptr->insert_undo != NULL) {
+				trx_undo_set_state_at_prepare(
+					trx, undo_ptr->insert_undo,
+					true, &mtr);
+			}
+			if (undo_ptr->update_undo != NULL) {
+				trx_undo_set_state_at_prepare(
+					trx, undo_ptr->update_undo,
+					true, &mtr);
+			}
+			mutex_exit(&trx->rsegs.m_redo.rseg->mutex);
+			/* Persist the XA ROLLBACK, so that crash
+			recovery will replay the rollback in case
+			the redo log gets applied past this point. */
+			mtr.commit();
+			ut_ad(mtr.commit_lsn() > 0);
+		}
+#ifdef ENABLED_DEBUG_SYNC
+		if (trx->mysql_thd == NULL) {
+			/* We could be executing XA ROLLBACK after
+			XA PREPARE and a server restart. */
+		} else if (!trx_is_redo_rseg_updated(trx)) {
+			/* innobase_close_connection() may roll back a
+			transaction that did not generate any
+			persistent undo log. The DEBUG_SYNC
+			would cause an assertion failure for a
+			disconnected thread.
+
+			NOTE: InnoDB will not know about the XID
+			if no persistent undo log was generated. */
+		} else {
+			DEBUG_SYNC_C("trx_xa_rollback");
+		}
+#endif /* ENABLED_DEBUG_SYNC */
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
@@ -355,7 +401,7 @@ the row, these locks are naturally released in the rollback. Savepoints which
 were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 trx_rollback_to_savepoint_for_mysql_low(
 /*====================================*/

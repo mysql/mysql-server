@@ -21,6 +21,7 @@
 #include "rpl_handler.h"                        // delegates_init()
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "opt_costconstantcache.h"              // optimizer cost constant cache
+#include "mysqld.h"                             // set_remaining_args
 #include "log.h"                                // query_logger
 
 namespace my_testing {

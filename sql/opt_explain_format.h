@@ -20,10 +20,13 @@
 /** @file "EXPLAIN FORMAT=<format> <command>" 
 */
 
-
-#include "sql_class.h"
+#include "sql_alloc.h"
+#include "parse_tree_node_base.h"
+#include "sql_lex.h"
 
 struct st_join_table;
+class String;
+
 
 /**
   Types of traditional "extra" column parts and property names for hierarchical
@@ -211,14 +214,8 @@ public:
 
       @return false if success, true if error
     */
-    bool set(const char *str_arg, size_t length_arg)
-    {
-      deferred= NULL;
-      if (!(str= strndup_root(current_thd->mem_root, str_arg, length_arg)))
-        return true; /* purecov: inspected */
-      length= length_arg;
-      return false;
-    }
+    bool set(const char *str_arg, size_t length_arg);
+
     /**
       Save expression for further evaluation
 

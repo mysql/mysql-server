@@ -19,6 +19,7 @@
 #define RPL_GTID_PERSIST_H_
 
 #include "my_global.h"
+#include "derror.h"                  // ER_THD
 #include "rpl_table_access.h"        // System_table_access
 #include "sql_class.h"               // Open_tables_backup
 
@@ -101,7 +102,10 @@ class Gtid_table_persistor
 public:
   static const uint number_fields= 3;
 
-  Gtid_table_persistor() : m_count(0) { };
+  Gtid_table_persistor()
+  {
+    m_count.atomic_set(0);
+  };
   virtual ~Gtid_table_persistor() { };
 
   /**
@@ -196,7 +200,7 @@ public:
       */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
-                          ER(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE),
+                          ER_THD(thd, ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE),
                           table->table_name);
       DBUG_RETURN(true);
     }
@@ -206,7 +210,7 @@ public:
 
 private:
   /* Count the append size of the table */
-  ulong m_count;
+  Atomic_int64 m_count;
   /**
     Compress the gtid_executed table, read each row by the
     PK(sid, gno_start) in increasing order, compress the first

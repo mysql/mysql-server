@@ -1967,7 +1967,7 @@ err:
 end:
   if (ndb_error)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                        ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                         ndb_error->code,
                         ndb_error->message,
                         "Could not log query '%s' on other mysqld's");
@@ -4339,7 +4339,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_NDB_REPLICATION_SCHEMA_ERROR,
-                        ER(ER_NDB_REPLICATION_SCHEMA_ERROR),
+                        ER_THD(thd, ER_NDB_REPLICATION_SCHEMA_ERROR),
                         msg);
     sql_print_warning("NDB Binlog: %s",
                       msg);
@@ -4362,9 +4362,9 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
                                sizeof(msgbuf)) != 0)
     {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_CONFLICT_FN_PARSE_ERROR,
-                          ER(ER_CONFLICT_FN_PARSE_ERROR),
-                          msgbuf);
+                            ER_CONFLICT_FN_PARSE_ERROR,
+                            ER_THD(thd, ER_CONFLICT_FN_PARSE_ERROR),
+                            msgbuf);
 
       /*
         Log as well, useful for contexts where the thd's stack of
@@ -4443,7 +4443,7 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
 
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_CONFLICT_FN_PARSE_ERROR,
-                          ER(ER_CONFLICT_FN_PARSE_ERROR),
+                          ER_THD(thd, ER_CONFLICT_FN_PARSE_ERROR),
                           tmp_buf);
 
       DBUG_RETURN(-1);
@@ -4692,7 +4692,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
       if (push_warning)
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_ILLEGAL_HA_CREATE_OPTION,
-                            ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                            ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
                             ndbcluster_hton_name,
                             "Binlog of table with BLOB attribute and no PK");
 
@@ -4751,7 +4751,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
       */
       if (push_warning > 1)
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                            ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
       sql_print_error("NDB Binlog: Unable to create event in database. "
@@ -4779,7 +4779,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
     {
       if (push_warning > 1)
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                            ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
       sql_print_error("NDB Binlog: Unable to create event in database. "
@@ -4798,7 +4798,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
     {
       if (push_warning > 1)
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                            ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
       sql_print_error("NDB Binlog: Unable to create event in database. "
@@ -4811,7 +4811,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
     }
 #ifdef NDB_BINLOG_EXTRA_WARNINGS
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                        ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                         0, "NDB Binlog: Removed trailing event",
                         "NDB");
 #endif
@@ -4934,7 +4934,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       sql_print_error("NDB Binlog: Creating NdbEventOperation failed for"
                       " %s",event_name);
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                           ndb->getNdbError().code,
                           ndb->getNdbError().message,
                           "NDB");
@@ -4996,7 +4996,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
                             " blob field %u handles failed (code=%d) for %s",
                             j, op->getNdbError().code, event_name);
             push_warning_printf(thd, Sql_condition::SL_WARNING,
-                                ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                                ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                                 op->getNdbError().code,
                                 op->getNdbError().message,
                                 "NDB");
@@ -5040,7 +5040,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       if (retries == 0)
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 
+                            ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                             op->getNdbError().code, op->getNdbError().message,
                             "NDB");
         sql_print_error("NDB Binlog: ndbevent->execute failed for %s; %d %s",
@@ -5116,7 +5116,7 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
     {
       /* drop event failed for some reason, issue a warning */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                          ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
                           dict->getNdbError().code,
                           dict->getNdbError().message, "NDB");
       /* error is not that the event did not exist */

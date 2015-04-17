@@ -19,6 +19,8 @@
 
 #include "sql_lex.h"
 
+#include "current_thd.h"
+#include "mysqld.h"                    // table_alias_charset
 #include "sp_head.h"                   // sp_head
 #include "sql_class.h"                 // THD
 #include "sql_parse.h"                 // add_to_list
@@ -182,6 +184,17 @@ static bool init_state_maps(CHARSET_INFO *cs)
   state_map[(uchar)'n']= state_map[(uchar)'N']= MY_LEX_IDENT_OR_NCHAR;
 
   return false;
+}
+
+
+Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
+                         const LEX_CSTRING &table_arg, bool force)
+  :table(table_arg), sel(NULL)
+{
+  if (!force && protocol->has_client_capability(CLIENT_NO_SCHEMA))
+    db= NULL_CSTR;
+  else
+    db= db_arg;
 }
 
 
@@ -455,6 +468,14 @@ void Lex_input_stream::reduce_digest_token(uint token_left, uint token_right)
 }
 
 
+void LEX::assert_ok_set_current_select()
+{
+  // (2) Only owning thread could change m_current_select
+  // (1) bypass for bootstrap and "new THD"
+  DBUG_ASSERT(!current_thd || !thd || //(1)
+              thd == current_thd);    //(2)
+}
+
 LEX::~LEX()
 {
   destroy_query_tables_list();
@@ -604,7 +625,6 @@ st_select_lex *LEX::new_empty_query_block()
     return NULL;             /* purecov: inspected */
 
   select->parent_lex= this;
-  select->opt_hints_qb= NULL;
 
   return select;
 }
@@ -2305,6 +2325,7 @@ st_select_lex::st_select_lex
   prev_join_using(NULL),
   select_list_tables(0),
   outer_join(0),
+  opt_hints_qb(NULL),
   m_agg_func_used(false),
   sj_candidates(NULL)
 {
@@ -4458,6 +4479,57 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd,
   }
   return get_optimizable_join_conditions(thd, top_join_list);
 }
+
+Item_exists_subselect::enum_exec_method
+st_select_lex::subquery_strategy(THD *thd) const
+{
+  if (opt_hints_qb)
+  {
+    Item_exists_subselect::enum_exec_method strategy=
+      opt_hints_qb->subquery_strategy();
+    if (strategy != Item_exists_subselect::EXEC_UNSPECIFIED)
+      return strategy;
+  }
+
+  // No SUBQUERY hint given, base possible strategies on optimizer_switch
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
+    return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED) ?
+      Item_exists_subselect::EXEC_EXISTS_OR_MAT :
+      Item_exists_subselect::EXEC_MATERIALIZATION;
+
+  return Item_exists_subselect::EXEC_EXISTS;
+}
+
+bool st_select_lex::semijoin_enabled(THD *thd) const
+{
+  return opt_hints_qb ?
+    opt_hints_qb->semijoin_enabled(thd) :
+    thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN);
+}
+
+void st_select_lex::update_semijoin_strategies(THD *thd)
+{
+  uint sj_strategy_mask= OPTIMIZER_SWITCH_FIRSTMATCH |
+    OPTIMIZER_SWITCH_LOOSE_SCAN | OPTIMIZER_SWITCH_MATERIALIZATION |
+    OPTIMIZER_SWITCH_DUPSWEEDOUT;
+
+  uint opt_switches= thd->variables.optimizer_switch & sj_strategy_mask;
+
+  List_iterator<TABLE_LIST> sj_list_it(sj_nests);
+  TABLE_LIST *sj_nest;
+  while ((sj_nest= sj_list_it++))
+  {
+    /*
+      After semi-join transformation, original SELECT_LEX with hints is lost.
+      Fetch hints from first table in semijoin nest.
+    */
+    List_iterator<TABLE_LIST> table_list(sj_nest->nested_join->join_list);
+    TABLE_LIST *table= table_list++;
+    sj_nest->nested_join->sj_enabled_strategies= table->opt_hints_qb ?
+      table->opt_hints_qb->sj_enabled_strategies(opt_switches) : opt_switches;
+  }
+}
+
 
 /**
   Check if an option that can be used only for an outer-most query block is

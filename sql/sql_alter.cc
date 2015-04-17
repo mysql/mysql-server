@@ -16,11 +16,14 @@
 #include "sql_alter.h"
 
 #include "auth_common.h"                     // check_access
+#include "derror.h"                          // ER_THD
 #include "sql_table.h"                       // mysql_alter_table,
                                              // mysql_exchange_partition
 #include "sql_base.h"                        // open_temporary_tables
 #include "log.h"
-
+#include "sql_class.h"                       // THD
+#include "key_spec.h"                        // Key_spec
+#include "mysqld.h"                          // lower_case_table_names
 
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   :drop_list(rhs.drop_list, mem_root),
@@ -191,6 +194,9 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
 
 bool Sql_cmd_alter_table::execute(THD *thd)
 {
+  /* Verify that none one of the DISCARD and IMPORT flags are set. */
+  DBUG_ASSERT(!thd_tablespace_op(thd));
+
   LEX *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= lex->select_lex;
@@ -297,11 +303,13 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   /* Don't yet allow changing of symlinks with ALTER TABLE */
   if (create_info.data_file_name)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                        WARN_OPTION_IGNORED,
+                        ER_THD(thd, WARN_OPTION_IGNORED),
                         "DATA DIRECTORY");
   if (create_info.index_file_name)
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                        WARN_OPTION_IGNORED,
+                        ER_THD(thd, WARN_OPTION_IGNORED),
                         "INDEX DIRECTORY");
   create_info.data_file_name= create_info.index_file_name= NULL;
 
@@ -323,6 +331,22 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 
 bool Sql_cmd_discard_import_tablespace::execute(THD *thd)
 {
+  /* Verify that exactly one of the DISCARD and IMPORT flags are set. */
+  DBUG_ASSERT((thd->lex->alter_info.flags &
+               Alter_info::ALTER_DISCARD_TABLESPACE) ^
+              (thd->lex->alter_info.flags &
+               Alter_info::ALTER_IMPORT_TABLESPACE));
+
+  /*
+    Verify that none of the other flags are set, except for
+    ALTER_ALL_PARTITION, which may be set or not, and is
+    therefore masked away along with the DISCARD/IMPORT flags.
+  */
+  DBUG_ASSERT(!(thd->lex->alter_info.flags &
+                ~(Alter_info::ALTER_DISCARD_TABLESPACE |
+                  Alter_info::ALTER_IMPORT_TABLESPACE |
+                  Alter_info::ALTER_ALL_PARTITION)));
+
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= thd->lex->select_lex;
   /* first table of first SELECT_LEX */
@@ -365,6 +389,5 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd)
   thd->add_to_binlog_accessed_dbs(table_list->db);
 
   return
-    mysql_discard_or_import_tablespace(thd, table_list,
-                                       m_tablespace_op == DISCARD_TABLESPACE);
+    mysql_discard_or_import_tablespace(thd, table_list);
 }

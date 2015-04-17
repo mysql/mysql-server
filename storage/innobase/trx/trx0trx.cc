@@ -599,11 +599,10 @@ trx_free_prepared(
 /*==============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	ut_ad(trx_sys_mutex_own());
-
 	ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 
+	lock_trx_release_locks(trx);
 	trx_undo_free_prepared(trx);
 
 	assert_trx_in_rw_list(trx);
@@ -2129,6 +2128,11 @@ trx_commit_low(
 
 		mtr->set_sync();
 
+		if (trx_is_redo_rseg_updated(trx)) {
+			mtr->set_undo_space(trx->rsegs.m_redo.rseg->space);
+			mtr->set_sys_modified();
+		}
+
 		serialised = trx_write_serialisation_history(trx, mtr);
 
 		/* The following call commits the mini-transaction, making the
@@ -2193,8 +2197,8 @@ trx_commit(
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
 		mtr_start_sync(mtr);
+		mtr->set_sys_modified();
 	} else {
-
 		mtr = NULL;
 	}
 
@@ -2765,6 +2769,8 @@ trx_prepare_low(
 
 		if (noredo_logging) {
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_undo_space(rseg->space);
 		}
 
 		/* Change the undo log segment states from TRX_UNDO_ACTIVE to
@@ -2780,12 +2786,12 @@ trx_prepare_low(
 			because only a single OS thread is allowed to do the
 			transaction prepare for this transaction. */
 			trx_undo_set_state_at_prepare(
-				trx, undo_ptr->insert_undo, &mtr);
+				trx, undo_ptr->insert_undo, false, &mtr);
 		}
 
 		if (undo_ptr->update_undo != NULL) {
 			trx_undo_set_state_at_prepare(
-				trx, undo_ptr->update_undo, &mtr);
+				trx, undo_ptr->update_undo, false, &mtr);
 		}
 
 		mutex_exit(&rseg->mutex);

@@ -17,6 +17,8 @@
 
 #include "parse_tree_nodes.h"
 #include "item_cmpfunc.h"          // Item_func_eq
+#include "mysqld.h"                // using_udf_functions
+#include "sp_pcontext.h"           // sp_pcontext
 
 /**
   Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.
@@ -131,6 +133,34 @@ bool PTI_comp_op_all::itemize(Parse_context *pc, Item **res)
 }
 
 
+bool 
+PTI_function_call_nonkeyword_sysdate::itemize(Parse_context *pc, Item **res)
+{
+  if (super::itemize(pc, res))
+    return true;
+
+  /*
+    Unlike other time-related functions, SYSDATE() is
+    replication-unsafe because it is not affected by the
+    TIMESTAMP variable.  It is unsafe even if
+    sysdate_is_now=1, because the slave may have
+    sysdate_is_now=0.
+  */
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+  lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  if (global_system_variables.sysdate_is_now == 0)
+    *res= new (pc->mem_root) Item_func_sysdate_local(dec);
+  else
+    *res= new (pc->mem_root) Item_func_now_local(dec);
+  if (*res == NULL)
+    return true;
+  lex->safe_to_cache_query=0;
+
+  return false;
+}
+
+
 bool PTI_udf_expr::itemize(Parse_context *pc, Item **res)
 {
   if (super::itemize(pc, res) || expr->itemize(pc, &expr))
@@ -158,6 +188,103 @@ bool PTI_udf_expr::itemize(Parse_context *pc, Item **res)
   *res= expr;
   return false;
 };
+
+
+bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc, Item **res)
+{
+  if (super::itemize(pc, res))
+    return true;
+
+  THD *thd= pc->thd;
+  udf= 0;
+  if (using_udf_functions &&
+      (udf= find_udf(ident.str, ident.length)) &&
+      udf->type == UDFTYPE_AGGREGATE)
+  {
+    pc->select->in_sum_expr++;
+  }
+
+  if (sp_check_name(&ident))
+    return true;
+
+  /*
+    Implementation note:
+    names are resolved with the following order:
+    - MySQL native functions,
+    - User Defined Functions,
+    - Stored Functions (assuming the current <use> database)
+
+    This will be revised with WL#2128 (SQL PATH)
+  */
+  Create_func *builder= find_native_function_builder(thd, ident);
+  if (builder)
+    *res= builder->create_func(thd, ident, opt_udf_expr_list);
+  else
+  {
+    if (udf)
+    {
+      if (udf->type == UDFTYPE_AGGREGATE)
+      {
+        pc->select->in_sum_expr--;
+      }
+
+      *res= Create_udf_func::s_singleton.create(thd, udf, opt_udf_expr_list);
+    }
+    else
+    {
+      builder= find_qualified_function_builder(thd);
+      DBUG_ASSERT(builder);
+      *res= builder->create_func(thd, ident, opt_udf_expr_list);
+    }
+  }
+  return *res == NULL || (*res)->itemize(pc, res);
+}
+
+
+bool PTI_function_call_generic_2d::itemize(Parse_context *pc, Item **res)
+{
+  if (super::itemize(pc, res))
+    return true;
+
+  /*
+    The following in practice calls:
+    <code>Create_sp_func::create()</code>
+    and builds a stored function.
+
+    However, it's important to maintain the interface between the
+    parser and the implementation in item_create.cc clean,
+    since this will change with WL#2128 (SQL PATH):
+    - INFORMATION_SCHEMA.version() is the SQL 99 syntax for the native
+    function version(),
+    - MySQL.version() is the SQL 2003 syntax for the native function
+    version() (a vendor can specify any schema).
+  */
+
+  if (!db.str ||
+      (check_and_convert_db_name(&db, FALSE) != IDENT_NAME_OK))
+    return true;
+  if (sp_check_name(&func))
+    return true;
+
+  Create_qfunc *builder= find_qualified_function_builder(pc->thd);
+  DBUG_ASSERT(builder);
+  *res= builder->create(pc->thd, db, func, true, opt_expr_list);
+  return *res == NULL || (*res)->itemize(pc, res);
+}
+
+
+bool PTI_text_literal_nchar_string::itemize(Parse_context *pc, Item **res)
+{
+  if (super::itemize(pc, res))
+    return true;
+
+  uint repertoire= is_7bit ? MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
+  DBUG_ASSERT(my_charset_is_ascii_based(national_charset_info));
+  init(literal.str, literal.length, national_charset_info,
+       DERIVATION_COERCIBLE, repertoire);
+  return false;
+}
+
 
 
 bool PTI_singlerow_subselect::itemize(Parse_context *pc, Item **res)

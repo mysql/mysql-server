@@ -25,11 +25,16 @@
 #include "my_bit.h"              // my_count_bits
 #include "auth_common.h"         // check_password_strength
 #include "binlog.h"              // mysql_bin_log
+#include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
+#include "derror.h"              // ER_THD
 #include "item_cmpfunc.h"        // get_datetime_value
 #include "item_strfunc.h"        // Item_func_geohash
 #include <mysql/service_thd_wait.h>
+#include "mysqld.h"              // log_10 stage_user_sleep
 #include "parse_tree_helpers.h"  // PT_item_list
+#include "psi_memory_key.h"
+#include "query_result.h"        // sql_exchange
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // msr_map
 #include "rpl_rli.h"             // Relay_log_info
@@ -767,7 +772,7 @@ void Item_func::signal_divide_by_null()
   THD *thd= current_thd;
   if (thd->is_strict_mode())
     push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
-                 ER(ER_DIVISION_BY_ZERO));
+                 ER_THD(thd, ER_DIVISION_BY_ZERO));
   null_value= 1;
 }
 
@@ -777,7 +782,7 @@ void Item_func::signal_invalid_argument_for_log()
   THD *thd= current_thd;
   push_warning(thd, Sql_condition::SL_WARNING,
                ER_INVALID_ARGUMENT_FOR_LOGARITHM,
-               ER(ER_INVALID_ARGUMENT_FOR_LOGARITHM));
+               ER_THD(thd, ER_INVALID_ARGUMENT_FOR_LOGARITHM));
   null_value= TRUE;
 }
 
@@ -1338,7 +1343,8 @@ longlong Item_func_signed::val_int_from_str(int *error)
     ErrConvString err(res);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                        "INTEGER",
                         err.ptr());
   }
   return value;
@@ -1472,7 +1478,7 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 err:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WARN_DATA_OUT_OF_RANGE,
-                      ER(ER_WARN_DATA_OUT_OF_RANGE),
+                      ER_THD(current_thd, ER_WARN_DATA_OUT_OF_RANGE),
                       item_name.ptr(), 1L);
   return dec;
 }
@@ -3285,8 +3291,22 @@ void Item_func_min_max::fix_length_and_dec()
                                                                  unsigned_flag));
   }
   else if (cmp_type == REAL_RESULT)
+  {
     fix_char_length(float_length(decimals));
+  }
   cached_field_type= agg_field_type(args, arg_count);
+
+  /*
+    See comment above: We should not do this:
+    However: we need to re-calculate max_length for this case,
+    so we temporarily set cached_field_type, calculate lenghts, and set it back.
+   */
+  if (compare_as_dates && cached_field_type == MYSQL_TYPE_VARCHAR)
+  {
+    cached_field_type= datetime_item->field_type();
+    count_datetime_length(args, arg_count);
+    cached_field_type= MYSQL_TYPE_VARCHAR;
+  }
   reject_geometry_args(arg_count, args, this);
 }
 
@@ -4026,8 +4046,6 @@ longlong Item_func_bit_count::val_int()
 ** Rewritten by monty.
 ****************************************************************************/
 
-#ifdef HAVE_DLOPEN
-
 void udf_handler::cleanup()
 {
   if (!not_original)
@@ -4214,7 +4232,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   if (error)
   {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
-             u_d->name.str, ER(ER_UNKNOWN_ERROR));
+             u_d->name.str, ER_THD(thd, ER_UNKNOWN_ERROR));
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
@@ -4495,10 +4513,6 @@ udf_handler::~udf_handler()
   /* Everything should be properly cleaned up by this moment. */
   DBUG_ASSERT(not_original || !(initialized || buffers));
 }
-
-#else
-bool udf_handler::get_arguments() { return 0; }
-#endif /* HAVE_DLOPEN */
 
 
 bool Item_master_pos_wait::itemize(Parse_context *pc, Item **res)
@@ -5471,7 +5485,8 @@ longlong Item_func_benchmark::val_int()
       char buff[22];
       llstr(((longlong) loop_count), buff);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                          ER_WRONG_VALUE_FOR_TYPE,
+                          ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
                           "count", buff, "benchmark");
     }
 
@@ -5608,7 +5623,7 @@ longlong Item_func_sleep::val_int()
     }
     else
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          ER(ER_WRONG_ARGUMENTS), "sleep.");
+                          ER_THD(thd, ER_WRONG_ARGUMENTS), "sleep.");
   }
   /*
     On 64-bit OSX mysql_cond_timedwait() waits forever
@@ -5765,6 +5780,29 @@ Item_func_set_user_var::fix_length_and_dec()
 }
 
 
+// static
+user_var_entry* user_var_entry::create(THD *thd,
+                                       const Name_string &name,
+                                       const CHARSET_INFO *cs)
+{
+  if (check_column_name(name.ptr()))
+  {
+    my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
+    return NULL;
+  }
+
+  user_var_entry *entry;
+  size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
+    (name.length() + 1) + extra_size;
+  if (!(entry= (user_var_entry*) my_malloc(key_memory_user_var_entry,
+                                           size, MYF(MY_WME |
+                                                     ME_FATALERROR))))
+    return NULL;
+  entry->init(thd, name, cs);
+  return entry;
+}
+
+
 bool user_var_entry::mem_realloc(size_t length)
 {
   if (length <= extra_size)
@@ -5788,6 +5826,31 @@ bool user_var_entry::mem_realloc(size_t length)
     }
   }
   return false;
+}
+
+
+void user_var_entry::init(THD *thd, const Simple_cstring &name,
+                          const CHARSET_INFO *cs)
+{
+  DBUG_ASSERT(thd != NULL);
+  m_owner= thd;
+  copy_name(name);
+  reset_value();
+  update_query_id= 0;
+  collation.set(cs, DERIVATION_IMPLICIT, 0);
+  unsigned_flag= 0;
+  /*
+    If we are here, we were called from a SET or a query which sets a
+    variable. Imagine it is this:
+    INSERT INTO t SELECT @a:=10, @a:=@a+1.
+    Then when we have a Item_func_get_user_var (because of the @a+1) so we
+    think we have to write the value of @a to the binlog. But before that,
+    we have a Item_func_set_user_var to create @a (@a:=10), in this we mark
+    the variable as "already logged" (line below) so that it won't be logged
+    by Item_func_get_user_var (because that's not necessary).
+  */
+  used_query_id= thd->query_id;
+  m_type= STRING_RESULT;
 }
 
 
@@ -5826,6 +5889,12 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type)
   m_length= length;
   m_type= type;
   return false;
+}
+
+
+void user_var_entry::assert_locked() const
+{
+  mysql_mutex_assert_owner(&m_owner->LOCK_thd_data);
 }
 
 
@@ -5933,7 +6002,7 @@ double user_var_entry::val_real(my_bool *null_value) const
   case STRING_RESULT:
     return my_atof(m_ptr);                    // This is null terminated
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+    DBUG_ASSERT(false);                         // Impossible
     break;
   }
   return 0.0;					// Impossible
@@ -5964,7 +6033,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
     return my_strtoll10(m_ptr, (char**) 0, &error);// String is null terminated
   }
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+    DBUG_ASSERT(false);                         // Impossible
     break;
   }
   return 0LL;					// Impossible
@@ -5995,8 +6064,9 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   case STRING_RESULT:
     if (str->copy(m_ptr, m_length, collation.collation))
       str= 0;					// EOM error
+    break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+    DBUG_ASSERT(false);                         // Impossible
     break;
   }
   return(str);
@@ -6024,7 +6094,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val) co
                    collation.collation, val);
     break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+    DBUG_ASSERT(false);                         // Impossible
     break;
   }
   return(val);
@@ -6498,7 +6568,7 @@ static int
 get_var_with_binlog(THD *thd, enum_sql_command sql_command,
                     Name_string &name, user_var_entry **out_entry)
 {
-  BINLOG_USER_VAR_EVENT *user_var_event;
+  Binlog_user_var_event *user_var_event;
   user_var_entry *var_entry;
 
   /* Protects thd->user_vars. */
@@ -6584,13 +6654,13 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     may need to be valid after current [SP] statement execution pool is
     destroyed.
   */
-  size= ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT)) + var_entry->length();
-  if (!(user_var_event= (BINLOG_USER_VAR_EVENT *)
+  size= ALIGN_SIZE(sizeof(Binlog_user_var_event)) + var_entry->length();
+  if (!(user_var_event= (Binlog_user_var_event *)
         alloc_root(thd->user_var_events_alloc, size)))
     goto err;
 
   user_var_event->value= (char*) user_var_event +
-    ALIGN_SIZE(sizeof(BINLOG_USER_VAR_EVENT));
+    ALIGN_SIZE(sizeof(Binlog_user_var_event));
   user_var_event->user_var_event= var_entry;
   user_var_event->type= var_entry->type();
   user_var_event->charset_number= var_entry->collation.collation->number;
@@ -7632,8 +7702,7 @@ err:
     key=NO_SUCH_KEY;
     return 0;
   }
-  my_message(ER_FT_MATCHING_KEY_NOT_FOUND,
-             ER(ER_FT_MATCHING_KEY_NOT_FOUND), MYF(0));
+  my_error(ER_FT_MATCHING_KEY_NOT_FOUND, MYF(0));
   return 1;
 }
 
@@ -8415,3 +8484,10 @@ bool Item_func_version::itemize(Parse_context *pc, Item **res)
   return false;
 }
 
+Item_func_version::Item_func_version(const POS &pos)
+  : Item_static_string_func(pos, NAME_STRING("version()"),
+                            server_version,
+                            strlen(server_version),
+                            system_charset_info,
+                            DERIVATION_SYSCONST)
+{}

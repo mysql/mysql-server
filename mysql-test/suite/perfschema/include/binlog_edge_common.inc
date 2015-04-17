@@ -148,7 +148,7 @@ drop table if exists marker_multi_delete;
 use my_replicated_db;
 
 insert into performance_schema.setup_actors
-  values ('FOO', 'FOO', 'FOO', 'YES');
+  values ('FOO', 'FOO', 'FOO', 'YES', 'YES');
 
 --error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 delete my_tx_table.*, performance_schema.setup_actors.*
@@ -157,7 +157,7 @@ delete my_tx_table.*, performance_schema.setup_actors.*
   or performance_schema.setup_actors.role='FOO';
 
 insert into performance_schema.setup_actors
-  values ('BAR', 'BAR', 'BAR', 'YES');
+  values ('BAR', 'BAR', 'BAR', 'YES', 'YES');
 
 --error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 delete my_non_tx_table.*, performance_schema.setup_actors.*
@@ -166,7 +166,7 @@ delete my_non_tx_table.*, performance_schema.setup_actors.*
   or performance_schema.setup_actors.role='BAR';
 
 insert into performance_schema.setup_actors
-  values ('BAZ', 'BAZ', 'BAZ', 'YES');
+  values ('BAZ', 'BAZ', 'BAZ', 'YES', 'YES');
 
 --error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 delete my_bh_table.*, performance_schema.setup_actors.*
@@ -184,5 +184,5 @@ drop database my_replicated_db;
 # Restore performance_schema.setup_actors, damaged by this script
 
 truncate table performance_schema.setup_actors;
-insert into performance_schema.setup_actors values ('%', '%', '%', 'YES');
+insert into performance_schema.setup_actors values ('%', '%', '%', 'YES', 'YES');
 

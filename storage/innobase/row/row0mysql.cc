@@ -71,11 +71,6 @@ Created 9/17/2000 Heikki Tuuri
 #include <deque>
 #include <vector>
 
-const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
-	"A new raw disk partition was initialized. We do not allow database"
-	" modifications by the user at this time.  Shut down mysqld and edit"
-	" my.cnf so that newraw is replaced with raw.";
-
 const char* MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
 	"innodb_force_recovery is on. We do not allow database modifications"
 	" by the user. Shut down mysqld and edit my.cnf to set"
@@ -1636,11 +1631,6 @@ row_insert_for_mysql_using_ins_graph(
 
 		return(DB_TABLESPACE_NOT_FOUND);
 
-	} else if (srv_sys_space.created_new_raw()) {
-
-		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-
-		return(DB_ERROR);
 	} else if (srv_force_recovery) {
 
 		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
@@ -2358,11 +2348,6 @@ row_update_for_mysql_using_upd_graph(
 		DBUG_RETURN(DB_ERROR);
 	}
 
-	if (srv_sys_space.created_new_raw()) {
-		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-		DBUG_RETURN(DB_ERROR);
-	}
-
 	if(srv_force_recovery) {
 		ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
 		DBUG_RETURN(DB_READ_ONLY);
@@ -2891,6 +2876,9 @@ row_create_table_for_mysql(
 	dict_table_t*	table,	/*!< in, own: table definition
 				(will be freed, or on DB_SUCCESS
 				added to the data dictionary cache) */
+        const char*     compression,
+                                /*!< in: compression algorithm to use,
+                                can be NULL */
 	trx_t*		trx,	/*!< in/out: transaction */
 	bool		commit)	/*!< in: if true, commit the transaction */
 {
@@ -2910,19 +2898,6 @@ row_create_table_for_mysql(
 		goto err_exit;
 	);
 
-	if (srv_sys_space.created_new_raw()) {
-		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-
-err_exit:
-		dict_mem_table_free(table);
-
-		if (commit) {
-			trx_commit_for_mysql(trx);
-		}
-
-		return(DB_ERROR);
-	}
-
 	trx->op_info = "creating table";
 
 	if (row_mysql_is_system_table(table->name.m_name)) {
@@ -2930,7 +2905,18 @@ err_exit:
 		ib::error() << "Trying to create a MySQL system table "
 			<< table->name << " of type InnoDB. MySQL system"
 			" tables must be of the MyISAM type!";
-		goto err_exit;
+#ifndef DBUG_OFF
+err_exit:
+#endif /* !DBUG_OFF */
+		dict_mem_table_free(table);
+
+		if (commit) {
+			trx_commit_for_mysql(trx);
+		}
+
+		trx->op_info = "";
+
+		return(DB_ERROR);
 	}
 
 	trx_start_if_not_started_xa(trx, true);
@@ -2977,13 +2963,38 @@ err_exit:
 			ut_free(path);
 
 		if (err != DB_SUCCESS) {
+
 			/* We must delete the link file. */
 			RemoteDatafile::delete_link_file(table->name.m_name);
+
+		} else if (compression != NULL) {
+
+		        ut_ad(!is_shared_tablespace(table->space));
+
+                        ut_ad(Compression::validate(compression) == DB_SUCCESS);
+
+                        err = fil_set_compression(table->space, compression);
+
+                        /* The tablespace must be found and we have already
+                        done the check for the system tablespace and the
+                        temporary tablespace. Compression must be a valid
+                        and supported algorithm. */
+
+			/* However, we can check for file system punch hole
+			support only after creating the tablespace. On Windows
+			we can query that information but not on Linux. */
+
+			ut_ad(err == DB_SUCCESS
+			      || err == DB_IO_NO_PUNCH_HOLE_FS);
+
+                        /* In non-strict mode we ignore dodgy compression
+                        settings. */
 		}
 	}
 
 	switch (err) {
 	case DB_SUCCESS:
+	case DB_IO_NO_PUNCH_HOLE_FS:
 		break;
 	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
@@ -3007,6 +3018,7 @@ err_exit:
 
 		break;
 
+        case DB_UNSUPPORTED:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
@@ -3093,7 +3105,7 @@ row_create_index_for_mysql(
 						DICT_ERR_IGNORE_NONE);
 
 	} else {
-		++table->n_ref_count;
+		table->acquire();
 		ut_ad(dict_table_is_intrinsic(table));
 	}
 
@@ -3152,26 +3164,26 @@ row_create_index_for_mysql(
 		que_graph_free((que_t*) que_node_get_parent(thr));
 	} else {
 		dict_build_index_def(table, index, trx);
-
-		index_id_t index_id = index->id;
+#ifdef UNIV_DEBUG
+		space_index_t index_id = index->id;
+#endif
 
 		/* add index to dictionary cache and also free index object */
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
-			(trx_is_strict(trx)
-			 || dict_table_get_format(table) >= UNIV_FORMAT_B));
+			trx_is_strict(trx)
+			|| dict_table_has_atomic_blobs(table));
 
 		if (err != DB_SUCCESS) {
 			goto error_handling;
 		}
 
+		index = UT_LIST_GET_LAST(table->indexes);
+		ut_ad(index->id == index_id);
+
 		/* as above function has freed index object re-load it
 		now from dictionary cache using index_id */
-		if (!dict_table_is_intrinsic(table)) {
-			index = dict_index_get_if_in_cache_low(index_id);
-		} else {
-			index = dict_table_find_index_on_id(table, index_id);
-
+		if (dict_table_is_intrinsic(table)) {
 			/* trx_id field is used for tracking which transaction
 			created the index. For intrinsic table this is
 			ir-relevant and so re-use it for tracking consistent
@@ -3941,7 +3953,7 @@ row_drop_ancillary_fts_tables(
 	if (dict_table_has_fts_index(table)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 
-		ut_ad(table->n_ref_count == 0);
+		ut_ad(table->get_ref_count() == 0);
 		ut_ad(trx_is_started(trx));
 
 		dberr_t err = fts_drop_tables(trx, table);
@@ -4105,11 +4117,6 @@ row_drop_table_for_mysql(
 
 	ut_a(name != NULL);
 
-	if (srv_sys_space.created_new_raw()) {
-		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-		DBUG_RETURN(DB_ERROR);
-	}
-
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
@@ -4143,7 +4150,7 @@ row_drop_table_for_mysql(
 				DICT_ERR_IGNORE_INDEX_ROOT
 				| DICT_ERR_IGNORE_CORRUPT));
 	} else {
-		++table->n_ref_count;
+		table->acquire();
 		ut_ad(dict_table_is_intrinsic(table));
 	}
 
@@ -4308,13 +4315,13 @@ row_drop_table_for_mysql(
 	shouldn't have to. There should never be record locks on a table
 	that is going to be dropped. */
 
-	if (table->n_ref_count == 0) {
+	if (table->get_ref_count() == 0) {
 		/* We don't take lock on intrinsic table so nothing to remove.*/
 		if (!dict_table_is_intrinsic(table)) {
 			lock_remove_all_on_table(table, TRUE);
 		}
 		ut_a(table->n_rec_locks == 0);
-	} else if (table->n_ref_count > 0 || table->n_rec_locks > 0) {
+	} else if (table->get_ref_count() > 0 || table->n_rec_locks > 0) {
 		ibool	added;
 
 		ut_ad(!dict_table_is_intrinsic(table));
@@ -4765,7 +4772,7 @@ row_mysql_drop_temp_tables(void)
 Drop all foreign keys in a database, see Bug#18942.
 Called at the end of row_drop_database_for_mysql().
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 drop_all_foreign_keys_in_db(
 /*========================*/
@@ -4918,7 +4925,7 @@ loop:
 		/* Wait until MySQL does not have any queries running on
 		the table */
 
-		if (table->n_ref_count > 0) {
+		if (table->get_ref_count() > 0) {
 			row_mysql_unlock_data_dictionary(trx);
 
 			ib::warn() << "MySQL is trying to drop database "
@@ -4992,7 +4999,7 @@ row_is_mysql_tmp_table_name(
 /****************************************************************//**
 Delete a single constraint.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_delete_constraint_low(
 /*======================*/
@@ -5015,7 +5022,7 @@ row_delete_constraint_low(
 /****************************************************************//**
 Delete a single constraint.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_delete_constraint(
 /*==================*/
@@ -5071,11 +5078,7 @@ row_rename_table_for_mysql(
 	ut_a(new_name != NULL);
 	ut_ad(trx->state == TRX_STATE_ACTIVE);
 
-	if (srv_sys_space.created_new_raw()) {
-		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION;
-		goto funct_exit;
-
-	} else if (srv_force_recovery) {
+	if (srv_force_recovery) {
 		ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
 		err = DB_READ_ONLY;
 		goto funct_exit;

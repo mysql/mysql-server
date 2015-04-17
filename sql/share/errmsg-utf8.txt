@@ -1779,29 +1779,29 @@ ER_WRONG_AUTO_KEY 42000 S1009
         swe "Det får finnas endast ett AUTO_INCREMENT-fält och detta måste vara en nyckel"
         ukr "Невірне визначення таблиці; Може бути лише один автоматичний стовбець, що повинен бути визначений як ключ"
 ER_READY  
-        cze "%s: připraven na spojení\nVersion: '%s'  socket: '%s'  port: %d""
-        dan "%s: klar til tilslutninger\nVersion: '%s'  socket: '%s'  port: %d""
-        nla "%s: klaar voor verbindingen\nVersion: '%s'  socket: '%s'  port: %d""
+        cze "%s: připraven na spojení\nVersion: '%s'  socket: '%s'  port: %d"
+        dan "%s: klar til tilslutninger\nVersion: '%s'  socket: '%s'  port: %d"
+        nla "%s: klaar voor verbindingen\nVersion: '%s'  socket: '%s'  port: %d"
         eng "%s: ready for connections.\nVersion: '%s'  socket: '%s'  port: %d"
-        est "%s: ootab ühendusi\nVersion: '%s'  socket: '%s'  port: %d""
-        fre "%s: Prêt pour des connexions\nVersion: '%s'  socket: '%s'  port: %d""
+        est "%s: ootab ühendusi\nVersion: '%s'  socket: '%s'  port: %d"
+        fre "%s: Prêt pour des connexions\nVersion: '%s'  socket: '%s'  port: %d"
         ger "%s: Bereit für Verbindungen.\nVersion: '%s'  Socket: '%s'  Port: %d"
-        greek "%s: σε αναμονή συνδέσεων\nVersion: '%s'  socket: '%s'  port: %d""
-        hun "%s: kapcsolatra kesz\nVersion: '%s'  socket: '%s'  port: %d""
-        ita "%s: Pronto per le connessioni\nVersion: '%s'  socket: '%s'  port: %d""
-        jpn "%s: 接続準備完了。\nバージョン: '%s'  socket: '%s'  port: %d""
-        kor "%s: 연결 준비중입니다\nVersion: '%s'  socket: '%s'  port: %d""
-        nor "%s: klar for tilkoblinger\nVersion: '%s'  socket: '%s'  port: %d""
-        norwegian-ny "%s: klar for tilkoblingar\nVersion: '%s'  socket: '%s'  port: %d""
-        pol "%s: gotowe do poł?czenia\nVersion: '%s'  socket: '%s'  port: %d""
-        por "%s: Pronto para conexões\nVersion: '%s'  socket: '%s'  port: %d""
-        rum "%s: sint gata pentru conectii\nVersion: '%s'  socket: '%s'  port: %d""
+        greek "%s: σε αναμονή συνδέσεων\nVersion: '%s'  socket: '%s'  port: %d"
+        hun "%s: kapcsolatra kesz\nVersion: '%s'  socket: '%s'  port: %d"
+        ita "%s: Pronto per le connessioni\nVersion: '%s'  socket: '%s'  port: %d"
+        jpn "%s: 接続準備完了。\nバージョン: '%s'  socket: '%s'  port: %d"
+        kor "%s: 연결 준비중입니다\nVersion: '%s'  socket: '%s'  port: %d"
+        nor "%s: klar for tilkoblinger\nVersion: '%s'  socket: '%s'  port: %d"
+        norwegian-ny "%s: klar for tilkoblingar\nVersion: '%s'  socket: '%s'  port: %d"
+        pol "%s: gotowe do poł?czenia\nVersion: '%s'  socket: '%s'  port: %d"
+        por "%s: Pronto para conexões\nVersion: '%s'  socket: '%s'  port: %d"
+        rum "%s: sint gata pentru conectii\nVersion: '%s'  socket: '%s'  port: %d"
         rus "%s: Готов принимать соединения.\nВерсия: '%s'  сокет: '%s'  порт: %d"
-        serbian "%s: Spreman za konekcije\nVersion: '%s'  socket: '%s'  port: %d""
-        slo "%s: pripravený na spojenie\nVersion: '%s'  socket: '%s'  port: %d""
-        spa "%s: preparado para conexiones\nVersion: '%s'  socket: '%s'  port: %d""
-        swe "%s: klar att ta emot klienter\nVersion: '%s'  socket: '%s'  port: %d""
-        ukr "%s: Готовий для з'єднань!\nVersion: '%s'  socket: '%s'  port: %d""
+        serbian "%s: Spreman za konekcije\nVersion: '%s'  socket: '%s'  port: %d"
+        slo "%s: pripravený na spojenie\nVersion: '%s'  socket: '%s'  port: %d"
+        spa "%s: preparado para conexiones\nVersion: '%s'  socket: '%s'  port: %d"
+        swe "%s: klar att ta emot klienter\nVersion: '%s'  socket: '%s'  port: %d"
+        ukr "%s: Готовий для з'єднань!\nVersion: '%s'  socket: '%s'  port: %d"
 ER_NORMAL_SHUTDOWN  
         cze "%s: normální ukončení\n"
         dan "%s: Normal nedlukning\n"
@@ -6046,7 +6046,7 @@ ER_ONLY_INTEGERS_ALLOWED
         eng "Only integers allowed as number here"
         ger "An dieser Stelle sind nur Ganzzahlen zulässig"
 ER_UNSUPORTED_LOG_ENGINE
-        eng "This storage engine cannot be used for log tables""
+        eng "This storage engine cannot be used for log tables"
         ger "Diese Speicher-Engine kann für Logtabellen nicht verwendet werden"
 ER_BAD_LOG_STATEMENT
         eng "You cannot '%s' a log table if logging is enabled"
@@ -6213,8 +6213,8 @@ ER_CONFLICT_FN_PARSE_ERROR
   eng "Error in parsing conflict function. Message: %-.64s"
   ger "Fehler beim Parsen einer Konflikt-Funktion. Meldung: %-.64s"
 ER_EXCEPTIONS_WRITE_ERROR
-  eng "Write to exceptions table failed. Message: %-.128s""
-  ger "Schreiben in Ausnahme-Tabelle fehlgeschlagen. Meldung: %-.128s""
+  eng "Write to exceptions table failed. Message: %-.128s"
+  ger "Schreiben in Ausnahme-Tabelle fehlgeschlagen. Meldung: %-.128s"
 ER_TOO_LONG_TABLE_COMMENT
   eng "Comment for table '%-.64s' is too long (max = %lu)"
   por "Comentário para a tabela '%-.64s' é longo demais (max = %lu)"
@@ -7403,7 +7403,7 @@ ER_GENERATED_COLUMN_NON_PRIOR
 ER_DEPENDENT_BY_GENERATED_COLUMN
   eng "Column '%s' has a generated column dependency."
 
-ER_GENERATED_COLUMN_REF_AUTO_INC,
+ER_GENERATED_COLUMN_REF_AUTO_INC
   eng "Stored generated column '%s' cannot refer auto-increment column."
 
 ER_FEATURE_NOT_AVAILABLE
@@ -7472,4 +7472,10 @@ ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 
 #
 #  End of 5.7 error messages.
+#
+
+start-error-number 3500
+
+#
+#  End of 5.8 error messages.
 #

@@ -1135,35 +1135,7 @@ public:
   : ident(ident_arg)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-    sp_variable *spv;
-
-    value.var= NULL;
-    value.base_name= ident;
-
-    /* Best effort lookup for system variable. */
-    if (!pctx || !(spv= pctx->find_variable(ident, false)))
-    {
-      /* Not an SP local variable */
-      if (find_sys_var_null_base(thd, &value))
-        return true;
-    }
-    else
-    {
-      /*
-        Possibly an SP local variable (or a shadowed sysvar).
-        Will depend on the context of the SET statement.
-      */
-    }
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1368,27 +1340,7 @@ public:
   : opt_charset(opt_charset_arg)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    int flags= opt_charset ? 0 : set_var_collation_client::SET_CS_DEFAULT;
-    const CHARSET_INFO *cs2;
-    cs2= opt_charset ? opt_charset
-                     : global_system_variables.character_set_client;
-    set_var_collation_client *var;
-    var= new set_var_collation_client(flags,
-                                      cs2,
-                                      thd->variables.collation_database,
-                                      cs2);
-    if (var == NULL)
-      return true;
-    lex->var_list.push_back(var);
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1402,23 +1354,7 @@ class PT_option_value_no_option_type_names :
 public:
   explicit PT_option_value_no_option_type_names(const POS &pos) : pos(pos) {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-    LEX_STRING names= { C_STRING_WITH_LEN("names") };
-
-    if (pctx && pctx->find_variable(names, false))
-      my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
-    else
-      error(pc, pos);
-
-    return true; // alwais fails with an error
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1437,34 +1373,7 @@ public:
   : opt_charset(opt_charset_arg), opt_collation(opt_collation_arg)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-    LEX *lex= thd->lex;
-    const CHARSET_INFO *cs2;
-    const CHARSET_INFO *cs3;
-    int flags= set_var_collation_client::SET_CS_NAMES
-               | (opt_charset ? 0 : set_var_collation_client::SET_CS_DEFAULT)
-               | (opt_collation ? set_var_collation_client::SET_CS_COLLATE : 0);
-    cs2= opt_charset ? opt_charset 
-                     : global_system_variables.character_set_client;
-    cs3= opt_collation ? opt_collation : cs2;
-    if (!my_charset_same(cs2, cs3))
-    {
-      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
-               cs3->name, cs2->csname);
-      return true;
-    }
-    set_var_collation_client *var;
-    var= new set_var_collation_client(flags, cs3, cs3, cs3);
-    if (var == NULL)
-      return true;
-    lex->var_list.push_back(var);
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -1989,7 +1898,7 @@ public:
     LEX *lex= pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
     if (!(lex->exchange= new sql_exchange(file_name, 0)) ||
-        !(lex->result= new Query_result_export(lex->exchange)))
+        !(lex->result= new Query_result_export(pc->thd, lex->exchange)))
       return true;
 
     lex->exchange->cs= charset;
@@ -2022,7 +1931,7 @@ public:
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
       if (!(lex->exchange= new sql_exchange(file_name, 1)))
         return true;
-      if (!(lex->result= new Query_result_dump(lex->exchange)))
+      if (!(lex->result= new Query_result_dump(pc->thd, lex->exchange)))
         return true;
     }
     return false;
@@ -2062,28 +1971,7 @@ public:
   virtual bool is_local() const { return true; }
   virtual uint get_offset() const { return offset; }
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    LEX *lex= pc->thd->lex;
-#ifndef DBUG_OFF
-    sp= lex->sphead;
-#endif
-    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
-    sp_variable *spv;
-
-    if (!pctx || !(spv= pctx->find_variable(name, false)))
-    {
-      my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
-      return true;
-    }
-
-    offset= spv->offset;
-    
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 
@@ -2111,7 +1999,7 @@ public:
     if (lex->describe)
       return false;
 
-    Query_dumpvar *dumpvar= new (pc->mem_root) Query_dumpvar;
+    Query_dumpvar *dumpvar= new (pc->mem_root) Query_dumpvar(pc->thd);
     if (dumpvar == NULL)
       return true;
 

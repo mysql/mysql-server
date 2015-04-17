@@ -16,12 +16,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "ha_archive.h"
+
 #include "probes_mysql.h"
-#include "sql_class.h"                          // SSV
 #include "sql_table.h"
+#include "table.h"
+#include "field.h"
+#include "derror.h"
+#include "system_variables.h"
+#include "sql_class.h"
 #include <myisam.h>
 
-#include "ha_archive.h"
 #include <my_dir.h>
 
 #include <mysql/plugin.h>
@@ -977,7 +982,7 @@ int ha_archive::write_row(uchar *buf)
   if (share->crashed)
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
   mysql_mutex_lock(&share->mutex);
 
   if (!share->archive_write_open && share->init_archive_writer())
@@ -1367,7 +1372,7 @@ int ha_archive::rnd_next(uchar *buf)
   }
   scan_rows--;
 
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   current_position= aztell(&archive);
   rc= get_row(&archive, buf);
 
@@ -1406,7 +1411,7 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
   DBUG_ENTER("ha_archive::rnd_pos");
   MYSQL_READ_ROW_START(table_share->db.str,
                        table_share->table_name.str, FALSE);
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   current_position= (my_off_t)my_get_ptr(pos, ref_length);
   if (azseek(&archive, current_position, SEEK_SET) == (my_off_t)(-1L))
   {
@@ -1589,8 +1594,7 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
     */
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
-        && !thd_tablespace_op(thd))
+         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd))
       lock_type = TL_WRITE_ALLOW_WRITE;
 
     /* 

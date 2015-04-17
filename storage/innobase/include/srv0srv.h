@@ -204,12 +204,6 @@ extern	ulong	srv_thread_sleep_delay;
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
 extern	ulong	srv_adaptive_max_sleep_delay;
 
-/** The file format to use on new *.ibd files. */
-extern ulint	srv_file_format;
-/** Whether to check file format during startup.  A value of
-UNIV_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
-set it to the highest format we support. */
-extern ulint	srv_max_file_format_at_startup;
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
@@ -575,6 +569,11 @@ enum srv_stats_method_name_enum {
 
 typedef enum srv_stats_method_name_enum		srv_stats_method_name_t;
 
+#ifdef UNIV_DEBUG
+/** Force all user tables to use page compression. */
+extern ulong	srv_debug_compress;
+#endif /* UNIV_DEBUG */
+
 #ifndef UNIV_HOTBACKUP
 /** Types of threads existing in the system. */
 enum srv_thread_type {
@@ -787,6 +786,11 @@ Wakeup the purge threads. */
 void
 srv_purge_wakeup(void);
 /*==================*/
+
+/** Call exit(3) */
+void
+srv_fatal_error()
+	__attribute__((noreturn));
 
 /** Check if tablespace is being truncated.
 (Ignore system-tablespace as we don't re-create the tablespace

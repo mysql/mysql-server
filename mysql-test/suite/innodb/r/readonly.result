@@ -5,9 +5,22 @@ CREATE TABLE t1(a int PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t2(b int PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(2);
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 UPDATE t1,t2 SET t1.a = 2, t2.b = 2 WHERE t1.a = 1;
 ERROR HY000: Table 't1' is read only
 # restart
 DROP TABLE t1;
 DROP TABLE t2;
+#
+# Bug#20578834 - INNODB READ ONLY MODE AND NON EXISTENT TMP DIR CRASHES SERVER
+#
+CREATE TABLE t1(a int PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+SET GLOBAL innodb_fast_shutdown=0;
+# restart: --tmpdir=/non/existent/dir/ --innodb-read-only
+SELECT * FROM t1;
+a
+1
+# restart
+DROP TABLE t1;

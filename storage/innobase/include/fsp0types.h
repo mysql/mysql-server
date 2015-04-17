@@ -26,8 +26,6 @@ Created May 26, 2009 Vasil Dimov
 #ifndef fsp0types_h
 #define fsp0types_h
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "univ.i"
 
 /** @name Flags for inserting records in order
@@ -41,7 +39,6 @@ fseg_alloc_free_page) */
 #define	FSP_NO_DIR	((byte)113)	/*!< no order */
 /* @} */
 
-#endif /* !UNIV_INNOCHECKSUM */
 /** File space extent size in pages
 page size | file space extent size
 ----------+-----------------------
@@ -67,7 +64,6 @@ page size | file space extent size
 offset */
 #define FSEG_PAGE_DATA		FIL_PAGE_DATA
 
-#ifndef UNIV_INNOCHECKSUM
 /** @name File segment header
 The file segment header points to the inode describing the file segment. */
 /* @{ */
@@ -182,8 +178,8 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.
 They should be 0 for ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT.
-The newer row formats, COMPRESSED and DYNAMIC, use a file format > Antelope
-so they should have a file format number plus the DICT_TF_COMPACT bit set.
+The newer row formats, COMPRESSED and DYNAMIC, will have at least
+the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
 bool
@@ -224,8 +220,6 @@ fsp_skip_sanity_check(
 	ulint	space_id);
 #endif /* UNIV_DEBUG */
 
-#endif /* !UNIV_INNOCHECKSUM */
-
 /* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */
 
 /** Width of the POST_ANTELOPE flag */
@@ -234,7 +228,7 @@ fsp_skip_sanity_check(
 #define FSP_FLAGS_WIDTH_ZIP_SSIZE	4
 /** Width of the ATOMIC_BLOBS flag.  The ability to break up a long
 column into an in-record prefix and an externally stored part is available
-to the two Barracuda row formats COMPRESSED and DYNAMIC. */
+to ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT. */
 #define FSP_FLAGS_WIDTH_ATOMIC_BLOBS	1
 /** Number of flag bits used to indicate the tablespace page size */
 #define FSP_FLAGS_WIDTH_PAGE_SSIZE	4

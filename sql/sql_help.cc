@@ -299,7 +299,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
        find_type(primary_key_name, &relations->s->keynames,
                  FIND_TYPE_NO_PREFIX) - 1) < 0)
   {
-    my_message(ER_CORRUPT_HELP_DB, ER(ER_CORRUPT_HELP_DB), MYF(0));
+    my_error(ER_CORRUPT_HELP_DB, MYF(0));
     DBUG_RETURN(-1);
   }
   rtopic_id= find_fields[help_relation_help_topic_id].field;
@@ -310,7 +310,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   {
     if (topics->file->inited)
       topics->file->ha_index_end();
-    my_message(ER_CORRUPT_HELP_DB, ER(ER_CORRUPT_HELP_DB), MYF(0));
+    my_error(ER_CORRUPT_HELP_DB, MYF(0));
     DBUG_RETURN(-1);
   }
 
@@ -603,7 +603,7 @@ bool prepare_simple_select(THD *thd, Item *cond,
 
   // Wrapper for correct JSON in optimizer trace
   Opt_trace_object wrapper(&thd->opt_trace);
-  key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+  Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
   QUICK_SELECT_I *qck;
   const bool impossible=
     test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,

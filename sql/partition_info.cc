@@ -15,8 +15,6 @@
 
 /* Some general useful functions */
 
-// Required to get server definitions for mysql/plugin.h right
-#include "sql_plugin.h"
 #include "partition_info.h"                   // LIST_PART_ENTRY
                                               // NOT_A_PARTITION_ID
 #include "sql_parse.h"                        // test_if_data_home_dir
@@ -27,6 +25,8 @@
 #include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
 #include "trigger_chain.h"                    // Trigger_chain
 #include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
+#include "sql_class.h"                        // THD
+#include "derror.h"
 
 
 partition_info *partition_info::get_clone()
@@ -1594,11 +1594,13 @@ static void warn_if_dir_in_part_elem(THD *thd, partition_element *part_elem)
   {
     if (part_elem->data_file_name)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(thd, WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (part_elem->index_file_name)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(thd, WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     part_elem->data_file_name= part_elem->index_file_name= NULL;
   }
@@ -1882,12 +1884,13 @@ end:
 
   SYNOPSIS
     print_no_partition_found()
+    thd                          Thread handle
     table                        Table object
 
   RETURN VALUES
 */
 
-void partition_info::print_no_partition_found(TABLE *table_arg)
+void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg)
 {
   char buf[100];
   char *buf_ptr= (char*)&buf;
@@ -1897,11 +1900,12 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
   table_list.db= table_arg->s->db.str;
   table_list.table_name= table_arg->s->table_name.str;
 
-  if (check_single_table_access(current_thd,
+  if (check_single_table_access(thd,
                                 SELECT_ACL, &table_list, TRUE))
   {
     my_message(ER_NO_PARTITION_FOR_GIVEN_VALUE,
-               ER(ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), MYF(0));
+               ER_THD(thd, ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT),
+               MYF(0));
   }
   else
   {

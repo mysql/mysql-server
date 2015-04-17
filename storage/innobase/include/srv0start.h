@@ -107,7 +107,12 @@ srv_path_copy(
 	ulint		dest_len,	/*!< in: max bytes to copy */
 	const char*	basedir,	/*!< in: base directory */
 	const char*	table_name)	/*!< in: source table name */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
+
+/**
+Shutdown all background threads created by InnoDB. */
+void
+srv_shutdown_all_bg_threads();
 
 /** Get the meta-data filename from the table name for a
 single-table tablespace.

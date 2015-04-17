@@ -85,14 +85,18 @@ When one supplies long data for a placeholder:
 
 #include "sql_prepare.h"
 #include "auth_common.h"        // insert_precheck
+#include "derror.h"             // ER_THD
 #include "log.h"                // query_logger
+#include "mysqld.h"             // opt_general_log
 #include "opt_trace.h"          // Opt_trace_array
 #include "probes_mysql.h"       // MYSQL_QUERY_EXEC_START
+#include "psi_memory_key.h"
 #include "set_var.h"            // set_var_base
 #include "sp.h"                 // Sroutine_hash_entry
 #include "sp_cache.h"           // sp_cache_enforce_limit
 #include "sql_analyse.h"        // Query_result_analyse
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
+#include "sql_cache.h"          // query_cache
 #include "sql_cursor.h"         // Server_side_cursor
 #include "sql_db.h"             // mysql_change_db
 #include "sql_delete.h"         // mysql_prepare_delete
@@ -614,7 +618,7 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
   else
     set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
   param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
-                  MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+                  MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   *pos+= length;
 }
 
@@ -1287,7 +1291,7 @@ int Sql_cmd_update::mysql_test_update(THD *thd)
 
   TABLE_LIST *const update_table_ref= table_list->updatable_base_table();
 
-  key_map covering_keys_for_cond;
+  Key_map covering_keys_for_cond;
   if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond,
                            update_value_list))
     DBUG_RETURN(1);
@@ -1360,7 +1364,8 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (select_precheck(thd, lex, tables, lex->select_lex->table_list.first))
     goto error;
 
-  if (!lex->result && !(lex->result= new (stmt->mem_root) Query_result_send))
+  if (!lex->result &&
+      !(lex->result= new (stmt->mem_root) Query_result_send(thd)))
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
              static_cast<int>(sizeof(Query_result_send)));
@@ -1389,7 +1394,7 @@ static int mysql_test_select(Prepared_statement *stmt,
         We need proper output recordset metadata for SELECT ... PROCEDURE ANALUSE()
       */
       if ((result= analyse_result=
-             new Query_result_analyse(result, lex->proc_analyse)) == NULL)
+           new Query_result_analyse(thd, result, lex->proc_analyse)) == NULL)
         goto error; // OOM
     }
 
@@ -1961,7 +1966,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_CREATE_VIEW:
     if (lex->create_view_mode == VIEW_ALTER)
     {
-      my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
+      my_error(ER_UNSUPPORTED_PS, MYF(0));
       goto error;
     }
     res= mysql_test_create_view(stmt);
@@ -2030,7 +2035,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
       )
     {
       /* All other statements are not supported yet. */
-      my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
+      my_error(ER_UNSUPPORTED_PS, MYF(0));
       goto error;
     }
     break;
@@ -2058,7 +2063,7 @@ static bool init_param_array(Prepared_statement *stmt)
     if (stmt->param_count > (uint) UINT_MAX16)
     {
       /* Error code to be defined in 5.0 */
-      my_message(ER_PS_MANY_PARAM, ER(ER_PS_MANY_PARAM), MYF(0));
+      my_error(ER_PS_MANY_PARAM, MYF(0));
       return TRUE;
     }
     Item_param **to;
@@ -2825,7 +2830,7 @@ void mysql_stmt_get_longdata(THD *thd, ulong stmt_id, uint param_number,
     /* Error will be sent in execute call */
     stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
-    sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
+    sprintf(stmt->last_error, ER_THD(thd, ER_WRONG_ARGUMENTS),
             "mysqld_stmt_send_long_data");
     DBUG_VOID_RETURN;
   }
@@ -2860,10 +2865,6 @@ void mysql_stmt_get_longdata(THD *thd, ulong stmt_id, uint param_number,
 /***************************************************************************
  Select_fetch_protocol_binary
 ****************************************************************************/
-
-Query_fetch_protocol_binary::Query_fetch_protocol_binary(THD *thd_arg)
-  :protocol(thd_arg)
-{}
 
 bool Query_fetch_protocol_binary::send_result_set_metadata(List<Item> &list,
                                                            uint flags)
@@ -2935,7 +2936,7 @@ Reprepare_observer::report_error(THD *thd)
     Test with rpl_sp_effects and friends.
   */
   thd->get_stmt_da()->reset_diagnostics_area();
-  thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
+  thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE);
   m_invalidated= TRUE;
 
   return TRUE;

@@ -49,7 +49,6 @@ Created 9/20/1997 Heikki Tuuri
 #include "trx0undo.h"
 #include "trx0rec.h"
 #include "fil0fil.h"
-#include "fsp0sysspace.h"
 #include "ut0new.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0rea.h"
@@ -200,6 +199,8 @@ fil_name_process(
 	ulint	space_id,
 	bool	deleted)
 {
+	ut_ad(space_id != TRX_SYS_SPACE);
+
 	/* We will also insert space=NULL into the map, so that
 	further checks can ensure that a MLOG_FILE_NAME record was
 	scanned before applying any page records for the space_id. */
@@ -267,7 +268,8 @@ fil_name_process(
 				Enable some more diagnostics when
 				forcing recovery. */
 
-				ib::info() << "At " << recv_sys->recovered_lsn
+				ib::info()
+					<< "At LSN: " << recv_sys->recovered_lsn
 					<< ": unable to open file " << name
 					<< " for tablespace " << space_id;
 			}
@@ -339,16 +341,67 @@ fil_name_parse(
 		return(NULL);
 	}
 
+	char*	name	= reinterpret_cast<char*>(ptr);
+	byte*	end_ptr	= ptr + len;
+	bool	corrupt	= false;
+
 	/* MLOG_FILE_* records should only be written for
 	user-created tablespaces. The name must be long enough
-	and end in .ibd. */
-	bool corrupt = is_predefined_tablespace(space_id)
-		|| first_page_no != 0 // TODO: multi-file user tablespaces
-		|| len < sizeof "/a.ibd\0"
-		|| memcmp(ptr + len - 5, DOT_IBD, 5) != 0
-		|| memchr(ptr, OS_PATH_SEPARATOR, len) == NULL;
-
-	byte*	end_ptr	= ptr + len;
+	and end in .ibd.
+	Exception: MLOG_FILE_NAME can be created for
+	predefined tablespaces. */
+	if (len > sizeof "/a.ibd" && !memcmp(end_ptr - 5, DOT_IBD, 5)
+	    && memchr(name, OS_PATH_SEPARATOR, len - 1) != NULL) {
+		/* User-defined tablespace (*.ibd file) */
+		if (first_page_no != 0) {
+			corrupt = true;
+		}
+	} else if (type != MLOG_FILE_NAME) {
+		/* Only MLOG_FILE_NAME is allowed for other than
+		user-defined tablespaces. */
+		corrupt = true;
+	} else if (len > 9
+		   && end_ptr[-9] == OS_PATH_SEPARATOR
+		   && end_ptr[-8] == 'u'
+		   && end_ptr[-7] == 'n'
+		   && end_ptr[-6] == 'd'
+		   && end_ptr[-5] == 'o'
+		   && end_ptr[-4] >= '0' && end_ptr[-4] <= '9'
+		   && end_ptr[-3] >= '0' && end_ptr[-3] <= '9'
+		   && end_ptr[-2] >= '0' && end_ptr[-2] <= '9'
+		   && end_ptr[-1] == 0) {
+		/* Undo tablespace */
+		if (first_page_no != 0) {
+			corrupt = true;
+		}
+	} else if (space_id == TRX_SYS_SPACE && end_ptr[-1] == 0) {
+		switch (fil_space_system_check(first_page_no, name)) {
+		case FIL_SPACE_SYSTEM_MISMATCH:
+			if (srv_force_recovery) {
+				break;
+			}
+			ib::error() <<
+				"Redo log refers to system tablespace"
+				" file '" << name << "' starting at page "
+				<< first_page_no <<
+				", which disagrees with innodb_data_file_path"
+				" or the directory settings."
+				" Check the startup parameters"
+				" or ignore this error by setting"
+				" --innodb-force-recovery.";
+			corrupt = true;
+		case FIL_SPACE_SYSTEM_OK:
+			break;
+		case FIL_SPACE_SYSTEM_ALL:
+			/* Insert a dummy entry for the system tablespace. */
+			recv_spaces.insert(
+				std::make_pair(TRX_SYS_SPACE,
+					       file_name_t("", false)));
+			break;
+		}
+	} else {
+		corrupt = true;
+	}
 
 	switch (type) {
 	default:
@@ -358,16 +411,17 @@ fil_name_parse(
 			recv_sys->found_corrupt_log = true;
 			break;
 		}
-		fil_name_process(
-			reinterpret_cast<char*>(ptr), len, space_id, false);
+		if (space_id == TRX_SYS_SPACE) {
+			break;
+		}
+		fil_name_process(name, len, space_id, false);
 		break;
 	case MLOG_FILE_DELETE:
 		if (corrupt) {
 			recv_sys->found_corrupt_log = true;
 			break;
 		}
-		fil_name_process(
-			reinterpret_cast<char*>(ptr), len, space_id, true);
+		fil_name_process(name, len, space_id, true);
 #ifdef UNIV_HOTBACKUP
 		if (apply && recv_replay_file_ops
 		    && fil_space_get(space_id)) {
@@ -406,9 +460,7 @@ fil_name_parse(
 			break;
 		}
 
-		fil_name_process(
-			reinterpret_cast<char*>(ptr), len,
-			space_id, false);
+		fil_name_process(name, len, space_id, false);
 		fil_name_process(
 			reinterpret_cast<char*>(new_name), new_len,
 			space_id, false);
@@ -792,7 +844,7 @@ recv_check_cp_is_consistent(
 /********************************************************//**
 Looks for the maximum consistent checkpoint from the log groups.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 recv_find_max_checkpoint(
 /*=====================*/
@@ -1233,19 +1285,39 @@ recv_parse_or_apply_log_rec_body(
 		page = block->frame;
 		page_zip = buf_block_get_page_zip(block);
 		ut_d(page_type = fil_page_get_type(page));
-	} else if (apply
-		   && !is_predefined_tablespace(space_id)
-		   && recv_spaces.find(space_id) == recv_spaces.end()) {
-		ib::fatal() << "Missing MLOG_FILE_NAME or MLOG_FILE_DELETE"
-			" for redo log record " << type << " (page "
-			<< space_id << ":" << page_no << ") at "
-			<< recv_sys->recovered_lsn << ".";
-		return(NULL);
 	} else {
 		/* Parsing a page log record. */
 		page = NULL;
 		page_zip = NULL;
 		ut_d(page_type = FIL_PAGE_TYPE_ALLOCATED);
+
+		if (apply
+		    && recv_spaces.find(space_id) == recv_spaces.end()) {
+			if (space_id == TRX_SYS_SPACE) {
+				if (!srv_force_recovery) {
+					ib::error() <<
+						"Some file names in"
+						" innodb_data_file_path"
+						" do not occur in"
+						" the redo log."
+						" Check the startup parameters"
+						" or ignore this error "
+						" by setting "
+						" --innodb-force-recovery.";
+					exit(1);
+				}
+			} else {
+				ib::fatal()
+					<< "Missing MLOG_FILE_NAME"
+					" or MLOG_FILE_DELETE"
+					" for redo log record " << type
+					<< " (page "
+					<< space_id << ":" << page_no
+					<< ") at "
+					<< recv_sys->recovered_lsn << ".";
+				return(NULL);
+			}
+		}
 	}
 
 	const byte*	old_ptr = ptr;
@@ -2299,18 +2371,24 @@ recv_apply_log_recs_for_backup(void)
 						recv_addr->page_no);
 
 			if (page_size.is_compressed()) {
-				error = fil_io(OS_FILE_READ, true, page_id,
-					       page_size, 0, page_size.bytes(),
-					       block->page.zip.data, NULL);
+
+				error = fil_io(
+					IORequestRead, true,
+					page_id,
+					page_size, 0, page_size.bytes(),
+					block->page.zip.data, NULL);
 
 				if (error == DB_SUCCESS
 				    && !buf_zip_decompress(block, TRUE)) {
 					ut_error;
 				}
 			} else {
-				error = fil_io(OS_FILE_READ, true, page_id,
-					       page_size, 0, page_size.bytes(),
-					       block->frame, NULL);
+
+				error = fil_io(
+					IORequestRead, true,
+					page_id, page_size, 0,
+					page_size.bytes(),
+					block->frame, NULL);
 			}
 
 			if (error != DB_SUCCESS) {
@@ -2332,13 +2410,16 @@ recv_apply_log_recs_for_backup(void)
 					block->page.id.space()));
 
 			if (page_size.is_compressed()) {
-				error = fil_io(OS_FILE_WRITE, true, page_id,
-					       0, page_size.bytes(),
-					       block->page.zip.data, NULL);
+
+				error = fil_io(
+					IORequestWrite, true, page_id,
+					0, page_size.bytes(),
+					block->page.zip.data, NULL);
 			} else {
-				error = fil_io(OS_FILE_WRITE, true, page_id,
-					       0, page_size.bytes(),
-					       block->frame, NULL);
+				error = fil_io(
+					IORequestWrite, true,
+					page_id, 0, page_size.bytes(),
+					block->frame, NULL);
 			}
 skip_this_recv_addr:
 			recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
@@ -3287,16 +3368,17 @@ recv_init_crash_recovery_spaces(void)
 
 	for (recv_spaces_t::iterator i = recv_spaces.begin();
 	     i != recv_spaces.end(); i++) {
-		ut_ad(!is_predefined_tablespace(i->first));
-
 		if (i->second.deleted) {
 			/* The tablespace was deleted,
 			so we can ignore any redo log for it. */
+			ut_ad(i->first != TRX_SYS_SPACE);
 			flag_deleted = true;
 		} else if (i->second.space != NULL) {
 			/* The tablespace was found, and there
 			are some redo log records for it. */
 			fil_names_dirty(i->second.space);
+		} else if (i->first == TRX_SYS_SPACE) {
+			/* The system tablespace is always opened. */
 		} else {
 			missing_spaces.insert(i->first);
 			flag_deleted = true;
@@ -3318,7 +3400,7 @@ recv_init_crash_recovery_spaces(void)
 				     HASH_GET_NEXT(addr_hash, recv_addr))) {
 				const ulint space = recv_addr->space;
 
-				if (is_predefined_tablespace(space)) {
+				if (space == TRX_SYS_SPACE) {
 					continue;
 				}
 
@@ -3434,7 +3516,7 @@ recv_recovery_from_checkpoint_start(
 
 	const page_id_t	page_id(max_cp_group->space_id, 0);
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, true, page_id, univ_page_size, 0,
+	fil_io(IORequestLogRead, true, page_id, univ_page_size, 0,
 	       LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);
 
 	if (0 == ut_memcmp(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
@@ -3462,8 +3544,9 @@ recv_recovery_from_checkpoint_start(
 
 		memset(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
 		       ' ', 4);
+
 		/* Write to the log file to wipe over the label */
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, page_id,
+		fil_io(IORequestLogWrite, true, page_id,
 		       univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf,
 		       max_cp_group);
 	}
@@ -3875,8 +3958,14 @@ recv_reset_log_files_for_backup(
 		ib::fatal() << "Cannot open " << name << ".";
 	}
 
-	os_file_write(name, log_file, buf, 0,
-		      LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+	IORequest	request(IORequest::WRITE);
+
+	dberr_t	err = os_file_write(
+		request, name, log_file, buf, 0,
+		LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+
+	ut_a(err == DB_SUCCESS);
+
 	os_file_flush(log_file);
 	os_file_close(log_file);
 

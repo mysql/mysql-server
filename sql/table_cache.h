@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include "my_global.h"
 #include "sql_class.h"
 #include "sql_base.h"
+
+extern ulong table_cache_size_per_instance, table_cache_instances;
 
 /**
   Cache for open TABLE objects.

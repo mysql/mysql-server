@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,6 +31,14 @@ IF(NOT CMAKE_CROSSCOMPILING)
  SET_TARGET_PROPERTIES(comp_err PROPERTIES LINKER_LANGUAGE CXX)
 ENDIF()
 
+IF (BUILD_BUNDLED_LZ4)
+  ADD_CONVENIENCE_LIBRARY(lz4_lib
+    lz4/lz4.c
+    lz4/lz4frame.c
+    lz4/lz4hc.c
+    lz4/xxhash.c
+  )
+ENDIF()
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
                    ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys
@@ -86,20 +94,27 @@ MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
+
+  IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+    ADD_DEFINITIONS(-DHAVE_LZ4=1)
+    INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
+  ENDIF()
+
   # Add path to the InnoDB headers
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include ${CMAKE_SOURCE_DIR}/sql)
+  INCLUDE_DIRECTORIES(
+    ${CMAKE_SOURCE_DIR}/storage/innobase/include
+    ${CMAKE_SOURCE_DIR}/sql
+  )
   # We use the InnoDB code directly in case the code changes.
   ADD_DEFINITIONS("-DUNIV_INNOCHECKSUM")
   SET(INNOBASE_SOURCES
       ../storage/innobase/buf/buf0checksum.cc
       ../storage/innobase/ut/ut0crc32.cc
-      ../storage/innobase/ut/ut0ut.cc
-      ../storage/innobase/buf/buf0buf.cc
-      ../storage/innobase/page/page0zip.cc
+      ../storage/innobase/os/os0file.cc
      )
 
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
-  TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl)
+  TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl ${LZ4_LIBRARY})
   ADD_DEPENDENCIES(innochecksum GenError)
 ENDIF()
 

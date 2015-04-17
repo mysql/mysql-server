@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,9 @@
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "log.h"                        // sql_print_error
+#include "mysqld.h"                     // connection_events_loop_aborted
 #include "sql_class.h"                  // THD
-
+#include "psi_memory_key.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // Channel_info_shared_mem implementation
@@ -216,7 +217,7 @@ Channel_info* Shared_mem_listener::listen_for_connection_event()
   /*
     it can be after shutdown command
   */
-  if (abort_loop)
+  if (connection_events_loop_aborted())
     return NULL;
 
   char connect_number_char[22];
@@ -287,7 +288,7 @@ Channel_info* Shared_mem_listener::listen_for_connection_event()
     errmsg= "Could not create closed connection event";
     goto errorconn;
   }
-  if (abort_loop)
+  if (connection_events_loop_aborted())
     goto errorconn;
 
   Channel_info* channel_info= new (std::nothrow)

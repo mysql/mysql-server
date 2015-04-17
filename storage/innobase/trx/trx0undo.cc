@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -436,7 +436,7 @@ trx_undo_page_init(
 Creates a new undo log segment in file.
 @return DB_SUCCESS if page creation OK possible error codes are:
 DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 trx_undo_seg_create(
 /*================*/
@@ -1112,6 +1112,7 @@ trx_undo_truncate_end_func(
 			ut_ad(trx->rsegs.m_noredo.rseg == undo->rseg);
 		} else {
 			ut_ad(trx->rsegs.m_redo.rseg == undo->rseg);
+			mtr.set_undo_space(undo->rseg->space);
 		}
 
 		trunc_here = NULL;
@@ -1190,6 +1191,8 @@ loop:
 
 	if (trx_sys_is_noredo_rseg_slot(rseg->id)) {
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	} else {
+		mtr.set_undo_space(rseg->space);
 	}
 
 	rec = trx_undo_get_first_rec(rseg->space, rseg->page_size,
@@ -1254,6 +1257,8 @@ trx_undo_seg_free(
 
 		if (noredo) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_undo_space(rseg->space);
 		}
 
 		mutex_enter(&(rseg->mutex));
@@ -1566,7 +1571,7 @@ Creates a new undo log.
 @return DB_SUCCESS if successful in creating the new undo lob object,
 possible error codes are: DB_TOO_MANY_CONCURRENT_TRXS
 DB_OUT_OF_FILE_SPACE DB_OUT_OF_MEMORY */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 trx_undo_create(
 /*============*/
@@ -1786,16 +1791,10 @@ trx_undo_assign_undo(
 
 	mtr_start(&mtr);
 	if (&trx->rsegs.m_noredo == undo_ptr) {
-		mtr.set_log_mode(MTR_LOG_NO_REDO);;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	} else {
 		ut_ad(&trx->rsegs.m_redo == undo_ptr);
-	}
-
-	if (trx_sys_is_noredo_rseg_slot(rseg->id)) {
-		mtr.set_log_mode(MTR_LOG_NO_REDO);;
-		ut_ad(undo_ptr == &trx->rsegs.m_noredo);
-	} else {
-		ut_ad(undo_ptr == &trx->rsegs.m_redo);
+		mtr.set_undo_space(rseg->space);
 	}
 
 	mutex_enter(&rseg->mutex);
@@ -1881,15 +1880,18 @@ trx_undo_set_state_at_finish(
 	return(undo_page);
 }
 
-/******************************************************************//**
-Sets the state of the undo log segment at a transaction prepare.
+/** Set the state of the undo log segment at a XA PREPARE or XA ROLLBACK.
+@param[in,out]	trx		transaction
+@param[in,out]	undo		insert_undo or update_undo log
+@param[in]	rollback	false=XA PREPARE, true=XA ROLLBACK
+@param[in,out]	mtr		mini-transaction
 @return undo log segment header page, x-latched */
 page_t*
 trx_undo_set_state_at_prepare(
-/*==========================*/
-	trx_t*		trx,	/*!< in: transaction */
-	trx_undo_t*	undo,	/*!< in: undo log memory copy */
-	mtr_t*		mtr)	/*!< in: mtr */
+	trx_t*		trx,
+	trx_undo_t*	undo,
+	bool		rollback,
+	mtr_t*		mtr)
 {
 	trx_usegf_t*	seg_hdr;
 	trx_ulogf_t*	undo_header;
@@ -1906,7 +1908,15 @@ trx_undo_set_state_at_prepare(
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
 
+	if (rollback) {
+		ut_ad(undo->state == TRX_UNDO_PREPARED);
+		mlog_write_ulint(seg_hdr + TRX_UNDO_STATE, TRX_UNDO_ACTIVE,
+				 MLOG_2BYTES, mtr);
+		return(undo_page);
+	}
+
 	/*------------------------------*/
+	ut_ad(undo->state == TRX_UNDO_ACTIVE);
 	undo->state = TRX_UNDO_PREPARED;
 	undo->xid   = *trx->xid;
 	/*------------------------------*/

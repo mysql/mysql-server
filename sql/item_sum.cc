@@ -21,15 +21,23 @@
   Sum functions (COUNT, MIN...)
 */
 
-#include "sql_select.h"
-#include "sql_tmp_table.h"                 // create_tmp_table
-#include "sql_resolver.h"                  // setup_order, fix_inner_refs
-#include "sql_optimizer.h"                 // JOIN
-#include "uniques.h"
-#include "parse_tree_helpers.h"
-#include "parse_tree_nodes.h"
-#include "aggregate_check.h"
+#include "item_sum.h"
 
+#include "aggregate_check.h"               // Distinct_check
+#include "current_thd.h"                   // current_thd
+#include "derror.h"                        // ER_THD
+#include "mysqld.h"                        // my_thread_get_THR_MALLOC
+#include "parse_tree_helpers.h"            // PT_item_list
+#include "parse_tree_nodes.h"              // PT_order_list
+#include "sql_class.h"                     // THD
+#include "sql_executor.h"                  // copy_fields
+#include "sql_resolver.h"                  // setup_order
+#include "sql_select.h"                    // count_field_types
+#include "sql_tmp_table.h"                 // create_tmp_table
+#include "temp_table_param.h"              // Temp_table_param
+#include "uniques.h"                       // Unique
+
+#include <algorithm>
 using std::min;
 using std::max;
 
@@ -93,8 +101,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
 {
   if (!thd->lex->allow_sum_func)
   {
-    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
-               MYF(0));
+    my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return TRUE;
   }
   /* Set a reference to the nesting set function if there is  any */
@@ -213,8 +220,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     invalid= aggr_level <= max_sum_func_level;
   if (invalid)  
   {
-    my_message(ER_INVALID_GROUP_FUNC_USE, ER(ER_INVALID_GROUP_FUNC_USE),
-               MYF(0));
+    my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return TRUE;
   }
 
@@ -2902,8 +2908,6 @@ double Item_variance_field::val_real()
 ** Rewritten by: Monty.
 ****************************************************************************/
 
-#ifdef HAVE_DLOPEN
-
 bool Item_udf_sum::itemize(Parse_context *pc, Item **res)
 {
   if (skip_itemize(res))
@@ -3074,8 +3078,6 @@ String *Item_sum_udf_str::val_str(String *str)
   null_value = !res;
   DBUG_RETURN(res);
 }
-
-#endif /* HAVE_DLOPEN */
 
 
 /*****************************************************************************
@@ -3267,7 +3269,8 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
     result->length(old_length + add_length);
     item->warning_for_row= TRUE;
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
+                        ER_CUT_VALUE_GROUP_CONCAT,
+                        ER_THD(current_thd, ER_CUT_VALUE_GROUP_CONCAT),
                         item->row_count);
 
     /**
@@ -3773,7 +3776,8 @@ String* Item_func_group_concat::val_str(String* str)
   {
     warning_for_row= true;
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
+                        ER_CUT_VALUE_GROUP_CONCAT,
+                        ER_THD(current_thd, ER_CUT_VALUE_GROUP_CONCAT),
                         row_count);
   }
 

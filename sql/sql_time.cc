@@ -21,6 +21,9 @@
 #include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
 #include <m_ctype.h>
 #include "item_timefunc.h"   // INTERNAL_FORMAT
+#include "current_thd.h"
+#include "psi_memory_key.h"
+#include "derror.h"
 
 
 	/* Some functions to calculate dates */
@@ -391,7 +394,8 @@ str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
     flags|= TIME_INVALID_DATES;
   bool ret_val= str_to_datetime(str, l_time, flags, &status);
   if (ret_val || status.warnings)
-    make_truncated_value_warning(ErrConvString(str), l_time->time_type);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(str), l_time->time_type, NullS);
   return ret_val;
 }
 
@@ -459,7 +463,9 @@ bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
     rc= lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(ErrConvString(decimal), ltime->time_type);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(decimal), ltime->time_type,
+                                 NullS);
   return rc;
 }
 
@@ -487,7 +493,8 @@ bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
     rc= lldiv_t_to_datetime(lld, ltime, flags, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(ErrConvString(nr), ltime->time_type);  
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(nr), ltime->time_type, NullS);
   return rc;
 }
 
@@ -504,7 +511,9 @@ bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
   int warnings= 0;
   bool rc= number_to_datetime(nr, ltime, flags, &warnings) == -1LL;
   if (warnings)
-    make_truncated_value_warning(ErrConvString(nr),  MYSQL_TIMESTAMP_NONE);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(nr),  MYSQL_TIMESTAMP_NONE,
+                                 NullS);
   return rc;
 }
 
@@ -554,7 +563,9 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
     rc= lldiv_t_to_time(lld, ltime, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(ErrConvString(decimal), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(decimal), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
   return rc;
 }
 
@@ -581,7 +592,9 @@ bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
     rc= lldiv_t_to_time(lld, ltime, &warnings);
 
   if (warnings)
-    make_truncated_value_warning(ErrConvString(nr), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(nr), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
   return rc;
 }
 
@@ -598,7 +611,9 @@ bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime)
   int warnings= 0;
   bool rc= number_to_time(nr, ltime, &warnings);
   if (warnings)
-    make_truncated_value_warning(ErrConvString(nr), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(nr), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
   return rc;
 }
 
@@ -683,7 +698,7 @@ bool datetime_with_no_zero_in_date_to_timeval(THD *thd,
   }
 
   my_bool in_dst_time_gap;
-  if (!(tm->tv_sec= TIME_to_timestamp(current_thd, ltime, &in_dst_time_gap)))
+  if (!(tm->tv_sec= TIME_to_timestamp(thd, ltime, &in_dst_time_gap)))
   {
     /*
       Date was outside of the supported timestamp range.
@@ -739,7 +754,7 @@ bool datetime_to_timeval(THD *thd, const MYSQL_TIME *ltime,
 {
   return
     check_date(ltime, non_zero_date(ltime), TIME_NO_ZERO_IN_DATE, warnings) ||
-    datetime_with_no_zero_in_date_to_timeval(current_thd, ltime, tm, warnings);
+    datetime_with_no_zero_in_date_to_timeval(thd, ltime, tm, warnings);
 }
 
 
@@ -756,7 +771,9 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
   MYSQL_TIME_STATUS status;
   bool ret_val= str_to_time(str, l_time, 0, &status);
   if (ret_val || status.warnings)
-    make_truncated_value_warning(ErrConvString(str), MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
+                                 ErrConvString(str), MYSQL_TIMESTAMP_TIME,
+                                 NullS);
   return ret_val;
 }
 
@@ -1038,7 +1055,7 @@ bool parse_date_time_format(timestamp_type format_type,
       return 0;
     break;
   default:
-    DBUG_ASSERT(1);
+    DBUG_ASSERT(false);
     break;
   }
   return 1;					// Error
@@ -1221,18 +1238,18 @@ void make_truncated_value_warning(THD *thd,
   }
   if (field_name)
     cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                       ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                        type_str, val.ptr(), field_name,
                        (ulong) thd->get_stmt_da()->current_row_for_condition());
   else
   {
     if (time_type > MYSQL_TIMESTAMP_ERROR)
       cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                         ER(ER_TRUNCATED_WRONG_VALUE),
+                         ER_THD(thd, ER_TRUNCATED_WRONG_VALUE),
                          type_str, val.ptr());
     else
       cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
-                         ER(ER_WRONG_VALUE), type_str, val.ptr());
+                         ER_THD(thd, ER_WRONG_VALUE), type_str, val.ptr());
   }
   push_warning(thd, level, ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }
@@ -1344,7 +1361,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
 invalid_date:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_DATETIME_FUNCTION_OVERFLOW,
-                      ER(ER_DATETIME_FUNCTION_OVERFLOW),
+                      ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");
 null_date:
   return 1;

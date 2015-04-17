@@ -22,6 +22,7 @@
 #include "sql_time.h"                      // interval_type_to_name
 #include "tztime.h"                             // struct Time_zone
 #include "auth_common.h" // SUPER_ACL, MYSQL_DB_FIELD_COUNT, mysql_db_table_fields
+#include "sql_user_table.h"       // mysql_db_table_def
 #include "records.h"          // init_read_record, end_read_record
 #include "sp_head.h"
 #include "event_data_objects.h"
@@ -31,6 +32,7 @@
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "log.h"
 #include "item_timefunc.h"          // Item_func_now_local
+#include "derror.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -561,7 +563,7 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
     DBUG_RETURN(TRUE);
   }
  
-  if (table_intact.check(event_table.table, &event_table_def))
+  if (table_intact.check(thd, event_table.table, &event_table_def))
   {
     close_nontrans_system_tables(thd, &open_tables_backup);
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
@@ -626,7 +628,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   *table= tables.table;
   tables.table->use_all_columns();
 
-  if (table_intact.check(*table, &event_table_def))
+  if (table_intact.check(thd, *table, &event_table_def))
   {
     close_thread_tables(thd);
     my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
@@ -695,7 +697,8 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     {
       *event_already_exists= true;
       push_warning_printf(thd, Sql_condition::SL_NOTE,
-                          ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
+                          ER_EVENT_ALREADY_EXISTS,
+                          ER_THD(thd, ER_EVENT_ALREADY_EXISTS),
                           parse_data->name.str);
       ret= 0;
     }
@@ -922,7 +925,7 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   }
 
   push_warning_printf(thd, Sql_condition::SL_NOTE,
-                      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
+                      ER_SP_DOES_NOT_EXIST, ER_THD(thd, ER_SP_DOES_NOT_EXIST),
                       "Event", name.str);
   ret= 0;
 
@@ -1087,7 +1090,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
   if (!(ret= open_nontrans_system_tables_for_read(thd, &event_table,
                                                   &open_tables_backup)))
   {
-    if (table_intact.check(event_table.table, &event_table_def))
+    if (table_intact.check(thd, event_table.table, &event_table_def))
     {
       close_nontrans_system_tables(thd, &open_tables_backup);
       my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
@@ -1211,7 +1214,7 @@ Event_db_repository::check_system_tables(THD *thd)
   }
   else
   {
-    if (table_intact.check(tables.table, &mysql_db_table_def))
+    if (table_intact.check(thd, tables.table, &mysql_db_table_def))
       ret= 1;
     close_acl_tables(thd);
   }
@@ -1245,7 +1248,7 @@ Event_db_repository::check_system_tables(THD *thd)
   }
   else
   {
-    if (table_intact.check(tables.table, &event_table_def))
+    if (table_intact.check(thd, tables.table, &event_table_def))
       ret= 1;
     close_mysql_tables(thd);
   }

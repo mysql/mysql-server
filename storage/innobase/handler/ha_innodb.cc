@@ -38,9 +38,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Include necessary SQL headers */
 #include "ha_prototypes.h"
+#include <current_thd.h>
 #include <debug_sync.h>
+#include <derror.h>
 #include <gstream.h>
 #include <log.h>
+#include <mysqld.h>
 #include <mysys_err.h>
 #include <strfunc.h>
 #include <sql_acl.h>
@@ -153,22 +156,11 @@ are determined in innobase_init below: */
 static char*	innobase_data_home_dir			= NULL;
 static char*	innobase_data_file_path			= NULL;
 static char*	innobase_temp_data_file_path		= NULL;
-static char*	innobase_file_format_name		= NULL;
 static char*	innobase_change_buffering		= NULL;
 static char*	innobase_enable_monitor_counter		= NULL;
 static char*	innobase_disable_monitor_counter	= NULL;
 static char*	innobase_reset_monitor_counter		= NULL;
 static char*	innobase_reset_all_monitor_counter	= NULL;
-
-/* The highest file format being used in the database. The value can be
-set by user, however, it will be adjusted to the newer file format if
-a table of such format is created/opened. */
-char*	innobase_file_format_max		= NULL;
-
-/** Default value of innodb_file_format */
-static const char*	innodb_file_format_default	= "Barracuda";
-/** Default value of innodb_file_format_max */
-static const char*	innodb_file_format_max_default	= "Antelope";
 
 static char*	innobase_file_flush_method		= NULL;
 
@@ -180,17 +172,34 @@ static char*	innobase_server_stopword_table		= NULL;
 values */
 
 static ulong	innobase_fast_shutdown			= 1;
-static my_bool	innobase_file_format_check		= TRUE;
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 my_bool	innobase_stats_on_metadata		= TRUE;
-static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
+
+#ifdef UNIV_DEBUG
+/** Values for --innodb-debug-compress names. */
+static const char* innodb_debug_compress_names[] = {
+	"none",
+	"zlib",
+	"lz4",
+	"lz4hc",
+	NullS
+};
+
+/** Enumeration of --innodb-debug-compress */
+static TYPELIB innodb_debug_compress_typelib = {
+	array_elements(innodb_debug_compress_names) - 1,
+	"innodb_debug_compress_typelib",
+	innodb_debug_compress_names,
+	NULL
+};
+#endif /* UNIV_DEBUG */
 
 /** Possible values for system variable "innodb_stats_method". The values
 are defined the same as its corresponding MyISAM system variable
@@ -314,7 +323,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(dict_foreign_err_mutex),
 	PSI_KEY(dict_sys_mutex),
 	PSI_KEY(recalc_pool_mutex),
-	PSI_KEY(file_format_max_mutex),
 	PSI_KEY(fil_system_mutex),
 	PSI_KEY(flush_list_mutex),
 	PSI_KEY(fts_bg_threads_mutex),
@@ -844,25 +852,6 @@ void
 innobase_undo_logs_init_default_max();
 /*==================================*/
 
-/************************************************************//**
-Validate the file format name and return its corresponding id.
-@return valid file format id */
-static
-uint
-innobase_file_format_name_lookup(
-/*=============================*/
-	const char*	format_name);	/*!< in: pointer to file format
-					name */
-/************************************************************//**
-Validate the file format check config parameters, as a side effect it
-sets the srv_max_file_format_at_startup variable.
-@return the format_id if valid config value, otherwise, return -1 */
-static
-int
-innobase_file_format_validate_and_set(
-/*==================================*/
-	const char*	format_max);	/*!< in: parameter value */
-
 /*******************************************************************//**
 This function is used to prepare an X/Open XA distributed transaction.
 @return 0 or error number */
@@ -1003,14 +992,22 @@ innodb_enable_monitor_at_startup(
 /*=============================*/
 	char*	str);	/*!< in: monitor counter enable list */
 
-/***********************************************************************
-Store doc_id value into FTS_DOC_ID field */
+/** Store doc_id value into FTS_DOC_ID field
+@param[in,out]	tbl	table containing FULLTEXT index
+@param[in]	doc_id	FTS_DOC_ID value */
 static
 void
 innobase_fts_store_docid(
-/*=====================*/
-		TABLE * tbl,		/*!< in: FTS table */
-		ulonglong doc_id);	/*!< in: FTS_DOC_ID value */
+	TABLE*		tbl,
+	ulonglong	doc_id)
+{
+	my_bitmap_map*	old_map
+		= dbug_tmp_use_all_columns(tbl, tbl->write_set);
+
+	tbl->fts_doc_id_field->store(static_cast<longlong>(doc_id), true);
+
+	dbug_tmp_restore_column_map(tbl->write_set, old_map);
+}
 
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
@@ -1618,7 +1615,7 @@ convert_error_code_to_mysql(
 		/* If prefix is true then a 768-byte prefix is stored
 		locally for BLOB fields. Refer to dict_table_get_format().
 		We limit max record size to 16k for 64k page size. */
-		bool prefix = (dict_tf_get_format(flags) == UNIV_FORMAT_A);
+		bool prefix = !DICT_TF_HAS_ATOMIC_BLOBS(flags);
 		my_printf_error(ER_TOO_BIG_ROWSIZE,
 			"Row size too large (> %lu). Changing some columns"
 			" to TEXT or BLOB %smay help. In current row"
@@ -1760,10 +1757,10 @@ Converts an identifier to a table name. */
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len)	/*!< in: length of 'to', in bytes */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len)	/*!< in: length of 'to', in bytes */
 {
 	uint	errors;
 
@@ -1799,10 +1796,10 @@ Converts an identifier to UTF-8. */
 void
 innobase_convert_from_id(
 /*=====================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len)	/*!< in: length of 'to', in bytes */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len)	/*!< in: length of 'to', in bytes */
 {
 	uint	errors;
 
@@ -1870,7 +1867,7 @@ innobase_casedn_str(
 /**********************************************************************//**
 Determines the connection character set.
 @return connection character set */
-CHARSET_INFO*
+const CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	mysql_thd)	/*!< in: MySQL thread handle */
@@ -2059,6 +2056,60 @@ innobase_raw_format(
 					       &num_errors);
 
 	return(ut_str_sql_format(buf_tmp, buf_tmp_used, buf, buf_size));
+}
+
+/** Check if the string is "empty" or "none".
+@param[in]      algorithm       Compression algorithm to check
+@return true if no algorithm requested */
+bool
+Compression::is_none(const char* algorithm)
+{
+	/* NULL is the same as NONE */
+	if (algorithm == NULL || innobase_strcasecmp(algorithm, "none") == 0) {
+		return(true);
+	}
+
+	return(false);
+}
+
+/** Check for supported COMPRESS := (ZLIB | LZ4 | NONE) supported values
+@param[in]	name		Name of the compression algorithm
+@param[out]	compression	The compression algorithm
+@return DB_SUCCESS or DB_UNSUPPORTED */
+dberr_t
+Compression::check(
+	const char*	algorithm,
+	Compression*	compression)
+{
+	if (is_none(algorithm)) {
+
+		compression->m_type = NONE;
+
+	} else if (innobase_strcasecmp(algorithm, "zlib") == 0) {
+
+		compression->m_type = ZLIB;
+
+	} else if (innobase_strcasecmp(algorithm, "lz4") == 0) {
+
+		compression->m_type = LZ4;
+
+	} else {
+		return(DB_UNSUPPORTED);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** Check for supported COMPRESS := (ZLIB | LZ4 | NONE) supported values
+@param[in]	name		Name of the compression algorithm
+@param[out]	compression	The compression algorithm
+@return DB_SUCCESS or DB_UNSUPPORTED */
+dberr_t
+Compression::validate(const char* algorithm)
+{
+	Compression	compression;
+
+	return(check(algorithm, &compression));
 }
 
 /*********************************************************************//**
@@ -2389,6 +2440,7 @@ ha_innobase::ha_innobase(
 	handlerton*	hton,
 	TABLE_SHARE*	table_arg)
 	:handler(hton, table_arg),
+	m_ds_mrr(this),
 	m_prebuilt(),
 	m_user_thd(),
 	m_int_table_flags(HA_REC_NOT_IN_SEQ
@@ -2986,25 +3038,6 @@ static uint innobase_partition_flags()
 	return(HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK);
 }
 
-/** Deprecation message about InnoDB file format related parameters */
-#define DEPRECATED_FORMAT_PARAMETER(x)					\
-	"Using " x " is deprecated and the parameter"			\
-	" may be removed in future releases."				\
-	" See " REFMAN "innodb-file-format.html"
-
-/** Deprecation message about innodb_file_format */
-static const char*	deprecated_file_format
-	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format");
-/** Deprecation message about innodb_large_prefix */
-static const char*	deprecated_large_prefix
-	= DEPRECATED_FORMAT_PARAMETER("innodb_large_prefix");
-/** Deprecation message about innodb_file_format_check */
-static const char*	deprecated_file_format_check
-	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format_check");
-/** Deprecation message about innodb_file_format_max */
-static const char*	deprecated_file_format_max
-	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format_max");
-
 /** Update log_checksum_algorithm_ptr with a pointer to the function
 corresponding to the given checksum algorithm.
 @param[in]	algorithm	the checksum algorithm */
@@ -3040,7 +3073,6 @@ innobase_init(
 	static char	current_dir[3];		/*!< Set if using current lib */
 	int		err;
 	char		*default_path;
-	uint		format_id;
 	ulong		num_pll_degree;
 
 	DBUG_ENTER("innobase_init");
@@ -3121,7 +3153,7 @@ innobase_init(
 		}
 	}
 
-	os_innodb_umask = (ulint) my_umask;
+	os_file_set_umask(my_umask);
 
 	/* Setup the memory alloc/free tracing mechanisms before calling
 	any functions that could possibly allocate memory. */
@@ -3234,75 +3266,6 @@ innobase_init(
 
 	if (strchr(srv_log_group_home_dir, ';')) {
 		sql_print_error("syntax error in innodb_log_group_home_dir");
-		DBUG_RETURN(innobase_init_abort());
-	}
-
-	if (!innobase_large_prefix) {
-		ib::warn() << deprecated_large_prefix;
-	}
-
-	if (innobase_file_format_name != innodb_file_format_default) {
-		ib::warn() << deprecated_file_format;
-	}
-
-	/* Validate the file format by animal name */
-	if (innobase_file_format_name != NULL) {
-
-		format_id = innobase_file_format_name_lookup(
-			innobase_file_format_name);
-
-		if (format_id > UNIV_FORMAT_MAX) {
-
-			sql_print_error("InnoDB: wrong innodb_file_format.");
-
-		DBUG_RETURN(innobase_init_abort());
-		}
-	} else {
-		/* Set it to the default file format id. Though this
-		should never happen. */
-		format_id = 0;
-	}
-
-	srv_file_format = format_id;
-
-	/* Given the type of innobase_file_format_name we have little
-	choice but to cast away the constness from the returned name.
-	innobase_file_format_name is used in the MySQL set variable
-	interface and so can't be const. */
-
-	innobase_file_format_name =
-		(char*) trx_sys_file_format_id_to_name(format_id);
-
-	/* Check innobase_file_format_check variable */
-	if (!innobase_file_format_check) {
-		ib::warn() << deprecated_file_format_check;
-
-		/* Set the value to disable checking. */
-		srv_max_file_format_at_startup = UNIV_FORMAT_MAX + 1;
-
-	} else {
-
-		/* Set the value to the lowest supported format. */
-		srv_max_file_format_at_startup = UNIV_FORMAT_MIN;
-	}
-
-	if (innobase_file_format_max != innodb_file_format_max_default) {
-		ib::warn() << deprecated_file_format_max;
-	}
-
-	/* Did the user specify a format name that we support?
-	As a side effect it will update the variable
-	srv_max_file_format_at_startup */
-	if (innobase_file_format_validate_and_set(
-			innobase_file_format_max) < 0) {
-
-		sql_print_error("InnoDB: invalid"
-				" innodb_file_format_max value:"
-				" should be any value up to %s or its"
-				" equivalent numeric id",
-				trx_sys_file_format_id_to_name(
-					UNIV_FORMAT_MAX));
-
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -3469,7 +3432,7 @@ innobase_change_buffering_inited_ok:
 	int	count;
 
 	count = array_elements(all_pthread_mutexes);
- 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
+	mysql_mutex_register("innodb", all_pthread_mutexes, count);
 
 # ifdef UNIV_PFS_MUTEX
 	count = array_elements(all_innodb_mutexes);
@@ -3531,9 +3494,6 @@ innobase_change_buffering_inited_ok:
 		*innobase_hton = *innodb_hton_ptr;
 	}
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-	/* Get the current high water mark format. */
-	innobase_file_format_max = (char*) trx_sys_file_format_max_get();
 
 	/* Currently, monitor counter information are not persistent. */
 	memset(monitor_set_tbl, 0, sizeof monitor_set_tbl);
@@ -4431,7 +4391,7 @@ ha_innobase::max_supported_key_length() const
 Returns the key map of keys that are usable for scanning.
 @return key_map_full */
 
-const key_map*
+const Key_map*
 ha_innobase::keys_to_use_for_scanning()
 /*===================================*/
 {
@@ -4461,9 +4421,9 @@ ha_innobase::primary_key_is_clustered() const
 }
 
 /** Normalizes a table name string.
-A normalized name consists of the database name catenated to '/' and
-table name. Example: test/mytable.
-On Windows normalization puts both the database name and the
+A normalized name consists of the database name catenated to '/'
+and table name. For example: test/mytable.
+On Windows, normalization puts both the database name and the
 table name always to lower case if "set_lower_case" is set to TRUE.
 @param[out]	norm_name	Normalized name, null-terminated.
 @param[in]	name		Name to normalize.
@@ -5068,11 +5028,11 @@ ha_innobase::open(
 		ib_table = dict_table_open_on_name(
 			norm_name, FALSE, TRUE, ignore_err);
 	} else {
-		++ib_table->n_ref_count;
+		ib_table->acquire();
 		ut_ad(dict_table_is_intrinsic(ib_table));
 	}
 
-	if (ib_table
+	if (ib_table != NULL
 	    && ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 		 && table->s->fields != dict_table_get_n_user_cols(ib_table))
 		|| (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
@@ -5149,7 +5109,7 @@ ha_innobase::open(
 					ignore_err);
 			}
 
-			if (ib_table) {
+			if (ib_table != NULL) {
 #ifndef _WIN32
 				sql_print_warning("Partition table %s opened"
 						  " after converting to lower"
@@ -5367,15 +5327,6 @@ table_opened:
 	/* Index block size in InnoDB: used by MySQL in query optimization */
 	stats.block_size = UNIV_PAGE_SIZE;
 
-	if (m_prebuilt->table) {
-		/* We update the highest file format in the system table
-		space, if this table has higher file format setting. */
-
-		trx_sys_file_format_max_upgrade(
-			(const char**) &innobase_file_format_max,
-			dict_table_get_format(m_prebuilt->table));
-	}
-
 	/* Only if the table has an AUTOINC column. */
 	if (m_prebuilt->table != NULL
 	    && !m_prebuilt->table->ibd_file_missing
@@ -5417,6 +5368,40 @@ table_opened:
 
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
+	/* We don't support compression for the system tablespace and
+	the temporary tablespace. Only because they are shared tablespaces.
+	There is no other technical reason. */
+
+	if (m_prebuilt->table != NULL
+	    && !m_prebuilt->table->ibd_file_missing
+	    && !is_shared_tablespace(m_prebuilt->table->space)) {
+
+		dberr_t	err = fil_set_compression(
+			m_prebuilt->table->space, table->s->compress.str);
+
+		switch (err) {
+		case DB_NOT_FOUND:
+		case DB_UNSUPPORTED:
+			/* We will do another check before the create
+			table and push the error to the client there. */
+			break;
+
+		case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
+			/* We did the check in the 'if' above. */
+
+		case DB_IO_NO_PUNCH_HOLE_FS:
+			/* During open we can't check whether the FS supports
+			punch hole or not, at least on Linux. */
+			break;
+
+		default:
+			ut_error;
+
+		case DB_SUCCESS:
+			break;
+		}
+	}
+
 	DBUG_RETURN(0);
 }
 
@@ -5449,9 +5434,7 @@ ha_innobase::max_supported_key_part_length() const
 {
 	/* A table format specific index column length check will be performed
 	at ha_innobase::add_index() and row_create_index_for_mysql() */
-	return(innobase_large_prefix
-		? REC_VERSION_56_MAX_INDEX_COL_LEN
-		: REC_ANTELOPE_MAX_INDEX_COL_LEN - 1);
+	return(REC_VERSION_56_MAX_INDEX_COL_LEN);
 }
 
 /******************************************************************//**
@@ -5813,22 +5796,6 @@ get_innobase_type_from_mysql_type(
 }
 
 /*******************************************************************//**
-Writes an unsigned integer value < 64k to 2 bytes, in the little-endian
-storage format. */
-static inline
-void
-innobase_write_to_2_little_endian(
-/*==============================*/
-	byte*	buf,	/*!< in: where to store */
-	ulint	val)	/*!< in: value to write, must be < 64k */
-{
-	ut_a(val < 256 * 256);
-
-	buf[0] = (byte)(val & 0xFF);
-	buf[1] = (byte)(val / 256);
-}
-
-/*******************************************************************//**
 Reads an unsigned integer value < 64k from 2 bytes, in the little-endian
 storage format.
 @return value */
@@ -5839,281 +5806,6 @@ innobase_read_from_2_little_endian(
 	const uchar*	buf)	/*!< in: from where to read */
 {
 	return((uint) ((ulint)(buf[0]) + 256 * ((ulint)(buf[1]))));
-}
-
-/*******************************************************************//**
-Stores a key value for a row to a buffer.
-@return key value length as stored in buff */
-
-uint
-ha_innobase::store_key_val_for_row(
-/*===============================*/
-	uint		keynr,	/*!< in: key number */
-	char*		buff,	/*!< in/out: buffer for the key value (in MySQL
-				format) */
-	uint		buff_len,/*!< in: buffer length */
-	const uchar*	record)/*!< in: row in MySQL format */
-{
-	Field*		field;
-	enum_field_types mysql_type;
-	char*		buff_start = buff;
-	KEY*		key_info = table->key_info + keynr;
-	KEY_PART_INFO*	key_part = key_info->key_part;
-	KEY_PART_INFO*	end = key_part + key_info->user_defined_key_parts;
-
-	DBUG_ENTER("store_key_val_for_row");
-
-	/* The format for storing a key field in MySQL is the following:
-
-	1. If the column can be NULL, then in the first byte we put 1 if the
-	field value is NULL, 0 otherwise.
-
-	2. If the column is of a BLOB type (it must be a column prefix field
-	in this case), then we put the length of the data in the field to the
-	next 2 bytes, in the little-endian format. If the field is SQL NULL,
-	then these 2 bytes are set to 0. Note that the length of data in the
-	field is <= column prefix length.
-
-	3. In a column prefix field, prefix_len next bytes are reserved for
-	data. In a normal field the max field length next bytes are reserved
-	for data. For a VARCHAR(n) the max field length is n. If the stored
-	value is the SQL NULL then these data bytes are set to 0.
-
-	4. We always use a 2 byte length for a true >= 5.0.3 VARCHAR. Note that
-	in the MySQL row format, the length is stored in 1 or 2 bytes,
-	depending on the maximum allowed length. But in the MySQL key value
-	format, the length always takes 2 bytes.
-
-	We have to zero-fill the buffer so that MySQL is able to use a
-	simple memcmp to compare two key values to determine if they are
-	equal. MySQL does this to compare contents of two 'ref' values. */
-
-	memset(buff, 0, buff_len);
-
-	for (; key_part != end; key_part++) {
-		bool	is_null = false;
-
-		if (key_part->null_bit) {
-			if (record[key_part->null_offset]
-						& key_part->null_bit) {
-				*buff = 1;
-				is_null = true;
-			} else {
-				*buff = 0;
-			}
-			buff++;
-		}
-
-		field = key_part->field;
-		mysql_type = field->type();
-
-		if (mysql_type == MYSQL_TYPE_VARCHAR) {
-						/* >= 5.0.3 true VARCHAR */
-			ulint		lenlen;
-			ulint		len;
-			const byte*	data;
-			ulint		key_len;
-			ulint		true_len;
-			const CHARSET_INFO* cs;
-			int		error=0;
-
-			key_len = key_part->length;
-
-			if (is_null) {
-				buff += key_len + 2;
-
-				continue;
-			}
-			cs = field->charset();
-
-			lenlen = (ulint)
-				(((Field_varstring*) field)->length_bytes);
-
-			data = row_mysql_read_true_varchar(&len,
-				(byte*) (record
-				+ (ulint) get_field_offset(table, field)),
-				lenlen);
-
-			true_len = len;
-
-			/* For multi byte character sets we need to calculate
-			the true length of the key */
-
-			if (len > 0 && cs->mbmaxlen > 1) {
-				true_len = (ulint) cs->cset->well_formed_len(cs,
-						(const char*) data,
-						(const char*) data + len,
-						(uint) (key_len / cs->mbmaxlen),
-						&error);
-			}
-
-			/* In a column prefix index, we may need to truncate
-			the stored value: */
-
-			if (true_len > key_len) {
-				true_len = key_len;
-			}
-
-			/* The length in a key value is always stored in 2
-			bytes */
-
-			row_mysql_store_true_var_len((byte*) buff, true_len, 2);
-			buff += 2;
-
-			memcpy(buff, data, true_len);
-
-			/* Note that we always reserve the maximum possible
-			length of the true VARCHAR in the key value, though
-			only len first bytes after the 2 length bytes contain
-			actual data. The rest of the space was reset to zero
-			in the memset() call above. */
-
-			buff += key_len;
-
-		} else if (mysql_type == MYSQL_TYPE_TINY_BLOB
-			|| mysql_type == MYSQL_TYPE_MEDIUM_BLOB
-			|| mysql_type == MYSQL_TYPE_BLOB
-			|| mysql_type == MYSQL_TYPE_LONG_BLOB
-			/* MYSQL_TYPE_GEOMETRY data is treated
-			as BLOB data in Innodb, except for POINT.
-			But in MySQL format, they're all BLOB. */
-			|| mysql_type == MYSQL_TYPE_GEOMETRY) {
-
-			const CHARSET_INFO* cs;
-			ulint		key_len;
-			ulint		true_len;
-			int		error=0;
-			ulint		blob_len;
-			const byte*	blob_data;
-
-			ut_a(key_part->key_part_flag & HA_PART_KEY_SEG);
-
-			key_len = key_part->length;
-
-			if (is_null) {
-				buff += key_len + 2;
-
-				continue;
-			}
-
-			cs = field->charset();
-
-			blob_data = row_mysql_read_blob_ref(&blob_len,
-				(byte*) (record
-				+ (ulint) get_field_offset(table, field)),
-					(ulint) field->pack_length());
-
-			true_len = blob_len;
-
-			ut_a(get_field_offset(table, field)
-				== key_part->offset);
-
-			/* For multi byte character sets we need to calculate
-			the true length of the key */
-
-			if (blob_len > 0 && cs->mbmaxlen > 1) {
-				true_len = (ulint) cs->cset->well_formed_len(cs,
-						(const char*) blob_data,
-						(const char*) blob_data
-							+ blob_len,
-						(uint) (key_len / cs->mbmaxlen),
-						&error);
-			}
-
-			/* All indexes on BLOB and TEXT are column prefix
-			indexes, and we may need to truncate the data to be
-			stored in the key value: */
-
-			if (true_len > key_len) {
-				true_len = key_len;
-			}
-
-			/* MySQL reserves 2 bytes for the length and the
-			storage of the number is little-endian */
-
-			innobase_write_to_2_little_endian(
-					(byte*) buff, true_len);
-			buff += 2;
-
-			memcpy(buff, blob_data, true_len);
-
-			/* Note that we always reserve the maximum possible
-			length of the BLOB prefix in the key value. */
-
-			buff += key_len;
-		} else {
-			/* Here we handle all other data types except the
-			true VARCHAR, BLOB and TEXT. Note that the column
-			value we store may be also in a column prefix
-			index. */
-
-			const CHARSET_INFO*	cs = NULL;
-			ulint			true_len;
-			ulint			key_len;
-			const uchar*		src_start;
-			int			error=0;
-			enum_field_types	real_type;
-
-			key_len = key_part->length;
-
-			if (is_null) {
-				 buff += key_len;
-
-				 continue;
-			}
-
-			src_start = record + key_part->offset;
-			real_type = field->real_type();
-			true_len = key_len;
-
-			/* Character set for the field is defined only
-			to fields whose type is string and real field
-			type is not enum or set. For these fields check
-			if character set is multi byte. */
-
-			if (real_type != MYSQL_TYPE_ENUM
-				&& real_type != MYSQL_TYPE_SET
-				&& ( mysql_type == MYSQL_TYPE_VAR_STRING
-					|| mysql_type == MYSQL_TYPE_STRING)) {
-
-				cs = field->charset();
-
-				/* For multi byte character sets we need to
-				calculate the true length of the key */
-
-				if (key_len > 0 && cs->mbmaxlen > 1) {
-
-					true_len = (ulint)
-						cs->cset->well_formed_len(cs,
-							(const char*) src_start,
-							(const char*) src_start
-								+ key_len,
-							(uint) (key_len
-								/ cs->mbmaxlen),
-							&error);
-				}
-			}
-
-			memcpy(buff, src_start, true_len);
-			buff += true_len;
-
-			/* Pad the unused space with spaces. */
-
-			if (true_len < key_len) {
-				ulint	pad_len = key_len - true_len;
-				ut_a(cs != NULL);
-				ut_a(!(pad_len % cs->mbminlen));
-
-				cs->cset->fill(cs, buff, pad_len,
-					       0x20 /* space */);
-				buff += pad_len;
-			}
-		}
-	}
-
-	ut_a(buff <= buff_start + buff_len);
-
-	DBUG_RETURN((uint)(buff - buff_start));
 }
 
 /**************************************************************//**
@@ -6735,7 +6427,7 @@ ha_innobase::write_row(
 		++trx->will_lock;
 	}
 
-	ha_statistic_increment(&SSV::ha_write_count);
+	ha_statistic_increment(&System_status_var::ha_write_count);
 
 	/* Step-2: Intermediate commit if original operation involves ALTER
 	table with algorithm = copy. Intermediate commit ease pressure on
@@ -7302,7 +6994,7 @@ ha_innobase::update_row(
 		}
 	}
 
-	ha_statistic_increment(&SSV::ha_update_count);
+	ha_statistic_increment(&System_status_var::ha_update_count);
 
 	upd_t*		uvect;
 
@@ -7432,7 +7124,7 @@ ha_innobase::delete_row(
 		++trx->will_lock;
 	}
 
-	ha_statistic_increment(&SSV::ha_delete_count);
+	ha_statistic_increment(&System_status_var::ha_delete_count);
 
 	if (!m_prebuilt->upd_node) {
 		row_get_prebuilt_update_vector(m_prebuilt);
@@ -7733,7 +7425,7 @@ ha_innobase::index_read(
 	ut_a(m_prebuilt->trx == thd_to_trx(m_user_thd));
 	ut_ad(key_len != 0 || find_flag != HA_READ_KEY_EXACT);
 
-	ha_statistic_increment(&SSV::ha_read_key_count);
+	ha_statistic_increment(&System_status_var::ha_read_key_count);
 
 	dict_index_t*	index = m_prebuilt->index;
 
@@ -8180,7 +7872,7 @@ ha_innobase::index_next(
 	uchar*		buf)	/*!< in/out: buffer for next row in MySQL
 				format */
 {
-	ha_statistic_increment(&SSV::ha_read_next_count);
+	ha_statistic_increment(&System_status_var::ha_read_next_count);
 
 	return(general_fetch(buf, ROW_SEL_NEXT, 0));
 }
@@ -8196,7 +7888,7 @@ ha_innobase::index_next_same(
 	const uchar*	key,	/*!< in: key value */
 	uint		keylen)	/*!< in: key value length */
 {
-	ha_statistic_increment(&SSV::ha_read_next_count);
+	ha_statistic_increment(&System_status_var::ha_read_next_count);
 
 	return(general_fetch(buf, ROW_SEL_NEXT, m_last_match_mode));
 }
@@ -8211,7 +7903,7 @@ ha_innobase::index_prev(
 /*====================*/
 	uchar*	buf)	/*!< in/out: buffer for previous row in MySQL format */
 {
-	ha_statistic_increment(&SSV::ha_read_prev_count);
+	ha_statistic_increment(&System_status_var::ha_read_prev_count);
 
 	return(general_fetch(buf, ROW_SEL_PREV, 0));
 }
@@ -8228,7 +7920,7 @@ ha_innobase::index_first(
 {
 	DBUG_ENTER("index_first");
 
-	ha_statistic_increment(&SSV::ha_read_first_count);
+	ha_statistic_increment(&System_status_var::ha_read_first_count);
 
 	int	error = index_read(buf, NULL, 0, HA_READ_AFTER_KEY);
 
@@ -8253,7 +7945,7 @@ ha_innobase::index_last(
 {
 	DBUG_ENTER("index_last");
 
-	ha_statistic_increment(&SSV::ha_read_last_count);
+	ha_statistic_increment(&System_status_var::ha_read_last_count);
 
 	int	error = index_read(buf, NULL, 0, HA_READ_BEFORE_KEY);
 
@@ -8332,7 +8024,7 @@ ha_innobase::rnd_next(
 
 	DBUG_ENTER("rnd_next");
 
-	ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+	ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
 	if (m_start_of_scan) {
 		error = index_first(buf);
@@ -8365,7 +8057,7 @@ ha_innobase::rnd_pos(
 	DBUG_ENTER("rnd_pos");
 	DBUG_DUMP("key", pos, ref_length);
 
-	ha_statistic_increment(&SSV::ha_read_rnd_count);
+	ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
 	ut_a(m_prebuilt->trx == thd_to_trx(ha_thd()));
 
@@ -8791,8 +8483,10 @@ ha_innobase::position(
 		memcpy(ref, m_prebuilt->row_id, len);
 	} else {
 
-		len = store_key_val_for_row(
-			m_primary_key, (char*) ref, ref_length, record);
+		/* Copy primary key as the row reference */
+		KEY*	key_info = table->key_info + m_primary_key;
+		key_copy(ref, (uchar*)record, key_info, key_info->key_length);
+		len = key_info->key_length;
 	}
 
 	/* We assume that the 'ref' value len is always fixed for the same
@@ -8950,7 +8644,10 @@ create_table_info_t::create_table_def()
 
 	if (DICT_TF_HAS_DATA_DIR(m_flags)) {
 		ut_a(strlen(m_remote_path));
-		table->data_dir_path = mem_heap_strdup(table->heap, m_remote_path);
+
+		table->data_dir_path = mem_heap_strdup(
+			table->heap, m_remote_path);
+
 	} else {
 		table->data_dir_path = NULL;
 	}
@@ -9082,36 +8779,99 @@ err_col:
 	needed in SYSTEM tables. */
 	if (dict_table_is_temporary(table)) {
 
-		/* Get a new table ID */
-		dict_table_assign_new_id(table, m_trx);
+		if (m_create_info->compress.length > 0) {
 
-		/* Create temp tablespace if configured. */
-		err = dict_build_tablespace_for_table(table);
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Compression not supported for "
+				"temporary tables");
+
+			err = DB_UNSUPPORTED;
+
+		} else {
+
+			/* Get a new table ID */
+			dict_table_assign_new_id(table, m_trx);
+
+			/* Create temp tablespace if configured. */
+			err = dict_build_tablespace_for_table(table);
+
+			if (err == DB_SUCCESS) {
+				/* Temp-table are maintained in memory and so
+				can_be_evicted is FALSE. */
+				mem_heap_t* temp_table_heap;
+
+				temp_table_heap = mem_heap_create(256);
+
+				/* For intrinsic table (given that they are
+				not shared beyond session scope), add
+				it to session specific THD structure
+				instead of adding it to dictionary cache. */
+				if (dict_table_is_intrinsic(table)) {
+					add_table_to_thread_cache(
+						table, temp_table_heap, m_thd);
+
+				} else {
+					dict_table_add_to_cache(
+						table, FALSE, temp_table_heap);
+				}
+
+				DBUG_EXECUTE_IF("ib_ddl_crash_during_create2",
+						DBUG_SUICIDE(););
+
+				mem_heap_free(temp_table_heap);
+			}
+		}
+
+	} else {
+
+                const char*     algorithm = m_create_info->compress.str;
+
+		err = DB_SUCCESS;
+
+		if (!(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)
+		    && m_create_info->compress.length > 0
+		    && !Compression::is_none(algorithm)) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Compression not supported for "
+				"shared tablespaces");
+
+			algorithm = NULL;
+
+			err = DB_UNSUPPORTED;
+
+		} else if (Compression::validate(algorithm) != DB_SUCCESS
+			   || m_form->s->row_type == ROW_TYPE_COMPRESSED
+			   || m_create_info->key_block_size > 0) {
+
+			algorithm = NULL;
+                }
 
 		if (err == DB_SUCCESS) {
-			/* Temp-table are maintained in memory and so
-			can_be_evicted is FALSE. */
-			mem_heap_t* temp_table_heap = mem_heap_create(256);
-
-			/* For intrinsic table (given that they are
-			not shared beyond session scope), add it to session
-			specific THD structure instead of adding it to
-			dictionary cache. */
-			if (dict_table_is_intrinsic(table)) {
-				add_table_to_thread_cache(
-					table, temp_table_heap, m_thd);
-			} else {
-				dict_table_add_to_cache(
-					table, FALSE, temp_table_heap);
-			}
-
-			DBUG_EXECUTE_IF("ib_ddl_crash_during_create2",
-					DBUG_SUICIDE(););
-
-			mem_heap_free(temp_table_heap);
+			err = row_create_table_for_mysql(
+				table, algorithm, m_trx, false);
 		}
-	} else {
-		err = row_create_table_for_mysql(table, m_trx, false);
+
+		if (err == DB_IO_NO_PUNCH_HOLE_FS) {
+
+			ut_ad(!is_shared_tablespace(table->space));
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Punch hole not supported by the "
+				"file system or the tablespace page size "
+				"is not large enough. Compression disabled");
+
+			err = DB_SUCCESS;
+		}
 	}
 
 	mem_heap_free(heap);
@@ -9682,14 +9442,6 @@ create_table_info_t::create_options_are_invalid()
 					" innodb_file_per_table.");
 				ret = "KEY_BLOCK_SIZE";
 			}
-			if (srv_file_format < UNIV_FORMAT_B) {
-				push_warning(
-					m_thd, Sql_condition::SL_WARNING,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: KEY_BLOCK_SIZE requires"
-					" innodb_file_format > Antelope.");
-				ret = "KEY_BLOCK_SIZE";
-			}
 			break;
 		default:
 			push_warning_printf(
@@ -9717,15 +9469,6 @@ create_table_info_t::create_options_are_invalid()
 					get_row_format_name(row_format));
 				ret = "ROW_FORMAT";
 			}
-			if (srv_file_format < UNIV_FORMAT_B) {
-				push_warning_printf(
-					m_thd, Sql_condition::SL_WARNING,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s requires"
-					" innodb_file_format > Antelope.",
-					get_row_format_name(row_format));
-				ret = "ROW_FORMAT";
-			}
 		}
 		break;
 	case ROW_TYPE_DYNAMIC:
@@ -9736,15 +9479,6 @@ create_table_info_t::create_options_are_invalid()
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: ROW_FORMAT=%s requires"
 					" innodb_file_per_table.",
-					get_row_format_name(row_format));
-				ret = "ROW_FORMAT";
-			}
-			if (srv_file_format < UNIV_FORMAT_B) {
-				push_warning_printf(
-					m_thd, Sql_condition::SL_WARNING,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s requires"
-					" innodb_file_format > Antelope.",
 					get_row_format_name(row_format));
 				ret = "ROW_FORMAT";
 			}
@@ -9802,6 +9536,42 @@ create_table_info_t::create_options_are_invalid()
 			ret = "KEY_BLOCK_SIZE";
 		} else {
 			ret = "ROW_TYPE";
+		}
+	}
+
+	/* Note: Currently the max length is 4: ZLIB, LZ4, NONE. */
+
+	if (ret == NULL && m_create_info->compress.length > 0) {
+
+		dberr_t		err;
+		Compression	compression;
+
+		err = Compression::check(
+			m_create_info->compress.str, &compression);
+
+		if (err == DB_UNSUPPORTED) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				ER_UNSUPPORTED_EXTENSION,
+				"InnoDB: Unsupported compression algorithm '"
+				"%s'",
+				m_create_info->compress.str);
+
+			ret = "COMPRESSION";
+
+		} else if (m_create_info->key_block_size > 0
+			   && compression.m_type != Compression::NONE) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				ER_UNSUPPORTED_EXTENSION,
+				"InnODB: Attribute not supported with row "
+				"format compressed or key block size > 0");
+
+			ret = "COMPRESSION";
 		}
 	}
 
@@ -9964,10 +9734,6 @@ create_table_info_t::innobase_table_flags()
 		ut_min(static_cast<ulint>(UNIV_PAGE_SSIZE_MAX),
 		       static_cast<ulint>(PAGE_ZIP_SSIZE_MAX));
 
-	/* Cache the value of innodb_file_format, in case it is
-	modified by another thread while the table is being created. */
-	const ulint	file_format_allowed = srv_file_format;
-
 	m_flags = 0;
 	m_flags2 = 0;
 
@@ -10019,7 +9785,7 @@ index_bad:
 		}
 	}
 
-	if (m_create_info->key_block_size) {
+	if (m_create_info->key_block_size > 0) {
 		/* The requested compressed page size (key_block_size)
 		is given in kilobytes. If it is a valid number, store
 		that value as the number of log2 shifts from 512 in
@@ -10045,16 +9811,6 @@ index_bad:
 			zip_allowed = false;
 		}
 
-		if (file_format_allowed < UNIV_FORMAT_B
-		    && !m_use_shared_space) {
-			push_warning(
-				m_thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: KEY_BLOCK_SIZE requires"
-				" innodb_file_format > Antelope.");
-			zip_allowed = false;
-		}
-
 		if (!zip_allowed
 		    || zssize > zip_ssize_max) {
 			push_warning_printf(
@@ -10062,6 +9818,32 @@ index_bad:
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu.",
 				m_create_info->key_block_size);
+		}
+
+	} else if (m_create_info->compress.length > 0) {
+
+		if (m_use_shared_space
+		    || (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Cannot compress pages of shared "
+				"tablespaces");
+		}
+
+		const char*     compression = m_create_info->compress.str;
+
+		if (Compression::validate(compression) != DB_SUCCESS) {
+
+			push_warning_printf(
+				m_thd,
+				Sql_condition::SL_WARNING,
+				HA_ERR_UNSUPPORTED,
+				"InnoDB: Unsupported compression "
+				"algorithm '%s'",
+				compression);
 		}
 	}
 
@@ -10107,11 +9889,10 @@ index_bad:
 
 	case ROW_TYPE_COMPRESSED:
 	case ROW_TYPE_DYNAMIC:
-		/* ROW_FORMAT=COMPRESSED requires file_per_table and
-		file_format=Barracuda unless there is a target tablespace.
-		ROW_FORMAT=DYNAMIC requires file_per_table and
-		file_format=Barracuda unless there is a target tablespace or
-		it is a temp file */
+		/* ROW_FORMAT=COMPRESSED requires file_per_table
+		unless there is a target tablespace.
+		ROW_FORMAT=DYNAMIC requires file_per_table
+		unless there is a target tablespace or it is a temp file */
 		if (!m_allow_file_per_table
 		    && !m_use_shared_space
 		    && (row_type == ROW_TYPE_COMPRESSED
@@ -10123,16 +9904,6 @@ index_bad:
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
 				get_row_format_name(row_type));
-
-		} else if (file_format_allowed == UNIV_FORMAT_A
-			   && !m_use_shared_space) {
-			push_warning_printf(
-				m_thd, Sql_condition::SL_WARNING,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_format > Antelope.",
-				get_row_format_name(row_type));
-
 		} else {
 			/* We can use this row_format. */
 			innodb_row_format = (row_type == ROW_TYPE_DYNAMIC
@@ -10539,7 +10310,7 @@ create_table_info_t::create_table()
 	/* Create the ancillary tables that are common to all FTS indexes on
 	this table. */
 	if (m_flags2 & DICT_TF2_FTS) {
-		enum fts_doc_id_index_enum	ret;
+		fts_doc_id_index_enum	ret;
 
 		innobase_table = dict_table_open_on_name(
 			m_table_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
@@ -10672,6 +10443,18 @@ create_table_info_t::create_table()
 		}
 	}
 
+	if (!is_intrinsic_temp_table()) {
+		innobase_table = dict_table_open_on_name(
+			m_table_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
+
+		if (innobase_table != NULL) {
+			dict_table_close(innobase_table, TRUE, FALSE);
+		}
+
+	} else {
+		innobase_table = NULL;
+	}
+
 	DBUG_RETURN(0);
 }
 
@@ -10691,7 +10474,7 @@ create_table_info_t::create_table_update_dict()
 		innobase_table = dict_table_open_on_name(
 			m_table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 	} else {
-		++innobase_table->n_ref_count;
+		innobase_table->acquire();
 		ut_ad(dict_table_is_intrinsic(innobase_table));
 	}
 
@@ -10716,15 +10499,6 @@ create_table_info_t::create_table_update_dict()
 	innobase_copy_frm_flags_from_create_info(innobase_table, m_create_info);
 
 	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE);
-
-	if (innobase_table) {
-		/* We update the highest file format in the system table
-		space, if this table has higher file format setting. */
-
-		trx_sys_file_format_max_upgrade(
-			(const char**) &innobase_file_format_max,
-			dict_table_get_format(innobase_table));
-	}
 
 	/* Load server stopword into FTS cache */
 	if (m_flags2 & DICT_TF2_FTS) {
@@ -12526,20 +12300,6 @@ ha_innobase::info_low(
 				"returning various info to MySQL";
 		}
 
-		my_snprintf(path, sizeof(path), "%s/%s%s",
-			    mysql_data_home, ib_table->name.m_name, reg_ext);
-
-		unpack_filename(path,path);
-
-		/* Note that we do not know the access time of the table,
-		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
-
-		if (os_file_get_status(
-			path, &stat_info, false,
-			(dict_table_is_intrinsic(ib_table)
-			? false : srv_read_only_mode)) == DB_SUCCESS) {
-			stats.create_time = (ulong) stat_info.ctime;
-		}
 
 		stats.update_time = (ulong) ib_table->update_time;
 	}
@@ -12827,6 +12587,22 @@ ha_innobase::info_low(
 
 		if (!(flag & HA_STATUS_NO_LOCK)) {
 			dict_table_stats_unlock(ib_table, RW_S_LATCH);
+		}
+
+		my_snprintf(path, sizeof(path), "%s/%s%s",
+			    mysql_data_home, table->s->normalized_path.str,
+			    reg_ext);
+
+		unpack_filename(path,path);
+
+		/* Note that we do not know the access time of the table,
+		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
+
+		if (os_file_get_status(
+			path, &stat_info, false,
+			(dict_table_is_intrinsic(ib_table)
+			? false : srv_read_only_mode)) == DB_SUCCESS) {
+			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
 
@@ -15358,281 +15134,6 @@ innodb_max_dirty_pages_pct_lwm_update(
 	srv_max_dirty_pages_pct_lwm = in_val;
 }
 
-/************************************************************//**
-Validate the file format name and return its corresponding id.
-@return valid file format id */
-static
-uint
-innobase_file_format_name_lookup(
-/*=============================*/
-	const char*	format_name)	/*!< in: pointer to file format name */
-{
-	char*	endp;
-	uint	format_id;
-
-	ut_a(format_name != NULL);
-
-	/* The format name can contain the format id itself instead of
-	the name and we check for that. */
-	format_id = (uint) strtoul(format_name, &endp, 10);
-
-	/* Check for valid parse. */
-	if (*endp == '\0' && *format_name != '\0') {
-
-		if (format_id <= UNIV_FORMAT_MAX) {
-
-			return(format_id);
-		}
-	} else {
-
-		for (format_id = 0; format_id <= UNIV_FORMAT_MAX;
-		     format_id++) {
-			const char*	name;
-
-			name = trx_sys_file_format_id_to_name(format_id);
-
-			if (!innobase_strcasecmp(format_name, name)) {
-
-				return(format_id);
-			}
-		}
-	}
-
-	return(UNIV_FORMAT_MAX + 1);
-}
-
-/************************************************************//**
-Validate the file format check config parameters, as a side effect it
-sets the srv_max_file_format_at_startup variable.
-@return the format_id if valid config value, otherwise, return -1 */
-static
-int
-innobase_file_format_validate_and_set(
-/*==================================*/
-	const char*	format_max)	/*!< in: parameter value */
-{
-	uint		format_id;
-
-	format_id = innobase_file_format_name_lookup(format_max);
-
-	if (format_id < UNIV_FORMAT_MAX + 1) {
-		srv_max_file_format_at_startup = format_id;
-
-		return((int) format_id);
-	} else {
-		return(-1);
-	}
-}
-
-/*************************************************************//**
-Check if it is a valid file format. This function is registered as
-a callback with MySQL.
-@return 0 for valid file format */
-static
-int
-innodb_file_format_name_validate(
-/*=============================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
-{
-	const char*	file_format_input;
-	char		buff[STRING_BUFFER_USUAL_SIZE];
-	int		len = sizeof(buff);
-
-	ut_a(save != NULL);
-	ut_a(value != NULL);
-
-	file_format_input = value->val_str(value, buff, &len);
-
-	if (file_format_input != NULL) {
-		uint	format_id;
-
-		format_id = innobase_file_format_name_lookup(
-			file_format_input);
-
-		if (format_id <= UNIV_FORMAT_MAX) {
-
-			/* Save a pointer to the name in the
-			'file_format_name_map' constant array. */
-			*static_cast<const char**>(save) =
-			    trx_sys_file_format_id_to_name(format_id);
-
-			return(0);
-		}
-	}
-
-	*static_cast<const char**>(save) = NULL;
-	return(1);
-}
-
-/****************************************************************//**
-Update the system variable innodb_file_format using the "saved"
-value. This function is registered as a callback with MySQL. */
-static
-void
-innodb_file_format_name_update(
-/*===========================*/
-	THD*				thd,		/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,		/*!< in: pointer to
-							system variable */
-	void*				var_ptr,	/*!< out: where the
-							formal string goes */
-	const void*			save)		/*!< in: immediate result
-							from check function */
-{
-	const char* format_name;
-
-	ut_a(var_ptr != NULL);
-	ut_a(save != NULL);
-
-	push_warning(thd, Sql_condition::SL_WARNING,
-		     HA_ERR_WRONG_COMMAND, deprecated_file_format);
-
-	format_name = *static_cast<const char*const*>(save);
-
-	if (format_name) {
-		uint	format_id;
-
-		format_id = innobase_file_format_name_lookup(format_name);
-
-		if (format_id <= UNIV_FORMAT_MAX) {
-			srv_file_format = format_id;
-		}
-	}
-
-	*static_cast<const char**>(var_ptr)
-		= trx_sys_file_format_id_to_name(srv_file_format);
-}
-
-/*************************************************************//**
-Check if valid argument to innodb_file_format_max. This function
-is registered as a callback with MySQL.
-@return 0 for valid file format */
-static
-int
-innodb_file_format_max_validate(
-/*============================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
-{
-	const char*	file_format_input;
-	char		buff[STRING_BUFFER_USUAL_SIZE];
-	int		len = sizeof(buff);
-	int		format_id;
-
-	ut_a(save != NULL);
-	ut_a(value != NULL);
-
-	file_format_input = value->val_str(value, buff, &len);
-
-	if (file_format_input != NULL) {
-
-		format_id = innobase_file_format_validate_and_set(
-			file_format_input);
-
-		if (format_id >= 0) {
-			/* Save a pointer to the name in the
-			'file_format_name_map' constant array. */
-			*static_cast<const char**>(save) =
-			    trx_sys_file_format_id_to_name(
-						(uint) format_id);
-
-			return(0);
-
-		} else {
-			push_warning_printf(thd,
-			  Sql_condition::SL_WARNING,
-			  ER_WRONG_ARGUMENTS,
-			  "InnoDB: invalid innodb_file_format_max"
-			  " value; can be any format up to %s"
-			  " or equivalent id of %d",
-			  trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX),
-			  UNIV_FORMAT_MAX);
-		}
-	}
-
-	*static_cast<const char**>(save) = NULL;
-	return(1);
-}
-
-/****************************************************************//**
-Update the system variable innodb_file_format_max using the "saved"
-value. This function is registered as a callback with MySQL. */
-static
-void
-innodb_file_format_max_update(
-/*==========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	const char*	format_name_in;
-	const char**	format_name_out;
-	uint		format_id;
-
-	ut_a(save != NULL);
-	ut_a(var_ptr != NULL);
-
-	push_warning(thd, Sql_condition::SL_WARNING,
-		     HA_ERR_WRONG_COMMAND, deprecated_file_format_max);
-
-	format_name_in = *static_cast<const char*const*>(save);
-
-	if (!format_name_in) {
-
-		return;
-	}
-
-	format_id = innobase_file_format_name_lookup(format_name_in);
-
-	if (format_id > UNIV_FORMAT_MAX) {
-		/* DEFAULT is "on", which is invalid at runtime. */
-		push_warning_printf(thd, Sql_condition::SL_WARNING,
-				    ER_WRONG_ARGUMENTS,
-				    "Ignoring SET innodb_file_format=%s",
-				    format_name_in);
-		return;
-	}
-
-	format_name_out = static_cast<const char**>(var_ptr);
-
-	/* Update the max format id in the system tablespace. */
-	if (trx_sys_file_format_max_set(format_id, format_name_out)) {
-		ib::info() << "The file format in the system tablespace is now"
-			" set to " << *format_name_out << ".";
-	}
-}
-
-/** Update innodb_large_prefix.
-@param[in,out]	thd	MySQL client connection
-@param[out]	var_ptr	current value
-@param[in]	save	to-be-assigned value */
-static
-void
-innodb_large_prefix_update(
-	THD*		thd,
-	st_mysql_sys_var*,
-	void*		var_ptr,
-	const void*	save)
-{
-	push_warning(thd, Sql_condition::SL_WARNING,
-		     HA_ERR_WRONG_COMMAND, deprecated_large_prefix);
-
-	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
-}
-
 /*************************************************************//**
 Check whether valid argument given to innobase_*_stopword_table.
 This function is registered as a callback with MySQL.
@@ -17017,23 +16518,6 @@ innobase_fts_retrieve_docid(
 	return(ft_prebuilt->fts_doc_id);
 }
 
-
-/***********************************************************************
-Store doc_id value into FTS_DOC_ID field */
-static
-void
-innobase_fts_store_docid(
-/*=====================*/
-	TABLE*		tbl,		/*!< in: FTS table */
-	ulonglong	doc_id)		/*!< in: FTS_DOC_ID value */
-{
-	my_bitmap_map*	old_map = dbug_tmp_use_all_columns(tbl, tbl->write_set);
-
-	tbl->fts_doc_id_field->store(static_cast<longlong>(doc_id), true);
-
-	dbug_tmp_restore_column_map(tbl->write_set, old_map);
-}
-
 /***********************************************************************
 Find and retrieve the size of the current result
 @return number of matching rows */
@@ -17381,33 +16865,6 @@ static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
   "Stores each InnoDB table to an .ibd file in the database dir.",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
-  PLUGIN_VAR_RQCMDARG,
-  "File format to use for new tables in .ibd files.",
-  innodb_file_format_name_validate,
-  innodb_file_format_name_update, innodb_file_format_default);
-
-/* "innobase_file_format_check" decides whether we would continue
-booting the server if the file format stamped on the system
-table space exceeds the maximum file format supported
-by the server. Can be set during server startup at command
-line or configure file, and a read only variable after
-server startup */
-static MYSQL_SYSVAR_BOOL(file_format_check, innobase_file_format_check,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "Whether to perform system file format check.",
-  NULL, NULL, TRUE);
-
-/* If a new file format is introduced, the file format
-name needs to be updated accordingly. Please refer to
-file_format_name_map[] defined in trx0sys.cc for the next
-file format name. */
-static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
-  PLUGIN_VAR_OPCMDARG,
-  "The highest file format in the tablespace.",
-  innodb_file_format_max_validate,
-  innodb_file_format_max_update, innodb_file_format_max_default);
-
 static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
   "The user supplied stopword table name.",
@@ -17430,11 +16887,6 @@ static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
 static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "With which method to flush data.", NULL, NULL, NULL);
-
-static MYSQL_SYSVAR_BOOL(large_prefix, innobase_large_prefix,
-  PLUGIN_VAR_NOCMDARG,
-  "Support large index prefix length of REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes.",
-  NULL, innodb_large_prefix_update, TRUE);
 
 static MYSQL_SYSVAR_BOOL(force_load_corrupted, srv_load_corrupted,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -18004,6 +17456,11 @@ static MYSQL_SYSVAR_BOOL(disable_background_merge,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_RQCMDARG,
   "Disable change buffering merges by the master thread",
   NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ENUM(compress_debug, srv_debug_compress,
+  PLUGIN_VAR_RQCMDARG,
+  "Compress all tables, without specifying the COMRPESS table attribute",
+  NULL, NULL, Compression::NONE, &innodb_debug_compress_typelib);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 static MYSQL_SYSVAR_BOOL(random_read_ahead, srv_random_read_ahead,
@@ -18149,9 +17606,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_io_threads),
   MYSQL_SYSVAR(write_io_threads),
   MYSQL_SYSVAR(file_per_table),
-  MYSQL_SYSVAR(file_format),
-  MYSQL_SYSVAR(file_format_check),
-  MYSQL_SYSVAR(file_format_max),
   MYSQL_SYSVAR(flush_log_at_timeout),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
@@ -18168,7 +17622,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(ft_min_token_size),
   MYSQL_SYSVAR(ft_num_word_optimize),
   MYSQL_SYSVAR(ft_sort_pll_degree),
-  MYSQL_SYSVAR(large_prefix),
   MYSQL_SYSVAR(force_load_corrupted),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
@@ -18269,6 +17722,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(trx_purge_view_update_only_debug),
   MYSQL_SYSVAR(fil_make_page_dirty_debug),
   MYSQL_SYSVAR(saved_page_number_debug),
+  MYSQL_SYSVAR(compress_debug),
   MYSQL_SYSVAR(disable_resize_buffer_pool_debug),
 #endif /* UNIV_DEBUG */
   NULL
@@ -18369,7 +17823,9 @@ ha_innobase::multi_range_read_init(
 	uint		mode,
 	HANDLER_BUFFER*	buf)
 {
-	return(m_ds_mrr.dsmrr_init(this, seq, seq_init_param,
+	m_ds_mrr.init(table);
+
+	return(m_ds_mrr.dsmrr_init(seq, seq_init_param,
 				 n_ranges, mode, buf));
 }
 
@@ -18391,7 +17847,7 @@ ha_innobase::multi_range_read_info_const(
 	Cost_estimate*	cost)
 {
 	/* See comments in ha_myisam::multi_range_read_info_const */
-	m_ds_mrr.init(this, table);
+	m_ds_mrr.init(table);
 
 	return(m_ds_mrr.dsmrr_info_const(
 			keyno, seq, seq_init_param,
@@ -18407,7 +17863,7 @@ ha_innobase::multi_range_read_info(
 	uint*		flags,
 	Cost_estimate*	cost)
 {
-	m_ds_mrr.init(this, table);
+	m_ds_mrr.init(table);
 
 	return(m_ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost));
 }
@@ -18692,9 +18148,8 @@ void
 ib_warn_row_too_big(const dict_table_t*	table)
 {
 	/* If prefix is true then a 768-byte prefix is stored
-	locally for BLOB fields. Refer to dict_table_get_format() */
-	const bool prefix = (dict_tf_get_format(table->flags)
-			     == UNIV_FORMAT_A);
+	locally for BLOB fields. */
+	const bool	prefix = !dict_table_has_atomic_blobs(table);
 
 	const ulint	free_space = page_get_free_space_of_empty(
 		table->flags & DICT_TF_COMPACT) / 2;

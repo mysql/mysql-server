@@ -172,37 +172,34 @@ drop table t1, t2, t3, t4, t5, t6, t7, t8;
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
-# these should have their index length trimmed
-SET GLOBAL innodb_large_prefix=OFF;
-create table t1 (col1 varchar(768), index(col1))
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t1 (col1 varchar(768) primary key)
  character set = latin1 engine = innodb;
-create table t2 (col1 varbinary(768), index(col1))
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t2 (col1 varbinary(768) primary key)
  character set = latin1 engine = innodb;
-create table t3 (col1 text, index(col1(768)))
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t3 (col1 text, primary key(col1(768)))
  character set = latin1 engine = innodb;
-create table t4 (col1 blob, index(col1(768)))
+--error ER_INDEX_COLUMN_TOO_LONG
+create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
-
-show create table t1;
-
-drop table t1, t2, t3, t4;
 
 SET sql_mode = default;
 
 # these should be refused
---error ER_TOO_LONG_KEY
+--error ER_INDEX_COLUMN_TOO_LONG
 create table t1 (col1 varchar(768) primary key)
  character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
+--error ER_INDEX_COLUMN_TOO_LONG
 create table t2 (col1 varbinary(768) primary key)
  character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
+--error ER_INDEX_COLUMN_TOO_LONG
 create table t3 (col1 text, primary key(col1(768)))
  character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
+--error ER_INDEX_COLUMN_TOO_LONG
 create table t4 (col1 blob, primary key(col1(768)))
  character set = latin1 engine = innodb;
-SET GLOBAL innodb_large_prefix=default;
 
 #
 # Test improved foreign key error messages (bug #3443)

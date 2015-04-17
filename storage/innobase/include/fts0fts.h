@@ -300,7 +300,7 @@ struct fts_table_t {
 
 	table_id_t	table_id;	/*!< The table id */
 
-	index_id_t	index_id;	/*!< The index id */
+	space_index_t	index_id;	/*!< The index id */
 
 	const char*	suffix;		/*!< The suffix of the fts auxiliary
 					table name, can be NULL, not used

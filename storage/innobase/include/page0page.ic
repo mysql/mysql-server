@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,6 @@ Created 2/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "mach0data.h"
-#ifndef UNIV_INNOCHECKSUM
 #ifdef UNIV_DEBUG
 # include "log0recv.h"
 #endif /* !UNIV_DEBUG */
@@ -151,8 +150,6 @@ page_set_ssn_id(
 	}
 }
 
-#endif /* !UNIV_INNOCHECKSUM */
-
 /*************************************************************//**
 Reads the given header field. */
 UNIV_INLINE
@@ -167,8 +164,6 @@ page_header_get_field(
 
 	return(mach_read_from_2(page + PAGE_HEADER + field));
 }
-
-#ifndef UNIV_INNOCHECKSUM
 
 /*************************************************************//**
 Sets the given header field. */
@@ -860,8 +855,6 @@ page_rec_get_next_low(
 			(void*) rec,
 			(ulong) page_get_space_id(page),
 			(ulong) page_get_page_no(page));
-		buf_page_print(page, univ_page_size, 0);
-
 		ut_error;
 	} else if (offs == 0) {
 
@@ -1260,7 +1253,6 @@ page_mem_free(
 	}
 }
 
-#endif /* !UNIV_INNOCHECKSUM */
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE	UNIV_INLINE_ORIGINAL

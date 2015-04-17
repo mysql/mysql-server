@@ -13,22 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_base.h"                   /* close_mysql_tables */
-#include "sql_parse.h"                  /* check_access */
-#include "log.h"                        /* sql_print_warning, query_logger */
-#include <sql_common.h>                 /* mpvio_info */
-#include "sql_connect.h"                /* thd_init_client_charset */
-                                        /* get_or_create_user_conn */
-                                        /* check_for_max_user_connections */
-                                        /* release_user_connection */
-#include "hostname.h"                   /* Host_errors, inc_host_errors */
-#include "password.h"                 // my_make_scrambled_password
-#include "sql_db.h"                     /* mysql_change_db */
-#include "connection_handler_manager.h"
-#include "crypt_genhash_impl.h"         /* generate_user_salt */
-#include <mysql/plugin_validate_password.h> /* validate_password plugin */
-#include <mysql/service_my_plugin_log.h>
-#include "sys_vars.h"
+#include "sql_authentication.h"
+
+#include "crypt_genhash_impl.h"         // generate_user_salt
+#include "mutex_lock.h"                 // Mutex_lock
+#include "password.h"                   // my_make_scrambled_password
+#include "sql_common.h"                 // mpvio_info
+#include "auth_internal.h"              // optimize_plugin_compare_by_pointer
+#include "connection_handler_manager.h" // Connection_handler_manager
+#include "current_thd.h"                // current_thd
+#include "derror.h"                     // ER_THD
+#include "hostname.h"                   // Host_errors, inc_host_errors
+#include "log.h"                        // sql_print_warning, query_logger
+#include "mysqld.h"                     // global_system_variables
+#include "psi_memory_key.h"             // key_memory_MPVIO_EXT_auth_info
+#include "read_write_lock.h"            // Write_lock, Read_lock, lock_at
+#include "sql_auth_cache.h"             // acl_cache
+#include "sql_class.h"                  // THD
+#include "sql_connect.h"                // thd_init_client_charset
+#include "sql_db.h"                     // mysql_change_db
+#include "sql_plugin.h"                 // my_plugin_lock_by_name
+#include "sql_time.h"                   // Interval
+#include "tztime.h"                     // Time_zone
+
 #include <fstream>                      /* std::fstream */
 #include <string>                       /* std::string */
 #include <algorithm>                    /* for_each */
@@ -42,12 +49,6 @@
 #include <openssl/err.h>
 #endif /* HAVE OPENSSL && !HAVE_YASSL */
 
-#include "auth_internal.h"
-#include "sql_auth_cache.h"
-#include "sql_authentication.h"
-#include "tztime.h"
-#include "sql_time.h"
-#include <mutex_lock.h>
 
 /****************************************************************************
    AUTHENTICATION CODE
@@ -441,16 +442,15 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 /**
   a helper function to report an access denied error in all the proper places
 */
-static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
+static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
 {
-  THD *thd= current_thd;
   if (passwd_used == 2)
   {
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
     query_logger.general_log_print(thd, COM_CONNECT,
-                                   ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                                   ER_DEFAULT(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip);
     /*
@@ -458,7 +458,7 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    sql_print_information(ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+    sql_print_information(ER_DEFAULT(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
                           mpvio->auth_info.user_name,
                           mpvio->auth_info.host_or_ip);
   }
@@ -467,20 +467,21 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
     my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip,
-             passwd_used ? ER(ER_YES) : ER(ER_NO));
-    query_logger.general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+             passwd_used ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO));
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER_DEFAULT(ER_ACCESS_DENIED_ERROR),
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip,
-                                   passwd_used ? ER(ER_YES) : ER(ER_NO));
+                                   passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
     /*
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    sql_print_information(ER(ER_ACCESS_DENIED_ERROR),
+    sql_print_information(ER_DEFAULT(ER_ACCESS_DENIED_ERROR),
                           mpvio->auth_info.user_name,
                           mpvio->auth_info.host_or_ip,
-                          passwd_used ? ER(ER_YES) : ER(ER_NO));
+                          passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
   }
 }
 
@@ -756,7 +757,7 @@ ACL_USER *decoy_user(const LEX_STRING &username,
    @retval 0    found
    @retval 1    not found
 */
-static bool find_mpvio_user(MPVIO_EXT *mpvio)
+static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
 {
   DBUG_ENTER("find_mpvio_user");
   DBUG_PRINT("info", ("entry: %s", mpvio->auth_info.user_name));
@@ -807,8 +808,8 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
     DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                               native_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    query_logger.general_log_print(current_thd, COM_CONNECT,
-                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -989,7 +990,8 @@ bool rsa_auth_status()
 
 
 /* the packet format is described in send_change_user_packet() */
-static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
+static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
+                                         size_t packet_length)
 {
   Protocol_classic *protocol = mpvio->protocol;
   char *user= (char*) protocol->get_net()->read_pos;
@@ -1005,7 +1007,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   DBUG_ENTER ("parse_com_change_user_packet");
   if (passwd >= end)
   {
-    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
     DBUG_RETURN (1);
   }
 
@@ -1024,7 +1026,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   */
   if (db >= end)
   {
-    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
     DBUG_RETURN (1);
   }
 
@@ -1071,7 +1073,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (find_mpvio_user(mpvio))
+  if (find_mpvio_user(thd, mpvio))
   {
     DBUG_RETURN(1);
   }
@@ -1082,7 +1084,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
     client_plugin= ptr + 2;
     if (client_plugin >= end)
     {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
   }
@@ -1316,7 +1318,7 @@ char *get_41_lenc_string(char **buffer,
 
 
 /* the packet format is described in send_client_reply_packet() */
-static size_t parse_client_handshake_packet(MPVIO_EXT *mpvio,
+static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
                                             uchar **buff, size_t pkt_len)
 {
 #ifndef EMBEDDED_LIBRARY
@@ -1606,7 +1608,7 @@ skip_to_ssl:
     return packet_error;
   }
 
-  if (find_mpvio_user(mpvio))
+  if (find_mpvio_user(thd, mpvio))
     return packet_error;
 
   if (!(protocol->has_client_capability(CLIENT_PLUGIN_AUTH)))
@@ -1821,7 +1823,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
   */
   if (mpvio->packets_read == 1)
   {
-    pkt_len= parse_client_handshake_packet(mpvio, buf, pkt_len);
+    pkt_len= parse_client_handshake_packet(current_thd, mpvio, buf, pkt_len);
     if (pkt_len == packet_error)
       goto err;
   }
@@ -2095,11 +2097,11 @@ acl_authenticate(THD *thd, enum_server_command command)
     /* Clear variables that are allocated */
     thd->set_user_connect(NULL);
 
-    if (parse_com_change_user_packet(&mpvio,
+    if (parse_com_change_user_packet(thd, &mpvio,
                                      mpvio.protocol->get_packet_length()))
     {
       if (!thd->is_error())
-        login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
       DBUG_RETURN(1);
     }
@@ -2205,7 +2207,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
     }
     if (!thd->is_error())
-      login_failed_error(&mpvio, mpvio.auth_info.password_used);
+      login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
     DBUG_RETURN (1);
   }
 
@@ -2244,7 +2246,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         errors.m_proxy_user= 1;
         inc_host_errors(mpvio.ip, &errors);
         if (!thd->is_error())
-          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
         DBUG_RETURN(1);
       }
 
@@ -2264,7 +2266,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         errors.m_proxy_user_acl= 1;
         inc_host_errors(mpvio.ip, &errors);
         if (!thd->is_error())
-          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
         mysql_mutex_unlock(&acl_cache->lock);
         DBUG_RETURN(1);
       }
@@ -2307,7 +2309,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       errors.m_ssl= 1;
       inc_host_errors(mpvio.ip, &errors);
       if (!thd->is_error())
-        login_failed_error(&mpvio, thd->password);
+        login_failed_error(thd, &mpvio, thd->password);
       DBUG_RETURN(1);
     }
 
@@ -2320,7 +2322,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 
       my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0),
                mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
-      sql_print_information(ER(ER_ACCOUNT_HAS_BEEN_LOCKED),
+      sql_print_information(ER_DEFAULT(ER_ACCOUNT_HAS_BEEN_LOCKED),
                             mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
       DBUG_RETURN(1);
     }
@@ -2342,8 +2344,8 @@ acl_authenticate(THD *thd, enum_server_command command)
 
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
-                                     ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      sql_print_information("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+                                     ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      sql_print_information("%s", ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);
@@ -3916,7 +3918,8 @@ static struct st_mysql_auth native_password_handler=
   native_password_authenticate,
   generate_native_password,
   validate_native_password_hash,
-  set_native_salt
+  set_native_salt,
+  AUTH_FLAG_USES_INTERNAL_STORAGE
 };
 
 #if defined(HAVE_OPENSSL)
@@ -3927,7 +3930,8 @@ static struct st_mysql_auth sha256_password_handler=
   sha256_password_authenticate,
   generate_sha256_password,
   validate_sha256_password_hash,
-  set_sha256_salt
+  set_sha256_salt,
+  AUTH_FLAG_USES_INTERNAL_STORAGE
 };
 
 #endif /* HAVE_OPENSSL */

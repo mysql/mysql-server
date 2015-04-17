@@ -18,10 +18,10 @@
 
 #include "my_global.h"
 #include "handler.h"                 // enum_schema_tables
-#include "mysqld_thd_manager.h"      // Find_THD_Impl
-#include "sql_class.h"               // THD
+#include "mysql_com.h"               // enum_server_command
 
 class Comp_creator;
+class Generated_column;
 class Item;
 class Object_creation_ctx;
 class Parser_state;
@@ -130,36 +130,127 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 
 bool sqlcom_can_generate_row_events(const THD *thd);
 
-/**
-  Callback function used by kill_one_thread and timer_notify functions
-  to find "thd" based on the thread id.
-
-  @note It acquires LOCK_thd_data mutex when it finds matching thd.
-  It is the responsibility of the caller to release this mutex.
-*/
-class Find_thd_with_id: public Find_THD_Impl
-{
-public:
-  Find_thd_with_id(ulong value): m_id(value) {}
-  virtual bool operator()(THD *thd)
-  {
-    if (thd->get_command() == COM_DAEMON)
-      return false;
-    if (thd->thread_id() == m_id)
-    {
-      mysql_mutex_lock(&thd->LOCK_thd_data);
-      return true;
-    }
-    return false;
-  }
-private:
-  ulong m_id;
-};
-
-
 #ifdef HAVE_REPLICATION
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
 #endif /*HAVE_REPLICATION*/
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
+
+/* Bits in sql_command_flags */
+
+#define CF_CHANGES_DATA           (1U << 0)
+/* The 2nd bit is unused -- it used to be CF_HAS_ROW_COUNT. */
+#define CF_STATUS_COMMAND         (1U << 2)
+#define CF_SHOW_TABLE_COMMAND     (1U << 3)
+#define CF_WRITE_LOGS_COMMAND     (1U << 4)
+/**
+  Must be set for SQL statements that may contain
+  Item expressions and/or use joins and tables.
+  Indicates that the parse tree of such statement may
+  contain rule-based optimizations that depend on metadata
+  (i.e. number of columns in a table), and consequently
+  that the statement must be re-prepared whenever
+  referenced metadata changes. Must not be set for
+  statements that themselves change metadata, e.g. RENAME,
+  ALTER and other DDL, since otherwise will trigger constant
+  reprepare. Consequently, complex item expressions and
+  joins are currently prohibited in these statements.
+*/
+#define CF_REEXECUTION_FRAGILE    (1U << 5)
+/**
+  Implicitly commit before the SQL statement is executed.
+
+  Statements marked with this flag will cause any active
+  transaction to end (commit) before proceeding with the
+  command execution.
+
+  This flag should be set for statements that probably can't
+  be rolled back or that do not expect any previously metadata
+  locked tables.
+*/
+#define CF_IMPLICIT_COMMIT_BEGIN  (1U << 6)
+/**
+  Implicitly commit after the SQL statement.
+
+  Statements marked with this flag are automatically committed
+  at the end of the statement.
+
+  This flag should be set for statements that will implicitly
+  open and take metadata locks on system tables that should not
+  be carried for the whole duration of a active transaction.
+*/
+#define CF_IMPLICIT_COMMIT_END    (1U << 7)
+/**
+  CF_IMPLICIT_COMMIT_BEGIN and CF_IMPLICIT_COMMIT_END are used
+  to ensure that the active transaction is implicitly committed
+  before and after every DDL statement and any statement that
+  modifies our currently non-transactional system tables.
+*/
+#define CF_AUTO_COMMIT_TRANS  (CF_IMPLICIT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END)
+
+/**
+  Diagnostic statement.
+  Diagnostic statements:
+  - SHOW WARNING
+  - SHOW ERROR
+  - GET DIAGNOSTICS (WL#2111)
+  do not modify the Diagnostics Area during execution.
+*/
+#define CF_DIAGNOSTIC_STMT        (1U << 8)
+
+/**
+  Identifies statements that may generate row events
+  and that may end up in the binary log.
+*/
+#define CF_CAN_GENERATE_ROW_EVENTS (1U << 9)
+
+/**
+  Identifies statements which may deal with temporary tables and for which
+  temporary tables should be pre-opened to simplify privilege checks.
+*/
+#define CF_PREOPEN_TMP_TABLES   (1U << 10)
+
+/**
+  Identifies statements for which open handlers should be closed in the
+  beginning of the statement.
+*/
+#define CF_HA_CLOSE             (1U << 11)
+
+/**
+  Identifies statements that can be explained with EXPLAIN.
+*/
+#define CF_CAN_BE_EXPLAINED       (1U << 12)
+
+/** Identifies statements which may generate an optimizer trace */
+#define CF_OPTIMIZER_TRACE        (1U << 14)
+
+/**
+   Identifies statements that should always be disallowed in
+   read only transactions.
+*/
+#define CF_DISALLOW_IN_RO_TRANS   (1U << 15)
+
+/* Bits in server_command_flags */
+
+/**
+  Skip the increase of the global query id counter. Commonly set for
+  commands that are stateless (won't cause any change on the server
+  internal states). This is made obsolete as query id is incremented 
+  for ping and statistics commands as well because of race condition 
+  (Bug#58785).
+*/
+#define CF_SKIP_QUERY_ID        (1U << 0)
+
+/**
+  Skip the increase of the number of statements that clients have
+  sent to the server. Commonly used for commands that will cause
+  a statement to be executed but the statement might have not been
+  sent by the user (ie: stored procedure).
+*/
+#define CF_SKIP_QUESTIONS       (1U << 1)
+
+/**
+  Used to mark commands that can be used with Protocol Plugin
+*/
+#define CF_ALLOW_PROTOCOL_PLUGIN (1U << 2)
 
 #endif /* SQL_PARSE_INCLUDED */

@@ -20,10 +20,12 @@
    sql_mode contains 'only_full_group_by'.
 */
 
-#include "sql_select.h"
+#include "aggregate_check.h"
+
 #include "opt_trace.h"
 #include "sql_base.h"
-#include "aggregate_check.h"
+#include "sql_select.h"
+#include "derror.h"
 
 
 /**
@@ -114,7 +116,7 @@ bool Distinct_check::check_query(THD *thd)
       differ due to white space....).
       Subqueries in ORDER BY are non-standard anyway.
     */
-    Item** const res= find_item_in_list(*order->item, select->item_list,
+    Item** const res= find_item_in_list(thd, *order->item, select->item_list,
                                         &counter, REPORT_EXCEPT_NOT_FOUND,
                                         &resolution);
     if (res == NULL)    // Other error than "not found", my_error() was called
@@ -208,12 +210,12 @@ err:
   if (select->group_list.elements)
   {
     code= ER_WRONG_FIELD_WITH_GROUP;        // old code
-    text= ER(ER_WRONG_FIELD_WITH_GROUP_V2); // new text
+    text= ER_THD(thd, ER_WRONG_FIELD_WITH_GROUP_V2); // new text
   }
   else
   {
     code= ER_MIX_OF_GROUP_FUNC_AND_FIELDS;        // old code
-    text= ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2); // new text
+    text= ER_THD(thd, ER_MIX_OF_GROUP_FUNC_AND_FIELDS_V2); // new text
   }
   my_printf_error(code, text, MYF(0), number_in_list, place,
                   failed_ident->full_name());
@@ -236,7 +238,7 @@ bool Group_check::check_expression(THD *thd, Item *expr,
     uint counter;
     enum_resolution_type resolution;
     // Search if this expression is equal to one in the SELECT list.
-    Item** const res= find_item_in_list(expr,
+    Item** const res= find_item_in_list(thd, expr,
                                         select->item_list,
                                         &counter, REPORT_EXCEPT_NOT_FOUND,
                                         &resolution);

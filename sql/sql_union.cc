@@ -20,6 +20,8 @@
 
 
 #include "sql_union.h"
+
+#include "current_thd.h"
 #include "sql_select.h"
 #include "sql_cursor.h"
 #include "sql_base.h"                           // fill_record
@@ -193,8 +195,9 @@ private:
   ha_rows limit;
 
 public:
-  Query_result_union_direct(Query_result *result, SELECT_LEX *last_select_lex)
-    :result(result), last_select_lex(last_select_lex),
+  Query_result_union_direct(THD *thd, Query_result *result,
+                            SELECT_LEX *last_select_lex)
+    :Query_result_union(thd), result(result), last_select_lex(last_select_lex),
     done_send_result_set_metadata(false), done_initialize_tables(false),
     limit_found_rows(0)
   {}
@@ -467,7 +470,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
       while (last->next_select())
         last= last->next_select();
       if (!(tmp_result= union_result=
-              new Query_result_union_direct(sel_result, last)))
+            new Query_result_union_direct(thd, sel_result, last)))
         goto err; /* purecov: inspected */
       if (fake_select_lex != NULL)
       {
@@ -479,7 +482,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
     }
     else
     {
-      if (!(tmp_result= union_result= new Query_result_union()))
+      if (!(tmp_result= union_result= new Query_result_union(thd)))
         goto err; /* purecov: inspected */
       instantiate_tmp_table= true;
     }
@@ -532,8 +535,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
     {
       if (types.elements != sl->item_list.elements)
       {
-	my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
-		   ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT),MYF(0));
+	my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
 	goto err;
       }
       List_iterator_fast<Item> it(sl->item_list);
@@ -657,8 +659,6 @@ bool st_select_lex_unit::optimize(THD *thd)
 
   DBUG_ASSERT(is_prepared() && !is_optimized());
 
-  bool status= false;          // Optimization error status
-
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     thd->lex->set_current_select(sl);
@@ -677,8 +677,8 @@ bool st_select_lex_unit::optimize(THD *thd)
       /* purecov: end */
     }
 
-    if ((status= sl->optimize(thd)))
-      break;
+    if (sl->optimize(thd))
+      DBUG_RETURN(true);
 
     /*
       Accumulate estimated number of rows.
@@ -715,13 +715,13 @@ bool st_select_lex_unit::optimize(THD *thd)
                 fake_select_lex->where_cond() == NULL &&
                 fake_select_lex->having_cond() == NULL);
 
-    status= fake_select_lex->optimize(thd);
+    if (fake_select_lex->optimize(thd))
+      DBUG_RETURN(true);
   }
-  if (!status)
-    set_optimized();    // All query blocks optimized, update the state
+  set_optimized();    // All query blocks optimized, update the state
   thd->lex->set_current_select(save_select);
 
-  DBUG_RETURN(status);
+  DBUG_RETURN(false);
 }
 
 

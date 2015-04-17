@@ -90,7 +90,7 @@ public:
 
 	uint max_supported_key_part_length() const;
 
-	const key_map* keys_to_use_for_scanning();
+	const Key_map* keys_to_use_for_scanning();
 
 	int open(const char *name, int mode, uint test_if_locked);
 
@@ -418,12 +418,6 @@ private:
 	int intrinsic_table_write_row(uchar* record);
 
 protected:
-	uint store_key_val_for_row(
-		uint			keynr,
-		char*			buff,
-		uint			buff_len,
-		const uchar*		record);
-
 	void update_thd(THD* thd);
 
 	int general_fetch(uchar* buf, uint direction, uint match_mode);
@@ -487,65 +481,51 @@ protected:
         bool                    m_mysql_has_locked;
 };
 
-
-/* Some accessor functions which the InnoDB plugin needs, but which
-can not be added to mysql/plugin.h as part of the public interface;
-the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
-
-#ifndef INNODB_COMPATIBILITY_HOOKS
-#error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
-#endif
-
-LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
-size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
-
-extern "C" {
-
-CHARSET_INFO *thd_charset(MYSQL_THD thd);
+const CHARSET_INFO *thd_charset(THD *thd);
 
 /** Check if a user thread is a replication slave thread
 @param thd user thread
 @retval 0 the user thread is not a replication slave thread
 @retval 1 the user thread is a replication slave thread */
-int thd_slave_thread(const MYSQL_THD thd);
+int thd_slave_thread(const THD *thd);
 
 /** Check if a user thread is running a non-transactional update
 @param thd user thread
 @retval 0 the user thread is not running a non-transactional update
 @retval 1 the user thread is running a non-transactional update */
-int thd_non_transactional_update(const MYSQL_THD thd);
+int thd_non_transactional_update(const THD *thd);
 
 /** Get the user thread's binary logging format
 @param thd user thread
 @return Value to be used as index into the binlog_format_names array */
-int thd_binlog_format(const MYSQL_THD thd);
+int thd_binlog_format(const THD *thd);
 
 /** Check if binary logging is filtered for thread's current db.
 @param thd Thread handle
 @retval 1 the query is not filtered, 0 otherwise. */
-bool thd_binlog_filter_ok(const MYSQL_THD thd);
+bool thd_binlog_filter_ok(const THD *thd);
 
 /** Check if the query may generate row changes which may end up in the binary.
 @param thd Thread handle
 @retval 1 the query may generate row changes, 0 otherwise.
 */
-bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
+bool thd_sqlcom_can_generate_row_events(const THD *thd);
 
 /** Gets information on the durability property requested by a thread.
 @param thd Thread handle
 @return a durability property. */
-durability_properties thd_get_durability_property(const MYSQL_THD thd);
+durability_properties thd_get_durability_property(const THD *thd);
 
 /** Get the auto_increment_offset auto_increment_increment.
 @param thd Thread object
 @param off auto_increment_offset
 @param inc auto_increment_increment */
-void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc);
+void thd_get_autoinc(const THD *thd, ulong* off, ulong* inc);
 
 /** Is strict sql_mode set.
 @param thd Thread object
 @return True if sql_mode has strict mode (all or trans), false otherwise. */
-bool thd_is_strict_mode(const MYSQL_THD thd);
+bool thd_is_strict_mode(const THD *thd);
 
 /** Get the partition_info working copy.
 @param	thd	Thread object.
@@ -553,7 +533,6 @@ bool thd_is_strict_mode(const MYSQL_THD thd);
 partition_info*
 thd_get_work_part_info(
 	THD*	thd);
-} /* extern "C" */
 
 struct trx_t;
 

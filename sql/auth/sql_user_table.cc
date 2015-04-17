@@ -28,10 +28,13 @@
 #include "sql_auth_cache.h"
 #include "sql_user_table.h"
 #include "sql_authentication.h"
+#include "sql_class.h"
+#include "field.h"
 
 #include "tztime.h"
 #include "sql_time.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
+#include "read_write_lock.h"    // Write_lock
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -791,7 +794,7 @@ int replace_db_table(TABLE *table, const char *db,
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     DBUG_RETURN(-1);
   }
 
@@ -896,7 +899,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(user->host.str,user->user.str, FALSE))
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     DBUG_RETURN(-1);
   }
 
@@ -1225,8 +1228,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   */
   if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
-               MYF(0)); /* purecov: deadcode */
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));     /* purecov: deadcode */
     DBUG_RETURN(-1);                            /* purecov: deadcode */
   }
 
@@ -1597,6 +1599,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
 
   SYNOPSIS
     handle_grant_table()
+    thd                         Thread handle
     tables                      The array with the four open tables.
     table_no                    The number of the table to handle (0..4).
     drop                        If user_from is to be dropped.
@@ -1624,7 +1627,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     < 0         Error.
 */
 
-int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
+int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;
@@ -1637,7 +1640,6 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   uchar user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   DBUG_ENTER("handle_grant_table");
-  THD *thd= current_thd;
 
   table->use_all_columns();
   if (! table_no) // mysql.user table

@@ -238,7 +238,7 @@ dict_load_foreigns(
 						which must be loaded
 						subsequently to load all the
 						foreign key constraints. */
-	__attribute__((nonnull(1), warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /********************************************************************//**
 This function opens a system table, and return the first record.
@@ -313,8 +313,8 @@ dict_process_sys_fields_rec(
 	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
 					filled */
 	ulint*		pos,		/*!< out: Field position */
-	index_id_t*	index_id,	/*!< out: current index id */
-	index_id_t	last_id);	/*!< in: previous index id */
+	space_index_t*	index_id,	/*!< out: current index id */
+	space_index_t	last_id);	/*!< in: previous index id */
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information

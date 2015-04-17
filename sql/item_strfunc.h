@@ -27,6 +27,10 @@
 
 class MY_LOCALE;
 
+CHARSET_INFO *
+mysqld_collation_get_by_name(const char *name,
+                             CHARSET_INFO *name_cs= system_charset_info);
+
 class Item_str_func :public Item_func
 {
   typedef Item_func super;
@@ -1409,12 +1413,7 @@ public:
   Item_func_uuid(const POS &pos): Item_str_func(pos) {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
-  void fix_length_and_dec()
-  {
-    collation.set(system_charset_info,
-                  DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
-    fix_char_length(UUID_LENGTH);
-  }
+  void fix_length_and_dec();
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
   bool check_gcol_func_processor(uchar *int_arg) 

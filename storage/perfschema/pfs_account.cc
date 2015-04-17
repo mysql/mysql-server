@@ -31,6 +31,7 @@
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_buffer_container.h"
+#include "mysqld.h"                             // global_status_var
 
 /**
   @addtogroup Performance_schema_buffers
@@ -163,7 +164,7 @@ search:
   entry= reinterpret_cast<PFS_account**>
     (lf_hash_search(&account_hash, pins,
                     key.m_hash_key, key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     pfs= *entry;
     pfs->inc_refcount();
@@ -199,10 +200,13 @@ search:
     if (username_length > 0 && hostname_length > 0)
     {
       lookup_setup_actor(thread, username, username_length, hostname, hostname_length,
-                         & pfs->m_enabled);
+                         & pfs->m_enabled, & pfs->m_history);
     }
     else
+    {
       pfs->m_enabled= true;
+      pfs->m_history= true;
+    }
 
     int res;
     pfs->m_lock.dirty_to_allocated(& dirty_state);
@@ -641,7 +645,7 @@ void purge_account(PFS_thread *thread, PFS_account *account)
     (lf_hash_search(&account_hash, pins,
                     account->m_key.m_hash_key,
                     account->m_key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     DBUG_ASSERT(*entry == account);
     if (account->get_refcount() == 0)
@@ -715,10 +719,13 @@ public:
       lookup_setup_actor(m_thread,
                          pfs->m_username, pfs->m_username_length,
                          pfs->m_hostname, pfs->m_hostname_length,
-                         & pfs->m_enabled);
+                         & pfs->m_enabled, & pfs->m_history);
     }
     else
+    {
       pfs->m_enabled= true;
+      pfs->m_history= true;
+    }
   }
 
 private:

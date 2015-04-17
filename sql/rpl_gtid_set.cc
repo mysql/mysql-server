@@ -25,8 +25,10 @@
 #include "log.h"                 // sql_print_warning
 #endif
 
+extern "C" {
 PSI_memory_key key_memory_Gtid_set_to_string;
 PSI_memory_key key_memory_Gtid_set_Interval_chunk;
+}
 
 using std::min;
 using std::max;

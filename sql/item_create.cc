@@ -23,6 +23,7 @@
 
 #include "item_create.h"
 
+#include "current_thd.h"
 #include "item_cmpfunc.h"        // Item_func_any_value
 #include "item_func.h"           // Item_func_udf_str
 #include "item_geofunc.h"        // Item_func_area
@@ -373,20 +374,6 @@ protected:
 };
 
 
-class Create_func_area_deprecated : public Create_func_area
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "AREA", "ST_AREA");
-    return Create_func_area::create(thd, arg1);
-  }
-
-  static Create_func_area_deprecated s_singleton;
-};
-Create_func_area_deprecated Create_func_area_deprecated::s_singleton;
-
-
 class Create_func_as_geojson : public Create_native_func
 {
 public:
@@ -414,34 +401,6 @@ protected:
 };
 
 
-class Create_func_as_binary_deprecated : public Create_func_as_wkb
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "ASBINARY", "ST_ASBINARY");
-    return Create_func_as_wkb::create(thd, arg1);
-  }
-
-  static Create_func_as_binary_deprecated s_singleton;
-};
-Create_func_as_binary_deprecated Create_func_as_binary_deprecated::s_singleton;
-
-
-class Create_func_as_wkb_deprecated : public Create_func_as_wkb
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "ASWKB", "ST_ASWKB");
-    return Create_func_as_wkb::create(thd, arg1);
-  }
-
-  static Create_func_as_wkb_deprecated s_singleton;
-};
-Create_func_as_wkb_deprecated Create_func_as_wkb_deprecated::s_singleton;
-
-
 class Create_func_as_wkt : public Create_func_arg1
 {
 public:
@@ -453,34 +412,6 @@ protected:
   Create_func_as_wkt() {}
   virtual ~Create_func_as_wkt() {}
 };
-
-
-class Create_func_as_text_deprecated : public Create_func_as_wkt
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "ASTEXT", "ST_ASTEXT");
-    return Create_func_as_wkt::create(thd, arg1);
-  }
-
-  static Create_func_as_text_deprecated s_singleton;
-};
-Create_func_as_text_deprecated Create_func_as_text_deprecated::s_singleton;
-
-
-class Create_func_as_wkt_deprecated : public Create_func_as_wkt
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "ASWKT", "ST_ASWKT");
-    return Create_func_as_wkt::create(thd, arg1);
-  }
-
-  static Create_func_as_wkt_deprecated s_singleton;
-};
-Create_func_as_wkt_deprecated Create_func_as_wkt_deprecated::s_singleton;
 
 
 class Create_func_asin : public Create_func_arg1
@@ -601,20 +532,6 @@ protected:
 };
 
 
-class Create_func_centroid_deprecated : public Create_func_centroid
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "CENTROID", "ST_CENTROID");
-    return Create_func_centroid::create(thd, arg1);
-  }
-
-  static Create_func_centroid_deprecated s_singleton;
-};
-Create_func_centroid_deprecated Create_func_centroid_deprecated::s_singleton;
-
-
 class Create_func_char_length : public Create_func_arg1
 {
 public:
@@ -733,20 +650,6 @@ protected:
 };
 
 
-class Create_func_convex_hull_deprecated : public Create_func_convex_hull
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "CONVEXHULL", "ST_CONVEXHULL");
-    return Create_func_convex_hull::create(thd, arg1);
-  }
-
-  static Create_func_convex_hull_deprecated s_singleton;
-};
-Create_func_convex_hull_deprecated Create_func_convex_hull_deprecated::s_singleton;
-
-
 class Create_func_mbr_contains : public Create_func_arg2
 {
 public:
@@ -849,20 +752,6 @@ protected:
   Create_func_crosses() {}
   virtual ~Create_func_crosses() {}
 };
-
-
-class Create_func_crosses_deprecated : public Create_func_crosses
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "CROSSES", "ST_CROSSES");
-    return Create_func_crosses::create(thd, arg1, arg2);
-  }
-
-  static Create_func_crosses_deprecated s_singleton;
-};
-Create_func_crosses_deprecated Create_func_crosses_deprecated::s_singleton;
 
 
 class Create_func_date_format : public Create_func_arg2
@@ -1010,20 +899,6 @@ protected:
 };
 
 
-class Create_func_dimension_deprecated : public Create_func_dimension
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(current_thd, "DIMENSION", "ST_DIMENSION");
-    return Create_func_dimension::create(thd, arg1);
-  }
-
-  static Create_func_dimension_deprecated s_singleton;
-};
-Create_func_dimension_deprecated Create_func_dimension_deprecated::s_singleton;
-
-
 class Create_func_mbr_disjoint : public Create_func_arg2
 {
 public:
@@ -1076,21 +951,6 @@ protected:
   Create_func_distance_sphere() {}
   virtual ~Create_func_distance_sphere() {}
 };
-
-
-class Create_func_distance_deprecated : public Create_func_distance
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "DISTANCE", "ST_DISTANCE");
-    return Create_func_distance::create_native(thd, name, item_list);
-  }
-
-  static Create_func_distance_deprecated s_singleton;
-};
-Create_func_distance_deprecated Create_func_distance_deprecated::s_singleton;
 
 
 class Create_func_elt : public Create_native_func
@@ -1147,19 +1007,6 @@ protected:
 };
 
 
-class Create_func_endpoint_deprecated : public Create_func_endpoint
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "ENDPOINT", "ST_ENDPOINT");
-    return Create_func_endpoint::create(thd, arg1);
-  }
-
-  static Create_func_endpoint_deprecated s_singleton;
-};
-Create_func_endpoint_deprecated Create_func_endpoint_deprecated::s_singleton;
-
 
 class Create_func_envelope : public Create_func_arg1
 {
@@ -1174,20 +1021,6 @@ protected:
 };
 
 
-class Create_func_envelope_deprecated : public Create_func_envelope
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "ENVELOPE", "ST_ENVELOPE");
-    return Create_func_envelope::create(thd, arg1);
-  }
-
-  static Create_func_envelope_deprecated s_singleton;
-};
-Create_func_envelope_deprecated Create_func_envelope_deprecated::s_singleton;
-
-
 class Create_func_mbr_equals : public Create_func_arg2
 {
 public:
@@ -1199,34 +1032,6 @@ protected:
   Create_func_mbr_equals() {}
   virtual ~Create_func_mbr_equals() {}
 };
-
-
-class Create_func_mbr_equal_deprecated : public Create_func_mbr_equals
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "MBREQUAL", "MBREQUALS");
-    return Create_func_mbr_equals::create(thd, arg1, arg2);
-  }
-
-  static Create_func_mbr_equal_deprecated s_singleton;
-};
-Create_func_mbr_equal_deprecated Create_func_mbr_equal_deprecated::s_singleton;
-
-
-class Create_func_equals_deprecated : public Create_func_mbr_equals
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "EQUALS", "MBREQUALS");
-    return Create_func_mbr_equals::create(thd, arg1, arg2);
-  }
-
-  static Create_func_equals_deprecated s_singleton;
-};
-Create_func_equals_deprecated Create_func_equals_deprecated::s_singleton;
 
 
 class Create_func_equals : public Create_func_arg2
@@ -1280,20 +1085,6 @@ protected:
   Create_func_exteriorring() {}
   virtual ~Create_func_exteriorring() {}
 };
-
-
-class Create_func_exteriorring_deprecated : public Create_func_exteriorring
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "EXTERIORRING", "ST_EXTERIORRING");
-    return Create_func_exteriorring::create(thd, arg1);
-  }
-
-  static Create_func_exteriorring_deprecated s_singleton;
-};
-Create_func_exteriorring_deprecated Create_func_exteriorring_deprecated::s_singleton;
 
 
 class Create_func_field : public Create_native_func
@@ -1417,231 +1208,6 @@ protected:
 };
 
 
-class Create_func_geomcollfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "GEOMCOLLFROMTEXT", "ST_GEOMCOLLFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_geomcollfromtext_deprecated s_singleton;
-};
-Create_func_geomcollfromtext_deprecated Create_func_geomcollfromtext_deprecated::s_singleton;
-
-
-class Create_func_geometrycollectionfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "GEOMETRYCOLLECTIONFROMTEXT", "ST_GEOMETRYCOLLECTIONFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_geometrycollectionfromtext_deprecated s_singleton;
-};
-Create_func_geometrycollectionfromtext_deprecated Create_func_geometrycollectionfromtext_deprecated::s_singleton;
-
-
-class Create_func_geometryfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "GEOMETRYFROMTEXT", "ST_GEOMETRYFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_geometryfromtext_deprecated s_singleton;
-};
-Create_func_geometryfromtext_deprecated Create_func_geometryfromtext_deprecated::s_singleton;
-
-
-class Create_func_geomfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "GEOMFROMTEXT", "ST_GEOMFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_geomfromtext_deprecated s_singleton;
-};
-Create_func_geomfromtext_deprecated Create_func_geomfromtext_deprecated::s_singleton;
-
-
-class Create_func_linefromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "LINEFROMTEXT", "ST_LINEFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_linefromtext_deprecated s_singleton;
-};
-Create_func_linefromtext_deprecated Create_func_linefromtext_deprecated::s_singleton;
-
-
-class Create_func_linestringfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "LINESTRINGFROMTEXT", "ST_LINESTRINGFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_linestringfromtext_deprecated s_singleton;
-};
-Create_func_linestringfromtext_deprecated Create_func_linestringfromtext_deprecated::s_singleton;
-
-
-class Create_func_mlinefromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MLINEFROMTEXT", "ST_MLINEFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_mlinefromtext_deprecated s_singleton;
-};
-Create_func_mlinefromtext_deprecated Create_func_mlinefromtext_deprecated::s_singleton;
-
-
-class Create_func_mpointfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MPOINTFROMTEXT", "ST_MPOINTFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_mpointfromtext_deprecated s_singleton;
-};
-Create_func_mpointfromtext_deprecated Create_func_mpointfromtext_deprecated::s_singleton;
-
-
-class Create_func_mpolyfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MPOLYFROMTEXT", "ST_MPOLYFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_mpolyfromtext_deprecated s_singleton;
-};
-Create_func_mpolyfromtext_deprecated Create_func_mpolyfromtext_deprecated::s_singleton;
-
-
-class Create_func_multilinestringfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MULTILINESTRINGFROMTEXT", "ST_MULTILINESTRINGFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_multilinestringfromtext_deprecated s_singleton;
-};
-Create_func_multilinestringfromtext_deprecated Create_func_multilinestringfromtext_deprecated::s_singleton;
-
-
-class Create_func_multipointfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MULTIPOINTFROMTEXT", "ST_MULTIPOINTFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_multipointfromtext_deprecated s_singleton;
-};
-Create_func_multipointfromtext_deprecated Create_func_multipointfromtext_deprecated::s_singleton;
-
-
-class Create_func_multipolygonfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MULTIPOLYGONFROMTEXT", "ST_MULTIPOLYGONFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_multipolygonfromtext_deprecated s_singleton;
-};
-Create_func_multipolygonfromtext_deprecated Create_func_multipolygonfromtext_deprecated::s_singleton;
-
-
-class Create_func_pointfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "POINTFROMTEXT", "ST_POINTFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_pointfromtext_deprecated s_singleton;
-};
-Create_func_pointfromtext_deprecated Create_func_pointfromtext_deprecated::s_singleton;
-
-
-class Create_func_polyfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "POLYFROMTEXT", "ST_POLYFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_polyfromtext_deprecated s_singleton;
-};
-Create_func_polyfromtext_deprecated Create_func_polyfromtext_deprecated::s_singleton;
-
-
-class Create_func_polygonfromtext_deprecated : public Create_func_geometry_from_text
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "POLYGONFROMTEXT", "ST_POLYGONFROMTEXT");
-    return Create_func_geometry_from_text::create_native(thd, name, item_list);
-  }
-
-  static Create_func_polygonfromtext_deprecated s_singleton;
-};
-Create_func_polygonfromtext_deprecated Create_func_polygonfromtext_deprecated::s_singleton;
-
-
 class Create_func_geometry_from_wkb : public Create_native_func
 {
 public:
@@ -1654,231 +1220,6 @@ protected:
   Create_func_geometry_from_wkb() {}
   virtual ~Create_func_geometry_from_wkb() {}
 };
-
-
-class Create_func_geomcollfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "GEOMCOLLFROMWKB", "ST_GEOMCOLLFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_geomcollfromwkb_deprecated s_singleton;
-};
-Create_func_geomcollfromwkb_deprecated Create_func_geomcollfromwkb_deprecated::s_singleton;
-
-
-class Create_func_geometrycollectionfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "GEOMETRYCOLLECTIONFROMWKB", "ST_GEOMETRYCOLLECTIONFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_geometrycollectionfromwkb_deprecated s_singleton;
-};
-Create_func_geometrycollectionfromwkb_deprecated Create_func_geometrycollectionfromwkb_deprecated::s_singleton;
-
-
-class Create_func_geometryfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "GEOMETRYFROMWKB", "ST_GEOMETRYFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_geometryfromwkb_deprecated s_singleton;
-};
-Create_func_geometryfromwkb_deprecated Create_func_geometryfromwkb_deprecated::s_singleton;
-
-
-class Create_func_geomfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "GEOMFROMWKB", "ST_GEOMFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_geomfromwkb_deprecated s_singleton;
-};
-Create_func_geomfromwkb_deprecated Create_func_geomfromwkb_deprecated::s_singleton;
-
-
-class Create_func_linefromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "LINEFROMWKB", "ST_LINEFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_linefromwkb_deprecated s_singleton;
-};
-Create_func_linefromwkb_deprecated Create_func_linefromwkb_deprecated::s_singleton;
-
-
-class Create_func_linestringfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "LINESTRINGFROMWKB", "ST_LINESTRINGFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_linestringfromwkb_deprecated s_singleton;
-};
-Create_func_linestringfromwkb_deprecated Create_func_linestringfromwkb_deprecated::s_singleton;
-
-
-class Create_func_mlinefromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MLINEFROMWKB", "ST_MLINEFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_mlinefromwkb_deprecated s_singleton;
-};
-Create_func_mlinefromwkb_deprecated Create_func_mlinefromwkb_deprecated::s_singleton;
-
-
-class Create_func_mpointfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MPOINTFROMWKB", "ST_MPOINTFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_mpointfromwkb_deprecated s_singleton;
-};
-Create_func_mpointfromwkb_deprecated Create_func_mpointfromwkb_deprecated::s_singleton;
-
-
-class Create_func_mpolyfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MPOLYFROMWKB", "ST_MPOLYFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_mpolyfromwkb_deprecated s_singleton;
-};
-Create_func_mpolyfromwkb_deprecated Create_func_mpolyfromwkb_deprecated::s_singleton;
-
-
-class Create_func_multilinestringfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MULTILINESTRINGFROMWKB", "ST_MULTILINESTRINGFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_multilinestringfromwkb_deprecated s_singleton;
-};
-Create_func_multilinestringfromwkb_deprecated Create_func_multilinestringfromwkb_deprecated::s_singleton;
-
-
-class Create_func_multipointfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MULTIPOINTFROMWKB", "ST_MULTIPOINTFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_multipointfromwkb_deprecated s_singleton;
-};
-Create_func_multipointfromwkb_deprecated Create_func_multipointfromwkb_deprecated::s_singleton;
-
-
-class Create_func_multipolygonfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "MULTIPOLYGONFROMWKB", "ST_MULTIPOLYGONFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_multipolygonfromwkb_deprecated s_singleton;
-};
-Create_func_multipolygonfromwkb_deprecated Create_func_multipolygonfromwkb_deprecated::s_singleton;
-
-
-class Create_func_pointfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "POINTFROMWKB", "ST_POINTFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_pointfromwkb_deprecated s_singleton;
-};
-Create_func_pointfromwkb_deprecated Create_func_pointfromwkb_deprecated::s_singleton;
-
-
-class Create_func_polyfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "POLYFROMWKB", "ST_POLYFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_polyfromwkb_deprecated s_singleton;
-};
-Create_func_polyfromwkb_deprecated Create_func_polyfromwkb_deprecated::s_singleton;
-
-
-class Create_func_polygonfromwkb_deprecated : public Create_func_geometry_from_wkb
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(thd, "POLYGONFROMWKB", "ST_POLYGONFROMWKB");
-    return Create_func_geometry_from_wkb::create_native(thd, name, item_list);
-  }
-
-  static Create_func_polygonfromwkb_deprecated s_singleton;
-};
-Create_func_polygonfromwkb_deprecated Create_func_polygonfromwkb_deprecated::s_singleton;
 
 
 class Create_func_geometry_type : public Create_func_arg1
@@ -1894,20 +1235,6 @@ protected:
 };
 
 
-class Create_func_geometry_type_deprecated : public Create_func_geometry_type
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "GEOMETRYTYPE", "ST_GEOMETRYTYPE");
-    return Create_func_geometry_type::create(thd, arg1);
-  }
-
-  static Create_func_geometry_type_deprecated s_singleton;
-};
-Create_func_geometry_type_deprecated Create_func_geometry_type_deprecated::s_singleton;
-
-
 class Create_func_geometryn : public Create_func_arg2
 {
 public:
@@ -1919,20 +1246,6 @@ protected:
   Create_func_geometryn() {}
   virtual ~Create_func_geometryn() {}
 };
-
-
-class Create_func_geometryn_deprecated : public Create_func_geometryn
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "GEOMETRYN", "ST_GEOMETRYN");
-    return Create_func_geometryn::create(thd, arg1, arg2);
-  }
-
-  static Create_func_geometryn_deprecated s_singleton;
-};
-Create_func_geometryn_deprecated Create_func_geometryn_deprecated::s_singleton;
 
 
 class Create_func_geomfromgeojson : public Create_native_func
@@ -1973,20 +1286,6 @@ protected:
   Create_func_glength() {}
   virtual ~Create_func_glength() {}
 };
-
-
-class Create_func_glength_deprecated : public Create_func_glength
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "GLENGTH", "ST_LENGTH");
-    return Create_func_glength::create(thd, arg1);
-  }
-
-  static Create_func_glength_deprecated s_singleton;
-};
-Create_func_glength_deprecated Create_func_glength_deprecated::s_singleton;
 
 
 class Create_func_greatest : public Create_native_func
@@ -2185,20 +1484,6 @@ protected:
 };
 
 
-class Create_func_interiorringn_deprecated : public Create_func_interiorringn
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "INTERIORRINGN", "ST_INTERIORRINGN");
-    return Create_func_interiorringn::create(thd, arg1, arg2);
-  }
-
-  static Create_func_interiorringn_deprecated s_singleton;
-};
-Create_func_interiorringn_deprecated Create_func_interiorringn_deprecated::s_singleton;
-
-
 class Create_func_mbr_intersects : public Create_func_arg2
 {
 public:
@@ -2210,20 +1495,6 @@ protected:
   Create_func_mbr_intersects() {}
   virtual ~Create_func_mbr_intersects() {}
 };
-
-
-class Create_func_intersects_deprecated : public Create_func_mbr_intersects
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "INTERSECTS", "MBRINTERSECTS");
-    return Create_func_mbr_intersects::create(thd, arg1, arg2);
-  }
-
-  static Create_func_intersects_deprecated s_singleton;
-};
-Create_func_intersects_deprecated Create_func_intersects_deprecated::s_singleton;
 
 
 class Create_func_intersects : public Create_func_arg2
@@ -2305,21 +1576,6 @@ protected:
 };
 
 
-class Create_func_buffer_deprecated : public Create_func_buffer
-{
-public:
-  virtual Item *create_native(THD *thd, LEX_STRING name,
-                              PT_item_list *item_list)
-  {
-    push_deprecated_warn(current_thd, "BUFFER", "ST_BUFFER");
-    return Create_func_buffer::create_native(thd, name, item_list);
-  }
-
-  static Create_func_buffer_deprecated s_singleton;
-};
-Create_func_buffer_deprecated Create_func_buffer_deprecated::s_singleton;
-
-
 class Create_func_is_free_lock : public Create_func_arg1
 {
 public:
@@ -2359,20 +1615,6 @@ protected:
 };
 
 
-class Create_func_isclosed_deprecated : public Create_func_isclosed
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "ISCLOSED", "ST_ISCLOSED");
-    return Create_func_isclosed::create(thd, arg1);
-  }
-
-  static Create_func_isclosed_deprecated s_singleton;
-};
-Create_func_isclosed_deprecated Create_func_isclosed_deprecated::s_singleton;
-
-
 class Create_func_isempty : public Create_func_arg1
 {
 public:
@@ -2384,20 +1626,6 @@ protected:
   Create_func_isempty() {}
   virtual ~Create_func_isempty() {}
 };
-
-
-class Create_func_isempty_deprecated : public Create_func_isempty
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "ISEMPTY", "ST_ISEMPTY");
-    return Create_func_isempty::create(thd, arg1);
-  }
-
-  static Create_func_isempty_deprecated s_singleton;
-};
-Create_func_isempty_deprecated Create_func_isempty_deprecated::s_singleton;
 
 
 class Create_func_isnull : public Create_func_arg1
@@ -2450,20 +1678,6 @@ protected:
   Create_func_validate() {}
   virtual ~Create_func_validate() {}
 };
-
-
-class Create_func_issimple_deprecated : public Create_func_issimple
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "ISSIMPLE", "ST_ISSIMPLE");
-    return Create_func_issimple::create(thd, arg1);
-  }
-
-  static Create_func_issimple_deprecated s_singleton;
-};
-Create_func_issimple_deprecated Create_func_issimple_deprecated::s_singleton;
 
 
 class Create_func_latfromgeohash : public Create_func_arg1
@@ -2850,20 +2064,6 @@ protected:
 };
 
 
-class Create_func_numgeometries_deprecated : public Create_func_numgeometries
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "NUMGEOMETRIES", "ST_NUMGEOMETRIES");
-    return Create_func_numgeometries::create(thd, arg1);
-  }
-
-  static Create_func_numgeometries_deprecated s_singleton;
-};
-Create_func_numgeometries_deprecated Create_func_numgeometries_deprecated::s_singleton;
-
-
 class Create_func_numinteriorring : public Create_func_arg1
 {
 public:
@@ -2877,20 +2077,6 @@ protected:
 };
 
 
-class Create_func_numinteriorring_deprecated : public Create_func_numinteriorring
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "NUMINTERIORRINGS", "ST_NUMINTERIORRINGS");
-    return Create_func_numinteriorring::create(thd, arg1);
-  }
-
-  static Create_func_numinteriorring_deprecated s_singleton;
-};
-Create_func_numinteriorring_deprecated Create_func_numinteriorring_deprecated::s_singleton;
-
-
 class Create_func_numpoints : public Create_func_arg1
 {
 public:
@@ -2902,20 +2088,6 @@ protected:
   Create_func_numpoints() {}
   virtual ~Create_func_numpoints() {}
 };
-
-
-class Create_func_numpoints_deprecated : public Create_func_numpoints
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "NUMPOINTS", "ST_NUMPOINTS");
-    return Create_func_numpoints::create(thd, arg1);
-  }
-
-  static Create_func_numpoints_deprecated s_singleton;
-};
-Create_func_numpoints_deprecated Create_func_numpoints_deprecated::s_singleton;
 
 
 class Create_func_oct : public Create_func_arg1
@@ -2955,20 +2127,6 @@ protected:
   Create_func_mbr_overlaps() {}
   virtual ~Create_func_mbr_overlaps() {}
 };
-
-
-class Create_func_mbr_overlaps_deprecated : public Create_func_mbr_overlaps
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "OVERLAPS", "MBROVERLAPS");
-    return Create_func_mbr_overlaps::create(thd, arg1, arg2);
-  }
-
-  static Create_func_mbr_overlaps_deprecated s_singleton;
-};
-Create_func_mbr_overlaps_deprecated Create_func_mbr_overlaps_deprecated::s_singleton;
 
 
 class Create_func_overlaps : public Create_func_arg2
@@ -3047,20 +2205,6 @@ protected:
   Create_func_pointn() {}
   virtual ~Create_func_pointn() {}
 };
-
-
-class Create_func_pointn_deprecated : public Create_func_pointn
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "POINTN", "ST_POINTN");
-    return Create_func_pointn::create(thd, arg1, arg2);
-  }
-
-  static Create_func_pointn_deprecated s_singleton;
-};
-Create_func_pointn_deprecated Create_func_pointn_deprecated::s_singleton;
 
 
 class Create_func_pow : public Create_func_arg2
@@ -3338,20 +2482,6 @@ protected:
 };
 
 
-class Create_func_srid_deprecated : public Create_func_srid
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "SRID", "ST_SRID");
-    return Create_func_srid::create(thd, arg1);
-  }
-
-  static Create_func_srid_deprecated s_singleton;
-};
-Create_func_srid_deprecated Create_func_srid_deprecated::s_singleton;
-
-
 class Create_func_startpoint : public Create_func_arg1
 {
 public:
@@ -3363,20 +2493,6 @@ protected:
   Create_func_startpoint() {}
   virtual ~Create_func_startpoint() {}
 };
-
-
-class Create_func_startpoint_deprecated : public Create_func_startpoint
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "STARTPOINT", "ST_STARTPOINT");
-    return Create_func_startpoint::create(thd, arg1);
-  }
-
-  static Create_func_startpoint_deprecated s_singleton;
-};
-Create_func_startpoint_deprecated Create_func_startpoint_deprecated::s_singleton;
 
 
 class Create_func_str_to_date : public Create_func_arg2
@@ -3547,20 +2663,6 @@ protected:
 };
 
 
-class Create_func_touches_deprecated : public Create_func_touches
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "TOUCHES", "ST_TOUCHES");
-    return Create_func_touches::create(thd, arg1, arg2);
-  }
-
-  static Create_func_touches_deprecated s_singleton;
-};
-Create_func_touches_deprecated Create_func_touches_deprecated::s_singleton;
-
-
 class Create_func_upper : public Create_func_arg1
 {
 public:
@@ -3718,20 +2820,6 @@ protected:
 };
 
 
-class Create_func_within_deprecated : public Create_func_mbr_within
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "WITHIN", "MBRWITHIN");
-    return Create_func_mbr_within::create(thd, arg1, arg2);
-  }
-
-  static Create_func_within_deprecated s_singleton;
-};
-Create_func_within_deprecated Create_func_within_deprecated::s_singleton;
-
-
 class Create_func_within : public Create_func_arg2
 {
 public:
@@ -3756,20 +2844,6 @@ protected:
   Create_func_x() {}
   virtual ~Create_func_x() {}
 };
-
-
-class Create_func_x_deprecated : public Create_func_x
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "X", "ST_X");
-    return Create_func_x::create(thd, arg1);
-  }
-
-  static Create_func_x_deprecated s_singleton;
-};
-Create_func_x_deprecated Create_func_x_deprecated::s_singleton;
 
 
 class Create_func_xml_extractvalue : public Create_func_arg2
@@ -3811,20 +2885,6 @@ protected:
 };
 
 
-class Create_func_y_deprecated : public Create_func_y
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1)
-  {
-    push_deprecated_warn(thd, "Y", "ST_Y");
-    return Create_func_y::create(thd, arg1);
-  }
-
-  static Create_func_y_deprecated s_singleton;
-};
-Create_func_y_deprecated Create_func_y_deprecated::s_singleton;
-
-
 class Create_func_year_week : public Create_native_func
 {
 public:
@@ -3852,7 +2912,6 @@ Create_qfunc::create_func(THD *thd, LEX_STRING name, PT_item_list *item_list)
 }
 
 
-#ifdef HAVE_DLOPEN
 Create_udf_func Create_udf_func::s_singleton;
 
 Item*
@@ -3905,7 +2964,6 @@ Create_udf_func::create(THD *thd, udf_func *udf, PT_item_list *item_list)
   }
   DBUG_RETURN(func);
 }
-#endif /* HAVE_DLOPEN */
 
 
 Create_sp_func Create_sp_func::s_singleton;
@@ -4597,20 +3655,6 @@ Create_func_mbr_disjoint::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_mbr_rel(POS(), arg1, arg2,
                                Item_func::SP_DISJOINT_FUNC);
 }
-
-
-class Create_func_disjoint_deprecated : public Create_func_mbr_disjoint
-{
-public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2)
-  {
-    push_deprecated_warn(thd, "DISJOINT", "MBRDISJOINT");
-    return Create_func_mbr_disjoint::create(thd, arg1, arg2);
-  }
-
-  static Create_func_disjoint_deprecated s_singleton;
-};
-Create_func_disjoint_deprecated Create_func_disjoint_deprecated::s_singleton;
 
 
 Create_func_disjoint Create_func_disjoint::s_singleton;
@@ -6675,22 +5719,15 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("AES_DECRYPT") }, BUILDER(Create_func_aes_decrypt)},
   { { C_STRING_WITH_LEN("AES_ENCRYPT") }, BUILDER(Create_func_aes_encrypt)},
   { { C_STRING_WITH_LEN("ANY_VALUE") }, BUILDER(Create_func_any_value)},
-  { { C_STRING_WITH_LEN("AREA") }, GEOM_BUILDER(Create_func_area_deprecated)},
-  { { C_STRING_WITH_LEN("ASBINARY") }, GEOM_BUILDER(Create_func_as_binary_deprecated)},
   { { C_STRING_WITH_LEN("ASIN") }, BUILDER(Create_func_asin)},
-  { { C_STRING_WITH_LEN("ASTEXT") }, GEOM_BUILDER(Create_func_as_text_deprecated)},
-  { { C_STRING_WITH_LEN("ASWKB") }, GEOM_BUILDER(Create_func_as_wkb_deprecated)},
-  { { C_STRING_WITH_LEN("ASWKT") }, GEOM_BUILDER(Create_func_as_wkt_deprecated)},
   { { C_STRING_WITH_LEN("ATAN") }, BUILDER(Create_func_atan)},
   { { C_STRING_WITH_LEN("ATAN2") }, BUILDER(Create_func_atan)},
   { { C_STRING_WITH_LEN("BENCHMARK") }, BUILDER(Create_func_benchmark)},
   { { C_STRING_WITH_LEN("BIN") }, BUILDER(Create_func_bin)},
   { { C_STRING_WITH_LEN("BIT_COUNT") }, BUILDER(Create_func_bit_count)},
-  { { C_STRING_WITH_LEN("BUFFER") }, GEOM_BUILDER(Create_func_buffer_deprecated)},
   { { C_STRING_WITH_LEN("BIT_LENGTH") }, BUILDER(Create_func_bit_length)},
   { { C_STRING_WITH_LEN("CEIL") }, BUILDER(Create_func_ceiling)},
   { { C_STRING_WITH_LEN("CEILING") }, BUILDER(Create_func_ceiling)},
-  { { C_STRING_WITH_LEN("CENTROID") }, GEOM_BUILDER(Create_func_centroid_deprecated)},
   { { C_STRING_WITH_LEN("CHARACTER_LENGTH") }, BUILDER(Create_func_char_length)},
   { { C_STRING_WITH_LEN("CHAR_LENGTH") }, BUILDER(Create_func_char_length)},
   { { C_STRING_WITH_LEN("COERCIBILITY") }, BUILDER(Create_func_coercibility)},
@@ -6700,11 +5737,9 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("CONNECTION_ID") }, BUILDER(Create_func_connection_id)},
   { { C_STRING_WITH_LEN("CONV") }, BUILDER(Create_func_conv)},
   { { C_STRING_WITH_LEN("CONVERT_TZ") }, BUILDER(Create_func_convert_tz)},
-  { { C_STRING_WITH_LEN("CONVEXHULL") }, GEOM_BUILDER(Create_func_convex_hull_deprecated)},
   { { C_STRING_WITH_LEN("COS") }, BUILDER(Create_func_cos)},
   { { C_STRING_WITH_LEN("COT") }, BUILDER(Create_func_cot)},
   { { C_STRING_WITH_LEN("CRC32") }, BUILDER(Create_func_crc32)},
-  { { C_STRING_WITH_LEN("CROSSES") }, GEOM_BUILDER(Create_func_crosses_deprecated)},
   { { C_STRING_WITH_LEN("DATEDIFF") }, BUILDER(Create_func_datediff)},
   { { C_STRING_WITH_LEN("DATE_FORMAT") }, BUILDER(Create_func_date_format)},
   { { C_STRING_WITH_LEN("DAYNAME") }, BUILDER(Create_func_dayname)},
@@ -6715,18 +5750,11 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("DEGREES") }, BUILDER(Create_func_degrees)},
   { { C_STRING_WITH_LEN("DES_DECRYPT") }, BUILDER(Create_func_des_decrypt)},
   { { C_STRING_WITH_LEN("DES_ENCRYPT") }, BUILDER(Create_func_des_encrypt)},
-  { { C_STRING_WITH_LEN("DIMENSION") }, GEOM_BUILDER(Create_func_dimension_deprecated)},
-  { { C_STRING_WITH_LEN("DISJOINT") }, GEOM_BUILDER(Create_func_disjoint_deprecated)},
-  { { C_STRING_WITH_LEN("DISTANCE") }, GEOM_BUILDER(Create_func_distance_deprecated)},
   { { C_STRING_WITH_LEN("ELT") }, BUILDER(Create_func_elt)},
   { { C_STRING_WITH_LEN("ENCODE") }, BUILDER(Create_func_encode)},
   { { C_STRING_WITH_LEN("ENCRYPT") }, BUILDER(Create_func_encrypt)},
-  { { C_STRING_WITH_LEN("ENDPOINT") }, GEOM_BUILDER(Create_func_endpoint_deprecated)},
-  { { C_STRING_WITH_LEN("ENVELOPE") }, GEOM_BUILDER(Create_func_envelope_deprecated)},
-  { { C_STRING_WITH_LEN("EQUALS") }, GEOM_BUILDER(Create_func_equals_deprecated)},
   { { C_STRING_WITH_LEN("EXP") }, BUILDER(Create_func_exp)},
   { { C_STRING_WITH_LEN("EXPORT_SET") }, BUILDER(Create_func_export_set)},
-  { { C_STRING_WITH_LEN("EXTERIORRING") }, GEOM_BUILDER(Create_func_exteriorring_deprecated)},
   { { C_STRING_WITH_LEN("EXTRACTVALUE") }, BUILDER(Create_func_xml_extractvalue)},
   { { C_STRING_WITH_LEN("FIELD") }, BUILDER(Create_func_field)},
   { { C_STRING_WITH_LEN("FIND_IN_SET") }, BUILDER(Create_func_find_in_set)},
@@ -6735,18 +5763,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("FROM_BASE64") }, BUILDER(Create_func_from_base64)},
   { { C_STRING_WITH_LEN("FROM_DAYS") }, BUILDER(Create_func_from_days)},
   { { C_STRING_WITH_LEN("FROM_UNIXTIME") }, BUILDER(Create_func_from_unixtime)},
-  { { C_STRING_WITH_LEN("GEOMCOLLFROMTEXT") }, GEOM_BUILDER(Create_func_geomcollfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("GEOMCOLLFROMWKB") }, GEOM_BUILDER(Create_func_geomcollfromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("GEOMETRYCOLLECTIONFROMTEXT") }, GEOM_BUILDER(Create_func_geometrycollectionfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("GEOMETRYCOLLECTIONFROMWKB") }, GEOM_BUILDER(Create_func_geometrycollectionfromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("GEOMETRYFROMTEXT") }, GEOM_BUILDER(Create_func_geometryfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("GEOMETRYFROMWKB") }, GEOM_BUILDER(Create_func_geometryfromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("GEOMETRYN") }, GEOM_BUILDER(Create_func_geometryn_deprecated)},
-  { { C_STRING_WITH_LEN("GEOMETRYTYPE") }, GEOM_BUILDER(Create_func_geometry_type_deprecated)},
-  { { C_STRING_WITH_LEN("GEOMFROMTEXT") }, GEOM_BUILDER(Create_func_geomfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("GEOMFROMWKB") }, GEOM_BUILDER(Create_func_geomfromwkb_deprecated)},
   { { C_STRING_WITH_LEN("GET_LOCK") }, BUILDER(Create_func_get_lock)},
-  { { C_STRING_WITH_LEN("GLENGTH") }, GEOM_BUILDER(Create_func_glength_deprecated)},
   { { C_STRING_WITH_LEN("GREATEST") }, BUILDER(Create_func_greatest)},
   { { C_STRING_WITH_LEN("GTID_SUBTRACT") }, BUILDER(Create_func_gtid_subtract) },
   { { C_STRING_WITH_LEN("GTID_SUBSET") }, BUILDER(Create_func_gtid_subset) },
@@ -6761,12 +5778,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("IS_IPV4_COMPAT") }, BUILDER(Create_func_is_ipv4_compat)},
   { { C_STRING_WITH_LEN("IS_IPV4_MAPPED") }, BUILDER(Create_func_is_ipv4_mapped)},
   { { C_STRING_WITH_LEN("INSTR") }, BUILDER(Create_func_instr)},
-  { { C_STRING_WITH_LEN("INTERIORRINGN") }, GEOM_BUILDER(Create_func_interiorringn_deprecated)},
-  { { C_STRING_WITH_LEN("INTERSECTS") }, GEOM_BUILDER(Create_func_intersects_deprecated)},
-  { { C_STRING_WITH_LEN("ISCLOSED") }, GEOM_BUILDER(Create_func_isclosed_deprecated)},
-  { { C_STRING_WITH_LEN("ISEMPTY") }, GEOM_BUILDER(Create_func_isempty_deprecated)},
   { { C_STRING_WITH_LEN("ISNULL") }, BUILDER(Create_func_isnull)},
-  { { C_STRING_WITH_LEN("ISSIMPLE") }, GEOM_BUILDER(Create_func_issimple_deprecated)},
   { { C_STRING_WITH_LEN("IS_FREE_LOCK") }, BUILDER(Create_func_is_free_lock)},
   { { C_STRING_WITH_LEN("IS_USED_LOCK") }, BUILDER(Create_func_is_used_lock)},
   { { C_STRING_WITH_LEN("LAST_DAY") }, BUILDER(Create_func_last_day)},
@@ -6778,10 +5790,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("LIKE_RANGE_MIN") }, BUILDER(Create_func_like_range_min)},
   { { C_STRING_WITH_LEN("LIKE_RANGE_MAX") }, BUILDER(Create_func_like_range_max)},
 #endif
-  { { C_STRING_WITH_LEN("LINEFROMTEXT") }, GEOM_BUILDER(Create_func_linefromtext_deprecated)},
-  { { C_STRING_WITH_LEN("LINEFROMWKB") }, GEOM_BUILDER(Create_func_linefromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("LINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_linestringfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("LINESTRINGFROMWKB") }, GEOM_BUILDER(Create_func_linestringfromwkb_deprecated)},
   { { C_STRING_WITH_LEN("LN") }, BUILDER(Create_func_ln)},
   { { C_STRING_WITH_LEN("LOAD_FILE") }, BUILDER(Create_func_load_file)},
   { { C_STRING_WITH_LEN("LOCATE") }, BUILDER(Create_func_locate)},
@@ -6799,45 +5807,21 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("MBRCOVEREDBY") }, GEOM_BUILDER(Create_func_mbr_covered_by)},
   { { C_STRING_WITH_LEN("MBRCOVERS") }, GEOM_BUILDER(Create_func_mbr_covers)},
   { { C_STRING_WITH_LEN("MBRDISJOINT") }, GEOM_BUILDER(Create_func_mbr_disjoint)},
-  { { C_STRING_WITH_LEN("MBREQUAL") }, GEOM_BUILDER(Create_func_mbr_equal_deprecated)},
   { { C_STRING_WITH_LEN("MBREQUALS") }, GEOM_BUILDER(Create_func_mbr_equals)},
   { { C_STRING_WITH_LEN("MBRINTERSECTS") }, GEOM_BUILDER(Create_func_mbr_intersects)},
   { { C_STRING_WITH_LEN("MBROVERLAPS") }, GEOM_BUILDER(Create_func_mbr_overlaps)},
   { { C_STRING_WITH_LEN("MBRTOUCHES") }, GEOM_BUILDER(Create_func_mbr_touches)},
   { { C_STRING_WITH_LEN("MBRWITHIN") }, GEOM_BUILDER(Create_func_mbr_within)},
   { { C_STRING_WITH_LEN("MD5") }, BUILDER(Create_func_md5)},
-  { { C_STRING_WITH_LEN("MLINEFROMTEXT") }, GEOM_BUILDER(Create_func_mlinefromtext_deprecated)},
-  { { C_STRING_WITH_LEN("MLINEFROMWKB") }, GEOM_BUILDER(Create_func_mlinefromwkb_deprecated)},
   { { C_STRING_WITH_LEN("MONTHNAME") }, BUILDER(Create_func_monthname)},
-  { { C_STRING_WITH_LEN("MPOINTFROMTEXT") }, GEOM_BUILDER(Create_func_mpointfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("MPOINTFROMWKB") }, GEOM_BUILDER(Create_func_mpointfromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("MPOLYFROMTEXT") }, GEOM_BUILDER(Create_func_mpolyfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("MPOLYFROMWKB") }, GEOM_BUILDER(Create_func_mpolyfromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("MULTILINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_multilinestringfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("MULTILINESTRINGFROMWKB") }, GEOM_BUILDER(Create_func_multilinestringfromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("MULTIPOINTFROMTEXT") }, GEOM_BUILDER(Create_func_multipointfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("MULTIPOINTFROMWKB") }, GEOM_BUILDER(Create_func_multipointfromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("MULTIPOLYGONFROMTEXT") }, GEOM_BUILDER(Create_func_multipolygonfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("MULTIPOLYGONFROMWKB") }, GEOM_BUILDER(Create_func_multipolygonfromwkb_deprecated)},
   { { C_STRING_WITH_LEN("NAME_CONST") }, BUILDER(Create_func_name_const)},
   { { C_STRING_WITH_LEN("NULLIF") }, BUILDER(Create_func_nullif)},
-  { { C_STRING_WITH_LEN("NUMGEOMETRIES") }, GEOM_BUILDER(Create_func_numgeometries_deprecated)},
-  { { C_STRING_WITH_LEN("NUMINTERIORRINGS") }, GEOM_BUILDER(Create_func_numinteriorring_deprecated)},
-  { { C_STRING_WITH_LEN("NUMPOINTS") }, GEOM_BUILDER(Create_func_numpoints_deprecated)},
   { { C_STRING_WITH_LEN("OCT") }, BUILDER(Create_func_oct)},
   { { C_STRING_WITH_LEN("OCTET_LENGTH") }, BUILDER(Create_func_length)},
   { { C_STRING_WITH_LEN("ORD") }, BUILDER(Create_func_ord)},
-  { { C_STRING_WITH_LEN("OVERLAPS") }, GEOM_BUILDER(Create_func_mbr_overlaps_deprecated)},
   { { C_STRING_WITH_LEN("PERIOD_ADD") }, BUILDER(Create_func_period_add)},
   { { C_STRING_WITH_LEN("PERIOD_DIFF") }, BUILDER(Create_func_period_diff)},
   { { C_STRING_WITH_LEN("PI") }, BUILDER(Create_func_pi)},
-  { { C_STRING_WITH_LEN("POINTFROMTEXT") }, GEOM_BUILDER(Create_func_pointfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("POINTFROMWKB") }, GEOM_BUILDER(Create_func_pointfromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("POINTN") }, GEOM_BUILDER(Create_func_pointn_deprecated)},
-  { { C_STRING_WITH_LEN("POLYFROMTEXT") }, GEOM_BUILDER(Create_func_polyfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("POLYFROMWKB") }, GEOM_BUILDER(Create_func_polyfromwkb_deprecated)},
-  { { C_STRING_WITH_LEN("POLYGONFROMTEXT") }, GEOM_BUILDER(Create_func_polygonfromtext_deprecated)},
-  { { C_STRING_WITH_LEN("POLYGONFROMWKB") }, GEOM_BUILDER(Create_func_polygonfromwkb_deprecated)},
   { { C_STRING_WITH_LEN("POW") }, BUILDER(Create_func_pow)},
   { { C_STRING_WITH_LEN("POWER") }, BUILDER(Create_func_pow)},
   { { C_STRING_WITH_LEN("QUOTE") }, BUILDER(Create_func_quote)},
@@ -6862,8 +5846,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("WAIT_FOR_EXECUTED_GTID_SET") }, BUILDER(Create_func_executed_gtid_set_wait)},
   { { C_STRING_WITH_LEN("WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS") }, BUILDER(Create_func_master_gtid_set_wait)},
   { { C_STRING_WITH_LEN("SQRT") }, BUILDER(Create_func_sqrt)},
-  { { C_STRING_WITH_LEN("SRID") }, GEOM_BUILDER(Create_func_srid_deprecated)},
-  { { C_STRING_WITH_LEN("STARTPOINT") }, GEOM_BUILDER(Create_func_startpoint_deprecated)},
   { { C_STRING_WITH_LEN("STRCMP") }, BUILDER(Create_func_strcmp)},
   { { C_STRING_WITH_LEN("STR_TO_DATE") }, BUILDER(Create_func_str_to_date)},
   { { C_STRING_WITH_LEN("ST_AREA") }, GEOM_BUILDER(Create_func_area)},
@@ -6955,7 +5937,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("TIMEDIFF") }, BUILDER(Create_func_timediff)},
   { { C_STRING_WITH_LEN("TIME_FORMAT") }, BUILDER(Create_func_time_format)},
   { { C_STRING_WITH_LEN("TIME_TO_SEC") }, BUILDER(Create_func_time_to_sec)},
-  { { C_STRING_WITH_LEN("TOUCHES") }, GEOM_BUILDER(Create_func_touches_deprecated)},
   { { C_STRING_WITH_LEN("TO_BASE64") }, BUILDER(Create_func_to_base64)},
   { { C_STRING_WITH_LEN("TO_DAYS") }, BUILDER(Create_func_to_days)},
   { { C_STRING_WITH_LEN("TO_SECONDS") }, BUILDER(Create_func_to_seconds)},
@@ -6972,9 +5953,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("VERSION") }, BUILDER(Create_func_version)},
   { { C_STRING_WITH_LEN("WEEKDAY") }, BUILDER(Create_func_weekday)},
   { { C_STRING_WITH_LEN("WEEKOFYEAR") }, BUILDER(Create_func_weekofyear)},
-  { { C_STRING_WITH_LEN("WITHIN") }, GEOM_BUILDER(Create_func_within_deprecated)},
-  { { C_STRING_WITH_LEN("X") }, GEOM_BUILDER(Create_func_x_deprecated)},
-  { { C_STRING_WITH_LEN("Y") }, GEOM_BUILDER(Create_func_y_deprecated)},
   { { C_STRING_WITH_LEN("YEARWEEK") }, BUILDER(Create_func_year_week)},
 
   { {0, 0}, NULL}

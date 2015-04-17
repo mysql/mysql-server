@@ -1,8 +1,5 @@
 set global innodb_support_xa=default;
 set session innodb_support_xa=default;
-set global innodb_large_prefix=off;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 SET SESSION DEFAULT_TMP_STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
@@ -806,16 +803,6 @@ ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
 drop table t1,t2;
-SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1(f1 varchar(800) binary not null, key(f1))
-character set utf8 collate utf8_general_ci;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
-insert into t1 values('aaa');
-drop table t1;
-SET sql_mode=default;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
 INSERT INTO t1 VALUES (    1 , 1              , 1);
 INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20), 1 FROM t1;
@@ -1220,17 +1207,17 @@ DROP TABLE t1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1(a text) engine=innodb default charset=utf8;
+create table t1(a text) engine=innodb row_format=dynamic default charset=utf8;
 insert into t1 values('aaa');
-alter table t1 add index(a(1024));
+alter table t1 add index(a(1025));
 Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	1071	Specified key was too long; max key length is 3072 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text,
-  KEY `a` (`a`(255))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+  KEY `a` (`a`(1024))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC
 drop table t1;
 SET sql_mode=default;
 CREATE TABLE t1 (
@@ -1993,10 +1980,6 @@ a
 # Disconnect con1
 # Connection default
 DROP TABLE t1;
-set global innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-drop table if exists t1, t2, t3;
 #
 # BUG#35850: Performance regression in 5.1.23/5.1.24
 #

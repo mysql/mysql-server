@@ -67,18 +67,7 @@
 #endif
 
 #include "my_compiler.h"
-
-
-/*
-  InnoDB depends on some MySQL internals which other plugins should not
-  need.  This is because of InnoDB's foreign key support, "safe" binlog
-  truncation, and other similar legacy features.
-
-  We define accessors for these internals unconditionally, but do not
-  expose them in mysql/plugin.h.  They are declared in ha_innodb.h for
-  InnoDB's use.
-*/
-#define INNODB_COMPATIBILITY_HOOKS
+#include "my_dbug.h"
 
 /* Macros to make switching between C and C++ mode easier */
 #ifdef __cplusplus
@@ -136,16 +125,6 @@
 #define default_shared_memory_base_name "MYSQL"
 #endif /* _WIN32*/
 
-/**
-  Cast a member of a structure to the structure that contains it.
-
-  @param  ptr     Pointer to the member.
-  @param  type    Type of the structure that contains the member.
-  @param  member  Name of the member within the structure.
-*/
-#define my_container_of(ptr, type, member)              \
-  ((type *)((char *)ptr - offsetof(type, member)))
-
 /* an assert that works at compile-time. only for constant expression */
 #define compile_time_assert(X)                                              \
   do                                                                        \
@@ -153,16 +132,12 @@
     typedef char compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
 
+/*
+  Two levels of macros are needed to stringify the
+  result of expansion of a macro argument.
+*/
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
-
-#ifdef _WIN32
-#define SO_EXT ".dll"
-#elif defined(__APPLE__)
-#define SO_EXT ".dylib"
-#else
-#define SO_EXT ".so"
-#endif
 
 #if !defined(HAVE_UINT)
 typedef unsigned int uint;
@@ -171,6 +146,8 @@ typedef unsigned short ushort;
 
 #define swap_variables(t, a, b) { t dummy; dummy= a; a= b; b= dummy; }
 #define MY_TEST(a)		((a) ? 1 : 0)
+#define MY_MAX(a, b)	((a) > (b) ? (a) : (b))
+#define MY_MIN(a, b)	((a) < (b) ? (a) : (b))
 #define set_if_bigger(a,b)  do { if ((a) < (b)) (a)=(b); } while(0)
 #define set_if_smaller(a,b) do { if ((a) > (b)) (a)=(b); } while(0)
 #define test_all_bits(a,b) (((a) & (b)) == (b))
@@ -191,9 +168,6 @@ typedef SOCKET my_socket;
 typedef int	my_socket;	/* File descriptor for sockets */
 #define INVALID_SOCKET -1
 #endif
-C_MODE_START
-typedef void	(*sig_return)();/* Returns type from signal */
-C_MODE_END
 #if defined(__GNUC__)
 typedef char	pchar;		/* Mixed prototypes can take char */
 typedef char	pbool;		/* Mixed prototypes can take char */
@@ -226,7 +200,6 @@ typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 #define FILE_BINARY	O_BINARY /* Flag to my_fopen for binary streams */
 #endif
 #ifdef HAVE_FCNTL
-#define HAVE_FCNTL_LOCK
 #define F_TO_EOF	0L	/* Param to lockf() to lock rest of file */
 #endif
 #endif /* O_SHARE */
@@ -330,10 +303,6 @@ typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 #define ONCE_ALLOC_INIT		(uint) (4096-MALLOC_OVERHEAD)
 	/* Typical record cash */
 #define RECORD_CACHE_SIZE	(uint) (64*1024-MALLOC_OVERHEAD)
-	/* Typical key cash */
-#define KEY_CACHE_SIZE		(uint) (8*1024*1024)
-	/* Default size of a key cache block  */
-#define KEY_CACHE_BLOCK_SIZE	(uint) 1024
 
 
 /* Some defines of functions for portability */
@@ -501,13 +470,9 @@ typedef long long intptr;
 #error sizeof(void *) is neither sizeof(int) nor sizeof(long) nor sizeof(long long)
 #endif
 
-#define MY_ERRPTR ((void*)(intptr)1)
-
 #if defined(_WIN32)
 typedef unsigned long long my_off_t;
-typedef unsigned long long os_off_t;
 #else
-typedef off_t os_off_t;
 #if SIZEOF_OFF_T > 4
 typedef ulonglong my_off_t;
 #else
@@ -548,29 +513,17 @@ typedef ulonglong nesting_map;  /* Used for flags of nesting constructs */
 typedef int		myf;	/* Type of MyFlags in my_funcs */
 typedef char		my_bool; /* Small bool */
 
+#if !defined(__cplusplus) && !defined(bool)
+#define bool In_C_you_should_use_my_bool_instead()
+#endif
+
 /* Macros for converting *constants* to the right type */
 #define MYF(v)		(myf) (v)
-
-/* Some helper macros */
-#define YESNO(X) ((X) ? "yes" : "no")
-
-#define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
-
-#include <my_byteorder.h>
-
-#ifdef HAVE_CHARSET_utf8
-#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
-#else
-#define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
-#endif
 
 #if defined(_WIN32)
 #define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
-#ifndef HAVE_DLOPEN
-#define HAVE_DLOPEN
-#endif
 #define DLERROR_GENERATE(errmsg, error_number) \
   char win_errormsg[2048]; \
   if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, \
@@ -599,14 +552,6 @@ typedef char		my_bool; /* Small bool */
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21U
 
-/* Define some useful general macros (should be done after all headers). */
-#define MY_MAX(a, b)	((a) > (b) ? (a) : (b))
-#define MY_MIN(a, b)	((a) < (b) ? (a) : (b))
-
-#if !defined(__cplusplus) && !defined(bool)
-#define bool In_C_you_should_use_my_bool_instead()
-#endif
-
 /* 
   MYSQL_PLUGIN_IMPORT macro is used to export mysqld data
   (i.e variables) for usage in storage engine loadable plugins.
@@ -617,8 +562,6 @@ typedef char		my_bool; /* Small bool */
 #else
 #define MYSQL_PLUGIN_IMPORT
 #endif
-
-#include <my_dbug.h>
 
 #ifdef EMBEDDED_LIBRARY
 #define NO_EMBEDDED_ACCESS_CHECKS

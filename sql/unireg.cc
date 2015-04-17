@@ -25,10 +25,14 @@
 */
 
 #include "unireg.h"
-#include "table.h"
-#include "sql_class.h"                        // THD, Internal_error_handler
+
+#include "derror.h"                           // ER_THD
+#include "mysqld.h"                           // opt_sync_frm key_file_frm
 #include "partition_info.h"                   // partition_info
+#include "psi_memory_key.h"
+#include "sql_class.h"                        // THD, Internal_error_handler
 #include "sql_table.h"                        // validate_comment_length   
+#include "table.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -47,7 +51,8 @@ static uchar * pack_screens(List<Create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
 static uint pack_keys(uchar *keybuff,uint key_count, KEY *key_info,
                       ulong data_offset);
-static bool pack_header(uchar *forminfo,enum legacy_db_type table_type,
+static bool pack_header(THD *thd, uchar *forminfo,
+                        enum legacy_db_type table_type,
 			List<Create_field> &create_fields,
 			uint info_length, uint screens, uint table_options,
 			ulong data_offset, handler *file);
@@ -140,7 +145,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   thd->push_internal_handler(&pack_header_error_handler);
 
-  error= pack_header(forminfo, ha_legacy_type(create_info->db_type),
+  error= pack_header(thd, forminfo, ha_legacy_type(create_info->db_type),
                      create_fields,info_length,
                      screens, create_info->table_options,
                      data_offset, db_file);
@@ -156,7 +161,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     // Try again without UNIREG screens (to get more columns)
     if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,1)))
       DBUG_RETURN(1);
-    if (pack_header(forminfo, ha_legacy_type(create_info->db_type),
+    if (pack_header(thd, forminfo, ha_legacy_type(create_info->db_type),
                     create_fields,info_length,
 		    screens, create_info->table_options, data_offset, db_file))
     {
@@ -267,6 +272,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     tablespace_length + 1 +
     create_fields.elements;
   create_info->extra_size+= format_section_length;
+
+  create_info->extra_size+= 2 + create_info->compress.length;
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys, key_info)) < 0)
@@ -410,6 +417,18 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     DBUG_PRINT("info", ("wrote format section, length: %u",
                         format_section_length));
     my_free(format_section_buff);
+  }
+
+  /* Write out the COMPRESS table attribute */
+  {
+    uchar length_buff[2];
+
+    int2store(length_buff, static_cast<uint16>(create_info->compress.length));
+
+    if (mysql_file_write(file, length_buff, 2, MYF(MY_NABP)) ||
+        mysql_file_write(file, (uchar*) create_info->compress.str,
+                         create_info->compress.length, MYF(MY_NABP)))
+      goto err;
   }
 
   mysql_file_seek(file, filepos, MY_SEEK_SET, MYF(0));
@@ -682,7 +701,8 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
 
 	/* Make formheader */
 
-static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
+static bool pack_header(THD *thd, uchar *forminfo,
+                        enum legacy_db_type table_type,
 			List<Create_field> &create_fields,
                         uint info_length, uint screens, uint table_options,
                         ulong data_offset, handler *file)
@@ -695,7 +715,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
 
   if (create_fields.elements > MAX_FIELDS)
   {
-    my_message(ER_TOO_MANY_FIELDS, ER(ER_TOO_MANY_FIELDS), MYF(0));
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -711,7 +731,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   Create_field *field;
   while ((field=it++))
   {
-    if (validate_comment_length(current_thd,
+    if (validate_comment_length(thd,
                                 field->comment.str,
                                 &field->comment.length,
                                 COLUMN_COMMENT_MAXLEN,
@@ -835,7 +855,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       n_length + int_length + com_length + gcol_info_length > 65535L ||
       int_count > 255)
   {
-    my_message(ER_TOO_MANY_FIELDS, ER(ER_TOO_MANY_FIELDS), MYF(0));
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -1005,8 +1025,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
 
           if(!sep)    /* disaster, enum uses all characters, none left as separator */
           {
-            my_message(ER_WRONG_FIELD_TERMINATORS,ER(ER_WRONG_FIELD_TERMINATORS),
-                       MYF(0));
+            my_error(ER_WRONG_FIELD_TERMINATORS, MYF(0));
             DBUG_RETURN(1);
           }
         }
@@ -1205,9 +1224,11 @@ static bool make_empty_rec(THD *thd, File file,
       regfield->store((longlong) 1, TRUE);
     }
     else if (type == Field::YES)		// Old unireg type
-      regfield->store(ER(ER_YES), strlen(ER(ER_YES)),system_charset_info);
+      regfield->store(ER_THD(thd, ER_YES),
+                      strlen(ER_THD(thd, ER_YES)),system_charset_info);
     else if (type == Field::NO)			// Old unireg type
-      regfield->store(ER(ER_NO), strlen(ER(ER_NO)),system_charset_info);
+      regfield->store(ER_THD(thd, ER_NO),
+                      strlen(ER_THD(thd, ER_NO)),system_charset_info);
     else
       regfield->reset();
     /*

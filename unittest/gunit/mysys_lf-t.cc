@@ -23,8 +23,9 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include <my_global.h>
-#include <my_sys.h>
+#include "my_global.h"
+#include "my_byteorder.h"
+#include "my_sys.h"
 
 
 namespace mysys_lf_unittest {

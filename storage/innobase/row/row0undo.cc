@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -200,11 +200,10 @@ row_undo_search_clust_to_pcur(
 		ut_ad(row_get_rec_trx_id(rec, clust_index, offsets)
 		      == node->trx->id);
 
-		if (dict_table_get_format(node->table) >= UNIV_FORMAT_B) {
-			/* In DYNAMIC or COMPRESSED format, there is
-			no prefix of externally stored columns in the
-			clustered index record. Build a cache of
-			column prefixes. */
+		if (dict_table_has_atomic_blobs(node->table)) {
+			/* There is no prefix of externally stored
+			columns in the clustered index record. Build a
+			cache of column prefixes. */
 			ext = &node->ext;
 		} else {
 			/* REDUNDANT and COMPACT formats store a local
@@ -243,7 +242,7 @@ Fetches an undo log record and does the undo for the recorded operation.
 If none left, or a partial rollback completed, returns control to the
 parent node, which is always a query thread node.
 @return DB_SUCCESS if operation successfully completed, else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo(
 /*=====*/

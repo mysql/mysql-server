@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,17 +19,21 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
-#include "sql_alloc.h"
-#include "trigger_def.h"  // enum_trigger_event_type
+#include "my_global.h"
+#include "m_string.h"                 // LEX_CSTRING
+#include "mysql/mysql_lex_string.h"   // LEX_STRING
+#include "sql_alloc.h"                // Sql_alloc
+#include "table.h"                    // GRANT_INFO
+#include "trigger_def.h"              // enum_trigger_event_type
 
-struct GRANT_INFO;
-
+class Query_tables_list;
 class sp_head;
 class Stored_program_creation_ctx;
-struct TABLE;
-class Query_tables_list;
-
+class String;
 typedef ulonglong sql_mode_t;
+typedef struct st_mysql_lex_string LEX_STRING;
+typedef struct st_mysql_const_lex_string LEX_CSTRING;
+
 
 /**
   This class represents a trigger object.

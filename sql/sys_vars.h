@@ -39,6 +39,7 @@
 #include "rpl_rli.h"              // sql_slave_skip_counter
 #include "rpl_msr.h"              // msr_map
 #include "rpl_group_replication.h"// is_group_replication_running
+#include "mysqld.h"               // max_system_variables test_flags ...
 
 
 /*
@@ -49,8 +50,8 @@
 #define DEFAULT(X) X
 #define BLOCK_SIZE(X) X
 #define GLOBAL_VAR(X) sys_var::GLOBAL, (((char*)&(X))-(char*)&global_system_variables), sizeof(X)
-#define SESSION_VAR(X) sys_var::SESSION, offsetof(SV, X), sizeof(((SV *)0)->X)
-#define SESSION_ONLY(X) sys_var::ONLY_SESSION, offsetof(SV, X), sizeof(((SV *)0)->X)
+#define SESSION_VAR(X) sys_var::SESSION, offsetof(System_variables, X), sizeof(((System_variables *)0)->X)
+#define SESSION_ONLY(X) sys_var::ONLY_SESSION, offsetof(System_variables, X), sizeof(((System_variables *)0)->X)
 #define NO_CMD_LINE CMD_LINE(NO_ARG, -1)
 /*
   the define below means that there's no *second* mutex guard,
@@ -770,25 +771,7 @@ public:
                                               new_val_len);
   }
 
-  bool global_update(THD *thd, set_var *var)
-  {
-    char *new_val, *ptr= var->save_result.string_value.str;
-    size_t len=var->save_result.string_value.length;
-    if (ptr)
-    {
-      new_val= (char*) my_memdup(key_memory_Sys_var_charptr_value,
-                                 ptr, len+1, MYF(MY_WME));
-      if (!new_val) return true;
-      new_val[len]= 0;
-    }
-    else
-      new_val= 0;
-    if (flags & ALLOCATED)
-      my_free(global_var(char*));
-    flags |= ALLOCATED;
-    global_var(char*)= new_val;
-    return false;
-  }
+  bool global_update(THD *thd, set_var *var);
 
   void session_save_default(THD *thd, set_var *var)
   {
@@ -2108,18 +2091,7 @@ public:
                     on_update_func)
   {}
 
-  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
-  {
-    /* Reading GLOBAL SQL_LOG_BIN produces a deprecation warning. */
-    if (base != NULL)
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_DEPRECATED_SYNTAX,
-                          ER(ER_WARN_DEPRECATED_SYNTAX),
-                          "@@global.sql_log_bin", "the constant 1 "
-                          "(since @@global.sql_log_bin is always equal to 1)");
-
-    return Sys_var_mybool::global_value_ptr(thd, base);
-  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base);
 };
 
 /**
@@ -2164,39 +2136,8 @@ public:
   {
     DBUG_ASSERT(size == sizeof(Gtid_specification));
   }
-  bool session_update(THD *thd, set_var *var)
-  {
-    DBUG_ENTER("Sys_var_gtid_next::session_update");
-    char buf[Gtid::MAX_TEXT_LENGTH + 1];
-    // Get the value
-    String str(buf, sizeof(buf), &my_charset_latin1);
-    char* res= NULL;
-    if (!var->value)
-    {
-      // set session gtid_next= default
-      DBUG_ASSERT(var->save_result.string_value.str);
-      DBUG_ASSERT(var->save_result.string_value.length);
-      res= var->save_result.string_value.str;
-    }
-    else if (var->value->val_str(&str))
-      res= var->value->val_str(&str)->c_ptr_safe();
-    if (!res)
-    {
-      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name.str, "NULL");
-      DBUG_RETURN(true);
-    }
-    global_sid_lock->rdlock();
-    Gtid_specification spec;
-    if (spec.parse(global_sid_map, res) != RETURN_STATUS_OK)
-    {
-      global_sid_lock->unlock();
-      DBUG_RETURN(true);
-    }
+  bool session_update(THD *thd, set_var *var);
 
-    bool ret= set_gtid_next(thd, spec);
-    // set_gtid_next releases global_sid_lock
-    DBUG_RETURN(ret);
-  }
   bool global_update(THD *thd, set_var *var)
   { DBUG_ASSERT(FALSE); return true; }
   void session_save_default(THD *thd, set_var *var)
@@ -2257,44 +2198,8 @@ public:
   {
     DBUG_ASSERT(size == sizeof(Gtid_set_or_null));
   }
-  bool session_update(THD *thd, set_var *var)
-  {
-    DBUG_ENTER("Sys_var_gtid_set::session_update");
-    Gtid_set_or_null *gsn=
-      (Gtid_set_or_null *)session_var_ptr(thd);
-    char *value= var->save_result.string_value.str;
-    if (value == NULL)
-      gsn->set_null();
-    else
-    {
-      Gtid_set *gs= gsn->set_non_null(global_sid_map);
-      if (gs == NULL)
-      {
-        my_error(ER_OUT_OF_RESOURCES, MYF(0)); // allocation failed
-        DBUG_RETURN(true);
-      }
-      /*
-        If string begins with '+', add to the existing set, otherwise
-        replace existing set.
-      */
-      while (isspace(*value))
-        value++;
-      if (*value == '+')
-        value++;
-      else
-        gs->clear();
-      // Add specified set of groups to Gtid_set.
-      global_sid_lock->rdlock();
-      enum_return_status ret= gs->add_gtid_text(value);
-      global_sid_lock->unlock();
-      if (ret != RETURN_STATUS_OK)
-      {
-        gsn->set_null();
-        DBUG_RETURN(true);
-      }
-    }
-    DBUG_RETURN(false);
-  }
+  bool session_update(THD *thd, set_var *var);
+
   bool global_update(THD *thd, set_var *var)
   { DBUG_ASSERT(FALSE); return true; }
   void session_save_default(THD *thd, set_var *var)
@@ -2392,13 +2297,13 @@ public:
 
 
 /**
-  Class for @@session.gtid_executed and @@global.gtid_executed.
+  Class for @@global.gtid_executed.
 */
 class Sys_var_gtid_executed : Sys_var_charptr_func
 {
 public:
   Sys_var_gtid_executed(const char *name_arg, const char *comment_arg)
-    : Sys_var_charptr_func(name_arg, comment_arg, SESSION) {}
+    : Sys_var_charptr_func(name_arg, comment_arg, GLOBAL) {}
 
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
@@ -2412,55 +2317,6 @@ public:
       gs->to_string(buf);
     global_sid_lock->unlock();
     DBUG_RETURN((uchar *)buf);
-  }
-
-public:
-  uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
-  {
-    DBUG_ENTER("Sys_var_gtid_executed::session_value_ptr");
-
-    push_warning_printf(running_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                        ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                        "@@SESSION.GTID_EXECUTED");
-    if (opt_bin_log &&
-       (target_thd == running_thd)) /* Supported for current thread only. */
-    {
-      target_thd->binlog_setup_trx_data();
-      /*
-        It is enough to check if the transaction cache is nonempty, we
-        do not need to check the statement cache.  The statement cache
-        can only be nonempty for single-statement transactions.  Since
-        single-statement transactions are flushed to the binary log
-        before the next statement gets to execute, there is no chance
-        that the value of @@session.gtid_executed is read when the
-        statement cache is nonempty.
-      */
-      if (!target_thd->is_binlog_cache_empty(true))
-      {
-        /*
-          The case sidno == -1 cannot happen since it is not implemented.
-          The cases sidno == 0 and sidno == -2 mean that we don't own any
-          GTID, so we should return empty string.
-        */
-        if (target_thd->owned_gtid.sidno > 0)
-        {
-          uchar *buf= (uchar *)running_thd->alloc(Gtid::MAX_TEXT_LENGTH + 1);
-          if (buf == NULL)
-            my_error(ER_OUT_OF_RESOURCES, MYF(0));
-          else
-            target_thd->owned_gtid.to_string(target_thd->owned_sid, (char *)buf);
-          DBUG_RETURN(buf);
-        }
-      }
-    }
-
-    uchar *buf= (uchar *)running_thd->alloc(1);
-    if (buf == NULL)
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    else
-      buf[0]= 0;
-    DBUG_RETURN(buf);
   }
 };
 
@@ -2647,205 +2503,7 @@ public:
                                    on_check_func)
   { }
 
-  bool global_update(THD *thd, set_var *var)
-  {
-    DBUG_ENTER("Sys_var_gtid_mode::global_update");
-    bool ret= true;
-
-    /*
-      Hold lock_log so that:
-      - other transactions are not flushed while gtid_mode is changed;
-      - gtid_mode is not changed while some other thread is rotating
-        the binlog.
-
-      Hold lock_msr_map so that:
-      - gtid_mode is not changed during the execution of some
-        replication command; particularly CHANGE MASTER. CHANGE MASTER
-        checks if GTID_MODE is compatible with AUTO_POSITION, and
-        later it actually updates the in-memory structure for
-        AUTO_POSITION.  If gtid_mode was changed between these calls,
-        auto_position could be set incompatible with gtid_mode.
-
-      Hold global_sid_lock.wrlock so that:
-      - other transactions cannot acquire ownership of any gtid.
-
-      Hold gtid_mode_lock so that all places that don't want to hold
-      any of the other locks, but want to read gtid_mode, don't need
-      to take the other locks.
-    */
-    gtid_mode_lock->wrlock();
-    mysql_mutex_lock(&LOCK_msr_map);
-    mysql_mutex_lock(mysql_bin_log.get_log_lock());
-    global_sid_lock->wrlock();
-    int lock_count= 4;
-
-    enum_gtid_mode new_gtid_mode=
-      (enum_gtid_mode)var->save_result.ulonglong_value;
-    enum_gtid_mode old_gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
-    DBUG_ASSERT(new_gtid_mode <= GTID_MODE_ON);
-
-    DBUG_PRINT("info", ("old_gtid_mode=%d new_gtid_mode=%d",
-                        old_gtid_mode, new_gtid_mode));
-
-    if (new_gtid_mode == old_gtid_mode)
-      goto end;
-
-    // Can only change one step at a time.
-    if (abs((int)new_gtid_mode - (int)old_gtid_mode) > 1)
-    {
-      my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
-      goto err;
-    }
-
-    // Not allowed with slave_sql_skip_counter
-    DBUG_PRINT("info", ("sql_slave_skip_counter=%d", sql_slave_skip_counter));
-    if (new_gtid_mode == GTID_MODE_ON && sql_slave_skip_counter > 0)
-    {
-      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
-               "@@GLOBAL.SQL_SLAVE_SKIP_COUNTER is greater than zero");
-      goto err;
-    }
-
-    // Cannot set OFF when some channel uses AUTO_POSITION.
-    if (new_gtid_mode == GTID_MODE_OFF)
-    {
-      for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
-      {
-        Master_info *mi= it->second;
-        DBUG_PRINT("info", ("auto_position for channel '%s' is %d",
-                            mi->get_channel(), mi->is_auto_position()));
-        if (mi != NULL && mi->is_auto_position())
-        {
-          char buf[512];
-          sprintf(buf, "replication channel '%.192s' is configured "
-                  "in AUTO_POSITION mode. Execute "
-                  "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 "
-                  "FOR CHANNEL '%.192s' before you set "
-                  "@@GLOBAL.GTID_MODE = OFF.",
-                  mi->get_channel(), mi->get_channel());
-          my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF", buf);
-          goto err;
-        }
-      }
-    }
-
-    // Can't set GTID_MODE != ON when group replication is enabled.
-    if (is_group_replication_running())
-    {
-      DBUG_ASSERT(old_gtid_mode == GTID_MODE_ON);
-      DBUG_ASSERT(new_gtid_mode == GTID_MODE_ON_PERMISSIVE);
-      my_error(ER_CANT_SET_GTID_MODE, MYF(0),
-               get_gtid_mode_string(new_gtid_mode),
-               "group replication requires @@GLOBAL.GTID_MODE=ON");
-      goto err;
-    }
-
-    // Compatible with ongoing transactions.
-    DBUG_PRINT("info", ("anonymous_ownership_count=%d owned_gtids->is_empty=%d",
-                        gtid_state->get_anonymous_ownership_count(),
-                        gtid_state->get_owned_gtids()->is_empty()));
-    gtid_state->get_owned_gtids()->dbug_print("global owned_gtids");
-    if (new_gtid_mode == GTID_MODE_ON &&
-        gtid_state->get_anonymous_ownership_count() > 0)
-    {
-      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
-               "there are ongoing, anonymous transactions. Before "
-               "setting @@GLOBAL.GTID_MODE = ON, wait until "
-               "SHOW STATUS LIKE 'ANONYMOUS_TRANSACTION_COUNT' "
-               "shows zero on all servers. Then wait for all "
-               "existing, anonymous transactions to replicate to "
-               "all slaves, and then execute "
-               "SET @@GLOBAL.GTID_MODE = ON on all servers. "
-               "See the Manual for details");
-      goto err;
-    }
-
-    if (new_gtid_mode == GTID_MODE_OFF &&
-        !gtid_state->get_owned_gtids()->is_empty())
-    {
-      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF",
-               "there are ongoing transactions that have a GTID. "
-               "Before you set @@GLOBAL.GTID_MODE = OFF, wait "
-               "until SELECT @@GLOBAL.GTID_OWNED is empty on all "
-               "servers. Then wait for all GTID-transactions to "
-               "replicate to all servers, and then execute "
-               "SET @@GLOBAL.GTID_MODE = OFF on all servers. "
-               "See the Manual for details");
-      goto err;
-    }
-
-    // Compatible with ongoing GTID-violating transactions
-    DBUG_PRINT("info", ("automatic_gtid_violating_transaction_count=%d",
-                        gtid_state->get_automatic_gtid_violating_transaction_count()));
-    if (new_gtid_mode >= GTID_MODE_ON_PERMISSIVE &&
-        gtid_state->get_automatic_gtid_violating_transaction_count() > 0)
-    {
-      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON_PERMISSIVE",
-               "there are ongoing transactions that use "
-               "GTID_NEXT = 'AUTOMATIC', which violate GTID "
-               "consistency. Adjust your workload to be "
-               "GTID-consistent before setting "
-               "@@GLOBAL.GTID_MODE = ON_PERMISSIVE. "
-               "See the Manual for "
-               "@@GLOBAL.ENFORCE_GTID_CONSISTENCY for details");
-      goto err;
-    }
-
-    // Compatible with ENFORCE_GTID_CONSISTENCY.
-    if (new_gtid_mode == GTID_MODE_ON &&
-        get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON)
-    {
-      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
-               "ENFORCE_GTID_CONSISTENCY is not ON");
-      goto err;
-    }
-
-    // Can't set GTID_MODE=OFF with ongoing calls to
-    // WAIT_FOR_EXECUTED_GTID_SET or
-    // WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
-    DBUG_PRINT("info", ("gtid_wait_count=%d", gtid_state->get_gtid_wait_count() > 0));
-    if (new_gtid_mode == GTID_MODE_OFF &&
-        gtid_state->get_gtid_wait_count() > 0)
-    {
-      my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF",
-               "there are ongoing calls to "
-               "WAIT_FOR_EXECUTED_GTID_SET or "
-               "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set "
-               "@@GLOBAL.GTID_MODE = OFF, ensure that no other "
-               "client is waiting for GTID-transactions to be "
-               "committed");
-      goto err;
-    }
-
-    // Update the mode
-    global_var(ulong)= new_gtid_mode;
-    global_sid_lock->unlock();
-    lock_count= 3;
-
-    // Generate note in log
-    sql_print_information("Changed GTID_MODE from %s to %s.",
-                          gtid_mode_names[old_gtid_mode],
-                          gtid_mode_names[new_gtid_mode]);
-
-    // Rotate
-    {
-      bool dont_care= false;
-      if (mysql_bin_log.rotate(true, &dont_care))
-        goto err;
-    }
-
-end:
-    ret= false;
-err:
-    DBUG_ASSERT(lock_count >= 0);
-    DBUG_ASSERT(lock_count <= 4);
-    if (lock_count == 4)
-      global_sid_lock->unlock();
-    mysql_mutex_unlock(mysql_bin_log.get_log_lock());
-    mysql_mutex_unlock(&LOCK_msr_map);
-    gtid_mode_lock->unlock();
-    DBUG_RETURN(ret);
-  }
+  bool global_update(THD *thd, set_var *var);
 };
 
 #endif /* HAVE_REPLICATION */
@@ -2873,83 +2531,7 @@ public:
                lock, binlog_status_arg, on_check_func)
   { }
 
-  bool global_update(THD *thd, set_var *var)
-  {
-    DBUG_ENTER("Sys_var_enforce_gtid_consistency::global_update");
-    bool ret= true;
-
-    /*
-      Hold global_sid_lock.wrlock so that other transactions cannot
-      acquire ownership of any gtid.
-    */
-    global_sid_lock->wrlock();
-
-    DBUG_PRINT("info", ("var->save_result.ulonglong_value=%llu",
-                        var->save_result.ulonglong_value));
-    enum_gtid_consistency_mode new_mode=
-      (enum_gtid_consistency_mode)var->save_result.ulonglong_value;
-    enum_gtid_consistency_mode old_mode= get_gtid_consistency_mode();
-    enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
-
-    DBUG_ASSERT(new_mode <= GTID_CONSISTENCY_MODE_WARN);
-
-    DBUG_PRINT("info", ("old enforce_gtid_consistency=%d "
-                        "new enforce_gtid_consistency=%d "
-                        "gtid_mode=%d ",
-                        old_mode, new_mode, gtid_mode));
-
-    if (new_mode == old_mode)
-      goto end;
-
-    // Can't turn off GTID-consistency when GTID_MODE=ON.
-    if (new_mode != GTID_CONSISTENCY_MODE_ON && gtid_mode == GTID_MODE_ON)
-    {
-      my_error(ER_GTID_MODE_ON_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
-      goto err;
-    }
-    // If there are ongoing GTID-violating transactions, and we are
-    // moving from OFF->ON, WARN->ON, or OFF->WARN, generate warning
-    // or error accordingly.
-    if (new_mode == GTID_CONSISTENCY_MODE_ON ||
-        (old_mode == GTID_CONSISTENCY_MODE_OFF &&
-         new_mode == GTID_CONSISTENCY_MODE_WARN))
-    {
-      DBUG_PRINT("info",
-                 ("automatic_gtid_violating_transaction_count=%d "
-                  "anonymous_gtid_violating_transaction_count=%d",
-                  gtid_state->get_automatic_gtid_violating_transaction_count(),
-                  gtid_state->get_anonymous_gtid_violating_transaction_count()));
-      if (gtid_state->get_automatic_gtid_violating_transaction_count() > 0 ||
-          gtid_state->get_anonymous_gtid_violating_transaction_count() > 0)
-      {
-        if (new_mode == GTID_CONSISTENCY_MODE_ON)
-        {
-          my_error(ER_CANT_SET_ENFORCE_GTID_CONSISTENCY_ON_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS, MYF(0));
-          goto err;
-        }
-        else
-        {
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS,
-                              "%s", ER(ER_SET_ENFORCE_GTID_CONSISTENCY_WARN_WITH_ONGOING_GTID_VIOLATING_TRANSACTIONS));
-        }
-      }
-    }
-
-    // Update the mode
-    global_var(ulong)= new_mode;
-
-    // Generate note in log
-    sql_print_information("Changed ENFORCE_GTID_CONSISTENCY from %s to %s.",
-                          get_gtid_consistency_mode_string(old_mode),
-                          get_gtid_consistency_mode_string(new_mode));
-
-end:
-    ret= false;
-err:
-    global_sid_lock->unlock();
-    DBUG_RETURN(ret);
-  }
+  bool global_update(THD *thd, set_var *var);
 };
 
 #endif /* SYS_VARS_H_INCLUDED */

@@ -19,15 +19,25 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "auth_acls.h"                          /* ACL information */
 #include "sql_string.h"                         /* String */
-#include "table.h"                              /* TABLE_LIST */
-#include "field.h"
+#include "mysql_com.h"                          /* enum_server_command */
+#include "sql_list.h"                           /* List */
+#include "template_utils.h"
 
 /* Forward Declarations */
+class Alter_info;
+class Field_iterator_table_ref;
 class LEX_COLUMN;
 class THD;
+typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
+typedef struct st_lex_user LEX_USER;
+typedef struct st_ha_create_information HA_CREATE_INFO;
 struct GRANT_INFO;
+class Item;
 struct LEX;
 typedef struct user_conn USER_CONN;
+class Security_context;
+struct TABLE;
+struct TABLE_LIST;
 
 /* Classes */
 
@@ -499,20 +509,16 @@ public:
   virtual Acl_load_user_table_schema* get_user_table_schema(TABLE *table)
   {
     return is_old_user_table_schema(table) ?
-      (Acl_load_user_table_schema*) new Acl_load_user_table_old_schema():
-      (Acl_load_user_table_schema*) new Acl_load_user_table_current_schema();
+      implicit_cast<Acl_load_user_table_schema*>
+      (new Acl_load_user_table_old_schema()) :
+      implicit_cast<Acl_load_user_table_schema*>
+      (new Acl_load_user_table_current_schema());
   }
 
-  virtual bool is_old_user_table_schema(TABLE* table)
-  {
-    Field *password_field=
-      table->field[Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
-    return strncmp(password_field->field_name, "Password", 8) == 0;
-  }
+  virtual bool is_old_user_table_schema(TABLE* table);
   virtual ~Acl_load_user_table_schema_factory() {}
 };
 
-extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
 extern my_bool disconnect_on_expired_password;
 extern const char *any_db;	// Special symbol for check_access
@@ -538,13 +544,15 @@ bool acl_check_host(const char *host, const char *ip);
   statement. These attributes are divided into following catagories.
 */
 
-#define DEFAULT_AUTH_ATTR       1    /* update defaults auth */
-#define PLUGIN_ATTR             2    /* update plugin, authentication_string */
-#define SSL_ATTR                4    /* ex: SUBJECT,CIPHER.. */
-#define RESOURCE_ATTR           8    /* ex: MAX_QUERIES_PER_HOUR.. */
-#define PASSWORD_EXPIRE_ATTR    16   /* update password expire col */
-#define ACCESS_RIGHTS_ATTR      32   /* update privileges */
-#define ACCOUNT_LOCK_ATTR       64   /* update account lock status */
+#define NONE_ATTR               0L
+#define DEFAULT_AUTH_ATTR       (1L << 0)    /* update defaults auth */
+#define PLUGIN_ATTR             (1L << 1)    /* update plugin */
+                                             /* authentication_string */
+#define SSL_ATTR                (1L << 2)    /* ex: SUBJECT,CIPHER.. */
+#define RESOURCE_ATTR           (1L << 3)    /* ex: MAX_QUERIES_PER_HOUR.. */
+#define PASSWORD_EXPIRE_ATTR    (1L << 4)    /* update password expire col */
+#define ACCESS_RIGHTS_ATTR      (1L << 5)    /* update privileges */
+#define ACCOUNT_LOCK_ATTR       (1L << 6)    /* update account lock status */
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb);
@@ -563,7 +571,10 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list);
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 
-bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_set);
+bool set_and_validate_user_attributes(THD *thd,
+                                      LEX_USER *Str,
+                                      ulong &what_to_set,
+                                      bool is_privileged_user);
 
 /* sql_auth_cache */
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
@@ -666,11 +677,9 @@ inline bool check_single_table_access(THD *thd, ulong privilege,
 inline bool check_routine_access(THD *thd,ulong want_access,const char *db,
                                  char *name, bool is_proc, bool no_errors)
 { return false; }
-inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
-{
-  table->grant.privilege= want_access;
-  return false;
-}
+
+bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
+
 inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }
@@ -689,8 +698,6 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
-/* These was under the INNODB_COMPATIBILITY_HOOKS */
-
 bool check_global_access(THD *thd, ulong want_access);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
@@ -701,8 +708,18 @@ bool check_global_access(THD *thd, ulong want_access);
 /* sql_user_table */
 void close_acl_tables(THD *thd);
 
+#ifndef EMBEDDED_LIBRARY
+typedef enum ssl_artifacts_status
+{
+  SSL_ARTIFACTS_NOT_FOUND= 0,
+  SSL_ARTIFACTS_VIA_OPTIONS,
+  SSL_ARTIFACTS_AUTO_DETECTED
+} ssl_artifacts_status;
+#endif
+
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
+
 #endif /* AUTH_COMMON_INCLUDED */

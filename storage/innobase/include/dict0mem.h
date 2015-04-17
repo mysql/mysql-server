@@ -119,9 +119,10 @@ the Compact page format is used, i.e ROW_FORMAT != REDUNDANT */
 /** Width of the ZIP_SSIZE flag */
 #define DICT_TF_WIDTH_ZIP_SSIZE		4
 
-/** Width of the ATOMIC_BLOBS flag.  The Antelope file formats broke up
-BLOB and TEXT fields, storing the first 768 bytes in the clustered index.
-Barracuda row formats store the whole blob or text field off-page atomically.
+/** Width of the ATOMIC_BLOBS flag.  The ROW_FORMAT=REDUNDANT and
+ROW_FORMAT=COMPACT broke up BLOB and TEXT fields, storing the first 768 bytes
+in the clustered index. ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED
+store the whole blob or text field off-page atomically.
 Secondary indexes are created from this external data using row_ext_t
 to cache the BLOB prefixes. */
 #define DICT_TF_WIDTH_ATOMIC_BLOBS	1
@@ -312,8 +313,7 @@ dict_mem_table_add_col(
 	const char*	name,	/*!< in: column name, or NULL */
 	ulint		mtype,	/*!< in: main datatype */
 	ulint		prtype,	/*!< in: precise type */
-	ulint		len)	/*!< in: precision */
-	__attribute__((nonnull(1)));
+	ulint		len);	/*!< in: precision */
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
 void
@@ -322,8 +322,7 @@ dict_mem_table_col_rename(
 	dict_table_t*	table,	/*!< in/out: table */
 	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
-	const char*	to)	/*!< in: new column name */
-	__attribute__((nonnull));
+	const char*	to);	/*!< in: new column name */
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
@@ -528,7 +527,8 @@ struct dict_col_t{
 					of an index */
 	unsigned	max_prefix:12;	/*!< maximum index prefix length on
 					this column. Our current max limit is
-					3072 for Barracuda table */
+					3072 (REC_VERSION_56_MAX_INDEX_COL_LEN)
+					bytes. */
 };
 
 /** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
@@ -547,17 +547,17 @@ files would be at risk! */
 /** Find out maximum indexed column length by its table format.
 For ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT, the maximum
 field length is REC_ANTELOPE_MAX_INDEX_COL_LEN - 1 (767). For
-Barracuda row formats COMPRESSED and DYNAMIC, the length could
+ROW_FORMAT=COMPRESSED and ROW_FORMAT=DYNAMIC, the length could
 be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
-#define DICT_MAX_FIELD_LEN_BY_FORMAT(table)				\
-		((dict_table_get_format(table) < UNIV_FORMAT_B)		\
-			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
-			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+#define DICT_MAX_FIELD_LEN_BY_FORMAT(table)	\
+	(dict_table_has_atomic_blobs(table)	\
+	 ? REC_VERSION_56_MAX_INDEX_COL_LEN	\
+	 : REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)
 
-#define DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags)			\
-		((DICT_TF_HAS_ATOMIC_BLOBS(flags) < UNIV_FORMAT_B)	\
-			? (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)		\
-			: REC_VERSION_56_MAX_INDEX_COL_LEN)
+#define DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags)	\
+	(DICT_TF_HAS_ATOMIC_BLOBS(flags)		\
+	 ? REC_VERSION_56_MAX_INDEX_COL_LEN		\
+	 : REC_ANTELOPE_MAX_INDEX_COL_LEN - 1)
 
 /** Defines the maximum fixed length column size */
 #define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN
@@ -734,7 +734,7 @@ to start with. */
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
-	index_id_t	id;	/*!< id of the index */
+	space_index_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
 	id_name_t	name;	/*!< index name */
 	const char*	table_name;/*!< table name */
@@ -1148,6 +1148,17 @@ the table, DML from memcached will be blocked. */
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
+
+	/** Get reference count.
+	@return current value of n_ref_count */
+	inline ulint get_ref_count() const;
+
+	/** Acquire the table handle. */
+	inline void acquire();
+
+	/** Release the table handle. */
+	inline void release();
+
 	/** Id of the table. */
 	table_id_t				id;
 
@@ -1179,7 +1190,7 @@ struct dict_table_t {
 	id_name_t				tablespace;
 
 	/** Space where the clustered index of the table is placed. */
-	unsigned				space:32;
+	uint32_t				space;
 
 	/** Stores information about:
 	1 row format (redundant or compact),
@@ -1470,11 +1481,15 @@ struct dict_table_t {
 	It is protected by lock_sys->mutex. */
 	ulint					n_rec_locks;
 
+#ifndef UNIV_DEBUG
+private:
+#endif
 	/** Count of how many handles are opened to this table. Dropping of the
 	table is NOT allowed until this count gets to zero. MySQL does NOT
 	itself check the number of open handles at DROP. */
 	ulint					n_ref_count;
 
+public:
 	/** List of locks on the table. Protected by lock_sys->mutex. */
 	table_lock_list_t			locks;
 

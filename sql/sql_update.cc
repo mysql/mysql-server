@@ -24,13 +24,19 @@
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
 #include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"
 #include "field.h"                    // Field
+#include "filesort.h"                 // Filesort
 #include "item.h"                     // Item
 #include "key.h"                      // is_key_used
+#include "mysqld.h"                   // stage_init mysql_tmpdir
 #include "opt_explain.h"              // Modification_plan
+#include "opt_range.h"                // QUICK_SELECT_I
 #include "opt_trace.h"                // Opt_trace_object
+#include "psi_memory_key.h"
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // open_tables_for_query
+#include "sql_cache.h"                // query_cache
 #include "sql_optimizer.h"            // build_equal_items
 #include "sql_resolver.h"             // setup_order
 #include "sql_select.h"               // free_underlaid_joins
@@ -293,7 +299,7 @@ bool mysql_update(THD *thd,
   table->quick_keys.clear_all();
   table->possible_quick_keys.clear_all();
 
-  key_map covering_keys_for_cond;
+  Key_map covering_keys_for_cond;
   if (mysql_prepare_update(thd, update_table_ref, &covering_keys_for_cond,
                            values))
     DBUG_RETURN(1);
@@ -457,7 +463,7 @@ bool mysql_update(THD *thd,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
-  table->mark_columns_needed_for_update();
+  table->mark_columns_needed_for_update(thd);
   if (table->vfield &&
       validate_gc_assignment(thd, &fields, &values, table))
     DBUG_RETURN(0);
@@ -475,7 +481,7 @@ bool mysql_update(THD *thd,
       impossible= true;
     else if (conds != NULL)
     {
-      key_map keys_to_use(key_map::ALL_BITS), needed_reg_dummy;
+      Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
       impossible= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
                                     ORDER::ORDER_NOT_RELEVANT, &qep_tab,
@@ -505,7 +511,7 @@ bool mysql_update(THD *thd,
       }
 
       char buff[MYSQL_ERRMSG_SIZE];
-      my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), 0, 0,
+      my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), 0, 0,
                   (ulong) thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 
@@ -520,8 +526,7 @@ bool mysql_update(THD *thd,
     thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
     if (safe_update && !using_limit)
     {
-      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-		 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
       goto exit_without_my_ok;
     }
   }
@@ -1063,7 +1068,7 @@ bool mysql_update(THD *thd,
   if (error < 0)
   {
     char buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
+    my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
                 (ulong) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
@@ -1092,7 +1097,7 @@ exit_without_my_ok:
   @return false if success, true if error
 */
 bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
-                          key_map *covering_keys_for_cond,
+                          Key_map *covering_keys_for_cond,
                           List<Item> &update_value_list)
 {
   List<Item> all_fields;
@@ -1638,7 +1643,7 @@ bool mysql_multi_update(THD *thd,
   bool res;
   DBUG_ENTER("mysql_multi_update");
 
-  if (!(*result= new Query_result_update(select_lex->get_table_list(),
+  if (!(*result= new Query_result_update(thd, select_lex->get_table_list(),
                                          select_lex->leaf_tables,
                                          fields, values,
                                          handle_duplicates)))
@@ -1659,24 +1664,11 @@ bool mysql_multi_update(THD *thd,
   if (unlikely(res))
   {
     /* If we had a another error reported earlier then this will be ignored */
-    (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
+    (*result)->send_error(ER_UNKNOWN_ERROR, ER_THD(thd, ER_UNKNOWN_ERROR));
     (*result)->abort_result_set();
   }
   DBUG_RETURN(res);
 }
-
-
-Query_result_update::Query_result_update(TABLE_LIST *table_list,
-                                         TABLE_LIST *leaves_list,
-                                         List<Item> *field_list,
-                                         List<Item> *value_list,
-                                    enum enum_duplicates handle_duplicates_arg)
-  :all_tables(table_list), leaves(leaves_list), update_tables(0),
-   tmp_tables(0), updated(0), found(0), fields(field_list),
-   values(value_list), table_count(0), copy_field(0),
-   handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(1),
-   transactional_tables(0), error_handled(0), update_operations(NULL)
-{}
 
 
 /*
@@ -1704,7 +1696,7 @@ int Query_result_update::prepare(List<Item> &not_used_values,
 
   if (!tables_to_update)
   {
-    my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
+    my_error(ER_NO_TABLES_USED, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -2040,12 +2032,12 @@ bool Query_result_update::initialize_tables(JOIN *join)
       }
       if (safe_update_on_fly(thd, join->best_ref[0], table_ref, all_tables))
       {
-        table->mark_columns_needed_for_update();
+        table->mark_columns_needed_for_update(thd);
 	table_to_update= table;			// Update table on the fly
 	continue;
       }
     }
-    table->mark_columns_needed_for_update();
+    table->mark_columns_needed_for_update(thd);
 
     if (table->vfield &&
         validate_gc_assignment(thd, fields, values, table))
@@ -2726,7 +2718,7 @@ bool Query_result_update::send_eof()
 
   id= thd->arg_of_last_insert_id_function ?
     thd->first_successful_insert_id_in_prev_stmt : 0;
-  my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
+  my_snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
               (ulong) found, (ulong) updated,
               (ulong) thd->get_stmt_da()->current_statement_cond_count());
   ::my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?

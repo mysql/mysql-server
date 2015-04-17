@@ -241,7 +241,6 @@ static BOOLEAN init_done= FALSE; /* Set to TRUE when initialization done */
 */
 static struct settings init_settings;
 static const char *db_process= 0;/* Pointer to process name; argv[0] */
-my_bool _dbug_on_= TRUE;	 /* FALSE if no debugging at all */
 
 typedef struct _db_code_state_ {
   const char *process;          /* Pointer to process name; usually argv[0] */
@@ -350,13 +349,6 @@ static native_rw_lock_t THR_LOCK_init_settings;
 static CODE_STATE *code_state(void)
 {
   CODE_STATE *cs, **cs_ptr;
-
-  /*
-    _dbug_on_ is reset if we don't plan to use any debug commands at all and
-    we want to run on maximum speed
-   */
-  if (!_dbug_on_)
-    return 0;
 
   if (!init_done)
   {
@@ -1439,55 +1431,6 @@ void _db_doprnt_(const char *format,...)
 
 
 /*
- *  FUNCTION
- *
- *      _db_doputs_    handle print of debug lines
- *
- *  SYNOPSIS
- *
- *      VOID _db_doputs_(const char* log)
- *      const char *log;
- *
- *  DESCRIPTION
- *
- *      This function handles the printing of the argument via the log
- *      string.  The line number of the DBUG macro in the source is found in
- *      u_line.
- *
- *      Note that the log string SHOULD NOT include a terminating
- *      newline, this is supplied automatically.
- */
-void _db_doputs_(const char *log)
-{
-  CODE_STATE *cs;
-  int save_errno;
-
-  get_code_state_or_return;
-
-  /* Dirty read, for DBUG_PUTS() performance. */
-  if (! DEBUGGING)
-    return;
-
-  read_lock_stack(cs);
-
-  save_errno= errno;
-  if (!cs->locked)
-    native_mutex_lock(&THR_LOCK_dbug);
-  DoPrefix(cs, cs->u_line);
-  if (TRACING)
-    Indent(cs, cs->level + 1);
-  else
-    (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
-  (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
-  fprintf(cs->stack->out_file, "%s\n", log);
-  DbugFlush(cs);
-  errno= save_errno;
-
-  unlock_stack(cs);
-}
-
-
-/*
  * This function is intended as a
  * vfprintf clone with consistent, platform independent output for 
  * problematic formats like %p, %zd and %lld.
@@ -1853,11 +1796,6 @@ void _db_end_()
   struct settings *discard;
   static struct settings tmp;
   CODE_STATE *cs;
-  /*
-    Set _dbug_on_ to be able to do full reset even when DEBUGGER_OFF was
-    called after dbug was initialized
-  */
-  _dbug_on_= 1;
   get_code_state_or_return;
 
   /*
@@ -1954,7 +1892,7 @@ FILE *_db_fp_(void)
  *
  */
 
-BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
+int _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
   BOOLEAN result;
   get_code_state_if_not_set_or_return FALSE;
@@ -2352,62 +2290,6 @@ static BOOLEAN Writable(const char *pathname)
   return granted;
 }
 
-
-/*
- *  FUNCTION
- *
- *      _db_setjmp_    save debugger environment
- *
- *  SYNOPSIS
- *
- *      VOID _db_setjmp_()
- *
- *  DESCRIPTION
- *
- *      Invoked as part of the user's DBUG_SETJMP macro to save
- *      the debugger environment in parallel with saving the user's
- *      environment.
- *
- */
-
-EXPORT void _db_setjmp_()
-{
-  CODE_STATE *cs;
-  get_code_state_or_return;
-
-  cs->jmplevel= cs->level;
-  cs->jmpfunc= cs->func;
-  cs->jmpfile= cs->file;
-}
-
-/*
- *  FUNCTION
- *
- *      _db_longjmp_    restore previously saved debugger environment
- *
- *  SYNOPSIS
- *
- *      VOID _db_longjmp_()
- *
- *  DESCRIPTION
- *
- *      Invoked as part of the user's DBUG_LONGJMP macro to restore
- *      the debugger environment in parallel with restoring the user's
- *      previously saved environment.
- *
- */
-
-EXPORT void _db_longjmp_()
-{
-  CODE_STATE *cs;
-  get_code_state_or_return;
-
-  cs->level= cs->jmplevel;
-  if (cs->jmpfunc)
-    cs->func= cs->jmpfunc;
-  if (cs->jmpfile)
-    cs->file= cs->jmpfile;
-}
 
         /* flush dbug-stream, free mutex lock & wait delay */
         /* This is because some systems (MSDOS!!) dosn't flush fileheader */

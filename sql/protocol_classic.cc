@@ -22,7 +22,7 @@ The actual communication is handled by the net_xxx functions in net_serv.cc
 
 #include "protocol_classic.h"
 #include "sql_class.h"                          // THD
-#include <stdarg.h>
+#include "mysqld.h"                             // global_system_variables
 
 using std::min;
 using std::max;
@@ -846,9 +846,8 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
   }
   case COM_SHUTDOWN:
   {
-    if (packet_length < 1)
-      goto malformed;
-    data->com_shutdown.level= (enum mysql_enum_shutdown_level) raw_packet[0];
+    data->com_shutdown.level= packet_length == 0 ?
+      SHUTDOWN_DEFAULT : (enum mysql_enum_shutdown_level) raw_packet[0];
     break;
   }
   case COM_PROCESS_KILL:

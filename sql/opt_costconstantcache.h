@@ -18,8 +18,9 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
+#include "mysql/psi/mysql_thread.h"      // mysql_mutex_t
+#include "opt_costconstants.h"           // Cost_model_constants
 
-class Cost_model_constants;
 
 /**
   This class implements a cache for "cost constant sets". This cache

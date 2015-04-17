@@ -18,7 +18,7 @@
 
 #include "pfs_stat.h"
 
-typedef struct system_status_var STATUS_VAR;
+struct System_status_var;
 
 /**
   @file storage/perfschema/pfs_visitor.h
@@ -507,7 +507,7 @@ class PFS_connection_status_visitor : public PFS_connection_visitor
 {
 public:
   /** Constructor. */
-  PFS_connection_status_visitor(STATUS_VAR *status_vars);
+  PFS_connection_status_visitor(System_status_var *status_vars);
   virtual ~PFS_connection_status_visitor();
   virtual void visit_global();
   virtual void visit_host(PFS_host *pfs);
@@ -517,7 +517,7 @@ public:
   virtual void visit_THD(THD *thd);
 
 private:
-  STATUS_VAR *m_status_vars;
+  System_status_var *m_status_vars;
 };
 
 /**

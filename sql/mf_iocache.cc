@@ -34,6 +34,7 @@
 
 #ifdef HAVE_REPLICATION
 #include "sql_class.h"                          // THD
+#include "current_thd.h"
 
 extern "C" {
 

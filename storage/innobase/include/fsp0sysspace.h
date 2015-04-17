@@ -157,11 +157,13 @@ public:
 
 	/** Open or create the data files
 	@param[in]  is_temp		whether this is a temporary tablespace
+	@param[in]  create_new_db	whether we are creating a new database
 	@param[out] sum_new_sizes	sum of sizes of the new files added
 	@param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
 	@return DB_SUCCESS or error code */
 	dberr_t open_or_create(
 		bool	is_temp,
+		bool	create_new_db,
 		ulint*	sum_new_sizes,
 		lsn_t*	flush_lsn)
 		__attribute__((warn_unused_result));
@@ -195,8 +197,9 @@ private:
 	dberr_t file_not_found(Datafile& file, bool* create_new_db);
 
 	/** Note that the data file was found.
-	@param[in,out]	file	data file object */
-	void file_found(Datafile& file);
+	@param[in,out]	file	data file object
+	@return true if a new instance to be created */
+	bool file_found(Datafile& file);
 
 	/** Create a data file.
 	@param[in,out]	file	data file object
@@ -287,6 +290,17 @@ is_system_tablespace(
 	       || id == srv_tmp_space.space_id());
 }
 
+/** Check if it is a shared tablespace.
+@param[in]	id	Space ID to check
+@return true if id is a shared tablespace, false if not. */
+UNIV_INLINE
+bool
+is_shared_tablespace(
+	ulint	id)
+{
+	return(is_system_tablespace(id));
+}
+
 /** Check if shared-system or undo tablespace.
 @return true if shared-system or undo tablespace */
 UNIV_INLINE
@@ -298,6 +312,7 @@ is_system_or_undo_tablespace(
 	       || id <= srv_undo_tablespaces_open);
 }
 
+#ifdef UNIV_DEBUG
 /** Check if predefined shared tablespace.
 @return true if predefined shared tablespace */
 UNIV_INLINE
@@ -310,4 +325,5 @@ is_predefined_tablespace(
 	return(id <= srv_undo_tablespaces_open
 	       || id == srv_tmp_space.space_id());
 }
+#endif /* UNIV_DEBUG */
 #endif /* fsp0sysspace_h */

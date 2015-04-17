@@ -644,7 +644,7 @@ SHOW INDEX FROM parent;
 
 SHOW INDEX FROM child;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_BLOB_KEY_WITHOUT_LENGTH
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
 
 #cleanup

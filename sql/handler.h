@@ -26,27 +26,65 @@
 #include "thr_lock.h"          // thr_lock_type
 #include "discrete_interval.h" // Discrete_interval
 #include "key.h"               // KEY
-#include "mysqld.h"            // lower_case_table_names
+#include "sql_bitmap.h"        // Key_map
 #include "sql_const.h"         // SHOW_COMP_OPTION
 #include "sql_list.h"          // SQL_I_List
 #include "sql_plugin_ref.h"    // plugin_ref
+#include "system_variables.h"  // System_status_var
 
 #include "mysql/psi/psi.h"
 
 #include <algorithm>
 
 class Alter_info;
-class SE_cost_constants;     // see opt_costconstants.h
-class String;
-struct TABLE_LIST;
-typedef struct st_hash HASH;
-typedef struct st_key_cache KEY_CACHE;
-typedef struct xid_t XID;
+class handler;
+class Item;
 class partition_info;
 class Partition_handler;
+class SE_cost_constants;     // see opt_costconstants.h
+class String;
+struct handlerton;
+struct TABLE;
+struct TABLE_LIST;
+struct TABLE_SHARE;
+typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
+typedef struct st_hash HASH;
+typedef struct st_key_cache KEY_CACHE;
+typedef struct st_key_create_information KEY_CREATE_INFO;
+typedef struct st_savepoint SAVEPOINT;
+typedef struct xid_t XID;
 typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
+typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
+                             const char *file, size_t file_len,
+                             const char *status, size_t status_len);
+
+namespace AQP {
+  class Join_plan;
+};
+
+extern ulong savepoint_alloc_size;
+extern KEY_CREATE_INFO default_key_create_info;
+
+extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
+extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
+
+/*
+  Note: the following includes binlog and closing 0.
+  so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
+      example + csv + heap + blackhole + federated + 0
+  (yes, the sum is deliberately inaccurate)
+  TODO remove the limit, use dynarrays
+*/
+#define MAX_HA 15
+extern st_plugin_int *hton2plugin[MAX_HA];
+
+extern const char *ha_row_type[];
+extern const char *tx_isolation_names[];
+extern const char *binlog_format_names[];
+extern TYPELIB tx_isolation_typelib;
+extern ulong total_ha_2pc;
 
 
 // the following is for checking tables
@@ -306,15 +344,6 @@ enum enum_alter_inplace_result {
 #define HA_KEY_SWITCH_ALL_SAVE     3
 
 /*
-  Note: the following includes binlog and closing 0.
-  so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
-      example + csv + heap + blackhole + federated + 0
-  (yes, the sum is deliberately inaccurate)
-  TODO remove the limit, use dynarrays
-*/
-#define MAX_HA 15
-
-/*
   Use this instead of 0 as the initial value for the slot number of
   handlerton, so that we can distinguish uninitialized slot number
   from slot 0.
@@ -434,7 +463,6 @@ enum enum_binlog_command {
   LOGCOM_ACL_NOTIFY
 };
 
-/* struct to hold information about the table that should be created */
 
 /* Bits in used_fields */
 #define HA_CREATE_USED_AUTO             (1L << 0)
@@ -487,12 +515,8 @@ given at all. */
 */
 #define HA_CREATE_USED_TABLESPACE       (1L << 25)
 
-/*
-  This is master database for most of system tables. However there
-  can be other databases which can hold system tables. Respective
-  storage engines define their own system database names.
-*/
-extern const char *mysqld_system_database;
+/** COMPRESS="zlib|lz4|none" used during table create. */
+#define HA_CREATE_USED_COMPRESS         (1L << 26)
 
 /*
   Structure to hold list of system_database.system_table.
@@ -509,10 +533,6 @@ struct st_system_tablename
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
-
-namespace AQP {
-  class Join_plan;
-};
 
 /*
   These structures are used to pass information from a set of SQL commands
@@ -547,7 +567,6 @@ enum tablespace_access_mode
   TS_NOT_ACCESSIBLE = 2
 };
 
-struct handlerton;
 class st_alter_tablespace : public Sql_alloc
 {
   public:
@@ -603,9 +622,6 @@ class st_alter_tablespace : public Sql_alloc
   }
 };
 
-/* The handler for a table type.  Will be included in the TABLE structure */
-
-struct TABLE;
 
 /*
   Make sure that the order of schema_tables and enum_schema_tables are the same.
@@ -649,16 +665,9 @@ enum enum_schema_tables
   SCH_VIEWS
 };
 
-struct TABLE_SHARE;
-struct st_foreign_key_info;
-typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
-typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
-                             const char *file, size_t file_len,
-                             const char *status, size_t status_len);
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
-extern st_plugin_int *hton2plugin[MAX_HA];
 
-class handler;
+
 /*
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
@@ -940,35 +949,27 @@ struct handlerton
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
-typedef struct {
-  ulonglong data_file_length;
-  ulonglong max_data_file_length;
-  ulonglong index_file_length;
-  ulonglong delete_length;
-  ha_rows records;
-  ulong mean_rec_length;
-  ulong create_time;
-  ulong check_time;
-  ulong update_time;
-  ulonglong check_sum;
-} PARTITION_STATS;
-
-#define UNDEF_NODEGROUP 65535
-class Item;
-struct st_table_log_memory_entry;
-
-enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
-
 enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
                               HA_STATS_AUTO_RECALC_ON,
                               HA_STATS_AUTO_RECALC_OFF };
 
+/* struct to hold information about the table that should be created */
 typedef struct st_ha_create_information
 {
   const CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
   const char *password, *tablespace;
   LEX_STRING comment;
+
+  /**
+  Algorithm (and possible options) to be used for InnoDB's transparent
+  page compression. If this attribute is set then it is hint to the
+  storage engine to try and compress the data using the specified algorithm
+  where possible. Note: this value is interpreted by the storage engine only.
+  and ignored by the Server layer. */
+
+  LEX_STRING compress;
+
   const char *data_file_name, *index_file_name;
   const char *alias;
   ulonglong max_rows,min_rows;
@@ -1405,60 +1406,6 @@ typedef struct st_key_create_information
 } KEY_CREATE_INFO;
 
 
-/*
-  Class for maintaining hooks used inside operations on tables such
-  as: create table functions, delete table functions, and alter table
-  functions.
-
-  Class is using the Template Method pattern to separate the public
-  usage interface from the private inheritance interface.  This
-  imposes no overhead, since the public non-virtual function is small
-  enough to be inlined.
-
-  The hooks are usually used for functions that does several things,
-  e.g., create_table_from_items(), which both create a table and lock
-  it.
- */
-class TABLEOP_HOOKS
-{
-public:
-  TABLEOP_HOOKS() {}
-  virtual ~TABLEOP_HOOKS() {}
-
-  inline void prelock(TABLE **tables, uint count)
-  {
-    do_prelock(tables, count);
-  }
-
-  inline int postlock(TABLE **tables, uint count)
-  {
-    return do_postlock(tables, count);
-  }
-private:
-  /* Function primitive that is called prior to locking tables */
-  virtual void do_prelock(TABLE **tables, uint count)
-  {
-    /* Default is to do nothing */
-  }
-
-  /**
-     Primitive called after tables are locked.
-
-     If an error is returned, the tables will be unlocked and error
-     handling start.
-
-     @return Error code or zero.
-   */
-  virtual int do_postlock(TABLE **tables, uint count)
-  {
-    return 0;                           /* Default is to do nothing */
-  }
-};
-
-typedef struct st_savepoint SAVEPOINT;
-extern ulong savepoint_alloc_size;
-extern KEY_CREATE_INFO default_key_create_info;
-
 typedef struct st_ha_check_opt
 {
   st_ha_check_opt() {}                        /* Remove gcc warning */
@@ -1467,7 +1414,6 @@ typedef struct st_ha_check_opt
   KEY_CACHE *key_cache;	/* new key cache when changing key cache */
   void init();
 } HA_CHECK_OPT;
-
 
 
 /*
@@ -1483,9 +1429,6 @@ typedef struct st_handler_buffer
   uchar *buffer_end;     /* End of buffer */
   uchar *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
-
-typedef struct system_status_var SSV;
-
 
 typedef void *range_seq_t;
 
@@ -2155,7 +2098,6 @@ public:
   void end_psi_batch_mode();
 
 private:
-  friend class DsMrr_impl;
   /**
     The lock type set by when calling::ha_external_lock(). This is 
     propagated down to the storage engine. The reason for also storing 
@@ -2458,7 +2400,7 @@ public:
   virtual int multi_range_read_next(char **range_info);
 
 
-  virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
+  virtual const Key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
   virtual uint extra_rec_buf_length() const { return 0; }
@@ -3373,7 +3315,7 @@ public:
 
 protected:
   /* Service methods for use by storage engines. */
-  void ha_statistic_increment(ulonglong SSV::*offset) const;
+  void ha_statistic_increment(ulonglong System_status_var::*offset) const;
   THD *ha_thd(void) const;
 
   /**
@@ -3610,8 +3552,6 @@ protected:
 };
 
 
-bool key_uses_partial_cols(TABLE *table, uint keyno);
-
 /*
   A Disk-Sweep MRR interface implementation
 
@@ -3627,7 +3567,7 @@ class DsMrr_impl
 public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
-  DsMrr_impl() : h2(NULL) {}
+  DsMrr_impl(handler *owner) : h(owner), table(NULL), h2(NULL) {}
 
   ~DsMrr_impl()
   {
@@ -3640,14 +3580,15 @@ public:
       reset();
     DBUG_ASSERT(h2 == NULL);
   }
-  
+
+private:
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
     It is used to retrieve full table rows by calling rnd_pos().
   */
-  handler *h;
+  handler *const h;
   TABLE *table; /* Always equal to h->table */
-private:
+
   /* Secondary handler object.  It is used for scanning the index */
   handler *h2;
 
@@ -3671,19 +3612,16 @@ public:
     This function just initializes the object. To do a DS-MRR scan,
     this must also be initialized by calling dsmrr_init().
 
-    @param h_arg     pointer to the handler that owns this object
     @param table_arg pointer to the TABLE that owns the handler
   */
 
-  void init(handler *h_arg, TABLE *table_arg)
+  void init(TABLE *table_arg)
   {
-    DBUG_ASSERT(h_arg != NULL);
     DBUG_ASSERT(table_arg != NULL);
-    h= h_arg; 
     table= table_arg;
   }
 
-  int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
+  int dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
 
@@ -3713,14 +3651,7 @@ private:
   bool get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags, 
                                uint *buffer_size, Cost_estimate *cost);
 };
-	/* Some extern variables used with handlers */
 
-extern const char *ha_row_type[];
-extern MYSQL_PLUGIN_IMPORT const char *tx_isolation_names[];
-extern MYSQL_PLUGIN_IMPORT const char *binlog_format_names[];
-extern TYPELIB tx_isolation_typelib;
-extern const char *myisam_stats_method_names[];
-extern ulong total_ha, total_ha_2pc;
 
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
@@ -3806,8 +3737,6 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
 bool ha_check_if_table_exists(THD* thd, const char *db, const char *name,
                              bool *exists);
-int ha_discover(THD* thd, const char* dbname, const char* name,
-                uchar** frmblob, size_t* frmlen);
 int ha_find_files(THD *thd,const char *db,const char *path,
                   const char *wild, bool dir, List<LEX_STRING>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
@@ -3872,13 +3801,6 @@ int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan);
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht,
                        const ulonglong *trxid);
-/*
-  Storage engine has to assume the transaction will end up with 2pc if
-   - there is more than one 2pc-capable storage engine available
-   - in the current transaction 2pc was not disabled yet
-*/
-#define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
-        !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
 
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
@@ -3905,14 +3827,10 @@ private:
 };
 #endif
 
-const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
 
-inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
-{
-  return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
-}
+const char *table_case_name(HA_CREATE_INFO *info, const char *name);
 
 void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag);

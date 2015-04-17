@@ -6314,7 +6314,7 @@ static void test_temporal_param()
   /* Check values.  */
   DIE_UNLESS(bigint ==  20011020101100LL);
   DIE_UNLESS(real == 20011020101059.5);
-  DIE_UNLESS(!strcmp(dec, "20011020101059.5"));
+  DIE_UNLESS(!strcmp(dec, "20011020101059.500000"));
 
   mysql_stmt_close(stmt);
 
@@ -6358,7 +6358,7 @@ static void test_temporal_param()
   /* Check returned values */
   DIE_UNLESS(bigint ==  101100);
   DIE_UNLESS(real ==  101059.5);
-  DIE_UNLESS(!strcmp(dec, "101059.5"));
+  DIE_UNLESS(!strcmp(dec, "101059.500000"));
 
   mysql_stmt_close(stmt);
 }
@@ -19931,6 +19931,49 @@ static void test_bug17512527()
 
 
 /**
+   BUG#20810928: CANNOT SHUTDOWN MYSQL USING JDBC DRIVER
+*/
+static void test_bug20810928()
+{
+  MYSQL *l_mysql;
+  int rc;
+  uint error_code;
+
+  myheader("test_bug20810928");
+
+  /* initialize the server user */
+  rc= mysql_query(mysql,
+                  "CREATE USER bug20810928@localhost IDENTIFIED BY 'bug20810928'");
+  myquery(rc);
+
+  /* prepare the connection */
+  l_mysql= mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  l_mysql= mysql_real_connect(l_mysql, opt_host, "bug20810928",
+                              "bug20810928", "test", opt_port,
+                              opt_unix_socket, 0);
+
+  /*
+    Try the 0 length shutdown command.
+    Should fail with the right error code to avoid server restart.
+  */
+  rc= simple_command(l_mysql, COM_SHUTDOWN, NULL, 0, 0);
+  DIE_UNLESS(rc != 0);
+
+  /* check if it's the right error */
+  error_code= mysql_errno(l_mysql);
+  DIE_UNLESS(error_code == ER_SPECIFIC_ACCESS_DENIED_ERROR);
+
+  mysql_close(l_mysql);
+
+  /* clean up the server user */
+  rc= mysql_query(mysql, "DROP USER bug20810928@localhost");
+  myquery(rc);
+}
+
+
+/**
    WL#8016: Parser for optimizer hints
 */
 static void test_wl8016()
@@ -20178,6 +20221,99 @@ static void test_bug20645725()
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
 }
+
+
+/**
+   BUG#19894382 - SERVER SIDE PREPARED STATEMENTS LEADS TO POTENTIAL OFF-BY-SECOND
+                  TIMESTAMP ON SLAVE
+*/
+static void test_bug19894382()
+{
+  MYSQL_STMT *stmt1;
+  const char *stmt1_txt= "INSERT INTO client_test_db.bug19894382 VALUES"
+                         " ('master', ?, ?, ?, ?, ?, ?);";
+  my_bool    is_null= 0;
+  MYSQL_BIND bind_val[6];
+  MYSQL_TIME tm[6];
+  MYSQL_TIME tm_common;
+  ulong      length= sizeof(MYSQL_TIME);
+  int ind;
+  int rc;
+
+  myheader("test_bug19894382");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS client_test_db.bug19894382;");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE client_test_db.bug19894382(f1 CHAR(64),"
+                         " f2 TIME, f3 TIMESTAMP NULL, f4 DATETIME,"
+                         " f5 TIME(3), f6 TIMESTAMP(3) NULL,"
+                         " f7 DATETIME(3));");
+  myquery(rc);
+
+  stmt1 = mysql_stmt_init(mysql);
+  check_stmt(stmt1);
+
+  // Prepare statement
+  rc= mysql_stmt_prepare(stmt1, stmt1_txt, strlen(stmt1_txt));
+  check_execute(stmt1, rc);
+
+  // Prepare and bind values.
+  tm_common.year= 2015;
+  tm_common.month= 4;
+  tm_common.day= 24;
+  tm_common.hour= 7;
+  tm_common.minute= 30;
+  tm_common.second= 30;
+  tm_common.second_part= 5010;
+  tm_common.neg= 0;
+  tm_common.time_type= MYSQL_TIMESTAMP_NONE;
+
+  memset(bind_val, 0, sizeof(MYSQL_BIND) * 6);
+  for (ind= 0; ind < 6; ind++)
+  {
+    tm[ind]= tm_common;
+    bind_val[ind].buffer= (void *) &tm[ind];
+    bind_val[ind].is_null= &is_null;
+    bind_val[ind].length= &length;
+    bind_val[ind].buffer_length= sizeof(MYSQL_TIME);
+    switch(ind%3)
+    {
+    case 0:
+      tm[ind].year= tm[ind].month= tm[ind].day= 0;
+      bind_val[ind].buffer_type= MYSQL_TYPE_TIME;
+      tm[ind].time_type= MYSQL_TIMESTAMP_TIME;
+      break;
+    case 1:
+      bind_val[ind].buffer_type= MYSQL_TYPE_TIMESTAMP;
+      tm[ind].time_type= MYSQL_TIMESTAMP_DATETIME;
+      break;
+    case 2:
+      bind_val[ind].buffer_type= MYSQL_TYPE_DATETIME;
+      tm[ind].time_type= MYSQL_TIMESTAMP_DATETIME;
+      break;
+    }
+  }
+  rc= mysql_stmt_bind_param(stmt1, bind_val);
+  check_execute(stmt1, rc);
+
+  /* Execute the insert statement */
+  rc= mysql_stmt_execute(stmt1);
+  check_execute(stmt1, rc);
+
+  for (ind= 0; ind < 6; ind++)
+  {
+    tm[ind].second_part= 501900;
+  }
+  /* Execute the insert statement */
+  rc= mysql_stmt_execute(stmt1);
+  check_execute(stmt1, rc);
+
+  rc= mysql_commit(mysql);
+  myquery(rc);
+
+  mysql_stmt_close(stmt1);
+}
+
 
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
@@ -20457,8 +20593,10 @@ static struct my_tests_st my_tests[]= {
   { "test_bug17309863", test_bug17309863},
 #endif
   { "test_bug17512527", test_bug17512527},
+  { "test_bug20810928", test_bug20810928 },
   { "test_wl8016", test_wl8016},
   { "test_bug20645725", test_bug20645725 },
+  { "test_bug19894382", test_bug19894382},
   { 0, 0 }
 };
 

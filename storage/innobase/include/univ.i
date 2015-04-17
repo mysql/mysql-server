@@ -90,10 +90,8 @@ support cross-platform development and expose comonly used SQL names. */
 # include <my_global.h>
 # include <my_thread.h>
 
-# ifndef UNIV_INNOCHECKSUM
 #  include <m_string.h>
 #  include <mysqld_error.h>
-# endif /* !UNIV_INNOCHECKSUM */
 #endif /* !UNIV_HOTBACKUP  */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
@@ -293,30 +291,6 @@ management to ensure correct alignment for doubles etc. */
 			========================
 */
 
-/** There are currently two InnoDB file formats which are used to group
-features with similar restrictions and dependencies. Using an enum allows
-switch statements to give a compiler warning when a new one is introduced. */
-enum innodb_file_formats_enum {
-	/** Antelope File Format: InnoDB/MySQL up to 5.1.
-	This format includes REDUNDANT and COMPACT row formats */
-	UNIV_FORMAT_A		= 0,
-
-	/** Barracuda File Format: Introduced in InnoDB plugin for 5.1:
-	This format includes COMPRESSED and DYNAMIC row formats.  It
-	includes the ability to create secondary indexes from data that
-	is not on the clustered index page and the ability to store more
-	data off the clustered index page. */
-	UNIV_FORMAT_B		= 1
-};
-
-typedef enum innodb_file_formats_enum innodb_file_formats_t;
-
-/** Minimum supported file format */
-#define UNIV_FORMAT_MIN		UNIV_FORMAT_A
-
-/** Maximum supported file format */
-#define UNIV_FORMAT_MAX		UNIV_FORMAT_B
-
 /** The 2-logarithm of UNIV_PAGE_SIZE: */
 #define UNIV_PAGE_SIZE_SHIFT	srv_page_size_shift
 
@@ -398,6 +372,10 @@ database name and table name. In addition, 14 bytes is added for:
 	9 for the #mysql50# prefix */
 #define MAX_FULL_NAME_LEN				\
 	(MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
+
+/** Maximum length of the compression alogrithm string. Currently we support
+only (NONE | ZLIB | LZ4). */
+#define MAX_COMPRESSION_LEN     4
 
 /** The maximum length in bytes that a database name can occupy when stored in
 UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
@@ -651,6 +629,8 @@ typedef void* os_thread_ret_t;
 
 extern ulong	srv_page_size_shift;
 extern ulong	srv_page_size;
+
+static const size_t UNIV_SECTOR_SIZE = 512;
 
 /* Dimension of spatial object we support so far. It has its root in
 myisam/sp_defs.h. We only support 2 dimension data */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,65 +47,15 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0read.h"
 #include "fsp0sysspace.h"
 
-/** The file format tag structure with id and name. */
-struct file_format_t {
-	ulint		id;		/*!< id of the file format */
-	const char*	name;		/*!< text representation of the
-					file format */
-	ib_mutex_t		mutex;		/*!< covers changes to the above
-					fields */
-};
-
 /** The transaction system */
 trx_sys_t*		trx_sys		= NULL;
 #endif /* !UNIV_HOTBACKUP */
 
-/** List of animal names representing file format. */
-static const char*	file_format_name_map[] = {
-	"Antelope",
-	"Barracuda",
-	"Cheetah",
-	"Dragon",
-	"Elk",
-	"Fox",
-	"Gazelle",
-	"Hornet",
-	"Impala",
-	"Jaguar",
-	"Kangaroo",
-	"Leopard",
-	"Moose",
-	"Nautilus",
-	"Ocelot",
-	"Porpoise",
-	"Quail",
-	"Rabbit",
-	"Shark",
-	"Tiger",
-	"Urchin",
-	"Viper",
-	"Whale",
-	"Xenops",
-	"Yak",
-	"Zebra"
-};
-
-/** The number of elements in the file format name array. */
-static const ulint	FILE_FORMAT_NAME_N
-	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
-
 #ifndef UNIV_HOTBACKUP
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 uint	trx_rseg_n_slots_debug = 0;
-#endif
 
-/** This is used to track the maximum file format id known to InnoDB. It's
-updated via SET GLOBAL innodb_file_format_max = 'x' or when we open
-or create a table. */
-static	file_format_t	file_format_max;
-
-#ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks whether a trx is in one of rw_trx_list
 @return true if is in */
@@ -134,7 +84,7 @@ trx_in_rw_trx_list(
 
 	return(trx != 0);
 }
-#endif /* UNIV_DEBUG */
+# endif /* UNIV_DEBUG */
 
 /*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */
@@ -149,6 +99,7 @@ trx_sys_flush_max_trx_id(void)
 
 	if (!srv_read_only_mode) {
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		sys_header = trx_sysf_get(&mtr);
 
@@ -527,264 +478,11 @@ trx_sys_create_sys_pages(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	trx_sysf_create(&mtr);
 
 	mtr_commit(&mtr);
-}
-
-/*****************************************************************//**
-Update the file format tag.
-@return always TRUE */
-static
-ibool
-trx_sys_file_format_max_write(
-/*==========================*/
-	ulint		format_id,	/*!< in: file format id */
-	const char**	name)		/*!< out: max file format name, can
-					be NULL */
-{
-	mtr_t		mtr;
-	byte*		ptr;
-	buf_block_t*	block;
-	ib_uint64_t	tag_value;
-
-	mtr_start(&mtr);
-
-	block = buf_page_get(
-		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
-		RW_X_LATCH, &mtr);
-
-	file_format_max.id = format_id;
-	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
-
-	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
-	tag_value = format_id + TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
-
-	if (name) {
-		*name = file_format_max.name;
-	}
-
-	mlog_write_ull(ptr, tag_value, &mtr);
-
-	mtr_commit(&mtr);
-
-	return(TRUE);
-}
-
-/*****************************************************************//**
-Read the file format tag.
-@return the file format or ULINT_UNDEFINED if not set. */
-static
-ulint
-trx_sys_file_format_max_read(void)
-/*==============================*/
-{
-	mtr_t			mtr;
-	const byte*		ptr;
-	const buf_block_t*	block;
-	ib_id_t			file_format_id;
-
-	/* Since this is called during the startup phase it's safe to
-	read the value without a covering mutex. */
-	mtr_start(&mtr);
-
-	block = buf_page_get(
-		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
-		RW_X_LATCH, &mtr);
-
-	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
-	file_format_id = mach_read_from_8(ptr);
-
-	mtr_commit(&mtr);
-
-	file_format_id -= TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
-
-	if (file_format_id >= FILE_FORMAT_NAME_N) {
-
-		/* Either it has never been tagged, or garbage in it. */
-		return(ULINT_UNDEFINED);
-	}
-
-	return((ulint) file_format_id);
-}
-
-/*****************************************************************//**
-Get the name representation of the file format from its id.
-@return pointer to the name */
-const char*
-trx_sys_file_format_id_to_name(
-/*===========================*/
-	const ulint	id)	/*!< in: id of the file format */
-{
-	ut_a(id < FILE_FORMAT_NAME_N);
-
-	return(file_format_name_map[id]);
-}
-
-/*****************************************************************//**
-Check for the max file format tag stored on disk. Note: If max_format_id
-is == UNIV_FORMAT_MAX + 1 then we only print a warning.
-@return DB_SUCCESS or error code */
-dberr_t
-trx_sys_file_format_max_check(
-/*==========================*/
-	ulint	max_format_id)	/*!< in: max format id to check */
-{
-	ulint	format_id;
-
-	/* Check the file format in the tablespace. Do not try to
-	recover if the file format is not supported by the engine
-	unless forced by the user. */
-	format_id = trx_sys_file_format_max_read();
-	if (format_id == ULINT_UNDEFINED) {
-		/* Format ID was not set. Set it to minimum possible
-		value. */
-		format_id = UNIV_FORMAT_MIN;
-	}
-
-	ib::info() << "Highest supported file format is "
-		<< trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX) << ".";
-
-	if (format_id > UNIV_FORMAT_MAX) {
-
-		ut_a(format_id < FILE_FORMAT_NAME_N);
-
-		const std::string	msg = std::string("The system"
-			" tablespace is in a file format that this version"
-			" doesn't support - ")
-			+ trx_sys_file_format_id_to_name(format_id)
-			+ ".";
-
-		if (max_format_id <= UNIV_FORMAT_MAX) {
-			ib::error() << msg;
-		} else {
-			ib::warn() << msg;
-		}
-
-		if (max_format_id <= UNIV_FORMAT_MAX) {
-			return(DB_ERROR);
-		}
-	}
-
-	format_id = (format_id > max_format_id) ? format_id : max_format_id;
-
-	/* We don't need a mutex here, as this function should only
-	be called once at start up. */
-	file_format_max.id = format_id;
-	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
-
-	return(DB_SUCCESS);
-}
-
-/*****************************************************************//**
-Set the file format id unconditionally except if it's already the
-same value.
-@return TRUE if value updated */
-ibool
-trx_sys_file_format_max_set(
-/*========================*/
-	ulint		format_id,	/*!< in: file format id */
-	const char**	name)		/*!< out: max file format name or
-					NULL if not needed. */
-{
-	ibool		ret = FALSE;
-
-	ut_a(format_id <= UNIV_FORMAT_MAX);
-
-	mutex_enter(&file_format_max.mutex);
-
-	/* Only update if not already same value. */
-	if (format_id != file_format_max.id) {
-
-		ret = trx_sys_file_format_max_write(format_id, name);
-	}
-
-	mutex_exit(&file_format_max.mutex);
-
-	return(ret);
-}
-
-/********************************************************************//**
-Tags the system table space with minimum format id if it has not been
-tagged yet.
-WARNING: This function is only called during the startup and AFTER the
-redo log application during recovery has finished. */
-void
-trx_sys_file_format_tag_init(void)
-/*==============================*/
-{
-	ulint	format_id;
-
-	format_id = trx_sys_file_format_max_read();
-
-	/* If format_id is not set then set it to the minimum. */
-	if (format_id == ULINT_UNDEFINED) {
-		trx_sys_file_format_max_set(UNIV_FORMAT_MIN, NULL);
-	}
-}
-
-/********************************************************************//**
-Update the file format tag in the system tablespace only if the given
-format id is greater than the known max id.
-@return TRUE if format_id was bigger than the known max id */
-ibool
-trx_sys_file_format_max_upgrade(
-/*============================*/
-	const char**	name,		/*!< out: max file format name */
-	ulint		format_id)	/*!< in: file format identifier */
-{
-	ibool		ret = FALSE;
-
-	ut_a(name);
-	ut_a(file_format_max.name != NULL);
-	ut_a(format_id <= UNIV_FORMAT_MAX);
-
-	mutex_enter(&file_format_max.mutex);
-
-	if (format_id > file_format_max.id) {
-
-		ret = trx_sys_file_format_max_write(format_id, name);
-	}
-
-	mutex_exit(&file_format_max.mutex);
-
-	return(ret);
-}
-
-/*****************************************************************//**
-Get the name representation of the file format from its id.
-@return pointer to the max format name */
-const char*
-trx_sys_file_format_max_get(void)
-/*=============================*/
-{
-	return(file_format_max.name);
-}
-
-/*****************************************************************//**
-Initializes the tablespace tag system. */
-void
-trx_sys_file_format_init(void)
-/*==========================*/
-{
-	mutex_create("file_format_max", &file_format_max.mutex);
-
-	/* We don't need a mutex here, as this function should only
-	be called once at start up. */
-	file_format_max.id = UNIV_FORMAT_MIN;
-
-	file_format_max.name = trx_sys_file_format_id_to_name(
-		file_format_max.id);
-}
-
-/*****************************************************************//**
-Closes the tablespace tag system. */
-void
-trx_sys_file_format_close(void)
-/*===========================*/
-{
-	mutex_free(&file_format_max.mutex);
 }
 
 /*********************************************************************
@@ -890,7 +588,6 @@ trx_sys_create_rsegs(
 
 	return(n_used);
 }
-
 #else /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
@@ -921,172 +618,6 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			+ TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME;
 	}
 }
-
-/*****************************************************************//**
-Reads the file format id from the first system table space file.
-Even if the call succeeds and returns TRUE, the returned format id
-may be ULINT_UNDEFINED signalling that the format id was not present
-in the data file.
-@return TRUE if call succeeds */
-ibool
-trx_sys_read_file_format_id(
-/*========================*/
-	const char *pathname,  /*!< in: pathname of the first system
-				        table space file */
-	ulint *format_id)      /*!< out: file format of the system table
-				         space */
-{
-	os_file_t	file;
-	bool		success;
-	byte		buf[UNIV_PAGE_SIZE * 2];
-	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
-	const byte*	ptr;
-	ib_id_t		file_format_id;
-
-	*format_id = ULINT_UNDEFINED;
-
-	file = os_file_create_simple_no_error_handling(
-		innodb_data_file_key,
-		pathname,
-		OS_FILE_OPEN,
-		OS_FILE_READ_ONLY,
-		srv_read_only_mode,
-		&success
-	);
-	if (!success) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-
-		ib::error() << "mysqlbackup: Error: trying to read system"
-			" tablespace file format, but could not open the"
-			" tablespace file " << pathname << "!";
-		return(FALSE);
-	}
-
-	/* Read the page on which file format is stored */
-
-	success = os_file_read_no_error_handling(
-		file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE);
-
-	if (!success) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-
-		ib::error() << "mysqlbackup: Error: trying to read system"
-			" tablespace file format, but failed to read the"
-			" tablespace file " << pathname << "!";
-
-		os_file_close(file);
-		return(FALSE);
-	}
-	os_file_close(file);
-
-	/* get the file format from the page */
-	ptr = page + TRX_SYS_FILE_FORMAT_TAG;
-	file_format_id = mach_read_from_8(ptr);
-	file_format_id -= TRX_SYS_FILE_FORMAT_TAG_MAGIC_N;
-
-	if (file_format_id >= FILE_FORMAT_NAME_N) {
-
-		/* Either it has never been tagged, or garbage in it. */
-		return(TRUE);
-	}
-
-	*format_id = (ulint) file_format_id;
-
-	return(TRUE);
-}
-
-/*****************************************************************//**
-Reads the file format id from the given per-table data file.
-@return TRUE if call succeeds */
-ibool
-trx_sys_read_pertable_file_format_id(
-/*=================================*/
-	const char *pathname,  /*!< in: pathname of a per-table
-				        datafile */
-	ulint *format_id)      /*!< out: file format of the per-table
-				         data file */
-{
-	os_file_t	file;
-	bool		success;
-	byte		buf[UNIV_PAGE_SIZE * 2];
-	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
-	const byte*	ptr;
-	ib_uint32_t	flags;
-
-	*format_id = ULINT_UNDEFINED;
-
-	file = os_file_create_simple_no_error_handling(
-		innodb_data_file_key,
-		pathname,
-		OS_FILE_OPEN,
-		OS_FILE_READ_ONLY,
-		srv_read_only_mode,
-		&success
-	);
-	if (!success) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-
-		ib::error() << "mysqlbackup: Error: trying to read per-table"
-			" tablespace format, but could not open the tablespace"
-			" file " << pathname << "!";
-
-		return(FALSE);
-	}
-
-	/* Read the first page of the per-table datafile */
-
-	success = os_file_read_no_error_handling(file, page, 0, UNIV_PAGE_SIZE);
-
-	if (!success) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-
-		ib::error() << "mysqlbackup: Error: trying to per-table data"
-			" file format, but failed to read the tablespace file "
-			<< pathname << "!";
-
-		os_file_close(file);
-		return(FALSE);
-	}
-	os_file_close(file);
-
-	/* get the file format from the page */
-	ptr = page + 54;
-	flags = mach_read_from_4(ptr);
-	if (flags == 0) {
-		/* file format is Antelope */
-		*format_id = 0;
-		return(TRUE);
-	} else if (flags & 1) {
-		/* tablespace flags are ok */
-		*format_id = (flags / 32) % 128;
-		return(TRUE);
-	} else {
-		/* bad tablespace flags */
-		return(FALSE);
-	}
-}
-
-
-/*****************************************************************//**
-Get the name representation of the file format from its id.
-@return pointer to the name */
-const char*
-trx_sys_file_format_id_to_name(
-/*===========================*/
-	const ulint	id)	/*!< in: id of the file format */
-{
-	if (!(id < FILE_FORMAT_NAME_N)) {
-		/* unknown id */
-		return("Unknown");
-	}
-
-	return(file_format_name_map[id]);
-}
-
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
@@ -1113,8 +644,6 @@ trx_sys_close(void)
 
 	/* Free the double write data structures. */
 	buf_dblwr_free();
-
-	trx_sys_mutex_enter();
 
 	/* Only prepared transactions may be left in the system. Free them. */
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
@@ -1160,8 +689,6 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->serialisation_list) == 0);
 
-	trx_sys_mutex_exit();
-
 	/* We used placement new to create this mutex. Call the destructor. */
 	mutex_free(&trx_sys->mutex);
 
@@ -1174,6 +701,33 @@ trx_sys_close(void)
 	trx_sys = NULL;
 }
 
+/** @brief Convert an undo log to TRX_UNDO_PREPARED state on shutdown.
+
+If any prepared ACTIVE transactions exist, and their rollback was
+prevented by innodb_force_recovery, we convert these transactions to
+XA PREPARE state in the main-memory data structures, so that shutdown
+will proceed normally. These transactions will again recover as ACTIVE
+on the next restart, and they will be rolled back unless
+innodb_force_recovery prevents it again.
+
+@param[in]	trx	transaction
+@param[in,out]	undo	undo log to convert to TRX_UNDO_PREPARED */
+static
+void
+trx_undo_fake_prepared(
+	const trx_t*	trx,
+	trx_undo_t*	undo)
+{
+	ut_ad(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
+	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+	ut_ad(trx->is_recovered);
+
+	if (undo != NULL) {
+		ut_ad(undo->state == TRX_UNDO_ACTIVE);
+		undo->state = TRX_UNDO_PREPARED;
+	}
+}
+
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
@@ -1181,15 +735,46 @@ ulint
 trx_sys_any_active_transactions(void)
 /*=================================*/
 {
-	ulint	total_trx = 0;
-
 	trx_sys_mutex_enter();
 
-	total_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list)
-		  + UT_LIST_GET_LEN(trx_sys->mysql_trx_list);
+	ulint	total_trx = UT_LIST_GET_LEN(trx_sys->mysql_trx_list);
 
-	ut_a(total_trx >= trx_sys->n_prepared_trx);
-	total_trx -= trx_sys->n_prepared_trx;
+	if (total_trx == 0) {
+		total_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
+		ut_a(total_trx >= trx_sys->n_prepared_trx);
+
+		if (total_trx > trx_sys->n_prepared_trx
+		    && srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
+			for (trx_t* trx = UT_LIST_GET_FIRST(
+				     trx_sys->rw_trx_list);
+			     trx != NULL;
+			     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+				if (!trx_state_eq(trx, TRX_STATE_ACTIVE)
+				    || !trx->is_recovered) {
+					continue;
+				}
+				/* This was a recovered transaction
+				whose rollback was disabled by
+				the innodb_force_recovery setting.
+				Pretend that it is in XA PREPARE
+				state so that shutdown will work. */
+				trx_undo_fake_prepared(
+					trx, trx->rsegs.m_redo.insert_undo);
+				trx_undo_fake_prepared(
+					trx, trx->rsegs.m_redo.update_undo);
+				trx_undo_fake_prepared(
+					trx, trx->rsegs.m_noredo.insert_undo);
+				trx_undo_fake_prepared(
+					trx, trx->rsegs.m_noredo.update_undo);
+				trx->state = TRX_STATE_PREPARED;
+				trx_sys->n_prepared_trx++;
+				trx_sys->n_prepared_recovered_trx++;
+			}
+		}
+
+		ut_a(total_trx >= trx_sys->n_prepared_trx);
+		total_trx -= trx_sys->n_prepared_trx;
+	}
 
 	trx_sys_mutex_exit();
 

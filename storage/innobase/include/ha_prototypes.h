@@ -31,7 +31,7 @@ simple headers.
 
 #include "univ.i"
 
-#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
+#if !defined UNIV_HOTBACKUP
 
 /* Forward declarations */
 class THD;
@@ -217,21 +217,21 @@ Converts an identifier to a table name. */
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len);	/*!< in: length of 'to', in bytes; should
-				be at least 5 * strlen(to) + 1 */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len);	/*!< in: length of 'to', in bytes; should
+					be at least 5 * strlen(to) + 1 */
 /******************************************************************//**
 Converts an identifier to UTF-8. */
 void
 innobase_convert_from_id(
 /*=====================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len);	/*!< in: length of 'to', in bytes;
-				should be at least 3 * strlen(to) + 1 */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len);	/*!< in: length of 'to', in bytes;
+					should be at least 3 * strlen(to) + 1 */
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 void
@@ -242,7 +242,7 @@ innobase_casedn_str(
 /**********************************************************************//**
 Determines the connection character set.
 @return connection character set */
-CHARSET_INFO*
+const CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	thd);	/*!< in: MySQL thread handle */
@@ -547,6 +547,6 @@ thd_requested_durability(
 	const THD* thd)	/*!< in: thread handle */
 	__attribute__((warn_unused_result));
 
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
+#endif /* !UNIV_HOTBACKUP */
 
 #endif /* HA_INNODB_PROTOTYPES_H */

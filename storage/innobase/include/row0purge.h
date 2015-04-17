@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,7 +45,7 @@ row_purge_node_create(
 	que_thr_t*	parent,		/*!< in: parent node, i.e., a
 					thr node */
 	mem_heap_t*	heap)		/*!< in: memory heap where created */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***********************************************************//**
 Determines if it is possible to remove a secondary index entry.
 Removal is possible if the secondary index entry does not refer to any
@@ -67,7 +67,7 @@ row_purge_poss_sec(
 	purge_node_t*	node,	/*!< in/out: row purge node */
 	dict_index_t*	index,	/*!< in: secondary index */
 	const dtuple_t*	entry)	/*!< in: secondary index entry */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
@@ -76,7 +76,7 @@ que_thr_t*
 row_purge_step(
 /*===========*/
 	que_thr_t*	thr)	/*!< in: query thread */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /* Purge node structure */
 

@@ -33,6 +33,12 @@
 #include "sql_audit.h"
 #include "mysql/service_my_plugin_log.h"
 #include "sql_plugin_ref.h"
+#include "current_thd.h"
+#include "psi_memory_key.h"
+#include "sql_class.h"
+#include "field.h"
+#include "mysqld.h"             // opt_log_syslog_enable
+#include "derror.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -516,6 +522,20 @@ int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
 }
 
 
+File_query_log::File_query_log(enum_log_table_type log_type)
+  : m_log_type(log_type), name(NULL), write_error(false), log_open(false)
+{
+  memset(&log_file, 0, sizeof(log_file));
+  mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
+#ifdef HAVE_PSI_INTERFACE
+  if (log_type == QUERY_LOG_GENERAL)
+    m_log_file_key= key_file_general_log;
+  else if (log_type == QUERY_LOG_SLOW)
+    m_log_file_key= key_file_slow_log;
+#endif
+}
+
+
 bool File_query_log::open()
 {
   File file= -1;
@@ -868,7 +888,7 @@ bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
 
   need_close= true;
 
-  if (log_table_intact.check(table_list.table, &general_log_table_def))
+  if (log_table_intact.check(thd, table_list.table, &general_log_table_def))
     goto err;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
@@ -993,7 +1013,7 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
 
   need_close= true;
 
-  if (log_table_intact.check(table_list.table, &slow_query_log_table_def))
+  if (log_table_intact.check(thd, table_list.table, &slow_query_log_table_def))
     goto err;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
@@ -1214,6 +1234,24 @@ bool Log_to_file_event_handler::log_general(THD *thd, ulonglong event_utime,
 }
 
 
+bool Query_logger::is_log_table_enabled(enum_log_table_type log_type) const
+{
+  if (log_type == QUERY_LOG_SLOW)
+    return (opt_slow_log && (log_output_options & LOG_TABLE));
+  else if (log_type == QUERY_LOG_GENERAL)
+    return (opt_general_log && (log_output_options & LOG_TABLE));
+  DBUG_ASSERT(false);
+  return false;                             /* make compiler happy */
+}
+
+
+void Query_logger::init()
+{
+  file_log_handler= new Log_to_file_event_handler; // Causes mutex init
+  mysql_rwlock_init(key_rwlock_LOCK_logger, &LOCK_logger);
+}
+
+
 void Query_logger::cleanup()
 {
   mysql_rwlock_destroy(&LOCK_logger);
@@ -1300,9 +1338,11 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
 */
 static bool log_command(THD *thd, enum_server_command command)
 {
+#ifndef EMBEDDED_LIBRARY
   /* Audit notification when no general log handler present */
   mysql_audit_general_log(thd, command_name[(uint) command].str,
                           command_name[(uint) command].length);
+#endif
 
   if (what_to_log & (1L << (uint) command))
   {
@@ -1335,7 +1375,7 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
   mysql_rwlock_rdlock(&LOCK_logger);
 
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
-  size_t user_host_len= make_user_name(thd, user_host_buff);
+  size_t user_host_len= make_user_name(thd->security_context(), user_host_buff);
   ulonglong current_utime= thd->current_utime();
 
   bool error= false;
@@ -1804,11 +1844,48 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
                                    "not used' warning(s) suppressed.");
 #endif // MYSQL_SERVER
 
+/**
+  Change the file associated with a file streams.
+
+  @param filename   Path to file.
+  @param outstream  Output File stream.
+  @param errstream  Error File stream.
+
+  @note
+    On error, my_error() is not called here.
+    So, caller of this function should call my_error() to keep the protocol.
+
+  @retval false On Success
+  @retval true  On Error
+*/
 
 bool reopen_fstreams(const char *filename,
                      FILE *outstream, FILE *errstream)
 {
   int retries= 2, errors= 0;
+  MY_STAT f_stat;
+
+  /**
+    Make sure, file is writable if it exists. If file does not exists
+    then make sure directory path exists and it is writable.
+  */
+  if (my_stat(filename, &f_stat, MYF(0)))
+  {
+    if (!(f_stat.st_mode & MY_S_IWRITE))
+    {
+      errno= EACCES;
+      return true;
+    }
+  }
+  else
+  {
+    char path[FN_REFLEN];
+    size_t path_length;
+
+    dirname_part(path, filename, &path_length);
+    if (path_length && my_access(path, (F_OK|W_OK)))
+      return true;
+  }
 
   do
   {
@@ -1837,6 +1914,11 @@ bool flush_error_log()
   if (opt_error_log)
   {
     mysql_mutex_lock(&LOCK_error_log);
+    /**
+      When reopen_fstreams() failed, my_error() has not been called.
+      So, caller of flush_error_log() should call my_error() to keep the
+      protocol.
+    */
     result= reopen_fstreams(log_error_file, stdout, stderr);
     mysql_mutex_unlock(&LOCK_error_log);
   }
@@ -1893,7 +1975,8 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
 
     if (log_syslog_enabled
 #ifdef _WIN32
-    && !abort_loop // Don't write to the eventlog during shutdown.
+        // Don't write to the eventlog during shutdown.
+	 && !connection_events_loop_aborted()
 #endif
       )
     {
@@ -1970,6 +2053,24 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   error_log_print(lvl, format2, args);
   va_end(args);
   return 0;
+}
+
+
+TC_LOG::enum_result TC_LOG_DUMMY::commit(THD *thd, bool all)
+{
+  return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
+}
+
+
+int TC_LOG_DUMMY::rollback(THD *thd, bool all)
+{
+  return ha_rollback_low(thd, all);
+}
+
+
+int TC_LOG_DUMMY::prepare(THD *thd, bool all)
+{
+  return ha_prepare_low(thd, all);
 }
 
 
@@ -2236,6 +2337,18 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
     unlog(cookie, xid);
 
   DBUG_RETURN(RESULT_SUCCESS);
+}
+
+
+int TC_LOG_MMAP::rollback(THD *thd, bool all)
+{
+  return ha_rollback_low(thd, all);
+}
+
+
+int TC_LOG_MMAP::prepare(THD *thd, bool all)
+{
+  return ha_prepare_low(thd, all);
 }
 
 

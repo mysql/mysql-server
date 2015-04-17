@@ -20,6 +20,7 @@
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
+#include "derror.h"                     // ER_DEFAULT
 #include "mysqld.h"                     // key_socket_tcpip
 #include "log.h"                        // sql_print_error
 #include "sql_class.h"                  // THD
@@ -369,7 +370,8 @@ public:
 
         MYSQL_SOCKET s= mysql_socket_socket(0, AF_INET6, SOCK_STREAM, 0);
         ipv6_available= mysql_socket_getfd(s) != INVALID_SOCKET;
-        mysql_socket_close(s);
+        if (ipv6_available)
+          mysql_socket_close(s);
       }
       if (ipv6_available)
       {
@@ -860,11 +862,11 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
       increment the server global status variable.
     */
     connection_errors_select++;
-    if (!select_errors++ && !abort_loop)
+    if (!select_errors++ && !connection_events_loop_aborted())
       sql_print_error("mysqld: Got error %d from select",socket_errno);
   }
 
-  if (retval < 0 || abort_loop)
+  if (retval < 0 || connection_events_loop_aborted())
     return NULL;
 
 

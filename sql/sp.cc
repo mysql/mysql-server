@@ -20,13 +20,16 @@
 #include "my_user.h"      // parse_user
 #include "mysql/psi/mysql_sp.h"
 #include "binlog.h"       // mysql_bin_log
+#include "derror.h"       // ER_THD
 #include "item_timefunc.h"// Item_func_now_local
 #include "key.h"          // key_copy
 #include "lock.h"         // lock_object_name
 #include "log.h"          // sql_print_warning
 #include "log_event.h"    // append_query_string
+#include "mysqld.h"       // trust_function_creators
 #include "sp_cache.h"     // sp_cache_invalidate
 #include "sp_head.h"      // Stored_program_creation_ctx
+#include "sp_pcontext.h"  // sp_pcontext
 #include "sql_base.h"     // close_thread_tables
 #include "sql_db.h"       // get_default_db_collation
 #include "sql_parse.h"    // parse_sql
@@ -329,7 +332,7 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
     push_warning_printf(thd,
                         Sql_condition::SL_WARNING,
                         ER_SR_INVALID_CREATION_CTX,
-                        ER(ER_SR_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_SR_INVALID_CREATION_CTX),
                         (const char *) db_name,
                         (const char *) sr_name);
   }
@@ -425,7 +428,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
     goto err;
   }
 
-  if (!proc_table_intact.check(table.table, &proc_table_def))
+  if (!proc_table_intact.check(thd, table.table, &proc_table_def))
     DBUG_RETURN(table.table);
 
 err:
@@ -460,7 +463,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
   if (!(table= open_system_table_for_update(thd, &table_list)))
     DBUG_RETURN(NULL);
 
-  if (!proc_table_intact.check(table, &proc_table_def))
+  if (!proc_table_intact.check(thd, table, &proc_table_def))
     DBUG_RETURN(table);
 
   close_thread_tables(thd);
@@ -1419,8 +1422,7 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
       is_deterministic= ptr[0] == 'N' ? FALSE : TRUE;
       if (!is_deterministic)
       {
-        my_message(ER_BINLOG_UNSAFE_ROUTINE,
-                   ER(ER_BINLOG_UNSAFE_ROUTINE), MYF(0));
+        my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
         ret= SP_INTERNAL_ERROR;
         goto err;
       }

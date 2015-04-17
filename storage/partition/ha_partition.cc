@@ -62,8 +62,10 @@
 #include "sql_show.h"                        // append_identifier
 #include "sql_admin.h"                       // SQL_ADMIN_MSG_TEXT_SIZE
 #include "myisam.h"                          // TT_FOR_UPGRADE
+#include "sql_class.h"                       // THD
 #include "sql_plugin.h"                      // plugin_unlock_list
 #include "log.h"                             // sql_print_error
+#include "current_thd.h"
 
 #include "debug_sync.h"
 #ifndef DBUG_OFF
@@ -4780,13 +4782,13 @@ void ha_partition::late_extra_no_cache(uint partition_id)
 /**
   Get keys to use for scanning.
 
-  @return key_map of keys usable for scanning
+  @return Key_map of keys usable for scanning
 
   @note No need to use read_partitions here, since it does not depend on
   which partitions is used, only which storage engine used.
 */
 
-const key_map *ha_partition::keys_to_use_for_scanning()
+const Key_map *ha_partition::keys_to_use_for_scanning()
 {
   DBUG_ENTER("ha_partition::keys_to_use_for_scanning");
   DBUG_RETURN(m_file[0]->keys_to_use_for_scanning());

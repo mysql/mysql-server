@@ -16,6 +16,8 @@
 /** @file "EXPLAIN <command>" implementation */ 
 
 #include "opt_explain.h"
+
+#include "current_thd.h"
 #include "sql_select.h"
 #include "sql_optimizer.h" // JOIN
 #include "sql_partition.h" // for make_used_partitions_str()
@@ -25,9 +27,12 @@
 #include "sql_base.h"      // lock_tables
 #include "sql_acl.h"       // check_global_access, PROCESS_ACL
 #include "debug_sync.h"    // DEBUG_SYNC
+#include "opt_range.h"     // QUICK_SELECT_I
 #include "opt_trace.h"     // Opt_trace_*
 #include "sql_parse.h"     // is_explainable_query
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "mysqld.h"        // stage_explaining
+#include "derror.h"              // ER_THD
 
 typedef qep_row::extra extra;
 
@@ -318,7 +323,7 @@ protected:
      condition_optim() instead.
   */
   QEP_TAB *tab;
-  key_map usable_keys;
+  Key_map usable_keys;
 
   Explain_table_base(enum_parsing_context context_type_arg,
                      THD *const thd_arg, SELECT_LEX *select_lex= NULL,
@@ -1908,7 +1913,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list)
   {
     if (tbl->is_view() && tbl->view_no_explain)
     {
-      my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+      my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
       return true;
     }
   }
@@ -1937,7 +1942,7 @@ bool explain_single_table_modification(THD *ethd,
                                        SELECT_LEX *select)
 {
   DBUG_ENTER("explain_single_table_modification");
-  Query_result_send result;
+  Query_result_send result(ethd);
   const THD *const query_thd= select->master_unit()->thd;
   const bool other= (query_thd != ethd);
   bool ret;
@@ -2155,11 +2160,11 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
     explain_result= unit->query_result() ?
                     unit->query_result() : unit->first_select()->query_result();
 
-  Query_result_explain explain_wrapper(unit, explain_result);
+  Query_result_explain explain_wrapper(ethd, unit, explain_result);
 
   if (other)  
   {
-    if (!((explain_result= new Query_result_send)))
+    if (!((explain_result= new Query_result_send(ethd))))
       return true; /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||
@@ -2352,8 +2357,8 @@ void mysql_explain_other(THD *thd)
                  thd->security_context()->priv_user().str,
                  thd->security_context()->priv_host().str,
                  (thd->password ?
-                  ER(ER_YES) :
-                  ER(ER_NO)));
+                  ER_THD(thd, ER_YES) :
+                  ER_THD(thd, ER_NO)));
         goto err;
       }
       mysql_mutex_unlock(&query_thd->LOCK_thd_data);

@@ -251,7 +251,7 @@ dict_create_sys_columns_tuple(
 /***************************************************************//**
 Builds a table definition to insert.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 dict_build_table_def_step(
 /*======================*/
@@ -370,9 +370,8 @@ dict_build_tablespace_for_table(
 	if (needs_file_per_table) {
 		/* This table will need a new tablespace. */
 
-		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
 		ut_ad(DICT_TF_GET_ZIP_SSIZE(table->flags) == 0
-		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
+		      || dict_table_has_atomic_blobs(table));
 
 		/* Get a new tablespace ID */
 		dict_hdr_get_new_id(NULL, NULL, &space, table, false);
@@ -459,7 +458,7 @@ dict_build_tablespace_for_table(
 			table->space = srv_tmp_space.space_id();
 		} else {
 			/* Create in the system tablespace.
-			Disallow Barracuda (Dynamic & Compressed)
+			Disallow ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED
 			page creation as they need file-per-table.
 			Update table flags accordingly */
 			rec_format_t rec_format = table->flags == 0
@@ -733,7 +732,7 @@ dict_create_search_tuple(
 /***************************************************************//**
 Builds an index definition row to insert.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 dict_build_index_def_step(
 /*======================*/
@@ -850,7 +849,7 @@ dict_build_field_def_step(
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 dict_create_index_tree_step(
 /*========================*/
@@ -878,6 +877,7 @@ dict_create_index_tree_step(
 	sys_indexes */
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	const bool	missing = index->table->ibd_file_missing
 		|| dict_table_is_discarded(index->table);
@@ -1118,7 +1118,7 @@ dict_recreate_index_tree(
 
 	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__ID, &len);
 	ut_ad(len == 8);
-	index_id_t	index_id = mach_read_from_8(ptr);
+	space_index_t	index_id = mach_read_from_8(ptr);
 
 	/* We will need to commit the mini-transaction in order to avoid
 	deadlocks in the btr_create() call, because otherwise we would
@@ -1127,6 +1127,7 @@ dict_recreate_index_tree(
 	mtr_commit(mtr);
 
 	mtr_start(mtr);
+	mtr->set_sys_modified();
 	mtr->set_named_space(space);
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 
@@ -1437,21 +1438,20 @@ dict_create_index_step(
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
 
-		index_id_t	index_id = node->index->id;
+		space_index_t	index_id = node->index->id;
 
 		err = dict_index_add_to_cache(
 			node->table, node->index, FIL_NULL,
 			trx_is_strict(trx)
-			|| dict_table_get_format(node->table)
-			>= UNIV_FORMAT_B);
-
-		node->index = dict_index_get_if_in_cache_low(index_id);
-		ut_a(!node->index == (err != DB_SUCCESS));
+			|| dict_table_has_atomic_blobs(node->table));
 
 		if (err != DB_SUCCESS) {
-
+			node->index = NULL;
 			goto function_exit;
 		}
+
+		node->index = UT_LIST_GET_LAST(node->table->indexes);
+		ut_a(node->index->id == index_id);
 
 		node->state = INDEX_CREATE_INDEX_TREE;
 	}
@@ -1707,7 +1707,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 /****************************************************************//**
 Evaluate the given foreign key SQL statement.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 dict_foreign_eval_sql(
 /*==================*/
@@ -1772,7 +1772,7 @@ dict_foreign_eval_sql(
 Add a single foreign key field definition to the data dictionary tables in
 the database.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 dict_create_add_foreign_field_to_dictionary(
 /*========================================*/

@@ -110,12 +110,16 @@
 
 #include "opt_range.h"
 
+#include "current_thd.h"
+#include "derror.h"              // ER_THD
+#include "filesort.h"            // filesort_free_buffers
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
 #include "log.h"                 // sql_print_error
 #include "opt_statistics.h"      // guess_rec_per_key
 #include "opt_trace.h"           // Opt_trace_array
 #include "partition_info.h"      // partition_info
+#include "psi_memory_key.h"
 #include "sql_partition.h"       // HA_USE_AUTO_PARTITION
 #include "sql_base.h"            // free_io_cache
 #include "sql_class.h"           // THD
@@ -852,7 +856,7 @@ public:
     pointer to such SEL_TREE instead of NULL)
   */
   SEL_ARG *keys[MAX_KEY];
-  key_map keys_map;        /* bitmask of non-NULL elements in keys */
+  Key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
   /*
     Possible ways to read rows using Index merge (sort) union.
@@ -867,7 +871,7 @@ public:
   List<SEL_IMERGE> merges;
 
   /* The members below are filled/used only after get_mm_tree is done */
-  key_map ror_scans_map;   /* bitmask of ROR scan-able elements in keys */
+  Key_map ror_scans_map;   /* bitmask of ROR scan-able elements in keys */
   uint    n_ror_scans;     /* number of set bits in ror_scans_map */
 
   struct st_ror_scan_info **ror_scans;     /* list of ROR key scans */
@@ -961,7 +965,7 @@ public:
   MY_BITMAP needed_fields;    /* bitmask of fields needed by the query */
   MY_BITMAP tmp_covered_fields;
 
-  key_map *needed_reg; /* ptr to needed_reg argument of test_quick_select() */
+  Key_map *needed_reg; /* ptr to needed_reg argument of test_quick_select() */
 
   // Buffer for index_merge cost estimates.
   Unique::Imerge_cost_buf_type imerge_cost_buff;
@@ -1018,12 +1022,12 @@ static
 TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
                                           const Cost_estimate *cost_est);
 #ifndef DBUG_OFF
-static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
+static void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
                            const char *msg);
 static void print_ror_scans_arr(TABLE *table, const char *msg,
                                 struct st_ror_scan_info **start,
                                 struct st_ror_scan_info **end);
-static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg);
+static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg);
 #endif
 
 static void append_range_all_keyparts(Opt_trace_array *range_trace,
@@ -2663,13 +2667,13 @@ static int fill_used_fields_bitmap(PARAM *param)
   by calling QEP_TAB::set_quick() and updating tab->type() if appropriate.
 
 */
-int test_quick_select(THD *thd, key_map keys_to_use,
+int test_quick_select(THD *thd, Key_map keys_to_use,
                       table_map prev_tables,
                       ha_rows limit, bool force_quick_range,
                       const ORDER::enum_order interesting_order,
                       const QEP_shared_owner *tab,
                       Item *cond,
-                      key_map *needed_reg,
+                      Key_map *needed_reg,
                       QUICK_SELECT_I **quick)
 {
   DBUG_ENTER("test_quick_select");
@@ -5884,7 +5888,7 @@ if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
             param->thd,
             Sql_condition::SL_WARNING,
             ER_WARN_INDEX_NOT_APPLICABLE,
-            ER(ER_WARN_INDEX_NOT_APPLICABLE),
+            ER_THD(param->thd, ER_WARN_INDEX_NOT_APPLICABLE),
             "range",
             field->table->key_info[param->real_keynr[key_num]].name,
             field->field_name);
@@ -7513,7 +7517,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   dbug_print_tree("tree1", tree1, param);
   dbug_print_tree("tree2", tree2, param);
 
-  key_map  result_keys;
+  Key_map  result_keys;
   
   /* Join the trees key per key */
   SEL_ARG **key1,**key2,**end;
@@ -7561,7 +7565,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, 
                            RANGE_OPT_PARAM* param)
 {
-  key_map common_keys= tree1->keys_map;
+  Key_map common_keys= tree1->keys_map;
   DBUG_ENTER("sel_trees_can_be_ored");
   common_keys.intersect(tree2->keys_map);
 
@@ -7714,7 +7718,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   }
 
   SEL_TREE *result= 0;
-  key_map  result_keys;
+  Key_map  result_keys;
   if (sel_trees_can_be_ored(tree1, tree2, param))
   {
     /* Join the trees key per key */
@@ -11881,7 +11885,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
     uint cur_group_prefix_len= 0;
     Cost_estimate cur_read_cost;
     ha_rows cur_records;
-    key_map used_key_parts_map;
+    Key_map used_key_parts_map;
     uint max_key_part= 0;
     uint cur_key_infix_len= 0;
     uchar cur_key_infix[MAX_KEY_LENGTH];
@@ -14095,7 +14099,7 @@ static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, uint lim
 
 #ifndef DBUG_OFF
 
-static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
+static void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
                            const char *msg)
 {
   SEL_ARG **key,**end;
@@ -14610,7 +14614,7 @@ restore_col_map:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }
 
-static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg)
+static void print_quick(QUICK_SELECT_I *quick, const Key_map *needed_reg)
 {
   char buf[MAX_KEY/8+1];
   TABLE *table;

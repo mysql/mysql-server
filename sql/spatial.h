@@ -19,7 +19,6 @@
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "gcalc_tools.h"
-#include "mysqld.h"
 #include "sql_string.h"                 // String
 
 #include <vector>
@@ -238,15 +237,7 @@ struct Geometry_buffer;
   Memory management functions for BG adapter code. Allocate extra space for
   GEOMETRY header so that we can later prefix the header if needed.
  */
-inline void *gis_wkb_alloc(size_t sz)
-{
-  sz+= GEOM_HEADER_SIZE;
-  char *p= static_cast<char *>(my_malloc(key_memory_Geometry_objects_data,
-                                         sz, MYF(MY_FAE)));
-  p+= GEOM_HEADER_SIZE;
-  return p;
-}
-
+void *gis_wkb_alloc(size_t sz);
 
 inline void *gis_wkb_fixed_alloc(size_t sz)
 {
@@ -254,17 +245,7 @@ inline void *gis_wkb_fixed_alloc(size_t sz)
 }
 
 
-inline void *gis_wkb_realloc(void *p, size_t sz)
-{
-  char *cp= static_cast<char *>(p);
-  if (cp)
-    cp-= GEOM_HEADER_SIZE;
-  sz+= GEOM_HEADER_SIZE;
-
-  p= my_realloc(key_memory_Geometry_objects_data, cp, sz, MYF(MY_FAE));
-  cp= static_cast<char *>(p);
-  return cp + GEOM_HEADER_SIZE;
-}
+void *gis_wkb_realloc(void *p, size_t sz);
 
 
 inline void gis_wkb_free(void *p)

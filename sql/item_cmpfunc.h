@@ -19,6 +19,7 @@
 
 /* compare and test functions */
 
+#include "my_global.h"
 #include "mem_root_array.h"  // Mem_root_array
 #include "my_regex.h"        // my_regex_t
 #include "item_func.h"       // Item_int_func
@@ -1484,8 +1485,8 @@ public:
   /* Cache for the left item. */
   Item *lval_cache;
 
-  cmp_item_datetime(Item *warn_item_arg)
-    :thd(current_thd), warn_item(warn_item_arg), lval_cache(0) {}
+  cmp_item_datetime(Item *warn_item_arg);
+
   void store_value(Item *item);
   int cmp(Item *arg);
   int compare(const cmp_item *ci) const;

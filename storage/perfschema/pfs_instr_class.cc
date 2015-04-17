@@ -21,6 +21,7 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "table.h"
+#include "mysqld.h"                             // lower_case_table_names
 #include "pfs_instr_class.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_instr.h"
@@ -1729,7 +1730,7 @@ search:
   entry= reinterpret_cast<PFS_table_share**>
     (lf_hash_search(&table_share_hash, pins,
                     key.m_hash_key, key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     pfs= *entry;
     pfs->inc_refcount() ;
@@ -1921,7 +1922,7 @@ void drop_table_share(PFS_thread *thread,
   entry= reinterpret_cast<PFS_table_share**>
     (lf_hash_search(&table_share_hash, pins,
                     key.m_hash_key, key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     PFS_table_share *pfs= *entry;
     lf_hash_delete(&table_share_hash, pins,

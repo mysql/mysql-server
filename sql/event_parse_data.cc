@@ -14,10 +14,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sp_head.h"
 #include "event_parse_data.h"
-#include "sql_time.h"                           // TIME_to_timestamp
+
+#include "derror.h"                             // ER_THD
 #include "item_timefunc.h"                      // get_interval_value
+#include "mysqld.h"                             // server_id
+#include "sp_head.h"                            // sp_name
+#include "sql_class.h"                          // THD
+#include "sql_time.h"                           // TIME_to_timestamp
+
 
 /*
   Returns a new instance
@@ -127,7 +132,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
     case SQLCOM_CREATE_EVENT:
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_EVENT_CANNOT_CREATE_IN_THE_PAST,
-                   ER(ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
+                   ER_THD(thd, ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
       break;
     case SQLCOM_ALTER_EVENT:
       my_error(ER_EVENT_CANNOT_ALTER_IN_THE_PAST, MYF(0));
@@ -144,7 +149,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
     status_changed= true;
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_EVENT_EXEC_TIME_IN_THE_PAST,
-                 ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
+                 ER_THD(thd, ER_EVENT_EXEC_TIME_IN_THE_PAST));
   }
 }
 

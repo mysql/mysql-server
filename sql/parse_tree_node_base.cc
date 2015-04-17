@@ -15,7 +15,7 @@
 
 #include "my_config.h"
 #include "parse_tree_node_base.h"
-#include "sql_parse.h"
+#include "sql_class.h"
 
 Parse_context::Parse_context(THD *thd, st_select_lex *select)
 : thd(thd),

@@ -23,6 +23,7 @@
 #include "item.h"      // Item
 #include "sql_string.h" // String
 #include "m_string.h"  // _dig_vec_lower
+#include "current_thd.h"
 
 #ifdef OPTIMIZER_TRACE
 

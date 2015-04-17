@@ -15,7 +15,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_class.h"  // Query_arena
+#include "my_global.h"
+#include "query_result.h" // Query_result_send
+#include "sql_class.h"    // Query_arena
 
 struct LEX;
 
@@ -374,7 +376,9 @@ class Query_fetch_protocol_binary: public Query_result_send
 {
   Protocol_binary protocol;
 public:
-  Query_fetch_protocol_binary(THD *thd);
+  Query_fetch_protocol_binary(THD *thd)
+    : Query_result_send(thd), protocol(thd)
+  { }
   virtual bool send_result_set_metadata(List<Item> &list, uint flags);
   virtual bool send_data(List<Item> &items);
   virtual bool send_eof();

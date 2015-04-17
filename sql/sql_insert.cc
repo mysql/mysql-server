@@ -21,14 +21,17 @@
 
 #include "auth_common.h"              // check_grant_all_columns
 #include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_THD
 #include "item.h"                     // Item
 #include "lock.h"                     // mysql_unlock_tables
+#include "mysqld.h"                   // stage_init
 #include "opt_explain.h"              // Modification_plan
 #include "opt_explain_format.h"       // enum_mod_type
 #include "rpl_rli.h"                  // Relay_log_info
 #include "rpl_slave.h"                // rpl_master_has_bug
 #include "sql_base.h"                 // setup_fields
-#include "sql_resolver.h"             // Column_privilege_tracker
+#include "sql_cache.h"                // query_cache
+#include "sql_resolver.h"             // validate_gc_assignment
 #include "sql_select.h"               // free_underlaid_joins
 #include "sql_show.h"                 // store_create_info
 #include "sql_table.h"                // quick_rm_table
@@ -37,7 +40,6 @@
 #include "sql_view.h"                 // check_key_in_view
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "transaction.h"              // trans_commit_stmt
-#include "sql_resolver.h"             // validate_gc_assignment
 #include "partition_info.h"           // partition_info
 #include "probes_mysql.h"             // MYSQL_INSERT_START
 
@@ -301,7 +303,7 @@ bool validate_default_values_of_unset_fields(THD *thd, TABLE *table)
     cannot be done if there are BEFORE UPDATE/DELETE triggers.
 */
 
-void prepare_triggers_for_insert_stmt(TABLE *table)
+void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table)
 {
   if (table->triggers)
   {
@@ -326,7 +328,7 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
       (void) table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
     }
   }
-  table->mark_columns_needed_for_insert();
+  table->mark_columns_needed_for_insert(thd);
 }
 
 /**
@@ -609,7 +611,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     insert_table->file->ha_start_bulk_insert(insert_many_values.elements);
 
-  prepare_triggers_for_insert_stmt(insert_table);
+  prepare_triggers_for_insert_stmt(thd, insert_table);
 
   for (Field** next_field= insert_table->field; *next_field; ++next_field)
   {
@@ -840,12 +842,12 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
         info.stats.touched : info.stats.updated;
     if (lex->is_ignore())
       my_snprintf(buff, sizeof(buff),
-                  ER(ER_INSERT_INFO), (long) info.stats.records,
+                  ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.records - info.stats.copied),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     else
       my_snprintf(buff, sizeof(buff),
-                  ER(ER_INSERT_INFO), (long) info.stats.records,
+                  ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
@@ -2040,7 +2042,7 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (!res)
   {
-     prepare_triggers_for_insert_stmt(table);
+    prepare_triggers_for_insert_stmt(thd, table);
   }
 
   for (Field** next_field= table->field; *next_field; ++next_field)
@@ -2329,12 +2331,12 @@ bool Query_result_insert::send_eof()
   char buff[160];
   if (thd->lex->is_ignore())
     my_snprintf(buff, sizeof(buff),
-                ER(ER_INSERT_INFO), (long) info.stats.records,
+                ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.records - info.stats.copied),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   else
     my_snprintf(buff, sizeof(buff),
-                ER(ER_INSERT_INFO), (long) info.stats.records,
+                ER_THD(thd, ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.deleted+info.stats.updated),
                 (long) thd->get_stmt_da()->current_statement_cond_count());
   row_count= info.stats.copied + info.stats.deleted +
@@ -2538,6 +2540,12 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!cr_field)
       DBUG_RETURN(NULL);
 
+    /*
+      Inheriting vitual generated information is not allowed.
+    */
+    cr_field->gcol_info= NULL;
+    cr_field->stored_in_db= TRUE;
+
     if (item->maybe_null)
       cr_field->flags &= ~NOT_NULL_FLAG;
     alter_info->create_list.push_back(cr_field);
@@ -2646,6 +2654,57 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   const bool retval= info.ignore_last_columns(table, values.elements);
   DBUG_RETURN(retval);
 }
+
+
+/*
+  Class for maintaining hooks used inside operations on tables such
+  as: create table functions, delete table functions, and alter table
+  functions.
+
+  Class is using the Template Method pattern to separate the public
+  usage interface from the private inheritance interface.  This
+  imposes no overhead, since the public non-virtual function is small
+  enough to be inlined.
+
+  The hooks are usually used for functions that does several things,
+  e.g., create_table_from_items(), which both create a table and lock
+  it.
+ */
+class TABLEOP_HOOKS
+{
+public:
+  TABLEOP_HOOKS() {}
+  virtual ~TABLEOP_HOOKS() {}
+
+  inline void prelock(TABLE **tables, uint count)
+  {
+    do_prelock(tables, count);
+  }
+
+  inline int postlock(TABLE **tables, uint count)
+  {
+    return do_postlock(tables, count);
+  }
+private:
+  /* Function primitive that is called prior to locking tables */
+  virtual void do_prelock(TABLE **tables, uint count)
+  {
+    /* Default is to do nothing */
+  }
+
+  /**
+     Primitive called after tables are locked.
+
+     If an error is returned, the tables will be unlocked and error
+     handling start.
+
+     @return Error code or zero.
+   */
+  virtual int do_postlock(TABLE **tables, uint count)
+  {
+    return 0;                           /* Default is to do nothing */
+  }
+};
 
 
 /**
@@ -2795,7 +2854,7 @@ int Query_result_create::prepare2()
 
   thd->count_cuted_fields= save_count_cuted_fields;
 
-  table->mark_columns_needed_for_insert();
+  table->mark_columns_needed_for_insert(thd);
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(0);
 }
@@ -3026,7 +3085,7 @@ bool Sql_cmd_insert::execute(THD *thd)
                       "now "
                       "wait_for signal.continue";
                     DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
                                                        STRING_WITH_LEN(act)));
                   };);
   return res;
@@ -3082,7 +3141,8 @@ bool Sql_cmd_insert_select::execute(THD *thd)
       select_lex->context.first_name_resolution_table= second_table;
 
     res= mysql_insert_select_prepare(thd);
-    if (!res && (sel_result= new Query_result_insert(first_table,
+    if (!res && (sel_result= new Query_result_insert(thd,
+                                                     first_table,
                                                      first_table->table,
                                                      &insert_field_list,
                                                      &insert_field_list,

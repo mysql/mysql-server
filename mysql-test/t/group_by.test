@@ -2258,7 +2258,6 @@ DROP TABLE r;
 SET @old_sql_mode = @@sql_mode;
 set sql_mode='';
 
-SET GLOBAL innodb_large_prefix=OFF;
 CREATE TABLE AA (
 col_varchar_1024_latin1 varchar(1024)  CHARACTER SET latin1,
 pk integer auto_increment,
@@ -2276,7 +2275,7 @@ key (col_varchar_1024_utf8_key ),
 key (col_varchar_1024_latin1_key ),
 key (col_varchar_10_utf8_key ),
 key (col_varchar_10_latin1_key ),
-key (col_int_key )) ENGINE=innodb;
+key (col_int_key )) ENGINE=innodb ROW_FORMAT=DYNAMIC;
 
 CREATE OR REPLACE VIEW view_AA AS SELECT * FROM AA;
 
@@ -2317,7 +2316,6 @@ DROP VIEW view_AA;
 SET @@sql_mode = @old_sql_mode;
 
 SET sql_mode = default;
-SET GLOBAL innodb_large_prefix=default;
 
 --echo #
 --echo # Bug#20262196 ASSERTION FAILED: !IMPLICIT_GROUPING || TMP_TABLE_PARAM.SUM_FUNC_COUNT

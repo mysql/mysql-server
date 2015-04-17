@@ -64,7 +64,7 @@ query_vertical SELECT User,plugin,length(authentication_string),max_user_connect
 CREATE USER u15@localhost,
             u16@localhost IDENTIFIED BY 'auth_string',
             u17@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string' PASSWORD EXPIRE;
-query_vertical SELECT User,plugin,password_expired,password_lifetime FROM mysql.user WHERE USER BETWEEN 'u15' AND 'u17';
+query_vertical SELECT User,plugin,password_expired,password_lifetime FROM mysql.user WHERE USER BETWEEN 'u15' AND 'u17' ORDER BY User;
 
 CREATE USER u18@localhost,
             u19@localhost IDENTIFIED BY 'auth_string',
@@ -74,7 +74,7 @@ CREATE USER u18@localhost,
             PASSWORD EXPIRE NEVER;
 query_vertical SELECT User,plugin,ssl_type,ssl_cipher,x509_issuer,x509_subject,
        max_questions,max_user_connections,password_expired,password_lifetime
-       FROM mysql.user WHERE USER BETWEEN 'u18' AND 'u21';
+       FROM mysql.user WHERE USER BETWEEN 'u18' AND 'u21' ORDER BY User;
 
 drop user u1@localhost, u2@localhost, u3@localhost, u4@localhost, u5@localhost,
           u6@localhost, u7@localhost, u8@localhost, u9@localhost, u10@localhost,

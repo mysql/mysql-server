@@ -27,21 +27,26 @@
    dynamic functions, so this shouldn't be a real problem.
 */
 
-#include "sql_base.h"                           // close_mysql_tables
-#include "sql_parse.h"                        // check_string_char_length
-#include "sql_table.h"                        // write_bin_log
-#include "records.h"          // init_read_record, end_read_record
-#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "log.h"
-#include "sql_plugin.h"                         // check_valid_path
+#include "sql_udf.h"
+
+#include "hash.h"               // HASH
+#include "m_string.h"           // my_stpcpy
+#include "derror.h"             // ER_DEFAULT
+#include "log.h"                // sql_print_error
+#include "mysqld.h"             // opt_allow_suspicious_udfs
+#include "mysqld_error.h"       // ER_*
+#include "records.h"            // READ_RECORD
+#include "sql_base.h"           // close_mysql_tables
+#include "sql_class.h"          // THD
+#include "sql_parse.h"          // check_string_char_length
+#include "sql_plugin.h"         // check_valid_path
+#include "sql_table.h"          // write_bin_log
+#include "table.h"              // TABLE_LIST
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
 
-#ifdef HAVE_DLOPEN
-#include <stdarg.h>
-#include <hash.h>
 
 static bool initialized = 0;
 static MEM_ROOT mem;
@@ -87,7 +92,7 @@ static char *init_syms(udf_func *tmp, char *nm)
   {
     if (!opt_allow_suspicious_udfs)
       return nm;
-    sql_print_warning(ER(ER_CANT_FIND_DL_ENTRY), nm);
+    sql_print_warning(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY), nm);
   }
   return 0;
 }
@@ -237,7 +242,8 @@ void udf_init()
 	DLERROR_GENERATE(errmsg, error_number);
 
 	/* Print warning to log */
-        sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl, error_number, errmsg);
+        sql_print_error(ER_DEFAULT(ER_CANT_OPEN_LIBRARY),
+                        tmp->dl, error_number, errmsg);
 	/* Keep the udf in the hash so that we can remove it later */
 	continue;
       }
@@ -248,7 +254,7 @@ void udf_init()
       char buf[NAME_LEN+16], *missing;
       if ((missing= init_syms(tmp, buf)))
       {
-        sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), missing);
+        sql_print_error(ER_DEFAULT(ER_CANT_FIND_DL_ENTRY), missing);
         del_udf(tmp);
         if (new_dl)
           dlclose(dl);
@@ -442,7 +448,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
                udf->name.str,
                "UDFs are unavailable with the --skip-grant-tables option");
     else
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -453,7 +459,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   */
   if (check_valid_path(udf->dl, strlen(udf->dl)))
   {
-    my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
+    my_error(ER_UDF_NO_PATHS, MYF(0));
     DBUG_RETURN(1);
   }
   LEX_CSTRING udf_name_cstr= {udf->name.str, udf->name.length};
@@ -585,7 +591,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     if (opt_noacl)
       my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), udf_name->str);
     else
-      my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -644,5 +650,3 @@ exit:
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(error);
 }
-
-#endif /* HAVE_DLOPEN */

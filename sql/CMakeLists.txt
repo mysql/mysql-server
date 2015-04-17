@@ -63,6 +63,7 @@ ENDIF()
 
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
+  auth/auth_common.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
@@ -73,10 +74,12 @@ SET(SQL_SHARED_SOURCES
   auth/sql_security_ctx.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
+  current_thd.cc
   datadict.cc
   debug_sync.cc
   derror.cc
   discover.cc
+  error_handler.cc
   field.cc
   field_conv.cc 
   filesort.cc
@@ -106,6 +109,7 @@ SET(SQL_SHARED_SOURCES
   item_xmlfunc.cc 
   item_inetfunc.cc
   key.cc
+  key_spec.cc
   keycaches.cc
   lock.cc
   log.cc
@@ -116,6 +120,7 @@ SET(SQL_SHARED_SOURCES
   opt_costconstants.cc
   opt_costmodel.cc
   opt_explain.cc
+  opt_explain_format.cc
   opt_explain_traditional.cc
   opt_explain_json.cc
   opt_hints.cc
@@ -136,6 +141,8 @@ SET(SQL_SHARED_SOURCES
   partitioning/partition_handler.cc
   procedure.cc 
   protocol_classic.cc
+  psi_memory_key.cc
+  query_result.cc
   records.cc
   rpl_group_replication.cc
   rpl_handler.cc
@@ -157,7 +164,6 @@ SET(SQL_SHARED_SOURCES
   sql_alloc_error_handler.cc
   sql_alter.cc
   sql_analyse.cc
-  sql_audit.cc
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
@@ -208,6 +214,7 @@ SET(SQL_SHARED_SOURCES
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
+  sql_thd_api.cc
   sql_time.cc
   sql_tmp_table.cc
   sql_trigger.cc
@@ -219,6 +226,7 @@ SET(SQL_SHARED_SOURCES
   strfunc.cc
   sys_vars.cc
   sys_vars_resource_mgr.cc
+  system_variables.cc
   table.cc
   table_cache.cc
   table_trigger_dispatcher.cc
@@ -265,6 +273,7 @@ SET(SQL_SOURCE
   mysqld.cc
   mysqld_thd_manager.cc
   signal_handler.cc
+  sql_audit.cc
   sql_client.cc
   )
 
@@ -374,25 +383,6 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-
-######################### GUnit Lib #################################
-
-SET(SQL_GUNIT_LIB_SOURCE 
-  filesort_utils.cc 
-  mdl.cc 
-  sql_list.cc 
-  ../sql-common/sql_string.cc
-  thr_malloc.cc
-  )
-
-IF(WIN32)
-  LIST(APPEND SQL_GUNIT_LIB_SOURCE named_pipe.cc)
-ENDIF()
-
-ADD_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
-ADD_DEPENDENCIES(sqlgunitlib GenError)
-
-######################### GUnit Lib #################################
 
 
 IF(WIN32)
@@ -521,6 +511,11 @@ RUN_BISON(
   HINT_PARSER_
 )
 
+SET_SOURCE_FILES_PROPERTIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  PROPERTIES OBJECT_DEPENDS ${GEN_DIGEST_SOURCES}
+)
+
 # Gen_lex_hash
 ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
 
@@ -545,7 +540,7 @@ ADD_CUSTOM_TARGET(
 )
 
 
-IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
+IF(NOT DISABLE_SHARED)
   ADD_LIBRARY(udf_example MODULE udf_example.cc)
   SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
   # udf_example depends on strings 

@@ -15,6 +15,7 @@
 
 #include "event_data_objects.h"
 
+#include "psi_memory_key.h"
 #include "sql_parse.h"                          // parse_sql
 #include "strfunc.h"                           // find_string_in_array
 #include "sql_db.h"                        // get_default_db_collation
@@ -30,6 +31,7 @@
 #include "sp_head.h"
 #include "sql_show.h"                // append_definer, append_identifier
 #include "log.h"
+#include "derror.h"
 
 #include "mysql/psi/mysql_sp.h"
 
@@ -626,7 +628,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
     push_warning_printf(thd,
                         Sql_condition::SL_WARNING,
                         ER_EVENT_INVALID_CREATION_CTX,
-                        ER(ER_EVENT_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_EVENT_INVALID_CREATION_CTX),
                         (const char *) dbname.str,
                         (const char *) name.str);
   }
@@ -924,7 +926,7 @@ done:
 */
 
 bool
-Event_queue_element::compute_next_execution_time()
+Event_queue_element::compute_next_execution_time(THD *thd)
 {
   my_time_t time_now;
   DBUG_ENTER("Event_queue_element::compute_next_execution_time");
@@ -954,7 +956,7 @@ Event_queue_element::compute_next_execution_time()
     goto ret;
   }
 
-  time_now= (my_time_t) current_thd->query_start();
+  time_now= (my_time_t) thd->query_start();
 
   DBUG_PRINT("info",("NOW: [%lu]", (ulong) time_now));
 

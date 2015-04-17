@@ -620,7 +620,7 @@ update_mbr:
 
 /**************************************************************//**
 Update parent page's MBR and Predicate lock information during a split */
-static __attribute__((nonnull))
+static
 void
 rtr_adjust_upper_level(
 /*===================*/
@@ -1497,11 +1497,6 @@ rtr_page_copy_rec_list_end_no_locks(
 		ins_rec = page_cur_insert_rec_low(cur_rec, index,
 						  cur1_rec, offsets, mtr);
 		if (UNIV_UNLIKELY(!ins_rec)) {
-			buf_page_print(new_page, univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-			buf_page_print(page_align(rec), univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-
 			fprintf(stderr, "page number %ld and %ld\n",
 				(long)new_block->page.id.page_no(),
 				(long)block->page.id.page_no());
@@ -1624,13 +1619,6 @@ rtr_page_copy_rec_list_start_no_locks(
 		ins_rec = page_cur_insert_rec_low(cur_rec, index,
 						  cur1_rec, offsets, mtr);
 		if (UNIV_UNLIKELY(!ins_rec)) {
-
-			buf_page_print(buf_block_get_frame(new_block),
-				       univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-			buf_page_print(page_align(rec), univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-
 			fprintf(stderr, "page number %ld and %ld\n",
 				(long)new_block->page.id.page_no(),
 				(long)block->page.id.page_no());

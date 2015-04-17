@@ -15,6 +15,9 @@
 
 #include "rpl_rli_pdb.h"
 
+#include "current_thd.h"
+#include "psi_memory_key.h"
+#include "mysqld.h"                         // key_mutex_slave_parallel_worker
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 
 #include "pfs_file_provider.h"
@@ -1327,6 +1330,26 @@ bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k)
       return i > k;
 }
 
+Slave_committed_queue::Slave_committed_queue(const char *log, ulong max, uint n)
+  : circular_buffer_queue<Slave_job_group>(max), inited(false),
+    last_done(key_memory_Slave_job_group_group_relay_log_name)
+{
+  if (max >= (ulong) -1 || !inited_queue)
+    return;
+  else
+    inited= TRUE;
+
+  last_done.resize(n);
+
+  lwm.group_relay_log_name=
+    (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
+                       FN_REFLEN + 1, MYF(0));
+  lwm.group_relay_log_name[0]= 0;
+  lwm.sequence_number= SEQ_UNINIT;
+}
+
+
+
 #ifndef DBUG_OFF
 bool Slave_committed_queue::count_done(Relay_log_info* rli)
 {
@@ -1577,7 +1600,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
             "The most recent failure being: Worker %lu failed executing "
             "transaction '%s' at master log %s, end_log_pos %llu. "
             "See error log and/or "
-            "performance_schema.replication_execute_status_by_worker table for "
+            "performance_schema.replication_applier_status_by_worker table for "
             "more details about this failure or others, if any.",
             id, buff_gtid, log_name, log_pos);
 
@@ -2500,10 +2523,10 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
-    sql_print_information("Worker %lu is exiting: killed %i, error %i, "
-                          "running_status %d",
-                          worker->id, thd->killed, thd->is_error(),
-                          worker->running_status);
+    DBUG_PRINT("info", ("Worker %lu is exiting: killed %i, error %i, "
+                        "running_status %d",
+                        worker->id, thd->killed, thd->is_error(),
+                        worker->running_status));
     worker->slave_worker_ends_group(ev, error); /* last done sets post exec */
   }
   DBUG_RETURN(error);

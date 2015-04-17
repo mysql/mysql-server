@@ -229,7 +229,7 @@ search:
     (lf_hash_search(&digest_hash, pins,
                     &hash_key, sizeof(PFS_digest_key)));
 
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     /* If digest already exists, update stats and return. */
     pfs= *entry;
@@ -316,7 +316,7 @@ void purge_digest(PFS_thread* thread, PFS_digest_key *hash_key)
     (lf_hash_search(&digest_hash, pins,
                     hash_key, sizeof(PFS_digest_key)));
 
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     lf_hash_delete(&digest_hash, pins,
                    hash_key, sizeof(PFS_digest_key));

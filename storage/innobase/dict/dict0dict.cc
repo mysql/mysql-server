@@ -25,7 +25,8 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #include "ha_prototypes.h"
-#include <mysqld.h>
+#include "current_thd.h"
+#include "mysqld.h"                             // system_charset_info
 #include <strfunc.h>
 
 #include "dict0dict.h"
@@ -440,12 +441,12 @@ dict_table_try_drop_aborted(
 		ut_ad(table->id == table_id);
 	}
 
-	if (table && table->n_ref_count == ref_count && table->drop_aborted) {
+	if (table && table->get_ref_count() == ref_count && table->drop_aborted) {
 		/* Silence a debug assertion in row_merge_drop_indexes(). */
-		ut_d(table->n_ref_count++);
+		ut_d(table->acquire());
 		row_merge_drop_indexes(trx, table, TRUE);
-		ut_d(table->n_ref_count--);
-		ut_ad(table->n_ref_count == ref_count);
+		ut_d(table->release());
+		ut_ad(table->get_ref_count() == ref_count);
 		trx_commit_for_mysql(trx);
 	}
 
@@ -469,7 +470,7 @@ dict_table_try_drop_aborted_and_mutex_exit(
 	if (try_drop
 	    && table != NULL
 	    && table->drop_aborted
-	    && table->n_ref_count == 1
+	    && table->get_ref_count() == 1
 	    && dict_table_get_first_index(table)) {
 
 		/* Attempt to drop the indexes whose online creation
@@ -500,9 +501,9 @@ dict_table_close(
 	}
 
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(table));
-	ut_a(table->n_ref_count > 0);
+	ut_a(table->get_ref_count() > 0);
 
-	--table->n_ref_count;
+	table->release();
 
 	/* Intrinsic table is not added to dictionary cache so skip other
 	cache specific actions. */
@@ -516,7 +517,7 @@ dict_table_close(
 	only if table reference count is 0 because we do not want too frequent
 	stats re-reads (e.g. in other cases than FLUSH TABLE). */
 	if (strchr(table->name.m_name, '/') != NULL
-	    && table->n_ref_count == 0
+	    && table->get_ref_count() == 0
 	    && dict_stats_is_persistent_enabled(table)) {
 
 		dict_stats_deinit(table);
@@ -540,7 +541,7 @@ dict_table_close(
 
 		drop_aborted = try_drop
 			&& table->drop_aborted
-			&& table->n_ref_count == 1
+			&& table->get_ref_count() == 1
 			&& dict_table_get_first_index(table);
 
 		mutex_exit(&dict_sys->mutex);
@@ -951,7 +952,7 @@ dict_table_open_on_id(
 			dict_move_to_mru(table);
 		}
 
-		++table->n_ref_count;
+		table->acquire();
 
 		MONITOR_INC(MONITOR_TABLE_REFERENCE);
 	}
@@ -1037,8 +1038,10 @@ dict_init(void)
 	rw_lock_create(dict_operation_lock_key,
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
-	dict_foreign_err_file = os_file_create_tmpfile();
-	ut_a(dict_foreign_err_file);
+	if (!srv_read_only_mode) {
+		dict_foreign_err_file = os_file_create_tmpfile();
+		ut_a(dict_foreign_err_file);
+	}
 
 	mutex_create("dict_foreign_err", &dict_foreign_err_mutex);
 }
@@ -1124,7 +1127,7 @@ dict_table_open_on_name(
 			dict_move_to_mru(table);
 		}
 
-		++table->n_ref_count;
+		table->acquire();
 
 		MONITOR_INC(MONITOR_TABLE_REFERENCE);
 	}
@@ -1319,7 +1322,7 @@ dict_table_can_be_evicted(
 	ut_a(table->foreign_set.empty());
 	ut_a(table->referenced_set.empty());
 
-	if (table->n_ref_count == 0) {
+	if (table->get_ref_count() == 0) {
 		dict_index_t*	index;
 
 		/* The transaction commit and rollback are called from
@@ -1442,24 +1445,22 @@ dict_table_move_from_lru_to_non_lru(
 	table->can_be_evicted = FALSE;
 }
 
-/** Looks for an index with the given id given a table instance.
-@param[in]	table	table instance
-@param[in]	id	index id
-@return index or NULL */
-dict_index_t*
+/** Look up an index in a table.
+@param[in]	table	table
+@param[in]	id	index identifier
+@return index
+@retval NULL if not found */
+static
+const dict_index_t*
 dict_table_find_index_on_id(
 	const dict_table_t*	table,
-	index_id_t		id)
+	const index_id_t&	id)
 {
-	dict_index_t*	index;
-
-	for (index = dict_table_get_first_index(table);
+	for (const dict_index_t* index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
-
-		if (id == index->id) {
-			/* Found */
-
+		if (index->space == id.m_space_id
+		    && index->id == id.m_index_id) {
 			return(index);
 		}
 	}
@@ -1467,29 +1468,22 @@ dict_table_find_index_on_id(
 	return(NULL);
 }
 
-/**********************************************************************//**
-Looks for an index with the given id. NOTE that we do not reserve
-the dictionary mutex: this function is for emergency purposes like
-printing info of a corrupt database page!
-@return index or NULL if not found in cache */
-dict_index_t*
-dict_index_find_on_id_low(
-/*======================*/
-	index_id_t	id)	/*!< in: index id */
+/** Look up an index.
+@param[in]	id	index identifier
+@return index or NULL if not found */
+const dict_index_t*
+dict_index_find(
+	const index_id_t&	id)
 {
-	dict_table_t*	table;
+	const dict_table_t*	table;
 
-	/* This can happen if the system tablespace is the wrong page size */
-	if (dict_sys == NULL) {
-		return(NULL);
-	}
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 	     table != NULL;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
-
-		dict_index_t*	index = dict_table_find_index_on_id(table, id);
-
+		const dict_index_t* index = dict_table_find_index_on_id(
+			table, id);
 		if (index != NULL) {
 			return(index);
 		}
@@ -1498,9 +1492,8 @@ dict_index_find_on_id_low(
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
 	     table != NULL;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
-
-		dict_index_t*	index = dict_table_find_index_on_id(table, id);
-
+		const dict_index_t* index = dict_table_find_index_on_id(
+			table, id);
 		if (index != NULL) {
 			return(index);
 		}
@@ -1975,7 +1968,7 @@ dict_table_remove_from_cache_low(
 
 	ut_ad(table);
 	ut_ad(dict_lru_validate());
-	ut_a(table->n_ref_count == 0);
+	ut_a(table->get_ref_count() == 0);
 	ut_a(table->n_rec_locks == 0);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -2038,10 +2031,10 @@ dict_table_remove_from_cache_low(
 		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 		/* Silence a debug assertion in row_merge_drop_indexes(). */
-		ut_d(table->n_ref_count++);
+		ut_d(table->acquire());
 		row_merge_drop_indexes(trx, table, TRUE);
-		ut_d(table->n_ref_count--);
-		ut_ad(table->n_ref_count == 0);
+		ut_d(table->release());
+		ut_ad(table->get_ref_count() == 0);
 		trx_commit_for_mysql(trx);
 		trx->dict_operation_lock_mode = 0;
 		trx_free_for_background(trx);
@@ -2236,8 +2229,7 @@ is_ord_part:
 
 			/* We only store the needed prefix length in undo log */
 			if (max_prefix) {
-			     ut_ad(dict_table_get_format(table)
-				   >= UNIV_FORMAT_B);
+			     ut_ad(dict_table_has_atomic_blobs(table));
 
 				max_size = ut_min(max_prefix, max_size);
 			}
@@ -2594,28 +2586,20 @@ too_big:
 	testcase that shows an index that can be created but
 	cannot be updated. */
 
-	switch (dict_table_get_format(table)) {
-	case UNIV_FORMAT_A:
+	if (!dict_table_has_atomic_blobs(table)) {
 		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
 		prefixes of externally stored columns locally within
 		the record.  There are no special considerations for
 		the undo log record size. */
 		goto undo_size_ok;
-
-	case UNIV_FORMAT_B:
-		/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED,
-		column prefix indexes require that prefixes of
-		externally stored columns are written to the undo log.
-		This may make the undo log record bigger than the
-		record on the B-tree page.  The maximum size of an
-		undo log record is the page size.  That must be
-		checked for below. */
-		break;
-
-#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
-# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
-#endif
 	}
+
+	/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED, column
+	prefix indexes require that prefixes of externally stored
+	columns are written to the undo log.  This may make the undo
+	log record bigger than the record on the B-tree page.  The
+	maximum size of an undo log record is the page size.  That
+	must be checked for below. */
 
 	for (i = 0; i < n_ord; i++) {
 		const dict_field_t*	field
@@ -2815,8 +2799,9 @@ dict_index_remove_from_cache_low(
 
 	/* The index is being dropped, remove any compression stats for it. */
 	if (!lru_evict && DICT_TF_GET_ZIP_SSIZE(index->table->flags)) {
+		index_id_t	id(index->space, index->id);
 		mutex_enter(&page_zip_stat_per_index_mutex);
-		page_zip_stat_per_index.erase(index->id);
+		page_zip_stat_per_index.erase(id);
 		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 
@@ -3849,11 +3834,11 @@ static
 const char*
 dict_accept(
 /*========*/
-	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
-	const char*	ptr,	/*!< in: scan from this */
-	const char*	string,	/*!< in: accept only this string as the next
-				non-whitespace string */
-	ibool*		success)/*!< out: TRUE if accepted */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
+	const char*		ptr,	/*!< in: scan from this */
+	const char*		string,	/*!< in: accept only this string as the next
+					non-whitespace string */
+	ibool*			success)/*!< out: TRUE if accepted */
 {
 	const char*	old_ptr = ptr;
 	const char*	old_ptr2;
@@ -3885,19 +3870,19 @@ static
 const char*
 dict_scan_id(
 /*=========*/
-	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
-	const char*	ptr,	/*!< in: scanned to */
-	mem_heap_t*	heap,	/*!< in: heap where to allocate the id
-				(NULL=id will not be allocated, but it
-				will point to string near ptr) */
-	const char**	id,	/*!< out,own: the id; NULL if no id was
-				scannable */
-	ibool		table_id,/*!< in: TRUE=convert the allocated id
-				as a table name; FALSE=convert to UTF-8 */
-	ibool		accept_also_dot)
-				/*!< in: TRUE if also a dot can appear in a
-				non-quoted id; in a quoted id it can appear
-				always */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
+	const char*		ptr,	/*!< in: scanned to */
+	mem_heap_t*		heap,	/*!< in: heap where to allocate the id
+					(NULL=id will not be allocated, but it
+					will point to string near ptr) */
+	const char**		id,	/*!< out,own: the id; NULL if no id was
+					scannable */
+	ibool			table_id,/*!< in: TRUE=convert the allocated id
+					as a table name; FALSE=convert to UTF-8 */
+	ibool			accept_also_dot)
+					/*!< in: TRUE if also a dot can appear in a
+					non-quoted id; in a quoted id it can appear
+					always */
 {
 	char		quote	= '\0';
 	ulint		len	= 0;
@@ -4007,7 +3992,7 @@ static
 const char*
 dict_scan_col(
 /*==========*/
-	CHARSET_INFO*		cs,	/*!< in: the character set of ptr */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
 	const char*		ptr,	/*!< in: scanned to */
 	ibool*			success,/*!< out: TRUE if success */
 	dict_table_t*		table,	/*!< in: table in which the column is */
@@ -4118,14 +4103,14 @@ static
 const char*
 dict_scan_table_name(
 /*=================*/
-	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
-	const char*	ptr,	/*!< in: scanned to */
-	dict_table_t**	table,	/*!< out: table object or NULL */
-	const char*	name,	/*!< in: foreign key table name */
-	ibool*		success,/*!< out: TRUE if ok name found */
-	mem_heap_t*	heap,	/*!< in: heap where to allocate the id */
-	const char**	ref_name)/*!< out,own: the table name;
-				NULL if no name was scannable */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
+	const char*		ptr,	/*!< in: scanned to */
+	dict_table_t**		table,	/*!< out: table object or NULL */
+	const char*		name,	/*!< in: foreign key table name */
+	ibool*			success,/*!< out: TRUE if ok name found */
+	mem_heap_t*		heap,	/*!< in: heap where to allocate the id */
+	const char**		ref_name)/*!< out,own: the table name;
+					NULL if no name was scannable */
 {
 	const char*	database_name	= NULL;
 	ulint		database_name_len = 0;
@@ -4193,10 +4178,10 @@ static
 const char*
 dict_skip_word(
 /*===========*/
-	CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
-	const char*	ptr,	/*!< in: scanned to */
-	ibool*		success)/*!< out: TRUE if success, FALSE if just spaces
-				left in string or a syntax error */
+	const CHARSET_INFO*	cs,	/*!< in: the character set of ptr */
+	const char*		ptr,	/*!< in: scanned to */
+	ibool*			success)/*!< out: TRUE if success, FALSE if just spaces
+					left in string or a syntax error */
 {
 	const char*	start;
 
@@ -4427,7 +4412,7 @@ dberr_t
 dict_create_foreign_constraints_low(
 	trx_t*			trx,
 	mem_heap_t*		heap,
-	CHARSET_INFO*		cs,
+	const CHARSET_INFO*	cs,
 	const char*		sql_string,
 	const char*		name,
 	ibool			reject_fks)
@@ -5029,7 +5014,7 @@ dict_str_starts_with_keyword(
 	const char*	str,		/*!< in: string to scan for keyword */
 	const char*	keyword)	/*!< in: keyword to look for */
 {
-	CHARSET_INFO*	cs = innobase_get_charset(thd);
+	const CHARSET_INFO*	cs = innobase_get_charset(thd);
 	ibool		success;
 
 	dict_accept(cs, str, keyword, &success);
@@ -5105,7 +5090,7 @@ dict_foreign_parse_drop_constraints(
 	size_t			len;
 	const char*		ptr;
 	const char*		id;
-	CHARSET_INFO*		cs;
+	const CHARSET_INFO*	cs;
 
 	ut_a(trx);
 	ut_a(trx->mysql_thd);
@@ -5213,45 +5198,6 @@ syntax_error:
 }
 
 /*==================== END OF FOREIGN KEY PROCESSING ====================*/
-
-/**********************************************************************//**
-Returns an index object if it is found in the dictionary cache.
-Assumes that dict_sys->mutex is already being held.
-@return index, NULL if not found */
-dict_index_t*
-dict_index_get_if_in_cache_low(
-/*===========================*/
-	index_id_t	index_id)	/*!< in: index id */
-{
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	return(dict_index_find_on_id_low(index_id));
-}
-
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/**********************************************************************//**
-Returns an index object if it is found in the dictionary cache.
-@return index, NULL if not found */
-dict_index_t*
-dict_index_get_if_in_cache(
-/*=======================*/
-	index_id_t	index_id)	/*!< in: index id */
-{
-	dict_index_t*	index;
-
-	if (dict_sys == NULL) {
-		return(NULL);
-	}
-
-	mutex_enter(&dict_sys->mutex);
-
-	index = dict_index_get_if_in_cache_low(index_id);
-
-	mutex_exit(&dict_sys->mutex);
-
-	return(index);
-}
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
@@ -5750,6 +5696,7 @@ dict_set_corrupted(
 			       + sizeof(que_fork_t) + sizeof(upd_node_t)
 			       + sizeof(upd_t) + 12));
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 	index->type |= DICT_CORRUPT;
 
 	sys_index = UT_LIST_GET_FIRST(dict_sys->sys_indexes->indexes);
@@ -5861,6 +5808,7 @@ dict_index_set_merge_threshold(
 			       + sizeof(upd_t) + 12));
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	sys_index = UT_LIST_GET_FIRST(dict_sys->sys_indexes->indexes);
 
@@ -6829,7 +6777,7 @@ dict_tf_to_fsp_flags(
 	ut_ad(!page_size.is_compressed() || has_atomic_blobs);
 
 	/* General tablespaces that are not compressed do not get the
-	flags for dynamic row format (POST_ANTELOPE & ATOMIC_BLOBS) */
+	flags for dynamic row format (ATOMIC_BLOBS) */
 	if (is_shared && !page_size.is_compressed()) {
 		has_atomic_blobs = false;
 	}

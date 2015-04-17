@@ -20,8 +20,10 @@
 #include "mysqld_error.h"     // ER_*
 
 #ifndef MYSQL_CLIENT
+#include "mysqld.h"           // LOCK_msr_map
 #include "rpl_msr.h"
 #include "sql_class.h"        // THD
+#include "current_thd.h"
 #include "binlog.h"
 #endif // ifndef MYSQL_CLIENT
 

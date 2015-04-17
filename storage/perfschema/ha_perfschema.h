@@ -17,8 +17,7 @@
 #define HA_PERFSCHEMA_H
 
 #include "handler.h"                            /* class handler */
-#include "table.h"
-#include "sql_class.h"
+
 
 /**
   @file storage/perfschema/ha_perfschema.h
@@ -226,13 +225,7 @@ private:
      For ROW format, @see Rows_log_event::do_apply_event()
 
   */
-  bool is_executed_by_slave() const
-  {
-    DBUG_ASSERT(table != NULL);
-    DBUG_ASSERT(table->in_use != NULL);
-    return table->in_use->slave_thread;
-
-  }
+  bool is_executed_by_slave() const;
 
   /** MySQL lock */
   THR_LOCK_DATA m_thr_lock;

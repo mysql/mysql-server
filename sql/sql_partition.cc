@@ -47,17 +47,21 @@
 
 #include "sql_partition.h"
 
+#include "current_thd.h"
 #include "hash.h"                       // HASH
 #include "debug_sync.h"                 // DEBUG_SYNC
+#include "derror.h"                     // ER_THD
 #include "item.h"                       // enum_monotoncity_info
 #include "key.h"                        // key_restore
 #include "lock.h"                       // mysql_lock_remove
 #include "log.h"                        // sql_print_warning
+#include "mysqld.h"                     // mysql_tmpdir
 #include "opt_range.h"                  // store_key_image_to_rec
 #include "sql_analyse.h"                // append_escaped
 #include "sql_alter.h"                  // Alter_table_ctx
 #include "partition_info.h"             // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
+#include "psi_memory_key.h"
 #include "sql_base.h"                   // wait_while_table_is_used
 #include "sql_cache.h"                  // query_cache
 #include "sql_class.h"                  // THD
@@ -921,7 +925,7 @@ init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
     we're working with to the Name_resolution_context.
   */
   thd->lex= lex;
-  if ((!(table_ident= new Table_ident(thd,
+  if ((!(table_ident= new Table_ident(thd->get_protocol(),
                                       to_lex_cstring(table->s->table_name),
                                       to_lex_cstring(table->s->db), TRUE))) ||
       (!(table_list= select_lex->add_table_to_list(thd,
@@ -1080,7 +1084,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     else
       push_warning(thd, Sql_condition::SL_WARNING,
                    ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
-                   ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
+                   ER_THD(thd, ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
   }
 
   if ((!is_sub_part) && (error= check_signed_flag(part_info)))
@@ -2070,6 +2074,13 @@ engine may include the filename.
 static int add_keyword_path(File fptr, const char *keyword,
                             const char *path)
 {
+
+  if (strlen(path) >= FN_REFLEN)
+  {
+    my_error(ER_PATH_LENGTH, MYF(0), "data/index directory (>=512 bytes)");
+    return 1;
+  }
+
   int err= add_string(fptr, keyword);
 
   err+= add_space(fptr);
@@ -2079,7 +2090,8 @@ static int add_keyword_path(File fptr, const char *keyword,
   char temp_path[FN_REFLEN];
   const char *temp_path_p[1];
   temp_path_p[0]= temp_path;
-  strcpy(temp_path, path);
+  strncpy(temp_path, path, FN_REFLEN-1);
+  temp_path[FN_REFLEN-1] = '\0';
 #ifdef _WIN32
   /* Convert \ to / to be able to create table on unix */
   char *pos, *end;
@@ -4589,7 +4601,7 @@ static void fast_end_partition(THD *thd, ulonglong copied,
 
   query_cache.invalidate(thd, table_list, FALSE);
 
-  my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
+  my_snprintf(tmp_name, sizeof(tmp_name), ER_THD(thd, ER_INSERT_INFO),
               (ulong) (copied + deleted),
               (ulong) deleted,
               (ulong) 0);

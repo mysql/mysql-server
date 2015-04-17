@@ -14,6 +14,9 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "opt_explain_traditional.h"
+#include "current_thd.h"
+#include "sql_class.h"
+#include "query_result.h"
 
 /**
   Heads of "extra" column parts

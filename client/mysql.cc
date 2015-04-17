@@ -35,9 +35,6 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_dir.h>
-#ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__		      // Skip warnings in getopt.h
-#endif
 #include "my_readline.h"
 #include <signal.h>
 #include <violite.h>

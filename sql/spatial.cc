@@ -14,10 +14,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "spatial.h"
+
 #include "sql_string.h"                         // String
 #include "my_global.h"                          // REQUIRED for HAVE_* below
 #include "gstream.h"                            // Gis_read_stream
-#include "spatial.h"
+#include "psi_memory_key.h"
+
 #include <mysqld_error.h>
 #include <set>
 #include <utility>
@@ -26,6 +29,28 @@
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif
+
+void *gis_wkb_alloc(size_t sz)
+{
+  sz+= GEOM_HEADER_SIZE;
+  char *p= static_cast<char *>(my_malloc(key_memory_Geometry_objects_data,
+                                         sz, MYF(MY_FAE)));
+  p+= GEOM_HEADER_SIZE;
+  return p;
+}
+
+
+void *gis_wkb_realloc(void *p, size_t sz)
+{
+  char *cp= static_cast<char *>(p);
+  if (cp)
+    cp-= GEOM_HEADER_SIZE;
+  sz+= GEOM_HEADER_SIZE;
+
+  p= my_realloc(key_memory_Geometry_objects_data, cp, sz, MYF(MY_FAE));
+  cp= static_cast<char *>(p);
+  return cp + GEOM_HEADER_SIZE;
+}
 
 
 /***************************** MBR *******************************/

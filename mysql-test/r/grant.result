@@ -1791,7 +1791,6 @@ use test;
 FLUSH PRIVILEGES without procs_priv table.
 RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
 FLUSH PRIVILEGES;
-ERROR 42S02: Table 'mysql.procs_priv' doesn't exist
 Assigning privileges without procs_priv table.
 CREATE DATABASE mysqltest1;
 CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER

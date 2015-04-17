@@ -68,7 +68,7 @@ dict_hdr_get_new_id(
 /*================*/
 	table_id_t*		table_id,	/*!< out: table id
 						(not assigned if NULL) */
-	index_id_t*		index_id,	/*!< out: index id
+	space_index_t*		index_id,	/*!< out: index id
 						(not assigned if NULL) */
 	ulint*			space_id,	/*!< out: space id
 						(not assigned if NULL) */
@@ -82,6 +82,8 @@ dict_hdr_get_new_id(
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
+
 	if (table) {
 		dict_disable_redo_if_temporary(table, &mtr);
 	} else if (disable_redo) {
@@ -158,6 +160,7 @@ dict_hdr_flush_row_id(void)
 	id = dict_sys->row_id;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	dict_hdr = dict_hdr_get(&mtr);
 
@@ -341,8 +344,8 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
 	/* ROW_FORMAT = (N_COLS >> 31) ? COMPACT : REDUNDANT */
 	dict_mem_table_add_col(table, heap, "N_COLS", DATA_INT, 0, 4);
-	/* The low order bit of TYPE is always set to 1.  If the format
-	is UNIV_FORMAT_B or higher, this field matches table->flags. */
+	/* The low order bit of TYPE is always set to 1.  If ROW_FORMAT
+	is not REDUNDANT or COMPACT, this field matches table->flags. */
 	dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0);
 	/* MIX_LEN may contain additional table flags when
@@ -531,6 +534,7 @@ dict_create(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	dict_hdr_create(&mtr);
 

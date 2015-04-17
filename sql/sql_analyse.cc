@@ -25,7 +25,9 @@
 
 #include "sql_analyse.h"
 
+#include "current_thd.h"     // current_thd
 #include "procedure.h"       // Item_proc
+#include "sql_class.h"       // THD
 #include "sql_yacc.h"        // DECIMAL_NUM
 
 #include <algorithm>

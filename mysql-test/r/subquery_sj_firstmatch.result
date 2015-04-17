@@ -148,10 +148,10 @@ a	b
 An empty table inside
 explain select * from t1 where a in (select a from t11);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t11`) where (`test`.`t1`.`a` = `test`.`t11`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t11`) where (`test`.`t11`.`a` = `test`.`t1`.`a`)
 select * from t1 where a in (select a from t11);
 a	b
 explain select * from t1 where a in (select pk from t10) and b in (select pk from t10);
@@ -2209,11 +2209,11 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t2`.`i`) and (`test`.`t1`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2227,11 +2227,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t2`.`i`) and (`test`.`t1`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2245,22 +2245,22 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2278,9 +2278,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and `test`.`t1`.`i`)
@@ -2318,11 +2318,11 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t2`.`i`) and (`test`.`t1`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2336,11 +2336,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t2`.`i`) and (`test`.`t1`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2354,11 +2354,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2366,11 +2366,11 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2388,9 +2388,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and `test`.`t1`.`i`)
@@ -2428,11 +2428,11 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `test`.`t2`.`i`) and (`test`.`t3`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2446,11 +2446,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `test`.`t2`.`i`) and (`test`.`t3`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2464,9 +2464,9 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -2477,9 +2477,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -2499,9 +2499,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and `test`.`t1`.`i`)
@@ -2541,11 +2541,11 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t3`.`i`) and (`test`.`t1`.`i` = `test`.`t3`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2559,11 +2559,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t3`.`i`) and (`test`.`t1`.`i` = `test`.`t3`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2577,22 +2577,22 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2610,9 +2610,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11) and `test`.`t1`.`i`)
@@ -2650,11 +2650,11 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t2`.`i`) and (`test`.`t1`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2671,11 +2671,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t2`.`i`) and (`test`.`t1`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2692,11 +2692,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2704,11 +2704,11 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2727,9 +2727,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and `test`.`t1`.`i`)
@@ -2767,11 +2767,11 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `test`.`t2`.`i`) and (`test`.`t3`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2788,11 +2788,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `test`.`t2`.`i`) and (`test`.`t3`.`i` = `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2809,9 +2809,9 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -2822,9 +2822,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -2846,9 +2846,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and `test`.`t1`.`i`)
@@ -2888,11 +2888,11 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2906,11 +2906,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2924,20 +2924,20 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -2957,9 +2957,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11) and `test`.`t1`.`i`)
@@ -2980,9 +2980,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
@@ -2997,11 +2997,11 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -3018,11 +3018,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`i` = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -3039,11 +3039,11 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -3051,9 +3051,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -3074,9 +3074,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11) and `test`.`t1`.`i`)
@@ -3097,9 +3097,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
@@ -3114,9 +3114,9 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -3138,9 +3138,9 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t3`.`i` = `test`.`t1`.`i`))
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -3162,9 +3162,9 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -3175,9 +3175,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -3222,9 +3222,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
@@ -3379,78 +3379,70 @@ update t22 set c = '2005-12-08 15:58:27' where a = 255;
 explain select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	8	3.12	Using where; Using temporary; Using filesort; Start temporary
+1	SIMPLE	t21	NULL	ALL	NULL	NULL	NULL	NULL	26	100.00	Using where; Using temporary; Using filesort
 1	SIMPLE	t22	NULL	ALL	NULL	NULL	NULL	NULL	26	1.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t21	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	8	0.62	Using where
+1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; FirstMatch(t22)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t21`.`a` AS `a`,`test`.`t21`.`b` AS `b`,`test`.`t21`.`c` AS `c` from `test`.`t21` semi join (`test`.`t11` join `test`.`t12`) join `test`.`t22` where ((`test`.`t22`.`a` = `test`.`t11`.`a`) and (`test`.`t12`.`a` = `test`.`t11`.`a`) and (`test`.`t21`.`a` = `test`.`t11`.`a`) and isnull(`test`.`t22`.`c`) and (`test`.`t11`.`a` in (255,256)) and isnull(`test`.`t11`.`c`)) order by `test`.`t21`.`a`
+Note	1003	/* select#1 */ select `test`.`t21`.`a` AS `a`,`test`.`t21`.`b` AS `b`,`test`.`t21`.`c` AS `c` from `test`.`t21` semi join (`test`.`t11` join `test`.`t12`) join `test`.`t22` where ((`test`.`t22`.`a` = `test`.`t21`.`a`) and (`test`.`t11`.`a` = `test`.`t21`.`a`) and (`test`.`t12`.`a` = `test`.`t21`.`a`) and isnull(`test`.`t22`.`c`) and (`test`.`t21`.`a` in (255,256)) and isnull(`test`.`t11`.`c`)) order by `test`.`t21`.`a`
 explain format=json select * from t1 where a in (select a from t11);
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "17.03"
+      "query_cost": "61.74"
     },
-    "duplicates_removal": {
-      "using_temporary_table": true,
-      "nested_loop": [
-        {
-          "table": {
-            "table_name": "t11",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 8,
-            "rows_produced_per_join": 8,
-            "filtered": "100.00",
-            "cost_info": {
-              "read_cost": "2.03",
-              "eval_cost": "1.60",
-              "prefix_cost": "3.63",
-              "data_read_per_join": "128"
-            },
-            "used_columns": [
-              "a"
-            ]
-          }
-        },
-        {
-          "table": {
-            "table_name": "t1",
-            "access_type": "eq_ref",
-            "possible_keys": [
-              "PRIMARY"
-            ],
-            "key": "PRIMARY",
-            "used_key_parts": [
-              "a"
-            ],
-            "key_length": "4",
-            "ref": [
-              "test.t11.a"
-            ],
-            "rows_examined_per_scan": 1,
-            "rows_produced_per_join": 1,
-            "filtered": "100.00",
-            "cost_info": {
-              "read_cost": "8.00",
-              "eval_cost": "0.20",
-              "prefix_cost": "17.03",
-              "data_read_per_join": "16"
-            },
-            "used_columns": [
-              "a",
-              "b",
-              "c"
-            ]
-          }
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "rows_examined_per_scan": 32,
+          "rows_produced_per_join": 32,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "2.11",
+            "eval_cost": "6.40",
+            "prefix_cost": "8.51",
+            "data_read_per_join": "512"
+          },
+          "used_columns": [
+            "a",
+            "b",
+            "c"
+          ]
         }
-      ]
-    }
+      },
+      {
+        "table": {
+          "table_name": "t11",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 8,
+          "rows_produced_per_join": 32,
+          "filtered": "12.50",
+          "first_match": "t1",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.03",
+            "eval_cost": "6.40",
+            "prefix_cost": "61.74",
+            "data_read_per_join": "512"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "attached_condition": "(`test`.`t11`.`a` = `test`.`t1`.`a`)"
+        }
+      }
+    ]
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`test`.`t11`) where (`test`.`t1`.`a` = `test`.`t11`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`test`.`t11`) where (`test`.`t11`.`a` = `test`.`t1`.`a`)
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
@@ -3708,10 +3700,10 @@ create table t3 ( a int , filler char(100), key(a));
 insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.a	1	100.00	End temporary
+1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	100	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t3); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`filler` AS `filler` from `test`.`t3` semi join (`test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((`test`.`t2`.`a` > 5) or (`test`.`t2`.`a` < 10)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`filler` AS `filler` from `test`.`t3` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t3`.`a`) and ((`test`.`t3`.`a` > 5) or (`test`.`t3`.`a` < 10)))
 select * from t3 where a in (select a from t2);
 a	filler
 1	filler
@@ -3765,98 +3757,90 @@ create table t3 (a int, b int, filler char(100), key(a));
 insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
 explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.a	10	100.00	End temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	1000	79.30	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; FirstMatch(t3); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = 3) and ((`test`.`t2`.`a` < 10) or (`test`.`t2`.`a` > 30)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t3`.`a`) and (`test`.`t1`.`a` = 3) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))
 explain format=json select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "152.03"
+      "query_cost": "1821.34"
     },
-    "duplicates_removal": {
-      "using_temporary_table": true,
-      "nested_loop": [
-        {
-          "table": {
-            "table_name": "t1",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 10,
-            "rows_produced_per_join": 1,
-            "filtered": "10.00",
-            "cost_info": {
-              "read_cost": "3.82",
-              "eval_cost": "0.20",
-              "prefix_cost": "4.02",
-              "data_read_per_join": "8"
-            },
-            "used_columns": [
-              "a"
-            ],
-            "attached_condition": "(`test`.`t1`.`a` = 3)"
-          }
-        },
-        {
-          "table": {
-            "table_name": "t2",
-            "access_type": "ALL",
-            "rows_examined_per_scan": 10,
-            "rows_produced_per_join": 10,
-            "filtered": "100.00",
-            "using_join_buffer": "Block Nested Loop",
-            "cost_info": {
-              "read_cost": "2.02",
-              "eval_cost": "2.00",
-              "prefix_cost": "8.03",
-              "data_read_per_join": "80"
-            },
-            "used_columns": [
-              "a"
-            ],
-            "attached_condition": "(((`test`.`t2`.`a` < 10) or (`test`.`t2`.`a` > 30)) and (`test`.`t2`.`a` is not null))"
-          }
-        },
-        {
-          "table": {
-            "table_name": "t3",
-            "access_type": "ref",
-            "possible_keys": [
-              "a"
-            ],
-            "key": "a",
-            "used_key_parts": [
-              "a"
-            ],
-            "key_length": "5",
-            "ref": [
-              "test.t2.a"
-            ],
-            "rows_examined_per_scan": 10,
-            "rows_produced_per_join": 10,
-            "filtered": "100.00",
-            "cost_info": {
-              "read_cost": "100.00",
-              "eval_cost": "2.00",
-              "prefix_cost": "152.03",
-              "data_read_per_join": "1K"
-            },
-            "used_columns": [
-              "a",
-              "b",
-              "filler"
-            ]
-          }
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 10,
+          "rows_produced_per_join": 1,
+          "filtered": "10.00",
+          "cost_info": {
+            "read_cost": "3.82",
+            "eval_cost": "0.20",
+            "prefix_cost": "4.02",
+            "data_read_per_join": "8"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "attached_condition": "(`test`.`t1`.`a` = 3)"
         }
-      ]
-    }
+      },
+      {
+        "table": {
+          "table_name": "t3",
+          "access_type": "ALL",
+          "possible_keys": [
+            "a"
+          ],
+          "rows_examined_per_scan": 1000,
+          "rows_produced_per_join": 793,
+          "filtered": "79.30",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "70.01",
+            "eval_cost": "158.60",
+            "prefix_cost": "232.63",
+            "data_read_per_join": "86K"
+          },
+          "used_columns": [
+            "a",
+            "b",
+            "filler"
+          ],
+          "attached_condition": "((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30))"
+        }
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 10,
+          "rows_produced_per_join": 793,
+          "filtered": "10.00",
+          "first_match": "t3",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.08",
+            "eval_cost": "158.60",
+            "prefix_cost": "1821.34",
+            "data_read_per_join": "6K"
+          },
+          "used_columns": [
+            "a"
+          ],
+          "attached_condition": "(`test`.`t2`.`a` = `test`.`t3`.`a`)"
+        }
+      }
+    ]
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = 3) and ((`test`.`t2`.`a` < 10) or (`test`.`t2`.`a` > 30)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t3`.`a`) and (`test`.`t1`.`a` = 3) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))
 explain select straight_join * from t1 a, t1 b where a.a in (select a from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	a	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
@@ -3892,18 +3876,18 @@ insert into t0 values(1,1);
 explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Start temporary
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.a	10	100.00	End temporary
+1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	1000	79.30	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; FirstMatch(t3); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t3` semi join (`test`.`t2`) where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((`test`.`t2`.`a` < 10) or (`test`.`t2`.`a` > 30)))
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t3` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t3`.`a`) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))
 create table t4 as select a as x, a as y from t1;
 explain select * from t0, t3 where (t3.a, t3.b) in (select x,y from t4) and (t3.a < 10 or t3.a >30);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; Start temporary
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t4.x	10	10.00	Using where; End temporary
+1	SIMPLE	t3	NULL	ALL	a	NULL	NULL	NULL	1000	79.30	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	1.00	Using where; FirstMatch(t3); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t3`.`b` = `test`.`t4`.`y`) and (`test`.`t3`.`a` = `test`.`t4`.`x`) and ((`test`.`t4`.`x` < 10) or (`test`.`t4`.`x` > 30)))
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t3` semi join (`test`.`t4`) where ((`test`.`t4`.`y` = `test`.`t3`.`b`) and (`test`.`t4`.`x` = `test`.`t3`.`a`) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))
 drop table t0,t1,t2,t3,t4;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -4005,10 +3989,10 @@ create table t2 as select a as a, a as b from t0 where a < 3;
 insert into t2 select * from t2;
 explain select * from t1 where (a,b,c) in (select x.a, y.a, z.a from t2 x, t2 y, t2 z where x.b=33);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	x	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	y	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	z	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	x	NULL	ALL	NULL	NULL	NULL	NULL	6	2.78	Using where
+1	SIMPLE	y	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	z	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`test`.`t2` `x` join `test`.`t2` `y` join `test`.`t2` `z`) where ((`test`.`z`.`a` = `test`.`t1`.`c`) and (`test`.`y`.`a` = `test`.`t1`.`b`) and (`test`.`x`.`a` = `test`.`t1`.`a`) and (`test`.`x`.`b` = 33))
 drop table t0,t1,t2;
@@ -4029,10 +4013,10 @@ explain select
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	22	100.00	Start temporary
-1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	32	10.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
+1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	22	10.00	Using where; FirstMatch(ot); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `z` from `test`.`t1` `ot` semi join (`test`.`t2` `it`) where (`test`.`ot`.`a` = `test`.`it`.`a`)
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `z` from `test`.`t1` `ot` semi join (`test`.`t2` `it`) where (`test`.`it`.`a` = `test`.`ot`.`a`)
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
@@ -4099,10 +4083,10 @@ explain select
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	22	100.00	Start temporary
-1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	52	10.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	52	100.00	NULL
+1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	22	10.00	Using where; FirstMatch(ot); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `z` from `test`.`t1` `ot` semi join (`test`.`t2` `it`) where (`test`.`ot`.`a` = `test`.`it`.`a`)
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,substr(`test`.`ot`.`filler1`,1,10) AS `mid(filler1, 1,10)`,(length(`test`.`ot`.`filler1`) = length(`test`.`ot`.`filler2`)) AS `z` from `test`.`t1` `ot` semi join (`test`.`t2` `it`) where (`test`.`it`.`a` = `test`.`ot`.`a`)
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as z 
 from t1 ot where a in (select a from t2 it);
@@ -4314,11 +4298,11 @@ where (a1, a2) IN
 where t2.b2 = substring(t2_16.b2,1,6) and
 t2.b1 IN (select c1 from t3 where c2 > '0')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	8.33	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	8.33	Using where; FirstMatch(t1)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2_16` join `test`.`t2` join `test`.`t1_16`) where ((`test`.`t2_16`.`b2` = `test`.`t1_16`.`a2`) and (`test`.`t2_16`.`b1` = `test`.`t1_16`.`a1`) and (`test`.`t3`.`c1` = `test`.`t2`.`b1`) and (`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and (`test`.`t3`.`c2` > '0') and (concat(`test`.`t1`.`a1`,'x') = left(`test`.`t1_16`.`a1`,8)))
@@ -4792,11 +4776,11 @@ explain SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
 WHERE ot1.a IN (SELECT a FROM it3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot1); Using join buffer (Block Nested Loop)
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it3`) left join `test`.`ot2` on((`test`.`ot2`.`a` = `test`.`it3`.`a`)) where (`test`.`ot1`.`a` = `test`.`it3`.`a`)
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it3`) left join `test`.`ot2` on((`test`.`ot2`.`a` = `test`.`ot1`.`a`)) where (`test`.`it3`.`a` = `test`.`ot1`.`a`)
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
 WHERE ot1.a IN (SELECT a FROM it3);
@@ -4809,9 +4793,9 @@ explain SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
 WHERE COALESCE(ot2.a,0) IN (SELECT a FROM it3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot2); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it3`) left join `test`.`ot2` on((`test`.`ot2`.`a` = `test`.`ot1`.`a`)) where (coalesce(`test`.`ot2`.`a`,0) = `test`.`it3`.`a`)
 SELECT *
@@ -4829,11 +4813,11 @@ explain SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
 WHERE (ot1.a,ot2.a) IN (SELECT a, a FROM it3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot1); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it3`) join `test`.`ot2` where ((`test`.`ot2`.`a` = `test`.`it3`.`a`) and (`test`.`ot1`.`a` = `test`.`it3`.`a`))
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it3`) join `test`.`ot2` where ((`test`.`ot1`.`a` = `test`.`ot2`.`a`) and (`test`.`it3`.`a` = `test`.`ot2`.`a`))
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
 WHERE (ot1.a,ot2.a) IN (SELECT a, a FROM it3);
@@ -4950,11 +4934,11 @@ a	a	a
 explain SELECT *
 FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot1); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it3`) join `test`.`ot2` where ((`test`.`ot1`.`a` = `test`.`it3`.`a`) and (`test`.`ot2`.`a` = `test`.`it3`.`a`))
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it3`) join `test`.`ot2` where ((`test`.`ot1`.`a` = `test`.`ot2`.`a`) and (`test`.`it3`.`a` = `test`.`ot2`.`a`))
 SELECT *
 FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3);
 a	a
@@ -4965,12 +4949,12 @@ explain SELECT *
 FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it2)
 AND ot2.a IN (SELECT a FROM it3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(ot2); Using join buffer (Block Nested Loop)
 1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; End temporary; Using join buffer (Block Nested Loop)
-1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(ot2); Using join buffer (Block Nested Loop)
+1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(ot1); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it2`) semi join (`test`.`it3`) join `test`.`ot2` where ((`test`.`ot1`.`a` = `test`.`it3`.`a`) and (`test`.`ot2`.`a` = `test`.`it3`.`a`) and (`test`.`it2`.`a` = `test`.`it3`.`a`))
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it2`) semi join (`test`.`it3`) join `test`.`ot2` where ((`test`.`it3`.`a` = `test`.`ot2`.`a`) and (`test`.`ot1`.`a` = `test`.`ot2`.`a`) and (`test`.`it2`.`a` = `test`.`ot2`.`a`))
 SELECT *
 FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it2)
 AND ot2.a IN (SELECT a FROM it3);
@@ -5080,10 +5064,10 @@ FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND
 (ot1.a, ot2.a) IN (SELECT it1.a, it2.a
 FROM it1 JOIN it2 ON it1.a=it2.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Start temporary
-1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where; FirstMatch(ot2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` left join (`test`.`ot2` semi join (`test`.`it1` join `test`.`it2`)) on(((`test`.`ot1`.`a` = `test`.`ot2`.`a`) and 1 and (`test`.`ot1`.`a` = `test`.`it1`.`a`) and (`test`.`ot2`.`a` = `test`.`it2`.`a`) and (`test`.`it1`.`a` = `test`.`it2`.`a`))) where 1
 SELECT *
@@ -5700,20 +5684,20 @@ VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
 EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN 
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	vkey	vkey	4	NULL	5	100.00	Using index; Start temporary
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t0	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	End temporary
+1	SIMPLE	t0	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	NULL
+1	SIMPLE	t2	NULL	index	vkey	vkey	4	NULL	5	20.00	Using where; Using index; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` `t1` semi join (`test`.`t0` `t2`) join `test`.`t0` where ((`test`.`t1`.`vnokey` = `test`.`t2`.`vkey`) and (`test`.`t0`.`pk` = `test`.`t1`.`pk`))
+Note	1003	/* select#1 */ select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` `t1` semi join (`test`.`t0` `t2`) join `test`.`t0` where ((`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) and (`test`.`t1`.`pk` = `test`.`t0`.`pk`))
 SELECT vkey FROM t0 WHERE pk IN 
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 vkey
 g
-v
+n
 t
 u
-n
+v
 DROP TABLE t0;
 # End of bug#46556
 
@@ -5973,11 +5957,11 @@ SELECT t1_1 .varchar_key
 FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1_1	NULL	index	varchar_key	varchar_key	9	NULL	2	50.00	Using where; Using index; Start temporary
-1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1_2	NULL	index	NULL	int_key	5	NULL	2	100.00	Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
+1	SIMPLE	t1_1	NULL	ref	varchar_key	varchar_key	4	test.t0.varchar_nokey	2	50.00	Using where; Using index
+1	SIMPLE	t1_2	NULL	index	NULL	int_key	5	NULL	2	100.00	Using index; FirstMatch(t0)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t0`.`int_key` AS `int_key` from `test`.`t0` semi join (`test`.`t1` `t1_1` join `test`.`t1` `t1_2`) where ((`test`.`t0`.`varchar_nokey` = `test`.`t1_1`.`varchar_key`) and `test`.`t1_1`.`int_key`)
+Note	1003	/* select#1 */ select `test`.`t0`.`int_key` AS `int_key` from `test`.`t0` semi join (`test`.`t1` `t1_1` join `test`.`t1` `t1_2`) where ((`test`.`t1_1`.`varchar_key` = `test`.`t0`.`varchar_nokey`) and `test`.`t1_1`.`int_key`)
 SELECT t0.int_key  
 FROM t0, t2
 WHERE t0.varchar_nokey  IN (  
@@ -5996,11 +5980,11 @@ FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1_1	NULL	index	varchar_key	varchar_key	9	NULL	2	50.00	Using where; Using index; Start temporary
-1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1_2	NULL	index	NULL	int_key	5	NULL	2	100.00	Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
+1	SIMPLE	t1_1	NULL	ref	varchar_key	varchar_key	4	test.t0.varchar_nokey	2	50.00	Using where; Using index
+1	SIMPLE	t1_2	NULL	index	NULL	int_key	5	NULL	2	100.00	Using index; FirstMatch(t0)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t0`.`int_key` AS `int_key` from `test`.`t0` semi join (`test`.`t1` `t1_1` join `test`.`t1` `t1_2`) where ((`test`.`t0`.`varchar_nokey` = `test`.`t1_1`.`varchar_key`) and `test`.`t1_1`.`int_key`)
+Note	1003	/* select#1 */ select `test`.`t0`.`int_key` AS `int_key` from `test`.`t0` semi join (`test`.`t1` `t1_1` join `test`.`t1` `t1_2`) where ((`test`.`t1_1`.`varchar_key` = `test`.`t0`.`varchar_nokey`) and `test`.`t1_1`.`int_key`)
 DROP TABLE t0, t1, t2;
 # End of bug#46550
 
@@ -6188,11 +6172,11 @@ WHERE  it1.val LIKE 'a%' OR it1.val LIKE 'e%')
 AND ot.val IN (SELECT it2.val FROM it2
 WHERE  it2.val LIKE 'a%' OR it2.val LIKE 'e%');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	5	36.00	Using where; Start temporary
-1	SIMPLE	it1	NULL	ALL	NULL	NULL	NULL	NULL	6	5.09	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	5	7.20	Using where; FirstMatch(ot); Using join buffer (Block Nested Loop)
+1	SIMPLE	it1	NULL	ALL	NULL	NULL	NULL	NULL	6	5.09	Using where; FirstMatch(it2); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot`.`val` AS `val` from `test`.`ot` semi join (`test`.`it1`) semi join (`test`.`it2`) where ((`test`.`it1`.`val` = `test`.`it2`.`val`) and (`test`.`ot`.`val` = `test`.`it2`.`val`) and ((`test`.`it1`.`val` like 'a%') or (`test`.`it1`.`val` like 'e%')) and ((`test`.`it2`.`val` like 'a%') or (`test`.`it2`.`val` like 'e%')))
+Note	1003	/* select#1 */ select `test`.`ot`.`val` AS `val` from `test`.`ot` semi join (`test`.`it1`) semi join (`test`.`it2`) where ((`test`.`it2`.`val` = `test`.`ot`.`val`) and (`test`.`it1`.`val` = `test`.`ot`.`val`) and ((`test`.`it1`.`val` like 'a%') or (`test`.`it1`.`val` like 'e%')) and ((`test`.`it2`.`val` like 'a%') or (`test`.`it2`.`val` like 'e%')))
 SELECT *
 FROM ot
 WHERE ot.val IN (SELECT it1.val FROM it1
@@ -6297,9 +6281,9 @@ SELECT int_key FROM ot1
 WHERE int_nokey IN (SELECT it2.int_key
 FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it1	NULL	index	NULL	int_key	4	NULL	2	100.00	Using index; Start temporary
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	it2	NULL	ref	int_key	int_key	4	test.ot1.int_nokey	2	90.00	Using where; End temporary
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
+1	SIMPLE	it1	NULL	index	NULL	int_key	4	NULL	2	100.00	Using index
+1	SIMPLE	it2	NULL	ref	int_key	int_key	4	test.ot1.int_nokey	2	90.00	Using where; FirstMatch(ot1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`int_key` AS `int_key` from `test`.`ot1` semi join (`test`.`it1` join `test`.`it2`) where ((`test`.`it2`.`int_key` = `test`.`ot1`.`int_nokey`) and `test`.`it2`.`datetime_key`)
 DROP TABLE ot1, it1, it2;
@@ -6419,9 +6403,9 @@ WHERE EMPNUM IN
 WHERE PNUM IN
 (SELECT PNUM  FROM proj));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	staff	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Start temporary
-1	SIMPLE	works	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	proj	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	staff	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	works	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where
+1	SIMPLE	proj	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; FirstMatch(staff)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`staff`.`EMPNUM` AS `EMPNUM`,`test`.`staff`.`EMPNAME` AS `EMPNAME` from `test`.`staff` semi join (`test`.`proj` join `test`.`works`) where ((`test`.`works`.`EMPNUM` = `test`.`staff`.`EMPNUM`) and (`test`.`proj`.`PNUM` = `test`.`works`.`PNUM`))
 SELECT EMPNUM, EMPNAME
@@ -6494,12 +6478,12 @@ INNER JOIN t2 c ON c.idContact=cona.idContact
 WHERE cona.postalStripped='T2H3B2'
 	);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	cona	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Start temporary
-1	SIMPLE	c	NULL	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	Using where
-1	SIMPLE	a	NULL	eq_ref	PRIMARY	PRIMARY	4	test.c.idObj	1	100.00	Using index; End temporary
+1	SIMPLE	a	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	cona	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	c	NULL	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	33.33	Using where; FirstMatch(a)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `test`.`c`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
+Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`c`.`idObj` = `test`.`a`.`idIndividual`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
 drop table t1,t2,t3;
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
@@ -6729,11 +6713,11 @@ WHERE PNUM IN
 FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	eq_ref	t1_IDX	t1_IDX	3	test.t3.EMPNUM	1	100.00	End temporary
+1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	1.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
 FROM t1
 WHERE EMPNUM IN
@@ -6745,18 +6729,18 @@ WHERE EMPNUM IN
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	eq_ref	t1_IDX	t1_IDX	3	test.t3.EMPNUM	1	100.00	End temporary
+1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	1.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	eq_ref	t1_IDX	t1_IDX	3	test.t3.EMPNUM	1	100.00	End temporary
+1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	1.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 DEALLOCATE PREPARE stmt;
 DROP INDEX t1_IDX ON t1;
 CREATE INDEX t1_IDX ON t1(EMPNUM);
@@ -6770,11 +6754,11 @@ WHERE PNUM IN
 FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ref	t1_IDX	t1_IDX	3	test.t3.EMPNUM	2	100.00	End temporary
+1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	1.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
 FROM t1
 WHERE EMPNUM IN
@@ -6786,18 +6770,18 @@ WHERE EMPNUM IN
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ref	t1_IDX	t1_IDX	3	test.t3.EMPNUM	2	100.00	End temporary
+1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	1.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ref	t1_IDX	t1_IDX	3	test.t3.EMPNUM	2	100.00	End temporary
+1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	1.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 DEALLOCATE PREPARE stmt;
 DROP INDEX t1_IDX ON t1;
 EXPLAIN SELECT EMPNAME
@@ -6810,11 +6794,11 @@ WHERE PNUM IN
 FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	1.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
 FROM t1
 WHERE EMPNUM IN
@@ -6826,18 +6810,18 @@ WHERE EMPNUM IN
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	1.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	1.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t1`.`EMPNUM` = `test`.`t3`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
+Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1, t2, t3;
 #
@@ -6891,9 +6875,9 @@ FROM t2
 WHERE 1 IN(SELECT 1
 FROM t3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	FirstMatch(t1)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where 1
@@ -6930,10 +6914,10 @@ FROM t3
 WHERE 1 IN(SELECT 1
 FROM t4)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` semi join (`test`.`t4` join `test`.`t3` join `test`.`t2`) where 1
 SELECT *
@@ -6995,12 +6979,12 @@ explain select t2.uid from t2, t1
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	NULL	ref	uid	uid	5	const	1	50.00	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`uid` AS `uid` from `test`.`t2` semi join (`test`.`t4` join `test`.`t3`) join `test`.`t1` where ((`test`.`t3`.`fid` = `test`.`t4`.`uid`) and (`test`.`t1`.`uid` = `test`.`t4`.`uid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t1`.`fid` = `test`.`t2`.`uid`))
+Note	1003	/* select#1 */ select `test`.`t2`.`uid` AS `uid` from `test`.`t2` semi join (`test`.`t4` join `test`.`t3`) join `test`.`t1` where ((`test`.`t3`.`fid` = `test`.`t1`.`uid`) and (`test`.`t4`.`uid` = `test`.`t1`.`uid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t1`.`fid` = `test`.`t2`.`uid`))
 select t2.uid from t2, t1 
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
@@ -7040,10 +7024,10 @@ INSERT INTO t2 VALUES (1, 1.789);
 INSERT INTO t2 VALUES (13, 1.454);
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`f2` = `test`.`t2`.`f2`) and (`test`.`t1`.`f1` = `test`.`t2`.`f1`))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`f2` = `test`.`t1`.`f2`) and (`test`.`t2`.`f1` = `test`.`t1`.`f1`))
 SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 COUNT(*)
 2
@@ -7081,12 +7065,12 @@ t2.Code IN (SELECT Country FROM t3
 WHERE Language='English' AND Percentage > 10 AND
 t2.Population > 100000);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	Population,Country	Population	4	NULL	1	100.00	Using where; Start temporary
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY,Population	PRIMARY	3	test.t1.Country	1	75.00	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t1.Country,const	1	95.45	Using where; End temporary
+1	SIMPLE	t2	NULL	ALL	PRIMARY,Population	NULL	NULL	NULL	16	75.00	Using where
+1	SIMPLE	t3	NULL	ALL	PRIMARY,Percentage	NULL	NULL	NULL	22	0.95	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	range	Population,Country	Population	4	NULL	1	10.00	Using where; FirstMatch(t3); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`Code` = `test`.`t1`.`Country`) and (`test`.`t3`.`Country` = `test`.`t1`.`Country`) and (`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (`test`.`t1`.`Population` > 5000000))
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t3`.`Country` = `test`.`t2`.`Code`) and (`test`.`t1`.`Country` = `test`.`t2`.`Code`) and (`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (`test`.`t1`.`Population` > 5000000))
 EXPLAIN FORMAT=JSON SELECT Name FROM t2 
 WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
 AND
@@ -7098,115 +7082,97 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.80"
+      "query_cost": "22.78"
     },
-    "duplicates_removal": {
-      "using_temporary_table": true,
-      "nested_loop": [
-        {
-          "table": {
-            "table_name": "t1",
-            "access_type": "range",
-            "possible_keys": [
-              "Population",
-              "Country"
-            ],
-            "key": "Population",
-            "used_key_parts": [
-              "Population"
-            ],
-            "key_length": "4",
-            "rows_examined_per_scan": 1,
-            "rows_produced_per_join": 1,
-            "filtered": "100.00",
-            "cost_info": {
-              "read_cost": "2.21",
-              "eval_cost": "0.20",
-              "prefix_cost": "2.41",
-              "data_read_per_join": "48"
-            },
-            "used_columns": [
-              "Country",
-              "Population"
-            ],
-            "attached_condition": "(`test`.`t1`.`Population` > 5000000)"
-          }
-        },
-        {
-          "table": {
-            "table_name": "t2",
-            "access_type": "eq_ref",
-            "possible_keys": [
-              "PRIMARY",
-              "Population"
-            ],
-            "key": "PRIMARY",
-            "used_key_parts": [
-              "Code"
-            ],
-            "key_length": "3",
-            "ref": [
-              "test.t1.Country"
-            ],
-            "rows_examined_per_scan": 1,
-            "rows_produced_per_join": 0,
-            "filtered": "75.00",
-            "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "0.15",
-              "prefix_cost": "5.91",
-              "data_read_per_join": "54"
-            },
-            "used_columns": [
-              "Code",
-              "Name",
-              "Population"
-            ],
-            "attached_condition": "(`test`.`t2`.`Population` > 100000)"
-          }
-        },
-        {
-          "table": {
-            "table_name": "t3",
-            "access_type": "eq_ref",
-            "possible_keys": [
-              "PRIMARY",
-              "Percentage"
-            ],
-            "key": "PRIMARY",
-            "used_key_parts": [
-              "Country",
-              "Language"
-            ],
-            "key_length": "33",
-            "ref": [
-              "test.t1.Country",
-              "const"
-            ],
-            "rows_examined_per_scan": 1,
-            "rows_produced_per_join": 0,
-            "filtered": "95.45",
-            "cost_info": {
-              "read_cost": "0.75",
-              "eval_cost": "0.14",
-              "prefix_cost": "6.80",
-              "data_read_per_join": "28"
-            },
-            "used_columns": [
-              "Country",
-              "Language",
-              "Percentage"
-            ],
-            "attached_condition": "(`test`.`t3`.`Percentage` > 10)"
-          }
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "possible_keys": [
+            "PRIMARY",
+            "Population"
+          ],
+          "rows_examined_per_scan": 16,
+          "rows_produced_per_join": 12,
+          "filtered": "75.00",
+          "cost_info": {
+            "read_cost": "3.07",
+            "eval_cost": "2.40",
+            "prefix_cost": "5.47",
+            "data_read_per_join": "864"
+          },
+          "used_columns": [
+            "Code",
+            "Name",
+            "Population"
+          ],
+          "attached_condition": "(`test`.`t2`.`Population` > 100000)"
         }
-      ]
-    }
+      },
+      {
+        "table": {
+          "table_name": "t3",
+          "access_type": "ALL",
+          "possible_keys": [
+            "PRIMARY",
+            "Percentage"
+          ],
+          "rows_examined_per_scan": 22,
+          "rows_produced_per_join": 2,
+          "filtered": "0.95",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "6.20",
+            "eval_cost": "0.50",
+            "prefix_cost": "16.71",
+            "data_read_per_join": "100"
+          },
+          "used_columns": [
+            "Country",
+            "Language",
+            "Percentage"
+          ],
+          "attached_condition": "((`test`.`t3`.`Country` = `test`.`t2`.`Code`) and (`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10))"
+        }
+      },
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "range",
+          "possible_keys": [
+            "Population",
+            "Country"
+          ],
+          "key": "Population",
+          "used_key_parts": [
+            "Population"
+          ],
+          "key_length": "4",
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 2,
+          "filtered": "10.00",
+          "first_match": "t3",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "5.57",
+            "eval_cost": "0.50",
+            "prefix_cost": "22.78",
+            "data_read_per_join": "120"
+          },
+          "used_columns": [
+            "Country",
+            "Population"
+          ],
+          "attached_condition": "((`test`.`t1`.`Country` = `test`.`t2`.`Code`) and (`test`.`t1`.`Population` > 5000000))"
+        }
+      }
+    ]
   }
 }
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`Code` = `test`.`t1`.`Country`) and (`test`.`t3`.`Country` = `test`.`t1`.`Country`) and (`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (`test`.`t1`.`Population` > 5000000))
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t3`.`Country` = `test`.`t2`.`Code`) and (`test`.`t1`.`Country` = `test`.`t2`.`Code`) and (`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (`test`.`t1`.`Population` > 5000000))
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
 Code char(3) NOT NULL DEFAULT '',
@@ -7241,10 +7207,10 @@ EXPLAIN SELECT Name FROM t1
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	CountryCode	NULL	NULL	NULL	545	33.33	Using where; Start temporary
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	3	test.t2.CountryCode	1	100.00	End temporary
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	31	100.00	NULL
+1	SIMPLE	t2	NULL	ref	CountryCode	CountryCode	3	test.t1.Code	18	33.33	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`Name` AS `Name` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`Code` = `test`.`t2`.`CountryCode`) and (`test`.`t2`.`Population` > 5000000))
+Note	1003	/* select#1 */ select `test`.`t1`.`Name` AS `Name` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`CountryCode` = `test`.`t1`.`Code`) and (`test`.`t2`.`Population` > 5000000))
 SELECT Name FROM t1 
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
@@ -7265,13 +7231,13 @@ explain extended select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-1	SIMPLE	t1	NULL	ref	a	a	5	test.t0.a	1	100.00	Start temporary
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	20.00	Using where; End temporary
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	NULL
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.a	1	20.00	Using where; FirstMatch(t0)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t0`.`a`) and (`test`.`t2`.`a` = `test`.`t0`.`a`))
+Note	1003	/* select#1 */ select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) and (`test`.`t0`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`a` = `test`.`t2`.`a`))
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 create temporary table tmp select * from t0 where t0.a in 
@@ -7690,12 +7656,12 @@ explain select name from t2, t1
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	uid	uid	5	const	4	100.00	Using where; Start temporary
-1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	100.00	Using index
-1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	2	100.00	End temporary
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	uid	NULL	NULL	NULL	11	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	100.00	NULL
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.uid	1	100.00	Using index
+1	SIMPLE	t3	NULL	ref	uid	uid	5	const	4	10.00	Using where; FirstMatch(t4)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name` from `test`.`t4` semi join (`test`.`t3`) join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`uid` = `test`.`t3`.`fid`) and (`test`.`t1`.`uid` = `test`.`t3`.`fid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t2`.`uid` = `test`.`t1`.`fid`))
+Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name` from `test`.`t4` semi join (`test`.`t3`) join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`uid` = `test`.`t1`.`uid`) and (`test`.`t3`.`fid` = `test`.`t1`.`uid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t2`.`uid` = `test`.`t1`.`fid`))
 select name from t2, t1 
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
@@ -7824,9 +7790,9 @@ INSERT INTO t3 VALUES (1), (2);
 explain extended SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = `test`.`t1`.`i`)
@@ -7881,9 +7847,9 @@ insert into t2 values(1),(1),(1),(1);
 insert into t3 values(2),(2);
 explain select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2` left join `test`.`t3` on((`test`.`t2`.`a` = `test`.`t3`.`a`))) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 select * from t1 where t1.a in (select t2.a from t2 left join t3 on t2.a=t3.a);
@@ -7904,10 +7870,10 @@ explain SELECT * FROM t1
 WHERE t1.a IN (SELECT t2.a
 FROM t2 LEFT JOIN (t2 AS t2inner, t3) ON t2.a=t3.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2inner	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	t2inner	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2` left join (`test`.`t2` `t2inner` join `test`.`t3`) on((`test`.`t2`.`a` = `test`.`t3`.`a`))) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * FROM t1
@@ -8007,17 +7973,17 @@ SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i
 FROM t2 JOIN t3
 WHERE t2.i + t3.i = 5);
 i
-4
-3
-2
 1
+2
+3
+4
 explain SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i
 FROM t2 JOIN t3
 WHERE t2.i + t3.i = 5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and ((`test`.`t1`.`i` + `test`.`t3`.`i`) = 5))
 DROP TABLE t1,t2,t3;
@@ -8051,12 +8017,12 @@ explain SELECT * FROM ot1,ot4
 WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
 FROM it2,it3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	ot4	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	ot4	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+1	SIMPLE	it3	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; FirstMatch(ot4)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot4`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it2` join `test`.`it3`) join `test`.`ot4` where ((`test`.`ot4`.`a` = `test`.`it3`.`a`) and (`test`.`it2`.`a` = `test`.`ot1`.`a`))
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot4`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it2` join `test`.`it3`) join `test`.`ot4` where ((`test`.`it3`.`a` = `test`.`ot4`.`a`) and (`test`.`it2`.`a` = `test`.`ot1`.`a`))
 DROP TABLE IF EXISTS ot1, ot4, it2, it3;
 # End of the test for bug#52068.
 #
@@ -8135,12 +8101,12 @@ EXPLAIN SELECT * FROM t2
 WHERE f2 IN (SELECT t1.f1
 FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	b1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	b2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	b1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	b2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	FirstMatch(t2)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` semi join (`test`.`t1` left join (`test`.`t2` `b1` join `test`.`t2` `b2`) on((1 and 1))) where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` semi join (`test`.`t1` left join (`test`.`t2` `b1` join `test`.`t2` `b2`) on((1 and 1))) where (`test`.`t1`.`f1` = `test`.`t2`.`f2`)
 SELECT * FROM t2
 WHERE f2 IN (SELECT t1.f1
 FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
@@ -8187,8 +8153,8 @@ FROM t2 AS a1 LEFT JOIN t3 AS a2
 ON a1.col_int_key = a2.col_int_key
 WHERE a1.col_int BETWEEN 1 AND 10 OR a2.col_int IS NOT NULL);
 f2
-we
 v
+we
 DROP TABLE t1,t2,t3;
 #
 # BUG#12616344 - JCL: DIFFERENT RESULT SET AND DIFFERENT AMOUNT
@@ -8277,10 +8243,10 @@ ON alias2.col_varchar_10_latin1_key
 ON alias1.col_varchar_1024_utf8_key
 WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	alias1	NULL	ALL	PRIMARY,col_varchar_10_latin1_key	NULL	NULL	NULL	4	20.31	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias3	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias2	NULL	index	NULL	col_varchar_10_latin1_key	13	NULL	4	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	alias1	NULL	ref	PRIMARY,col_varchar_10_latin1_key	col_varchar_10_latin1_key	13	test.t3.col_varchar_10_latin1_key	2	81.25	Using where
+1	SIMPLE	alias3	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
+1	SIMPLE	alias2	NULL	index	NULL	col_varchar_10_latin1_key	13	NULL	4	100.00	Using where; Using index; FirstMatch(t3)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`col_varchar_10_latin1_key` AS `col_varchar_10_latin1_key` from `test`.`t3` semi join (`test`.`t1` `alias1` left join (`test`.`t1` `alias2` join `test`.`t2` `alias3`) on((`test`.`alias1`.`col_varchar_1024_utf8_key` and `test`.`alias2`.`col_varchar_10_latin1_key`))) where ((`test`.`alias1`.`col_varchar_10_latin1_key` = `test`.`t3`.`col_varchar_10_latin1_key`) and ((`test`.`alias1`.`pk` and (`test`.`alias1`.`pk` < 3)) or (`test`.`alias1`.`pk` and `test`.`alias3`.`pk`)))
 SELECT * 
@@ -8364,10 +8330,10 @@ WHERE innr.col_varchar_key = 'a' OR innr.pk = 8)
 AND outr.col_varchar_nokey < 't'
 ORDER BY outr.col_varchar_key, outr.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	innr	NULL	index_merge	PRIMARY,col_varchar_key	col_varchar_key,PRIMARY	3,4	NULL	2	100.00	Using sort_union(col_varchar_key,PRIMARY); Using where; Using temporary; Using filesort; Start temporary
-1	SIMPLE	outr	NULL	ref	col_varchar_key	col_varchar_key	3	test.innr.col_varchar_key	1	33.33	Using where; End temporary
+1	SIMPLE	outr	NULL	ALL	col_varchar_key	NULL	NULL	NULL	17	33.33	Using where; Using filesort
+1	SIMPLE	innr	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.outr.col_varchar_key	1	100.00	Using where; Using index; FirstMatch(outr)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`col_varchar_key` AS `x`,`test`.`outr`.`pk` AS `y` from `test`.`t1` `outr` semi join (`test`.`t2` `innr`) where ((`test`.`outr`.`col_varchar_key` = `test`.`innr`.`col_varchar_key`) and (`test`.`outr`.`col_varchar_nokey` < 't') and ((`test`.`innr`.`col_varchar_key` = 'a') or (`test`.`innr`.`pk` = 8))) order by `test`.`outr`.`col_varchar_key`,`test`.`outr`.`pk`
+Note	1003	/* select#1 */ select `test`.`outr`.`col_varchar_key` AS `x`,`test`.`outr`.`pk` AS `y` from `test`.`t1` `outr` semi join (`test`.`t2` `innr`) where ((`test`.`innr`.`col_varchar_key` = `test`.`outr`.`col_varchar_key`) and (`test`.`outr`.`col_varchar_nokey` < 't') and ((`test`.`outr`.`col_varchar_key` = 'a') or (`test`.`innr`.`pk` = 8))) order by `test`.`outr`.`col_varchar_key`,`test`.`outr`.`pk`
 SELECT outr.col_varchar_key AS x, outr.pk AS y
 FROM t1 AS outr
 WHERE outr.col_varchar_key IN (SELECT innr.col_varchar_key
@@ -8421,13 +8387,13 @@ WHERE parent1.col_varchar_key IN
 FROM t1 AS child1 LEFT JOIN t2 AS child2
 ON (child1.col_varchar_key > child2.col_varchar_nokey)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	child1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using where; Start temporary
-1	SIMPLE	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	parent1	NULL	ref	col_varchar_key	col_varchar_key	4	test.child1.col_varchar_nokey	2	100.00	Using where
-1	SIMPLE	grandparent1	NULL	ref	col_varchar_key	col_varchar_key	4	test.parent1.col_varchar_nokey	2	100.00	End temporary
+1	SIMPLE	grandparent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	15	100.00	NULL
 1	SIMPLE	grandparent2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	parent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	15	10.00	Using where
+1	SIMPLE	child1	NULL	ALL	NULL	NULL	NULL	NULL	15	10.00	Using where
+1	SIMPLE	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(grandparent2)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `grandparent1` semi join (`test`.`t1` `child1` left join `test`.`t2` `child2` on((`test`.`child1`.`col_varchar_key` > `test`.`child2`.`col_varchar_nokey`)) join `test`.`t1` `parent1`) left join `test`.`t2` `grandparent2` on((`test`.`grandparent2`.`col_varchar_nokey` = `test`.`grandparent1`.`col_varchar_nokey`)) where ((`test`.`grandparent1`.`col_varchar_key` = `test`.`parent1`.`col_varchar_nokey`) and (`test`.`parent1`.`col_varchar_key` = `test`.`child1`.`col_varchar_nokey`))
+Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `grandparent1` semi join (`test`.`t1` `child1` left join `test`.`t2` `child2` on((`test`.`child1`.`col_varchar_key` > `test`.`child2`.`col_varchar_nokey`)) join `test`.`t1` `parent1`) left join `test`.`t2` `grandparent2` on((`test`.`grandparent2`.`col_varchar_nokey` = `test`.`grandparent1`.`col_varchar_nokey`)) where ((`test`.`parent1`.`col_varchar_nokey` = `test`.`grandparent1`.`col_varchar_key`) and (`test`.`child1`.`col_varchar_nokey` = `test`.`parent1`.`col_varchar_key`))
 SELECT grandparent1.col_varchar_nokey
 FROM t1 AS grandparent1 LEFT JOIN t2 AS grandparent2 USING (col_varchar_nokey)
 WHERE (grandparent1.col_varchar_key) IN
@@ -8487,10 +8453,10 @@ WHERE col_varchar_key IN (SELECT col_varchar_nokey
 FROM t2)
 ORDER BY col_datetime_key LIMIT 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort; Start temporary
-1	SIMPLE	t1	NULL	ref	col_varchar_key	col_varchar_key	3	test.t2.col_varchar_nokey	1	100.00	End temporary
+1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`) order by `test`.`t1`.`col_datetime_key` limit 4
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`col_varchar_nokey` = `test`.`t1`.`col_varchar_key`) order by `test`.`t1`.`col_datetime_key` limit 4
 SELECT col_varchar_key
 FROM t1
 WHERE col_varchar_key IN (SELECT col_varchar_nokey
@@ -8883,12 +8849,12 @@ FROM ot1, ot2
 WHERE ot1.a IN (SELECT a FROM it1) AND
 ot2.a IN (SELECT a FROM it2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	it1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	it1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(ot1); Using join buffer (Block Nested Loop)
+1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; FirstMatch(ot2); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it1`) semi join (`test`.`it2`) join `test`.`ot2` where ((`test`.`ot2`.`a` = `test`.`it2`.`a`) and (`test`.`it1`.`a` = `test`.`ot1`.`a`))
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a` from `test`.`ot1` semi join (`test`.`it1`) semi join (`test`.`it2`) join `test`.`ot2` where ((`test`.`it2`.`a` = `test`.`ot2`.`a`) and (`test`.`it1`.`a` = `test`.`ot1`.`a`))
 SELECT ot1.a, ot2.a
 FROM ot1, ot2
 WHERE ot1.a IN (SELECT a FROM it1) AND
@@ -9253,10 +9219,10 @@ WHERE it.a = 'x' OR it.c > it.d
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	it	NULL	ALL	a	NULL	NULL	NULL	3	40.74	Using where; Start temporary
-1	SIMPLE	ot	NULL	ref	a	a	4	test.it.a	2	100.00	Using index; End temporary
+1	SIMPLE	ot	NULL	index	a	a	4	NULL	4	100.00	Using index
+1	SIMPLE	it	NULL	ALL	a	NULL	NULL	NULL	3	4.53	Using where; FirstMatch(ot); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a` from `test`.`t2` `ot` semi join (`test`.`t1` `it`) where ((`test`.`it`.`b` = `test`.`it`.`a`) and (`test`.`ot`.`a` = `test`.`it`.`a`) and ((`test`.`it`.`a` = 'x') or (`test`.`it`.`c` > `test`.`it`.`d`)))
+Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a` from `test`.`t2` `ot` semi join (`test`.`t1` `it`) where ((`test`.`it`.`a` = `test`.`ot`.`a`) and (`test`.`it`.`b` = `test`.`ot`.`a`) and ((`test`.`ot`.`a` = 'x') or (`test`.`it`.`c` > `test`.`it`.`d`)))
 SELECT *
 FROM t2 AS ot
 WHERE (a, a) IN
@@ -9308,11 +9274,11 @@ ON child1.pk < child2.col_int_nokey
 )
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	grandparent1	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	3	100.00	Start temporary
+1	SIMPLE	grandparent1	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	grandparent2	NULL	index	col_int_key	col_int_key	5	NULL	3	33.33	Using where; Using index; Using join buffer (Block Nested Loop)
-1	SIMPLE	parent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	child1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	parent1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	8	12.50	Using where
+1	SIMPLE	child1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+1	SIMPLE	child2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(grandparent2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t1` `grandparent1` semi join (`test`.`t2` `child1` left join `test`.`t3` `child2` on((`test`.`child1`.`pk` < `test`.`child2`.`col_int_nokey`)) join `test`.`t2` `parent1`) join `test`.`t1` `grandparent2` where ((`test`.`grandparent2`.`col_int_key` = `test`.`grandparent1`.`col_int_key`) and (`test`.`parent1`.`col_varchar_nokey` = `test`.`grandparent1`.`col_varchar_key`) and (`test`.`child1`.`col_varchar_nokey` = `test`.`parent1`.`col_varchar_key`))
 SELECT grandparent1.col_varchar_nokey
@@ -9334,6 +9300,8 @@ x
 x
 DROP TABLE t1, t2, t3;
 # End of test for bug#13545215.
+set @tmp_opt_switch=@@optimizer_switch;
+set optimizer_switch='loosescan=off';
 #
 # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
 # MATERIALIZATION + SEMIJOIN ON
@@ -9366,10 +9334,10 @@ t1 AS sq2_alias1, t1 AS sq2_alias2
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Start temporary
-1	SIMPLE	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	sq2_alias1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	4	25.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	sq2_alias1	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias2.col_varchar_nokey	2	100.00	Using index
+1	SIMPLE	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(alias2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`alias1`.`col_varchar_nokey` AS `a1_nokey`,`test`.`alias1`.`col_varchar_key` AS `a1_key`,`test`.`alias2`.`col_varchar_nokey` AS `a2_nokey` from `test`.`t1` `alias1` semi join (`test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias2` where ((`test`.`sq2_alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_nokey`) and (`test`.`sq2_alias2`.`col_varchar_nokey` = `test`.`alias1`.`col_varchar_nokey`))
 SELECT
@@ -9399,6 +9367,7 @@ v	v	v
 v	v	v
 v	v	v
 DROP TABLE t1;
+set @@optimizer_switch=@tmp_opt_switch;
 #
 # Bug#13541406: Wrong result with loosescan on select .. where .. in
 #
@@ -9433,12 +9402,12 @@ WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
 SELECT it2.col_varchar_nokey, it1.col_varchar_key
 FROM t2 AS it1 JOIN t1 AS it2 ON it2.col_int_key = it1.pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	NULL
-1	SIMPLE	it1	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.ot2.col_varchar_nokey	1	100.00	Using index; Start temporary
-1	SIMPLE	it2	NULL	ref	col_int_key	col_int_key	4	test.it1.pk	1	100.00	NULL
-1	SIMPLE	ot1	NULL	ref	col_varchar_key	col_varchar_key	3	test.it2.col_varchar_nokey	1	100.00	Using index; End temporary
+1	SIMPLE	ot1	NULL	index	col_varchar_key	col_varchar_key	7	NULL	20	100.00	Using index
+1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	it1	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.ot2.col_varchar_nokey	1	100.00	Using index
+1	SIMPLE	it2	NULL	ref	col_int_key	col_int_key	4	test.it1.pk	1	10.00	Using where; FirstMatch(ot2)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`col_int_key` AS `field1` from `test`.`t2` `ot1` semi join (`test`.`t2` `it1` join `test`.`t1` `it2`) join `test`.`t2` `ot2` where ((`test`.`it2`.`col_int_key` = `test`.`it1`.`pk`) and (`test`.`it1`.`col_varchar_key` = `test`.`ot2`.`col_varchar_nokey`) and (`test`.`ot1`.`col_varchar_key` = `test`.`it2`.`col_varchar_nokey`))
+Note	1003	/* select#1 */ select `test`.`ot1`.`col_int_key` AS `field1` from `test`.`t2` `ot1` semi join (`test`.`t2` `it1` join `test`.`t1` `it2`) join `test`.`t2` `ot2` where ((`test`.`it2`.`col_int_key` = `test`.`it1`.`pk`) and (`test`.`it1`.`col_varchar_key` = `test`.`ot2`.`col_varchar_nokey`) and (`test`.`it2`.`col_varchar_nokey` = `test`.`ot1`.`col_varchar_key`))
 SELECT ot1.col_int_key AS field1
 FROM t2 AS ot1, t2 AS ot2
 WHERE (ot1.col_varchar_key, ot2.col_varchar_nokey) IN (
@@ -9623,12 +9592,12 @@ FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gp2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	index	col_varchar_key	col_varchar_key	4	NULL	1	100.00	Using where; Using index; Start temporary
-1	SIMPLE	gp1	NULL	ALL	NULL	NULL	NULL	NULL	3	22.22	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ref	col_varchar_key	col_varchar_key	4	test.t2.col_varchar_key	2	100.00	Using index; End temporary
+1	SIMPLE	gp1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t2	NULL	ref	col_varchar_key	col_varchar_key	4	test.gp1.col_varchar_nokey	2	100.00	Using index
+1	SIMPLE	t3	NULL	ref	col_varchar_key	col_varchar_key	4	test.gp1.col_varchar_nokey	2	100.00	Using where; Using index; FirstMatch(gp1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`gp1`.`id` AS `id` from `test`.`t1` `gp1` semi join (`test`.`t2` left join `test`.`t3` on((`test`.`t2`.`col_varchar_key` = `test`.`t3`.`col_varchar_key`)) join `test`.`t1`) where ((`test`.`gp1`.`col_varchar_nokey` = `test`.`t2`.`col_varchar_key`) and (`test`.`t1`.`col_varchar_nokey` = `test`.`t2`.`col_varchar_key`) and ('k' <> `test`.`t2`.`col_varchar_key`))
+Note	1003	/* select#1 */ select `test`.`gp1`.`id` AS `id` from `test`.`t1` `gp1` semi join (`test`.`t2` left join `test`.`t3` on((`test`.`t2`.`col_varchar_key` = `test`.`t3`.`col_varchar_key`)) join `test`.`t1`) where ((`test`.`t1`.`col_varchar_nokey` = `test`.`gp1`.`col_varchar_nokey`) and (`test`.`t2`.`col_varchar_key` = `test`.`gp1`.`col_varchar_nokey`) and ('k' <> `test`.`gp1`.`col_varchar_nokey`))
 SELECT gp1.id
 FROM t1 AS gp1 JOIN t3 AS gp2
 ON gp2.col_varchar_key <> gp1.col_varchar_nokey
@@ -9679,12 +9648,12 @@ FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
 )
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	child1	NULL	index	int_key,vc_key	vc_key	9	NULL	1	100.00	Using where; Using index; Start temporary
-1	SIMPLE	outr	NULL	ref	vc_key	vc_key	4	test.child1.vc_key	3	10.00	Using where
-1	SIMPLE	middle	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	child2	NULL	ref	int_key	int_key	5	test.child1.int_key	3	100.00	Using index; End temporary
+1	SIMPLE	outr	NULL	ALL	vc_key	NULL	NULL	NULL	20	100.00	Using where
+1	SIMPLE	middle	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+1	SIMPLE	child1	NULL	ref	int_key,vc_key	vc_key	4	test.outr.vc_nokey	2	100.00	Using where; Using index
+1	SIMPLE	child2	NULL	ref	int_key	int_key	5	test.child1.int_key	3	100.00	Using index; FirstMatch(outr)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`vc_key` AS `vc_key` from `test`.`t1` `outr` semi join (`test`.`t2` `child1` join `test`.`t1` `child2` join `test`.`t1` `middle`) where ((`test`.`child2`.`int_key` = `test`.`child1`.`int_key`) and (`test`.`outr`.`vc_nokey` = `test`.`child1`.`vc_key`) and (`test`.`outr`.`vc_key` = `test`.`child1`.`vc_key`) and (`test`.`middle`.`vc_nokey` = `test`.`child1`.`vc_key`))
+Note	1003	/* select#1 */ select `test`.`outr`.`vc_key` AS `vc_key` from `test`.`t1` `outr` semi join (`test`.`t2` `child1` join `test`.`t1` `child2` join `test`.`t1` `middle`) where ((`test`.`child2`.`int_key` = `test`.`child1`.`int_key`) and (`test`.`outr`.`vc_key` = `test`.`outr`.`vc_nokey`) and (`test`.`middle`.`vc_nokey` = `test`.`outr`.`vc_nokey`) and (`test`.`child1`.`vc_key` = `test`.`outr`.`vc_nokey`))
 SELECT vc_key
 FROM t1 as outr
 WHERE (vc_nokey, vc_key ) IN
@@ -9828,10 +9797,10 @@ ON alias5.col_varchar_key = alias4.col_varchar_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	outr	NULL	index	col_datetime_key	col_datetime_key	5	NULL	2	100.00	Using index
-1	SIMPLE	alias1	NULL	ref	col_datetime_key	col_datetime_key	5	test.outr.col_datetime_key	1	100.00	Using index; Start temporary
+1	SIMPLE	alias1	NULL	ref	col_datetime_key	col_datetime_key	5	test.outr.col_datetime_key	1	100.00	Using index
 1	SIMPLE	alias4	NULL	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	alias5	NULL	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	100.00	Using where; Using index
-1	SIMPLE	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; End temporary
+1	SIMPLE	alias3	NULL	index	NULL	col_int_key	4	NULL	2	100.00	Using index; FirstMatch(outr)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `outr` semi join (`test`.`t1` `alias1` left join (`test`.`t1` `alias3` join `test`.`t2` `alias4` join `test`.`t1` `alias5`) on(((`test`.`alias5`.`col_varchar_key` = `test`.`alias4`.`col_varchar_key`) and (`test`.`alias5`.`col_int_key` < `test`.`alias4`.`col_int_key`) and (`test`.`alias5`.`col_varchar_key` <= `test`.`alias4`.`col_varchar_nokey`)))) where (`test`.`alias1`.`col_datetime_key` = `test`.`outr`.`col_datetime_key`)
 SELECT col_datetime_key
@@ -9964,10 +9933,10 @@ ot2.pk IN
 (SELECT it1.pk
 FROM t1 AS it1 LEFT JOIN t1 AS it2 ON it1.pk=it2.pk);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	it1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	ot1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	it1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	it2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(ot2)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ot1`.`pk` AS `pk`,`test`.`ot2`.`pk` AS `pk` from `test`.`t1` `ot1` left join (`test`.`t1` `ot2` semi join (`test`.`t1` `it1` left join `test`.`t1` `it2` on((`test`.`it1`.`pk` = `test`.`it2`.`pk`)))) on(((`test`.`ot1`.`pk` = `test`.`ot2`.`pk`) and 1 and (`test`.`ot2`.`pk` = `test`.`it1`.`pk`))) where 1
 SELECT *
@@ -10082,17 +10051,17 @@ ON subquery2_t3.pk = subquery2_t2.pk
 ;
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table1	NULL	index	NULL	col_int_key	5	NULL	20	100.00	Using index; Start temporary
-1	SIMPLE	subquery1_t3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	subquery1_t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t3.col_int_key	1	10.00	Using where
+1	SIMPLE	table1	NULL	index	NULL	col_int_key	5	NULL	20	100.00	Using index
 1	SIMPLE	table2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	table3	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	2	10.00	Using where
-1	SIMPLE	subquery1_t1	NULL	index	PRIMARY	col_int_key	5	NULL	20	100.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	table3	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	2	100.00	NULL
+1	SIMPLE	subquery1_t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	20	10.00	Using where
+1	SIMPLE	subquery1_t3	NULL	ref	col_varchar_key	col_varchar_key	4	test.subquery1_t2.col_varchar_nokey	1	10.00	Using where
 1	SIMPLE	subquery2_t3	NULL	index	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	20	100.00	Using where; Using index
 1	SIMPLE	subquery2_t2	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	7.14	Using where
-1	SIMPLE	subquery2_t1	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	2	100.00	Using index; FirstMatch(subquery1_t1)
+1	SIMPLE	subquery2_t1	NULL	ref	col_int_key	col_int_key	5	test.table2.pk	2	100.00	Using index
+1	SIMPLE	subquery1_t1	NULL	index	PRIMARY	col_int_key	5	NULL	20	100.00	Using where; Using index; FirstMatch(table3)
 Warnings:
-Note	1003	/* select#1 */ select `table2`.`col_varchar_nokey` AS `field1` from `test`.`t2` `table1` semi join (`test`.`t3` `subquery2_t2` join `test`.`t1` `subquery2_t3` join `test`.`t2` `subquery2_t1`) semi join (`test`.`t1` `subquery1_t2` join `test`.`t1` `subquery1_t3` join `test`.`t2` `subquery1_t1`) join `test`.`t1` `table2` straight_join `test`.`t2` `table3` where ((`subquery2_t2`.`col_varchar_key` = `subquery2_t3`.`col_varchar_key`) and (`subquery2_t2`.`pk` = `subquery2_t3`.`pk`) and (`subquery1_t2`.`pk` = `subquery1_t3`.`col_int_key`) and (`subquery1_t2`.`col_varchar_nokey` = `subquery1_t3`.`col_varchar_key`) and (`table3`.`col_int_key` = `table2`.`pk`) and (`subquery2_t1`.`col_int_key` = `table2`.`pk`) and (`table3`.`col_int_nokey` = `subquery1_t2`.`col_int_nokey`) and (`subquery1_t1`.`pk` > 1))
+Note	1003	/* select#1 */ select `table2`.`col_varchar_nokey` AS `field1` from `test`.`t2` `table1` semi join (`test`.`t3` `subquery2_t2` join `test`.`t1` `subquery2_t3` join `test`.`t2` `subquery2_t1`) semi join (`test`.`t1` `subquery1_t2` join `test`.`t1` `subquery1_t3` join `test`.`t2` `subquery1_t1`) join `test`.`t1` `table2` straight_join `test`.`t2` `table3` where ((`subquery2_t2`.`col_varchar_key` = `subquery2_t3`.`col_varchar_key`) and (`subquery2_t2`.`pk` = `subquery2_t3`.`pk`) and (`subquery1_t3`.`col_int_key` = `subquery1_t2`.`pk`) and (`subquery1_t3`.`col_varchar_key` = `subquery1_t2`.`col_varchar_nokey`) and (`table3`.`col_int_key` = `table2`.`pk`) and (`subquery2_t1`.`col_int_key` = `table2`.`pk`) and (`subquery1_t2`.`col_int_nokey` = `table3`.`col_int_nokey`) and (`subquery1_t1`.`pk` > 1))
 SELECT * FROM v1;
 field1
 v
@@ -10264,10 +10233,10 @@ AND sq2_alias1.col_varchar_key < "l"
   )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	t2	NULL	ref	col_int_key,col_varchar_key	col_int_key	5	test.alias3.pk	2	40.00	Using where
+1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	alias2	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias3.col_varchar_key	2	100.00	Using index
-1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ref	col_int_key,col_varchar_key	col_int_key	5	test.alias3.pk	2	32.00	Using where
+1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; FirstMatch(alias2)
 1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(sq2_alias2)
 1	SIMPLE	alias1	NULL	index	NULL	col_varchar_key	9	NULL	2	100.00	Using index
 Warnings:
@@ -10524,10 +10493,10 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 (SELECT * FROM view_inline_2
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived7>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	view_inline_2.p,view_inline_2.My_exp_p	2	100.00	End temporary
-1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	8	test.alias2.col_varchar_nokey,view_inline_2.p	3	100.00	Using index; FirstMatch(alias2)
+1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	NULL
+1	PRIMARY	<derived6>	NULL	ref	<auto_key0>	<auto_key0>	8	test.alias2.col_varchar_nokey,test.alias2.col_varchar_key	3	100.00	Using index; FirstMatch(alias2)
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.alias2.col_varchar_key	2	100.00	NULL
+1	PRIMARY	<derived7>	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where; FirstMatch(<derived2>); Using join buffer (Block Nested Loop)
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -10536,7 +10505,7 @@ NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 2	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
 5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` semi join (`test`.`view_inline_2`) semi join (`test`.`view_inline_1`) join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` where ((`view_inline_1`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `view_inline_2`.`My_exp_p`) and (`alias1`.`col_varchar_key` = `view_inline_2`.`p`) and (`test`.`alias2`.`col_varchar_key` = `view_inline_2`.`p`) and (`view_inline_1`.`sq2_field2` = `view_inline_2`.`p`))
+Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`t2` `alias2` semi join (`test`.`view_inline_2`) semi join (`test`.`view_inline_1`) join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` where ((`view_inline_1`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`view_inline_2`.`My_exp_p` = `alias1`.`col_varchar_nokey`) and (`view_inline_1`.`sq2_field2` = `test`.`alias2`.`col_varchar_key`) and (`alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and (`view_inline_2`.`p` = `test`.`alias2`.`col_varchar_key`))
 SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
@@ -10658,14 +10627,14 @@ FROM t1 AS subquery3_t1
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	subquery3_t1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	0	0.00	Using where; Using index; Start temporary
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	const,test.subquery3_t1.col_varchar_key	2	100.00	NULL
-1	PRIMARY	table2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	2	100.00	Using where
+1	PRIMARY	subquery3_t1	NULL	ref	col_varchar_key	col_varchar_key	4	table1.col_varchar_nokey	0	0.00	Using index; FirstMatch(<derived2>)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	FirstMatch(subquery3_t1); Using join buffer (Block Nested Loop)
+1	PRIMARY	table2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (Block Nested Loop)
 2	DERIVED	subquery1_t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 2	DERIVED	subquery1_t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t1.pk	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `table1`.`pk` AS `field1` from (/* select#2 */ select `test`.`subquery1_t1`.`pk` AS `pk`,`test`.`subquery1_t1`.`col_int_key` AS `col_int_key`,`test`.`subquery1_t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`subquery1_t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `subquery1_t1` join `test`.`t2` `subquery1_t2` where (`test`.`subquery1_t2`.`pk` = `test`.`subquery1_t1`.`pk`)) `table1` semi join (`test`.`t3`) semi join (`test`.`t1` `subquery3_t1`) straight_join `test`.`t2` `table2` where ((`table1`.`col_int_key` = 7) and (`table1`.`col_varchar_nokey` = `test`.`subquery3_t1`.`col_varchar_key`))
+Note	1003	/* select#1 */ select `table1`.`pk` AS `field1` from (/* select#2 */ select `test`.`subquery1_t1`.`pk` AS `pk`,`test`.`subquery1_t1`.`col_int_key` AS `col_int_key`,`test`.`subquery1_t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`subquery1_t1`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `subquery1_t1` join `test`.`t2` `subquery1_t2` where (`test`.`subquery1_t2`.`pk` = `test`.`subquery1_t1`.`pk`)) `table1` semi join (`test`.`t3`) semi join (`test`.`t1` `subquery3_t1`) straight_join `test`.`t2` `table2` where ((`table1`.`col_int_key` = 7) and (`test`.`subquery3_t1`.`col_varchar_key` = `table1`.`col_varchar_nokey`))
 SELECT table1.pk AS field1
 FROM ( SELECT subquery1_t1. *
 FROM t2 AS subquery1_t1
@@ -10954,20 +10923,38 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "35.53"
+      "query_cost": "53.68"
     },
     "nested_loop": [
       {
-        "duplicates_removal": {
-          "using_temporary_table": true,
-          "nested_loop": [
-            {
+        "table": {
+          "table_name": "derived1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 7,
+          "rows_produced_per_join": 7,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "10.35",
+            "eval_cost": "1.40",
+            "prefix_cost": "11.75",
+            "data_read_per_join": "112"
+          },
+          "used_columns": [
+            "col_varchar_key",
+            "col_varchar_nokey"
+          ],
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": false,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 2,
+              "cost_info": {
+                "query_cost": "3.43"
+              },
               "table": {
-                "table_name": "derived2",
+                "table_name": "t2",
                 "access_type": "ALL",
-                "possible_keys": [
-                  "col_varchar_key"
-                ],
                 "rows_examined_per_scan": 7,
                 "rows_produced_per_join": 7,
                 "filtered": "100.00",
@@ -10980,69 +10967,35 @@ EXPLAIN
                 "used_columns": [
                   "col_varchar_key",
                   "col_varchar_nokey"
-                ],
-                "attached_condition": "((`test`.`derived2`.`col_varchar_key` = `test`.`derived2`.`col_varchar_nokey`) and (`test`.`derived2`.`col_varchar_nokey` is not null))"
-              }
-            },
-            {
-              "table": {
-                "table_name": "derived1",
-                "access_type": "ref",
-                "possible_keys": [
-                  "<auto_key0>"
-                ],
-                "key": "<auto_key0>",
-                "used_key_parts": [
-                  "col_varchar_nokey"
-                ],
-                "key_length": "4",
-                "ref": [
-                  "test.derived2.col_varchar_nokey"
-                ],
-                "rows_examined_per_scan": 2,
-                "rows_produced_per_join": 2,
-                "filtered": "100.00",
-                "cost_info": {
-                  "read_cost": "14.00",
-                  "eval_cost": "0.40",
-                  "prefix_cost": "25.43",
-                  "data_read_per_join": "32"
-                },
-                "used_columns": [
-                  "col_varchar_key",
-                  "col_varchar_nokey"
-                ],
-                "materialized_from_subquery": {
-                  "using_temporary_table": true,
-                  "dependent": false,
-                  "cacheable": true,
-                  "query_block": {
-                    "select_id": 2,
-                    "cost_info": {
-                      "query_cost": "3.43"
-                    },
-                    "table": {
-                      "table_name": "t2",
-                      "access_type": "ALL",
-                      "rows_examined_per_scan": 7,
-                      "rows_produced_per_join": 7,
-                      "filtered": "100.00",
-                      "cost_info": {
-                        "read_cost": "2.03",
-                        "eval_cost": "1.40",
-                        "prefix_cost": "3.43",
-                        "data_read_per_join": "56"
-                      },
-                      "used_columns": [
-                        "col_varchar_key",
-                        "col_varchar_nokey"
-                      ]
-                    }
-                  }
-                }
+                ]
               }
             }
-          ]
+          }
+        }
+      },
+      {
+        "table": {
+          "table_name": "derived2",
+          "access_type": "ALL",
+          "possible_keys": [
+            "col_varchar_key"
+          ],
+          "rows_examined_per_scan": 7,
+          "rows_produced_per_join": 7,
+          "filtered": "2.04",
+          "first_match": "derived1",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.03",
+            "eval_cost": "1.40",
+            "prefix_cost": "23.58",
+            "data_read_per_join": "56"
+          },
+          "used_columns": [
+            "col_varchar_key",
+            "col_varchar_nokey"
+          ],
+          "attached_condition": "((`test`.`derived2`.`col_varchar_nokey` = `derived1`.`col_varchar_nokey`) and (`test`.`derived2`.`col_varchar_key` = `derived1`.`col_varchar_nokey`))"
         }
       },
       {
@@ -11050,26 +11003,26 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 20,
-          "rows_produced_per_join": 40,
+          "rows_produced_per_join": 140,
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.10",
-            "eval_cost": "8.00",
-            "prefix_cost": "35.53",
-            "data_read_per_join": "320"
+            "eval_cost": "28.00",
+            "prefix_cost": "53.68",
+            "data_read_per_join": "1K"
           },
           "used_columns": [
             "col_varchar_nokey"
           ],
-          "attached_condition": "<if>(is_not_null_compl(t1), (`test`.`t1`.`col_varchar_nokey` = `test`.`derived2`.`col_varchar_nokey`), true)"
+          "attached_condition": "<if>(is_not_null_compl(t1), (`test`.`t1`.`col_varchar_nokey` = `derived1`.`col_varchar_nokey`), true)"
         }
       }
     ]
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `derived1`.`col_varchar_nokey` AS `col_varchar_nokey`,`derived1`.`col_varchar_key` AS `col_varchar_key` from (/* select#2 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `derived1` semi join (`test`.`t2` `derived2`) left join `test`.`t1` on((`test`.`t1`.`col_varchar_nokey` = `test`.`derived2`.`col_varchar_nokey`)) where ((`test`.`derived2`.`col_varchar_key` = `test`.`derived2`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `test`.`derived2`.`col_varchar_nokey`))
+Note	1003	/* select#1 */ select `derived1`.`col_varchar_nokey` AS `col_varchar_nokey`,`derived1`.`col_varchar_key` AS `col_varchar_key` from (/* select#2 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `derived1` semi join (`test`.`t2` `derived2`) left join `test`.`t1` on((`test`.`t1`.`col_varchar_nokey` = `derived1`.`col_varchar_nokey`)) where ((`test`.`derived2`.`col_varchar_nokey` = `derived1`.`col_varchar_nokey`) and (`test`.`derived2`.`col_varchar_key` = `derived1`.`col_varchar_nokey`))
 SELECT *
 FROM (SELECT * FROM t2) AS derived1
 LEFT JOIN t1
@@ -11333,79 +11286,51 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "110.59"
+      "query_cost": "308.07"
     },
     "nested_loop": [
       {
-        "duplicates_removal": {
-          "using_temporary_table": true,
-          "nested_loop": [
-            {
-              "table": {
-                "table_name": "sq2_alias2",
-                "access_type": "ALL",
-                "rows_examined_per_scan": 20,
-                "rows_produced_per_join": 6,
-                "filtered": "33.33",
-                "cost_info": {
-                  "read_cost": "4.78",
-                  "eval_cost": "1.33",
-                  "prefix_cost": "6.12",
-                  "data_read_per_join": "159"
-                },
-                "used_columns": [
-                  "col_int_key",
-                  "col_varchar_key"
-                ],
-                "attached_condition": "(`test`.`sq2_alias2`.`col_int_key` < 2)"
-              }
-            },
-            {
-              "table": {
-                "table_name": "alias2",
-                "access_type": "ALL",
-                "possible_keys": [
-                  "PRIMARY"
-                ],
-                "rows_examined_per_scan": 20,
-                "rows_produced_per_join": 13,
-                "filtered": "10.00",
-                "using_join_buffer": "Block Nested Loop",
-                "cost_info": {
-                  "read_cost": "2.12",
-                  "eval_cost": "2.67",
-                  "prefix_cost": "34.90",
-                  "data_read_per_join": "319"
-                },
-                "used_columns": [
-                  "pk",
-                  "col_varchar_key",
-                  "col_varchar_nokey"
-                ],
-                "attached_condition": "(`test`.`alias2`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`)"
-              }
-            },
-            {
-              "table": {
-                "table_name": "sq2_alias1",
-                "access_type": "ALL",
-                "rows_examined_per_scan": 20,
-                "rows_produced_per_join": 2,
-                "filtered": "10.00",
-                "using_join_buffer": "Block Nested Loop",
-                "cost_info": {
-                  "read_cost": "2.12",
-                  "eval_cost": "0.40",
-                  "prefix_cost": "98.07",
-                  "data_read_per_join": "48"
-                },
-                "used_columns": [
-                  "col_varchar_nokey"
-                ],
-                "attached_condition": "(`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`)"
-              }
-            }
+        "table": {
+          "table_name": "alias2",
+          "access_type": "ALL",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 20,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "2.12",
+            "eval_cost": "4.00",
+            "prefix_cost": "6.12",
+            "data_read_per_join": "480"
+          },
+          "used_columns": [
+            "pk",
+            "col_varchar_key",
+            "col_varchar_nokey"
           ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "sq2_alias2",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 13,
+          "filtered": "3.33",
+          "first_match": "alias2",
+          "cost_info": {
+            "read_cost": "95.64",
+            "eval_cost": "2.67",
+            "prefix_cost": "37.57",
+            "data_read_per_join": "319"
+          },
+          "used_columns": [
+            "col_int_key",
+            "col_varchar_key"
+          ],
+          "attached_condition": "((`test`.`sq2_alias2`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias2`.`col_int_key` < 2))"
         }
       },
       {
@@ -11424,13 +11349,13 @@ EXPLAIN
             "test.alias2.pk"
           ],
           "rows_examined_per_scan": 1,
-          "rows_produced_per_join": 2,
+          "rows_produced_per_join": 13,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "2.00",
-            "eval_cost": "0.40",
-            "prefix_cost": "100.47",
-            "data_read_per_join": "48"
+            "read_cost": "13.33",
+            "eval_cost": "2.67",
+            "prefix_cost": "53.56",
+            "data_read_per_join": "319"
           },
           "used_columns": [
             "pk",
@@ -11440,29 +11365,49 @@ EXPLAIN
       },
       {
         "table": {
+          "table_name": "sq2_alias1",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 20,
+          "rows_produced_per_join": 20,
+          "filtered": "10.00",
+          "first_match": "alias3",
+          "cost_info": {
+            "read_cost": "28.20",
+            "eval_cost": "4.00",
+            "prefix_cost": "225.95",
+            "data_read_per_join": "480"
+          },
+          "used_columns": [
+            "col_varchar_nokey"
+          ],
+          "attached_condition": "(`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`)"
+        }
+      },
+      {
+        "table": {
           "table_name": "alias1",
           "access_type": "ALL",
           "rows_examined_per_scan": 20,
-          "rows_produced_per_join": 40,
+          "rows_produced_per_join": 400,
           "filtered": "100.00",
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "2.12",
-            "eval_cost": "8.00",
-            "prefix_cost": "110.59",
-            "data_read_per_join": "960"
+            "eval_cost": "80.00",
+            "prefix_cost": "308.07",
+            "data_read_per_join": "9K"
           },
           "used_columns": [
             "col_datetime_key"
           ],
-          "attached_condition": "<if>(is_not_null_compl(alias1), (((`test`.`alias2`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`alias3`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`)) or `test`.`alias2`.`col_varchar_nokey`), true)"
+          "attached_condition": "<if>(is_not_null_compl(alias1), (((`test`.`sq2_alias2`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and (`test`.`alias3`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`)) or `test`.`alias2`.`col_varchar_nokey`), true)"
         }
       }
     ]
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`alias1`.`col_datetime_key` AS `col_datetime_key` from `test`.`t2` `alias2` semi join (`test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2`) join `test`.`t2` `alias3` left join `test`.`t2` `alias1` on((((`test`.`alias2`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`alias3`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`)) or `test`.`alias2`.`col_varchar_nokey`)) where ((`test`.`alias3`.`pk` = `test`.`alias2`.`pk`) and (`test`.`alias2`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`sq2_alias2`.`col_int_key` < 2))
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_datetime_key` AS `col_datetime_key` from `test`.`t2` `alias2` semi join (`test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2`) join `test`.`t2` `alias3` left join `test`.`t2` `alias1` on((((`test`.`sq2_alias2`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and (`test`.`alias3`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`)) or `test`.`alias2`.`col_varchar_nokey`)) where ((`test`.`alias3`.`pk` = `test`.`alias2`.`pk`) and (`test`.`sq2_alias2`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`) and (`test`.`sq2_alias2`.`col_int_key` < 2))
 SELECT alias1.col_datetime_key
 FROM t2 AS alias1
 RIGHT JOIN t2 AS alias2
@@ -11706,11 +11651,11 @@ FROM t3
 WHERE t3.pk < 3
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Start temporary
-1	SIMPLE	t3	NULL	range	PRIMARY,c1_key	PRIMARY	4	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	NULL	ref	PRIMARY,c1_key	c1_key	3	test.t3.c1	1	33.33	Using where; Using index; End temporary
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	PRIMARY,c1_key	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x3)
+1	SIMPLE	t3	NULL	ref	PRIMARY,c1_key	c1_key	3	test.t2.c1	1	50.00	Using where; Using index; FirstMatch(t2)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1` from `test`.`t1` semi join (`test`.`t3`) join `test`.`t2` where ((`test`.`t2`.`c1` = `test`.`t3`.`c1`) and (`test`.`t3`.`pk` < 3) and (`test`.`t1`.`i1` >= `test`.`t2`.`pk`))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1` from `test`.`t1` semi join (`test`.`t3`) join `test`.`t2` where ((`test`.`t3`.`c1` = `test`.`t2`.`c1`) and (`test`.`t3`.`pk` < 3) and (`test`.`t1`.`i1` >= `test`.`t2`.`pk`))
 SELECT *
 FROM t1 JOIN t2 ON t1.i1 >= t2.pk
 WHERE t2.c1 IN (
@@ -11817,10 +11762,10 @@ ON iir2.col_varchar_nokey = iir1.col_varchar_key))
 ORDER BY r1.col_date_key;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	r1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort
-2	DEPENDENT SUBQUERY	iir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Start temporary; Full scan on NULL key
-2	DEPENDENT SUBQUERY	iir1	NULL	ref	col_varchar_key	col_varchar_key	4	test.iir2.col_varchar_nokey	1	100.00	Using index
-2	DEPENDENT SUBQUERY	ir1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	ir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; End temporary; Full scan on NULL key
+2	DEPENDENT SUBQUERY	ir1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	20	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	ir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	iir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Full scan on NULL key
+2	DEPENDENT SUBQUERY	iir1	NULL	ref	col_varchar_key	col_varchar_key	4	test.iir2.col_varchar_nokey	1	100.00	Using index; FirstMatch(ir2)
 SELECT r1.col_date_key
 FROM t2 AS r1
 WHERE r1.col_int_key NOT IN

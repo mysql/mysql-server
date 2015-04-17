@@ -18,14 +18,15 @@
 
 #include "my_global.h"
 #include "handler.h"                            // enum_schema_tables
+#include "sql_string.h"
 #include "table.h"                              // enum_schema_table_state
 #include "set_var.h"                            // enum_var_type
 
 /* Forward declarations */
 class JOIN;
 class sp_name;
+struct System_status_var;
 typedef class st_select_lex SELECT_LEX;
-typedef struct system_status_var STATUS_VAR;
 // TODO: allocator based on my_malloc.
 typedef std::vector<st_mysql_show_var> Status_var_array;
 
@@ -176,7 +177,7 @@ int mysqld_show_variables(THD *thd,const char *wild);
 bool mysqld_show_storage_engines(THD *thd);
 bool mysqld_show_privileges(THD *thd);
 char *make_backup_log_name(char *buff, const char *name, const char* log_ext);
-void calc_sum_of_all_status(STATUS_VAR *to);
+void calc_sum_of_all_status(System_status_var *to);
 void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
                     const LEX_CSTRING &definer_host);
 int add_status_vars(const SHOW_VAR *list);
@@ -207,11 +208,10 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              enum_var_type value_type, SHOW_TYPE show_type,
-                             system_status_var *status_var,
+                             System_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length);
 
-/* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 
 /* Handle the ignored database directories list for SHOW/I_S. */

@@ -15,6 +15,8 @@
 
 #include "item_xmlfunc.h"
 
+#include "current_thd.h"
+#include "derror.h"             // ER_THD
 #include "my_xml.h"             // my_xml_node_type
 #include "item_cmpfunc.h"       // Item_bool_func
 #include "sp_pcontext.h"        // sp_variable
@@ -2845,7 +2847,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
                 my_xml_error_string(&p));
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WRONG_VALUE,
-                        ER(ER_WRONG_VALUE), "XML", buf);
+                        ER_THD(current_thd, ER_WRONG_VALUE), "XML", buf);
   }
   my_xml_parser_free(&p);
 

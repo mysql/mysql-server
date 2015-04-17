@@ -88,7 +88,7 @@ while ($_rpl_server)
   --echo
   --echo **** GTID_* on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT @@GLOBAL.GTID_MODE, @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_EXECUTED, @@SESSION.GTID_OWNED;
+  SELECT @@GLOBAL.GTID_MODE, @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_OWNED;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
   query_vertical
@@ -98,13 +98,13 @@ while ($_rpl_server)
   query_vertical
   SELECT * FROM performance_schema.replication_connection_status;
   --echo
-  --echo **** replication_execute_status_by_worker on $CURRENT_CONNECTION ****
+  --echo **** replication_applier_status_by_worker on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT * FROM performance_schema.replication_execute_status_by_worker;
+  SELECT * FROM performance_schema.replication_applier_status_by_worker;
   --echo
-  --echo **** replication_execute_status_by_coordinator on $CURRENT_CONNECTION ****
+  --echo **** replication_applier_status_by_coordinator on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT * FROM performance_schema.replication_execute_status_by_coordinator;
+  SELECT * FROM performance_schema.replication_applier_status_by_coordinator;
   --echo
   --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
   query_vertical

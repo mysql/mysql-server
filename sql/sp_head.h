@@ -28,6 +28,7 @@
 
 class sp_branch_instr;
 class sp_instr;
+class sp_label;
 class sp_lex_branch_instr;
 class sp_pcontext;
 

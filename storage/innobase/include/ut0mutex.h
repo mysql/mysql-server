@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@ Policy based mutexes.
 
 Created 2012-03-24 Sunny Bains.
 ***********************************************************************/
-
-#ifndef UNIV_INNOCHECKSUM
 
 #ifndef ut0mutex_h
 #define ut0mutex_h
@@ -79,5 +77,3 @@ typedef SyncArrayMutex ib_mutex_t;
 #include "ut0mutex.ic"
 
 #endif /* ut0mutex_h */
-
-#endif /* !UNIV_INNOCHECKSUM */

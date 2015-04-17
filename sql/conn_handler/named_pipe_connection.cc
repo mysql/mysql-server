@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "log.h"                        // sql_print_error
+#include "mysqld.h"                     // global_system_variables
 #include "named_pipe.h"                 // create_server_named_pipe.
 #include "sql_class.h"                  // THD
 
@@ -113,7 +114,7 @@ Channel_info* Named_pipe_listener::listen_for_connection_event()
     fConnected= GetOverlappedResult(m_pipe_handle, &m_connect_overlapped,
                                     &bytes, TRUE);
   }
-  if (abort_loop)
+  if (connection_events_loop_aborted())
     return NULL;
   if (!fConnected)
     fConnected = GetLastError() == ERROR_PIPE_CONNECTED;
