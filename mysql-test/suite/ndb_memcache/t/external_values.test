@@ -52,9 +52,8 @@ sub run_test() {
   $mc->add("bxx:long_val_2", $val_100k)   || $mc->fail("t5 Failed insert");
   my $v = $mc->get("bxx:long_val_2");
   if($v ne $val_100k) {
-    my $msg = "t6 GET results unexpected: " .
-              substr($val_100k,0,10) .":". substr($v,0,10) ." / ".
-              substr($val_100k,99990,10) . ":" . substr($v,99990,10);
+    my $msg = "t6 GET results expected [len 100,000] " .
+              substr($val_100k,0,10) . "..." . substr($val_100k,-10);
     $mc->fail($msg)
   }
   $mc->delete("bxx:long_val_2")           || $mc->fail("t7 Failed delete");
@@ -149,8 +148,8 @@ sub run_test() {
   my $saying = "Elephants have trunks. ";
   $mc->prepend("bxx:test8", $saying) || $mc->fail("t41 prepend failed");
   my $r3 = $mc->get("bxx:test8");
-  ($r3 eq $saying . $r2) || $mc->fail("t42 results unexpected:"
-    . substr($r3, 0, 30) . "..." . substr($r3, -20, 20));
+  ($r3 eq $saying . $r2) || $mc->fail("t42 expected: Elephants have..."
+    . substr($r2, -10));
 
   # Now append a very large value to it 
   $mc->append("bxx:test8", $val_100k) || $mc->fail("t43 append failed");
