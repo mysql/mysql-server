@@ -107,11 +107,11 @@ public:                                                                 \
     }                                                                   \
                                                                         \
 private:                                                                \
-    volatile TYPE value;                                                \
+    TYPE value;                                                         \
   }
 
 DEFINE_ATOMIC_CLASS(int32, 32, int32);
-//DEFINE_ATOMIC_CLASS(int64, 64, int64);
+DEFINE_ATOMIC_CLASS(int64, 64, int64);
 //DEFINE_ATOMIC_CLASS(pointer, ptr, void *);
 
 #endif //ifndef ATOMIC_CLASS_H_INCLUDED

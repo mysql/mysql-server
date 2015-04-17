@@ -3843,8 +3843,14 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           foreign_key_prefix(key, key2) returns 0 if key or key2, or both, is
           'generated', and a generated key is a prefix of the other key.
           Then we do not need the generated shorter key.
+
+          KEYTYPE_SPATIAL and KEYTYPE_FULLTEXT cannot be used as
+          supporting keys for foreign key constraints even if the
+          generated key is prefix of such a key.
         */
         if ((key2->type != KEYTYPE_FOREIGN &&
+             key2->type != KEYTYPE_SPATIAL &&
+             key2->type != KEYTYPE_FULLTEXT &&
              key2->name.str != ignore_key &&
              !foreign_key_prefix(key, key2)))
         {
@@ -4412,6 +4418,23 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       */
 
       my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+      DBUG_RETURN(TRUE);
+    }
+  }
+
+  {
+    LEX_STRING*	compress = &create_info->compress;
+
+    if (compress->length != 0 &&
+	compress->length > TABLE_COMMENT_MAXLEN &&
+	system_charset_info->cset->charpos(system_charset_info,
+					   compress->str,
+					   compress->str + compress->length,
+					   TABLE_COMMENT_MAXLEN)
+	< compress->length)
+    {
+      my_error(ER_WRONG_STRING_LENGTH, MYF(0),
+	       compress->str, "COMPRESS", TABLE_COMMENT_MAXLEN);
       DBUG_RETURN(TRUE);
     }
   }
@@ -7840,6 +7863,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   {
     create_info->comment.str= table->s->comment.str;
     create_info->comment.length= table->s->comment.length;
+  }
+
+  if (!create_info->compress.str)
+  {
+    create_info->compress.str= table->s->compress.str;
+    create_info->compress.length= table->s->compress.length;
   }
 
   /* Do not pass the update_create_info through to each partition. */

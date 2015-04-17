@@ -142,8 +142,6 @@ page_dir_find_owner_slot(
 					      + mach_decode_2(rec_offs_bytes));
 			}
 
-			buf_page_print(page, univ_page_size, 0);
-
 			ut_error;
 		}
 
@@ -570,14 +568,6 @@ page_copy_rec_list_end_no_locks(
 		ins_rec = page_cur_insert_rec_low(cur2, index,
 						  cur1_rec, offsets, mtr);
 		if (UNIV_UNLIKELY(!ins_rec)) {
-			/* Track an assertion failure reported on the mailing
-			list on June 18th, 2003 */
-
-			buf_page_print(new_page, univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-			buf_page_print(page_align(rec), univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-
 			ib::fatal() << "Rec offset " << page_offset(rec)
 				<< ", cur1 offset "
 				<< page_offset(page_cur_get_rec(&cur1))
@@ -1941,16 +1931,14 @@ page_check_dir(
 
 	if (UNIV_UNLIKELY(!page_rec_is_infimum_low(infimum_offs))) {
 
-		ib::error() << "Page directory corruption: infimum not"
+		ib::fatal() << "Page directory corruption: infimum not"
 			" pointed to";
-		buf_page_print(page, univ_page_size, 0);
 	}
 
 	if (UNIV_UNLIKELY(!page_rec_is_supremum_low(supremum_offs))) {
 
-		ib::info() << "Page directory corruption: supremum not"
+		ib::fatal() << "Page directory corruption: supremum not"
 			" pointed to";
-		buf_page_print(page, univ_page_size, 0);
 	}
 }
 #endif /* UNIV_DEBUG */
@@ -2655,7 +2643,6 @@ func_exit2:
 		ib::error() << "Apparent corruption in space "
 			<< page_get_space_id(page) << " page "
 			<< page_get_page_no(page) << " index " << index->name;
-		buf_page_print(page, univ_page_size, 0);
 	}
 
 	return(ret);
@@ -2794,4 +2781,43 @@ page_find_rec_max_not_deleted(
 		} while (rec != page + PAGE_OLD_SUPREMUM);
 	}
 	return(prev_rec);
+}
+
+/** Issue a warning when the checksum that is stored in the page is valid,
+but different than the global setting innodb_checksum_algorithm.
+@param[in]	current_algo	current checksum algorithm
+@param[in]	page_checksum	page valid checksum
+@param[in]	page_id		page identifier */
+void
+page_warn_strict_checksum(
+	srv_checksum_algorithm_t	curr_algo,
+	srv_checksum_algorithm_t	page_checksum,
+	const page_id_t&		page_id)
+{
+	srv_checksum_algorithm_t	curr_algo_nonstrict;
+	switch (curr_algo) {
+	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+		curr_algo_nonstrict = SRV_CHECKSUM_ALGORITHM_CRC32;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+		curr_algo_nonstrict = SRV_CHECKSUM_ALGORITHM_INNODB;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+		curr_algo_nonstrict = SRV_CHECKSUM_ALGORITHM_NONE;
+		break;
+	default:
+		ut_error;
+	}
+
+	ib::warn() << "innodb_checksum_algorithm is set to \""
+		<< buf_checksum_algorithm_name(curr_algo) << "\""
+		<< " but the page " << page_id << " contains a valid checksum \""
+		<< buf_checksum_algorithm_name(page_checksum) << "\". "
+		<< " Accepting the page as valid. Change"
+		<< " innodb_checksum_algorithm to \""
+		<< buf_checksum_algorithm_name(curr_algo_nonstrict)
+		<< "\" to silently accept such pages or rewrite all pages"
+		<< " so that they contain \""
+		<< buf_checksum_algorithm_name(curr_algo_nonstrict)
+		<< "\" checksum.";
 }

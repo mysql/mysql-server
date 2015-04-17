@@ -447,7 +447,7 @@ public:
                    )
   {
 #ifndef DBUG_OFF
-    lock_state= 0;
+    my_atomic_store32(&lock_state, 0);
     dbug_trace= true;
 #else
     is_write_lock= false;
@@ -552,7 +552,7 @@ private:
     -1 - write locked
     >0 - read locked by that many threads
   */
-  volatile int32 lock_state;
+  int32 lock_state;
   /// Read lock_state atomically and return the value.
   inline int32 get_state() const
   {

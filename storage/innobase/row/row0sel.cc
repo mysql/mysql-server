@@ -4914,9 +4914,6 @@ rec_loop:
 
 wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
-			buf_page_print(page_align(rec), univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-
 			ib::error() << "Rec address "
 				<< static_cast<const void*>(rec)
 				<< ", buf block fix count "

@@ -34,6 +34,11 @@ Refactored 2013-7-26 by Kevin Lewis
 #include "srv0start.h"
 #include "ut0new.h"
 
+/** The server header file is included to access opt_initialize global variable.
+If server passes the option for create/open DB to SE, we should remove such
+direct reference to server header and global variable */
+#include "mysqld.h"
+
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
 
@@ -125,7 +130,9 @@ SysTablespace::parse_params(
 
 		if (*str == '\0') {
 			ut_free(new_str);
-			ib::error() << "syntax error in file path or size"
+
+			ib::error()
+				<< "syntax error in file path or size"
 				" specified is less than 1 megabyte";
 			return(false);
 		}
@@ -149,8 +156,10 @@ SysTablespace::parse_params(
 
 			if (*str != '\0') {
 				ut_free(new_str);
-				ib::error() << "syntax error in file path or"
-					" size specified is less than 1 megabyte";
+				ib::error()
+					<< "syntax error in file path or"
+					<< " size specified is less than"
+					<< " 1 megabyte";
 				return(false);
 			}
 		}
@@ -161,7 +170,8 @@ SysTablespace::parse_params(
 		    && *(str + 2) == 'w') {
 
 			if (!supports_raw) {
-				ib::error() << "Tablespace doesn't support raw"
+				ib::error()
+					<< "Tablespace doesn't support raw"
 					" devices";
 				ut_free(new_str);
 				return(false);
@@ -174,7 +184,8 @@ SysTablespace::parse_params(
 			str += 3;
 
 			if (!supports_raw) {
-				ib::error() << "Tablespace doesn't support raw"
+				ib::error()
+					<< "Tablespace doesn't support raw"
 					" devices";
 				ut_free(new_str);
 				return(false);
@@ -182,9 +193,13 @@ SysTablespace::parse_params(
 		}
 
 		if (size == 0) {
+
 			ut_free(new_str);
-			ib::error() << "syntax error in file path or size"
+
+			ib::error()
+				<< "syntax error in file path or size"
 				" specified is less than 1 megabyte";
+
 			return(false);
 		}
 
@@ -199,10 +214,16 @@ SysTablespace::parse_params(
 	}
 
 	if (n_files == 0) {
-		/* filepath_spec must contain at least one data file definition */
+
+		/* filepath_spec must contain at least one data file
+		definition */
+
 		ut_free(new_str);
-		ib::error() << "syntax error in file path or size specified"
+
+		ib::error()
+			<< "syntax error in file path or size specified"
 			" is less than 1 megabyte";
+
 		return(false);
 	}
 
@@ -271,7 +292,9 @@ SysTablespace::parse_params(
 
 			str += 3;
 
-			m_files.back().m_type = SRV_NEW_RAW;
+			/* Initialize new raw device only during initialize */
+			m_files.back().m_type =
+			opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
 		}
 
 		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
@@ -280,8 +303,10 @@ SysTablespace::parse_params(
 
 			str += 3;
 
+			/* Initialize new raw device only during initialize */
 			if (m_files.back().m_type == SRV_NOT_RAW) {
-				m_files.back().m_type = SRV_OLD_RAW;
+				m_files.back().m_type =
+				opt_initialize ? SRV_NEW_RAW : SRV_OLD_RAW;
 			}
 		}
 
@@ -371,7 +396,7 @@ SysTablespace::set_size(
 
 	bool	success = os_file_set_size(
 		file.m_filepath, file.m_handle,
-		(os_offset_t) file.m_size << UNIV_PAGE_SIZE_SHIFT,
+		static_cast<os_offset_t>(file.m_size << UNIV_PAGE_SIZE_SHIFT),
 		m_ignore_read_only ? false : srv_read_only_mode);
 
 	if (success) {
@@ -446,6 +471,8 @@ SysTablespace::open_file(
 		written over */
 		m_created_new_raw = true;
 
+		/* Fall through */
+
 	case SRV_OLD_RAW:
 		srv_start_raw_disk_in_use = TRUE;
 
@@ -469,11 +496,25 @@ SysTablespace::open_file(
 		break;
 	}
 
-	if (file.m_type != SRV_OLD_RAW) {
+	switch (file.m_type) {
+	case SRV_NEW_RAW:
+		/* Set file size for new raw device. */
+		err = set_size(file);
+		break;
+
+	case SRV_NOT_RAW:
+		/* Check file size for existing file. */
 		err = check_size(file);
-		if (err != DB_SUCCESS) {
-			file.close();
-		}
+		break;
+
+	case SRV_OLD_RAW:
+		err = DB_SUCCESS;
+		break;
+
+	}
+
+	if (err != DB_SUCCESS) {
+		file.close();
 	}
 
 	return(err);
@@ -491,39 +532,43 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	ut_ad(space_id() == TRX_SYS_SPACE);
 
 	files_t::iterator it = m_files.begin();
+
 	ut_a(it->m_exists);
 
 	if (it->m_handle == OS_FILE_CLOSED) {
+
 		err = it->open_or_create(
-			m_ignore_read_only ?
-			false : srv_read_only_mode);
+			m_ignore_read_only ?  false : srv_read_only_mode);
+
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
 	}
 
 	err = it->read_first_page(
-		m_ignore_read_only ?
-		false : srv_read_only_mode);
+		m_ignore_read_only ?  false : srv_read_only_mode);
+
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
 
 	ut_a(it->order() == 0);
 
-	buf_dblwr_init_or_load_pages(
-		it->handle(), it->filepath());
+
+	buf_dblwr_init_or_load_pages(it->handle(), it->filepath());
 
 	/* Check the contents of the first page of the
 	first datafile. */
 	for (int retry = 0; retry < 2; ++retry) {
+
 		err = it->validate_first_page(flushed_lsn);
+
 		if (err != DB_SUCCESS
 		    && (retry == 1
-			|| it->restore_from_doublewrite(0)
-			!= DB_SUCCESS)) {
+			|| it->restore_from_doublewrite(0) != DB_SUCCESS)) {
 
 			it->close();
+
 			return(err);
 		}
 	}
@@ -531,15 +576,20 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	/* Make sure the tablespace space ID matches the
 	space ID on the first page of the first datafile. */
 	if (space_id() != it->m_space_id) {
-		ib::error() << "The " << name() << " data file '" << it->name()
+
+		ib::error()
+			<< "The " << name() << " data file '" << it->name()
 			<< "' has the wrong space ID. It should be "
 			<< space_id() << ", but " << it->m_space_id
 			<< " was found";
+
 		it->close();
+
 		return(err);
 	}
 
 	it->close();
+
 	return(DB_SUCCESS);
 }
 
@@ -662,8 +712,9 @@ SysTablespace::file_not_found(
 }
 
 /** Note that the data file was found.
-@param[in,out]	file	data file object */
-void
+@param[in,out]	file	data file object
+@return true if a new instance to be created */
+bool
 SysTablespace::file_found(
 	Datafile&	file)
 {
@@ -674,16 +725,19 @@ SysTablespace::file_found(
 	/* Set the file open mode */
 	switch (file.m_type) {
 	case SRV_NOT_RAW:
-	case SRV_NEW_RAW:
 		file.set_open_flags(
 			&file == &m_files.front()
 			? OS_FILE_OPEN_RETRY : OS_FILE_OPEN);
 		break;
 
+	case SRV_NEW_RAW:
 	case SRV_OLD_RAW:
 		file.set_open_flags(OS_FILE_OPEN_RAW);
 		break;
 	}
+
+	/* Need to create the system tablespace for new raw device. */
+	return(file.m_type == SRV_NEW_RAW);
 }
 
 /** Check the data file specification.
@@ -763,7 +817,7 @@ SysTablespace::check_file_spec(
 			break;
 
 		} else {
-			file_found(*it);
+			*create_new_db = file_found(*it);
 		}
 	}
 
@@ -772,12 +826,14 @@ SysTablespace::check_file_spec(
 
 /** Open or create the data files
 @param[in]  is_temp		whether this is a temporary tablespace
+@param[in]  create_new_db	whether we are creating a new database
 @param[out] sum_new_sizes	sum of sizes of the new files added
 @param[out] flush_lsn		FIL_PAGE_FILE_FLUSH_LSN of first file
 @return DB_SUCCESS or error code */
 dberr_t
 SysTablespace::open_or_create(
 	bool	is_temp,
+	bool	create_new_db,
 	ulint*	sum_new_sizes,
 	lsn_t*	flush_lsn)
 {
@@ -794,12 +850,18 @@ SysTablespace::open_or_create(
 	files_t::iterator	end = m_files.end();
 
 	ut_ad(begin->order() == 0);
-	bool	create_new_db = begin->m_exists;
 
 	for (files_t::iterator it = begin; it != end; ++it) {
 
 		if (it->m_exists) {
 			err = open_file(*it);
+
+			/* For new raw device increment new size. */
+			if (sum_new_sizes && it->m_type == SRV_NEW_RAW) {
+
+				*sum_new_sizes += it->m_size;
+			}
+
 		} else {
 			err = create_file(*it);
 
@@ -810,6 +872,8 @@ SysTablespace::open_or_create(
 			/* Set the correct open flags now that we have
 			successfully created the file. */
 			if (err == DB_SUCCESS) {
+				/* We ignore new_db OUT parameter here
+				as the information is known at this stage */
 				file_found(*it);
 			}
 		}
@@ -832,11 +896,17 @@ SysTablespace::open_or_create(
 
 				srv_use_doublewrite_buf = false;
 			}
+
+			it->m_atomic_write = true;
+		} else {
+			it->m_atomic_write = false;
 		}
+#else
+		it->m_atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX*/
 	}
 
-	if (create_new_db && flush_lsn) {
+	if (!create_new_db && flush_lsn) {
 		/* Validate the header page in the first datafile
 		and read LSNs fom the others. */
 		err = read_lsn_and_check_flags(flush_lsn);
@@ -864,11 +934,13 @@ SysTablespace::open_or_create(
 
 		ut_a(fil_validate());
 
-		/* Add the datafile to the fil_system cache. */
-		if (!fil_node_create(it->m_filepath, it->m_size,
-				     space, it->m_type != SRV_NOT_RAW)) {
-			err = DB_ERROR;
-			break;
+		/* Open the data file. */
+		if (!fil_node_create(
+			it->m_filepath, it->m_size,
+			space, it->m_type != SRV_NOT_RAW, it->m_atomic_write)) {
+
+		       err = DB_ERROR;
+		       break;
 		}
 	}
 

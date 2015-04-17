@@ -24,6 +24,7 @@ show_compatibility_56	ON
 set global show_compatibility_56=0;
 show variables like "show_compatibility_56";
 Variable_name	Value
+show_compatibility_56	OFF
 set global show_compatibility_56=ON;
 show variables like "show_compatibility_56";
 Variable_name	Value
@@ -31,6 +32,7 @@ show_compatibility_56	ON
 set global show_compatibility_56=OFF;
 show variables like "show_compatibility_56";
 Variable_name	Value
+show_compatibility_56	OFF
 set global show_compatibility_56=TRUE;
 show variables like "show_compatibility_56";
 Variable_name	Value
@@ -38,6 +40,7 @@ show_compatibility_56	ON
 set global show_compatibility_56=FALSE;
 show variables like "show_compatibility_56";
 Variable_name	Value
+show_compatibility_56	OFF
 set global show_compatibility_56=999;
 ERROR 42000: Variable 'show_compatibility_56' can't be set to the value of '999'
 set session show_compatibility_56=1;

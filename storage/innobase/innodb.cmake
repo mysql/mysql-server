@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,16 +19,25 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCSourceRuns)
 
+IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+  ADD_DEFINITIONS(-DHAVE_LZ4=1)
+  INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
+ENDIF()
+
 # OS tests
 IF(UNIX)
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
+    ADD_DEFINITIONS("-DUNIV_LINUX -D_GNU_SOURCE=1")
+
     CHECK_INCLUDE_FILES (libaio.h HAVE_LIBAIO_H)
     CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
-    ADD_DEFINITIONS("-DUNIV_LINUX -D_GNU_SOURCE=1")
+
     IF(HAVE_LIBAIO_H AND HAVE_LIBAIO)
       ADD_DEFINITIONS(-DLINUX_NATIVE_AIO=1)
       LINK_LIBRARIES(aio)
     ENDIF()
+
   ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
     ADD_DEFINITIONS("-DUNIV_SOLARIS")
   ENDIF()
@@ -95,7 +104,29 @@ IF(HAVE_NANOSLEEP)
 ENDIF()
 
 IF(NOT MSVC)
-# Define some HAVE_IB_GCC_* if available
+  CHECK_C_SOURCE_RUNS(
+  "
+  #define _GNU_SOURCE
+  #include <fcntl.h>
+  #include <linux/falloc.h>
+  int main()
+  {
+    /* Ignore the return value for now. Check if the flags exist.
+    The return value is checked  at runtime. */
+    fallocate(0, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0, 0);
+
+    return(0);
+  }"
+  HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
+  )
+ENDIF()
+
+IF(HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE)
+ ADD_DEFINITIONS(-DHAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE=1)
+ENDIF()
+
+IF(NOT MSVC)
+# either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
 IF(NOT CMAKE_CROSSCOMPILING)
   CHECK_C_SOURCE_RUNS(
   "#include<stdint.h>

@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ public:
                      (join->all_table_map & ~emb_sjm_nest->sj_inner_tables) : 0) |
                     (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
     has_sj(!(join->select_lex->sj_nests.is_empty() || emb_sjm_nest)),
-    test_all_ref_keys(false)
+    test_all_ref_keys(false), found_plan_with_allowed_sj(false)
   {}
   ~Optimize_table_order()
   {}
@@ -103,6 +103,10 @@ private:
      allowed.
   */
   bool test_all_ref_keys;
+
+
+  /// True if we found a complete plan using only allowed semijoin strategies.
+  bool found_plan_with_allowed_sj;
 
   inline Key_use* find_best_ref(const JOIN_TAB  *tab,
                                 const table_map remaining_tables,

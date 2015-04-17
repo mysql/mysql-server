@@ -1148,6 +1148,17 @@ the table, DML from memcached will be blocked. */
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
+
+	/** Get reference count.
+	@return current value of n_ref_count */
+	inline ulint get_ref_count() const;
+
+	/** Acquire the table handle. */
+	inline void acquire();
+
+	/** Release the table handle. */
+	inline void release();
+
 	/** Id of the table. */
 	table_id_t				id;
 
@@ -1179,7 +1190,7 @@ struct dict_table_t {
 	id_name_t				tablespace;
 
 	/** Space where the clustered index of the table is placed. */
-	unsigned				space:32;
+	uint32_t				space;
 
 	/** Stores information about:
 	1 row format (redundant or compact),
@@ -1470,11 +1481,15 @@ struct dict_table_t {
 	It is protected by lock_sys->mutex. */
 	ulint					n_rec_locks;
 
+#ifndef UNIV_DEBUG
+private:
+#endif
 	/** Count of how many handles are opened to this table. Dropping of the
 	table is NOT allowed until this count gets to zero. MySQL does NOT
 	itself check the number of open handles at DROP. */
 	ulint					n_ref_count;
 
+public:
 	/** List of locks on the table. Protected by lock_sys->mutex. */
 	table_lock_list_t			locks;
 

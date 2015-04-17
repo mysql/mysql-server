@@ -82,7 +82,7 @@ if [ -n "$INSTALL" ] ; then
   # We install/update the system tables
   (
     cd "$mybasedir"
-    sbin/mysqld --initialize \
+    bin/mysqld --initialize \
 	  --user=mysql \
 	  --basedir="$mybasedir" \
 	  --datadir=$mydatadir

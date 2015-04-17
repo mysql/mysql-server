@@ -234,7 +234,7 @@ create table t1 (a int, b int, filler char(100), key(a,b));
 insert into t1 select A.a, B.a, 'filler' from t0 A, t0 B;
 create table t2 as select * from t1;
 set @old_opt_switch=@@optimizer_switch;
-set optimizer_switch="firstmatch=off,materialization=off";
+set optimizer_switch="firstmatch=off,materialization=off,duplicateweedout=off";
 set @old_opt_prune_level=@@optimizer_prune_level;
 set optimizer_prune_level=0;
 

@@ -581,6 +581,7 @@ struct TABLE_SHARE
 
   uchar	*default_values;		/* row with default values */
   LEX_STRING comment;			/* Comment about table */
+  LEX_STRING compress;			/* Compression algorithm */
   const CHARSET_INFO *table_charset;	/* Default charset of string fields */
 
   MY_BITMAP all_set;
@@ -2673,6 +2674,10 @@ typedef struct st_nested_join
     Query block id if this struct is generated from a subquery transform.
   */
   uint query_block_id;
+
+  /// Bitmap of which strategies are enabled for this semi-join nest
+  uint sj_enabled_strategies;
+
   /*
     Lists of trivially-correlated expressions from the outer and inner tables
     of the semi-join, respectively.

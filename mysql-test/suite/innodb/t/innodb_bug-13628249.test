@@ -35,6 +35,14 @@ CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=0;
 BEGIN;
 INSERT INTO t1 VALUES(1), (2), (3), (4);
 
+# Ensure that the above data is flushed to the InnoDB redo log,
+# by committing transactions (which will force a log flush).
+connect (con1, localhost, root);
+CREATE TABLE t2(c2 INT PRIMARY KEY) ENGINE=InnoDB STATS_PERSISTENT=0;
+DROP TABLE t2;
+disconnect con1;
+connection default;
+
 --echo # Restart the server in force recovery mode (3)
 let $restart_parameters = restart: --innodb-force-recovery=3;
 --source include/kill_and_restart_mysqld.inc

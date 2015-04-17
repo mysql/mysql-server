@@ -1,0 +1,35 @@
+--source include/have_innodb.inc
+# Embedded server does not support restarting.
+--source include/not_embedded.inc
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+connect (con1,localhost,root);
+XA START 'x'; UPDATE t1 set a=2; XA END 'x'; XA PREPARE 'x';
+connection default;
+
+call mtr.add_suppression("Found 1 prepared XA transactions");
+
+--source include/kill_and_restart_mysqld.inc
+
+disconnect con1;
+connect (con1,localhost,root);
+--send SELECT * FROM t1 LOCK IN SHARE MODE
+
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = 'Sending data' and
+        info = 'SELECT * FROM t1 LOCK IN SHARE MODE';
+--source include/wait_condition.inc
+
+--source include/restart_mysqld.inc
+
+disconnect con1;
+
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT * FROM t1;
+XA ROLLBACK 'x';
+SELECT * FROM t1;
+
+DROP TABLE t1;

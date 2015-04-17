@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -131,14 +131,17 @@ buf_checksum_algorithm_name(
 {
 	switch (algo) {
 	case SRV_CHECKSUM_ALGORITHM_CRC32:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 		return("crc32");
+	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+		return("strict_crc32");
 	case SRV_CHECKSUM_ALGORITHM_INNODB:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
 		return("innodb");
+	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+		return("strict_innodb");
 	case SRV_CHECKSUM_ALGORITHM_NONE:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
 		return("none");
+	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+		return("strict_none");
 	}
 
 	ut_error;
