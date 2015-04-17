@@ -3830,6 +3830,8 @@ page_zip_parse_write_blob_ptr(
 	ulint	offset;
 	ulint	z_offset;
 
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr != NULL);
 	ut_ad(!page == !page_zip);
 
 	if (UNIV_UNLIKELY
@@ -3895,6 +3897,10 @@ page_zip_write_blob_ptr(
 	ulint		blob_no;
 	ulint		len;
 
+	ut_ad(page_zip != NULL);
+	ut_ad(rec != NULL);
+	ut_ad(index != NULL);
+	ut_ad(offsets != NULL);
 	ut_ad(PAGE_ZIP_MATCH(rec, page_zip));
 	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
@@ -3970,6 +3976,8 @@ page_zip_parse_write_node_ptr(
 	ulint	offset;
 	ulint	z_offset;
 
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr!= NULL);
 	ut_ad(!page == !page_zip);
 
 	if (UNIV_UNLIKELY(end_ptr < ptr + (2 + 2 + REC_NODE_PTR_SIZE))) {
@@ -4534,7 +4542,8 @@ page_zip_parse_write_header(
 	ulint	offset;
 	ulint	len;
 
-	ut_ad(ptr && end_ptr);
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr!= NULL);
 	ut_ad(!page == !page_zip);
 
 	if (UNIV_UNLIKELY(end_ptr < ptr + (1 + 1))) {
@@ -4820,7 +4829,8 @@ page_zip_parse_compress(
 	ulint	size;
 	ulint	trailer_size;
 
-	ut_ad(ptr && end_ptr);
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr!= NULL);
 	ut_ad(!page == !page_zip);
 
 	if (UNIV_UNLIKELY(ptr + (2 + 2) > end_ptr)) {

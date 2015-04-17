@@ -71,6 +71,7 @@ dfield_set_type(
 /*============*/
 	dfield_t*	field,	/*!< in: SQL data field */
 	const dtype_t*	type);	/*!< in: pointer to data type struct */
+
 /*********************************************************************//**
 Gets length of field data.
 @return length of data; UNIV_SQL_NULL if SQL null data */
@@ -151,8 +152,9 @@ UNIV_INLINE
 void
 dfield_copy_data(
 /*=============*/
-	dfield_t*	field1,	/*!< out: field to copy to */
+	dfield_t*	field1,		/*!< out: field to copy to */
 	const dfield_t*	field2);	/*!< in: field to copy from */
+
 /*********************************************************************//**
 Copies a data field to another. */
 UNIV_INLINE

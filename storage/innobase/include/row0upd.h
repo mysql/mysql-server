@@ -351,17 +351,6 @@ row_upd_store_row(
 /*==============*/
 	upd_node_t*	node);	/*!< in: row update node */
 /***********************************************************//**
-Updates the affected index records of a row. When the control is transferred
-to this node, we assume that we have a persistent cursor which was on a
-record, and the position of the cursor is stored in the cursor.
-@return DB_SUCCESS if operation successfully completed, else error
-code or DB_LOCK_WAIT */
-dberr_t
-row_upd(
-/*====*/
-	upd_node_t*	node,	/*!< in: row update node */
-	que_thr_t*	thr);	/*!< in: query thread */
-/***********************************************************//**
 Updates a row in a table. This is a high-level function used
 in SQL execution graphs.
 @return query thread to run next or NULL */

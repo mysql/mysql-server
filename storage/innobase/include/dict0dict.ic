@@ -81,7 +81,8 @@ dict_col_copy_type(
 	const dict_col_t*	col,	/*!< in: column */
 	dtype_t*		type)	/*!< out: data type */
 {
-	ut_ad(col && type);
+	ut_ad(col != NULL);
+	ut_ad(type != NULL);
 
 	type->mtype = col->mtype;
 	type->prtype = col->prtype;
