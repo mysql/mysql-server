@@ -17,7 +17,13 @@
 #ifndef MY_GLOBAL_INCLUDED
 #define MY_GLOBAL_INCLUDED
 
-/* This is the include file that should be included 'first' in every C file. */
+/*
+  This include file should be included first in every header file.
+
+  This makes sure my_config.h is included to get platform specific
+  symbols defined and it makes sure a lot of platform/compiler
+  differences are mitigated.
+*/
 
 #include "my_config.h"
 
