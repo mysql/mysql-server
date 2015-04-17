@@ -87,6 +87,7 @@ static struct mysql_parser_service_st parser_handler=
   mysql_parser_join_thread,
   mysql_parser_set_current_database,
   mysql_parser_parse,
+  mysql_parser_get_statement_type,
   mysql_parser_get_statement_digest,
   mysql_parser_get_number_params,
   mysql_parser_extract_prepared_params,
