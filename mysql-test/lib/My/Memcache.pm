@@ -120,16 +120,18 @@ sub fail {
   my $self = shift;
   my $fd;
 
-  return if($self->{failed});   # Already failed.
+  if($self->{failed}) {
+    print STDERR " /// My::Memcache::fail() called recursively.\n";
+    return;
+  }
   $self->{failed} = 1;
 
   my $msg =
-      "error: "       . $self->{error}       ."\t".
-      "read_try: "    . $self->{read_try}    ."\t".
-      "protocol: "    . $self->protocol()    ."\n".
-      "req_id: "      . $self->{req_id}      ."\t".
-      "temp_errors: " . $self->{temp_errors} ."\t".
-      "total_wait: "  . $self->{total_wait}  ."\n";
+      "error: "         . $self->{error}       ."\t".
+      "read_try: "      . $self->{read_try}    ."\t".
+      "protocol: "      . $self->protocol()    ."\n".
+      "req_id: "        . $self->{req_id}      ."\t".
+      "temp err wait: " . $self->{total_wait}  ." msec.\n";
 
   $msg .= "detail: " . $self->{error_detail} . "\n";
   $msg .= "buffer: " . summarize($self->{readbuf}) . "\n";
@@ -301,7 +303,6 @@ sub socket_error {
   } else {
     $self->{error} = "NETWORK_ERROR: " . $!;
   }
-  $self->{connection}->close();
   $self->{error_detail} = $detail if($detail);
 
   return 0;
@@ -320,7 +321,7 @@ sub write {
   }
 
   while($nsent < $len) {
-    $r = select(undef, $self->{fdset}, undef, $self->{write_timeout});
+    $r = select(undef, $self->{fdset}, undef, $self->{io_timeout});
     return $self->socket_error($r, "write(): select() returned $r") if($r < 1);
     $r = $self->{connection}->send(substr($packet, $nsent));
     if($r > 0) {
