@@ -2049,13 +2049,17 @@ dict_load_index_low(
 		/* MERGE_THRESHOLD exists */
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_INDEXES__MERGE_THRESHOLD, &len);
-		if (len != 4) {
+		switch (len) {
+		case 4:
+			merge_threshold = mach_read_from_4(field);
+			break;
+		case UNIV_SQL_NULL:
+			merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+			break;
+		default:
 			return("incorrect MERGE_THRESHOLD length"
 			       " in SYS_INDEXES");
 		}
-
-		merge_threshold = mach_read_from_4(field);
-
 	} else if (rec_get_n_fields_old(rec)
 		   == DICT_NUM_FIELDS__SYS_INDEXES - 1) {
 		/* MERGE_THRESHOLD doesn't exist */
