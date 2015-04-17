@@ -822,6 +822,9 @@ struct handlerton
                                  const char *name);
    int (*make_pushed_join)(handlerton *hton, THD* thd, 
                            const AQP::Join_plan* plan);
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+   int (*global_schema_func)(THD* thd, bool lock, void* args);
+#endif
 
   /**
     List of all system tables specific to the SE.
@@ -3810,6 +3813,19 @@ void ha_binlog_wait(THD *thd);
 
 /* It is required by basic binlog features on both MySQL server and libmysqld */
 int ha_binlog_end(THD *thd);
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+class Ha_global_schema_lock_guard
+{
+public:
+  Ha_global_schema_lock_guard(THD *thd);
+  ~Ha_global_schema_lock_guard();
+  int lock(bool no_lock_queue= false);
+private:
+  THD* m_thd;
+  bool m_locked;
+};
+#endif
 
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);

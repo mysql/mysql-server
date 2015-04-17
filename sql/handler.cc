@@ -5425,6 +5425,91 @@ int ha_binlog_end(THD* thd)
   return 0;
 }
 
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+/**
+  Fill list of htons which are initialized and have the global_schema_func set
+*/
+static my_bool global_schema_func_list(THD *thd, plugin_ref plugin, void *arg)
+{
+  hton_list_st *hton_list= (hton_list_st *)arg;
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->global_schema_func)
+  {
+    uint sz= hton_list->sz;
+    if (sz == MAX_HTON_LIST_ST-1)
+    {
+      /* list full */
+      return FALSE;
+    }
+    hton_list->hton[sz]= hton;
+    hton_list->sz= sz+1;
+  }
+  return FALSE;
+}
+
+
+/**
+  Lock the global(distributed) schema lock
+*/
+static int ha_global_schema_lock(THD *thd, bool no_lock_queue)
+{
+  hton_list_st hton_list;
+  uint i, sz, res= 0;
+
+  hton_list.sz= 0;
+  plugin_foreach(thd, global_schema_func_list,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &hton_list);
+
+  for (i= 0, sz= hton_list.sz; i < sz ; i++)
+    res|= hton_list.hton[i]->global_schema_func(thd, true, (void*)no_lock_queue);
+  return res;
+}
+
+/**
+  Unlock the global(distributed) schema lock
+*/
+static int ha_global_schema_unlock(THD *thd)
+{
+  hton_list_st hton_list;
+  uint i, sz, res= 0;
+
+  hton_list.sz= 0;
+  plugin_foreach(thd, global_schema_func_list,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &hton_list);
+
+  for (i= 0, sz= hton_list.sz; i < sz ; i++)
+    res|= hton_list.hton[i]->global_schema_func(thd, false, NULL);
+  return res;
+}
+
+Ha_global_schema_lock_guard::Ha_global_schema_lock_guard(THD *thd)
+  : m_thd(thd), m_locked(false)
+{
+}
+
+Ha_global_schema_lock_guard::~Ha_global_schema_lock_guard()
+{
+  if (m_locked)
+    ha_global_schema_unlock(m_thd);
+}
+
+int Ha_global_schema_lock_guard::lock(bool no_lock_queue)
+{
+  /* only one lock call allowed */
+  DBUG_ASSERT(!m_locked);
+
+  /*
+    Always set m_locked, even if lock fails. Since the
+    lock/unlock calls are reference counted, the number
+    of calls to lock and unlock need to match up.
+  */
+  m_locked= true;
+
+  return ha_global_schema_lock(m_thd, no_lock_queue);
+}
+#endif
+
 /**
   Calculate cost of 'index only' scan for given index and number of records
 
