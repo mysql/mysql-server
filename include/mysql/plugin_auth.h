@@ -36,6 +36,10 @@
 #define PASSWORD_USED_YES        1
 #define PASSWORD_USED_NO_MENTION 2
 
+/* Authentication flags */
+
+#define AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE (1L << 0)
+#define AUTH_FLAG_USES_INTERNAL_STORAGE               (1L << 1)
 
 /**
   Provides server plugin access to authentication information
@@ -165,6 +169,10 @@ struct st_mysql_auth
    */
   int (*set_salt)(const char *password, unsigned int password_len,
                   unsigned char* salt, unsigned char *salt_len);
+  /**
+    Authentication plugin capabilities
+  */
+  const unsigned long authentication_flags;
 };
 #endif
 

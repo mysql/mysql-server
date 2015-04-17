@@ -93,12 +93,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("INSTRUMENTED") },
     { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("HISTORY") },
+    { C_STRING_WITH_LEN("enum(\'YES\',\'NO\')") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_threads::m_field_def=
-{ 14, field_types };
+{ 15, field_types };
 
 PFS_engine_table_share
 table_threads::m_share=
@@ -224,6 +229,7 @@ void table_threads::make_row(PFS_thread *pfs)
   }
 
   m_row.m_enabled= pfs->m_enabled;
+  m_row.m_history= pfs->m_history;
   m_row.m_psi= pfs;
 
   if (pfs->m_lock.end_optimistic_lock(& lock))
@@ -340,6 +346,9 @@ int table_threads::read_row_values(TABLE *table,
       case 13: /* INSTRUMENTED */
         set_field_enum(f, m_row.m_enabled ? ENUM_YES : ENUM_NO);
         break;
+      case 14: /* HISTORY */
+        set_field_enum(f, m_row.m_history ? ENUM_YES : ENUM_NO);
+        break;
       default:
         DBUG_ASSERT(false);
       }
@@ -379,6 +388,10 @@ int table_threads::update_row_values(TABLE *table,
       case 13: /* INSTRUMENTED */
         value= (enum_yes_no) get_field_enum(f);
         m_row.m_psi->set_enabled((value == ENUM_YES) ? true : false);
+        break;
+      case 14: /* HISTORY */
+        value= (enum_yes_no) get_field_enum(f);
+        m_row.m_psi->set_history((value == ENUM_YES) ? true : false);
         break;
       default:
         DBUG_ASSERT(false);

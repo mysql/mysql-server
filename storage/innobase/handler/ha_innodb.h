@@ -418,12 +418,6 @@ private:
 	int intrinsic_table_write_row(uchar* record);
 
 protected:
-	uint store_key_val_for_row(
-		uint			keynr,
-		char*			buff,
-		uint			buff_len,
-		const uchar*		record);
-
 	void update_thd(THD* thd);
 
 	int general_fetch(uchar* buf, uint direction, uint match_mode);

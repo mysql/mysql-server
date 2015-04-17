@@ -286,7 +286,7 @@ fsp_flags_is_valid(
 }
 
 /** Check if tablespace is system temporary.
-@param[in]	space_id	Tablespace ID
+@param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
 bool
 fsp_is_system_temporary(
@@ -296,7 +296,7 @@ fsp_is_system_temporary(
 }
 
 /** Check if checksum is disabled for the given space.
-@param[in]	space_id	Tablespace ID
+@param[in]	space_id	tablespace ID
 @return true if checksum is disabled for given space. */
 bool
 fsp_is_checksum_disabled(
@@ -306,8 +306,8 @@ fsp_is_checksum_disabled(
 }
 
 /** Check if tablespace is file-per-table.
-@param[in]	space_id	Tablespace ID
-@param[in]	fsp_flags	Tablespace Flags
+@param[in]	space_id	tablespace ID
+@param[in]	fsp_flags	tablespace flags
 @return true if tablespace is file-per-table. */
 bool
 fsp_is_file_per_table(
@@ -1060,8 +1060,8 @@ fsp_try_extend_data_file(
 	fsp_header_t*	header,
 	mtr_t*		mtr)
 {
-	ulint	size;
-	ulint	size_increase;
+	ulint	size;		/* current number of pages in the datafile */
+	ulint	size_increase;	/* number of pages to extend this file */
 	const char* OUT_OF_SPACE_MSG =
 		"ran out of space. Please add another file or use"
 		" 'autoextend' for the last file in setting";
@@ -1101,8 +1101,8 @@ fsp_try_extend_data_file(
 	size = mach_read_from_4(header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
 
-	const page_size_t	page_size(mach_read_from_4(header
-							   + FSP_SPACE_FLAGS));
+	const page_size_t	page_size(
+		mach_read_from_4(header + FSP_SPACE_FLAGS));
 
 	if (space->id == srv_sys_space.space_id()) {
 

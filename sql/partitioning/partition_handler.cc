@@ -2163,19 +2163,20 @@ int Partition_helper::init_record_priority_queue()
     uint alloc_len;
     /*
       Allocate record buffer for each used partition.
-      If we need to do a secondary sort by PK, then it is already in the
-      record, so we only need to allocate for part id and a full record per
-      partition.
-      Otherwise we do a secondary sort by rowid (handler::ref) and must
-      allocate for ref (includes part id) and full record per partition.
-      We don't know yet if we need to do secondary sort by rowid, so we must
+      If PK is clustered index, it is either the primary sort key or is
+      added as secondary sort. So we only need to allocate for part id
+      and a full record per partition.
+      Otherwise if the clustered index was generated, we might need to
+      do a secondary sort by rowid (handler::ref) and must allocate for
+      ref (includes part id) and full record per partition. We don't
+      know yet if we need to do secondary sort by rowid, so we must
       allocate space for it.
       TODO: enhance ha_index_init() for HA_EXTRA_SECONDARY_SORT_ROWID to
       avoid allocating space for handler::ref when not needed.
       When enhancing ha_index_init() care must be taken on ph_position(),
       so InnoDB's row_id is correctly handled (taken from m_last_part).
     */
-    if (m_curr_key_info[1])
+    if (m_pkey_is_clustered && m_table->s->primary_key != MAX_KEY)
     {
       m_rec_offset= PARTITION_BYTES_IN_POS;
       m_ref_usage= REF_NOT_USED;

@@ -133,7 +133,9 @@ extern bool server_id_supplied;
   In MYSQL_BIN_LOG: LOCK_log, LOCK_index of the binlog and the relay log
   LOCK_log: when you write to it. LOCK_index: when you create/delete a binlog
   (so that you have to update the .index file).
-  
+
+  The global_sid_lock must not be taken after LOCK_reset_gtid_table.
+
   ==== Order of acquisition ====
 
   Here, we list most major functions that acquire multiple locks.
@@ -166,7 +168,7 @@ extern bool server_id_supplied;
 
     reset_master:
       (binlog.reset_logs) THD::LOCK_thd_data, binlog.LOCK_log,
-      binlog.LOCK_index, global_sid_lock->wrlock
+      binlog.LOCK_index, global_sid_lock->wrlock, LOCK_reset_gtid_table
 
     reset_slave:
       mi.run_lock, rli.run_lock, (purge_relay_logs) rli.data_lock,

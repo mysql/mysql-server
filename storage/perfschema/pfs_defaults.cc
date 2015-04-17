@@ -47,7 +47,7 @@ void install_default_setup(PSI_bootstrap *boot)
 
     String percent("%", 1, &my_charset_utf8_bin);
     /* Enable all users on all hosts by default */
-    insert_setup_actor(&percent, &percent, &percent, true);
+    insert_setup_actor(&percent, &percent, &percent, true, true);
 
     String mysql_db("mysql", 5, &my_charset_utf8_bin);
     String PS_db("performance_schema", 18, &my_charset_utf8_bin);

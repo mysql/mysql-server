@@ -1384,3 +1384,18 @@ geometrycollection(point(1,-1)),b
 );
 1
 drop table t1;
+CREATE TABLE t1(c1 POINT NOT NULL);
+DROP TABLE mysql.innodb_table_stats;
+CALL mtr.add_suppression("InnoDB: Table `mysql`.`innodb_table_stats` not found.");
+CALL mtr.add_suppression("InnoDB: Fetch of persistent statistics requested for table `test`.`t1` but the required system tables mysql.innodb_table_stats and mysql.innodb_index_stats are not present or have unexpected structure. Using transient stats instead.");
+CREATE SPATIAL INDEX idx2 ON t1(c1);
+DROP TABLE t1;
+CREATE TABLE mysql.innodb_table_stats (
+database_name varchar(64) COLLATE utf8_bin NOT NULL,
+table_name varchar(64) COLLATE utf8_bin NOT NULL,
+last_update timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+n_rows bigint(20) unsigned NOT NULL,
+clustered_index_size bigint(20) unsigned NOT NULL,
+sum_of_other_index_sizes bigint(20) unsigned NOT NULL,
+PRIMARY KEY (`database_name`,`table_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;

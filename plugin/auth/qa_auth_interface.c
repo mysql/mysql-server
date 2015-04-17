@@ -183,7 +183,8 @@ static struct st_mysql_auth qa_auth_test_handler=
   qa_auth_interface,
   generate_auth_string_hash,
   validate_auth_string_hash,
-  set_salt
+  set_salt,
+  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE
 };
 
 mysql_declare_plugin(test_plugin)

@@ -258,6 +258,46 @@ CREATE TABLESPACE `InnoDB_Custom` ADD DATAFILE 's_InnoDB_Custom.ibd';
 DROP TABLESPACE `InnoDB_Custom`;
 CREATE TABLESPACE `INNODB_CUSTOM` ADD DATAFILE 's_INNODB_CUSTOM.ibd';
 DROP TABLESPACE `INNODB_CUSTOM`;
+DROP TABLESPACE `ib_logfile0`;
+ERROR HY000: Failed to drop TABLESPACE ib_logfile0
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE ib_logfile0
+Error	1812	Tablespace is missing for table ib_logfile0.
+CREATE TABLESPACE `ib_logfile0` ADD DATAFILE 'ib_logfile0.ibd';
+DROP TABLESPACE `ib_logfile0`;
+DROP TABLESPACE `ib_logfile1`;
+ERROR HY000: Failed to drop TABLESPACE ib_logfile1
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE ib_logfile1
+Error	1812	Tablespace is missing for table ib_logfile1.
+CREATE TABLESPACE `ib_logfile1` ADD DATAFILE 'ib_logfile1.ibd';
+DROP TABLESPACE `ib_logfile1`;
+DROP TABLESPACE `ibdata1`;
+ERROR HY000: Failed to drop TABLESPACE ibdata1
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE ibdata1
+Error	1812	Tablespace is missing for table ibdata1.
+CREATE TABLESPACE `ibdata1` ADD DATAFILE 'ibdata1.ibd';
+DROP TABLESPACE `ibdata1`;
+DROP TABLESPACE `undo001`;
+ERROR HY000: Failed to drop TABLESPACE undo001
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE undo001
+Error	1812	Tablespace is missing for table undo001.
+CREATE TABLESPACE `undo001` ADD DATAFILE 'undo001.ibd';
+DROP TABLESPACE `undo001`;
+DROP TABLESPACE `undo002`;
+ERROR HY000: Failed to drop TABLESPACE undo002
+SHOW WARNINGS;
+Level	Code	Message
+Error	1529	Failed to drop TABLESPACE undo002
+Error	1812	Tablespace is missing for table undo002.
+CREATE TABLESPACE `undo002` ADD DATAFILE 'undo002.ibd';
+DROP TABLESPACE `undo002`;
 #
 # Test various forms of ADD DATAFILE
 #
@@ -585,21 +625,13 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
 Error	1031	Table storage engine for 't3' doesn't have this option
-# Cannot use both a general tablespace and a DATA DIRECTORY
-CREATE TABLE t4 (a int, b text) TABLESPACE=s_def DATA DIRECTORY='MYSQL_TMP_DIR';
+CREATE TABLE t4 (a int, b text) TABLESPACE s_def DATA DIRECTORY='MYSQL_TMP_DIR';
 ERROR HY000: InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
 Error	1031	Table storage engine for 't4' doesn't have this option
-# Do not allow an empty string in DATA DIRECTORY=''
-CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
-ERROR 42000: Incorrect table name ''
-SHOW WARNINGS;
-Level	Code	Message
-Error	1103	Incorrect table name ''
-# TABLESPACE=innodb_file_per_table can be used with DATA DIRECTORY='...'
-CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
+CREATE TABLE t4 (a int, b text) TABLESPACE innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 SHOW WARNINGS;
 Level	Code	Message
 SHOW CREATE TABLE t4;
@@ -626,13 +658,6 @@ t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC DATA DIRECTORY='MYSQL_TMP_DIR/'
-ALTER TABLE t4 ROW_FORMAT=compressed, KEY_BLOCK_SIZE=2;
-SHOW CREATE TABLE t4;
-Table	Create Table
-t4	CREATE TABLE `t4` (
-  `a` int(11) DEFAULT NULL,
-  `b` text
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 DATA DIRECTORY='MYSQL_TMP_DIR/'
 DROP TABLE t4;
 SET GLOBAL innodb_file_per_table = ON;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===

@@ -197,3 +197,25 @@ create table tt as select * from t1;
 select * from t1;
 select * from tt;
 drop table t1,tt;
+
+--echo # Bug#20745142: GENERATED COLUMNS: ASSERTION FAILED:
+--echo #   THD->CHANGE_LIST.IS_EMPTY()
+--echo # 
+--error ER_GENERATED_COLUMN_NON_PRIOR
+CREATE TABLE t1(a bigint AS (a between 1 and 1));
+
+--echo # Bug#20566243: ERROR WHILE DOING CREATE TABLE T1 SELECT (QUERY ON GC COLUMNS)
+CREATE TABLE t1(a int, b int as (a + 1),
+            c varchar(12) as ("aaaabb") stored, d blob as (c));
+INSERT INTO t1(a) VALUES(1),(3);
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
+CREATE TABLE t3 AS SELECT * FROM t1;
+SHOW CREATE TABLE t3;
+SELECT * FROM t3;
+CREATE TABLE t4 AS SELECT b,c,d FROM t1;
+SHOW CREATE TABLE t4;
+SELECT * FROM t4;
+DROP TABLE t1,t2,t3,t4;

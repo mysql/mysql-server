@@ -599,11 +599,10 @@ trx_free_prepared(
 /*==============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	ut_ad(trx_sys_mutex_own());
-
 	ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 
+	lock_trx_release_locks(trx);
 	trx_undo_free_prepared(trx);
 
 	assert_trx_in_rw_list(trx);
@@ -2780,12 +2779,12 @@ trx_prepare_low(
 			because only a single OS thread is allowed to do the
 			transaction prepare for this transaction. */
 			trx_undo_set_state_at_prepare(
-				trx, undo_ptr->insert_undo, &mtr);
+				trx, undo_ptr->insert_undo, false, &mtr);
 		}
 
 		if (undo_ptr->update_undo != NULL) {
 			trx_undo_set_state_at_prepare(
-				trx, undo_ptr->update_undo, &mtr);
+				trx, undo_ptr->update_undo, false, &mtr);
 		}
 
 		mutex_exit(&rseg->mutex);
