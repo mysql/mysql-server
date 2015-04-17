@@ -98,7 +98,7 @@ sub new {
           "total_wait" => 0, "has_cas" => 0, "flags" => 0, "exptime" => 0,
           "get_results" => undef, "get_with_cas" => 0, "failed" => 0,
           "io_timeout" => 2.0, "sysread_size" => 512, "max_read_tries" => 6,
-          "readbuf" => "", "buflen" => 0, "error_detail" => ""
+          "readbuf" => "", "buflen" => 0, "error_detail" => "", "read_try" => 0
         }, $pkg;
 }
 
@@ -125,6 +125,7 @@ sub fail {
 
   my $msg =
       "error: "       . $self->{error}       ."\t".
+      "read_try: "    . $self->{read_try}    ."\t".
       "protocol: "    . $self->protocol()    ."\n".
       "req_id: "      . $self->{req_id}      ."\t".
       "temp_errors: " . $self->{temp_errors} ."\t".
@@ -340,12 +341,12 @@ sub read {
   my $r;
 
   $r = select($self->{fdset}, undef, undef, $self->{io_timeout});
-  return $self->socket_error($r, "read(): select() returned $r") if($r < 1);
+  return $self->socket_error($r, "read(): select() $!") if($r < 0);
 
   $r = $sock->sysread($self->{readbuf}, $length, $self->{buflen});
   if($r > 0) {
     $self->{buflen} += $r;
-  } elsif($! != Errno::EWOULDBLOCK) {
+  } elsif($r < 0 && $! != Errno::EWOULDBLOCK) {
     return $self->socket_error( $r == 0 ? 1 : $r, "read(): sysread() $!");
   }
   return 1;
@@ -389,10 +390,10 @@ sub get_length_from_buffer {
 sub read_line {
   my $self = shift;
   my $message;
-  my $n = 0;
 
-  while($n < $self->{max_read_tries}) {
-    $n++;
+  $self->{read_try} = 0;
+  while($self->{read_try} < $self->{max_read_tries}) {
+    $self->{read_try}++;
     $message = $self->get_line_from_buffer();
     if(defined($message)) {
       $self->normalize_error($message);  # handle server error responses
@@ -410,11 +411,11 @@ sub read_line {
 sub read_known_length {
   my $self = shift;
   my $len = shift;
-  my $n = 0;
   my $data;
 
-  while($n < $self->{max_read_tries}) {
-    $n++;
+  $self->{read_try} = 0;
+  while($self->{read_try} < $self->{max_read_tries}) {
+    $self->{read_try}++;
     $data = $self->get_length_from_buffer($len);
     if(defined($data)) {
       return $data;  # No need to do normalize_error for fixed-length reads.
