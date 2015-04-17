@@ -221,3 +221,21 @@ extern struct transaction_write_set_service_st {
   Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
 } *transaction_write_set_service;
 Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id);
+#include <mysql/service_locking.h>
+enum enum_locking_service_lock_type
+{ LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };
+extern struct mysql_locking_service_st {
+  int (*mysql_acquire_locks)(void* opaque_thd, const char* lock_namespace,
+                             const char**lock_names, size_t lock_num,
+                             enum enum_locking_service_lock_type lock_type,
+                             unsigned long lock_timeout);
+  int (*mysql_release_locks)(void* opaque_thd, const char* lock_namespace);
+} *mysql_locking_service;
+int mysql_acquire_locking_service_locks(void* opaque_thd,
+                                        const char* lock_namespace,
+                                        const char**lock_names,
+                                        size_t lock_num,
+                                        enum enum_locking_service_lock_type lock_type,
+                                        unsigned long lock_timeout);
+int mysql_release_locking_service_locks(void* opaque_thd,
+                                        const char* lock_namespace);

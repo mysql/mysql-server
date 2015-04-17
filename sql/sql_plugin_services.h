@@ -106,6 +106,12 @@ static struct transaction_write_set_service_st transaction_write_set_handler= {
   get_transaction_write_set,
 };
 
+static struct mysql_locking_service_st locking_service_handler=
+{
+  mysql_acquire_locking_service_locks,
+  mysql_release_locking_service_locks
+};
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
@@ -122,6 +128,7 @@ static struct st_service_ref list_of_services[]=
   { "rpl_transaction_ctx_service",
     VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },
   { "transaction_write_set_service",
-    VERSION_transaction_write_set_service, &transaction_write_set_handler }
+    VERSION_transaction_write_set_service, &transaction_write_set_handler },
+  { "mysql_locking_service", VERSION_locking_service, &locking_service_handler }
 };
 
