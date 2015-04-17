@@ -368,7 +368,7 @@ public:
 	explicit IORequest(ulint type)
 		:
 		m_block_size(UNIV_SECTOR_SIZE),
-		m_type(type),
+		m_type(static_cast<uint16_t>(type)),
 		m_compression()
 	{
 		if (is_log()) {
@@ -486,7 +486,7 @@ public:
 	@param[in] block_size		Block size to set */
 	void block_size(ulint block_size)
 	{
-		m_block_size = block_size;
+		m_block_size = static_cast<uint32_t>(block_size);
 	}
 
 	/** Clear all compression related flags */
