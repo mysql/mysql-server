@@ -590,7 +590,7 @@ bool set_and_validate_user_attributes(THD *thd,
                      ER_SET_PASSWORD_AUTH_PLUGIN,
                      warning_buffer);
         plugin_unlock(0, plugin);
-        what_to_set= PLUGIN_ATTR;
+        what_to_set= NONE_ATTR;
         return (0);
       }
     }
