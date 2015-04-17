@@ -31,6 +31,7 @@
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
 #include "lock.h"                            // mysql_lock_abort_for_thread
+#include "locking_service.h"                 // release_all_locking_service_locks
 #include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
@@ -1060,6 +1061,10 @@ void THD::cleanup(void)
     global_read_lock.unlock_global_read_lock(this);
 
   mysql_ull_cleanup(this);
+  /*
+    All locking service locks must be released on disconnect.
+  */
+  release_all_locking_service_locks(this);
 
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());

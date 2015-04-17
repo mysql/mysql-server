@@ -112,6 +112,7 @@ SET(SQL_SHARED_SOURCES
   key_spec.cc
   keycaches.cc
   lock.cc
+  locking_service.cc
   log.cc
   mdl.cc
   my_decimal.cc
@@ -554,6 +555,19 @@ IF(NOT DISABLE_SHARED)
     # udf_example is using safemutex exported by mysqld
     TARGET_LINK_LIBRARIES(udf_example mysqld)
     SET_TARGET_PROPERTIES(udf_example
+      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+  ENDIF()
+ENDIF()
+
+MYSQL_ADD_PLUGIN(locking_service locking_service_udf.cc
+                 MODULE_ONLY MODULE_OUTPUT_NAME "locking_service")
+IF(NOT DISABLE_SHARED)
+  IF(WIN32)
+    SET_TARGET_PROPERTIES(locking_service
+      PROPERTIES LINK_FLAGS
+      "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def")
+  ELSE()
+    SET_TARGET_PROPERTIES(locking_service
       PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
   ENDIF()
 ENDIF()

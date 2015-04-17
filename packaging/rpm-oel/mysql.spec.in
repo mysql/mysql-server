@@ -790,6 +790,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
@@ -803,6 +804,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewrite_example.so
