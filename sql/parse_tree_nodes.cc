@@ -19,6 +19,7 @@
 #include "sql_delete.h"     // Sql_cmd_delete_multi, Sql_cmd_delete
 #include "sql_insert.h"     // Sql_cmd_insert...
 #include "mysqld.h"         // global_system_variables
+#include "sp_pcontext.h"
 
 
 bool PT_option_value_no_option_type_charset:: contextualize(Parse_context *pc)

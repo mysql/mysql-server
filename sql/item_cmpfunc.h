@@ -28,7 +28,6 @@
 
 class Arg_comparator;
 class Item_sum_hybrid;
-class Item_row;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 

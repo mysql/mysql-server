@@ -16,23 +16,29 @@
 
 #include "events.h"
 
-#include "sql_parse.h"                          // check_access
-#include "sql_base.h"                           // close_mysql_tables
-#include "sql_show.h"                           // append_definer
-#include "sql_db.h"                          // check_db_dir_existence
-#include "sql_table.h"                       // write_bin_log
-#include "tztime.h"                             // struct Time_zone
-#include "auth_common.h"                        // EVENT_ACL
-#include "records.h"          // init_read_record, end_read_record
-#include "mysqld.h"           // LOCK_global_system_variables
-#include "event_data_objects.h"
-#include "event_db_repository.h"
-#include "event_queue.h"
-#include "event_scheduler.h"
-#include "sp_head.h" // for Stored_program_creation_ctx
-#include "lock.h"   // lock_object_name
-#include "log.h"
+#include "m_ctype.h"               // CHARSET_INFO
+#include "auth_common.h"           // EVENT_ACL
+#include "event_data_objects.h"    // Event_queue_element
+#include "event_db_repository.h"   // Event_db_repository
+#include "event_parse_data.h"      // Event_parse_data
+#include "event_queue.h"           // Event_queue
+#include "event_scheduler.h"       // Event_scheduler
+#include "lock.h"                  // lock_object_name
+#include "log.h"                   // sql_print_error
+#include "mysqld.h"                // LOCK_global_system_variables
+#include "mysqld_error.h"          // ER_*
+#include "records.h"               // READ_RECORD
+#include "sp_head.h"               // Stored_program_creation_ctx
+#include "sql_base.h"              // close_mysql_tables
+#include "sql_class.h"             // THD
+#include "sql_db.h"                // check_db_dir_existence
+#include "sql_show.h"              // append_definer
+#include "sql_string.h"            // String
+#include "sql_table.h"             // write_bin_log
+#include "tztime.h"                // Time_zone
+
 #include "mysql/psi/mysql_sp.h"
+
 
 /**
   @addtogroup Event_Scheduler

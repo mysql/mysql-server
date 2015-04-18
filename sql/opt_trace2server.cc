@@ -29,6 +29,7 @@
 #include "sql_show.h"    // schema_table_stored_record
 #include "sql_parse.h"   // sql_command_flags
 #include "sp_head.h"     // sp_head
+#include "sp_instr.h"    // sp_printable
 
 #ifdef OPTIMIZER_TRACE
 

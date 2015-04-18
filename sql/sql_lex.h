@@ -45,7 +45,8 @@
 #include "parse_tree_hints.h"
 
 #ifdef MYSQL_SERVER
-#include "item_func.h"                // Cast_target
+#include "item_create.h"              // Cast_target
+#include "sql_udf.h"                  // Item_udftype
 #endif
 
 /* YACC and LEX Definitions */

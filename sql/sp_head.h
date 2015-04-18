@@ -16,9 +16,9 @@
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                          // THD
-#include "mem_root_array.h"
+#include "my_global.h"
+#include "mem_root_array.h"    // Mem_root_array
+#include "sql_class.h"         // Query_arena
 
 /**
   @defgroup Stored_Routines Stored Routines
@@ -42,21 +42,6 @@ class sp_pcontext;
 void init_sp_psi_keys(void);
 #endif
 
-
-///////////////////////////////////////////////////////////////////////////
-
-/**
-  sp_printable defines an interface which should be implemented if a class wants
-  report some internal information about its state.
-*/
-class sp_printable
-{
-public:
-  virtual void print(String *str) = 0;
-
-  virtual ~sp_printable()
-  { }
-};
 
 ///////////////////////////////////////////////////////////////////////////
 

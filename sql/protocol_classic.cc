@@ -21,6 +21,7 @@ The actual communication is handled by the net_xxx functions in net_serv.cc
 */
 
 #include "protocol_classic.h"
+#include "item_func.h"                          // Item_func_set_user_var
 #include "sql_class.h"                          // THD
 #include "mysqld.h"                             // global_system_variables
 

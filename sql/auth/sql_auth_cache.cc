@@ -20,6 +20,7 @@
 #include "auth_common.h"        // ACL_internal_schema_access
 #include "auth_internal.h"      // auth_plugin_is_built_in
 #include "field.h"              // Field
+#include "item_func.h"          // mqh_used
 #include "log.h"                // sql_print_warning
 #include "psi_memory_key.h"     // key_memory_acl_mem
 #include "read_write_lock.h"    // Write_lock

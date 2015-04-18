@@ -15,14 +15,14 @@
 
 #include "event_queue.h"
 
-#include "event_data_objects.h"
-#include "event_db_repository.h"
-#include "events.h"
-#include "psi_memory_key.h"
-#include "sql_audit.h"
-#include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
-#include "log.h"        // sql_print_error
-#include "sql_class.h"  // struct THD
+#include "event_db_repository.h"  // Event_db_repository
+#include "events.h"               // Events
+#include "log.h"                  // sql_print_error
+#include "psi_memory_key.h"       // key_memory_Event_scheduler_scheduler_param
+#include "sql_audit.h"            // mysql_audit_release
+#include "sql_class.h"            // THD
+#include "tztime.h"               // my_tz_OFFSET0
+
 #include "mysql/psi/mysql_sp.h"
 
 /**
