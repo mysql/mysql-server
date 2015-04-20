@@ -1785,7 +1785,7 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 CREATE DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
 --write_file $MYSQLD_DATADIR/db_with_no_tables_and_an_unrelated_file_in_data_directory/intruder.txt
 EOF
---replace_result \\ /
+--replace_result $MYSQLD_DATADIR ./ \\ /
 --error ER_DB_DROP_RMDIR
 DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
 # Cleanup
@@ -1798,7 +1798,7 @@ DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
 CREATE DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 --write_file $MYSQLD_DATADIR/db_with_tables_and_an_unrelated_file_in_data_directory/intruder.txt
 EOF
---replace_result \\ /
+--replace_result $MYSQLD_DATADIR ./ \\ /
 --error ER_DB_DROP_RMDIR
 DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 # Cleanup
@@ -1811,7 +1811,7 @@ DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 --mkdir $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory
 --write_file $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory/intruder.txt
 EOF
---replace_result \\ /
+--replace_result $MYSQLD_DATADIR ./ \\ /
 --error ER_DB_DROP_RMDIR
 DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
 # Cleanup
