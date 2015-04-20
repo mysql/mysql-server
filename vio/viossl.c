@@ -152,6 +152,10 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   SSL *ssl;
   my_bool unused;
   my_bool was_blocking;
+  /* Declared here to make compiler happy */
+#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+  int j, n;
+#endif
 
   DBUG_ENTER("ssl_do");
   DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
@@ -181,8 +185,8 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   {
     STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
     ssl_comp_methods = SSL_COMP_get_compression_methods();
+    n= sk_SSL_COMP_num(ssl_comp_methods);
     DBUG_PRINT("info", ("Available compression methods:\n"));
-    int j, n = sk_SSL_COMP_num(ssl_comp_methods);
     if (n == 0)
       fprintf(stderr, "  NONE\n");
     else
