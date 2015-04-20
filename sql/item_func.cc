@@ -4255,7 +4255,7 @@ bool udf_handler::get_arguments()
 	String *res=args[i]->val_str(&buffers[str_count++]);
 	if (!(args[i]->null_value))
 	{
-	  f_args.args[i]=    (char*) res->ptr();
+	  f_args.args[i]=    res->c_ptr_safe();
 	  f_args.lengths[i]= res->length();
 	}
 	else
