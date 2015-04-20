@@ -24,12 +24,68 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbBackup.hpp>
 #include <Bitmask.hpp>
+#include <DbUtil.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runFillTable(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Table tab(*ctx->getTab());
+
+  /* fill table until its full */
+  HugoTransactions hugoTrans(tab);
+  if(hugoTrans.fillTable(pNdb) != 0){
+    return NDBT_FAILED;
+  }
+
+  /* store the number of rows */
+  int cnt;
+  UtilTransactions utilTrans(tab);
+  if(utilTrans.selectCount(pNdb, 0, &cnt) != 0){
+    g_err << "Select count failed." << endl;
+    return NDBT_FAILED;
+  }
+  ctx->setProperty("recordCount", cnt);
+  return NDBT_OK;
+}
+
+int runVerifyFilledTables(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* verify the number of rows is intact */
+  Ndb* pNdb = GETNDB(step);
+  int countOld= ctx->getProperty("recordCount");
+  if (countOld == 0){
+    /* table was not filled using fillTable */
+    g_err << "Table initial row count not available" << endl;
+    return NDBT_FAILED;
+  }
+  /* ctx's tab gets invalidated in alter table reorganize partition
+          Hence reloading table again to verify */
+  const char *tableName= ctx->getTableName(0);
+  const NdbDictionary::Table* pTab =
+      NDBT_Table::discoverTableFromDb(pNdb, tableName);
+  if (pTab == NULL){
+    g_err << tableName << " was lost during the test." << endl;
+    return NDBT_FAILED;
+  }
+
+  /* compare new record count with old */
+  int cnt;
+  UtilTransactions utilTrans(*pTab);
+  if(utilTrans.selectCount(pNdb, 0, &cnt) != 0){
+    g_err << "Select count failed." << endl;
+    return NDBT_FAILED;
+  }
+  if(cnt != countOld){
+    g_err << "Number of rows in result table different from expected" << endl;
     return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -2535,6 +2591,172 @@ runBug56961(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runAddNodeAndRestart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /*
+   New nodes are already up in cluster, but they dont have
+   a nodegroup. To include them in cluster,
+   1. do a rolling restart of all old nodes running
+   2. execute create nodegroup for the new nodes
+   */
+  NdbRestarter restarter;
+
+  Vector<int> nodes, newNodes;
+  int ng;
+  int result = NDBT_OK;
+
+  /* restart existing nodes (which already have a nodegroup) */
+  for(int i= 0; i < restarter.getNumDbNodes(); i++ )
+  {
+    int _node_id= restarter.getDbNodeId(i);
+    if(restarter.getNodeGroup(_node_id) >= 0)
+    {
+      /* node is actually up */
+      g_info << "Restarting : " << _node_id << endl;
+      CHECK(restarter.restartOneDbNode(_node_id, false, false, false) == 0);
+      CHECK(restarter.waitNodesStarted(&_node_id, 1) == 0);
+    } else {
+      /* nodes that don't have a nodegroup yet */
+      newNodes.push_back(_node_id);
+    }
+  }
+
+  /* if there are no new nodes, can't test add node restart */
+  if(newNodes.size() == 0)
+  {
+    g_err << "ERR: "<< step->getName()
+        << " failed on line " << __LINE__ << endl;
+    g_err << "Incorrect cluster configuration."
+        << "Requires additional nodes with nodegroup 65536." << endl;
+    return NDBT_FAILED;
+  }
+
+  /* end of array value for newNodes */
+  newNodes.push_back(0);
+  /* create nodegroup */
+  if(ndb_mgm_create_nodegroup(restarter.handle, newNodes.getBase(),
+                              &ng, NULL) != 0)
+  {
+    g_err << "ERR: "<< step->getName()
+        << " failed on line " << __LINE__ << endl;
+    g_err << ndb_mgm_get_latest_error_desc(restarter.handle) << endl;
+    return NDBT_FAILED;
+  }
+  g_info << "New nodes added to nodegroup " << ng << endl;
+
+  return result;
+}
+
+int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  /* check if there is a possibility of node killing during redistribution */
+  bool nodesKilledDuringStep= ctx->getProperty("NodesKilledDuringStep");
+
+  /* Redistribute existing cluster data */
+  DbUtil sql("TEST_DB");
+  {
+    BaseString query;
+    int numOfTables = ctx->getNumTables();
+
+    /* ALTER ONLINE TABLE <tbl_name> REORGANIZE PARTITION */
+    for(int i= 0; i < numOfTables; i++ )
+    {
+      SqlResultSet resultSet;
+      query.assfmt("ALTER ONLINE TABLE %s REORGANIZE PARTITION",
+                   ctx->getTableName(i));
+      g_info << "Executing query : "<< query.c_str() << endl;
+
+      if(!sql.doQuery(query.c_str(), resultSet)){
+        if(nodesKilledDuringStep &&
+           sql.getErrorNumber() == 0)
+        {
+          /* query failed probably because of a node kill in another step.
+             wait for the nodes to get into start phase before retrying */
+          if(restarter.waitClusterStarted() != 0){
+            g_err << "Cluster went down during reorganize partition" << endl;
+            return NDBT_FAILED;
+          }
+          /* retry the query for same table */
+          i--;
+          nodesKilledDuringStep= false;
+          continue;
+        } else {
+          /* either the query failed due to returning error code from server
+           or cluster crash */
+          g_err << "QUERY : "<< query.c_str() << "; failed" << endl;
+          return NDBT_FAILED;
+        }
+      }
+    }
+
+    if(nodesKilledDuringStep){
+      /* Nodes were supposed to be killed during alter table,
+         but they never were. Test lost its purpose. Mark it as failed
+         Mostly won't happen. Just insuring. */
+      g_err << "Nodes were never killed during alter table." << endl;
+      return NDBT_FAILED;
+    }
+
+    /* Reclaim freed space by running optimize table */
+    for(int i= 0; i < numOfTables; i++ )
+    {
+      SqlResultSet result;
+      BaseString query;
+      query.assfmt("OPTIMIZE TABLE %s", ctx->getTableName(i));
+      g_info << "Executing query : "<< query.c_str() << endl;
+      if (!sql.doQuery(query.c_str(), result)){
+        g_err << "Failed executing optimize table" << endl;
+        return NDBT_FAILED;
+      }
+    }
+  }
+  return NDBT_OK;
+}
+
+int runKillTwoNodes(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  int kill[] = { 9999, 3000, 10000 };
+  int result = NDBT_OK;
+
+  Vector<int> nodes;
+
+  /* choose first victim */
+  nodes.push_back(restarter.getDbNodeId(rand() % restarter.getNumDbNodes()));
+  /* select a node from different group as next victim */
+  nodes.push_back(restarter.getRandomNodeOtherNodeGroup(nodes[0], rand()));
+  for(int i = 0; i < 2; i++){
+    g_info << "Killing node " << nodes[i] << "..." << endl;
+    CHECK(restarter.dumpStateOneNode(nodes[i], val, 2) == 0);
+    CHECK(restarter.dumpStateOneNode(nodes[i], kill, 3) == 0);
+  }
+
+  /* wait for both of them to come into no start */
+  if(restarter.waitNodesNoStart(nodes.getBase(), 2) != 0)
+  {
+    g_err << "Nodes never restarted" << endl;
+    return NDBT_FAILED;
+  }
+
+  /* start the killed nodes */
+  if(restarter.startNodes(nodes.getBase(), 2) != 0)
+  {
+    g_err << "Unable to start killed node." << endl;
+    return NDBT_FAILED;
+  }
+
+  /* wait for nodes to get started */
+  if(restarter.waitNodesStarted(nodes.getBase(), nodes.size()) != 0)
+  {
+    g_err << "Killed nodes stuck in start phase." << endl;
+    return NDBT_FAILED;
+  }
+
+  return result;
+}
+
 NDBT_TESTSUITE(testSystemRestart);
 TESTCASE("SR1", 
 	 "Basic system restart test. Focus on testing restart from REDO log.\n"
@@ -2877,6 +3099,35 @@ TESTCASE("Bug56961", "")
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug56961);
 }
+TESTCASE("MTR_AddNodesAndRestart1",
+         "1. Insert few rows to table"
+         "2. Add nodes and restart cluster"
+         "3. Reorganize partition and optimize table"
+         "Should be run only once")
+{
+  ALL_TABLES();
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runFillTable);
+  INITIALIZER(runAddNodeAndRestart);
+  STEP(runAlterTableAndOptimize);
+  VERIFIER(runVerifyFilledTables);
+}
+TESTCASE("MTR_AddNodesAndRestart2",
+         "1. Fill the table fully"
+         "2. Add nodes and restart cluster"
+         "3. Reorganize partition and optimize table"
+         "4. Kill 2 nodes during reorganization"
+         "Should be run only once")
+{
+  ALL_TABLES();
+  TC_PROPERTY("NodesKilledDuringStep", true);
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runFillTable);
+  INITIALIZER(runAddNodeAndRestart);
+  STEP(runAlterTableAndOptimize);
+  STEP(runKillTwoNodes);
+  VERIFIER(runVerifyFilledTables);
+}
 NDBT_TESTSUITE_END(testSystemRestart);
 
 int main(int argc, const char** argv){
@@ -2884,5 +3135,3 @@ int main(int argc, const char** argv){
   NDBT_TESTSUITE_INSTANCE(testSystemRestart);
   return testSystemRestart.execute(argc, argv);
 }
-
-
