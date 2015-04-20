@@ -395,8 +395,27 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, sd);
-#ifndef HAVE_YASSL
-  SSL_set_options(ssl, SSL_OP_NO_COMPRESSION);
+#if !defined(HAVE_YASSL) && defined(SSL_OP_NO_COMPRESSION)
+  SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */
+#elif OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */
+  sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
+#endif
+
+#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+  {
+    STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
+    ssl_comp_methods = SSL_COMP_get_compression_methods();
+    DBUG_PRINT("info", ("Available compression methods:\n"));
+    int j, n = sk_SSL_COMP_num(ssl_comp_methods);
+    if (n == 0)
+      fprintf(stderr, "  NONE\n");
+    else
+      for (j = 0; j < n; j++)
+      {
+        SSL_COMP *c = sk_SSL_COMP_value(ssl_comp_methods, j);
+        DBUG_PRINT("info", ("  %d: %s\n", c->id, c->name));
+      }
+  }
 #endif
 
   /*
