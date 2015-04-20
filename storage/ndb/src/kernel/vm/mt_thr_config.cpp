@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1264,7 +1264,7 @@ THRConfigApplier::do_bind(NdbThread* thread,
     {
       return -errno;
     }
-    for (unsigned i = 0; i < num_bits_set; i++)
+    for (unsigned i = 0; i < tmp.max_size(); i++)
     {
       if (tmp.get(i))
       {
@@ -1272,6 +1272,7 @@ THRConfigApplier::do_bind(NdbThread* thread,
         num_cpu_ids++;
       }
     }
+    require(num_cpu_ids == num_bits_set);
     res = Ndb_LockCPUSet(thread, cpu_ids, num_cpu_ids);
     free((void*)cpu_ids);
   }
