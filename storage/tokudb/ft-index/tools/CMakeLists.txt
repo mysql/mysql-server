@@ -14,7 +14,7 @@ target_link_libraries(ftverify m)
 
 install(
   TARGETS tokuftdump
-  DESTINATION bin
+  DESTINATION ${INSTALL_BINDIR}
   COMPONENT Server
   )
 
