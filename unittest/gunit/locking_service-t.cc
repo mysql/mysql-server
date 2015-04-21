@@ -64,6 +64,10 @@ protected:
     mdl_init();
     m_initializer.SetUp();
     m_thd= m_initializer.thd();
+    // Slight hack: Makes THD::is_connected() return true.
+    // This prevents MDL_context::acquire_lock() from thinking
+    // the connection has died and the wait should be aborted.
+    m_thd->system_thread= SYSTEM_THREAD_SLAVE_IO;
   }
 
   virtual void TearDown()
@@ -319,7 +323,9 @@ TEST_F(LockingServiceTest, ReadCompatibility)
   {
     Mock_error_handler error_handler(m_thd, ER_LOCKING_SERVICE_TIMEOUT);
     EXPECT_TRUE(acquire_locking_service_locks(m_thd, namespace1, names1, 1,
-                                              LOCKING_SERVICE_WRITE, 1));
+                                              LOCKING_SERVICE_WRITE, 2));
+    // Wait 2 seconds here so that we hit the "abs_timeout is far away"
+    // code path in MDL_context::acquire_lock() on all platforms.
     EXPECT_FALSE(m_thd->mdl_context.owns_equal_or_stronger_lock(
      MDL_key::LOCKING_SERVICE, namespace1, lock_name1, MDL_SHARED));
     EXPECT_EQ(1, error_handler.handle_called());
