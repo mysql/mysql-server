@@ -727,7 +727,9 @@ SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
 PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
               GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
               ORDER BY t1.u';
+--sorted_result
 EXECUTE stmt;
+--sorted_result
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
