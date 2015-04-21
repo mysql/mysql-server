@@ -455,7 +455,8 @@ dict_build_tablespace_for_table(
 			supports Redundant and Compact */
 			ut_ad(dict_tf_get_rec_format(table->flags)
 				!= REC_FORMAT_COMPRESSED);
-			table->space = srv_tmp_space.space_id();
+			table->space = static_cast<uint32_t>(
+				srv_tmp_space.space_id());
 		} else {
 			/* Create in the system tablespace.
 			Disallow ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED

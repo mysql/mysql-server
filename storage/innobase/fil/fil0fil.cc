@@ -4730,7 +4730,8 @@ retry:
 	ulint		node_first_page = space->size - node->size;
 
 	/* Number of physical pages in the node/file */
-	ulint		n_node_physical_pages = node_start / page_size;
+	ulint		n_node_physical_pages
+		= static_cast<ulint>(node_start) / page_size;
 
 	/* Number of pages to extend in the node/file */
 	lint		n_node_extend;
@@ -4786,7 +4787,7 @@ retry:
 
 			err = fil_write_zeros(
 				node, page_size, node_start,
-				len, read_only_mode);
+				static_cast<ulint>(len), read_only_mode);
 
 			if (err != DB_SUCCESS) {
 
@@ -4803,7 +4804,7 @@ retry:
 
 		os_has_said_disk_full = !(success = (end == node_start + len));
 
-		pages_added = (end - node_start) / page_size;
+		pages_added = static_cast<ulint>(end - node_start) / page_size;
 
 	} else {
 		success = true;
