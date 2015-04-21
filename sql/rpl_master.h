@@ -106,7 +106,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length);
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                        Gtid_set* gtid_set, uint32 flags);
 
-int reset_master(THD* thd);
+bool reset_master(THD* thd);
 
 #endif /* HAVE_REPLICATION */
 
