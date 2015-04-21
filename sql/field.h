@@ -3793,6 +3793,8 @@ public:
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
   type_conversion_status store_decimal(const my_decimal *);
+  type_conversion_status store(const char *from, size_t length,
+                               const CHARSET_INFO *cs);
 
   /**
     Non-nullable GEOMETRY types cannot have defaults,

@@ -24,6 +24,7 @@
 #include <mysqld_error.h>
 #include <set>
 #include <utility>
+#include <prealloced_array.h>
 
 // Our ifdef trickery for my_isfinite does not work with gcc/sparc unless we:
 #ifdef HAVE_IEEEFP_H
@@ -561,6 +562,238 @@ bool Geometry::as_geometry(String *buf, bool shallow_copy) const
 }
 
 
+/**
+  WKB scanner event handler that checks if the WKB string is well formed.
+
+  This doesn't check if the geometry is valid (e.g., it's not checking
+  if a polygon is self-intersecting), it only checks some simple rules
+  for WKB well-formedness:
+
+  R1. The byte order is as specified (constructor parameter)
+  R2. The wkbType is within the supported range
+  R3. The geometry is of the specified type (constructor parameter)
+  R4. Nested geometries contain only geometries that can be contained
+      by that type
+  R5. Linestrings have at least two points
+  R6. Polygon rings have at least four points
+  R7. Polygons have at least one ring
+  R8. Collections, except geometrycollection, contain at least one
+      element.
+
+  An additional requirement, that the WKB ends exactly at the end of
+  the string, is checked by Geometry::is_well_formed(). The last parse
+  position is maintained as last_position here to make that test
+  possible.
+ */
+class Geometry_well_formed_checker : public WKB_scanner_event_handler
+{
+private:
+  Prealloced_array<Geometry::wkbType, 8> type;  /// Current stack of types
+  Geometry::wkbType previous_type;              /// Type of previous start/end
+  int points_in_linestring;                     /// Points in current ls
+  const void *last_position;                    /// Last wkb pointer seen
+  bool is_ok;                                   /// Whether the WKB is OK so far
+  Geometry::wkbByteOrder required_byte_order;
+
+public:
+  /**
+    Create a new even handler.
+
+    @param type Expected geometry type. If set to
+                Geometry::wkb_invalid_type, any geometry is allowed.
+   */
+  Geometry_well_formed_checker(Geometry::wkbType type,
+                               Geometry::wkbByteOrder required_byte_order)
+    : type(PSI_NOT_INSTRUMENTED), previous_type(Geometry::wkb_invalid_type),
+      points_in_linestring(0), last_position(NULL), is_ok(true),
+      required_byte_order(required_byte_order)
+  {
+    this->type.push_back(type);
+  }
+
+
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+                            Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool has_hdr)
+  {
+    if (!is_ok)
+      return;
+
+    // The byte order must be the specified one (R1).
+    if (required_byte_order != Geometry::wkb_invalid &&
+        bo != required_byte_order)
+    {
+      is_ok= false;
+      return;
+    }
+
+    Geometry::wkbType outer_type= type[type.size() -1];
+
+    type.push_back(geotype);
+    previous_type= geotype;
+
+    // The geometry type must be in the valid range (R2).
+    if (geotype < Geometry::wkb_first ||
+        geotype > Geometry::wkb_geometrycollection)
+    {
+      is_ok= false;
+      return;
+    }
+
+    // First geometry must be of the specified type (if specified) (R3).
+    if (type.size() == 2)
+    {
+      if (geotype != outer_type &&
+          outer_type != Geometry::wkb_invalid_type)
+        is_ok= false;
+      return;
+    }
+
+    // Any type is allowed in geometry collections (R4).
+    if (outer_type == Geometry::wkb_geometrycollection)
+      return;
+
+    switch (geotype)
+    {
+    case Geometry::wkb_point:
+      // Points can only appear in multipoints and in linestrings (R4).
+      if (!(outer_type == Geometry::wkb_multipoint ||
+            (!has_hdr && outer_type == Geometry::wkb_linestring)))
+        is_ok= false;
+      if (outer_type == Geometry::wkb_linestring)
+        ++points_in_linestring;
+      break;
+    case Geometry::wkb_linestring:
+      // Linestrings can only appear in multilinestrings and as rings
+      // in polygons (R4).
+      if (!(outer_type == Geometry::wkb_multilinestring ||
+            (!has_hdr && outer_type == Geometry::wkb_polygon)))
+        is_ok= false;
+      break;
+    case Geometry::wkb_polygon:
+      // Polygons can only appear in multipolygons (R4).
+      if (outer_type != Geometry::wkb_multipolygon)
+        is_ok= false;
+      break;
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_multipolygon:
+    case Geometry::wkb_geometrycollection:
+      // These are only allowed if outer_type is geometry collection,
+      // in which case they're handled before entering the switch (R4).
+      is_ok= false;
+      break;
+    default:
+      // The list of cases above should be complete (R2).
+      DBUG_ASSERT(0);
+      break;
+    }
+  }
+
+
+  virtual void on_wkb_end(const void *wkb)
+  {
+    if (!is_ok)
+      return;
+
+    Geometry::wkbType current_type= type[type.size() -1];
+    type.pop_back();
+    last_position= wkb;
+
+    switch (current_type)
+    {
+    case Geometry::wkb_linestring:
+      // Linestrings must have at least two points. Polygon rings must
+      // have at least four points (R5, R6).
+      if (points_in_linestring < 2 ||
+          (type[type.size() - 1] == Geometry::wkb_polygon &&
+           points_in_linestring < 4))
+        is_ok= false;
+      points_in_linestring= 0;
+      break;
+    case Geometry::wkb_polygon:
+      // Polygons must have at least one ring (R7).
+      if (previous_type != Geometry::wkb_linestring)
+        is_ok= false;
+      break;
+    case Geometry::wkb_multipoint:
+      // Multipoints must contain at least one point (R8).
+      if (previous_type != Geometry::wkb_point)
+        is_ok= false;
+      break;
+    case Geometry::wkb_multilinestring:
+      // Multilinestrings must contain at least one linestring (R8).
+      if (previous_type != Geometry::wkb_linestring)
+        is_ok= false;
+      break;
+    case Geometry::wkb_multipolygon:
+      // Multipolygons must contain at least one polygon (R8).
+      if (previous_type != Geometry::wkb_polygon)
+        is_ok= false;
+      break;
+    default:
+      break;
+    }
+
+    previous_type= current_type;
+  }
+
+
+  virtual bool continue_scan() const
+  {
+    return is_ok;
+  }
+
+
+  /**
+    Check if the parsed WKB was well-formed, as far as this handler
+    knows.
+
+    There may be other conditions that cause the object to not be
+    well-formed.
+
+    @see Geometry::is_well_formed
+
+    @return True if the WKB was well-formed, false otherwise.
+   */
+  bool is_well_formed()
+  {
+    return is_ok;
+  }
+
+
+  /**
+    Get the position after the last parsed byte.
+
+    @return Pointer pointing to after the last parsed byte.
+  */
+  const char *get_last_position()
+  {
+    return static_cast<const char*>(last_position);
+  }
+};
+
+
+bool Geometry::is_well_formed(const char *from, size_t length,
+                              Geometry::wkbType type,
+                              Geometry::wkbByteOrder bo)
+{
+  bool is_well_formed= true;
+  Geometry_well_formed_checker checker(type, bo);
+  uint32 len= length;
+
+  if (length < GEOM_HEADER_SIZE)
+    return false;
+
+  is_well_formed=
+    (wkb_scanner(from + SRID_SIZE, &len, 0, true, &checker) != NULL);
+
+  return (is_well_formed &&
+          checker.is_well_formed() &&
+          checker.get_last_position() == from + length);
+}
+
+
 static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo)
 {
   double res;
@@ -628,7 +861,7 @@ uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
                 'geotype' should be the same as the type in the header;
                 otherwise, and we will use the type specified in WKB header.
   @param handler the registered WKB_scanner_event_handler object to be notified.
-  @return the next byte after last valid geometry just scanned.
+  @return the next byte after last valid geometry just scanned, or NULL on error
  */
 const char*
 wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
@@ -646,7 +879,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
 
     gtype= uint4korr(wkb + 1);
     // The geotype isn't used in this case.
-    DBUG_ASSERT(geotype == gtype || geotype == 0/* unknown */);
+    if (geotype != gtype && geotype != 0/* unknown */)
+      return NULL;
 
     if ((*wkb != Geometry::wkb_ndr && *wkb != Geometry::wkb_xdr) ||
         gtype < Geometry::wkb_first || gtype > Geometry::wkb_last)
