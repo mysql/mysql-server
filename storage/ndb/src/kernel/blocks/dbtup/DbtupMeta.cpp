@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -803,7 +803,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->noOfPages = 0;
   regFragPtr.p->noOfVarPages = 0;
   regFragPtr.p->m_varWordsFree = 0;
-  regFragPtr.p->m_max_page_no = 0;
+  regFragPtr.p->m_max_page_cnt = 0;
   regFragPtr.p->m_free_page_id_list = FREE_PAGE_RNIL;
   ndbrequire(regFragPtr.p->m_page_map.isEmpty());
   regFragPtr.p->m_restore_lcp_id = RNIL;
@@ -2674,7 +2674,7 @@ Dbtup::get_frag_info(Uint32 tableId, Uint32 fragId, Uint32* maxPage)
   
   if (maxPage)
   {
-    * maxPage = fragPtr.p->m_max_page_no;
+    * maxPage = fragPtr.p->m_max_page_cnt;
   }
 
   return true;

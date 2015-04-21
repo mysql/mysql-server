@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,38 +114,90 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
 }
 
 bool
-Dbtup::is_rowid_lcp_scanned(const Local_key& key1,
-                            const Dbtup::ScanOp& op)
+Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
+                                     const Local_key& key1,
+                                     const Dbtup::ScanOp& op) const
 {
   Local_key key2 = op.m_scanPos.m_key;
   switch (op.m_state) {
   case Dbtup::ScanOp::First:
+  {
+    jam();
     ndbrequire(key2.isNull());
-    return false;
+    return key1.m_page_no < op.m_endPage;
+  }
   case Dbtup::ScanOp::Current:
+  {
+    /* Impossible state for LCP scans */
+    ndbrequire(false);
+  }
   case Dbtup::ScanOp::Next:
+  {
     ndbrequire(!key2.isNull());
     if (key1.m_page_no < key2.m_page_no)
-      return true;
+    {
+      jam();
+      /* Ignore pages already LCP:ed */
+      return false;
+    }
+    if (key1.m_page_no >= op.m_endPage)
+    {
+      jam();
+      /* Ignore pages beyond last page at LCP start */
+      return false;
+    }
+    if (page->is_page_to_skip_lcp())
+    {
+      jam();
+      /* Ignore new pages created after LCP start */
+      return false;
+    }
     if (key1.m_page_no > key2.m_page_no)
+    {
+      jam();
+      /* Include pages not LCP:ed yet */
+      return true;
+    }
+    ndbassert(key1.m_page_no == key2.m_page_no);
+    if (op.m_scanPos.m_get == ScanPos::Get_next_page_mm)
+    {
+      jam();
+      /**
+       * We got a real-time break while switching to a new page.
+       * In this case we can skip the page since it is already
+       * LCP:ed.
+       */
       return false;
+    }
     if (key1.m_page_idx < key2.m_page_idx)
-      return true;
-    if (key1.m_page_idx > key2.m_page_idx)
+    {
+      jam();
+      /* Ignore rows already LCP:ed */
       return false;
-    /**
-     * key are equal...need to look at scan state
-     */
-    if (op.m_state == Dbtup::ScanOp::Next)
+    }
+    if (key1.m_page_idx > key2.m_page_idx)
+    {
+      jam();
+      /* Include rows not LCP:ed yet */
       return true;
+    }
+    ndbassert(key1.m_page_idx == key2.m_page_idx);
+    /* keys are equal */
+    jam();
+    /* Ignore current row that already have been LCP:ed. */
     return false;
+  }
   case Dbtup::ScanOp::Last:
-    return true;
+  { 
+    jam();
+    return false;
+  }
   default:
     ndbrequire(false);
     break;
   }
-  return false;
+  /* Will never arrive here */
+  return true;
 }
 
 void
@@ -185,7 +237,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
-    if (!is_rowid_lcp_scanned(rowid, *scanOp.p))
+    if (is_rowid_in_remaining_lcp_set(page, rowid, *scanOp.p))
     {
       jam();
 
@@ -454,10 +506,15 @@ Dbtup::commit_operation(Signal* signal,
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
-    if (!is_rowid_lcp_scanned(rowid, *scanOp.p))
+    if (is_rowid_in_remaining_lcp_set(pagePtr.p, rowid, *scanOp.p))
     {
+      /**
+       * Rows that are inserted during LCPs are never required to be
+       * recorded as part of the LCP, this can be avoided in multiple ways,
+       * in this case we avoid it by setting bit on Tuple header.
+       */
       jam();
-       copy_bits |= Tuple_header::LCP_SKIP;
+      copy_bits |= Tuple_header::LCP_SKIP;
     }
   }
   
