@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -673,7 +673,7 @@ int server_roles_reload_waiter(Ndb_cluster_connection *conn,
 
   while(1) {
     // TODO: if conf.shutdown return 0.
-    int waiting = db.pollEvents(1000, 0);
+    int waiting = db.pollEvents2(1000);
 
     if(waiting < 0) {
       /* error */
@@ -681,29 +681,40 @@ int server_roles_reload_waiter(Ndb_cluster_connection *conn,
       return -1;
     }
     else if(waiting > 0) {
-      DEBUG_PRINT("%d waiting", waiting);
-      if(db.nextEvent()) { 
-        if(recattr1->isNULL() == 0) {
-          uint role_name_len = *(const unsigned char*) recattr1->aRef();
-          char *role_name = recattr1->aRef() + 1;
-          if(role_name_len == strlen(server_role) && 
-             strcmp(server_role, role_name) == 0) { 
-            /* Time to reconfigure! */
-            logger->log(LOG_WARNING, 0, "Received update to server role %s", role_name);
-            db.dropEventOperation(wait_op);
-            return 1;
-          }
-          else DEBUG_PRINT("Got update event for %s, but that aint me.", role_name);
+      NdbEventOperation *event = db.nextEvent2();
+      if(event) {
+        switch(event->getEventType2()) {
+          case NdbDictionary::Event::TE_UPDATE:
+            if(recattr1->isNULL() == 0) {
+              uint role_name_len = *(const unsigned char*) recattr1->aRef();
+              char *role_name = recattr1->aRef() + 1;
+              if(role_name_len == strlen(server_role) && ! strcmp(server_role, role_name)) {
+                /* Time to reconfigure! */
+                logger->log(LOG_WARNING, 0, "Received update to server role %s", role_name);
+                db.dropEventOperation(wait_op);
+                return 1;
+              } else DEBUG_PRINT("Got update event for %s, but that aint me.", role_name);
+            } else DEBUG_PRINT("Got update event for NULL role");
+            break;
+          case NdbDictionary::Event::TE_NODE_FAILURE:
+            logger->log(LOG_WARNING, 0, "Event thread got TE_NODE_FAILURE");
+            break;
+          case NdbDictionary::Event::TE_INCONSISTENT:
+            logger->log(LOG_WARNING, 0, "Event thread got TE_INCONSISTENT");
+            break;
+          case NdbDictionary::Event::TE_OUT_OF_MEMORY:
+            logger->log(LOG_WARNING, 0, "Event buffer overflow.  "
+                        "Event thread got TE_OUT_OF_MEMORY.");
+            break;
+          default:
+            /* No need to discuss other event types. */
+            break;
         }
-        else DEBUG_PRINT("isNULL(): %d", recattr1->isNULL());      
-      }
-      else DEBUG_PRINT("Spurious event");
-    }
-    else {
-      /* 0 = timeout.  just wait again. */
-    }
-  }
+      } else DEBUG_PRINT("Spurious wakeup: nextEvent2() returned > 0.");
+    } // pollEvents2() returned 0 = timeout.  just wait again.
+  } // End of while(1) loop
 }
+
 
 /***************** VERSION 1.2 ****************/
 void config_v1_2::minor_version_config() {

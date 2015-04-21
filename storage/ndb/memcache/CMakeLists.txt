@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -136,9 +136,12 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/workitem.c
     src/workqueue.c
     src/Scheduler.cc
+    src/GlobalConfigManager.cc
+    src/SchedulerConfigManager.cc
     src/schedulers/S_sched.cc
     src/schedulers/Stockholm.cc
     src/schedulers/Scheduler73.cc
+    src/schedulers/Trondheim.cc
     ${CACHE_SRC}/items.c
     ${CACHE_SRC}/assoc.c
     ${CACHE_SRC}/slabs.c

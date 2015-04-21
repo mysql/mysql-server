@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -63,6 +63,7 @@ public:
   // Constructors
   Operation(QueryPlan *p, int o = 1, char *kbuf = 0);
   Operation(workitem *, Uint32 saved_row_mask = 0);
+  Operation(QueryPlan *p, char * buffer);
 
   // Public Methods
   void save_row_mask(Uint32 * loc);

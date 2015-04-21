@@ -24,7 +24,6 @@
 #include <wcautil.h>
 #include <string.h>
 #include <strsafe.h>
-#include <direct.h>
 
 /*
  * Search the registry for a service whose ImagePath starts
@@ -271,4 +270,3 @@ extern "C" BOOL WINAPI DllMain(
 
 	return TRUE;
 }
-

@@ -1,5 +1,6 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -178,8 +179,15 @@ status_block status_block_no_mem =
 status_block status_block_temp_failure = 
   { ENGINE_TMPFAIL, "NDB Temporary Error"             };
 
-void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {  
-  /* Be careful here --  ndbmc_atomic32_t might be a signed type.
+status_block status_block_op_not_supported =
+  { ENGINE_ENOTSUP, "Operation not supported"         };
+
+status_block status_block_op_bad_key =
+  { ENGINE_EINVAL,  "Invalid Key"                     };
+
+
+void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {
+  /* Be careful here --  atomic_int32_t might be a signed type.
      Shitfting of signed types behaves differently. */
   bool did_inc;
   uint32_t cas_lo;
@@ -257,8 +265,30 @@ op_status_t worker_prepare_operation(workitem *newitem) {
       break;
       
     default:
-      r= op_not_supported;
+      r = op_not_supported;
   }
+
+  switch(r) {
+    case op_not_supported:
+      newitem->status = & status_block_op_not_supported;
+      break;
+
+    case op_failed:
+      newitem->status = & status_block_misc_error;
+      break;
+
+    case op_bad_key:
+      newitem->status = & status_block_op_bad_key;
+      break;
+
+    case op_overflow:
+      newitem->status = & status_block_too_big;
+      break;
+
+    case op_prepared:
+      break;
+  }
+
   return r;
 }
 
@@ -289,9 +319,10 @@ op_status_t WorkerStep1::do_delete() {
   
   op.key_buffer = wqitem->ndb_key_buffer;
   const char *dbkey = workitem_get_key_suffix(wqitem);
-  if(! op.setKey(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix))
+  if(! op.setKey(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix)) {
     return op_overflow;
-  
+  }
+
   tx = op.startTransaction(wqitem->ndb_instance->db);
   
   /* Here we could also support op.deleteTupleCAS(tx, & options)
@@ -310,7 +341,7 @@ op_status_t WorkerStep1::do_delete() {
   }
   
   /* Prepare for execution */   
-  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem);
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem, YIELD);
   return op_prepared;
 }
 
@@ -335,9 +366,11 @@ op_status_t WorkerStep1::do_write() {
   
   /* Set the key */
   op_ok = op.setKey(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix);
-  if(! op_ok) return op_overflow;
-  
-  /* Allocate and encode the buffer for the row */ 
+  if(! op_ok) {
+    return op_overflow;
+  }
+
+  /* Allocate and encode the buffer for the row */
   workitem_allocate_rowbuffer_1(wqitem, op.requiredBuffer());
   op.buffer = wqitem->row_buffer_1;
   
@@ -353,7 +386,9 @@ op_status_t WorkerStep1::do_write() {
     do {
       if(tsv.getLength()) {
         op_ok = op.setColumn(COL_STORE_VALUE+idx, tsv.getPointer(), tsv.getLength());
-        if(! op_ok) return op_overflow;
+        if(! op_ok) {
+          return op_overflow;
+        }
       }
       else {
         op.setColumnNull(COL_STORE_VALUE+idx);
@@ -365,7 +400,9 @@ op_status_t WorkerStep1::do_write() {
     /* Just one value column */    
     op_ok = op.setColumn(COL_STORE_VALUE, hash_item_get_data(wqitem->cache_item),
                          wqitem->cache_item->nbytes);
-    if(! op_ok) return op_overflow;
+    if(! op_ok) {
+      return op_overflow;
+    }
   }
   
   if(wqitem->base.cas_owner) {
@@ -455,7 +492,7 @@ op_status_t WorkerStep1::do_write() {
   }
   
   wqitem->next_step = (void *) worker_finalize_write;
-  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem);
+  Scheduler::execute(tx, NdbTransaction::Commit, callback_main, wqitem, YIELD);
   return op_prepared;  
 }
 
@@ -464,8 +501,10 @@ op_status_t WorkerStep1::do_read() {
   DEBUG_ENTER();
   
   Operation op(plan, OP_READ);
-  if(! setKeyForReading(op)) return op_overflow;
-  
+  if(! setKeyForReading(op)) {
+    return op_overflow;
+  }
+
   NdbOperation::LockMode lockmode;
   NdbTransaction::ExecType commitflag;
   if(plan->canUseCommittedRead()) {
@@ -486,7 +525,7 @@ op_status_t WorkerStep1::do_read() {
   /* Save the workitem in the transaction and prepare for async execution */ 
   wqitem->next_step = (void *) 
     (wqitem->base.use_ext_val ? worker_check_read : worker_finalize_read);
-  Scheduler::execute(tx, commitflag, callback_main, wqitem);
+  Scheduler::execute(tx, commitflag, callback_main, wqitem, YIELD);
   return op_prepared;  
 }
 
@@ -495,11 +534,13 @@ op_status_t WorkerStep1::do_append() {
   DEBUG_ENTER();
   
   /* APPEND/PREPEND is currently not supported for tsv */
-  if(wqitem->plan->spec->nvaluecols > 1)
+  if(wqitem->plan->spec->nvaluecols > 1) {
     return op_not_supported;
-  
+  }
   Operation op(plan, OP_READ);
-  if(! setKeyForReading(op)) return op_overflow;
+  if(! setKeyForReading(op)) {
+    return op_overflow;
+  }
   
   /* Read with an exculsive lock */
   if(! op.readTuple(tx, NdbOperation::LM_Exclusive)) {
@@ -508,9 +549,9 @@ op_status_t WorkerStep1::do_append() {
     return op_failed;
   }
   
-  /* Save the workitem in the transaction and prepare for async execution */ 
+  /* Prepare for async execution */
   wqitem->next_step = (void *) worker_append;
-  Scheduler::execute(tx, NdbTransaction::NoCommit, callback_main, wqitem);  
+  Scheduler::execute(tx, NdbTransaction::NoCommit, callback_main, wqitem, YIELD);
   return op_prepared;
 }
 
@@ -691,7 +732,7 @@ op_status_t WorkerStep1::do_math() {
     }
   }
   
-  Scheduler::execute(tx,NdbTransaction::Commit, callback_incr, wqitem);
+  Scheduler::execute(tx,NdbTransaction::Commit, callback_incr, wqitem, YIELD);
   return op_prepared;
 }
 
@@ -885,21 +926,12 @@ void worker_commit(NdbTransaction *tx, workitem *item) {
 
 void worker_close(NdbTransaction *tx, workitem *wqitem) {
   DEBUG_PRINT("%d.%d", wqitem->pipeline->id, wqitem->id);
-  Uint64 nwaits_pre, nwaits_post;
   ndb_pipeline * & pipeline = wqitem->pipeline;
-  Ndb * & ndb = wqitem->ndb_instance->db;
 
-  nwaits_pre  = ndb->getClientStat(Ndb::WaitExecCompleteCount);
-  tx->close();
-  nwaits_post = ndb->getClientStat(Ndb::WaitExecCompleteCount);
-
-  if(nwaits_post > nwaits_pre) 
-    log_app_error(& AppError29023_SyncClose);
- 
-  if(wqitem->ext_val) 
+  if(wqitem->ext_val)
     delete wqitem->ext_val;
 
-  pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
+  pipeline->scheduler->close(tx, wqitem);
 }
 
 
