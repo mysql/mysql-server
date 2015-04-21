@@ -24,6 +24,7 @@
 #include <wcautil.h>
 #include <string.h>
 #include <strsafe.h>
+#include <direct.h>
 
 /*
  * Search the registry for a service whose ImagePath starts
