@@ -308,6 +308,18 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
+# In Clang 3.6 the flag is named slightly different.
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedef" HAVE_NO_UNUSED_TYPEDEF)
+IF(HAVE_NO_UNUSED_TYPEDEF)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "-Wno-unused-local-typedef"
+  )
+ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
