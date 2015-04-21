@@ -1,3 +1,5 @@
+/* Modifications copyright (c) 2015, Oracle and/or its affiliates
+*/
 #include "config.h"
 #include <stdio.h>
 #include <assert.h>

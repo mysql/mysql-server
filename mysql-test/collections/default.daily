@@ -1,6 +1,6 @@
 # Run all default suites without specifying any replication mode. This will  run rpl tests in all 3 modes row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=normal-big  --vardir=var-normal-big  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=normal-big  --vardir=var-normal-big  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests-report
 
 
 # Run all default suites with embedded server

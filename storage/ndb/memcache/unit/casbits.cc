@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@
 #include "all_tests.h"
 
 Uint32 engine_cas_hi = 0x717530;
-ndbmc_atomic32_t engine_cas_lo = 0xb0000065;
+atomic_int32_t engine_cas_lo = 0xb0000065;
 
 void worker_set_cas(int verbose, Uint64 *cas);
 

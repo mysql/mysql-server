@@ -28,6 +28,8 @@ else {
   $r = $mc->get("t:1");
   if($r == "One\tTwo\t3") {
     print ("Read TSV result OK.\n");
+  } else {
+    $mc->fail("Expected One\tTwo\t3");
   }
 }
 
