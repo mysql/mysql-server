@@ -839,7 +839,8 @@ row_purge_parse_undo_rec(
 
 	clust_index = dict_table_get_first_index(node->table);
 
-	if (clust_index == NULL) {
+	if (clust_index == NULL
+	    || dict_index_is_corrupted(clust_index)) {
 		/* The table was corrupt in the data dictionary.
 		dict_set_corrupted() works on an index, and
 		we do not have an index to call it with. */
