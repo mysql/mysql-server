@@ -3791,8 +3791,10 @@ void Item_func_locate::print(String *str, enum_query_type query_type)
 
 longlong Item_func_validate_password_strength::val_int()
 {
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String value(buff, sizeof(buff), system_charset_info);
   String *field= args[0]->val_str(&value);
-  if ((null_value= args[0]->null_value))
+  if ((null_value= args[0]->null_value) || field->length() == 0)
     return 0;
   return (my_calculate_password_strength(field->ptr(), field->length()));
 }
