@@ -1,3 +1,4 @@
+RESET MASTER;
 call mtr.add_suppression("Failed to save the set of Global Transaction "
                          "Identifiers of the last binary log into the "
                          "mysql.gtid_executed table while the server was "
@@ -37,5 +38,3 @@ MASTER_UUID	1	2
 include/assert.inc [committed gtid set is MASTER_UUID:1-4]
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 DROP TABLE t1;
-# restart
-RESET MASTER;

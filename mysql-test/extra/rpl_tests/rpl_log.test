@@ -1,24 +1,3 @@
-# Requires statement logging
-
-# Clean up old slave's binlogs.
-# The slave is started with --log-slave-updates
-# and this test does SHOW BINLOG EVENTS on the slave's
-# binlog. But previous tests can influence the current test's
-# binlog (e.g. a temporary table in the previous test has not
-# been explicitly deleted, and at the beginning of the current
-# test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
-# We wait for the slave to have written all he wants to the binlog
-# (otherwise RESET MASTER may come too early).
---source include/sync_slave_sql_with_master.inc
-source include/stop_slave.inc;
---source include/wait_for_slave_to_stop.inc
-reset master;
-reset slave;
-start slave;
---source include/wait_for_slave_to_start.inc
-
-let $VERSION=`select version()`;
-
 connection master;
 eval create table t1(n int not null auto_increment primary key)ENGINE=$engine_type;
 insert into t1 values (NULL);

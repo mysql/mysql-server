@@ -528,23 +528,42 @@ void kill_zombie_dump_threads(String *slave_uuid)
   @param thd Pointer to THD object of the client thread executing the
   statement.
 
-  @retval 0 success
-  @retval 1 error
+  @retval false success
+  @retval true error
 */
-int reset_master(THD* thd)
+bool reset_master(THD* thd)
 {
-  if (!mysql_bin_log.is_open())
+  bool ret= false;
+  if (mysql_bin_log.is_open())
   {
-    my_message(ER_FLUSH_MASTER_BINLOG_CLOSED,
-               ER(ER_FLUSH_MASTER_BINLOG_CLOSED), MYF(0));
-    return 1;
+    /*
+      mysql_bin_log.reset_logs will delete the binary logs *and* clear
+      gtid_state.  It is important to do both these operations from
+      within reset_logs, since the operations can then use the same
+      lock.  I.e., if we would remove the call to gtid_state->clear
+      from reset_logs and call gtid_state->clear explicitly from this
+      function instead, it would be possible for a concurrent thread
+      to commit between the point where the binary log was removed and
+      the point where the gtid_executed table is cleared. This would
+      lead to an inconsistent state.
+    */
+    ret= mysql_bin_log.reset_logs(thd);
+  }
+  else
+  {
+    global_sid_lock->wrlock();
+    ret= (gtid_state->clear(thd) != 0);
+    global_sid_lock->unlock();
   }
 
-  if (mysql_bin_log.reset_logs(thd))
-    return 1;
-  (void) RUN_HOOK(binlog_transmit, after_reset_master, (thd, 0 /* flags */));
-  return 0;
-}
+  /*
+    Only run after_reset_master hook, when all reset operations preceding this
+    have succeeded.
+  */
+  if (!ret)
+    (void) RUN_HOOK(binlog_transmit, after_reset_master, (thd, 0 /* flags */));
+  return ret;
+ }
 
 
 /**
@@ -553,8 +572,8 @@ int reset_master(THD* thd)
   @param thd Pointer to THD object for the client thread executing the
   statement.
 
-  @retval FALSE success
-  @retval TRUE failure
+  @retval false success
+  @retval true failure
 */
 bool show_master_status(THD* thd)
 {
