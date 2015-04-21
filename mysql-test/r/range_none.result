@@ -2061,7 +2061,7 @@ c1
 3
 Warnings:
 Warning	1366	Incorrect decimal value: 'A' for column 'c1' at row 1
-Warning	1292	Truncated incorrect DOUBLE value: 'A'
+Warning	1292	Truncated incorrect DECIMAL value: 'A'
 DROP TABLE t1;
 create table t1 (a int,b int,key (b),key (a),key (b,a));
 insert into t1(a,b) values (1,2),(3,4),(5,6),(7,8);

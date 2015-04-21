@@ -72,17 +72,12 @@ public:
                                                      (*b)->result_type()));
   }
   int set_cmp_func(Item_result_field *owner_arg,
-			  Item **a1, Item **a2,
-			  Item_result type);
+                   Item **a1, Item **a2,
+                   Item_result type);
 
-  inline int set_cmp_func(Item_result_field *owner_arg,
-			  Item **a1, Item **a2, bool set_null_arg)
-  {
-    set_null= set_null_arg;
-    return set_cmp_func(owner_arg, a1, a2,
-                        item_cmp_type((*a1)->result_type(),
-                                      (*a2)->result_type()));
-  }
+  int set_cmp_func(Item_result_field *owner_arg,
+                   Item **a1, Item **a2, bool set_null_arg);
+
   inline int compare() { return (this->*func)(); }
 
   int compare_string();		 // compare args[0] & args[1]
