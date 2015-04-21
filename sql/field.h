@@ -2581,7 +2581,7 @@ public:
                  enum utype unireg_check_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field(ptr_arg,
-           len_arg + ((dec= normalize_dec(dec_arg)) ? dec + 1 : 0),
+           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            null_ptr_arg, null_bit_arg,
            unireg_check_arg, field_name_arg)
     { flags|= BINARY_FLAG; }
@@ -2595,7 +2595,7 @@ public:
   Field_temporal(bool maybe_null_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field((uchar *) 0, 
-           len_arg + ((dec= normalize_dec(dec_arg)) ? dec + 1 : 0),
+           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            maybe_null_arg ? (uchar *) "" : 0, 0,
            NONE, field_name_arg)
     { flags|= BINARY_FLAG; }
