@@ -7301,6 +7301,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     original geometry type afterwards.
   */
   Field::geometry_type save_geom_type;
+  save_geom_type= Field::GEOM_GEOMETRY;
   if (key_part->image_type == Field::itMBR &&
       field->type() == MYSQL_TYPE_GEOMETRY)
   {
