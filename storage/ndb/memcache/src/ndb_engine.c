@@ -1,5 +1,6 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -236,12 +237,9 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
      will all get stitched together.
   */  
   ndb_eng->pipelines  = malloc(nthreads * sizeof(void *));
-  ndb_eng->schedulers = malloc(nthreads * sizeof(void *));
   for(i = 0 ; i < nthreads ; i++) {
     ndb_eng->pipelines[i] = get_request_pipeline(i, ndb_eng);
-    ndb_eng->schedulers[i] = scheduler_initialize(ndb_eng->pipelines[i], 
-                                                  & sched_opts);
-    if(ndb_eng->schedulers[i] == 0) {
+    if(! scheduler_initialize(ndb_eng->pipelines[i], & sched_opts)) {
       logger->log(LOG_WARNING, NULL, "Illegal scheduler: \"%s\"\n", 
                   ndb_eng->startup_options.scheduler); 
       abort();
@@ -262,7 +260,7 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
 
   /* Listen for reconfiguration signals */
   if(ndb_eng->startup_options.reconf_enable) {
-    start_reconfig_listener(ndb_eng->schedulers[0]);
+    start_reconfig_listener(ndb_eng->pipelines[0]);
   }
   
   return return_status;
@@ -279,10 +277,12 @@ static void ndb_destroy(ENGINE_HANDLE* handle, bool force)
   ndb_eng = ndb_handle(handle);
   def_eng = default_handle(ndb_eng);
 
-  for(unsigned int i = 0 ; i < ndb_eng->npipelines; i ++) {
+  // TODO: Shutdown just the Scheduler Global
+  for(atomic_int32_t i = 0 ; i < ndb_eng->npipelines; i ++) {
     ndb_pipeline *p = ndb_eng->pipelines[i];
     if(p) {
       scheduler_shutdown(p);
+      ndb_pipeline_free(p);
     }
   }
 
@@ -448,7 +448,7 @@ static ENGINE_ERROR_CODE ndb_get(ENGINE_HANDLE* handle,
   /* Is this a callback after completed I/O? */
   if(wqitem && ! wqitem->base.complete) {  
     DEBUG_PRINT("Got read callback on workitem %d.%d: %s", 
-                pipeline->id, wqitem->id, wqitem->status->comment);
+                wqitem->pipeline->id, wqitem->id, wqitem->status->comment);
     *item = wqitem->cache_item;
     wqitem->base.complete = 1;
     return_status = wqitem->status->status;
@@ -509,13 +509,7 @@ static ENGINE_ERROR_CODE ndb_get_stats(ENGINE_HANDLE* handle,
     if(strncasecmp(stat_key, "menu", 4) == 0)
       return stats_menu(add_stat, cookie);
     
-    if(strncasecmp(stat_key, "log", 3) == 0) {
-      ndbmc_debug_flush();
-      add_stat("log", 3, "flushed", 7, cookie);
-      return ENGINE_SUCCESS;
-    }
-  
-    if((strncasecmp(stat_key, "ndb", 3) == 0)       || 
+   if((strncasecmp(stat_key, "ndb", 3) == 0)       || 
        (strncasecmp(stat_key, "scheduler", 9) == 0) ||
        (strncasecmp(stat_key, "reconf", 6) == 0)    ||
        (strncasecmp(stat_key, "errors", 6) == 0))
@@ -561,7 +555,8 @@ static ENGINE_ERROR_CODE ndb_store(ENGINE_HANDLE* handle,
   /* Is this a callback after completed I/O? */  
   workitem *wqitem = ndb_eng->server.cookie->get_engine_specific(cookie);  
   if(wqitem) {
-    DEBUG_PRINT("Got callback: %s", wqitem->status->comment);
+    DEBUG_PRINT("Got callback on workitem %d.%d: %s", 
+                pipeline->id, wqitem->id, wqitem->status->comment);
     return wqitem->status->status;
   }
 
@@ -682,6 +677,7 @@ static ENGINE_ERROR_CODE ndb_flush(ENGINE_HANDLE* handle,
   pipeline = get_my_pipeline_config(ndb_eng);
 
   (void) def_eng->engine.flush(ndb_eng->m_default_engine, cookie, when);
+  // TODO: Why not return ENGINE_EWOULDBLOCK first?
   return pipeline_flush_all(pipeline);
 }
 

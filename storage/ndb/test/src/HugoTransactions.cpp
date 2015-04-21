@@ -2010,7 +2010,13 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
 
   const NdbDictionary::Index* pIndex
     = pNdb->getDictionary()->getIndex(idxName, tab.getName());
-  
+ 
+  if (pIndex == NULL)
+  {
+    g_info << "Index " << idxName << " not existing" << endl;
+    return NDBT_FAILED;
+  }
+
   const bool ordered = (pIndex->getType()==NdbDictionary::Index::OrderedIndex);
 
   if (batch == 0) {

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -30,9 +30,10 @@
    ------------------------------------------ */
  
 NdbInstance::NdbInstance(Ndb_cluster_connection *c, int ntransactions) :
-  next(0), wqitem(0)
+  next(0), wqitem(0), ndb_owner(false)
 {
   if(c) {
+    ndb_owner = true;
     db = new Ndb(c);
     db->init(ntransactions);
     db->setCustomData(this);
@@ -44,7 +45,14 @@ NdbInstance::NdbInstance(Ndb_cluster_connection *c, int ntransactions) :
 }
 
 
+NdbInstance::NdbInstance(Ndb *_db, workitem *_item) :
+  db(_db), wqitem(_item), ndb_owner(false)
+{
+  wqitem->ndb_instance = this;
+}
+
+
 NdbInstance::~NdbInstance() {
-  if(db) delete db;
+  if(ndb_owner) delete db;
 }
 

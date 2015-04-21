@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2015 Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -32,8 +32,7 @@
 #include "ndbmemcache_config.h"
 #include "workitem.h"
 #include "Scheduler.h"
-#include "KeyPrefix.h"
-#include "ConnQueryPlanSet.h"
+#include "GlobalConfigManager.h"
 
 /* 
  *  7.3 Scheduler 
@@ -61,23 +60,19 @@ public:
 };
 
 
-class Scheduler73::Global {
+class Scheduler73::Global : public GlobalConfigManager {
+  friend class Cluster;
+
 public:
-  Global(Configuration *);
+  Global(int);
   ~Global() {};
   void init(const scheduler_options *options);
   void add_stats(const char *, ADD_STAT, const void *);
-  void reconfigure(Configuration *);
   void shutdown();
   WorkerConnection ** getWorkerConnectionPtr(int thd, int cluster) const {
-    return & workerConnections[(thd * nclusters) + cluster];
+    return (WorkerConnection **) getSchedulerConfigManagerPtr(thd, cluster);
   }
 
-  Configuration *conf;
-  int generation;
-  int nthreads;
-  int nclusters;
-  struct ndb_engine *engine;  
   Cluster ** clusters;
   
   struct options {
@@ -86,7 +81,6 @@ public:
   } options;
 
 private:
-  WorkerConnection ** workerConnections;
   bool running;
 
 private:
@@ -124,13 +118,12 @@ protected:
 
 /* For each {connection, worker} tuple there is a WorkerConnection 
 */
-class Scheduler73::WorkerConnection {
+class Scheduler73::WorkerConnection : public SchedulerConfigManager {
 public:
-  WorkerConnection(Global *, Cluster *, int);
+  WorkerConnection(Global *, Cluster *, int thd_id, int nthreads);
   ~WorkerConnection();
   void shutdown();
-  void reconfigure(Configuration *);
-  ENGINE_ERROR_CODE schedule(const KeyPrefix *, workitem *);
+  ENGINE_ERROR_CODE schedule(workitem *);
   void release(NdbInstance *);
   
 private:
@@ -143,7 +136,6 @@ private:
   } instances;
   Scheduler73::Cluster *cluster;
   int worker_id;
-  ConnQueryPlanSet *plan_set, *old_plan_set;
   NdbInstance *freelist;
 };
 
@@ -151,12 +143,13 @@ private:
 class Scheduler73::Worker : public Scheduler {
 public:
   Worker() {};
-  ~Worker() {};
+  ~Worker();
   void init(int threadnum, const scheduler_options *options);
-  void attach_thread(thread_identifier *);
+  void attach_thread(thread_identifier *) {};
   ENGINE_ERROR_CODE schedule(workitem *);
   void prepare(NdbTransaction *, NdbTransaction::ExecType, NdbAsynchCallback, 
                workitem *, prepare_flags);
+  void close(NdbTransaction *, workitem *);
   void release(workitem *);
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
@@ -164,7 +157,6 @@ public:
 
 private:
   int id;
-  ndb_pipeline * pipeline;
   Scheduler73::Global * global;
 };
 
