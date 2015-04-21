@@ -899,14 +899,13 @@ public:
     Flags_t(const Flags_t &o)
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      *(reinterpret_cast<uint64 *>(this))=
-        *(reinterpret_cast<const uint64 *>(&o));
+      memcpy(this, &o, sizeof(o));
     }
 
     Flags_t()
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      *(reinterpret_cast<uint64 *>(this))= 0UL;
+      memset(this, 0, sizeof(*this));
       bo= wkb_ndr;
       dim= GEOM_DIM - 1;
       nomem= 1;
@@ -915,7 +914,7 @@ public:
     Flags_t(wkbType type, size_t len)
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      *(reinterpret_cast<uint64 *>(this))= 0UL;
+      memset(this, 0, sizeof(*this));
       geotype= type;
       nbytes= len;
       bo= wkb_ndr;
@@ -926,8 +925,7 @@ public:
     Flags_t &operator=(const Flags_t &rhs)
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      *(reinterpret_cast<uint64 *>(this))=
-        *(reinterpret_cast<const uint64 *>(&rhs));
+      memcpy(this, &rhs, sizeof(rhs));
       return *this;
     }
 
