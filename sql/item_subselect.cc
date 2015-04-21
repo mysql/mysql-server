@@ -2737,6 +2737,18 @@ bool Item_subselect::subq_opt_away_processor(uchar *arg)
  */
 bool Item_subselect::clean_up_after_removal(uchar *arg)
 {
+  /*
+    Some commands still execute subqueries during resolving.
+    Make sure they are cleaned up properly.
+    @todo: Remove this code when SET is also refactored.
+  */
+  if (unit->is_executed())
+  {
+    DBUG_ASSERT(unit->first_select()->parent_lex->sql_command ==
+                SQLCOM_SET_OPTION);
+    unit->cleanup(true);
+  } 
+
   st_select_lex *root=
     static_cast<st_select_lex*>(static_cast<void*>(arg));
   st_select_lex *sl= unit->outer_select();
