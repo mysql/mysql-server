@@ -1610,9 +1610,20 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
       sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
     }
   }
-  /* Fix the created equality and AND */
-  if (!sj_nest->sj_on_expr->fixed)
-    sj_nest->sj_on_expr->fix_fields(parent_join->thd, &sj_nest->sj_on_expr);
+  /*
+    Fix the created equality and AND
+
+    Note that fix_fields() can actually fail in a meaningful way here. One
+    example is when the IN-equality is not valid, because it compares columns
+    with incompatible collations. (One can argue it would be more appropriate
+    to check for this at name resolution stage, but as a legacy of IN->EXISTS
+    we have in here).
+  */
+  if (!sj_nest->sj_on_expr->fixed &&
+      sj_nest->sj_on_expr->fix_fields(parent_join->thd, &sj_nest->sj_on_expr))
+  {
+    DBUG_RETURN(TRUE);
+  }
 
   /*
     Walk through sj nest's WHERE and ON expressions and call
@@ -1631,12 +1642,15 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   /* Inject sj_on_expr into the parent's WHERE or ON */
   if (emb_tbl_nest)
   {
-    emb_tbl_nest->on_expr= and_items(emb_tbl_nest->on_expr, 
+    emb_tbl_nest->on_expr= and_items(emb_tbl_nest->on_expr,
                                      sj_nest->sj_on_expr);
     emb_tbl_nest->on_expr->top_level_item();
-    if (!emb_tbl_nest->on_expr->fixed)
-      emb_tbl_nest->on_expr->fix_fields(parent_join->thd,
-                                        &emb_tbl_nest->on_expr);
+    if (!emb_tbl_nest->on_expr->fixed &&
+         emb_tbl_nest->on_expr->fix_fields(parent_join->thd,
+                                           &emb_tbl_nest->on_expr))
+    {
+      DBUG_RETURN(TRUE);
+    }
   }
   else
   {
@@ -1649,8 +1663,12 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
     */
     save_lex= thd->lex->current_select;
     thd->lex->current_select=parent_join->select_lex;
-    if (!parent_join->conds->fixed)
-      parent_join->conds->fix_fields(parent_join->thd, &parent_join->conds);
+    if (!parent_join->conds->fixed &&
+         parent_join->conds->fix_fields(parent_join->thd,
+                                        &parent_join->conds))
+    {
+      DBUG_RETURN(1);
+    }
     thd->lex->current_select=save_lex;
     parent_join->select_lex->where= parent_join->conds;
   }

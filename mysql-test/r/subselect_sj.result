@@ -2986,4 +2986,13 @@ pk1	i1	i2	c2	pk3	i3	c3
 SET join_cache_level=@tmp_mdev5059;
 set optimizer_switch=@tmp_os_mdev5059;
 DROP TABLE t1,t2,t3,t4;
+#
+# MDEV-7911: crash in Item_cond::eval_not_null_tables
+#
+create table t1(a int);
+insert into t1 values(1),(2),(3),(null);
+explain
+select 1 from t1 where _cp932 "1" in (select '1' from t1);
+ERROR HY000: Illegal mix of collations (cp932_japanese_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation '='
+drop table t1;
 set optimizer_switch=@subselect_sj_tmp;
