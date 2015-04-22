@@ -951,13 +951,18 @@ log_block_checksum_weak_validation(
 		break;
 	case SRV_CHECKSUM_ALGORITHM_INNODB:
 		if (block_checksum == log_block_calc_checksum_none(block)
-		    || block_checksum == log_block_calc_checksum_crc32(block)) {
+		    || block_checksum == log_block_calc_checksum_crc32(block)
+		    || block_checksum
+		    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
 			return(true);
 		}
 		break;
 	case SRV_CHECKSUM_ALGORITHM_NONE:
 		if (block_checksum == log_block_calc_checksum_crc32(block)
-		    || block_checksum == log_block_calc_checksum_innodb(block)) {
+		    || block_checksum
+		    == log_block_calc_checksum_crc32_legacy_big_endian(block)
+		    || block_checksum
+		    == log_block_calc_checksum_innodb(block)) {
 			return(true);
 		}
 		break;
@@ -992,12 +997,16 @@ log_block_checksum_what_matches(
 		if (block_checksum == log_block_calc_checksum_none(block)) {
 			return("none");
 		}
-		if (block_checksum == log_block_calc_checksum_crc32(block)) {
+		if (block_checksum == log_block_calc_checksum_crc32(block)
+		    || block_checksum
+		    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
 			return("crc32");
 		}
 		break;
 	case SRV_CHECKSUM_ALGORITHM_NONE:
-		if (block_checksum == log_block_calc_checksum_crc32(block)) {
+		if (block_checksum == log_block_calc_checksum_crc32(block)
+		    || block_checksum
+		    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
 			return("crc32");
 		}
 		if (block_checksum == log_block_calc_checksum_innodb(block)) {
@@ -1050,7 +1059,11 @@ log_block_checksum_is_ok_or_old_format(
 /*===================================*/
 	const byte*	block)	/*!< in: pointer to a log block */
 {
-	if (srv_log_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE) {
+	const srv_checksum_algorithm_t	curr_algo
+		= static_cast<const srv_checksum_algorithm_t>(
+			srv_log_checksum_algorithm);
+
+	if (curr_algo == SRV_CHECKSUM_ALGORITHM_NONE) {
 		return(TRUE);
 	}
 
@@ -1061,7 +1074,16 @@ log_block_checksum_is_ok_or_old_format(
 		return(TRUE);
 	}
 
-	if (is_checksum_strict(srv_log_checksum_algorithm)) {
+	if ((curr_algo == SRV_CHECKSUM_ALGORITHM_CRC32
+	     || curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32)
+	    /* Normal crc32 has already been checked above by
+	    log_block_calc_checksum(). */
+	    && block_checksum
+	    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
+		return(TRUE);
+	}
+
+	if (is_checksum_strict(curr_algo)) {
 
 		log_block_checksum_fail_fatal(block, block_checksum,
 					      calc_checksum);

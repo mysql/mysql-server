@@ -807,7 +807,7 @@ buf_flush_update_zip_checksum(
 {
 	ut_a(size > 0);
 
-	ib_uint32_t	checksum = page_zip_calc_checksum(
+	const uint32_t	checksum = page_zip_calc_checksum(
 		page, size,
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 

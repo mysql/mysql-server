@@ -457,8 +457,9 @@ update_checksum(
 
 	if (iscompressed) {
 		/* page is compressed */
-		checksum = page_zip_calc_checksum(page, physical_page_size,
-						  static_cast<srv_checksum_algorithm_t>(write_check));
+		checksum = page_zip_calc_checksum(
+			page, physical_page_size,
+			static_cast<srv_checksum_algorithm_t>(write_check));
 
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 		if (is_log_enabled) {
