@@ -780,7 +780,7 @@ bool Geometry::is_well_formed(const char *from, size_t length,
 {
   bool is_well_formed= true;
   Geometry_well_formed_checker checker(type, bo);
-  uint32 len= length;
+  uint32 len= length - SRID_SIZE;
 
   if (length < GEOM_HEADER_SIZE)
     return false;
@@ -890,6 +890,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
 
     q= wkb + WKB_HEADER_SIZE;
     *len-= WKB_HEADER_SIZE;
+    if (*len <= 0)
+      return NULL;
     handler->on_wkb_start(get_byte_order(wkb), gt, q, *len, true);
     if (!handler->continue_scan())
       return NULL;
