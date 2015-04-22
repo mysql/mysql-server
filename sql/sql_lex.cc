@@ -4102,27 +4102,48 @@ bool st_select_lex::save_leaf_tables(THD *thd)
 }
 
 
-bool st_select_lex::save_prep_leaf_tables(THD *thd)
+bool LEX::save_prep_leaf_tables()
 {
   if (!thd->save_prep_leaf_list)
-    return 0;
+    return FALSE;
 
   Query_arena *arena= thd->stmt_arena, backup;
   arena= thd->activate_stmt_arena_if_needed(&backup);
+  //It is used for DETETE/UPDATE so top level has only one SELECT
+  DBUG_ASSERT(select_lex.next_select() == NULL);
+  bool res= select_lex.save_prep_leaf_tables(thd);
 
+  if (arena)
+    thd->restore_active_arena(arena, &backup);
+
+  if (res)
+    return TRUE;
+
+  thd->save_prep_leaf_list= FALSE;
+  return FALSE;
+}
+
+
+bool st_select_lex::save_prep_leaf_tables(THD *thd)
+{
   List_iterator_fast<TABLE_LIST> li(leaf_tables);
   TABLE_LIST *table;
   while ((table= li++))
   {
     if (leaf_tables_prep.push_back(table))
-      return 1;
+      return TRUE;
   }
-  thd->lex->select_lex.is_prep_leaf_list_saved= TRUE; 
-  thd->save_prep_leaf_list= FALSE;
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
+  is_prep_leaf_list_saved= TRUE;
+  for (SELECT_LEX_UNIT *u= first_inner_unit(); u; u= u->next_unit())
+  {
+    for (SELECT_LEX *sl= u->first_select(); sl; sl= sl->next_select())
+    {
+      if (sl->save_prep_leaf_tables(thd))
+        return TRUE;
+    }
+  }
 
-  return 0;
+  return FALSE;
 }
 
 

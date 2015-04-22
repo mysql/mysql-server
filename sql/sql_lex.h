@@ -2766,6 +2766,8 @@ struct LEX: public Query_tables_list
     }
     return FALSE;
   }
+
+  bool save_prep_leaf_tables();
 };
 
 

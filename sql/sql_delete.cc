@@ -610,7 +610,7 @@ int mysql_multi_delete_prepare(THD *thd)
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
   
-  if (lex->select_lex.save_prep_leaf_tables(thd))
+  if (lex->save_prep_leaf_tables())
     DBUG_RETURN(TRUE);
   
   DBUG_RETURN(FALSE);

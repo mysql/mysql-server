@@ -1047,6 +1047,12 @@ VIEW `v3` AS select `t1c`.`fe2` AS `fe2`,`t1c`.`f34` AS `f34`,`t1c`.`f33` AS `f3
 
 UPDATE t1 t1  left join v3 t2 on t1.f4 = t2.fe2    SET t1.f20 = t2.ft6_1,    t1.f32 = t2.f32,    t1.f33 = t2.f33,    t1.f37 = t2.f37    WHERE f5 >= '2015-02-01';
 
+--echo #MDEV-8018: main.multi_update fails with --ps-protocol
+prepare stmt1 from "UPDATE t1 t1  left join v3 t2 on t1.f4 = t2.fe2    SET t1.f20 = t2.ft6_1,    t1.f32 = t2.f32,    t1.f33 = t2.f33,    t1.f37 = t2.f37    WHERE f5 >= '2015-02-01'";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
+
 drop view v3,v2,v1;
 drop table t1,t2,t3;
 --echo end of 5.5 tests

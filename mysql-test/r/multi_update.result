@@ -1010,6 +1010,11 @@ CREATE ALGORITHM=UNDEFINED
 DEFINER=`root`@`localhost` SQL SECURITY DEFINER
 VIEW `v3` AS select `t1c`.`fe2` AS `fe2`,`t1c`.`f34` AS `f34`,`t1c`.`f33` AS `f33`,`t1c`.`f32` AS `f32`,`t1c`.`f37` AS `f37`,`t1c`.`fe10` AS `fe10`,if((`tov`.`ft6` in ('klarmobil','callmobile')),`tov`.`ft9`,`tov`.`ft6`) AS `ft6_1`,`tov`.`ft6_2` AS `ft6_2`,`ua`.`fe18` AS `fe18`,`ua`.`ft3` AS `ft3` from ((`t3` `t1c` left join `v2` `ua` on((`t1c`.`fe2` = `ua`.`fe2`))) left join `v1` `tov` on((`t1c`.`fe8` = `tov`.`ft4`))) where (`t1c`.`ft3` = `ua`.`ft3`) group by `t1c`.`fe2`,`t1c`.`f34`,`t1c`.`f33`,`t1c`.`f32` order by `t1c`.`f34`;
 UPDATE t1 t1  left join v3 t2 on t1.f4 = t2.fe2    SET t1.f20 = t2.ft6_1,    t1.f32 = t2.f32,    t1.f33 = t2.f33,    t1.f37 = t2.f37    WHERE f5 >= '2015-02-01';
+#MDEV-8018: main.multi_update fails with --ps-protocol
+prepare stmt1 from "UPDATE t1 t1  left join v3 t2 on t1.f4 = t2.fe2    SET t1.f20 = t2.ft6_1,    t1.f32 = t2.f32,    t1.f33 = t2.f33,    t1.f37 = t2.f37    WHERE f5 >= '2015-02-01'";
+execute stmt1;
+execute stmt1;
+deallocate prepare stmt1;
 drop view v3,v2,v1;
 drop table t1,t2,t3;
 end of 5.5 tests
