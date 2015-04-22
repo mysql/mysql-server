@@ -22,6 +22,7 @@
 #include "my_dir.h"	/* Structs used by my_dir,includes sys/types */
 #include "mysys_err.h"
 #include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 #if defined(HAVE_DIRENT_H)
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)

@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "vio_priv.h"
+#include "mysql/service_mysql_alloc.h"
 
 #ifdef HAVE_OPENSSL
 

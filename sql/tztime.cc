@@ -25,6 +25,7 @@
 #include "my_time.h"           // MY_TIME_T_MIN
 #include "tzfile.h"            // TZ_MAX_REV_RANGES
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"
 
 #if !defined(TZINFO2SQL)
 #include "hash.h"              // HASH

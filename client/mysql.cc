@@ -39,6 +39,7 @@
 #include <signal.h>
 #include <violite.h>
 #include "prealloced_array.h"
+#include "mysql/service_my_snprintf.h"
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>

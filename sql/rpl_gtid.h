@@ -26,6 +26,7 @@
 #include "control_events.h"     // binary_log::Uuid
 #include <list>
 #include "atomic_class.h"
+#include "typelib.h"
 
 struct TABLE_LIST;
 

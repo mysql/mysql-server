@@ -18,8 +18,8 @@
 
 #include "my_global.h"
 #include "my_atomic.h"
-#include "my_sys.h"
 #include "hash.h"
+#include "mysql/service_mysql_alloc.h"
 
 C_MODE_START
 

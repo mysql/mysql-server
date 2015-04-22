@@ -18,6 +18,7 @@
 
 #include "base64.h"            // base64_encode
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
+#include "mysql/service_my_snprintf.h" // my_snprintf
 
 #ifndef MYSQL_CLIENT
 #include "current_thd.h"

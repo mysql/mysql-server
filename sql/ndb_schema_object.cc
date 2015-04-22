@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "ndb_schema_object.h"
 
 #include "hash.h"
+#include "mysql/service_mysql_alloc.h"
 
 
 extern native_mutex_t ndbcluster_mutex;

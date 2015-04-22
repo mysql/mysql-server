@@ -32,6 +32,7 @@
 #include <assert.h>
 #include <my_dir.h>
 #include <mysql_version.h>
+#include "mysql/service_mysql_alloc.h"
 
 #define MAX_ROWS  2000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */

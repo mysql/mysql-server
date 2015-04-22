@@ -43,6 +43,7 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
+#include "mysql/service_mysql_alloc.h"
 
 #include <algorithm>
 

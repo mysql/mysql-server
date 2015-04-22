@@ -43,6 +43,8 @@
 #include "sql_table.h"          // write_bin_log
 #include "table.h"              // TABLE_LIST
 
+#include "mysql/psi/mysql_memory.h"
+
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif

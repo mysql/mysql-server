@@ -24,6 +24,7 @@
 #include <m_ctype.h>
 #include <mysql/get_password.h>
 #include "my_byteorder.h"
+#include "mysql/service_mysql_alloc.h"
 
 #ifdef HAVE_GETPASS
 #ifdef HAVE_PWD_H

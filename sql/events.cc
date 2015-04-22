@@ -38,6 +38,7 @@
 #include "tztime.h"                // Time_zone
 
 #include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/mysql_memory.h"
 
 
 /**

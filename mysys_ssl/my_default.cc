@@ -44,6 +44,8 @@
 #include <my_dir.h>
 #include <my_aes.h>
 #include "mysql/psi/mysql_file.h"
+#include "mysql/service_my_snprintf.h"
+#include "typelib.h"
 #ifdef _WIN32
 #include <winbase.h>
 #endif

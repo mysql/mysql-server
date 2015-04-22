@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "client_priv.h"
 #include "my_default.h"
 #include "my_default_priv.h"
+#include "mysql/service_mysql_alloc.h"
 
 #define MYSQL_CONFIG_EDITOR_VERSION "1.0"
 #define MY_LINE_MAX 4096

@@ -60,6 +60,7 @@
 #include <m_string.h>
 #include <my_tree.h>
 #include "my_base.h"
+#include "mysql/service_mysql_alloc.h"
 
 #define BLACK		1
 #define RED		0

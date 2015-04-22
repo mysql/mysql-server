@@ -40,6 +40,7 @@
 #include <my_dir.h>
 
 #include "prealloced_array.h"
+#include "mysql/service_my_snprintf.h"
 
 /*
   error() is used in macro BINLOG_ERROR which is invoked in

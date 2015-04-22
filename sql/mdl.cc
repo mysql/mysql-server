@@ -28,6 +28,7 @@
 #include <my_murmur3.h>
 #include <algorithm>
 #include <functional>
+#include "mysql/psi/mysql_memory.h"
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 

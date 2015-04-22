@@ -18,6 +18,7 @@
 
 #include "sql_list.h"
 #include <keycache.h>
+#include "mysql/service_mysql_alloc.h"
 
 extern "C"
 {

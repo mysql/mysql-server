@@ -18,6 +18,8 @@
 #include <my_time.h>
 #include <mysys_err.h>
 #include <m_string.h>
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 #include <m_ctype.h>
 #include "mysql.h"
 #include "mysql_version.h"

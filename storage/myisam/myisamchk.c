@@ -22,6 +22,7 @@
 #include <stdarg.h>
 #include <my_getopt.h>
 #include <my_bit.h>
+#include "typelib.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

@@ -86,6 +86,7 @@
 #include <ctype.h>
 #include "thr_mutex.h"
 #include "my_thread_local.h"
+#include "mysql/service_my_snprintf.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>

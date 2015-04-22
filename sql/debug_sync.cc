@@ -334,6 +334,7 @@
 #include "current_thd.h"
 #include "sql_class.h"
 #include "derror.h"
+#include "mysql/psi/mysql_memory.h"
 
 #include <set>
 #include <string>

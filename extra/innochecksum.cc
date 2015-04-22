@@ -38,6 +38,7 @@
 #include <my_getopt.h>
 #include <m_string.h>
 #include <welcome_copyright_notice.h>	/* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "typelib.h"
 
 /* Only parts of these files are included from the InnoDB codebase.
 The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */

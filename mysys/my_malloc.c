@@ -18,6 +18,7 @@
 #include "mysys_err.h"
 #include <m_string.h>
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_memory.h"
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 #define USE_MALLOC_WRAPPER

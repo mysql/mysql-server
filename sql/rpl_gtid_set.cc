@@ -17,8 +17,9 @@
 
 #include "rpl_gtid.h"
 
-#include "my_stacktrace.h"       // my_safe_printf_stderr
-#include "mysqld_error.h"        // ER_*
+#include "my_stacktrace.h"             // my_safe_printf_stderr
+#include "mysql/service_my_snprintf.h" // my_snprintf
+#include "mysqld_error.h"              // ER_*
 #include "sql_const.h"
 
 #ifndef MYSQL_CLIENT

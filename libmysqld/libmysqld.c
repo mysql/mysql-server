@@ -28,6 +28,7 @@
 #include <time.h>
 #include <sql_common.h>
 #include "embedded_priv.h"
+#include "mysql/service_mysql_alloc.h"
 #include "client_settings.h"
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>

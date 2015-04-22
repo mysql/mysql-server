@@ -31,6 +31,7 @@
 
 #include <mysql/plugin.h>
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"
 
 /*
   First, if you want to understand storage engines you should look at 

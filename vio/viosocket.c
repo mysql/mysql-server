@@ -24,6 +24,7 @@
 */
 
 #include "vio_priv.h"
+#include "mysql/service_my_snprintf.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>

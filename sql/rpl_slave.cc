@@ -57,6 +57,7 @@
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"
 
 #include <signal.h>
 #include <algorithm>

@@ -53,6 +53,8 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 

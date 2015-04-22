@@ -114,6 +114,7 @@
 #include <stdarg.h>
 #include "probes_mysql.h"
 #include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 
 /*
   Some compilation flags have been added specifically for this module
