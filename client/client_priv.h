@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -128,6 +128,15 @@ enum options_client
 */
 #define PERFORMANCE_SCHEMA_DB_NAME "performance_schema"
 
+/**
+  First mysql version supporting the sys schema.
+*/
+#define FIRST_SYS_SCHEMA_VERSION 50707
+
+/**
+  Name of the sys schema database.
+*/
+#define SYS_SCHEMA_DB_NAME "sys"
 
 /**
   Client deprecation warnings
