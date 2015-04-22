@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -221,6 +221,8 @@ MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/sql/share")
+ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 
 # Add tests (link them with gunit/gmock libraries) 
 SET(TESTS
