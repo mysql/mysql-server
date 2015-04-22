@@ -400,9 +400,7 @@ extern PSI_mutex_key key_mts_temp_table_LOCK;
 extern PSI_mutex_key key_LOCK_reset_gtid_table;
 extern PSI_mutex_key key_LOCK_compress_gtid_table;
 extern PSI_mutex_key key_mts_gaq_LOCK;
-#ifdef HAVE_MY_TIMER
 extern PSI_mutex_key key_thd_timer_mutex;
-#endif
 extern PSI_mutex_key key_LOCK_offline_mode;
 extern PSI_mutex_key key_LOCK_default_password_lifetime;
 
@@ -443,10 +441,7 @@ extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
-
-#ifdef HAVE_MY_TIMER
 extern PSI_thread_key key_thread_timer_notifier;
-#endif
 
 extern PSI_file_key key_file_map;
 extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,

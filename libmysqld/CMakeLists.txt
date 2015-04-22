@@ -140,10 +140,6 @@ IF(HAVE_NO_UNUSED_TYPEDEF)
   )
 ENDIF()
 
-IF(HAVE_MY_TIMER)
-  SET(SQL_EMBEDDED_SOURCES ${SQL_EMBEDDED_SOURCES} ../sql/sql_timer.cc)
-ENDIF()
-
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 

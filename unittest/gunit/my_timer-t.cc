@@ -12,14 +12,14 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-#ifdef HAVE_MY_TIMER
-#include "my_config.h"
-#include <my_thread.h>
+
+#include "my_global.h"
+#include "my_thread.h"
 #include <gtest/gtest.h>
 #include <string.h>
 #include "my_timer.h"
 #include "thread_utils.h"
-#include <my_sys.h>
+#include "my_sys.h"
 #include "thr_template.cc"
 
 #ifdef HAVE_PSI_INTERFACE
@@ -328,4 +328,3 @@ TEST(Mysys, TestReinitialization)
   my_timer_deinitialize();
 }
 }
-#endif // HAVE_MY_TIMER

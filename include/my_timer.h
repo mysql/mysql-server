@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,7 @@
 #ifndef MY_TIMER_H
 #define MY_TIMER_H
 
-#ifdef HAVE_MY_TIMER
-
 #include "my_global.h"    /* C_MODE_START, C_MODE_END */
-#include "my_config.h"    /* HAVE_*_TIMERS */
 #include "mysql/psi/psi.h" /* PSI_thread_key, PSI_mutex_key, PSI_memory_key */
 
 /* POSIX timers API. */
@@ -29,11 +26,9 @@
 #elif HAVE_KQUEUE_TIMERS
 # include <sys/types.h> /* uintptr_t */
   typedef uintptr_t os_timer_t;
-#elif HAVE_WINDOWS_TIMERS
+#elif _WIN32
   typedef HANDLE os_timer_t;
 #endif
-
-C_MODE_START
 
 typedef struct st_my_timer my_timer_t;
 
@@ -46,6 +41,8 @@ struct st_my_timer
   /** Timer expiration notification function. */
   void (*notify_function)(my_timer_t *);
 };
+
+C_MODE_START
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_thread_key key_thread_timer_notifier;
@@ -70,7 +67,5 @@ int my_timer_cancel(my_timer_t *timer, int *state);
 void my_timer_delete(my_timer_t *timer);
 
 C_MODE_END
-
-#endif /* HAVE_MY_TIMER */
 
 #endif /* MY_TIMER_H */

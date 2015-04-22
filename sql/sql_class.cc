@@ -585,10 +585,9 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
-#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
-#endif
+
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
@@ -1141,12 +1140,10 @@ void THD::release_resources()
   ha_close_connection(this);
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
-#ifdef HAVE_MY_TIMER
   DBUG_ASSERT(timer == NULL);
 
   if (timer_cache)
     thd_timer_destroy(timer_cache);
-#endif
 
 #ifndef EMBEDDED_LIBRARY
   if (rli_fake)

@@ -1289,7 +1289,6 @@ public:
     return m_binlog_filter_state;
   }
 
-#ifdef HAVE_MY_TIMER
   /** Holds active timer object */
   struct st_thd_timer_info *timer;
   /**
@@ -1297,7 +1296,6 @@ public:
     with timer_cache timer to reuse.
   */
   struct st_thd_timer_info *timer_cache;
-#endif
 
 private:
   /**
