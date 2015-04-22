@@ -118,10 +118,8 @@ void killall_non_super_threads(THD *thd);
 extern uint sql_command_flags[];
 extern const LEX_STRING command_name[];
 
-#ifdef HAVE_MY_TIMER
 // Statement timeout function(s)
-extern void reset_statement_timer(THD *thd);
-#endif
+void reset_statement_timer(THD *thd);
 
 inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 {

@@ -210,6 +210,7 @@ SET(SQL_SHARED_SOURCES
   sql_tablespace.cc
   sql_test.cc
   sql_time.cc
+  sql_timer.cc
   sql_tmp_table.cc
   sql_trigger.cc
   sql_truncate.cc
@@ -335,10 +336,6 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
     ../sql-common/client_authentication.cc
     COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
   )
-ENDIF()
-
-IF(HAVE_MY_TIMER)
-  SET(SQL_SOURCE ${SQL_SOURCE} sql_timer.cc)
 ENDIF()
 
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
