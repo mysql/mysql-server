@@ -42,6 +42,7 @@ IF (WIN32)
     my_windac.c
     my_winerr.c
     my_winfile.c
+    win_timers.c
   )
 ENDIF()
 
@@ -51,10 +52,6 @@ ENDIF()
 
 IF(HAVE_KQUEUE_TIMERS)
   SET(MYSYS_SOURCES ${MYSYS_SOURCES} kqueue_timers.c)
-ENDIF()
-
-IF(HAVE_WINDOWS_TIMERS)
-  SET(MYSYS_SOURCES ${MYSYS_SOURCES} win_timers.c)
 ENDIF()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
