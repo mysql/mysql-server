@@ -4,9 +4,9 @@
 #
 0       beshort           0xfe01        MySQL table definition file
 >2      byte            x               Version %d
-0       belong&0xffffff00 0xfefe0300    MySQL MISAM index file
+0       belong&0xffffff00 0xfefe0300    MySQL MyISAM index file
 >3      byte            x               Version %d
-0       belong&0xffffff00 0xfefe0700    MySQL MISAM compressed data file
+0       belong&0xffffff00 0xfefe0700    MySQL MyISAM compressed data file
 >3      byte            x               Version %d
 0       belong&0xffffff00 0xfefe0500    MySQL ISAM index file
 >3      byte            x               Version %d
