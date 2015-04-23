@@ -1593,7 +1593,9 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   {
     nested_join->sj_outer_expr_list.push_back(subq_pred->left_expr);
     Item_func_eq *item_eq=
-      new Item_func_eq(subq_pred->left_expr, subq_lex->ref_pointer_array[0]);
+      new Item_func_eq(subq_pred->left_expr_orig, subq_lex->ref_pointer_array[0]);
+    if (subq_pred->left_expr_orig != subq_pred->left_expr)
+      thd->change_item_tree(item_eq->arguments(), subq_pred->left_expr);
     item_eq->in_equality_no= 0;
     sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
   }

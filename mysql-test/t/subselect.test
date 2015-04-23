@@ -5930,3 +5930,37 @@ SELECT
     WHERE h.host in (SELECT host FROM mysql.user)
   ) AS sq
 FROM mysql.host h GROUP BY h.host;
+
+
+--echo #
+--echo # MDEV-7846:Server crashes in Item_subselect::fix
+--echo #_fields or fails with Thread stack overrun
+--echo #
+CREATE TABLE t1 (column1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (3),(9);
+
+CREATE TABLE t2 (column2 INT) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1),(4);
+
+CREATE TABLE t3 (column3 INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (6),(8);
+
+CREATE TABLE t4 (column4 INT) ENGINE=MyISAM;
+INSERT INTO t4 VALUES (2),(5);
+
+
+PREPARE stmt FROM "
+SELECT ( 
+  SELECT MAX( table1.column1 ) AS field1 
+  FROM t1 AS table1
+  WHERE table3.column3 IN ( SELECT table2.column2 AS field2 FROM t2 AS table2 ) 
+) AS sq
+FROM t3 AS table3, t4 AS table4 GROUP BY sq
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+deallocate prepare stmt;
+drop table t1,t2,t3,t4;

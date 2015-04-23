@@ -449,6 +449,7 @@ protected:
                                     Item **having_item);
 public:
   Item *left_expr;
+  Item *left_expr_orig;
   /* Priority of this predicate in the convert-to-semi-join-nest process. */
   int sj_convert_priority;
   /*

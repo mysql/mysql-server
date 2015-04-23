@@ -1455,12 +1455,12 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
        next execution we need to copy args[1]->left_expr again.
     */
     ref0= &(((Item_in_subselect *)args[1])->left_expr);
-    args[0]= ref0[0];
   }
-  if ((!args[0]->fixed && args[0]->fix_fields(thd, ref0)) ||
-      (!cache && !(cache= Item_cache::get_cache(ref0[0]))))
+  if ((!(*ref0)->fixed && (*ref0)->fix_fields(thd, ref0)) ||
+      (!cache && !(cache= Item_cache::get_cache(*ref0))))
     DBUG_RETURN(1);
-  args[0]= ref0[0];
+  if (args[0] != (*ref0))
+    current_thd->change_item_tree(args, (*ref0));
   DBUG_PRINT("info", ("actual fix fields"));
 
   cache->setup(args[0]);

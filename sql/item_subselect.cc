@@ -1363,7 +1363,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
   upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
-  left_expr= left_exp;
+  left_expr_orig= left_expr= left_exp;
   func= &eq_creator;
   init(select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
@@ -1387,7 +1387,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
   :Item_in_subselect(), func_creator(fc), all(all_arg)
 {
   DBUG_ENTER("Item_allany_subselect::Item_allany_subselect");
-  left_expr= left_exp;
+  left_expr_orig= left_expr= left_exp;
   func= func_creator(all_arg);
   init(select_lex, new select_exists_subselect(this));
   max_columns= 1;
@@ -2586,15 +2586,13 @@ Item_in_subselect::select_in_like_transformer(JOIN *join)
   arena= thd->activate_stmt_arena_if_needed(&backup);
   if (!optimizer)
   {
-    result= (!(optimizer= new Item_in_optimizer(left_expr, this)));
+    result= (!(optimizer= new Item_in_optimizer(left_expr_orig, this)));
     if (result)
       goto out;
   }
 
   thd->lex->current_select= current->return_after_parsing();
   result= optimizer->fix_left(thd, optimizer->arguments());
-  /* fix_fields can change reference to left_expr, we need reassign it */
-  left_expr= optimizer->arguments()[0];
   thd->lex->current_select= current;
 
   if (changed)
