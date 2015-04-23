@@ -1442,9 +1442,25 @@ bool Item_in_optimizer::eval_not_null_tables(uchar *opt_arg)
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
   DBUG_ENTER("Item_in_optimizer::fix_left");
-  if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
-      (!cache && !(cache= Item_cache::get_cache(args[0]))))
+  Item **ref0= args;
+  if (args[1]->type() == Item::SUBSELECT_ITEM &&
+      ((Item_subselect *)args[1])->is_in_predicate())
+  {
+    /*
+       left_expr->fix_fields() may cause left_expr to be substituted for
+       another item. (e.g. an Item_field may be changed into Item_ref). This
+       transformation is undone at the end of statement execution (e.g. the
+       Item_ref is deleted). However, Item_in_optimizer::args[0] may keep
+       the pointer to the post-transformation item. Because of that, on the
+       next execution we need to copy args[1]->left_expr again.
+    */
+    ref0= &(((Item_in_subselect *)args[1])->left_expr);
+    args[0]= ref0[0];
+  }
+  if ((!args[0]->fixed && args[0]->fix_fields(thd, ref0)) ||
+      (!cache && !(cache= Item_cache::get_cache(ref0[0]))))
     DBUG_RETURN(1);
+  args[0]= ref0[0];
   DBUG_PRINT("info", ("actual fix fields"));
 
   cache->setup(args[0]);
@@ -1500,6 +1516,16 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
+  Item_subselect *sub= 0;
+  uint col;
+
+  /*
+     MAX/MIN optimization can convert the subquery into
+     expr + Item_singlerow_subselect
+   */
+  if (args[1]->type() == Item::SUBSELECT_ITEM)
+    sub= (Item_subselect *)args[1];
+
   if (fix_left(thd, ref))
     return TRUE;
   if (args[0]->maybe_null)
@@ -1507,10 +1533,10 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 
   if (!args[1]->fixed && args[1]->fix_fields(thd, args+1))
     return TRUE;
-  Item_in_subselect * sub= (Item_in_subselect *)args[1];
-  if (args[0]->cols() != sub->engine->cols())
+  if ((sub && ((col= args[0]->cols()) != sub->engine->cols())) ||
+      (!sub && (args[1]->cols() != (col= 1))))
   {
-    my_error(ER_OPERAND_COLUMNS, MYF(0), args[0]->cols());
+    my_error(ER_OPERAND_COLUMNS, MYF(0), col);
     return TRUE;
   }
   if (args[1]->maybe_null)

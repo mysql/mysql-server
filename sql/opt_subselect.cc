@@ -620,6 +620,18 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         thd->stmt_arena->state != Query_arena::PREPARED)
       */
     {
+      SELECT_LEX *current= thd->lex->current_select;
+      thd->lex->current_select= current->return_after_parsing();
+      char const *save_where= thd->where;
+      thd->where= "IN/ALL/ANY subquery";
+
+      bool failure= !in_subs->left_expr->fixed &&
+                     in_subs->left_expr->fix_fields(thd, &in_subs->left_expr);
+      thd->lex->current_select= current;
+      thd->where= save_where;
+      if (failure)
+        DBUG_RETURN(-1); /* purecov: deadcode */
+
       /*
         Check if the left and right expressions have the same # of
         columns, i.e. we don't have a case like 
@@ -633,18 +645,6 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         my_error(ER_OPERAND_COLUMNS, MYF(0), in_subs->left_expr->cols());
         DBUG_RETURN(-1);
       }
-
-      SELECT_LEX *current= thd->lex->current_select;
-      thd->lex->current_select= current->return_after_parsing();
-      char const *save_where= thd->where;
-      thd->where= "IN/ALL/ANY subquery";
-        
-      bool failure= !in_subs->left_expr->fixed &&
-                     in_subs->left_expr->fix_fields(thd, &in_subs->left_expr);
-      thd->lex->current_select= current;
-      thd->where= save_where;
-      if (failure)
-        DBUG_RETURN(-1); /* purecov: deadcode */
     }
 
     DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));

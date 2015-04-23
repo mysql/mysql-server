@@ -5902,3 +5902,24 @@ From
 (Select  3 as Revenue, 4 as TemplateID) As `TestCase` 
 Group By  TestCase.Revenue, TestCase.TemplateID;
 
+--echo #
+--echo # MDEV-7445:Server crash with Signal 6
+--echo #
+
+--delimiter |
+CREATE PROCEDURE procedure2()
+BEGIN
+  Select 
+    (Select Sum(`TestCase`.Revenue) From mysql.slow_log E           
+      Where TestCase.TemplateID not in (Select 1 from mysql.slow_log where 2=2)
+     ) As `ControlRev`
+  From 
+  (Select  3 as Revenue, 4 as TemplateID) As `TestCase` 
+  Group By  TestCase.Revenue, TestCase.TemplateID;
+
+END |
+--delimiter ;
+call procedure2();
+call procedure2();
+
+drop procedure procedure2;
