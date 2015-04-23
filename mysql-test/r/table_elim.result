@@ -677,3 +677,35 @@ USA
 CAN
 DROP TABLE t1, t2, t3;
 SET optimizer_switch=@save_optimizer_switch;
+#
+# MDEV-7893: table_elimination works wrong with on computed expression and compound unique key
+#  (just a testcase)
+CREATE TABLE t1 (
+PostID int(10) unsigned NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	1286	Unknown storage engine 'InnoDB'
+Warning	1266	Using storage engine MyISAM for table 't1'
+INSERT INTO t1 (PostID) VALUES (1), (2);
+CREATE TABLE t2 (
+VoteID int(10) unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
+EntityID int(10) unsigned NOT NULL,
+UserID int(10) unsigned NOT NULL,
+UNIQUE KEY EntityID (EntityID,UserID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+Warnings:
+Warning	1286	Unknown storage engine 'InnoDB'
+Warning	1266	Using storage engine MyISAM for table 't2'
+INSERT INTO t2 (EntityID, UserID) VALUES (1,  30), (2, 30);
+SELECT t1.*, T.Voted as Voted
+FROM 
+t1 LEFT JOIN (
+SELECT 1 AS Voted, EntityID 
+FROM t2 
+WHERE t2.UserID = '20' ) AS T 
+ON T.EntityID = t1.PostID
+WHERE t1.PostID='1'
+LIMIT 1;
+PostID	Voted
+1	NULL
+DROP TABLE t1,t2;
