@@ -2352,22 +2352,23 @@ ibuf_get_merge_page_nos_func(
 		} else {
 			rec_page_no = ibuf_rec_get_page_no(mtr, rec);
 			rec_space_id = ibuf_rec_get_space(mtr, rec);
-			/* In the system tablespace the smallest possible
-			secondary index leaf page number is bigger than
-			FSP_DICT_HDR_PAGE_NO (7).
-			In file-per-table and general tablespaces, pages up
-			to FSP_FIRST_INODE_PAGE_NO (2) are reserved and the
-			first clustered index tree is created at page 3.
-			So for file-per-table tablespaces, page 4 is the
-			smallest possible secondary index leaf page
-			(and that only after DROP INDEX).
-			Shared General tablespaces also use page 3 as the
-			first clustered index root page, but that table may
-			be dropped, allowing page 3 to be used again as a
-			secondary index leaf page.
-			To keep this assert simple, just make sure the page
-			is > 2. */
-			ut_ad(rec_page_no > FSP_FIRST_INODE_PAGE_NO);
+			/* In the system tablespace the smallest
+			possible secondary index leaf page number is
+			bigger than FSP_DICT_HDR_PAGE_NO (7).
+			In all tablespaces, pages 0 and 1 are reserved
+			for the allocation bitmap and the change
+			buffer bitmap. In file-per-table tablespaces,
+			a file segment inode page will be created at
+			page 2 and the clustered index tree is created
+			at page 3.  So for file-per-table tablespaces,
+			page 4 is the smallest possible secondary
+			index leaf page. CREATE TABLESPACE also initially
+			uses pages 2 and 3 for the first created table,
+			but that table may be dropped, allowing page 2
+			to be reused for a secondary index leaf page.
+			To keep this assertion simple, just
+			make sure the page is >= 2. */
+			ut_ad(rec_page_no >= FSP_FIRST_INODE_PAGE_NO);
 		}
 
 #ifdef UNIV_IBUF_DEBUG
