@@ -703,6 +703,12 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       if (!optimizer_flag(thd, OPTIMIZER_SWITCH_IN_TO_EXISTS) &&
           !optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION))
         my_error(ER_ILLEGAL_SUBQUERY_OPTIMIZER_SWITCHES, MYF(0));
+      /*
+        Transform each subquery predicate according to its overloaded
+        transformer.
+      */
+      if (subselect->select_transformer(join))
+        DBUG_RETURN(-1);
 
       /*
         If the subquery predicate is IN/=ANY, analyse and set all possible
@@ -754,12 +760,6 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         allany_subs->add_strategy(strategy);
       }
 
-      /*
-        Transform each subquery predicate according to its overloaded
-        transformer.
-      */
-      if (subselect->select_transformer(join))
-        DBUG_RETURN(-1);
     }
   }
   DBUG_RETURN(0);
