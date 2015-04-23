@@ -2653,10 +2653,12 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
   uint outer_cols_num;
   List<Item> *inner_cols;
+  char const *save_where= thd->where;
 
   if (test_strategy(SUBS_SEMI_JOIN))
     return !( (*ref)= new Item_int(1));
 
+  thd->where= "IN/ALL/ANY subquery";
   /*
     Check if the outer and inner IN operands match in those cases when we
     will not perform IN=>EXISTS transformation. Currently this is when we
@@ -2687,7 +2689,7 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
     if (outer_cols_num != inner_cols->elements)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), outer_cols_num);
-      return TRUE;
+      goto err;
     }
     if (outer_cols_num > 1)
     {
@@ -2697,20 +2699,24 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
       {
         inner_col= inner_col_it++;
         if (inner_col->check_cols(left_expr->element_index(i)->cols()))
-          return TRUE;
+          goto err;
       }
     }
   }
 
-  if (thd_arg->lex->is_view_context_analysis() &&
-      left_expr && !left_expr->fixed &&
+  if (left_expr && !left_expr->fixed &&
       left_expr->fix_fields(thd_arg, &left_expr))
-    return TRUE;
+    goto err;
   else
-  if (Item_subselect::fix_fields(thd_arg, ref))
-    return TRUE;
+    if (Item_subselect::fix_fields(thd_arg, ref))
+      goto err;
   fixed= TRUE;
+  thd->where= save_where;
   return FALSE;
+
+err:
+  thd->where= save_where;
+  return TRUE;
 }
 
 

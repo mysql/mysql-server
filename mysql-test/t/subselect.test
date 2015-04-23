@@ -5923,3 +5923,10 @@ call procedure2();
 call procedure2();
 
 drop procedure procedure2;
+
+
+SELECT
+  (SELECT user FROM mysql.user
+    WHERE h.host in (SELECT host FROM mysql.user)
+  ) AS sq
+FROM mysql.host h GROUP BY h.host;

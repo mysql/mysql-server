@@ -3590,7 +3590,7 @@ delete from t1 where c <= 1140006215 and (select b from t2 where a = 2) = 1;
 drop table t1, t2;
 CREATE TABLE t1 (a INT);
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE no_such_column = ANY (SELECT 1);
-ERROR 42S22: Unknown column 'no_such_column' in 'where clause'
+ERROR 42S22: Unknown column 'no_such_column' in 'IN/ALL/ANY subquery'
 CREATE VIEW v2 AS SELECT * FROM t1 WHERE no_such_column = (SELECT 1);
 ERROR 42S22: Unknown column 'no_such_column' in 'where clause'
 SELECT * FROM t1 WHERE no_such_column = ANY (SELECT 1);
@@ -7042,4 +7042,10 @@ call procedure2();
 ControlRev
 NULL
 drop procedure procedure2;
+SELECT
+(SELECT user FROM mysql.user
+WHERE h.host in (SELECT host FROM mysql.user)
+) AS sq
+FROM mysql.host h GROUP BY h.host;
+sq
 set @optimizer_switch_for_subselect_test=null;
