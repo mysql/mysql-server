@@ -37,3 +37,4 @@ debian/extra/rewrite_example-plugin
 debian/extra/semisync_master-plugin
 debian/extra/semisync_slave-plugin
 debian/extra/validate_password-plugin
+debian/extra/version_token-plugin
