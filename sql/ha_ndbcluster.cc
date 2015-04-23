@@ -9924,6 +9924,22 @@ extern bool ndb_fk_util_truncate_allowed(THD* thd,
                                          const NdbDictionary::Table* tab,
                                          bool& allow);
 
+/*
+  Forward declaration of the utility functions used
+  when creating partitioned tables
+*/
+static int
+create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
+                                   partition_info *part_info,
+                                   NdbDictionary::Table&);
+static int
+create_table_set_range_data(const partition_info* part_info,
+                            NdbDictionary::Table&);
+static int
+create_table_set_list_data(const partition_info* part_info,
+                           NdbDictionary::Table&);
+
+
 /**
   Create a table in NDB Cluster
 */
@@ -10358,8 +10374,15 @@ int ha_ndbcluster::create(const char *name,
     }
   }
 
+  // Assume that table_share->max/min_rows equals create_info->min/max
+  // although this is create so create_info should be used
+  DBUG_ASSERT(create_info->max_rows == table_share->max_rows);
+  DBUG_ASSERT(create_info->min_rows == table_share->min_rows);
+
   // Check partition info
-  if ((my_errno= set_up_partition_info(form->part_info, tab)))
+  if ((my_errno= create_table_set_up_partition_info(create_info,
+                                                    form->part_info,
+                                                    tab)))
     goto abort;
 
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
@@ -11958,7 +11981,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info, bool early)
     }
     if (m_part_info->part_type == HASH_PARTITION &&
         m_part_info->list_of_part_fields &&
-        partition_info_num_full_part_fields(m_part_info) == 0)
+        m_part_info->num_full_part_fields == 0)
     {
       /*
         CREATE TABLE t (....) ENGINE NDB PARTITON BY KEY();
@@ -16580,14 +16603,12 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info)
 }
 
 
-int
-ha_ndbcluster::set_range_data(const partition_info *part_info,
-                              NdbDictionary::Table& ndbtab) const
+static int
+create_table_set_range_data(const partition_info *part_info,
+                            NdbDictionary::Table& ndbtab)
 {
-  const uint num_parts = partition_info_num_parts(part_info);
-  int error= 0;
-  bool unsigned_flag= part_info->part_expr->unsigned_flag;
-  DBUG_ENTER("set_range_data");
+  const uint num_parts = part_info->num_parts;
+  DBUG_ENTER("create_table_set_range_data");
 
   int32 *range_data= (int32*)my_malloc(PSI_INSTRUMENT_ME, num_parts*sizeof(int32), MYF(0));
   if (!range_data)
@@ -16598,6 +16619,7 @@ ha_ndbcluster::set_range_data(const partition_info *part_info,
   for (uint i= 0; i < num_parts; i++)
   {
     longlong range_val= part_info->range_int_array[i];
+    const bool unsigned_flag= part_info->part_expr->unsigned_flag;
     if (unsigned_flag)
       range_val-= 0x8000000000000000ULL;
     if (range_val < INT_MIN32 || range_val >= INT_MAX32)
@@ -16606,30 +16628,27 @@ ha_ndbcluster::set_range_data(const partition_info *part_info,
           (range_val != LLONG_MAX))
       {
         my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
-        error= 1;
-        goto error;
+        my_free((char*)range_data, MYF(0));
+        DBUG_RETURN(1);
       }
       range_val= INT_MAX32;
     }
     range_data[i]= (int32)range_val;
   }
   ndbtab.setRangeListData(range_data, num_parts);
-error:
   my_free((char*)range_data, MYF(0));
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 
-int
-ha_ndbcluster::set_list_data(const partition_info *part_info,
-                             NdbDictionary::Table& ndbtab) const
+static int
+create_table_set_list_data(const partition_info *part_info,
+                           NdbDictionary::Table& ndbtab)
 {
-  const uint num_list_values = partition_info_num_list_values(part_info);
+  const uint num_list_values = part_info->num_list_values;
   int32 *list_data= (int32*)my_malloc(PSI_INSTRUMENT_ME,
                                       num_list_values*2*sizeof(int32), MYF(0));
-  int error= 0;
-  bool unsigned_flag= part_info->part_expr->unsigned_flag;
-  DBUG_ENTER("set_list_data");
+  DBUG_ENTER("create_table_set_list_data");
 
   if (!list_data)
   {
@@ -16640,27 +16659,26 @@ ha_ndbcluster::set_list_data(const partition_info *part_info,
   {
     LIST_PART_ENTRY *list_entry= &part_info->list_array[i];
     longlong list_val= list_entry->list_value;
+    const bool unsigned_flag= part_info->part_expr->unsigned_flag;
     if (unsigned_flag)
       list_val-= 0x8000000000000000ULL;
     if (list_val < INT_MIN32 || list_val > INT_MAX32)
     {
       my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
-      error= 1;
-      goto error;
+      my_free((char*)list_data, MYF(0));
+      DBUG_RETURN(1);
     }
     list_data[2*i]= (int32)list_val;
     list_data[2*i+1]= list_entry->partition_id;
   }
   ndbtab.setRangeListData(list_data, 2*num_list_values);
-error:
   my_free((char*)list_data, MYF(0));
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 /*
   User defined partitioning set-up. We need to check how many fragments the
-  user wants defined and which node groups to put those into. Later we also
-  want to attach those partitions to a tablespace.
+  user wants defined and which node groups to put those into.
 
   All the functionality of the partition function, partition limits and so
   forth are entirely handled by the MySQL Server. There is one exception to
@@ -16670,27 +16688,22 @@ error:
   implement the function to map to a partition.
 */
 
-int
-ha_ndbcluster::set_up_partition_info(partition_info *part_info,
-                                     NdbDictionary::Table& ndbtab) const
+static int
+create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
+                                   partition_info *part_info,
+                                   NdbDictionary::Table& ndbtab)
 {
-  uint32 frag_data[MAX_PARTITIONS];
-  const char *ts_names[MAX_PARTITIONS];
-  ulong fd_index= 0, i, j;
-  NDBTAB::FragmentType ftype= NDBTAB::UserDefined;
-  partition_element *part_elem;
-  List_iterator<partition_element> part_it(part_info->partitions);
-  int error;
-  DBUG_ENTER("ha_ndbcluster::set_up_partition_info");
+  DBUG_ENTER("create_table_set_up_partition_info");
 
   if (part_info->part_type == HASH_PARTITION &&
       part_info->list_of_part_fields == TRUE)
   {
     Field **fields= part_info->part_field_array;
 
-    ftype= NDBTAB::HashMapPartition;
+    DBUG_PRINT("info", ("Using HashMapPartition fragmentation type"));
+    ndbtab.setFragmentType(NDBTAB::HashMapPartition);
 
-    for (i= 0; i < part_info->part_field_list.elements; i++)
+    for (uint i= 0; i < part_info->part_field_list.elements; i++)
     {
       NDBCOL *col= ndbtab.getColumn(fields[i]->field_index);
       DBUG_PRINT("info",("setting dist key on %s", col->getName()));
@@ -16727,52 +16740,31 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
     ndbtab.addColumn(col);
     if (part_info->part_type == RANGE_PARTITION)
     {
-      if ((error= set_range_data(part_info, ndbtab)))
+      const int error = create_table_set_range_data(part_info, ndbtab);
+      if (error)
       {
         DBUG_RETURN(error);
       }
     }
     else if (part_info->part_type == LIST_PARTITION)
     {
-      if ((error= set_list_data(part_info, ndbtab)))
+      const int error = create_table_set_list_data(part_info, ndbtab);
+      if (error)
       {
         DBUG_RETURN(error);
       }
     }
-  }
-  ndbtab.setFragmentType(ftype);
-  i= 0;
-  do
-  {
-    uint ng;
-    part_elem= part_it++;
-    if (!part_info->is_sub_partitioned())
-    {
-      ng= part_elem->nodegroup_id;
-      ts_names[fd_index]= part_elem->tablespace_name;
-      frag_data[fd_index++]= ng;
-    }
-    else
-    {
-      List_iterator<partition_element> sub_it(part_elem->subpartitions);
-      j= 0;
-      do
-      {
-        part_elem= sub_it++;
-        ng= part_elem->nodegroup_id;
-        ts_names[fd_index]= part_elem->tablespace_name;
-        frag_data[fd_index++]= ng;
-      } while (++j < partition_info_num_subparts(part_info));
-    }
-  } while (++i < partition_info_num_parts(part_info));
 
-  const bool use_default_num_parts =
-    partition_info_use_default_num_partitions(part_info);
+    DBUG_PRINT("info", ("Using UserDefined fragmentation type"));
+    ndbtab.setFragmentType(NDBTAB::UserDefined);
+  }
+
+  const bool use_default_num_parts = part_info->use_default_num_partitions;
   ndbtab.setDefaultNoPartitionsFlag(use_default_num_parts);
   ndbtab.setLinearFlag(part_info->linear_hash_ind);
   {
-    ha_rows max_rows= table_share->max_rows;
-    ha_rows min_rows= table_share->min_rows;
+    ha_rows max_rows= create_info->max_rows;
+    ha_rows min_rows= create_info->min_rows;
     if (max_rows < min_rows)
       max_rows= min_rows;
     if (max_rows != (ha_rows)0) /* default setting, don't set fragmentation */
@@ -16781,8 +16773,43 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
       ndbtab.setMinRows(min_rows);
     }
   }
-  ndbtab.setFragmentCount(fd_index);
-  ndbtab.setFragmentData(frag_data, fd_index);
+
+  {
+    // Count number of fragments to use for the table and
+    // build array describing which nodegroup should store each
+    // partition(each partition is mapped to one fragment in the table).
+    uint32 frag_data[MAX_PARTITIONS];
+    ulong fd_index= 0;
+
+    partition_element *part_elem;
+    List_iterator<partition_element> part_it(part_info->partitions);
+    while((part_elem = part_it++))
+    {
+      if (!part_info->is_sub_partitioned())
+      {
+        const Uint32 ng= part_elem->nodegroup_id;
+        assert(fd_index < NDB_ARRAY_SIZE(frag_data));
+        frag_data[fd_index++]= ng;
+      }
+      else
+      {
+        partition_element *subpart_elem;
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        while((subpart_elem = sub_it++))
+        {
+          const Uint32 ng= subpart_elem->nodegroup_id;
+          assert(fd_index < NDB_ARRAY_SIZE(frag_data));
+          frag_data[fd_index++]= ng;
+        }
+      }
+    }
+
+    // Double check number of partitions vs. fragments
+    DBUG_ASSERT(part_info->get_tot_partitions() == fd_index);
+
+    ndbtab.setFragmentCount(fd_index);
+    ndbtab.setFragmentData(frag_data, fd_index);
+  }
   DBUG_RETURN(0);
 }
 
