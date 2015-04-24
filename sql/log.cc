@@ -2491,14 +2491,14 @@ void MYSQL_LOG::close(uint exiting)
     if (mysql_file_sync(log_file.file, MYF(MY_WME)) && ! write_error)
     {
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+      sql_print_error(ER_THD_OR_DEFAULT(current_thd, ER_ERROR_ON_WRITE), name, errno);
     }
 
     if (!(exiting & LOG_CLOSE_DELAYED_CLOSE) &&
         mysql_file_close(log_file.file, MYF(MY_WME)) && ! write_error)
     {
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+      sql_print_error(ER_THD_OR_DEFAULT(current_thd, ER_ERROR_ON_WRITE), name, errno);
     }
   }
 
