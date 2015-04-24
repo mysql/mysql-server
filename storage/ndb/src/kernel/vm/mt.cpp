@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1203,9 +1203,63 @@ struct thr_send_thread_instance
 
 struct thr_send_nodes
 {
-  /* 0 means NULL */
+  /**
+   * 'm_next' implements a list of 'send_nodes' with PENDING'
+   * data, not yet assigned to a send thread. 0 means NULL.
+   */
   Uint16 m_next;
+
+  /**
+   * m_data_available are incremented/decremented by each 
+   * party having data to be sent to this specific node.
+   * It work in conjunction with a queue of get'able nodes
+   * (insert_node(), get_node()) waiting to be served by 
+   * the send threads, such that:
+   *
+   * 1) IDLE-state (m_data_available==0, not in list)
+   *    There are no data available for sending, and
+   *    no send threads are assigned to this node.
+   *
+   * 2) PENDING-state (m_data_available>0, in list)
+   *    There are data available for sending, possibly
+   *    supplied by multiple parties. No send threads
+   *    are currently serving this request.
+   *
+   * 3) ACTIVE-state (m_data_available==1, not in list)
+   *    There are data available for sending, possibly
+   *    supplied by multiple parties, which are currently
+   *    being served by a send thread. All known
+   *    data available at the time when we became 'ACTIVE'
+   *    will be served now ( -> '==1')
+   *
+   * 3b ACTIVE-WITH-PENDING-state (m_data_available>1, not in list)
+   *    Variant of above state, send thread is serving requests,
+   *    and even more data became available since we started.
+   *
+   * Allowed state transitions are:
+   *
+   * IDLE     -> PENDING  (alert_send_thread w/ insert_node)
+   * PENDING  -> ACTIVE   (get_node)
+   * ACTIVE   -> IDLE     (run_send_thread if check_done_node)
+   * ACTIVE   -> PENDING  (run_send_thread if 'more'
+   * ACTIVE   -> ACTIVE-P (alert_send_thread while ACTIVE)
+   * ACTIVE-P -> PENDING  (run_send_thread while not check_done_node)
+   * ACTIVE-P -> ACTIVE-P (alert_send_thread while ACTIVE-P)
+   *
+   * A consequence of this, is that only a (single-) ACTIVE
+   * send thread will serve send request to a specific node.
+   * Thus, there will be no contention on the m_send_lock
+   * caused by the send threads.
+   */
   Uint16 m_data_available;
+
+  /**
+   * m_send_thread is the current/last send thread instance
+   * serving this send_node. Whenever possible we try to 
+   * reuse the same thread next time around to avoid 
+   * switching between CPUs.
+   */
+  Uint16 m_send_thread;
 };
 
 class thr_send_threads
@@ -1227,18 +1281,18 @@ public:
   void start_send_threads();
 
   /* Check if at least one node to send to */
-  bool data_available()
+  bool data_available() const
   {
     rmb();
     return m_first_node;
   }
 
-  bool data_available(NodeId node)
+  bool data_available(NodeId node) const
   {
-    struct thr_send_nodes *node_state;
+    const struct thr_send_nodes *node_state;
 
     node_state = &m_node_state[node];
-    return node_state->m_data_available;
+    return (node_state->m_data_available > 0);
   }
 
   /* Get send buffer pool for send thread */
@@ -1252,18 +1306,20 @@ private:
   void insert_node(NodeId node);
 
   /* Get a node from the list in order to send to it */
-  NodeId get_node();
+  NodeId get_node(Uint32 instance_no);
+
+  /* Completed sending data to this node, check if more work pending. */ 
+  bool check_done_node(NodeId node);
 
   /* Get a send thread which isn't awake currently */
-  struct thr_send_thread_instance* get_not_awake_send_thread();
-  /*
-   * Try to lock send for this node, if not successful, try another
-   * node ready for sending, unlock send thread mutex as part of
-   * the call.
-   */
-  NodeId check_and_lock_send_node(NodeId node);
+  struct thr_send_thread_instance* get_not_awake_send_thread(NodeId node);
 
-  /* Perform the actual send to the node */
+  /* Lock send_buffer for this node. */
+  void lock_send_node(NodeId node);
+
+  /* Perform the actual send to the node, release send_buffer lock.
+   * Return 'true' if there are still more to be sent to this node.
+   */
   bool perform_send(NodeId node, Uint32 instance_no);
 
   /* Have threads been started */
@@ -1328,7 +1384,8 @@ thr_send_threads::thr_send_threads()
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_node_state); i++)
   {
     m_node_state[i].m_next = 0;
-    m_node_state[i].m_data_available = FALSE;
+    m_node_state[i].m_data_available = 0;
+    m_node_state[i].m_send_thread = 0;
   }
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_send_threads); i++)
   {
@@ -1386,8 +1443,8 @@ thr_send_threads::insert_node(NodeId node)
   struct thr_send_nodes *last_node_state = &m_node_state[last_node];
   struct thr_send_nodes *node_state = &m_node_state[node];
 
+  assert(node_state->m_data_available > 0);
   node_state->m_next = 0;
-  node_state->m_data_available = TRUE;
   m_last_node = node;
   if (first_node == 0)
   {
@@ -1400,7 +1457,7 @@ thr_send_threads::insert_node(NodeId node)
 
 /* Called under mutex protection of send_thread_mutex */
 NodeId
-thr_send_threads::get_node()
+thr_send_threads::get_node(Uint32 send_thread)
 {
   Uint32 first_node = m_first_node;
   struct thr_send_nodes *node_state;
@@ -1412,7 +1469,9 @@ thr_send_threads::get_node()
     next = node_state->m_next;
 
     node_state->m_next = 0;
-    node_state->m_data_available = FALSE;
+    assert(node_state->m_data_available > 0);
+    node_state->m_data_available = 1;
+    node_state->m_send_thread = send_thread;
 
     m_first_node = next;
     if (next == 0)
@@ -1425,11 +1484,32 @@ thr_send_threads::get_node()
   return 0;
 }
 
+/* Called under mutex protection of send_thread_mutex */
+bool
+thr_send_threads::check_done_node(NodeId node)
+{
+  struct thr_send_nodes *node_state;
+  node_state = &m_node_state[node];
+
+  assert(node_state->m_data_available > 0);
+  node_state->m_data_available--;
+  return (node_state->m_data_available == 0);
+}
+
+/* Called under mutex protection of send_thread_mutex */
 struct thr_send_thread_instance*
-thr_send_threads::get_not_awake_send_thread()
+thr_send_threads::get_not_awake_send_thread(NodeId node)
 {
   struct thr_send_thread_instance *used_send_thread;
 
+  /* Reuse previous send_thread if available */
+  if (!m_send_threads[m_node_state[node].m_send_thread].m_awake)
+  {
+    used_send_thread= &m_send_threads[m_node_state[node].m_send_thread];
+    return used_send_thread;
+  }
+
+  /* Search for another available send thread */
   for (Uint32 i = 0; i < globalData.ndbMtSendThreads; i++)
   {
     if (!m_send_threads[i].m_awake)
@@ -1444,31 +1524,34 @@ thr_send_threads::get_not_awake_send_thread()
 void
 thr_send_threads::alert_send_thread(NodeId node)
 {
-  struct thr_send_thread_instance *used_send_thread = NULL;
-
   NdbMutex_Lock(send_thread_mutex);
-  if (m_node_state[node].m_data_available)
+
+  m_node_state[node].m_data_available++;
+  if (m_node_state[node].m_data_available > 1)
   {
-    /*
+    /**
+     * ACTIVE(_P) -> ACTIVE_P
+     *
      * The node is already flagged that it has data needing to be sent.
-     * This means that someone else also ensured that a send thread
-     * was woken up if necessary, so we can rely on this that the send
-     * threads will now take care of it.
+     * There is no need to wake even more threads up in this case
+     * since we piggyback on someone else's request.
+     *
+     * Waking another thread for sending to this node, had only 
+     * resulted in contention and blockage on the send_lock.
      *
      * We are safe that the buffers we have flushed will be read by a send
-     * thread since this variable is always reset before reading the send
-     * buffers of the node.
-     *
-     * The thread that set this flag should also have ensured that a send
-     * thread is awoken if needed, there is no need to wake even more
-     * threads up in this case since we piggyback on someone else's request.
-    */
-    assert(m_first_node);
+     * thread: They will either be piggybacked when the send thread
+     * 'get_node()' for sending, or data will be available when
+     * send thread 'check_done_node()', finds that more data has
+     * become available. In the later case, the send thread will schedule
+     * the node for another round with insert_node()
+     */
     NdbMutex_Unlock(send_thread_mutex);
     return;
   }
-  else
-    insert_node(node);
+
+  insert_node(node); //IDLE -> PENDING
+
   /*
    * Search for a send thread which is asleep, if there is one, wake it
    *
@@ -1480,20 +1563,21 @@ thr_send_threads::alert_send_thread(NodeId node)
    * resources and ensure that we use all the send thread CPUs available
    * to our disposal when necessary.
    */
-  used_send_thread = get_not_awake_send_thread();
+  struct thr_send_thread_instance *avail_send_thread
+    = get_not_awake_send_thread(node);
 
   NdbMutex_Unlock(send_thread_mutex);
 
-  if (used_send_thread)
+  if (avail_send_thread)
   {
     /*
      * Wake the assigned sleeping send thread, potentially a spurious wakeup,
      * but this is not a problem, important is to ensure that at least one
      * send thread is awoken to handle our request. If someone is already
-     * awake and takes of our request before we get to wake someone up it's
+     * awake and takes care of our request before we get to wake someone up it's
      * not a problem.
      */
-    wakeup(&(used_send_thread->m_waiter_struct));
+    wakeup(&(avail_send_thread->m_waiter_struct));
   }
 }
 
@@ -1505,44 +1589,22 @@ check_available_send_data(struct thr_data *not_used)
   return !g_send_threads->data_available();
 }
 
-NodeId
-thr_send_threads::check_and_lock_send_node(NodeId node)
+void
+thr_send_threads::lock_send_node(NodeId node)
 {
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+node;
-  NodeId in_node = node;
-
-  /* We own send_thread_mutex when entering */
-  while (trylock(&sb->m_send_lock) != 0)
-  {
-    /*
-     * We failed to acquire lock, another send thread is busy writing to
-     * this node most likely, we'll post it last if there is other nodes
-     * to send data to.
-     */
-    insert_node(node);
-    node = get_node();
-    sb = g_thr_repository->m_send_buffers+node;
-    if (node == in_node)
-    {
-      /*
-       * No other node available to send to, we'll wait for this one to
-       * become free by using normal lock.
-       */
-      NdbMutex_Unlock(send_thread_mutex);
-      lock(&sb->m_send_lock);
-      return node;
-    }
-  }
-  /* Only gets here when own the send lock of node */
-  NdbMutex_Unlock(send_thread_mutex);
-  /* We don't want to have send thread mutex while sending */
-  return node;
+  lock(&sb->m_send_lock);
 }
 
 bool
 thr_send_threads::perform_send(NodeId node, Uint32 instance_no)
 {
   thr_repository::send_buffer * sb = g_thr_repository->m_send_buffers+node;
+
+  /**
+   * Set m_send_thr so that our transporter callback can know which thread
+   * holds the send lock for this remote node.
+   */
   sb->m_send_thread = num_threads + instance_no;
   const bool more = globalTransporterRegistry.performSend(node);
   sb->m_send_thread = NO_SEND_THREAD;
@@ -1733,28 +1795,40 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     this_send_thread->m_awake = TRUE;
 
     NodeId node;
-    while ((node = get_node()) != 0 &&
+    while ((node = get_node(instance_no)) != 0 && // PENDING -> ACTIVE
            globalData.theRestartFlag != perform_stop)
     {
-      this_send_thread->m_watchdog_counter = 2;
+      this_send_thread->m_watchdog_counter = 6;
 
-      /* We enter this method with send thread mutex and come
-       * back with send thread mutex released and instead owning
-       * the spin lock to send to the node returned
+      /**
+       * Multiple send threads can not 'get' the same
+       * node simultaneously. Thus, there will be no lock
+       * contentions between different send threads.
+       * However, lock is required by 'trp_callback protocol',
+       * and to protect reset_send_buffers(), and
+       * lock_/unlock_transporter()
        */
-      node = check_and_lock_send_node(node);
+      lock_send_node(node);
+      NdbMutex_Unlock(send_thread_mutex);
 
       const bool more = perform_send(node, instance_no);
-      /* We return with no spin locks or mutexes held */
+      /* We return with no locks or mutexes held */
 
-      /* Release chunk-wise to decrease pressure on spin lock */
+      /* Release chunk-wise to decrease pressure on lock */
       this_send_thread->m_watchdog_counter = 3;
       this_send_thread->m_send_buffer_pool.
         release_chunk(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
 
+      /**
+       * Either own perform_send() processing, or external 'alert'
+       * could have signaled that there are more sends pending.
+       */
       NdbMutex_Lock(send_thread_mutex);
-      if (more && !data_available(node))
+      if (more ||                  // ACTIVE   -> PENDING
+          !check_done_node(node))  // ACTIVE-P -> PENDING
+      {
         insert_node(node);
+      } // else:                   // ACTIVE   -> IDLE
     }
 
     /* No data to send, prepare to sleep */
