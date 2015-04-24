@@ -1,0 +1,218 @@
+#
+# Start of 5.5 tests
+#
+#
+# MDEV-7649 wrong result when comparing utf8 column with an invalid literal
+#
+SET NAMES utf8 COLLATE utf8_unicode_ci;
+#
+# Start of ctype_utf8_ilseq.inc
+#
+CREATE TABLE t1 ENGINE=InnoDB AS SELECT REPEAT(' ', 60) AS ch LIMIT 0;;
+ALTER TABLE t1
+ADD id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ADD KEY(ch);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ch` varchar(60) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`),
+  KEY `ch` (`ch`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 (ch) VALUES ('admin'),('admin1');
+SELECT ch FROM t1 WHERE ch='admin𝌆';
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='admin𝌆';
+ch
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='admin𝌆';
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+DELETE FROM t1;
+INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
+INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
+INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
+INSERT INTO t1 (ch) VALUES ('z');
+INSERT INTO t1 (ch) VALUES (_utf8 0x61D080);
+INSERT INTO t1 (ch) VALUES (_utf8 0x61D680);
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
+ch
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
+ch
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
+ch
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
+ch
+z
+SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
+ch
+z
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆' ORDER BY ch;
+ch
+z
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
+SELECT ch FROM t1 FORCE KEY (ch) WHERE ch>'a𝌆b' ORDER BY ch;
+ch
+z
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
+ALTER TABLE t1 DROP KEY ch;
+# 0xD18F would be a good 2-byte character, 0xD1 is an incomplete sequence
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'''');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xD1,'b''');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch<''a', 0xD1,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch>''a', 0xD1,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+z
+# 0xEA9A96 would be a good 3-byte character, 0xEA9A is an incomplete sequence
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0xEA9A,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+# 0x8F is a bad byte sequence (an mb2tail without mb2head)
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+# 0x8F8F is a bad byte sequence (an mb2tail without mb2head, two times)
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,''' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+SET @query=CONCAT('SELECT ch FROM t1 WHERE ch=''a', 0x8F8F,'b'' ORDER BY ch');
+PREPARE stmt FROM @query;
+EXECUTE stmt;
+ch
+DROP TABLE t1;
+#
+# End of ctype_utf8_ilseq.inc
+#
+#
+# End of 5.5 tests
+#

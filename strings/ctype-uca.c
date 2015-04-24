@@ -7075,7 +7075,25 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
     if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc, 
                                           scanner->sbeg,
                                           scanner->send)) <= 0))
-      return -1;
+    {
+      if (scanner->sbeg >= scanner->send)
+        return -1; /* No more bytes, end of line reached */
+      /*
+        There are some more bytes left. Non-positive mb_len means that
+        we got an incomplete or a bad byte sequence. Consume mbminlen bytes.
+      */
+      if ((scanner->sbeg+= scanner->cs->mbminlen) > scanner->send)
+      {
+        /* For safety purposes don't go beyond the string range. */
+        scanner->sbeg= scanner->send;
+      }
+      /*
+        Treat every complete or incomplete mbminlen unit as a weight which is
+        greater than weight for any possible normal character.
+        0xFFFF is greater than any possible weight in the UCA weight table.
+      */
+      return 0xFFFF;
+    }
     
     scanner->sbeg+= mb_len;
     if (wc > MAX_UCA_CHAR_WITH_EXPLICIT_WEIGHT)
