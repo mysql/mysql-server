@@ -1978,6 +1978,11 @@ args: -n LeakApiConnectObjects T1
 #cmd: testScan
 #args:  -n extraNextResultBug11748194 T1
 #
+
+max-time: 1200
+cmd: testRedo
+args: -nRedoFull T1
+
 # Bug18379486 added on 17.04.2014
 #max-time: 600
 #cmd: testRedo
