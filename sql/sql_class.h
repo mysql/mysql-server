@@ -3417,14 +3417,6 @@ public:
 
   void mark_transaction_to_rollback(bool all);
 
-#ifndef DBUG_OFF
-private:
-  int gis_debug; // Storage for "SELECT ST_GIS_DEBUG(param);"
-public:
-  int get_gis_debug() { return gis_debug; }
-  void set_gis_debug(int arg) { gis_debug= arg; }
-#endif
-
 private:
 
   /** The current internal error handler for this thread, or NULL. */

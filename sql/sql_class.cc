@@ -588,10 +588,6 @@ THD::THD(bool enable_plugins)
   timer= NULL;
   timer_cache= NULL;
 
-#ifndef DBUG_OFF
-  gis_debug= 0;
-#endif
-
   m_token_array= NULL;
   if (max_digest_length > 0)
   {
