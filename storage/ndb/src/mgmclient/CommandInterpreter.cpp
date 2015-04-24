@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3159,9 +3159,6 @@ CommandInterpreter::executeAbortBackup(char* parameters)
 int
 CommandInterpreter::executeCreateNodeGroup(char* parameters)
 {
-  int result;
-  int ng;
-  struct ndb_mgm_reply reply;
   char *id= strchr(parameters, ' ');
   if (emptyString(id))
     goto err;
@@ -3178,8 +3175,10 @@ CommandInterpreter::executeCreateNodeGroup(char* parameters)
     }
     nodes.push_back(0);
 
-    result= ndb_mgm_create_nodegroup(m_mgmsrv, nodes.getBase(), &ng, &reply);
-
+    int ng;
+    struct ndb_mgm_reply reply;
+    const int result= ndb_mgm_create_nodegroup(m_mgmsrv, nodes.getBase(),
+                                               &ng, &reply);
     if (result != 0) {
       printError();
       return -1;
@@ -3199,7 +3198,6 @@ int
 CommandInterpreter::executeDropNodeGroup(char* parameters)
 {
   int ng = -1;
-  struct ndb_mgm_reply reply;
   if (emptyString(parameters))
     goto err;
 
@@ -3210,7 +3208,8 @@ CommandInterpreter::executeDropNodeGroup(char* parameters)
   }
 
   {
-    int result= ndb_mgm_drop_nodegroup(m_mgmsrv, ng, &reply);
+    struct ndb_mgm_reply reply;
+    const int result= ndb_mgm_drop_nodegroup(m_mgmsrv, ng, &reply);
     if (result != 0) {
       printError();
       return -1;
