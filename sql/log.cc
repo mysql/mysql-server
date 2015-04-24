@@ -5784,6 +5784,10 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd)
     if (check_purge)
       purge();
   }
+  else
+  {
+    mysql_mutex_unlock(&LOCK_log);
+  }
 
   DBUG_RETURN(error);
 }
