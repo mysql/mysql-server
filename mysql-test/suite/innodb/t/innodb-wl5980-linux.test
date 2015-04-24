@@ -11,7 +11,6 @@
 
 --source include/have_innodb_16k.inc
 --source include/not_embedded.inc
---source include/have_util_uz.inc
 
 --echo # Skip this test other platfoms and run only on Linux.
 if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
