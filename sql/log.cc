@@ -2359,6 +2359,7 @@ bool MYSQL_LOG::open(
   char buff[FN_REFLEN];
   MY_STAT f_stat;
   File file= -1;
+  my_off_t seek_offset;
   int open_flags= O_CREAT | O_BINARY;
   DBUG_ENTER("MYSQL_LOG::open");
   DBUG_PRINT("enter", ("log_type: %d", (int) log_type_arg));
@@ -2391,11 +2392,14 @@ bool MYSQL_LOG::open(
   m_log_file_key= log_file_key;
 #endif
 
-  if ((file= mysql_file_open(log_file_key,
-                             log_file_name, open_flags,
-                             MYF(MY_WME | ME_WAITTANG))) < 0 ||
-      init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
-                    mysql_file_tell(file, MYF(MY_WME)), 0,
+  if ((file= mysql_file_open(log_file_key, log_file_name, open_flags,
+                             MYF(MY_WME | ME_WAITTANG))) < 0)
+    goto err;
+
+  if ((seek_offset= mysql_file_tell(file, MYF(MY_WME))))
+    goto err;
+
+  if (init_io_cache(&log_file, file, IO_SIZE, io_cache_type, seek_offset, 0,
                     MYF(MY_WME | MY_NABP |
                         ((log_type == LOG_BIN) ? MY_WAIT_IF_FULL : 0))))
     goto err;
