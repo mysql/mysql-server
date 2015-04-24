@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2117,7 +2117,7 @@ TransporterRegistry::start_clients_thread()
               DBUG_PRINT("info", ("asking mgmd which port to use for node %d",
                                   nodeId));
 
-	      int res=
+              const int res=
 		ndb_mgm_get_connection_int_parameter(m_mgm_handle,
 						     t->getRemoteNodeId(),
 						     t->getLocalNodeId(),

@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,3 +27,7 @@ ADD_CONVENIENCE_LIBRARY(ndbmgmapi
             LocalConfig.cpp
             ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error/ndbd_exit_codes.c)
 TARGET_LINK_LIBRARIES(ndbmgmapi ndbconf ndbportlib)
+
+
+ADD_EXECUTABLE(mgmapi-t mgmapi-t.cpp)
+TARGET_LINK_LIBRARIES(mgmapi-t ndbmgmapi ndbgeneral)
