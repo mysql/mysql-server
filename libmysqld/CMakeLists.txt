@@ -107,11 +107,6 @@ ADD_COMPILE_FLAGS(
   ../sql/item_geofunc_relchecks.cc
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
-  ../sql/auth/sql_authorization.cc
-  ../sql/auth/sql_authentication.cc
-  ../sql/auth/sql_user_table.cc
-  ../sql/auth/sql_user.cc
-  ../sql/auth/sql_auth_cache.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 

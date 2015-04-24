@@ -34,7 +34,6 @@
 #include "tztime.h"
 #include "sql_time.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
-#include "read_write_lock.h"    // Write_lock
 #include "item_func.h"          // mqh_used
 
 static const
@@ -905,9 +904,6 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   }
 
   table->use_all_columns();
-
-  Write_lock proxy_users_wlk(&proxy_users_rwlock);
-
   ACL_PROXY_USER::store_pk (table, user->host, user->user,
                             proxied_user->host, proxied_user->user);
 
