@@ -17,6 +17,12 @@ disable_query_log;
 --let $uz=
 --let $_outfile= $MYSQLTEST_VARDIR/tmp/have_uz.tmp
 
+--echo # Skip this test other platfoms and run only on Linux.
+if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
+{
+  skip Need Linux;
+}
+
 # find uz
 
 --error 0,1,127
