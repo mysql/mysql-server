@@ -1,3 +1,4 @@
+# Skip this test other platfoms and run only on Linux.
 # Set the environmental variables
 # Stop server
 # Copy the remote tablespace & DB zip files from suite location to working location.
