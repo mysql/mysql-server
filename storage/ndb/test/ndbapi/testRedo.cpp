@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <NdbTick.h>
 #include <NDBT_Stats.hpp>
 #include <random.h>
+#include <NdbMgmd.hpp>
 
 static NdbMutex* g_msgmutex = 0;
 
@@ -212,7 +213,7 @@ runLongtrans(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 static int
-run_write_ops(NDBT_Context* ctx, NDBT_Step* step, int upval, NdbError& err)
+run_write_ops(NDBT_Context* ctx, NDBT_Step* step, int upval, NdbError& err, bool abort_on_error=false)
 {
   Ndb* pNdb = GETNDB(step);
   const int records = ctx->getNumRecords();
@@ -242,6 +243,13 @@ run_write_ops(NDBT_Context* ctx, NDBT_Step* step, int upval, NdbError& err)
 
     require(err.code != 0);
     CHK2(err.status == NdbError::TemporaryError, err);
+
+    if (abort_on_error) 
+    {
+      g_err << "Temporary error " << err.code << " during write" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
 
     if (err.code == 410)
       break;
@@ -1262,6 +1270,157 @@ runResetFD(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+static int 
+resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_FAILED;
+  Config conf;
+  NdbRestarter restarter;
+  Uint32 noOfLogFiles = ctx->getProperty("REDOLOGCOUNT", (Uint32)16);
+  Uint32 logFileSize = ctx->getProperty("REDOLOGSIZE", (Uint32)16*1024*1024);
+  Uint32 defaultNoOfLogFiles = 0, defaultLogFileSize = 0;
+  do
+  {
+    NdbMgmd mgmd;
+    if(!mgmd.connect())
+    {
+      g_err << "Failed to connect to ndb_mgmd." << endl;
+      break;
+    }
+    if (!mgmd.get_config(conf))
+    {
+      g_err << "Failed to get config from ndb_mgmd." << endl;
+      break;
+    }
+
+    g_err << "Setting NoOfFragmentLogFiles = " << noOfLogFiles
+          << " and FragmentLogFileSize = " << logFileSize << "..." << endl;
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    for (int nodeid = 1; nodeid < MAX_NODES; nodeid ++)
+    {
+      Uint32 oldValue;
+      if (!iter.openSection(CFG_SECTION_NODE, nodeid))
+        continue;
+      if (iter.get(CFG_DB_NO_REDOLOG_FILES, &oldValue)) 
+      {
+        iter.set(CFG_DB_NO_REDOLOG_FILES, noOfLogFiles);
+        if(defaultNoOfLogFiles == 0)
+        {
+           defaultNoOfLogFiles = oldValue;
+        }
+        else if(oldValue != defaultNoOfLogFiles) 
+        {
+          g_err << "NoOfFragmentLogFiles is not consistent across nodes" << endl;
+          break; 
+        }
+      }
+      if(iter.get(CFG_DB_REDOLOG_FILE_SIZE, &oldValue))
+      {
+        iter.set(CFG_DB_REDOLOG_FILE_SIZE, logFileSize);
+        if(defaultLogFileSize == 0)
+        {
+           defaultLogFileSize = oldValue;
+        }
+        else if(oldValue != defaultLogFileSize) 
+        {
+          g_err << "FragmentLogFileSize is not consistent across nodes" << endl;
+          break; 
+        }
+      }
+      iter.closeSection();
+    }
+ 
+    // Save old values of NoOfFragmentLogFiles and FragmentLogFileSize 
+    ctx->setProperty("REDOLOGCOUNT", (Uint32)defaultNoOfLogFiles);
+    ctx->setProperty("REDOLOGSIZE", (Uint32)defaultLogFileSize);
+  
+    if (!mgmd.set_config(conf))
+    {
+      g_err << "Failed to set config in ndb_mgmd." << endl;
+      break;
+    }
+
+    g_err << "Restarting nodes to apply config change..." << endl;
+    if (restarter.restartAll(true))
+    {
+      g_err << "Failed to restart node." << endl;
+      break;
+    }
+    if (restarter.waitClusterStarted(120) != 0)
+    {
+      g_err << "Failed waiting for node started." << endl;
+      break;
+    }
+    g_err << "Nodes restarted with new config" << endl;
+    result = NDBT_OK;
+  } while (0);
+  return result;
+}
+
+static int
+runWriteWithRedoFull(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int upval = 0;
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+
+  const NdbDictionary::Table* pTab = g_tabptr[1];
+
+  g_err << "Starting a write and leaving it open so the pending " <<
+           "COMMIT indefinitely delays redo log trimming..." << endl;
+  HugoOperations ops(*pTab);
+  ops.setQuiet();
+  if(ops.startTransaction(pNdb) != 0)
+  { 
+    g_err << "Failed to start transaction: error " << ops.getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  if(ops.pkWriteRecord(pNdb, 0, 1, upval++) != 0)
+  { 
+    g_err << "Failed to write record: error " << ops.getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << "Starting PK insert load..." << endl;
+  int loop = 0;
+  int result = NDBT_FAILED;
+  while (!ctx->isTestStopped())
+  {
+    if (loop % 100 == 0)
+      info("write: loop " << loop);
+
+    NdbError err;
+    run_write_ops(ctx, step, upval++, err, true);
+    if(err.code == 410)
+    {
+      g_err << "Redo log full, new requests aborted as expected" << endl;
+      result = NDBT_OK;
+      break;
+    }
+    else if(err.code == 266)
+    {
+      g_err << "Error; redo log full, but new requests still allowed to queue" << endl;
+      break;
+    }
+    else if(err.code != 0)
+    {
+      g_err << "Error: write failed with unexpected error " << err.code << endl;
+      break;
+    }
+    loop++;
+  }
+  
+  g_err << "Executing pending COMMIT so that redo log can be trimmed..." << endl;
+  int ret = ops.execute_Commit(pNdb);
+  if(ret != 0)
+  {
+    g_err << "Error: failed to execute commit" << ops.getNdbError() << endl;
+    result = NDBT_FAILED;
+  }
+  ops.closeTransaction(pNdb);
+  return result;
+}
+
 NDBT_TESTSUITE(testRedo);
 TESTCASE("WriteOK", 
 	 "Run only write to verify REDO size is adequate"){
@@ -1310,6 +1469,17 @@ TESTCASE("RestartFDSR",
   STEP(runRestartFD);
   FINALIZER(runDrop);
   FINALIZER(runResetFD);
+}
+TESTCASE("RedoFull",
+         "Fill redo logs, apply load and check queuing aborted"){
+  TC_PROPERTY("TABMASK", (Uint32)(2));
+  TC_PROPERTY("REDOLOGCOUNT", (Uint32)(3));
+  TC_PROPERTY("REDOLOGSIZE", (Uint32)(4*1024*1024));
+  INITIALIZER(resizeRedoLog);
+  INITIALIZER(runCreate);
+  STEP(runWriteWithRedoFull);
+  FINALIZER(runDrop);
+  FINALIZER(resizeRedoLog);
 }
 NDBT_TESTSUITE_END(testRedo);
 
