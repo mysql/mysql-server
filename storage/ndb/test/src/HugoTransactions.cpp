@@ -217,7 +217,8 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
   
   int                  retryAttempt = 0;
   int                  check, a;
-  NdbIndexScanOperation	       *pOp;
+  NdbScanOperation     *pOp;
+  NdbIndexScanOperation  *pIxOp;
 
   while (true){
 
@@ -244,7 +245,13 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       return NDBT_FAILED;
     }
 
-    pOp = pTrans->getNdbIndexScanOperation(pIdx->getName(), tab.getName());
+    if (pIdx != NULL) {
+      pOp = pIxOp = pTrans->getNdbIndexScanOperation(pIdx->getName(), tab.getName());
+    } else {
+      pOp = pTrans->getNdbScanOperation(tab.getName());
+      pIxOp = NULL;
+    }
+
     if (pOp == NULL) {
       NDB_ERR(pTrans->getNdbError());
       setNdbError(pTrans->getNdbError());
@@ -261,9 +268,9 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 
     for (int i = 0; i < bound_cnt; i++) {
       const HugoBound& b = bound_arr[i];
-      if (pOp->setBound(b.attr, b.type, b.value) != 0) {
-        NDB_ERR(pOp->getNdbError());
-        setNdbError(pOp->getNdbError());
+      if (pIxOp->setBound(b.attr, b.type, b.value) != 0) {
+        NDB_ERR(pIxOp->getNdbError());
+        setNdbError(pIxOp->getNdbError());
         return NDBT_FAILED;
       }
     }
@@ -363,9 +370,10 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
             else if (retryAttempt >= (m_retryMax / 4) &&
                      (pIdx != 0))
             {
-              pIdx = 0;
+              pIdx = NULL;
+              bound_cnt = 0;
               scan_flags |= NdbScanOperation::SF_TupScan;
-              ndbout_c("switch to table-scan (SF_TupScan) form index-scan");
+              ndbout_c("switch to table-scan (SF_TupScan) from index-scan");
             }
           }
 	  retryAttempt++;
