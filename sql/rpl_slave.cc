@@ -8292,6 +8292,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
 
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "Slave I/O Thread");
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "channel_name", mi->get_channel());
   
   if (!mi->is_start_user_configured())
     sql_print_warning("%s", ER(ER_INSECURE_CHANGE_MASTER));
