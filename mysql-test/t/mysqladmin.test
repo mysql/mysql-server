@@ -45,3 +45,9 @@ EOF
 --exec $MYSQLADMIN --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/cnf_file -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 
 --remove_file $MYSQLTEST_VARDIR/tmp/cnf_file
+
+#
+# MDEV-7883 Segmentation failure when running mysqladmin -u root -p
+#
+--error 1
+--exec $MYSQLADMIN -u root -p 2>&1 > /dev/null

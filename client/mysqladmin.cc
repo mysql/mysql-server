@@ -1198,6 +1198,9 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 static char **mask_password(int argc, char ***argv)
 {
   char **temp_argv;
+  if (!argc)
+    return NULL;
+
   temp_argv= (char **)(my_malloc(sizeof(char *) * argc, MYF(MY_WME)));
   argc--;
   while (argc > 0)
