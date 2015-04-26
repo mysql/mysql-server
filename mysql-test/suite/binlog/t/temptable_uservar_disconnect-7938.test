@@ -1,0 +1,17 @@
+#
+# MDEV-7938 MariaDB Crashes Suddenly while writing binlogs
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed.inc
+
+--connect(con1,localhost,root,,)
+create table t1 (i int);
+create trigger tr after insert on t1 for each row set @b=@a;
+
+create temporary table tmp like t1;
+insert into t1 values (1);
+--disconnect con1
+
+--connection default
+select * from t1;
+drop table t1;

@@ -1,0 +1,8 @@
+create table t1 (i int);
+create trigger tr after insert on t1 for each row set @b=@a;
+create temporary table tmp like t1;
+insert into t1 values (1);
+select * from t1;
+i
+1
+drop table t1;

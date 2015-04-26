@@ -1394,6 +1394,7 @@ void THD::cleanup(void)
   mysql_ha_cleanup(this);
   locked_tables_list.unlock_locked_tables(this);
 
+  delete_dynamic(&user_var_events);
   close_temporary_tables(this);
 
   transaction.xid_state.xa_state= XA_NOTR;
@@ -1427,7 +1428,6 @@ void THD::cleanup(void)
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-  delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
