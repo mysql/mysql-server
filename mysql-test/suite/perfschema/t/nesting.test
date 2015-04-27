@@ -8,7 +8,7 @@
 # On windows, the socket instrumentation collects an extra "opt"
 # event, which changes the test output.
 --source include/not_windows.inc
---source ../include/no_protocol.inc
+--source include/no_protocol.inc
 --source ../include/wait_for_pfs_thread_count.inc
 
 --disable_query_log

@@ -26,7 +26,7 @@
 # happens per SQL statement within our MTR tests. And there is a significant
 # difference between standard statement execution and execution via
 # prepared statement.
---source ../include/no_protocol.inc
+--source include/no_protocol.inc
 
 --source include/turn_off_only_full_group_by.inc
 
