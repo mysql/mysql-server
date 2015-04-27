@@ -598,6 +598,8 @@ extern PSI_memory_key key_memory_write_set_extraction;
 extern PSI_memory_key key_memory_thd_timer;
 extern PSI_memory_key key_memory_THD_Session_tracker;
 extern PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
+extern PSI_memory_key key_memory_get_all_tables;
+extern PSI_memory_key key_memory_fill_schema_schemata;
 
 C_MODE_END
 
