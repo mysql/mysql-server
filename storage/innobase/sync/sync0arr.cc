@@ -698,7 +698,7 @@ sync_array_detect_deadlock(
 			}
 		}
 
- 		/* No deadlock */
+		/* No deadlock */
 		return(false);
 		}
 
@@ -1062,8 +1062,8 @@ sync_array_print_long_waits(
 
 		fprintf(stderr,
 			"InnoDB: Pending preads %lu, pwrites %lu\n",
-			(ulong) os_file_n_pending_preads,
-			(ulong) os_file_n_pending_pwrites);
+			(ulong) os_n_pending_reads,
+			(ulong) os_n_pending_writes);
 
 		srv_print_innodb_monitor = TRUE;
 

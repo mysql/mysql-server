@@ -50,6 +50,7 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 #include "fut0lst.h"			/* FLST_NODE_SIZE */
 #include "buf0checksum.h"		/* buf_calc_page_*() */
 #include "fil0fil.h"			/* FIL_* */
+#include "os0file.h"
 #include "fsp0fsp.h"			/* fsp_flags_get_page_size() &
 					   fsp_flags_get_zip_size() */
 #include "mach0data.h"			/* mach_read_from_4() */
@@ -174,6 +175,27 @@ get_page_size(
 		page_size_t(srv_page_size, srv_page_size, false));
 
 	return(page_size_t(flags));
+}
+
+/** Decompress a page
+@param[in,out]	buf		Page read from disk, uncompressed data will
+				also be copied to this page
+@param[in, out] scratch		Page to use for temporary decompress
+@param[in]	page_size	scratch physical size
+@return true if decompress succeeded */
+static
+bool page_decompress(
+	byte*		buf,
+	byte*		scratch,
+	page_size_t	page_size)
+{
+	dberr_t		err;
+
+	/* Set the dblwr recover flag to false. */
+	err = os_file_decompress_page(
+		false, buf, scratch, page_size.physical());
+
+	return(err == DB_SUCCESS);
 }
 
 #ifdef _WIN32
@@ -1335,6 +1357,8 @@ int main(
 				"======================================\n");
 		}
 
+		byte*	tbuf = (byte*) malloc(UNIV_PAGE_SIZE_MAX);
+
 		/* main checksumming loop */
 		cur_page_num = start_page;
 		lastt = 0;
@@ -1354,6 +1378,8 @@ int main(
 					page_size.physical());
 				perror(" ");
 
+				free(tbuf);
+
 				DBUG_RETURN(1);
 			}
 
@@ -1361,6 +1387,7 @@ int main(
 				fprintf(stderr, "Error: bytes read (%lu) "
 					"doesn't match page size (%lu)\n",
 					bytes, page_size.physical());
+				free(tbuf);
 				DBUG_RETURN(1);
 			}
 
@@ -1369,6 +1396,15 @@ int main(
 				skip_page = is_page_doublewritebuffer(buf);
 			} else {
 				skip_page = false;
+
+				if (!page_decompress(buf, tbuf, page_size)) {
+
+					fprintf(stderr,
+						"Page decompress failed");
+
+					free(tbuf);
+					DBUG_RETURN(1);
+				}
 			}
 
 			/* If no-check is enabled, skip the
@@ -1394,6 +1430,7 @@ int main(
 								"count::%" PRIuMAX "\n",
 								allow_mismatches);
 
+							free(tbuf);
 							DBUG_RETURN(1);
 						}
 					}
@@ -1406,6 +1443,7 @@ int main(
 					   page_size.is_compressed(), &pos,
 					   static_cast<ulong>(page_size.physical()))) {
 
+				free(tbuf);
 				DBUG_RETURN(1);
 			}
 
@@ -1437,6 +1475,8 @@ int main(
 				}
 			}
 		}
+
+		free(tbuf);
 
 		if (!read_from_stdin) {
 			/* flcose() will flush the data and release the lock if

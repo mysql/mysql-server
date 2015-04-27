@@ -10,7 +10,7 @@
 # build which runs without debug mysqld enabled it will detect any test
 # which does not source the necessary include to skip itself when not in debug mode.
 #
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --unit-tests --skip-ndb
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --unit-tests-report --skip-ndb
 
 # Run the ndbcluster suite only(separately for better report in the CI tool).
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndbcluster --vardir=var-ndbcluster --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --suite=ndbcluster

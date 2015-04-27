@@ -183,8 +183,8 @@ void
 dict_col_copy_type(
 /*===============*/
 	const dict_col_t*	col,	/*!< in: column */
-	dtype_t*		type)	/*!< out: data type */
-	__attribute__((nonnull));
+	dtype_t*		type);	/*!< out: data type */
+
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
 note if the table format is UNIV_FORMAT_A (< UNIV_FORMAT_B), no prefix
@@ -1733,16 +1733,13 @@ dict_set_corrupted(
 	const char*	ctx)	/*!< in: context */
 	UNIV_COLD __attribute__((nonnull));
 
-/**********************************************************************//**
-Flags an index corrupted in the data dictionary cache only. This
+/** Flags an index corrupted in the data dictionary cache only. This
 is used mostly to mark a corrupted index when index's own dictionary
-is corrupted, and we force to load such index for repair purpose */
+is corrupted, and we force to load such index for repair purpose
+@param[in,out]	index	index that is corrupted */
 void
 dict_set_corrupted_index_cache_only(
-/*================================*/
-	dict_index_t*	index,		/*!< in/out: index */
-	dict_table_t*	table)		/*!< in/out: table */
-	__attribute__((nonnull));
+	dict_index_t*	index);
 
 /**********************************************************************//**
 Flags a table with specified space_id corrupted in the table dictionary

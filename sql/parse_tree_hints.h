@@ -111,6 +111,45 @@ public:
 
 
 /**
+  Parse tree hint object for query block level hints.
+*/
+class PT_qb_level_hint : public PT_hint
+{
+  const LEX_CSTRING qb_name;  //< Name of query block
+  uint args;                  //< Bit mask of arguments to hint
+
+  typedef PT_hint super;
+public:
+  PT_qb_level_hint(const LEX_CSTRING qb_name_arg, bool switch_state_arg,
+                   enum opt_hints_enum hint_type_arg, uint arg)
+    : PT_hint(hint_type_arg, switch_state_arg),
+      qb_name(qb_name_arg), args(arg)
+  {}
+
+  uint get_args() const { return args; }
+
+  /**
+    Function handles query block level hint. It also creates query block hint
+    object (Opt_hints_qb) if it does not exist.
+
+    @param pc  Pointer to Parse_context object
+
+    @return  true in case of error,
+             false otherwise
+  */
+  virtual bool contextualize(Parse_context *pc);
+
+  /**
+    Append hint arguments to given string
+
+    @param thd             Pointer to THD object
+    @param str             Pointer to String object
+  */
+  virtual void append_args(THD *thd, String *str) const;
+};
+
+
+/**
   Parse tree hint object for table level hints.
 */
 

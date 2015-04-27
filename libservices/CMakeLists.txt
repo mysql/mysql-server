@@ -16,6 +16,7 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 
 SET(MYSQLSERVICES_SOURCES
+  locking_service.c
   my_snprintf_service.c
   thd_alloc_service.c
   thd_wait_service.c

@@ -43,10 +43,10 @@ values ('XXX', 'XXX', 'XXX'),
 ('ZZZ', 'ZZZ', 'ZZZ');
 select * from performance_schema.setup_actors
 where user in ('XXX', 'YYY', 'ZZZ') order by user;
-HOST	USER	ROLE	ENABLED
-XXX	XXX	XXX	YES
-YYY	YYY	YYY	YES
-ZZZ	ZZZ	ZZZ	YES
+HOST	USER	ROLE	ENABLED	HISTORY
+XXX	XXX	XXX	YES	YES
+YYY	YYY	YYY	YES	YES
+ZZZ	ZZZ	ZZZ	YES	YES
 insert into performance_schema.setup_objects
 (object_type, object_schema, object_name, enabled, timed)
 values ('TABLE', 'DB1', 'AAA', 'YES', 'YES'),

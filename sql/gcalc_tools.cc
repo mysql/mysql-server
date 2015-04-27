@@ -162,13 +162,11 @@ const char *Gcalc_function::shape_name(int code)
 
 
 /**
-  Trace spatial operation buffer into debug log
-  and optionally into client side warnings.
+  Trace spatial operation buffer into debug log.
 */
 void Gcalc_function::debug_print_function_buffer()
 {
   int i, nelements= function_buffer.length() / function_buffer_item_size;
-  THD *thd= current_thd;
   DBUG_PRINT("info", ("nelements=%d", nelements));
   for (i= 0; i < nelements; i++)
   {
@@ -177,15 +175,8 @@ void Gcalc_function::debug_print_function_buffer()
     int mask= (c_op & op_not) ? 1 : 0;
     int n_ops= c_op & ~op_any;
     const char *c_op_name= op_name(func);
-    const char *s_name= (func == op_shape) ?
-                         shape_name(uint4korr(shapes_buffer.ptr() +
-                         shape_buffer_item_size * n_ops)) : "";
     DBUG_PRINT("info", ("[%d]=%d c_op=%d (%s) mask=%d n_ops=%d",
                        i, c_op, func, c_op_name, mask, n_ops));
-    if (thd->get_gis_debug())
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_UNKNOWN_ERROR, "[%d] %s[%d]%s",
-                          i, c_op_name, n_ops, s_name);
   }
 }
 #endif

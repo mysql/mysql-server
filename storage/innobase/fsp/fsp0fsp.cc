@@ -286,7 +286,7 @@ fsp_flags_is_valid(
 }
 
 /** Check if tablespace is system temporary.
-@param[in]	space_id	Tablespace ID
+@param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
 bool
 fsp_is_system_temporary(
@@ -296,7 +296,7 @@ fsp_is_system_temporary(
 }
 
 /** Check if checksum is disabled for the given space.
-@param[in]	space_id	Tablespace ID
+@param[in]	space_id	tablespace ID
 @return true if checksum is disabled for given space. */
 bool
 fsp_is_checksum_disabled(
@@ -306,8 +306,8 @@ fsp_is_checksum_disabled(
 }
 
 /** Check if tablespace is file-per-table.
-@param[in]	space_id	Tablespace ID
-@param[in]	fsp_flags	Tablespace Flags
+@param[in]	space_id	tablespace ID
+@param[in]	fsp_flags	tablespace flags
 @return true if tablespace is file-per-table. */
 bool
 fsp_is_file_per_table(
@@ -800,7 +800,8 @@ fsp_parse_init_file_page(
 	byte*		end_ptr __attribute__((unused)), /*!< in: buffer end */
 	buf_block_t*	block)	/*!< in: block or NULL */
 {
-	ut_ad(ptr && end_ptr);
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr != NULL);
 
 	if (block) {
 		fsp_init_file_page_low(block);
@@ -1060,8 +1061,8 @@ fsp_try_extend_data_file(
 	fsp_header_t*	header,
 	mtr_t*		mtr)
 {
-	ulint	size;
-	ulint	size_increase;
+	ulint	size;		/* current number of pages in the datafile */
+	ulint	size_increase;	/* number of pages to extend this file */
 	const char* OUT_OF_SPACE_MSG =
 		"ran out of space. Please add another file or use"
 		" 'autoextend' for the last file in setting";
@@ -1101,8 +1102,8 @@ fsp_try_extend_data_file(
 	size = mach_read_from_4(header + FSP_SIZE);
 	ut_ad(size == space->size_in_header);
 
-	const page_size_t	page_size(mach_read_from_4(header
-							   + FSP_SPACE_FLAGS));
+	const page_size_t	page_size(
+		mach_read_from_4(header + FSP_SPACE_FLAGS));
 
 	if (space->id == srv_sys_space.space_id()) {
 
@@ -3179,7 +3180,8 @@ fseg_free_page_low(
 	ib_id_t	seg_id;
 	ulint	i;
 
-	ut_ad(seg_inode && mtr);
+	ut_ad(seg_inode != NULL);
+	ut_ad(mtr != NULL);
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
 	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
@@ -3365,7 +3367,8 @@ fseg_free_extent(
 	ulint	descr_n_used;
 	ulint	i;
 
-	ut_ad(seg_inode && mtr);
+	ut_ad(seg_inode != NULL);
+	ut_ad(mtr != NULL);
 
 	descr = xdes_get_descriptor(space, page, page_size, mtr);
 

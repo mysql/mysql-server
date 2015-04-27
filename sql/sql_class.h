@@ -1838,6 +1838,7 @@ public:
     decremented each time before it returns from the function.
   */
   uint fill_status_recursion_level;
+  uint fill_variables_recursion_level;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
@@ -1951,7 +1952,6 @@ public:
     return m_binlog_filter_state;
   }
 
-#ifdef HAVE_MY_TIMER
   /** Holds active timer object */
   struct st_thd_timer_info *timer;
   /**
@@ -1959,7 +1959,6 @@ public:
     with timer_cache timer to reuse.
   */
   struct st_thd_timer_info *timer_cache;
-#endif
 
 private:
   /**
@@ -4125,14 +4124,6 @@ public:
   bool has_invoker() { return m_invoker_user.str != NULL; }
 
   void mark_transaction_to_rollback(bool all);
-
-#ifndef DBUG_OFF
-private:
-  int gis_debug; // Storage for "SELECT ST_GIS_DEBUG(param);"
-public:
-  int get_gis_debug() { return gis_debug; }
-  void set_gis_debug(int arg) { gis_debug= arg; }
-#endif
 
 private:
 

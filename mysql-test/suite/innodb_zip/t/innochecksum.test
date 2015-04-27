@@ -77,41 +77,21 @@ let SEARCH_PATTERN= Error: --strict-check option cannot be used together with --
 let SEARCH_PATTERN= Error: --strict-check option cannot be used together with --no-check option.;
 --source include/search_pattern_in_file.inc
 
---echo [9]: (negative scenario) check the innochecksum with full form --strict-check=innodb
+--echo [9]: check the innochecksum with full form --strict-check=innodb
 # Server Default checksum = crc32
---error 1
 --exec $INNOCHECKSUM  --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
-let SEARCH_PATTERN= Fail: page 0 invalid;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
---source include/search_pattern_in_file.inc
 
---echo [10]: (negative scenario) check the innochecksum with full form --strict-check=none
+--echo [10]: check the innochecksum with full form --strict-check=none
 --echo # when server Default checksum=crc32
---error 1
 --exec $INNOCHECKSUM  --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
-let SEARCH_PATTERN= Fail: page 0 invalid;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
---source include/search_pattern_in_file.inc
 
---echo [11]: (negative scenario) check the innochecksum with short form -C innodb
+--echo [11]: check the innochecksum with short form -C innodb
 --echo # when server Default checksum=crc32
---error 1
 --exec $INNOCHECKSUM  -C innodb $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
-let SEARCH_PATTERN= Fail: page 0 invalid;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
---source include/search_pattern_in_file.inc
 
---echo [12]: (negative scenario) check the innochecksum with short form -C none
+--echo [12]: check the innochecksum with short form -C none
 --echo # when server Default checksum=crc32
---error 1
 --exec $INNOCHECKSUM  -C none $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
-let SEARCH_PATTERN= Fail: page 0 invalid;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= Exceeded the maximum allowed checksum mismatch count::0;
---source include/search_pattern_in_file.inc
 
 --echo [13]: check strict-check with invalid values
 --error 1

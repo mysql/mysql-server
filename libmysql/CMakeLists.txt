@@ -155,6 +155,7 @@ get_tty_password
 # will have a FR to replace this for decent name/functionality and document it.
 my_load_defaults
 handle_options
+mysql_get_parameters
 
 CACHE INTERNAL "Undocumented Functions exported by client API"
 

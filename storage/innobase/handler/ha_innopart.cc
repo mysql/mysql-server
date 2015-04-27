@@ -1452,15 +1452,18 @@ ha_innopart::set_partition(
 	m_prebuilt->ins_node = m_ins_node_parts[part_id];
 	m_prebuilt->upd_node = m_upd_node_parts[part_id];
 
+	/* For unordered scan and table scan, use blob_heap from first
+	partition as we need exactly one blob. */
+	m_prebuilt->blob_heap = m_blob_heap_parts[m_ordered ? part_id : 0];
+
 #ifdef UNIV_DEBUG
-	if (m_blob_heap_parts[part_id] != NULL) {
+	if (m_prebuilt->blob_heap != NULL) {
 		DBUG_PRINT("ha_innopart", ("validating blob_heap: %p",
-					   m_blob_heap_parts[part_id]));
-		mem_heap_validate(m_blob_heap_parts[part_id]);
+					   m_prebuilt->blob_heap));
+		mem_heap_validate(m_prebuilt->blob_heap);
 	}
 #endif
 
-	m_prebuilt->blob_heap = m_blob_heap_parts[part_id];
 	m_prebuilt->trx_id = m_trx_id_parts[part_id];
 	m_prebuilt->row_read_type = m_row_read_type_parts[part_id];
 	m_prebuilt->sql_stat_start = get_bit(m_sql_stat_start_parts, part_id);
@@ -1495,7 +1498,10 @@ ha_innopart::update_partition(
 	}
 #endif
 
-	m_blob_heap_parts[part_id] = m_prebuilt->blob_heap;
+	/* For unordered scan and table scan, use blob_heap from first
+	partition as we need exactly one blob anytime. */
+	m_blob_heap_parts[m_ordered ? part_id : 0] = m_prebuilt->blob_heap;
+
 	m_trx_id_parts[part_id] = m_prebuilt->trx_id;
 	m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
 	update_bit(m_sql_stat_start_parts, part_id,
@@ -2029,7 +2035,6 @@ ha_innopart::index_next_in_part(
 
 	int	error;
 
-	clear_blob_heap_part(part);
 	set_partition(part);
 	error = ha_innobase::index_next(record);
 	update_partition(part);
@@ -2058,8 +2063,6 @@ ha_innopart::index_next_same_in_part(
 	uint		length)
 {
 	int	error;
-
-	clear_blob_heap_part(part);
 
 	set_partition(part);
 	error = ha_innobase::index_next_same(record, key, length);
@@ -2094,8 +2097,6 @@ ha_innopart::index_prev_in_part(
 	uchar*	record)
 {
 	int	error;
-
-	clear_blob_heap_part(part);
 
 	set_partition(part);
 	error = ha_innobase::index_prev(record);
@@ -2258,7 +2259,6 @@ ha_innopart::read_range_next_in_part(
 	int	error;
 	uchar*	read_record = record;
 
-	clear_blob_heap_part(part);
 	set_partition(part);
 	if (read_record == NULL) {
 		read_record = table->record[0];
@@ -2300,8 +2300,6 @@ ha_innopart::rnd_init_in_part(
 {
 	int	err;
 
-	clear_blob_heap_part(part_id);
-
 	if (m_prebuilt->clust_index_was_generated) {
 		err = change_active_index(part_id, MAX_KEY);
 	} else {
@@ -2329,9 +2327,6 @@ ha_innopart::rnd_end_in_part(
 	uint	part_id,
 	bool	scan)
 {
-
-	m_prebuilt->blob_heap = NULL;
-
 	return(index_end());
 }
 
@@ -2350,7 +2345,6 @@ ha_innopart::rnd_next_in_part(
 
 	DBUG_ENTER("ha_innopart::rnd_next_in_part");
 
-	clear_blob_heap_part(part_id);
 	set_partition(part_id);
 	if (m_start_of_scan) {
 		error = ha_innobase::index_first(buf);
@@ -2432,10 +2426,11 @@ ha_innopart::position_in_last_part(
 
 		memcpy(ref_arg, m_prebuilt->row_id, DATA_ROW_ID_LEN);
 	} else {
-		store_key_val_for_row(m_primary_key,
-				(char*) ref_arg,
-				ref_length - PARTITION_BYTES_IN_POS,
-				record);
+
+		/* Copy primary key as the row reference */
+		KEY*	key_info = table->key_info + m_primary_key;
+		key_copy(ref_arg, (uchar*)record, key_info,
+			 key_info->key_length);
 	}
 }
 
@@ -4319,29 +4314,6 @@ ha_innopart::free_blob_heap_array()
 	DBUG_VOID_RETURN;
 }
 
-/** Clear the blob heap for the given partition */
-void
-ha_innopart::clear_blob_heap_part(uint part_id)
-{
-	DBUG_ENTER("ha_innopart::clear_blob_heap_part");
-	DBUG_PRINT("ha_innopart", ("partition id: %u", part_id));
-
-
-	if (m_blob_heap_parts != NULL
-	    && m_blob_heap_parts[part_id] != NULL) {
-
-		DBUG_PRINT("ha_innopart", ("freeing blob_heap: %p",
-					   m_blob_heap_parts[part_id]));
-		mem_heap_free(m_blob_heap_parts[part_id]);
-		m_blob_heap_parts[part_id] = NULL;
-
-	}
-
-	m_prebuilt->blob_heap = NULL;
-
-	DBUG_VOID_RETURN;
-}
-
 void
 ha_innopart::clear_blob_heaps()
 {
@@ -4360,6 +4332,8 @@ ha_innopart::clear_blob_heaps()
 		}
 	}
 
+	/* Reset blob_heap in m_prebuilt after freeing all heaps. It is set in
+	ha_innopart::set_partition to the blob heap of current partition. */
 	m_prebuilt->blob_heap = NULL;
 
 	DBUG_VOID_RETURN;

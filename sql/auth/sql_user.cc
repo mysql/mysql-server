@@ -434,12 +434,17 @@ err:
   @param thd          Thread context
   @param Str          user on which attributes has to be applied
   @param what_to_set  User attributes
+  @param is_privileged_user     Whether caller has CREATE_USER_ACL
+                                or UPDATE_ACL over mysql.*
 
   @retval 0 ok
   @retval 1 ERROR;
 */
 
-bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_set)
+bool set_and_validate_user_attributes(THD *thd,
+                                      LEX_USER *Str,
+                                      ulong &what_to_set,
+                                      bool is_privileged_user)
 {
   bool user_exists= false;
   ACL_USER *acl_user;
@@ -539,6 +544,57 @@ bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_se
     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), Str->plugin.str);
     return(1);
   }
+
+  if (user_exists &&
+      (what_to_set & PLUGIN_ATTR))
+  {
+    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
+    if (auth->authentication_flags &
+         AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE)
+    {
+      if (!is_privileged_user &&
+          (thd->lex->sql_command == SQLCOM_ALTER_USER ||
+           thd->lex->sql_command == SQLCOM_GRANT))
+      {
+        /*
+          An external plugin that prevents user
+          to change authentication_string information
+          unless user is privileged.
+        */
+        what_to_set= NONE_ATTR;
+        my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+                 thd->security_context()->priv_user().str,
+                 thd->security_context()->priv_host().str,
+                 thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO));
+        plugin_unlock(0, plugin);
+        return (1);
+      }
+    }
+
+    if (!(auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE))
+    {
+      if (thd->lex->sql_command == SQLCOM_SET_OPTION)
+      {
+        /*
+          A plugin that does not use internal storage and
+          hence does not support SET PASSWORD
+        */
+        char warning_buffer[MYSQL_ERRMSG_SIZE];
+        my_snprintf(warning_buffer, sizeof(warning_buffer),
+                    "SET PASSWORD has no significance for user '%s'@'%s' as "
+                    "authentication plugin does not support it.",
+                    Str->user.str, Str->host.str);
+        warning_buffer[MYSQL_ERRMSG_SIZE-1]= '\0';
+        push_warning(thd, Sql_condition::SL_NOTE,
+                     ER_SET_PASSWORD_AUTH_PLUGIN,
+                     warning_buffer);
+        plugin_unlock(0, plugin);
+        what_to_set= NONE_ATTR;
+        return (0);
+      }
+    }
+  }
+
   /*
     If auth string is specified, change it to hash.
     Validate empty credentials for new user ex: CREATE USER u1;
@@ -732,7 +788,7 @@ bool change_password(THD *thd, const char *host, const char *user,
       thd->slave_thread)
     combo->uses_identified_by_clause= false;
     
-  if (set_and_validate_user_attributes(thd, combo, what_to_set))
+  if (set_and_validate_user_attributes(thd, combo, what_to_set, true))
   {
     result= 1;
     mysql_mutex_unlock(&acl_cache->lock);
@@ -840,8 +896,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
                      struct_no, user_from->user.str, user_from->host.str));
 
   mysql_mutex_assert_owner(&acl_cache->lock);
-  /* will be locked if PROXY_USERS_ACL */
-  Write_lock proxy_users_wlk(&proxy_users_rwlock, DEFER);
 
   /* Get the number of elements in the in-memory structure. */
   switch (struct_no) {
@@ -864,7 +918,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     grant_name_hash= &func_priv_hash;
     break;
   case PROXY_USERS_ACL:
-    proxy_users_wlk.lock();
     elements= acl_proxy_users->size();
     break;
   default:
@@ -1002,8 +1055,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       break;
     }
   }
-
-  proxy_users_wlk.unlock();
 
   if (drop || user_to)
   {
@@ -1294,7 +1345,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       result= TRUE;
       continue;
     }
-    if (set_and_validate_user_attributes(thd, user_name, what_to_update))
+    if (set_and_validate_user_attributes(thd, user_name, what_to_update, true))
     {
       result= TRUE;
       continue;
@@ -1591,6 +1642,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
   TABLE *table;
   bool some_user_altered= false;
   bool save_binlog_row_based;
+  bool is_privileged_user= false;
 
   DBUG_ENTER("mysql_alter_user");
 
@@ -1636,6 +1688,8 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
+  is_privileged_user= is_privileged_user_for_credential_change(thd);
+
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
@@ -1678,7 +1732,8 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
                   false);
       continue;
     }
-    if (set_and_validate_user_attributes(thd, user_from, what_to_alter))
+    if (set_and_validate_user_attributes(thd, user_from, what_to_alter,
+                                         is_privileged_user))
     {
       result= true;
       continue;

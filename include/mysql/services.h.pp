@@ -132,8 +132,8 @@ extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);
 extern char * my_strndup(PSI_memory_key key, const char *from, size_t length, myf_t flags);
 #include <mysql/service_mysql_password_policy.h>
 extern struct mysql_password_policy_service_st {
-int (*my_validate_password_policy_func)(const char *, unsigned int);
-int (*my_calculate_password_strength_func)(const char *, unsigned int);
+  int (*my_validate_password_policy_func)(const char *, unsigned int);
+  int (*my_calculate_password_strength_func)(const char *, unsigned int);
 } *mysql_password_policy_service;
 int my_validate_password_policy(const char *, unsigned int);
 int my_calculate_password_strength(const char *, unsigned int);
@@ -161,16 +161,16 @@ extern struct mysql_parser_service_st {
                      unsigned char is_prepared,
                      sql_condition_handler_function handle_condition,
                      void *condition_handler_state);
+  int (*mysql_get_statement_type)(void* thd);
   int (*mysql_get_statement_digest)(void* thd, unsigned char *digest);
-  int (*mysql_parser_get_number_params)(void* thd);
-  int (*mysql_parser_extract_prepared_params)(void* thd, int *positions);
-  int (*mysql_parser_visit_tree)(void* thd,
-                                 parse_node_visit_function processor,
-                                 unsigned char* arg);
-  MYSQL_LEX_STRING (*mysql_parser_item_string)(MYSQL_ITEM item);
-  void (*mysql_parser_free_string)(MYSQL_LEX_STRING string);
-  MYSQL_LEX_STRING (*mysql_parser_get_query)(void* thd);
-  MYSQL_LEX_STRING (*mysql_parser_get_normalized_query)(void* thd);
+  int (*mysql_get_number_params)(void* thd);
+  int (*mysql_extract_prepared_params)(void* thd, int *positions);
+  int (*mysql_visit_tree)(void* thd, parse_node_visit_function processor,
+                          unsigned char* arg);
+  MYSQL_LEX_STRING (*mysql_item_string)(MYSQL_ITEM item);
+  void (*mysql_free_string)(MYSQL_LEX_STRING string);
+  MYSQL_LEX_STRING (*mysql_get_query)(void* thd);
+  MYSQL_LEX_STRING (*mysql_get_normalized_query)(void* thd);
 } *mysql_parser_service;
 typedef void *(*callback_function)(void*);
 void* mysql_parser_current_session();
@@ -188,8 +188,7 @@ int mysql_parser_get_statement_type(void* thd);
 int mysql_parser_get_statement_digest(void* thd, unsigned char *digest);
 int mysql_parser_get_number_params(void* thd);
 int mysql_parser_extract_prepared_params(void* thd, int *positions);
-int mysql_parser_visit_tree(void* thd,
-                            parse_node_visit_function processor,
+int mysql_parser_visit_tree(void* thd, parse_node_visit_function processor,
                             unsigned char* arg);
 MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item);
 void mysql_parser_free_string(MYSQL_LEX_STRING string);
@@ -222,3 +221,21 @@ extern struct transaction_write_set_service_st {
   Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
 } *transaction_write_set_service;
 Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id);
+#include <mysql/service_locking.h>
+enum enum_locking_service_lock_type
+{ LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };
+extern struct mysql_locking_service_st {
+  int (*mysql_acquire_locks)(void* opaque_thd, const char* lock_namespace,
+                             const char**lock_names, size_t lock_num,
+                             enum enum_locking_service_lock_type lock_type,
+                             unsigned long lock_timeout);
+  int (*mysql_release_locks)(void* opaque_thd, const char* lock_namespace);
+} *mysql_locking_service;
+int mysql_acquire_locking_service_locks(void* opaque_thd,
+                                        const char* lock_namespace,
+                                        const char**lock_names,
+                                        size_t lock_num,
+                                        enum enum_locking_service_lock_type lock_type,
+                                        unsigned long lock_timeout);
+int mysql_release_locking_service_locks(void* opaque_thd,
+                                        const char* lock_namespace);

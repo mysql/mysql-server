@@ -385,7 +385,7 @@ ibuf_header_page_get(
 }
 
 /******************************************************************//**
-Gets the root page and x-latches it.
+Gets the root page and sx-latches it.
 @return insert buffer tree root page */
 static
 page_t*
@@ -621,7 +621,8 @@ ibuf_parse_bitmap_init(
 	buf_block_t*	block,	/*!< in: block or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
-	ut_ad(ptr && end_ptr);
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr != NULL);
 
 	if (block) {
 		ibuf_bitmap_page_init(block, mtr);
@@ -2350,22 +2351,23 @@ ibuf_get_merge_page_nos_func(
 		} else {
 			rec_page_no = ibuf_rec_get_page_no(mtr, rec);
 			rec_space_id = ibuf_rec_get_space(mtr, rec);
-			/* In the system tablespace the smallest possible
-			secondary index leaf page number is bigger than
-			FSP_DICT_HDR_PAGE_NO (7).
-			In file-per-table and general tablespaces, pages up
-			to FSP_FIRST_INODE_PAGE_NO (2) are reserved and the
-			first clustered index tree is created at page 3.
-			So for file-per-table tablespaces, page 4 is the
-			smallest possible secondary index leaf page
-			(and that only after DROP INDEX).
-			Shared General tablespaces also use page 3 as the
-			first clustered index root page, but that table may
-			be dropped, allowing page 3 to be used again as a
-			secondary index leaf page.
-			To keep this assert simple, just make sure the page
-			is > 2. */
-			ut_ad(rec_page_no > FSP_FIRST_INODE_PAGE_NO);
+			/* In the system tablespace the smallest
+			possible secondary index leaf page number is
+			bigger than FSP_DICT_HDR_PAGE_NO (7).
+			In all tablespaces, pages 0 and 1 are reserved
+			for the allocation bitmap and the change
+			buffer bitmap. In file-per-table tablespaces,
+			a file segment inode page will be created at
+			page 2 and the clustered index tree is created
+			at page 3.  So for file-per-table tablespaces,
+			page 4 is the smallest possible secondary
+			index leaf page. CREATE TABLESPACE also initially
+			uses pages 2 and 3 for the first created table,
+			but that table may be dropped, allowing page 2
+			to be reused for a secondary index leaf page.
+			To keep this assertion simple, just
+			make sure the page is >= 2. */
+			ut_ad(rec_page_no >= FSP_FIRST_INODE_PAGE_NO);
 		}
 
 #ifdef UNIV_IBUF_DEBUG
@@ -3610,9 +3612,9 @@ fail_exit:
 		ut_ad(BTR_LATCH_MODE_WITHOUT_INTENTION(mode)
 		      == BTR_MODIFY_TREE);
 
-		/* We acquire an x-latch to the root page before the insert,
+		/* We acquire an sx-latch to the root page before the insert,
 		because a pessimistic insert releases the tree x-latch,
-		which would cause the x-latching of the root after that to
+		which would cause the sx-latching of the root after that to
 		break the latching order. */
 
 		root = ibuf_tree_root_get(&mtr);
@@ -3962,9 +3964,8 @@ ibuf_insert_to_index_page(
 		ib::warn() << "Trying to insert a record from the insert"
 			" buffer to an index page but the number of fields"
 			" does not match!";
+		rec_print(stderr, rec, index);
 dump:
-		buf_page_print(page, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
-
 		dtuple_print(stderr, entry);
 		ut_ad(0);
 
@@ -4535,27 +4536,7 @@ ibuf_merge_or_delete_for_page(
 		if (!fil_page_index_page_check(block->frame)
 		    || !page_is_leaf(block->frame)) {
 
-			page_t*	bitmap_page;
-
 			corruption_noticed = true;
-
-			ibuf_mtr_start(&mtr);
-
-			ib::info() << "Dump of the ibuf bitmap page:";
-
-			ut_ad(page_size != NULL);
-
-			bitmap_page = ibuf_bitmap_get_map_page(
-				page_id, *page_size, &mtr);
-
-			buf_page_print(bitmap_page, univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-			ibuf_mtr_commit(&mtr);
-
-			fputs("\nInnoDB: Dump of the page:\n", stderr);
-
-			buf_page_print(block->frame, univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
 
 			ib::error() << "Corruption in the tablespace. Bitmap"
 				" shows insert buffer records to page "

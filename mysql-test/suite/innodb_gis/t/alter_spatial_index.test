@@ -283,6 +283,7 @@ SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) 
 UPDATE tab SET c2 = ST_GeomFromText('POINT(4000 4000)')
 WHERE MBRIntersects(tab.c4, @g1);
 
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 UPDATE tab SET c4 = ST_GeomFromText('POINT(4000 4000)')
 WHERE MBRIntersects(tab.c4, @g1);
 
@@ -495,6 +496,7 @@ SET @g2 = ST_GeomFromText('LINESTRING(140 140,150 150,160 160)');
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
 AND MBREquals(tab.c3,@g2) ORDER BY c1;
 
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
 WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
 
@@ -583,6 +585,7 @@ SET @g2 = ST_GeomFromText('LINESTRING(400 400,500 500,600 700)');
 
 SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c4, @g1) AND MBRWithin(tab.c3, @g2);
 
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 UPDATE tab SET c2 = ST_GeomFromText('POINT(2000 2000)'),
            c3=ST_GeomFromText('POINT(2000 2000)')
 WHERE MBRWithin(tab.c4, @g1) AND MBRWithin(tab.c3, @g2);
@@ -644,7 +647,7 @@ SHOW INDEX FROM parent;
 
 SHOW INDEX FROM child;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_BLOB_KEY_WITHOUT_LENGTH
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
 
 #cleanup

@@ -203,6 +203,10 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
 ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedef" HAVE_NO_UNUSED_TYPEDEF)
+IF(HAVE_NO_UNUSED_TYPEDEF)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedef")
+ENDIF()
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-compare-distinct-pointer-types"
                            HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
 IF(HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
@@ -237,6 +241,8 @@ MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
+ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/sql/share")
+ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
@@ -318,6 +324,7 @@ SET(SERVER_TESTS
   item_timefunc
   item_like
   join_tab_sort
+  locking_service
   log_throttle
   make_sortkey
   mdl_sync

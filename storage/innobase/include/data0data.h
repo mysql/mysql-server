@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -70,8 +70,8 @@ void
 dfield_set_type(
 /*============*/
 	dfield_t*	field,	/*!< in: SQL data field */
-	const dtype_t*	type)	/*!< in: pointer to data type struct */
-	__attribute__((nonnull));
+	const dtype_t*	type);	/*!< in: pointer to data type struct */
+
 /*********************************************************************//**
 Gets length of field data.
 @return length of data; UNIV_SQL_NULL if SQL null data */
@@ -158,9 +158,9 @@ UNIV_INLINE
 void
 dfield_copy_data(
 /*=============*/
-	dfield_t*	field1,	/*!< out: field to copy to */
-	const dfield_t*	field2)	/*!< in: field to copy from */
-	__attribute__((nonnull));
+	dfield_t*	field1,		/*!< out: field to copy to */
+	const dfield_t*	field2);	/*!< in: field to copy from */
+
 /*********************************************************************//**
 Copies a data field to another. */
 UNIV_INLINE
@@ -350,7 +350,7 @@ int
 dtuple_coll_cmp(
 	const dtuple_t*	tuple1,
 	const dtuple_t*	tuple2)
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /************************************************************//**
 Folds a prefix given as the number of fields of a tuple.
 @return the folded value */

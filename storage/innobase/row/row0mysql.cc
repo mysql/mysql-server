@@ -2643,8 +2643,7 @@ row_delete_all_rows(
 	return (err);
 }
 
-/*********************************************************************//**
-This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
+/** This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
 session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
 Before calling this function row_search_for_mysql() must have
 initialized prebuilt->new_rec_locks to store the information which new
@@ -2652,23 +2651,22 @@ record locks really were set. This function removes a newly set
 clustered index record lock under prebuilt->pcur or
 prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that
 releases the latest clustered index record lock we set.
-@return error code or DB_SUCCESS */
+@param[in,out]	prebuilt		prebuilt struct in MySQL handle
+@param[in]	has_latches_on_recs	TRUE if called so that we have the
+					latches on the records under pcur
+					and clust_pcur, and we do not need
+					to reposition the cursors. */
 void
 row_unlock_for_mysql(
-/*=================*/
-	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt struct in MySQL
-					handle */
-	ibool		has_latches_on_recs)/*!< in: TRUE if called so
-					that we have the latches on
-					the records under pcur and
-					clust_pcur, and we do not need
-					to reposition the cursors. */
+	row_prebuilt_t*	prebuilt,
+	ibool		has_latches_on_recs)
 {
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
 
-	ut_ad(prebuilt && trx);
+	ut_ad(prebuilt != NULL);
+	ut_ad(trx != NULL);
 
 	if (UNIV_UNLIKELY
 	    (!srv_locks_unsafe_for_binlog
@@ -2876,6 +2874,9 @@ row_create_table_for_mysql(
 	dict_table_t*	table,	/*!< in, own: table definition
 				(will be freed, or on DB_SUCCESS
 				added to the data dictionary cache) */
+        const char*     compression,
+                                /*!< in: compression algorithm to use,
+                                can be NULL */
 	trx_t*		trx,	/*!< in/out: transaction */
 	bool		commit)	/*!< in: if true, commit the transaction */
 {
@@ -2902,7 +2903,9 @@ row_create_table_for_mysql(
 		ib::error() << "Trying to create a MySQL system table "
 			<< table->name << " of type InnoDB. MySQL system"
 			" tables must be of the MyISAM type!";
+#ifndef DBUG_OFF
 err_exit:
+#endif /* !DBUG_OFF */
 		dict_mem_table_free(table);
 
 		if (commit) {
@@ -2958,13 +2961,38 @@ err_exit:
 			ut_free(path);
 
 		if (err != DB_SUCCESS) {
+
 			/* We must delete the link file. */
 			RemoteDatafile::delete_link_file(table->name.m_name);
+
+		} else if (compression != NULL) {
+
+		        ut_ad(!is_shared_tablespace(table->space));
+
+                        ut_ad(Compression::validate(compression) == DB_SUCCESS);
+
+                        err = fil_set_compression(table->space, compression);
+
+                        /* The tablespace must be found and we have already
+                        done the check for the system tablespace and the
+                        temporary tablespace. Compression must be a valid
+                        and supported algorithm. */
+
+			/* However, we can check for file system punch hole
+			support only after creating the tablespace. On Windows
+			we can query that information but not on Linux. */
+
+			ut_ad(err == DB_SUCCESS
+			      || err == DB_IO_NO_PUNCH_HOLE_FS);
+
+                        /* In non-strict mode we ignore dodgy compression
+                        settings. */
 		}
 	}
 
 	switch (err) {
 	case DB_SUCCESS:
+	case DB_IO_NO_PUNCH_HOLE_FS:
 		break;
 	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
@@ -2988,6 +3016,7 @@ err_exit:
 
 		break;
 
+        case DB_UNSUPPORTED:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
@@ -4797,21 +4826,25 @@ drop_all_foreign_keys_in_db(
 	return(err);
 }
 
-/*********************************************************************//**
-Drops a database for MySQL.
+/** Drop a database for MySQL.
+@param[in]	name	database name which ends at '/'
+@param[in]	trx	transaction handle
+@param[out]	found	number of dropped tables/partitions
 @return error code or DB_SUCCESS */
 dberr_t
 row_drop_database_for_mysql(
-/*========================*/
-	const char*	name,	/*!< in: database name which ends to '/' */
-	trx_t*		trx,	/*!< in: transaction handle */
-	ulint*		found)	/*!< out: Number of dropped tables/partitions */
+	const char*	name,
+	trx_t*		trx,
+	ulint*		found)
 {
 	dict_table_t*	table;
 	char*		table_name;
 	dberr_t		err	= DB_SUCCESS;
 	ulint		namelen	= strlen(name);
 	bool		is_partition = false;
+
+	ut_ad(found != NULL);
+
 	DBUG_ENTER("row_drop_database_for_mysql");
 
 	DBUG_PRINT("row_drop_database_for_mysql", ("db: '%s'", name));
@@ -4827,9 +4860,7 @@ row_drop_database_for_mysql(
 		trx->op_info = "dropping database";
 	}
 
-	if (found) {
-		*found = 0;
-	}
+	*found = 0;
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
@@ -4922,9 +4953,7 @@ loop:
 		}
 
 		ut_free(table_name);
-		if (found) {
-			(*found)++;
-		}
+		(*found)++;
 	}
 
 	/* Partitioning does not yet support foreign keys. */

@@ -410,7 +410,7 @@ const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
-uint gtid_executed_compression_period= 0;
+uint32 gtid_executed_compression_period= 0;
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
@@ -660,6 +660,7 @@ my_thread_handle signal_thread_id;
 my_thread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
+mysql_mutex_t LOCK_reset_gtid_table;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
 #if !defined (EMBEDDED_LIBRARY) && !defined(_WIN32)
@@ -1504,12 +1505,10 @@ void clean_up(bool print_message)
     (void) my_delete_thread_local_key(THR_MALLOC);
   }
 
-#ifdef HAVE_MY_TIMER
   if (have_statement_timeout == SHOW_OPTION_YES)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
-#endif
 
   /*
     The following lines may never be executed as the main thread may have
@@ -2198,7 +2197,7 @@ static void start_signal_handler()
 }
 
 
-/** This threads handles all signals and alarms. */
+/** This thread handles SIGTERM, SIGQUIT and SIGHUP signals. */
 /* ARGSUSED */
 extern "C" void *signal_hand(void *arg __attribute__((unused)))
 {
@@ -2275,10 +2274,10 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
         mysql_mutex_unlock(&LOCK_socket_listener_active);
 
         close_connections();
-        my_thread_end();
-        my_thread_exit(0);
-        return NULL;  // Avoid compiler warnings
       }
+      my_thread_end();
+      my_thread_exit(0);
+      return NULL;  // Avoid compiler warnings
       break;
     case SIGHUP:
       if (!abort_loop)
@@ -3298,6 +3297,8 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started);
+  mysql_mutex_init(key_LOCK_reset_gtid_table,
+                   &LOCK_reset_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_compress_gtid_table,
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
@@ -3852,15 +3853,10 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-#ifdef HAVE_MY_TIMER
   if (my_timer_initialize())
     sql_print_error("Failed to initialize timer component (errno %d).", errno);
   else
     have_statement_timeout= SHOW_OPTION_YES;
-#else
-  have_statement_timeout= SHOW_OPTION_NO;
-#endif
-
 
   init_server_query_cache();
 
@@ -4875,15 +4871,7 @@ int mysqld_main(int argc, char **argv)
   my_str_free= &my_str_free_mysqld;
   my_str_realloc= &my_str_realloc_mysqld;
 
-  /*
-    init signals & alarm
-    After this we can't quit by a simple unireg_abort
-  */
   error_handler_hook= my_message_sql;
-
-#ifndef _WIN32
-  start_signal_handler();
-#endif
 
   /* Save pid of this process in a file */
   if (!opt_bootstrap)
@@ -4899,10 +4887,6 @@ int mysqld_main(int argc, char **argv)
   {
     abort_loop= true;
 
-#ifndef _WIN32
-    (void) pthread_kill(signal_thread_id.thread, SIGTERM);
-#endif
-
     delete_pid_file(MYF(MY_WME));
 
     if (mysqld_socket_acceptor != NULL)
@@ -4910,7 +4894,8 @@ int mysqld_main(int argc, char **argv)
       delete mysqld_socket_acceptor;
       mysqld_socket_acceptor= NULL;
     }
-    exit(MYSQLD_ABORT_EXIT);
+
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   if (!opt_noacl)
@@ -4968,6 +4953,11 @@ int mysqld_main(int argc, char **argv)
 
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(MYSQLD_ABORT_EXIT);
+
+#ifndef _WIN32
+  //  Start signal handler thread.
+  start_signal_handler();
+#endif
 
   if (opt_bootstrap)
   {
@@ -7965,6 +7955,9 @@ bool is_secure_file_path(char *path)
 bool check_secure_file_priv_path()
 {
   char datadir_buffer[FN_REFLEN+1]={0};
+  char plugindir_buffer[FN_REFLEN+1]={0};
+  char whichdir[20]= {0};
+  size_t opt_plugindir_len= 0;
   size_t opt_datadir_len= 0;
   size_t opt_secure_file_priv_len= 0;
   bool warn= false;
@@ -8020,14 +8013,17 @@ bool check_secure_file_priv_path()
   opt_datadir_len= strlen(datadir_buffer);
 
   case_insensitive_fs=
-    (test_if_case_insensitive(mysql_unpacked_real_data_home) == 1);
+    (test_if_case_insensitive(datadir_buffer) == 1);
 
   if (!case_insensitive_fs)
   {
     if (!strncmp(datadir_buffer, opt_secure_file_priv,
           opt_datadir_len < opt_secure_file_priv_len ?
           opt_datadir_len : opt_secure_file_priv_len))
+    {
       warn= true;
+      strcpy(whichdir, "Data directory");
+    }
   }
   else
   {
@@ -8037,15 +8033,53 @@ bool check_secure_file_priv_path()
           (uchar *) opt_secure_file_priv,
           opt_secure_file_priv_len,
           TRUE))
+    {
       warn= true;
+      strcpy(whichdir, "Data directory");
+    }
+  }
+
+  /*
+    Don't bother comparing --secure-file-priv with --plugin-dir
+    if we already have a match against --datdir or
+    --plugin-dir is not pointing to a valid directory.
+  */
+  if (!warn && !my_realpath(plugindir_buffer, opt_plugin_dir, 0))
+  {
+    convert_dirname(plugindir_buffer, plugindir_buffer, NullS);
+    opt_plugindir_len= strlen(plugindir_buffer);
+
+    if (!case_insensitive_fs)
+    {
+      if (!strncmp(plugindir_buffer, opt_secure_file_priv,
+          opt_plugindir_len < opt_secure_file_priv_len ?
+          opt_plugindir_len : opt_secure_file_priv_len))
+      {
+        warn= true;
+        strcpy(whichdir, "Plugin directory");
+      }
+    }
+    else
+    {
+      if (!files_charset_info->coll->strnncoll(files_charset_info,
+          (uchar *) plugindir_buffer,
+          opt_plugindir_len,
+          (uchar *) opt_secure_file_priv,
+          opt_secure_file_priv_len,
+          TRUE))
+      {
+        warn= true;
+        strcpy(whichdir, "Plugin directory");
+      }
+    }
   }
 
 
   if (warn)
     sql_print_warning("Insecure configuration for --secure-file-priv: "
-                      "Data directory is accessible through "
+                      "%s is accessible through "
                       "--secure-file-priv. Consider choosing a different "
-                      "directory.");
+                      "directory.", whichdir);
 
 #ifndef _WIN32
   /*
@@ -8140,14 +8174,36 @@ static int fix_paths(void)
   if (opt_secure_file_priv &&
       my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
   {
-      if (my_realpath(buff, opt_secure_file_priv, 0))
-      {
-        sql_print_warning("Failed to normalize the argument "
-                          "for --secure-file-priv.");
-        return 1;
-      }
+    int retval= my_realpath(buff, opt_secure_file_priv, MYF(MY_WME));
+    if (!retval)
+    {
       convert_dirname(secure_file_real_path, buff, NullS);
-      opt_secure_file_priv= secure_file_real_path;
+#ifdef WIN32
+      MY_DIR *dir= my_dir(secure_file_real_path, MYF(MY_DONT_SORT+MY_WME));
+      if (!dir)
+      {
+        retval= 1;
+      }
+      else
+      {
+        my_dirend(dir);
+      }
+#endif
+    }
+
+    if (retval)
+    {
+      char err_buffer[FN_REFLEN];
+      my_snprintf(err_buffer, FN_REFLEN-1,
+                  "Failed to access directory for --secure-file-priv."
+                  " Please make sure that directory exists and is "
+                  "accessible by MySQL Server. Supplied value : %s",
+                  opt_secure_file_priv);
+      err_buffer[FN_REFLEN-1]='\0';
+      sql_print_error("%s", err_buffer);
+      return 1;
+    }
+    opt_secure_file_priv= secure_file_real_path;
   }
 
   if (!check_secure_file_priv_path())
@@ -8386,11 +8442,10 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
+PSI_mutex_key key_LOCK_reset_gtid_table;
 PSI_mutex_key key_LOCK_compress_gtid_table;
 PSI_mutex_key key_mts_gaq_LOCK;
-#ifdef HAVE_MY_TIMER
 PSI_mutex_key key_thd_timer_mutex;
-#endif
 PSI_mutex_key key_LOCK_offline_mode;
 PSI_mutex_key key_LOCK_default_password_lifetime;
 
@@ -8474,13 +8529,14 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
+  { &key_LOCK_cost_const, "Cost_constant_cache::LOCK_cost_const",
+    PSI_FLAG_GLOBAL},  
   { &key_LOCK_current_cond, "THD::LOCK_current_cond", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0},
+  { &key_LOCK_reset_gtid_table, "LOCK_reset_gtid_table", PSI_FLAG_GLOBAL},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0},
-#ifdef HAVE_MY_TIMER
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
-#endif
 #ifdef HAVE_REPLICATION
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0},
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0},
@@ -8492,8 +8548,7 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock,
-  key_rwlock_proxy_users;
+  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -8522,8 +8577,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_proxy_users, "prox_users_rwlock", PSI_FLAG_GLOBAL}
+  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };
 
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
@@ -8599,10 +8653,7 @@ static PSI_cond_info all_server_conds[]=
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
-
-#ifdef HAVE_MY_TIMER
 PSI_thread_key key_thread_timer_notifier;
-#endif
 
 static PSI_thread_info all_server_threads[]=
 {
@@ -8612,9 +8663,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
-#ifdef HAVE_MY_TIMER
   { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_GLOBAL},
-#endif
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
@@ -9007,9 +9056,7 @@ PSI_memory_key key_memory_File_query_log_name;
 PSI_memory_key key_memory_Table_trigger_dispatcher;
 PSI_memory_key key_memory_show_slave_status_io_gtid_set;
 PSI_memory_key key_memory_write_set_extraction;
-#ifdef HAVE_MY_TIMER
 PSI_memory_key key_memory_thd_timer;
-#endif
 PSI_memory_key key_memory_THD_Session_tracker;
 PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 
@@ -9146,9 +9193,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Quick_ranges, "Quick_ranges", 0},
   { &key_memory_File_query_log_name, "File_query_log::name", 0},
   { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0},
-#ifdef HAVE_MY_TIMER
   { &key_memory_thd_timer, "thd_timer", 0},
-#endif
   { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
   { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0},
   { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},

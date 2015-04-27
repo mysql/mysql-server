@@ -19,10 +19,16 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 --error ER_QUERY_TIMEOUT
 SELECT /*+ MAX_EXECUTION_TIME(1) */ * FROM t1 a, t1 b;
 
-EXPLAIN SELECT /*+ MAX_EXECUTION_TIME(2) MAX_EXECUTION_TIME(10) */ * FROM t1;
+EXPLAIN SELECT /*+ MAX_EXECUTION_TIME(10) MAX_EXECUTION_TIME(100) */ * FROM t1;
 
 DROP TABLE t1;
 

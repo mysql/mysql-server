@@ -2228,13 +2228,11 @@ acl_authenticate(THD *thd, enum_server_command command)
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
-    {
-      Read_lock rlk_guard(&proxy_users_rwlock);
-      proxy_user= acl_find_proxy_user(auth_user, sctx->host().str,
-                                       sctx->ip().str,
-                                       mpvio.auth_info.authenticated_as,
-                                       &is_proxy_user);
-    }
+    mysql_mutex_lock(&acl_cache->lock);
+    proxy_user= acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
+                                    mpvio.auth_info.authenticated_as,
+                                    &is_proxy_user);
+    mysql_mutex_unlock(&acl_cache->lock);
     if (mpvio.auth_info.user_name && proxy_check)
     {
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
@@ -3925,7 +3923,8 @@ static struct st_mysql_auth native_password_handler=
   native_password_authenticate,
   generate_native_password,
   validate_native_password_hash,
-  set_native_salt
+  set_native_salt,
+  AUTH_FLAG_USES_INTERNAL_STORAGE
 };
 
 #if defined(HAVE_OPENSSL)
@@ -3936,7 +3935,8 @@ static struct st_mysql_auth sha256_password_handler=
   sha256_password_authenticate,
   generate_sha256_password,
   validate_sha256_password_hash,
-  set_sha256_salt
+  set_sha256_salt,
+  AUTH_FLAG_USES_INTERNAL_STORAGE
 };
 
 #endif /* HAVE_OPENSSL */

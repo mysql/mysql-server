@@ -69,6 +69,8 @@ struct PFS_ALIGNED PFS_setup_actor
   uint m_rolename_length;
   /** ENABLED flag. */
   bool m_enabled;
+  /** HISTORY flag. */
+  bool m_history;
 };
 
 int init_setup_actor(const PFS_global_param *param);
@@ -77,7 +79,7 @@ int init_setup_actor_hash(const PFS_global_param *param);
 void cleanup_setup_actor_hash(void);
 
 int insert_setup_actor(const String *user, const String *host,
-                       const String *role, bool enabled);
+                       const String *role, bool enabled, bool history);
 int delete_setup_actor(const String *user, const String *host,
                        const String *role);
 int reset_setup_actor(void);
@@ -86,7 +88,7 @@ long setup_actor_count(void);
 void lookup_setup_actor(PFS_thread *thread,
                         const char *user, uint user_length,
                         const char *host, uint host_length,
-                        bool *enabled);
+                        bool *enabled, bool *history);
 
 /** Update derived flags for all setup_actors. */
 int update_setup_actors_derived_flags();

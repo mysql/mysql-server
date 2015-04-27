@@ -379,6 +379,7 @@ typedef struct st_print_event_info
   uint charset_database_number;
   my_thread_id thread_id;
   bool thread_id_printed;
+  uint32 server_id_from_fd_event;
 
   st_print_event_info();
 

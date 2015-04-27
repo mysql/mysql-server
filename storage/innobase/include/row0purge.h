@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,16 +36,16 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0types.h"
 #include "ut0vec.h"
 
-/********************************************************************//**
-Creates a purge node to a query graph.
+/** Create a purge node to a query graph.
+@param[in]	parent	parent node, i.e., a thr node
+@param[in]	heap	memory heap where created
 @return own: purge node */
 purge_node_t*
 row_purge_node_create(
-/*==================*/
-	que_thr_t*	parent,		/*!< in: parent node, i.e., a
-					thr node */
-	mem_heap_t*	heap)		/*!< in: memory heap where created */
-	__attribute__((nonnull, warn_unused_result));
+	que_thr_t*	parent,
+	mem_heap_t*	heap)
+	__attribute__((warn_unused_result));
+
 /***********************************************************//**
 Determines if it is possible to remove a secondary index entry.
 Removal is possible if the secondary index entry does not refer to any

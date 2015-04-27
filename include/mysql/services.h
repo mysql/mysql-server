@@ -29,6 +29,7 @@ extern "C" {
 #include <mysql/service_parser.h>
 #include <mysql/service_rpl_transaction_ctx.h>
 #include <mysql/service_rpl_transaction_write_set.h>
+#include <mysql/service_locking.h>
 
 #ifdef __cplusplus
 }

@@ -11,10 +11,6 @@
 
 --source include/have_innodb_16k.inc
 --source include/not_embedded.inc
---source include/have_util_uz.inc
-
-LET $MYSQLD_DATADIR = `select @@datadir`;
-LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 --echo # Skip this test other platfoms and run only on Linux.
 if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
@@ -26,7 +22,9 @@ if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
 let MYSQL_BASEDIR= `select @@basedir`;
 
 --echo # Stop server
---source include/shutdown_mysqld.inc
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- shutdown_server 30
+-- source include/wait_until_disconnected.inc
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.
 #--copy_file $MYSQLTEST_VARDIR/../mysql-test/suite/innodb/t/portability_wl5980_linux.zip $MYSQL_TMP_DIR/portability_wl5980_linux.zip

@@ -760,17 +760,19 @@ rec_get_end(
 # define rec_get_start(rec, offsets) ((rec) - rec_offs_extra_size(offsets))
 # define rec_get_end(rec, offsets) ((rec) + rec_offs_data_size(offsets))
 #endif /* UNIV_DEBUG */
-/***************************************************************//**
-Copies a physical record to a buffer.
+
+/** Copy a physical record to a buffer.
+@param[in]	buf	buffer
+@param[in]	rec	physical record
+@param[in]	offsets	array returned by rec_get_offsets()
 @return pointer to the origin of the copy */
 UNIV_INLINE
 rec_t*
 rec_copy(
-/*=====*/
-	void*		buf,	/*!< in: buffer */
-	const rec_t*	rec,	/*!< in: physical record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
-	__attribute__((nonnull));
+	void*		buf,
+	const rec_t*	rec,
+	const ulint*	offsets);
+
 #ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Determines the size of a data tuple prefix in a temporary file.
@@ -852,7 +854,7 @@ rec_convert_dtuple_to_rec(
 	const dtuple_t*		dtuple,	/*!< in: data tuple */
 	ulint			n_ext)	/*!< in: number of
 					externally stored columns */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************//**
 Returns the extra size of an old-style physical record if we know its
 data size and number of fields.

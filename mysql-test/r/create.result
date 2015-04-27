@@ -1865,3 +1865,18 @@ ERROR 42000: Identifier name 't0123456789012345678901234567890123456789012345678
 CREATE DATABASE t01234567890123456789012345678901234567890123456789012345678901234567890123456789;
 ERROR 42000: Identifier name 't01234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
 SET sql_mode = default;
+#
+# Bug #20573701 DROP DATABASE ASSERT ON DEBUG WHEN OTHER FILES PRESENT IN
+#               DB FOLDER.
+#
+CREATE DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
+DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
+ERROR HY000: Error dropping database (can't rmdir './db_with_no_tables_and_an_unrelated_file_in_data_directory/', errno: 17)
+DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
+CREATE DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
+DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
+ERROR HY000: Error dropping database (can't rmdir './db_with_tables_and_an_unrelated_file_in_data_directory/', errno: 17)
+DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
+DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
+ERROR HY000: Error dropping database (can't rmdir './db_created_with_mkdir_and_an_unrelated_file_in_data_directory/', errno: 17)
+DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;

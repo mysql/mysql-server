@@ -1577,7 +1577,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
             "The most recent failure being: Worker %lu failed executing "
             "transaction '%s' at master log %s, end_log_pos %llu. "
             "See error log and/or "
-            "performance_schema.replication_execute_status_by_worker table for "
+            "performance_schema.replication_applier_status_by_worker table for "
             "more details about this failure or others, if any.",
             id, buff_gtid, log_name, log_pos);
 
@@ -2500,10 +2500,10 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
-    sql_print_information("Worker %lu is exiting: killed %i, error %i, "
-                          "running_status %d",
-                          worker->id, thd->killed, thd->is_error(),
-                          worker->running_status);
+    DBUG_PRINT("info", ("Worker %lu is exiting: killed %i, error %i, "
+                        "running_status %d",
+                        worker->id, thd->killed, thd->is_error(),
+                        worker->running_status));
     worker->slave_worker_ends_group(ev, error); /* last done sets post exec */
   }
   DBUG_RETURN(error);

@@ -64,7 +64,9 @@ ALTER TABLE t1 ADD COLUMN p1 POINT NOT NULL, ADD COLUMN p2 POINT NOT NULL, ADD K
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
 
 --echo # NOT NULL POINT will use ''
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p1 = '';
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 = '';
 
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p1;
