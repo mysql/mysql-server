@@ -9,7 +9,6 @@
 # Purpose: ndb native default support test
 ##############################################################
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 # Directory containing the saved backup files
 let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
