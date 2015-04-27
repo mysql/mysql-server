@@ -62,6 +62,9 @@ static bool	memcached_shutdown	= false;
 /** Tells whether the background thread is exited */
 static bool	bk_thd_exited		= true;
 
+/** Tells whether all connections need to release MDL locks */
+bool	release_mdl_lock        = false;
+
 /** InnoDB Memcached engine configuration info */
 typedef struct eng_config_info {
 	char*		option_string;		/*!< memcached config option
@@ -75,6 +78,11 @@ typedef struct eng_config_info {
 } eng_config_info_t;
 
 extern option_t config_option_names[];
+
+/** Check if global read lock is active  */
+extern
+bool
+handler_check_global_read_lock_active();
 
 /** Check the input key name implies a table mapping switch. The name
 would start with "@@", and in the format of "@@new_table_mapping.key"
@@ -250,6 +258,12 @@ innodb_bk_thread(
 		uint64_t		trx_start = 0;
 		uint64_t		processed_count = 0;
 
+		if (handler_check_global_read_lock_active()) {
+			release_mdl_lock = true;
+		} else {
+			release_mdl_lock = false;
+		}
+
 		/* Do the cleanup every innodb_eng->bk_commit_interval
 		seconds. We also check if the plugin is being shutdown
 		every second */
@@ -268,11 +282,6 @@ innodb_bk_thread(
 			continue;
 		}
 
-		/* Set the clean_stale_conn to prevent force clean in
-		innodb_conn_clean. */
-		LOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
-		innodb_eng->clean_stale_conn = true;
-		UNLOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
 
 		if (!conn_data) {
 			conn_data = UT_LIST_GET_FIRST(innodb_eng->conn_data);
@@ -284,8 +293,30 @@ innodb_bk_thread(
 			next_conn_data = NULL;
 		}
 
+		/* Set the clean_stale_conn to prevent force clean in
+		innodb_conn_clean. */
+		LOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
+		innodb_eng->clean_stale_conn = true;
+		UNLOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
+
 		while (conn_data) {
-			LOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
+			if (release_mdl_lock && !conn_data->is_stale) {
+				int err;
+				struct timespec timeout;
+				if(conn_data->is_waiting_for_mdl) {
+					goto next_item;
+				}
+				timeout.tv_sec = 1;
+				timeout.tv_nsec = 0;
+
+				err = LOCK_CURRENT_CONN_IF_NOT_LOCKED_TIMEOUT(conn_data,timeout);
+				if (err != 0) {
+					goto next_item;
+				}
+				/* We have got the lock here */
+			} else {
+				LOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
+			}
 
 			if (conn_data->is_stale) {
 				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(
@@ -295,6 +326,39 @@ innodb_bk_thread(
 					       conn_data);
 				UNLOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
 				innodb_conn_clean_data(conn_data, false, true);
+				goto next_item;
+			}
+
+			if (release_mdl_lock) {
+				if (conn_data->thd) {
+					handler_thd_attach(conn_data->thd, NULL);
+				}
+
+				if (conn_data->in_use) {
+					UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
+					goto next_item;
+				}
+
+				innodb_reset_conn(conn_data, true, true,
+					innodb_eng->enable_binlog);
+				if(conn_data->mysql_tbl) {
+					handler_unlock_table(conn_data->thd,
+							     conn_data->mysql_tbl,
+							     HDL_READ);
+					conn_data->mysql_tbl = NULL;
+				}
+
+				/*Close the data cursor */
+				if (conn_data->crsr) {
+					innodb_cb_cursor_close(conn_data->crsr);
+					conn_data->crsr = NULL;
+				}
+				if(conn_data->crsr_trx != NULL) {
+					ib_cb_trx_release(conn_data->crsr_trx);
+					conn_data->crsr_trx = NULL;
+				}
+
+				UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
 				goto next_item;
 			}
 
@@ -329,7 +393,8 @@ next_item:
 			conn_data = next_conn_data;
 
 			/* Process BK_MAX_PROCESS_COMMIT (5) trx at a time */
-			if (processed_count > BK_MAX_PROCESS_COMMIT) {
+			if (!release_mdl_lock &&
+			    processed_count > BK_MAX_PROCESS_COMMIT) {
 				break;
 			}
 
@@ -338,6 +403,7 @@ next_item:
 					conn_list, conn_data);
 			}
 		}
+
 		/* Set the clean_stale_conn back. */
 		LOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
 		innodb_eng->clean_stale_conn = false;
@@ -452,6 +518,29 @@ innodb_initialize(
 extern void handler_close_thd(void*);
 
 /*******************************************************************//**
+Close table using handler functions.
+@param conn_data	cursor information of connection */
+void
+innodb_close_mysql_table(
+/*=====================*/
+	innodb_conn_data_t*     conn_data)	/*!< in: connection
+							 cursor*/
+{
+	if (conn_data->mysql_tbl) {
+		assert(conn_data->thd);
+		handler_unlock_table(conn_data->thd,
+				     conn_data->mysql_tbl,
+				     HDL_READ);
+                conn_data->mysql_tbl = NULL;
+	}
+
+	if (conn_data->thd) {
+		handler_close_thd(conn_data->thd);
+		conn_data->thd = NULL;
+	}
+}
+
+/*******************************************************************//**
 Cleanup idle connections if "clear_all" is false, and clean up all
 connections if "clear_all" is true.
 @return number of connection cleaned */
@@ -497,18 +586,7 @@ innodb_conn_clean_data(
 		conn_data->crsr_trx = NULL;
 	}
 
-	if (conn_data->mysql_tbl) {
-		assert(conn_data->thd);
-		handler_unlock_table(conn_data->thd,
-				     conn_data->mysql_tbl,
-				     HDL_READ);
-		conn_data->mysql_tbl = NULL;
-	}
-
-	if (conn_data->thd) {
-		handler_close_thd(conn_data->thd);
-		conn_data->thd = NULL;
-	}
+	innodb_close_mysql_table(conn_data);
 
 	if (conn_data->tpl) {
 		ib_cb_tuple_delete(conn_data->tpl);
@@ -703,6 +781,57 @@ enum conn_mode {
 	CONN_MODE_NONE
 };
 
+
+/*******************************************************************//**
+Opens mysql table if enable_binlog or enable_mdl is set
+@param conn_data	connection cursor data
+@param conn_optioin	read or write operation
+@param engine		Innodb memcached engine
+@returns DB_SUCCESS on success and DB_ERROR on failure */
+ib_err_t
+innodb_open_mysql_table(
+/*====================*/
+	innodb_conn_data_t*     conn_data,	/*!< in/out:Connection cursor data */
+	int                     conn_option,	/*!< in: Read or write operation */
+	innodb_engine_t*        engine)		/*!< in: InnoDB memcached engine */
+{
+	meta_cfg_info_t*        meta_info;
+	meta_info = conn_data->conn_meta;
+	conn_data->is_waiting_for_mdl = true;
+
+	/* Close the table before opening it again */
+	innodb_close_mysql_table(conn_data);
+
+	if (conn_option == CONN_MODE_READ) {
+               conn_data->is_waiting_for_mdl = false;
+               return (DB_SUCCESS);
+	}
+
+	if (!conn_data->thd) {
+		conn_data->thd = handler_create_thd(engine->enable_binlog);
+		if (!conn_data->thd) {
+			return(DB_ERROR);
+		}
+	}
+
+	if (!conn_data->mysql_tbl) {
+		conn_data->mysql_tbl =
+			handler_open_table(
+				conn_data->thd,
+				meta_info->col_info[CONTAINER_DB].col_name,
+				meta_info->col_info[CONTAINER_TABLE].col_name,
+				HDL_WRITE);
+	}
+	conn_data->is_waiting_for_mdl = false;
+
+	if(!conn_data->mysql_tbl) {
+		return(DB_LOCK_WAIT);
+	}
+
+	return (DB_SUCCESS);
+}
+
+
 /*******************************************************************//**
 Cleanup connections
 @return number of connection cleaned */
@@ -796,6 +925,21 @@ have_conn:
 		completed. */
 		pthread_mutex_lock(&engine->flush_mutex);
 		pthread_mutex_unlock(&engine->flush_mutex);
+	}
+
+       /* This special case added to facilitate unlocking
+          of MDL lock during FLUSH TABLE WITH READ LOCK */
+	if (engine &&
+	    release_mdl_lock &&
+	    (engine->enable_binlog || engine->enable_mdl)) {
+		if ( DB_SUCCESS !=
+			innodb_open_mysql_table(conn_data,
+						conn_option,
+						engine)){
+			UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(
+				has_lock, conn_data);
+			return NULL;
+		}
 	}
 
 	conn_data->in_use = true;
