@@ -7481,6 +7481,10 @@ ER_LOCKING_SERVICE_DEADLOCK
 ER_LOCKING_SERVICE_TIMEOUT
   eng "Service lock wait timeout exceeded."
 
+ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
+  eng "Parameter %s exceeds the maximum number of points in a geometry (%lu) in function %s."
+
+
 #
 #  End of 5.7 error messages.
 #
