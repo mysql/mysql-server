@@ -9059,6 +9059,8 @@ PSI_memory_key key_memory_write_set_extraction;
 PSI_memory_key key_memory_thd_timer;
 PSI_memory_key key_memory_THD_Session_tracker;
 PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
+PSI_memory_key key_memory_get_all_tables;
+PSI_memory_key key_memory_fill_schema_schemata;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_server_memory[]=
@@ -9197,7 +9199,9 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
   { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0},
   { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},
-  { &key_memory_write_set_extraction, "write_set_extraction", 0}
+  { &key_memory_write_set_extraction, "write_set_extraction", 0},
+  { &key_memory_get_all_tables, "get_all_tables", 0},
+  { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0}
 };
 
 /* TODO: find a good header */
