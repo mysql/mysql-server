@@ -3034,8 +3034,9 @@ void SELECT_LEX::empty_order_list(int hidden_order_field_count)
 */
 
 static bool
-find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-                   ORDER *order, List<Item> &fields, List<Item> &all_fields,
+find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
+                   TABLE_LIST *tables, ORDER *order,
+                   List<Item> &fields, List<Item> &all_fields,
                    bool is_group_field)
 {
   Item *order_item= *order->item; /* The item from the GROUP/ORDER caluse. */
@@ -3092,6 +3093,9 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
                                        NULL, &view_ref, IGNORE_ERRORS, TRUE,
                                        FALSE);
+      if (thd->is_error())
+        return true;
+
       if (!from_field)
         from_field= (Field*) not_found_field;
     }
