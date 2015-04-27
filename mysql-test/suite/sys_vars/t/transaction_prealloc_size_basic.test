@@ -5,7 +5,7 @@
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
 # Default Value: 4096                                                         #
-# Range:                                                                      #
+# Range: 1024-134217728                                                       #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-14                                                   #
@@ -136,6 +136,10 @@ SELECT @@session.transaction_prealloc_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.transaction_prealloc_size = "Test";
+
+SET @@session.transaction_prealloc_size = 135217728;
+SELECT @@session.transaction_prealloc_size;
+
 
 --echo '#------------------FN_DYNVARS_005_06-----------------------#'
 ####################################################################
