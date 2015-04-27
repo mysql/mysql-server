@@ -20,9 +20,18 @@ while ($i < $n) {
 }
 commit;
 
-# TokuDB may do index or range scan on this. Both are ok
-replace_column 9 #;
---replace_result index index_or_range range index_or_range
+# the plan for the following query should be a range scan.  about 1 of 10 times,
+# the plan is an index scan.  the different scan type occurs because the query optimizer
+# is handed different row counts by tokudb::records_in_range.  the cost estimates made
+# by the query optimizer are very close to begin with.  sometimes, the cost of an index
+# scan is less than the cost of a range scan.
+#
+# if a tokudb checkpoint occurs before this query is run, then the records_in_range
+# function returns a larger than expected row estimate.
+#
+# column 4 is the join type (should be range or index)
+# column 9 is the estimated key count
+replace_column 4 range_or_index 9 #;
 explain select id from t where id>0 limit 10;
 
 replace_column 9 #;

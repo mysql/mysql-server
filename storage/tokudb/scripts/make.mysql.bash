@@ -117,6 +117,7 @@ elif [ $build_type = enterprise ] ; then
     github_download Tokutek/tokudb-backup-plugin $(git_tree $git_tag $backup_tree) tokudb-backup-plugin
     mv tokudb-backup-plugin plugin
     github_download Tokutek/backup-enterprise $(git_tree $git_tag $backup_tree) backup-enterprise
+    rm -rf plugin/tokudb-backup-plugin/backup
     mv backup-enterprise/backup plugin/tokudb-backup-plugin
     rm -rf backup-enterprise
 fi

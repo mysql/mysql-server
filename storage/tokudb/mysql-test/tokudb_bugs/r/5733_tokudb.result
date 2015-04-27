@@ -10005,7 +10005,7 @@ insert into t values (9999,0);
 commit;
 explain select id from t where id>0 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	index_or_range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index_or_range
+1	SIMPLE	t	range_or_index	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
 explain select * from t where id>0 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where

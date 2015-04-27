@@ -316,16 +316,9 @@ static MYSQL_THDVAR_BOOL(disable_slow_upsert,
 );
 #endif
 
-static MYSQL_THDVAR_UINT(analyze_time,
-    0,
-    "analyze time",
-    NULL, 
-    NULL, 
-    5, // default
-    0,  // min
-    ~0U,   // max
-    1      // blocksize
-);
+static MYSQL_THDVAR_UINT(analyze_time, 0, "analyze time (seconds)", NULL /*check*/, NULL /*update*/, 5 /*default*/, 0 /*min*/, ~0U /*max*/, 1 /*blocksize*/);
+
+static MYSQL_THDVAR_DOUBLE(analyze_delete_fraction, 0, "fraction of rows allowed to be deleted", NULL /*check*/, NULL /*update*/, 1.0 /*def*/, 0 /*min*/, 1.0 /*max*/, 1);
 
 static void tokudb_checkpoint_lock(THD * thd);
 static void tokudb_checkpoint_unlock(THD * thd);
@@ -430,7 +423,7 @@ static int tokudb_killed_callback(void) {
     return thd_killed(thd);
 }
 
-static bool tokudb_killed_thd_callback(void *extra) {
+static bool tokudb_killed_thd_callback(void *extra, uint64_t deleted_rows) {
     THD *thd = static_cast<THD *>(extra);
     return thd_killed(thd) != 0;
 }
