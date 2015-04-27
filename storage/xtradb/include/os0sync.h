@@ -403,7 +403,7 @@ amount of increment. */
 	atomic_add_long_nv(ptr, amount)
 
 # define os_atomic_increment_uint64(ptr, amount) \
-	atomic_add_64_nv(ptr, amount)
+	atomic_add_64_nv((uint64_t *) ptr, amount)
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
