@@ -1770,6 +1770,8 @@ os_file_create_subdirs_if_needed(
 	char*	subdir = os_file_dirname(path);
 
 	if (strlen(path) - strlen(subdir) == 1) {
+		ut_free(subdir);
+
 		return(DB_WRONG_FILE_NAME);
 	}
 
