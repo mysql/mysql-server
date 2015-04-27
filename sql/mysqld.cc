@@ -1029,13 +1029,39 @@ static void clean_up_mutexes(void);
 static void create_pid_file();
 static void mysqld_exit(int exit_code) __attribute__((noreturn));
 static void delete_pid_file(myf flags);
-#ifndef _WIN32
-static void start_processing_signals();
-#endif
 #endif // !EMBEDDED_LIBRARY
 
 
+/**
+  Notify any waiters that the server components have been initialized.
+  Used by the signal handler thread and by Cluster.
+
+  @see signal_hand
+*/
+
+static void server_components_initialized()
+{
+  mysql_mutex_lock(&LOCK_server_started);
+  mysqld_server_started= true;
+  mysql_cond_broadcast(&COND_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+}
+
+
 #ifndef EMBEDDED_LIBRARY
+/**
+  Block and wait until server components have been initialized.
+*/
+
+static void server_components_init_wait()
+{
+  mysql_mutex_lock(&LOCK_server_started);
+  while (!mysqld_server_started)
+    mysql_cond_wait(&COND_server_started, &LOCK_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+}
+
+
 /****************************************************************************
 ** Code to end mysqld
 ****************************************************************************/
@@ -1278,7 +1304,7 @@ extern "C" void unireg_abort(int exit_code)
   if (signal_thread_id.thread != 0)
   {
     // Make sure the signal thread isn't blocked when we are trying to exit.
-    start_processing_signals();
+    server_components_initialized();
 
     pthread_kill(signal_thread_id.thread, SIGTERM);
     my_thread_join(&signal_thread_id, NULL);
@@ -2223,15 +2249,11 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   mysql_mutex_unlock(&LOCK_start_signal_handler);
 
   /*
-    Waiting until mysqld_server_started == true to ensure that all server
-    components have been successfully initialized. This step is mandatory
-    since signal processing can be done safely only when all server components
-    have been initialized.
+    Wait until that all server components have been successfully initialized.
+    This step is mandatory since signal processing can be done safely only when
+    all server components have been initialized.
   */
-  mysql_mutex_lock(&LOCK_server_started);
-  while (!mysqld_server_started)
-    mysql_cond_wait(&COND_server_started, &LOCK_server_started);
-  mysql_mutex_unlock(&LOCK_server_started);
+  server_components_init_wait();
 
   for (;;)
   {
@@ -2305,23 +2327,9 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   return NULL;        /* purecov: deadcode */
 }
 
-
-/**
-  Starts processing signals initialized in the signal_hand function.
-
-  @see signal_hand
-*/
-
-static void start_processing_signals()
-{
-  mysql_mutex_lock(&LOCK_server_started);
-  mysqld_server_started= true;
-  mysql_cond_broadcast(&COND_server_started);
-  mysql_mutex_unlock(&LOCK_server_started);
-}
-
 #endif // !_WIN32
 #endif // !EMBEDDED_LIBRARY
+
 
 #if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 #include <cxxabi.h>
@@ -4974,9 +4982,8 @@ int mysqld_main(int argc, char **argv)
 
   if (opt_bootstrap)
   {
-#ifndef _WIN32
-    start_processing_signals();
-#endif
+    // Make sure we can process SIGHUP during bootstrap.
+    server_components_initialized();
 
     int error= bootstrap(mysql_stdin);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
@@ -5006,9 +5013,9 @@ int mysqld_main(int argc, char **argv)
                          MYSQL_COMPILATION_COMMENT);
 #if defined(_WIN32)
   Service.SetRunning();
-#else
-  start_processing_signals();
 #endif
+
+  server_components_initialized();
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* engine specific hook, to be made generic */
