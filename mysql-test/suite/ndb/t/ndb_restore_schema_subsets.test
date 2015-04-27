@@ -8,7 +8,6 @@
 ######################################################################
 
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 --echo *************************************
 --echo Creating various databases and tables

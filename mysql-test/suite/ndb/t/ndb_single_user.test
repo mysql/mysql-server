@@ -6,7 +6,6 @@
 # test uses multiple mysqld by necessity, hence not in embedded
 -- source include/not_embedded.inc
 -- source include/have_multi_ndb.inc
--- source include/ndb_default_cluster.inc
 
 --disable_warnings
 drop table if exists t1,t2;
