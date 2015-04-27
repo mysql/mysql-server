@@ -341,14 +341,16 @@ sub read {
   my $sock = $self->{connection};
   my $r;
 
-  $r = select($self->{fdset}, undef, undef, $self->{io_timeout});
-  return $self->socket_error($r, "read(): select() $!") if($r < 0);
+  if($length > 0) {
+    $r = select($self->{fdset}, undef, undef, $self->{io_timeout});
+    return $self->socket_error($r, "read(): select() $!") if($r < 0);
 
-  $r = $sock->sysread($self->{readbuf}, $length, $self->{buflen});
-  if($r > 0) {
-    $self->{buflen} += $r;
-  } elsif($r < 0 && $! != Errno::EWOULDBLOCK) {
-    return $self->socket_error( $r == 0 ? 1 : $r, "read(): sysread() $!");
+    $r = $sock->sysread($self->{readbuf}, $length, $self->{buflen});
+    if($r > 0) {
+      $self->{buflen} += $r;
+    } elsif($r < 0 && $! != Errno::EWOULDBLOCK) {
+      return $self->socket_error( $r == 0 ? 1 : $r, "read(): sysread() $!");
+    }
   }
   return 1;
 }
