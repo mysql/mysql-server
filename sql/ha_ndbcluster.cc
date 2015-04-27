@@ -1357,7 +1357,7 @@ void ha_ndbcluster::set_rec_per_key()
     // set rows per key to 1 for complete key given for unique/primary index
     if (is_unique_index)
     {
-      key_info->rec_per_key[key_info->user_defined_key_parts-1]= 1;
+      key_info->set_records_per_key(key_info->user_defined_key_parts-1, 1.0f);
     }
   }
   DBUG_VOID_RETURN;
