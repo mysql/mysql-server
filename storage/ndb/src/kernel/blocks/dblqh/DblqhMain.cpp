@@ -6357,25 +6357,6 @@ void Dblqh::handleUserUnlockRequest(Signal* signal)
   return;
 }
 
-void Dblqh::execLQH_ALLOCREQ(Signal* signal)
-{
-  TcConnectionrecPtr regTcPtr;  
-  FragrecordPtr regFragptr;
-
-  jamEntry();
-  regTcPtr.i = signal->theData[0];
-  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
-
-  regFragptr.i = regTcPtr.p->fragmentptr;
-  c_fragment_pool.getPtr(regFragptr);
-
-  Uint32 tup = refToMain(regTcPtr.p->tcTupBlockref);
-  signal->theData[0] = regTcPtr.p->tupConnectrec;
-  signal->theData[1] = regFragptr.p->tupFragptr;
-  signal->theData[2] = regTcPtr.p->tableref;
-  EXECUTE_DIRECT(tup, GSN_TUP_ALLOCREQ, signal, 3);
-}//Dblqh::execTUP_ALLOCREQ()
-
 void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
 {
   TcConnectionrecPtr regTcPtr;  
@@ -6420,7 +6401,7 @@ void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
     ndbrequire(regTcPtr.p->m_dealloc == 0);
     regTcPtr.p->m_dealloc = 1;
   }
-}//Dblqh::execTUP_ALLOCREQ()
+}//Dblqh::execTUP_DEALLOCREQ()
 
 /* ************>> */
 /*  ACCKEYCONF  > */

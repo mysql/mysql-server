@@ -477,8 +477,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SEND_PACKED                 357
 #define GSN_SET_LOGLEVELORD             358
 
-#define GSN_LQH_ALLOCREQ                359
-#define GSN_TUP_ALLOCREQ                360
+/* 359 used to be LQH_ALLOCREQ, no longer used */
+/* 360 used to be TUP_ALLOCREQ, no longer used */
 #define GSN_TUP_DEALLOCREQ              361
 
 /* 362 not unused */

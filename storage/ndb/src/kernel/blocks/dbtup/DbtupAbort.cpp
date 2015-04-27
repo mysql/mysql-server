@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,15 +34,13 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
   do_tup_abortreq(signal, 0);
 }
 
-bool
+void
 Dbtup::do_tup_abort_operation(Signal* signal,
                               Tuple_header *tuple_ptr,
                               Operationrec* opPtrP,
                               Fragrecord* fragPtrP,
                               Tablerec* tablePtrP)
 {
-  bool change = true;
-
   Uint32 bits= tuple_ptr->m_header_bits;  
   if (opPtrP->op_type != ZDELETE)
   {
@@ -105,7 +103,6 @@ Dbtup::do_tup_abort_operation(Signal* signal,
           bits &= ~(Uint32)Tuple_header::VAR_PART;
         }
         tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
-        change = true;
       } 
       else if(bits & Tuple_header::MM_SHRINK)
       {
@@ -119,7 +116,6 @@ Dbtup::do_tup_abort_operation(Signal* signal,
       /**
        * Aborting last operation that performed ALLOC
        */
-      change = true;
       tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
       tuple_ptr->m_header_bits |= Tuple_header::FREED;
     }
@@ -130,12 +126,11 @@ Dbtup::do_tup_abort_operation(Signal* signal,
     if (bits & Tuple_header::ALLOC)
     {
       jam();
-      change = true;
       tuple_ptr->m_header_bits &= ~(Uint32)Tuple_header::ALLOC;
       tuple_ptr->m_header_bits |= Tuple_header::FREED;
     }
   }
-  return change;
+  return;
 }
 
 void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
@@ -205,11 +200,11 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
      * Then abort all data changes
      */
     {
-      bool change = do_tup_abort_operation(signal, 
-                                           tuple_ptr,
-                                           regOperPtr.p,
-                                           regFragPtr.p,
-                                           regTabPtr.p);
+      do_tup_abort_operation(signal, 
+                             tuple_ptr,
+                             regOperPtr.p,
+                             regFragPtr.p,
+                             regTabPtr.p);
       
       OperationrecPtr loopOpPtr;
       loopOpPtr.i = regOperPtr.p->nextActiveOp;
@@ -220,17 +215,21 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
         if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED)
         {
           jam();
-          change |= do_tup_abort_operation(signal,
-                                           tuple_ptr,
-                                           loopOpPtr.p,
-                                           regFragPtr.p,
-                                           regTabPtr.p);
+          do_tup_abort_operation(signal,
+                                 tuple_ptr,
+                                 loopOpPtr.p,
+                                 regFragPtr.p,
+                                 regTabPtr.p);
           set_tuple_state(loopOpPtr.p, TUPLE_ALREADY_ABORTED);      
         }
         loopOpPtr.i = loopOpPtr.p->nextActiveOp;
       }
-    
-      if (change && (regTabPtr.p->m_bits & Tablerec::TR_Checksum)) 
+      if (tuple_ptr->m_header_bits & Tuple_header::FREED)
+      {
+        jam();
+        setInvalidChecksum(tuple_ptr, regTabPtr.p);
+      }
+      else
       {
         jam();
         setChecksum(tuple_ptr, regTabPtr.p);
