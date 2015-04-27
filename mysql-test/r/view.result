@@ -5941,6 +5941,180 @@ ON alias2.col_varchar_key = alias1.col_varchar_key;
 pk
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+CREATE TABLE t0(x INTEGER);
+INSERT INTO t0 VALUES(0);
+CREATE TABLE t1(a1 INTEGER PRIMARY KEY, b1 INTEGER);
+CREATE TABLE t2(a2 INTEGER PRIMARY KEY, b2 INTEGER);
+CREATE VIEW v0 AS SELECT DISTINCT x FROM t0;
+CREATE VIEW vmat1 AS SELECT DISTINCT * FROM t1;
+CREATE VIEW vmat2 AS SELECT DISTINCT * FROM t2;
+CREATE VIEW vtt AS
+SELECT * FROM t1 JOIN t2 ON t1.a1=t2.a2;
+CREATE VIEW vtr AS
+SELECT * FROM t1 JOIN vmat2 AS dt2 ON t1.a1=dt2.a2;
+CREATE VIEW vtrd AS
+SELECT * FROM t1 JOIN (SELECT DISTINCT * FROM t2) AS dt2 ON t1.a1=dt2.a2;
+CREATE VIEW vrt AS
+SELECT * FROM vmat1 AS dt1 JOIN t2 ON dt1.a1=t2.a2;
+CREATE VIEW vrtd AS
+SELECT * FROM (SELECT DISTINCT * FROM t1) AS dt1 JOIN t2 ON dt1.a1=t2.a2;
+CREATE VIEW vrr AS
+SELECT * FROM vmat1 AS dt1 JOIN vmat2 AS dt2 ON dt1.a1=dt2.a2;
+CREATE VIEW vrrd AS
+SELECT * FROM (SELECT DISTINCT * FROM t1) AS dt1 JOIN
+(SELECT DISTINCT * FROM t2) AS dt2 ON dt1.a1=dt2.a2;
+INSERT INTO vtt(a1,b1) VALUES (1,100);
+INSERT INTO vtt(a2,b2) VALUES (1,100);
+INSERT INTO vtr(a1,b1) VALUES (2,100);
+ERROR HY000: The target table vtr of the INSERT is not insertable-into
+INSERT INTO vtr(a2,b2) VALUES (2,100);
+ERROR HY000: The target table vtr of the INSERT is not insertable-into
+INSERT INTO vrt(a1,b1) VALUES (4,100);
+ERROR HY000: The target table vrt of the INSERT is not insertable-into
+INSERT INTO vrtd(a1,b1) VALUES (5,100);
+ERROR HY000: The target table vrtd of the INSERT is not insertable-into
+INSERT INTO vrt(a2,b2) VALUES (4,100);
+ERROR HY000: The target table vrt of the INSERT is not insertable-into
+INSERT INTO vrtd(a2,b2) VALUES (5,100);
+ERROR HY000: The target table vrtd of the INSERT is not insertable-into
+INSERT INTO vrr(a1,b1) VALUES (6,100);
+ERROR HY000: The target table vrr of the INSERT is not insertable-into
+INSERT INTO vrrd(a1,b1) VALUES (7,100);
+ERROR HY000: The target table vrrd of the INSERT is not insertable-into
+INSERT INTO vrr(a2,b2) VALUES (6,100);
+ERROR HY000: The target table vrr of the INSERT is not insertable-into
+INSERT INTO vrrd(a2,b2) VALUES (7,100);
+ERROR HY000: The target table vrrd of the INSERT is not insertable-into
+SELECT * FROM vtt;
+a1	b1	a2	b2
+1	100	1	100
+DELETE FROM t1;
+DELETE FROM t2;
+INSERT INTO vtt(a1,b1) SELECT 1,100;
+INSERT INTO vtt(a2,b2) SELECT 1,100;
+INSERT INTO vtr(a1,b1) SELECT 2,100;
+ERROR HY000: The target table vtr of the INSERT is not insertable-into
+INSERT INTO vtr(a2,b2) SELECT 2,100;
+ERROR HY000: The target table vtr of the INSERT is not insertable-into
+INSERT INTO vrt(a1,b1) SELECT 4,100;
+ERROR HY000: The target table vrt of the INSERT is not insertable-into
+INSERT INTO vrtd(a1,b1) SELECT 5,100;
+ERROR HY000: The target table vrtd of the INSERT is not insertable-into
+INSERT INTO vrt(a2,b2) SELECT 4,100;
+ERROR HY000: The target table vrt of the INSERT is not insertable-into
+INSERT INTO vrtd(a2,b2) SELECT 5,100;
+ERROR HY000: The target table vrtd of the INSERT is not insertable-into
+INSERT INTO vrr(a1,b1) SELECT 6,100;
+ERROR HY000: The target table vrr of the INSERT is not insertable-into
+INSERT INTO vrrd(a1,b1) SELECT 7,100;
+ERROR HY000: The target table vrrd of the INSERT is not insertable-into
+INSERT INTO vrr(a2,b2) SELECT 6,100;
+ERROR HY000: The target table vrr of the INSERT is not insertable-into
+INSERT INTO vrrd(a2,b2) SELECT 7,100;
+ERROR HY000: The target table vrrd of the INSERT is not insertable-into
+SELECT * FROM vtt;
+a1	b1	a2	b2
+1	100	1	100
+DELETE FROM t1;
+DELETE FROM t2;
+INSERT INTO t1 VALUES
+(1,100), (2,100), (3,100), (4,100), (5,100),
+(6,100), (7,100), (8,100), (9,100), (10,100),
+(11,100), (12,100), (13,100), (14,100);
+INSERT INTO t2 VALUES
+(1,100), (2,100), (3,100), (4,100), (5,100),
+(6,100), (7,100), (8,100), (9,100), (10,100),
+(11,100), (12,100), (13,100), (14,100);
+DELETE FROM vtt WHERE a1=1;
+ERROR HY000: Can not delete from join view 'test.vtt'
+DELETE FROM vtr WHERE a1=2;
+ERROR HY000: The target table vtr of the DELETE is not updatable
+DELETE FROM vrt WHERE a1=4;
+ERROR HY000: The target table vrt of the DELETE is not updatable
+DELETE FROM vrtd WHERE a1=5;
+ERROR HY000: The target table vrtd of the DELETE is not updatable
+DELETE FROM vrr WHERE a1=6;
+ERROR HY000: The target table vrr of the DELETE is not updatable
+DELETE FROM vrrd WHERE a1=7;
+ERROR HY000: The target table vrrd of the DELETE is not updatable
+DELETE vtt FROM vtt WHERE a1=8;
+ERROR HY000: Can not delete from join view 'test.vtt'
+DELETE vtr FROM vtr WHERE a1=9;
+ERROR HY000: The target table vtr of the DELETE is not updatable
+DELETE vrt FROM vrt WHERE a1=11;
+ERROR HY000: The target table vrt of the DELETE is not updatable
+DELETE vrtd FROM vrtd WHERE a1=12;
+ERROR HY000: The target table vrtd of the DELETE is not updatable
+DELETE vrr FROM vrr WHERE a1=13;
+ERROR HY000: The target table vrr of the DELETE is not updatable
+DELETE vrrd FROM vrrd WHERE a1=14;
+ERROR HY000: The target table vrrd of the DELETE is not updatable
+SELECT * FROM vtt;
+a1	b1	a2	b2
+1	100	1	100
+2	100	2	100
+3	100	3	100
+4	100	4	100
+5	100	5	100
+6	100	6	100
+7	100	7	100
+8	100	8	100
+9	100	9	100
+10	100	10	100
+11	100	11	100
+12	100	12	100
+13	100	13	100
+14	100	14	100
+DELETE FROM t1;
+DELETE FROM t2;
+INSERT INTO t1 VALUES (1,100);
+INSERT INTO t2 VALUES (1,100);
+UPDATE vtt SET b1=b1+1 WHERE a1=1;
+UPDATE vtt SET b2=b2+1 WHERE a2=1;
+UPDATE vtr SET b1=b1+1 WHERE a1=1;
+ERROR HY000: The target table vtr of the UPDATE is not updatable
+UPDATE vtr SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table vtr of the UPDATE is not updatable
+UPDATE vrt SET b1=b1+1 WHERE a1=1;
+ERROR HY000: The target table vrt of the UPDATE is not updatable
+UPDATE vrtd SET b1=b1+1 WHERE a1=1;
+ERROR HY000: The target table vrtd of the UPDATE is not updatable
+UPDATE vrt SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table vrt of the UPDATE is not updatable
+UPDATE vrtd SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table vrtd of the UPDATE is not updatable
+UPDATE vrr SET b1=b1+1 WHERE a1=1;
+ERROR HY000: The target table vrr of the UPDATE is not updatable
+UPDATE vrrd SET b1=b1+1 WHERE a1=1;
+ERROR HY000: The target table vrrd of the UPDATE is not updatable
+UPDATE vrr SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table vrr of the UPDATE is not updatable
+UPDATE vrrd SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table vrrd of the UPDATE is not updatable
+UPDATE vtt, v0 AS dt SET b1=b1+1 WHERE a1=1;
+UPDATE vtt, v0 SET b2=b2+1 WHERE a2=1;
+UPDATE vtr, v0 SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table dt2 of the UPDATE is not updatable
+UPDATE vtrd, v0 SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table dt2 of the UPDATE is not updatable
+UPDATE vrt, v0 SET b1=b1+1 WHERE a1=1;
+ERROR HY000: The target table dt1 of the UPDATE is not updatable
+UPDATE vrtd, v0 SET b1=b1+1 WHERE a1=1;
+ERROR HY000: The target table dt1 of the UPDATE is not updatable
+UPDATE vrr, v0 SET b1=b1+1 WHERE a1=1;
+ERROR HY000: The target table dt1 of the UPDATE is not updatable
+UPDATE vrrd, v0 SET b1=b1+1 WHERE a1=1;
+ERROR HY000: The target table dt1 of the UPDATE is not updatable
+UPDATE vrr, v0 SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table dt2 of the UPDATE is not updatable
+UPDATE vrrd, v0 SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table dt2 of the UPDATE is not updatable
+SELECT * FROM vtt;
+a1	b1	a2	b2
+1	102	1	102
+DROP VIEW v0, vtt, vtr, vrt, vrr, vmat1, vmat2;
+DROP VIEW vtrd, vrtd, vrrd;
+DROP TABLE t0, t1, t2;
 #
 # Bug#20407961 VIEW'S CHECK OPTION SOMETIMES NOT HONOURED IF INCLUDED IN A TOP VIEW
 #
