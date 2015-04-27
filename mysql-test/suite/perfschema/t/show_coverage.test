@@ -6,7 +6,7 @@
 ################################################################################
 --source include/have_perfschema.inc
 --source include/not_embedded.inc
---source ../include/no_protocol.inc
+--source include/no_protocol.inc
 
 select @@global.show_compatibility_56 into @show_compatibility_56_save;
 --echo
