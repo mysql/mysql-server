@@ -6390,6 +6390,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
         global.append(passwd_buff);
         global.append('\'');
       }
+      else
+        global.append(" <secret>");
     }
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
