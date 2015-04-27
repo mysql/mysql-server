@@ -2,7 +2,7 @@
 # SET-UP - Creation of various nested stored programs
 #
 
---source suite/perfschema/include/no_protocol.inc
+--source include/no_protocol.inc
 
 --echo # SET-UP
 CREATE DATABASE nested_sp;

@@ -1,6 +1,6 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source ../include/no_protocol.inc
+--source include/no_protocol.inc
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
