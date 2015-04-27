@@ -147,7 +147,7 @@ run_test(void) {
         uint8_t gid[DB_GID_SIZE];
         memset(gid, 0, DB_GID_SIZE);
         gid[0]=42;
-        r = txn->prepare(txn, gid);                                                            CKERR(r);
+        r = txn->prepare(txn, gid, 0);                                                            CKERR(r);
     }
 
     r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);

@@ -558,7 +558,7 @@ static void copy_xid (TOKU_XA_XID *dest, TOKU_XA_XID *source) {
     memcpy(dest->data, source->data, source->gtrid_length+source->bqual_length);
 }
 
-void toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
+void toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid, int nosync) {
     if (txn->parent || toku_txn_is_read_only(txn)) {
         // We do not prepare children.
         //
@@ -573,7 +573,7 @@ void toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
     txn->state = TOKUTXN_PREPARING; 
     toku_txn_unlock_state(txn);
     // Do we need to do an fsync?
-    txn->do_fsync = (txn->force_fsync_on_commit || txn->roll_info.num_rollentries>0);
+    txn->do_fsync = txn->force_fsync_on_commit || (!nosync && txn->roll_info.num_rollentries>0);
     copy_xid(&txn->xa_xid, xa_xid);
     // This list will go away with #4683, so we wn't need the ydb lock for this anymore.
     toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid, xa_xid);

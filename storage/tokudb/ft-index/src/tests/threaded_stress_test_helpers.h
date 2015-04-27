@@ -593,7 +593,7 @@ static void *worker(void *arg_v) {
             uint64_t gid_val = txn->id64(txn);
             uint64_t *gid_count_p = cast_to_typeof(gid_count_p) gid;  // make gcc --happy about -Wstrict-aliasing
             *gid_count_p = gid_val;
-            int rr = txn->prepare(txn, gid);
+            int rr = txn->prepare(txn, gid, 0);
             assert_zero(rr);
         }
         if (r == 0) {

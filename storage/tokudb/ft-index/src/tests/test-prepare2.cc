@@ -124,7 +124,7 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commi
     uint8_t gid[DB_GID_SIZE];
     memset(gid, 0, DB_GID_SIZE);
     gid[0]=42;
-    CKERR(txn->prepare(txn, gid));
+    CKERR(txn->prepare(txn, gid, 0));
     if (commit)
 	CKERR(txn->commit(txn, 0));
 }

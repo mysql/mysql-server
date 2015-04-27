@@ -714,7 +714,7 @@ static int toku_recover_xstillopenprepared (struct logtype_xstillopenprepared *l
     }
     switch (renv->ss.ss) {
         case FORWARD_BETWEEN_CHECKPOINT_BEGIN_END: {
-            toku_txn_prepare_txn(txn, l->xa_xid);
+            toku_txn_prepare_txn(txn, l->xa_xid, 0);
             break;
         }
         case FORWARD_NEWER_CHECKPOINT_END: {
@@ -778,7 +778,7 @@ static int toku_recover_xprepare (struct logtype_xprepare *l, RECOVER_ENV renv) 
     assert(txn!=NULL);
 
     // Save the transaction
-    toku_txn_prepare_txn(txn, l->xa_xid);
+    toku_txn_prepare_txn(txn, l->xa_xid, 0);
 
     return 0;
 }

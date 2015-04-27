@@ -95,12 +95,12 @@ PATENT RIGHTS GRANT:
 
 
 int num_interrupts_called;
-static bool interrupt(void* extra UU()) {
+static bool interrupt(void* extra UU(), uint64_t rows UU()) {
     num_interrupts_called++;
     return false;
 }
 
-static bool interrupt_true(void* extra UU()) {
+static bool interrupt_true(void* extra UU(), uint64_t rows UU()) {
     num_interrupts_called++;
     return true;
 }

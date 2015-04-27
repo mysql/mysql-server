@@ -133,7 +133,7 @@ test_main(int argc, char *const argv[]) {
     uint8_t gid[DB_GID_SIZE];
     memset(gid, 0, DB_GID_SIZE);
     gid[0]='a';
-    r = child_txn->prepare(child_txn, gid);
+    r = child_txn->prepare(child_txn, gid, 0);
     CKERR(r);
 
     r = env->txn_checkpoint(env, 0, 0, 0);

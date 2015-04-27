@@ -130,7 +130,7 @@ test_txn_close_before_prepare_commit (void) {
 
     uint8_t gid[DB_GID_SIZE];
     memset(gid, 1, DB_GID_SIZE);
-    r = txn->prepare(txn, gid);   assert(r == 0);
+    r = txn->prepare(txn, gid, 0);   assert(r == 0);
     r = txn->commit(txn, 0); assert(r == 0);
 
     r = env->close(env, 0); assert(r == 0);

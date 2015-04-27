@@ -3387,7 +3387,7 @@ ok: ;
                 idx++;
                 if (idx >= bn->data_buffer.num_klpairs() || ((n_deleted % 64) == 0 && !search_continue(search, key, keylen))) {
                     STATUS_INC(FT_CURSOR_SKIP_DELETED_LEAF_ENTRY, n_deleted);
-                    if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra)) {
+                    if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra, n_deleted)) {
                         return TOKUDB_INTERRUPTED;
                     }
                     return DB_NOTFOUND;
@@ -3396,7 +3396,7 @@ ok: ;
             case FT_SEARCH_RIGHT:
                 if (idx == 0) {
                     STATUS_INC(FT_CURSOR_SKIP_DELETED_LEAF_ENTRY, n_deleted);
-                    if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra)) {
+                    if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra, n_deleted)) {
                         return TOKUDB_INTERRUPTED;
                     }
                     return DB_NOTFOUND;
@@ -3410,6 +3410,8 @@ ok: ;
             assert_zero(r); // we just validated the index
             if (!le_val_is_del(le, ftcursor->is_snapshot_read, ftcursor->ttxn)) {
                 STATUS_INC(FT_CURSOR_SKIP_DELETED_LEAF_ENTRY, n_deleted);
+                if (ftcursor->interrupt_cb)
+                    ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra, n_deleted);
                 goto got_a_good_value;
             }
         }

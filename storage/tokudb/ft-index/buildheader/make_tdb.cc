@@ -572,7 +572,7 @@ static void print_db_txn_struct (void) {
     STRUCT_SETUP(DB_TXN, abort,       "int (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, api_internal,"void *%s");
     STRUCT_SETUP(DB_TXN, commit,      "int (*%s) (DB_TXN*, uint32_t)");
-    STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, uint8_t gid[DB_GID_SIZE])");
+    STRUCT_SETUP(DB_TXN, prepare,     "int (*%s) (DB_TXN*, uint8_t gid[DB_GID_SIZE], uint32_t flags)");
     STRUCT_SETUP(DB_TXN, discard,     "int (*%s) (DB_TXN*, uint32_t)");
     STRUCT_SETUP(DB_TXN, id,          "uint32_t (*%s) (DB_TXN *)");
     STRUCT_SETUP(DB_TXN, mgrp,        "DB_ENV *%s /* In TokuFT, mgrp is a DB_ENV, not a DB_TXNMGR */");
@@ -581,11 +581,12 @@ static void print_db_txn_struct (void) {
 	"int (*txn_stat)(DB_TXN *, struct txn_stat **)", 
 	"int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*)",
 	"int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*)",
-	"int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *)",
+	"int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *, uint32_t flags)",
         "uint64_t (*id64) (DB_TXN*)",
         "void (*set_client_id)(DB_TXN *, uint64_t client_id)",
         "uint64_t (*get_client_id)(DB_TXN *)",
         "bool (*is_prepared)(DB_TXN *)",
+        "DB_TXN *(*get_child)(DB_TXN *)",
 	NULL};
     sort_and_dump_fields("db_txn", false, extra);
 }
@@ -614,7 +615,7 @@ static void print_dbc_struct (void) {
 	"int (*c_getf_set_range_reverse)(DBC *, uint32_t, DBT *, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_getf_set_range_with_bound)(DBC *, uint32_t, DBT *k, DBT *k_bound, YDB_CALLBACK_FUNCTION, void *)",
 	"int (*c_set_bounds)(DBC*, const DBT*, const DBT*, bool pre_acquire, int out_of_range_error)",
-        "void (*c_set_check_interrupt_callback)(DBC*, bool (*)(void*), void *)",
+        "void (*c_set_check_interrupt_callback)(DBC*, bool (*)(void*, uint64_t deleted_rows), void *)",
 	"void (*c_remove_restriction)(DBC*)",
         "char _internal[512]",
 	NULL};
