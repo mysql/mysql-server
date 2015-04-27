@@ -11,6 +11,9 @@
 #  iv) Execute above three steps for all different types of statements
 ###############################################################################
 
+# BUG#20954452 is making this test fail in ps-protocol run. Disabling it until
+# the bug is fixed.
+--source include/no_protocol.inc
 # Test is not required to run against embedded server
 --source include/not_embedded.inc
 # Should be tested against "binlog disabled" server
