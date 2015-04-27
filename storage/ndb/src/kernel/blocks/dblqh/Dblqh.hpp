@@ -2499,7 +2499,6 @@ private:
   void execDROP_TAB_CONF(Signal*);
   void dropTable_nextStep(Signal*, AddFragRecordPtr);
 
-  void execLQH_ALLOCREQ(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
   void execLQH_WRITELOG_REQ(Signal* signal);
 
