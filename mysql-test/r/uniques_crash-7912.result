@@ -1,0 +1,18 @@
+set sql_mode="";
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+create table `t1` (`a` datetime not null) engine=InnoDB;
+create table `t2` (`a` int not null) engine=innodb;
+replace into t1 values (),();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+insert into t2 values(0);
+set session sort_buffer_size = 1024*1024*1024*1024;
+SET session debug_dbug= '+d,make_merge_buff_alloc_fail';
+delete d2 from t2 as d1, t1 as d2 where d1.a <=> d2.a;
+ERROR HY000: Out of memory (Needed 2 bytes)
+SET SESSION debug_dbug=DEFAULT;
+drop table t2;
+drop table t1;
