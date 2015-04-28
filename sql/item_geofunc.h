@@ -116,7 +116,7 @@ class Item_func_point: public Item_geometry_func
 public:
   Item_func_point(Item *a, Item *b): Item_geometry_func(a, b) {}
   Item_func_point(Item *a, Item *b, Item *srid): Item_geometry_func(a, b, srid) {}
-  const char *func_name() const { return "st_point"; }
+  const char *func_name() const { return "point"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
 };
