@@ -2123,18 +2123,6 @@ mysql_execute_command(THD *thd)
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
-  if (unlikely(lex->is_broken()))
-  {
-    // Force a Reprepare, to get a fresh LEX
-    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
-    if (reprepare_observer &&
-        reprepare_observer->report_error(thd))
-    {
-      DBUG_ASSERT(thd->is_error());
-      DBUG_RETURN(1);
-    }
-  }
-
   thd->work_part_info= 0;
 
   DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) ||

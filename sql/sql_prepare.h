@@ -75,7 +75,7 @@ void mysqld_stmt_fetch(THD *thd, ulong stmt_id, ulong num_rows);
 void mysqld_stmt_reset(THD *thd, ulong stmt_id);
 void mysql_stmt_get_longdata(THD *thd, ulong stmt_id, uint param_number,
                              uchar *longdata, ulong length);
-void reinit_stmt_before_use(THD *thd, LEX *lex);
+bool reinit_stmt_before_use(THD *thd, LEX *lex);
 bool select_like_stmt_cmd_test(THD *thd,
                                class Sql_cmd_dml *cmd,
                                ulong setup_tables_done_option);

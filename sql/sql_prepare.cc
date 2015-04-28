@@ -2345,15 +2345,20 @@ void mysql_sql_stmt_prepare(THD *thd)
 }
 
 /**
-  Reinit prepared statement/stored procedure before execution.
+  Reinit prepared statement/stored procedure before execution. Resets the LEX
+  object.
+
 
   @todo
     When the new table structure is ready, then have a status bit
     to indicate the table is altered, and re-do the setup_*
     and open the tables back.
+
+  @retval false OK.
+  @retval true Error.
 */
 
-void reinit_stmt_before_use(THD *thd, LEX *lex)
+bool reinit_stmt_before_use(THD *thd, LEX *lex)
 {
   SELECT_LEX *sl= lex->all_selects_list;
   DBUG_ENTER("reinit_stmt_before_use");
@@ -2481,7 +2486,20 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   }
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
-  DBUG_VOID_RETURN;
+
+  if (unlikely(lex->is_broken()))
+  {
+    // Force a Reprepare, to get a fresh LEX
+    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+    if (reprepare_observer &&
+        reprepare_observer->report_error(thd))
+    {
+      DBUG_ASSERT(thd->is_error());
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
 }
 
 
@@ -3776,8 +3794,6 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
 bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 {
   Query_arena *old_stmt_arena;
-  bool error= TRUE;
-
   char saved_cur_db_name_buf[NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
@@ -3883,7 +3899,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
-  reinit_stmt_before_use(thd, lex);
+  bool error= reinit_stmt_before_use(thd, lex);
 
   /*
     Set a hint so mysql_execute_command() won't clear the DA *again*,
@@ -3892,55 +3908,58 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
   thd->lex->keep_diagnostics= DA_KEEP_PARSE_ERROR;
 
-  /* Go! */
-
-  if (open_cursor)
-    error= mysql_open_cursor(thd, &result, &cursor);
-  else
+  if (!error)
   {
-    /*
-      Try to find it in the query cache, if not, execute it.
-      Note that multi-statements cannot exist here (they are not supported in
-      prepared statements).
-    */
-    if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
+    // Execute
+
+    if (open_cursor)
+      error= mysql_open_cursor(thd, &result, &cursor);
+    else
     {
-      PSI_statement_locker *parent_locker;
-      MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                             thd->thread_id(),
-                             (char *) (thd->db().str != NULL ?
-                                       thd->db().str : ""),
-                             (char *) thd->security_context()->priv_user().str,
-                             (char *) thd->security_context()->host_or_ip().str,
-                             1);
-      parent_locker= thd->m_statement_psi;
-      thd->m_statement_psi= NULL;
-
       /*
-        Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
-        prepared statements this causes two records to be output:
-
-        Query       EXECUTE <statement name>
-        Execute     <statement SQL text>
-
-        This is considered user-friendly, since in the
-        second log entry we output values of parameter markers.
-
-        Rewriting/password obfuscation:
-
-        - Any passwords in the "Execute" line should be substituted with
-        their hashes, or a notice.
-
-        Rewrite first (if needed); execution might replace passwords
-        with hashes in situ without flagging it, and then we'd make
-        a hash of that hash.
+        Try to find it in the query cache, if not, execute it.
+        Note that multi-statements cannot exist here (they are not supported in
+        prepared statements).
       */
-      rewrite_query_if_needed(thd);
-      log_execute_line(thd);
+      if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
+      {
+        PSI_statement_locker *parent_locker;
+        MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
+                               thd->thread_id(),
+                               (char *) (thd->db().str != NULL ?
+                                         thd->db().str : ""),
+                               (char *) thd->security_context()->priv_user().str,
+                               (char *) thd->security_context()->host_or_ip().str,
+                               1);
+        parent_locker= thd->m_statement_psi;
+        thd->m_statement_psi= NULL;
 
-      error= mysql_execute_command(thd);
-      thd->m_statement_psi= parent_locker;
-      MYSQL_QUERY_EXEC_DONE(error);
+        /*
+          Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
+          prepared statements this causes two records to be output:
+
+          Query       EXECUTE <statement name>
+          Execute     <statement SQL text>
+
+          This is considered user-friendly, since in the
+          second log entry we output values of parameter markers.
+
+          Rewriting/password obfuscation:
+
+          - Any passwords in the "Execute" line should be substituted with
+          their hashes, or a notice.
+
+          Rewrite first (if needed); execution might replace passwords
+          with hashes in situ without flagging it, and then we'd make
+          a hash of that hash.
+        */
+        rewrite_query_if_needed(thd);
+        log_execute_line(thd);
+
+        error= mysql_execute_command(thd);
+        thd->m_statement_psi= parent_locker;
+        MYSQL_QUERY_EXEC_DONE(error);
+      }
     }
   }
 
