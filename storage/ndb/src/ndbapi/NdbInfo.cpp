@@ -345,9 +345,18 @@ int NdbInfo::createScanOperation(const Table* table,
     return 0;
   }
 
+
+  Uint32 max_nodes = 0;
+  if (table->getTableId() < NUM_HARDCODED_TABLES)
+  {
+    // Each db node contains all rows for the table -> scan only one node
+    max_nodes = 1;
+  }
+
   NdbInfoScanNodes* scan_op = new NdbInfoScanNodes(*this, m_connection,
                                                    table, max_rows,
-                                                   max_bytes);
+                                                   max_bytes,
+                                                   max_nodes);
   if (!scan_op)
     return ERR_OutOfMemory;
   // Global id counter, not critical if you get same id on two instances
@@ -356,12 +365,6 @@ int NdbInfo::createScanOperation(const Table* table,
   {
     delete scan_op;
     return ERR_ClusterFailure;
-  }
-
-  if (table->getTableId() < NUM_HARDCODED_TABLES)
-  {
-    // Each db node have the full list -> scan only one node
-    scan_op->m_max_nodes = 1;
   }
 
   *ret_scan_op = scan_op;

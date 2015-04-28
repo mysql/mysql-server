@@ -31,13 +31,14 @@ public:
   virtual const class NdbInfoRecAttr* getValue(Uint32 anAttrId);
   virtual int execute();
   virtual int nextResult();
-protected:
-  friend class NdbInfo;
+
   NdbInfoScanNodes(const NdbInfo&,
-                  class Ndb_cluster_connection*,
-                  const NdbInfo::Table*,
-                  Uint32 max_rows, Uint32 max_bytes);
+                   class Ndb_cluster_connection*,
+                   const NdbInfo::Table*,
+                   Uint32 max_rows, Uint32 max_bytes,
+                   Uint32 max_nodes);
   bool init(Uint32 id);
+
   virtual ~NdbInfoScanNodes();
   void close();
 private:
@@ -68,7 +69,7 @@ private:
   Uint32 m_rows_received;
   Uint32 m_rows_confirmed;
   Uint32 m_nodes; // Number of nodes scanned
-  Uint32 m_max_nodes; // Max number of nodes to scan
+  const Uint32 m_max_nodes; // Max number of nodes to scan
 };
 
 
