@@ -26,8 +26,7 @@
        Other OSes - pthread
   2) my_cond_*()
        Functions that use SAFE_MUTEX (default for debug).
-       FAST_MUTEX (default for release - non Windows). If neither
-       of these apply, native_cond_*() is used.
+       Otherwise native_cond_*() is used.
   3) mysql_cond*()
        Functions that include Performance Schema instrumentation.
        See include/mysql/psi/mysql_thread.h
@@ -164,8 +163,6 @@ static inline int my_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
 {
 #ifdef SAFE_MUTEX
   return safe_cond_timedwait(cond, mp, abstime, file, line);
-#elif defined MY_PTHREAD_FASTMUTEX
-  return native_cond_timedwait(cond, &mp->mutex, abstime);
 #else
   return native_cond_timedwait(cond, mp, abstime);
 #endif
@@ -179,8 +176,6 @@ static inline int my_cond_wait(native_cond_t *cond, my_mutex_t *mp
 {
 #ifdef SAFE_MUTEX
   return safe_cond_wait(cond, mp, file, line);
-#elif defined MY_PTHREAD_FASTMUTEX
-  return native_cond_wait(cond, &mp->mutex);
 #else
   return native_cond_wait(cond, mp);
 #endif
