@@ -71,8 +71,10 @@ static MYSQL_THDVAR_STR(session,
 // Lock to be used for global variable hash.
 mysql_rwlock_t LOCK_vtoken_hash;
 
-PSI_rwlock_key key_LOCK_vtoken_hash;
 PSI_memory_key key_memory_vtoken;
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_rwlock_key key_LOCK_vtoken_hash;
 
 static PSI_rwlock_info all_vtoken_rwlocks[]=
 {
@@ -99,6 +101,8 @@ void vtoken_init_psi_keys(void)
   count= array_elements(all_vtoken_memory);
   PSI_server->register_memory(category, all_vtoken_memory, count);
 }
+
+#endif /* HAVE_PSI_INTERFACE */
 
 static bool is_blank_string(char *input)
 {
@@ -485,8 +489,10 @@ static int version_tokens_init(void *arg __attribute__((unused)))
                4, 0, 0, (my_hash_get_key) version_token_get_key,
                my_free, HASH_UNIQUE);
 
+#ifdef HAVE_PSI_INTERFACE
   // Intialize psi keys.
   vtoken_init_psi_keys();
+#endif /* HAVE_PSI_INTERFACE */
 
   // Lock for hash.
   mysql_rwlock_init(key_LOCK_vtoken_hash, &LOCK_vtoken_hash);
