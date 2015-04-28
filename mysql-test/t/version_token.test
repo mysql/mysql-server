@@ -3,6 +3,10 @@
 --source include/not_embedded.inc
 --source include/count_sessions.inc
 
+if ( !$VERSION_TOKEN ) {
+  skip Locking service plugin requires the environment variable \$VERSION_TOKEN to be set (normally done by mtr);
+}
+
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
 --replace_regex /\.dll/.so/
