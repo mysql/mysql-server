@@ -10701,6 +10701,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     mysql_reset_thd_for_next_command(thd);
 
     enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+    if (state == GTID_STATEMENT_EXECUTE)
+    {
+      if (gtid_pre_statement_post_implicit_commit_checks(thd))
+        state= GTID_STATEMENT_CANCEL;
+    }
+
     if (state == GTID_STATEMENT_CANCEL)
     {
       uint error= thd->get_stmt_da()->mysql_errno();
