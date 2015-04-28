@@ -34,8 +34,6 @@ public:
   virtual int nextResult();
   virtual  ~NdbInfoScanVirtual();
 
-protected:
-  friend class NdbInfo;
   NdbInfoScanVirtual(const NdbInfo::Table* table,
                      const class VirtualTable* virt);
   bool init();

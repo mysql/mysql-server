@@ -32,7 +32,8 @@ struct NdbInfoScanOperationImpl
 NdbInfoScanNodes::NdbInfoScanNodes(const NdbInfo& info,
                                    Ndb_cluster_connection* connection,
                                    const NdbInfo::Table* table,
-                                   Uint32 max_rows, Uint32 max_bytes) :
+                                   Uint32 max_rows, Uint32 max_bytes,
+                                   Uint32 max_nodes) :
   m_impl(*new NdbInfoScanOperationImpl),
   m_info(info),
   m_state(Undefined),
@@ -46,7 +47,7 @@ NdbInfoScanNodes::NdbInfoScanNodes(const NdbInfo& info,
   m_rows_received(0),
   m_rows_confirmed(0),
   m_nodes(0),
-  m_max_nodes(0)
+  m_max_nodes(max_nodes)
 {
 }
 
