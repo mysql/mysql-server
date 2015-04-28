@@ -17,5 +17,15 @@ SELECT 1 FROM t1 WHERE a = ANY (SELECT a FROM t2);
 
 DROP TABLE t1, t2;
 
+#
+# Bug#19786309 -  CRASH IN UNLOCK TABLES AFTER LOCKING AND TRUNCATING TEMPORARY TABLE.
+#
+create temporary table t1 (a int) engine=blackhole;
+lock table t1 write;
+truncate table t1;
+select * from t1;
+unlock tables;
+drop temporary table t1;
+
 --echo End of 5.5 tests 
 

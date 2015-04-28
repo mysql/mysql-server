@@ -3607,8 +3607,9 @@ static int init_common_variables()
     return 1;
   set_server_version();
 
-  sql_print_information("%s (mysqld %s) starting as process %lu ...",
-                        my_progname, server_version, (ulong) getpid());
+  if (!opt_help)
+    sql_print_information("%s (mysqld %s) starting as process %lu ...",
+                          my_progname, server_version, (ulong) getpid());
 
 #ifndef EMBEDDED_LIBRARY
   if (opt_abort && !opt_verbose)

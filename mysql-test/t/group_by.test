@@ -1516,6 +1516,17 @@ let $query= SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
 --echo
 DROP TABLE t1;
 
+
+#
+# Bug#19880368 : GROUP_CONCAT CRASHES AFTER DUMP_LEAF_KEY
+#
+create table t1 (a int, b int);
+insert into t1 values (1,11), (1,12), (2,22),(2,23), (4,44),(4,45);
+create table t2 (c int, d int);
+insert into t2 values (1,11), (1,12), (2,22),(2,23), (4,44),(4,45);
+select distinct a,sum(b), (select d from t2 where c=a order by max(b) limit 1) from t1 group by a order by max(b);
+drop table t1, t2;
+
 --echo #
 --echo # LP bug#993726 Wrong result from a query with ALL subquery predicate in WHERE
 --echo #

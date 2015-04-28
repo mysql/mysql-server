@@ -4103,11 +4103,7 @@ public:
     collation.set(item->collation);
     unsigned_flag= item->unsigned_flag;
     if (item->type() == FIELD_ITEM)
-    {
       cached_field= ((Item_field *)item)->field;
-      if (cached_field->table)
-        used_table_map= cached_field->table->map;
-    }
     return 0;
   };
   enum Type type() const { return CACHE_ITEM; }

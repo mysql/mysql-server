@@ -281,3 +281,11 @@ DROP DATABASE db1;
 --echo # Restore mysql.proc
 DROP TABLE mysql.proc;
 RENAME TABLE proc_backup TO mysql.proc;
+
+#
+# BUG#19875331 - HANDLE_FATAL_SIGNAL 11 IN STRMAKE
+#
+create database mysqltest1;
+create procedure mysqltest1.foo() select "foo";
+update mysql.proc set name='' where db='mysqltest1';
+drop database mysqltest1;

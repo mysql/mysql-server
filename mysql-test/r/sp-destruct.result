@@ -170,3 +170,7 @@ Error	1548	Cannot load from mysql.proc. The table is probably corrupted
 # Restore mysql.proc
 DROP TABLE mysql.proc;
 RENAME TABLE proc_backup TO mysql.proc;
+create database mysqltest1;
+create procedure mysqltest1.foo() select "foo";
+update mysql.proc set name='' where db='mysqltest1';
+drop database mysqltest1;
