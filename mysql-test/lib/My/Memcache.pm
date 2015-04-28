@@ -97,8 +97,9 @@ sub new {
           "min_wait" => 4,  "max_wait" => 8192, "temp_errors" => 0 ,
           "total_wait" => 0, "has_cas" => 0, "flags" => 0, "exptime" => 0,
           "get_results" => undef, "get_with_cas" => 0, "failed" => 0,
-          "io_timeout" => 2.0, "sysread_size" => 512, "max_read_tries" => 6,
-          "readbuf" => "", "buflen" => 0, "error_detail" => "", "read_try" => 0
+          "io_timeout" => 5.0, "sysread_size" => 512, "max_read_tries" => 6,
+          "readbuf" => "", "buflen" => 0, "error_detail" => "", "read_try" => 0,
+          "max_write_tries" => 6
         }, $pkg;
 }
 
@@ -314,6 +315,7 @@ sub write {
   my $packet = shift;
   my $len = length($packet);
   my $nsent = 0;
+  my $attempt = 0;
   my $r;
 
   if(! $self->{connection}->connected()) {
@@ -322,12 +324,17 @@ sub write {
 
   while($nsent < $len) {
     $r = select(undef, $self->{fdset}, undef, $self->{io_timeout});
-    return $self->socket_error($r, "write(): select() returned $r") if($r < 1);
-    $r = $self->{connection}->send(substr($packet, $nsent));
-    if($r > 0) {
-      $nsent += $r;
-    } elsif($! != Errno::EWOULDBLOCK) {
-      return $self->socket_error($r, "write(): send() errno $!");
+    if($r < 1) {
+      if(++$attempt >= $self->{max_write_tries}) {
+        return $self->socket_error($r, "write(): select() returned $r");
+      }
+    } else {
+      $r = $self->{connection}->send(substr($packet, $nsent));
+      if($r > 0) {
+        $nsent += $r;
+      } elsif($! != Errno::EWOULDBLOCK) {
+        return $self->socket_error($r, "write(): send() errno $!");
+      }
     }
   }
   return 1;
