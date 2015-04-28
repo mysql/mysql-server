@@ -121,24 +121,22 @@ public:
     void write_string(const char* str);
     void write_number(Uint32 val);
     void write_number64(Uint64 val);
-  protected:
+  private:
     friend class NdbInfoScanVirtual;
     Row(class NdbInfoScanVirtual* owner,
         const NdbInfo::Table* table,
         char* buffer, size_t buf_size);
 
-    Row(); // Prevent
     Row(const Row&); // Prevent
-    ~Row();
-  private:
+    Row& operator=(const Row&); // Prevent
+
     const class NdbInfoScanVirtual* const m_owner;
     const NdbInfo::Table* const m_table;
-    char* const m_start;      // Start of row buffer
     char* const m_end;        // End of row buffer
     char* m_curr;             // Current position in row buffer
     unsigned m_col_counter;    // Current column counter
 
-    void check_data_type(NdbInfo::Column::Type type) const;
+    bool check_data_type(NdbInfo::Column::Type type) const;
     bool check_buffer_space(size_t len) const;
   };
 
@@ -153,22 +151,23 @@ public:
   */
   virtual bool read_row(Row& row, Uint32 row_number) const = 0;
 
-  virtual ~VirtualTable() {}
+  virtual ~VirtualTable() = 0;
 };
 
-void
-VirtualTable::Row::check_data_type(NdbInfo::Column::Type type) const
+
+VirtualTable::~VirtualTable() {}
+
+
+bool VirtualTable::Row::check_data_type(NdbInfo::Column::Type type) const
 {
- assert(m_table->getColumn(m_col_counter)->m_type == type);
+  return (m_table->getColumn(m_col_counter)->m_type == type);
 }
 
 
 bool
 VirtualTable::Row::check_buffer_space(size_t len) const
 {
-  const Uint32 avail = (Uint32)(m_end - m_curr);
-
-  if(len > avail)
+  if(m_curr+len > m_end)
   {
     // Not enough room in buffer
     assert(false);
@@ -184,7 +183,7 @@ void VirtualTable::Row::write_string(const char* str)
   DBUG_ENTER("write_string");
   DBUG_PRINT("enter", ("str: %s", str));
 
-  check_data_type(NdbInfo::Column::String);
+  assert(check_data_type(NdbInfo::Column::String));
 
   const unsigned col_idx = m_col_counter++;
   if (!m_owner->m_recAttrs.is_requested(col_idx))
@@ -209,7 +208,7 @@ void VirtualTable::Row::write_number(Uint32 val) {
   DBUG_ENTER("write_number");
   DBUG_PRINT("enter", ("val: %u", val));
 
-  check_data_type(NdbInfo::Column::Number);
+  assert(check_data_type(NdbInfo::Column::Number));
 
   const unsigned col_idx = m_col_counter++;
   if (!m_owner->m_recAttrs.is_requested(col_idx))
@@ -234,7 +233,7 @@ void VirtualTable::Row::write_number64(Uint64 val) {
   DBUG_ENTER("write_number64");
   DBUG_PRINT("enter", ("val: %llu", val));
 
-  check_data_type(NdbInfo::Column::Number64);
+  assert(check_data_type(NdbInfo::Column::Number64));
 
   const unsigned col_idx = m_col_counter++;
   if (!m_owner->m_recAttrs.is_requested(col_idx))
@@ -256,22 +255,16 @@ void VirtualTable::Row::write_number64(Uint64 val) {
 
 
 VirtualTable::Row::Row(NdbInfoScanVirtual* owner,
-                                  const NdbInfo::Table* table,
-                                  char* buffer, size_t buf_size) :
+                       const NdbInfo::Table* table,
+                       char* buffer, size_t buf_size) :
   m_owner(owner),
   m_table(table),
-  m_start(buffer),
   m_end(buffer + buf_size),
   m_curr(buffer),
   m_col_counter(0)
 {
   // Reset all recattr values before reading the new row
   m_owner->m_recAttrs.reset_recattrs();
-}
-
-
-VirtualTable::Row::~Row()
-{
 }
 
 
