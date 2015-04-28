@@ -450,18 +450,19 @@ bool
 fil_space_is_being_truncated(
 	ulint id);
 
-/** Open each fil_node_t of a named fil_space_t if not already open.
-@param[in]	name	Tablespace name
-@return true if all file nodes are opened. */
+/** Open each file of a tablespace if not already open.
+@param[in]	space_id	tablespace identifier
+@retval	true	if all file nodes were opened
+@retval	false	on failure */
 bool
 fil_space_open(
-	const char*	name);
+	ulint	space_id);
 
-/** Close each fil_node_t of a named fil_space_t if open.
-@param[in]	name	Tablespace name */
+/** Close each file of a tablespace if open.
+@param[in]	space_id	tablespace identifier */
 void
 fil_space_close(
-	const char*	name);
+	ulint	space_id);
 
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.

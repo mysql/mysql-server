@@ -855,6 +855,8 @@ srv_undo_tablespaces_init(
 
 			undo::Truncate	undo_trunc;
 
+			fil_space_close(undo_tablespace_ids[i]);
+
 			if (undo_trunc.needs_fix_up(undo_tablespace_ids[i])) {
 
 				char	name[OS_FILE_MAX_PATH];
@@ -1151,7 +1153,7 @@ srv_open_tmp_tablespace(
 
 		/* Open this shared temp tablespace in the fil_system so that
 		it stays open until shutdown. */
-		if (fil_space_open(tmp_space->name())) {
+		if (fil_space_open(tmp_space->space_id())) {
 
 			/* Initialize the header page */
 			mtr_start(&mtr);
