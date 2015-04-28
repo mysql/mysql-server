@@ -1297,7 +1297,7 @@ drop view frag_ops;
 drop table t1;
 drop table t2;
 
-## Check the new tables return data and exists.
+## Check that the new tables return data and exists.
 select count(*) > 10 from ndb$blocks;
 count(*) > 10
 1
@@ -1311,7 +1311,7 @@ type_id	type_name
 2	User table
 select * from ndb$dbtc_apiconnect_state;
 select * from ndb$dblqh_tcconnect_state;
-## Check the new views return data and exists.
+## Check that the new views return data and exists.
 select block_number from blocks where block_name = "DBTC";
 block_number
 245

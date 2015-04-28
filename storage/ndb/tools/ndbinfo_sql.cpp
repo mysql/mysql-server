@@ -367,6 +367,12 @@ struct view {
     "ON name.parent_obj_id=parent_name.id AND "
     "name.parent_obj_type=parent_name.type"
   },
+  // The blocks, dict_obj_types and config_params used
+  // to be stored in a different engine but have now
+  // been folded into hardcoded ndbinfo tables whose
+  // name include the special prefix.
+  // These views are defined to provide backward compatibility
+  // for code using the old names.
   { "blocks",
     "SELECT block_number, block_name "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks`"
