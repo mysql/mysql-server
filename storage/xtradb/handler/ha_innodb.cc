@@ -11490,10 +11490,8 @@ ha_innobase::cmp_ref(
 			len1 = innobase_read_from_2_little_endian(ref1);
 			len2 = innobase_read_from_2_little_endian(ref2);
 
-			ref1 += 2;
-			ref2 += 2;
-			result = ((Field_blob*)field)->cmp( ref1, len1,
-                                                            ref2, len2);
+			result = ((Field_blob*)field)->cmp(ref1 + 2, len1,
+							   ref2 + 2, len2);
 		} else {
 			result = field->key_cmp(ref1, ref2);
 		}
@@ -13751,6 +13749,10 @@ ib_warn_row_too_big(const dict_table_t*	table)
 		table->flags & DICT_TF_COMPACT) / 2;
 
 	THD*	thd = current_thd;
+
+	if (thd == NULL) {
+		return;
+	}
 
 	push_warning_printf(
 		thd, MYSQL_ERROR::WARN_LEVEL_WARN, HA_ERR_TO_BIG_ROW,
