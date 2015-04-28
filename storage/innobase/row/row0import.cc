@@ -3700,7 +3700,7 @@ row_import_for_mysql(
 	of delete marked records that couldn't be purged in Phase I. */
 
 	buf_LRU_flush_or_remove_pages(
-		prebuilt->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
+		prebuilt->table->space, BUF_REMOVE_FLUSH_WRITE,	trx);
 
 	if (trx_is_interrupted(trx)) {
 		ib::info() << "Phase III - Flush interrupted";

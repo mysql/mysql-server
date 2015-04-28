@@ -540,6 +540,7 @@ buf_flush_or_remove_pages(
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		id,		/*!< in: target space id for which
 					to remove or flush pages */
+	FlushObserver*	observer,	/*!< in: flush observer */
 	bool		flush,		/*!< in: flush to disk if true but
 					don't remove else remove without
 					flushing to disk */
@@ -566,7 +567,10 @@ rescan:
 
 		prev = UT_LIST_GET_PREV(list, bpage);
 
-		if (bpage->id.space() != id) {
+		/* If flush observer is NULL, flush page for space id,
+		or flush page for flush observer. */
+		if ((observer != NULL && observer != bpage->flush_observer)
+		    || (observer == NULL && id != bpage->id.space())) {
 
 			/* Skip this block, as it does not belong to
 			the target space. */
@@ -624,6 +628,16 @@ rescan:
 		/* The check for trx is interrupted is expensive, we want
 		to check every N iterations. */
 		if (!processed && trx && trx_is_interrupted(trx)) {
+			if (trx->flush_observer != NULL) {
+				if (flush) {
+					trx->flush_observer->interrupted();
+				} else {
+					/* We should remove all pages with the
+					the flush observer. */
+					continue;
+				}
+			}
+
 			buf_flush_list_mutex_exit(buf_pool);
 			return(DB_INTERRUPTED);
 		}
@@ -645,6 +659,7 @@ buf_flush_dirty_pages(
 /*==================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		id,		/*!< in: space id */
+	FlushObserver*	observer,	/*!< in: flush observer */
 	bool		flush,		/*!< in: flush to disk if true otherwise
 					remove the pages without flushing */
 	const trx_t*	trx)		/*!< to check if the operation must
@@ -655,7 +670,8 @@ buf_flush_dirty_pages(
 	do {
 		buf_pool_mutex_enter(buf_pool);
 
-		err = buf_flush_or_remove_pages(buf_pool, id, flush, trx);
+		err = buf_flush_or_remove_pages(
+			buf_pool, id, observer, flush, trx);
 
 		buf_pool_mutex_exit(buf_pool);
 
@@ -663,6 +679,13 @@ buf_flush_dirty_pages(
 
 		if (err == DB_FAIL) {
 			os_thread_sleep(2000);
+		}
+
+		if (err == DB_INTERRUPTED && observer != NULL) {
+			ut_a(flush);
+
+			flush = false;
+			err = DB_FAIL;
 		}
 
 		/* DB_FAIL is a soft error, it means that the task wasn't
@@ -673,7 +696,7 @@ buf_flush_dirty_pages(
 	} while (err == DB_FAIL);
 
 	ut_ad(err == DB_INTERRUPTED
-	      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
+	      || buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
 }
 
 /******************************************************************//**
@@ -826,22 +849,28 @@ buf_LRU_remove_pages(
 	const trx_t*	trx)		/*!< to check if the operation must
 					be interrupted */
 {
+	FlushObserver*	observer = (trx == NULL) ? NULL : trx->flush_observer;
+
 	switch (buf_remove) {
 	case BUF_REMOVE_ALL_NO_WRITE:
 		buf_LRU_remove_all_pages(buf_pool, id);
 		break;
 
 	case BUF_REMOVE_FLUSH_NO_WRITE:
-		ut_a(trx == 0);
-		buf_flush_dirty_pages(buf_pool, id, false, NULL);
+		/* Pass trx as NULL to avoid interruption check. */
+		buf_flush_dirty_pages(buf_pool, id, observer, false, NULL);
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
-		ut_a(trx != 0);
-		buf_flush_dirty_pages(buf_pool, id, true, trx);
-		/* Ensure that all asynchronous IO is completed. */
-		os_aio_wait_until_no_pending_writes();
-		fil_flush(id);
+		ut_a(trx != NULL);
+		buf_flush_dirty_pages(buf_pool, id, observer, true, trx);
+
+		if (observer == NULL) {
+			/* Ensure that all asynchronous IO is completed. */
+			os_aio_wait_until_no_pending_writes();
+			fil_flush(id);
+		}
+
 		break;
 	}
 }
@@ -1273,6 +1302,7 @@ loop:
 		}
 
 		block->skip_flush_check = false;
+		block->page.flush_observer = NULL;
 		return(block);
 	}
 
