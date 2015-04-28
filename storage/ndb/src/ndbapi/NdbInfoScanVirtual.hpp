@@ -36,7 +36,7 @@ public:
 
   NdbInfoScanVirtual(const NdbInfo::Table* table,
                      const class VirtualTable* virt);
-  bool init();
+  int init();
 private:
   enum State { Undefined, Initial, Prepared,
                MoreData, End } m_state;

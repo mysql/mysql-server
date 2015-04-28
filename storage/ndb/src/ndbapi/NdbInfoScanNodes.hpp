@@ -37,7 +37,7 @@ public:
                    const NdbInfo::Table*,
                    Uint32 max_rows, Uint32 max_bytes,
                    Uint32 max_nodes);
-  bool init(Uint32 id);
+  int init(Uint32 id);
 
   virtual ~NdbInfoScanNodes();
   void close();
