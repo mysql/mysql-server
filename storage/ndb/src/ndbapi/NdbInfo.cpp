@@ -276,16 +276,15 @@ bool NdbInfo::load_tables()
     return false;
   }
 
-#ifndef DBUG_OFF
   // Consistency check the loaded table list
   {
     Vector<Uint32> m_table_ids;
     for (size_t i = 0; i < m_tables.entries(); i++)
     {
-      Table* tab = m_tables.value(i);
+      Table* const tab = m_tables.value(i);
       // Table id should be valid
       assert(tab->m_table_id != Table::InvalidTableId);
-      // Save the table id as position "table id" in
+      // Save the table id at position "table id" in
       // list of table ids(for later check)
       Uint32 invalid = Table::InvalidTableId;
       m_table_ids.set(tab->m_table_id, tab->m_table_id, invalid);
@@ -314,7 +313,6 @@ bool NdbInfo::load_tables()
       assert(m_table_ids[i] == i);
     }
   }
-#endif
 
   // After sucessfull load of the tables, set connect count
   // and the min db version of cluster
