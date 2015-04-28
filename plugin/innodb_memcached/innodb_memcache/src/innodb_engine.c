@@ -302,14 +302,12 @@ innodb_bk_thread(
 		while (conn_data) {
 			if (release_mdl_lock && !conn_data->is_stale) {
 				int err;
-				struct timespec timeout;
+
 				if(conn_data->is_waiting_for_mdl) {
 					goto next_item;
 				}
-				timeout.tv_sec = 1;
-				timeout.tv_nsec = 0;
 
-				err = LOCK_CURRENT_CONN_IF_NOT_LOCKED_TIMEOUT(conn_data,timeout);
+				err = LOCK_CURRENT_CONN_TRYLOCK(conn_data);
 				if (err != 0) {
 					goto next_item;
 				}
