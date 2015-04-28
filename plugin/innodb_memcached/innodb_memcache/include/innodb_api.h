@@ -48,8 +48,8 @@ connection specific operations */
 		pthread_mutex_lock(&(conn)->curr_conn_mutex);	\
 	}
 
-#define LOCK_CURRENT_CONN_IF_NOT_LOCKED_TIMEOUT(conn, timeout)         \
-               pthread_mutex_timedlock(&(conn)->curr_conn_mutex,&(timeout));   \
+#define LOCK_CURRENT_CONN_TRYLOCK(conn)				\
+               pthread_mutex_trylock(&(conn)->curr_conn_mutex); \
 
 #define UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn)	\
 	if (!(has_lock)) {					\
