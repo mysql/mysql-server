@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,11 +56,26 @@
 #include <errno.h>
 
 int verbose= 0;
-int terminated= 0;
+volatile sig_atomic_t terminated= 0;
+volatile sig_atomic_t aborted= 0; 
 pid_t child_pid= -1;
 char safe_process_name[32]= {0};
 
+static void print_message(const char* fmt, ...)
+__attribute__((format(printf, 1, 2)));
+static void print_message(const char* fmt, ...)
+{
+  va_list args;
+  fprintf(stderr, "%s: ", safe_process_name);
+  va_start(args, fmt);
+  vfprintf(stderr, fmt, args);
+  fprintf(stderr, "\n");
+  va_end(args);
+  fflush(stderr);
+} 
 
+static void message(const char* fmt, ...)
+__attribute__((format(printf, 1, 2)));
 static void message(const char* fmt, ...)
 {
   if (!verbose)
@@ -74,7 +89,8 @@ static void message(const char* fmt, ...)
   fflush(stderr);
 }
 
-
+static void die(const char* fmt, ...)
+__attribute__((format(printf, 1, 2)));
 static void die(const char* fmt, ...)
 {
   va_list args;
@@ -89,15 +105,17 @@ static void die(const char* fmt, ...)
 }
 
 
-static void kill_child(void)
+static void wait_pid(void) 
 {
   int status= 0;
 
-  message("Killing child: %d", child_pid);
-  // Terminate whole process group
-  kill(-child_pid, SIGKILL);
+  pid_t ret_pid;
+  while ((ret_pid = waitpid(child_pid, &status, 0)) < 0) 
+  {
+    if (errno != EINTR)
+      die("Failure to wait for child %d, errno %d", child_pid, errno);
+  } 
 
-  pid_t ret_pid= waitpid(child_pid, &status, 0);
   if (ret_pid == child_pid)
   {
     int exit_code= 1;
@@ -105,44 +123,57 @@ static void kill_child(void)
     {
       // Process has exited, collect return status
       exit_code= WEXITSTATUS(status);
-      message("Child exit: %d", exit_code);
+      // Print info about the exit_code except for 62 which occurs when 
+      // test is skipped
+      if (exit_code != 0 && exit_code != 62)
+        print_message("Child process: %d, exit: %d", child_pid, exit_code);
+      else  
+        message("Child process: %d, exit %d", child_pid, exit_code);
       // Exit with exit status of the child
       exit(exit_code);
     }
 
     if (WIFSIGNALED(status))
-      message("Child killed by signal: %d", WTERMSIG(status));
+      print_message("Child process: %d, killed by signal: %d",
+                    child_pid, WTERMSIG(status));
 
     exit(exit_code);
   }
-  exit(1);
+  else
+  {
+    print_message("The waitpid returned: %d", ret_pid);
+    exit(1);
+  }
+  return;
 }
 
+static void abort_child(void)
+{
+  message("Aborting child: %d", child_pid);
+  kill (-child_pid, SIGABRT);
+  wait_pid();
+}
+
+static void kill_child(void)
+{
+  // Terminate whole process group
+  message("Killing child: %d", child_pid);
+  kill(-child_pid, SIGKILL);
+  wait_pid();
+}
 
 extern "C" void handle_abort(int sig)
 {
-    message("Got signal %d, child_pid: %d, sending ABRT", sig, child_pid);
-
-    if (child_pid > 0) {
-	kill (-child_pid, SIGABRT);	// Don't wait for it to terminate
-    }
+  aborted= sig;
+  print_message("Child process: %d, aborted by signal: %d",
+                child_pid, aborted);
 }
 
 
 extern "C" void handle_signal(int sig)
 {
-  message("Got signal %d, child_pid: %d", sig, child_pid);
-  terminated= 1;
-
-  if (child_pid > 0)
-    kill_child();
-
-  // Ignore further signals
-  signal(SIGTERM, SIG_IGN);
-  signal(SIGINT,  SIG_IGN);
-
-  // Continune execution, allow the child to be started and
-  // finally terminated by monitor loop
+  terminated= sig;
+  message("Got SIGCHLD from process: %d", child_pid);
 }
 
 
@@ -163,13 +194,13 @@ int main(int argc, char* const argv[] )
   sigemptyset(&sa_abort.sa_mask);
   /* Install signal handlers */
   sigaction(SIGTERM, &sa,NULL);
+  sigaction(SIGSEGV, &sa, NULL);
   sigaction(SIGINT, &sa,NULL);
   sigaction(SIGCHLD, &sa,NULL);
   sigaction(SIGABRT, &sa_abort,NULL);
 
   sprintf(safe_process_name, "safe_process[%ld]", (long) own_pid);
 
-  message("Started");
 
   /* Parse arguments */
   for (int i= 1; i < argc; i++) {
@@ -180,9 +211,13 @@ int main(int argc, char* const argv[] )
         die("No real args -> nothing to do");
       child_argv= &argv[i+1];
       break;
-    } else {
-      if ( strcmp(arg, "--verbose") == 0 )
+    }
+    else
+    {
+      if ( strcmp(arg, "--verbose") == 0 ) 
+      {
         verbose++;
+      }
       else if ( strncmp(arg, "--parent-pid", 12) == 0 )
       {
         /* Override parent_pid with a value provided by user */
@@ -209,6 +244,7 @@ int main(int argc, char* const argv[] )
     die("nothing to do");
 
   message("parent_pid: %d", parent_pid);
+
   if (parent_pid == own_pid)
     die("parent_pid is equal to own pid!");
 
@@ -232,6 +268,7 @@ int main(int argc, char* const argv[] )
     signal(SIGTERM, SIG_DFL);
     signal(SIGINT,  SIG_DFL);
     signal(SIGCHLD, SIG_DFL);
+    signal(SIGABRT, SIG_DFL);
 
     // Make this process it's own process group to be able to kill
     // it and any childs(that hasn't changed group themself)
@@ -260,44 +297,37 @@ int main(int argc, char* const argv[] )
   close(pfd[1]); // Close unused write end
 
   // Wait for child to signal it's ready
-  if ((read(pfd[0], &buf, 1)) < 1)
-    die("Failed to read signal from child");
-
+  while ((read(pfd[0], &buf, 1)) < 1 )
+  {
+    //make sure that safe_process comes back even
+    //if any signal was raised
+    if (errno != EINTR)
+      die("Failed to read signal from child %d", errno);
+  }
   if (buf != 37)
     die("Didn't get 37 from pipe");
   close(pfd[0]); // Close read end
 
   /* Monitor loop */
-  message("Started child %d, terminated: %d", child_pid, terminated);
+  message("Started child: %d", child_pid);
 
-  while(!terminated)
+  while(1)
   {
     // Check if parent is still alive
-    if (kill(parent_pid, 0) != 0){
-      message("Parent is not alive anymore");
-      break;
+    if (kill(parent_pid, 0) != 0)
+    {
+      print_message("Parent is not alive anymore, parent pid %d:", parent_pid);
+      kill_child();
     }
 
-    // Check if child has exited, normally this will be
-    // detected immediately with SIGCHLD handler
-    int status= 0;
-    pid_t ret_pid= waitpid(child_pid, &status, WNOHANG);
-    if (ret_pid == child_pid)
+    if(terminated)
     {
-      int ret_code= 2;
-      if (WIFEXITED(status))
-      {
-        // Process has exited, collect return status
-        ret_code= WEXITSTATUS(status);
-        message("Child exit: %d", ret_code);
-        // Exit with exit status of the child
-        exit(ret_code);
-      }
-
-      if (WIFSIGNALED(status))
-        message("Child killed by signal: %d", WTERMSIG(status));
-
-      exit(ret_code);
+      kill_child();
+    }
+    if(aborted)
+    {
+      message("Got signal: %d, child_pid: %d", terminated, child_pid);
+      abort_child();
     }
     sleep(1);
   }
