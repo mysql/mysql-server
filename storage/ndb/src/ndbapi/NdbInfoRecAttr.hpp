@@ -1,6 +1,5 @@
 /*
-   Copyright 2009, 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +50,8 @@ public:
   }
 
 protected:
-  friend class NdbInfoScanOperation;
+  friend class NdbInfoScanNodes;
+  friend class NdbInfoScanVirtual;
   NdbInfoRecAttr() : m_data(NULL), m_len(0), m_defined(false) {};
   ~NdbInfoRecAttr() {};
 private:

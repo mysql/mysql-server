@@ -678,4 +678,31 @@ drop view frag_ops;
 drop table t1;
 drop table t2;
 
+
+#
+# WL#7575 Remove ndbinfo's usage of other engine
+# - the five lookup tables which resided in another engine
+#   was converted to virtual(aka. hardcoded) tables inside ha_ndbinfo
+# - three new views was added to preserve backwards compatibility
+#   for those tabes which was changed to prefix ndb$
+
+## Check the new tables return data and exists.
+select count(*) > 10 from ndb$blocks;
+select param_number, param_name from ndb$config_params
+  where param_name = "DataMemory";
+select * from ndb$dict_obj_types where type_id < 3;
+--disable_result_log
+select * from ndb$dbtc_apiconnect_state;
+select * from ndb$dblqh_tcconnect_state;
+--enable_result_log
+
+## Check the new views return data and exists.
+select block_number from blocks where block_name = "DBTC";
+select param_name from config_params where param_number = 101;
+select type_name from ndb$dict_obj_types where type_id = 3;
+
+## All tables in ndbinfo/ should now be using engine=NDBINFO
+select count(*) from information_schema.tables
+  where table_schema = 'ndbinfo' and engine != 'ndbinfo';
+
 --source ndbinfo_drop.inc

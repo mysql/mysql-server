@@ -2593,6 +2593,32 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# Drop obsolete lookups in ndbinfo
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`blocks`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`dict_obj_types`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`config_params`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$dbtc_apiconnect_state`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$dblqh_tcconnect_state`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # Drop any old views in ndbinfo
 SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`transporters`','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -2709,18 +2735,33 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`blocks`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`dict_obj_types`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`config_params`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # Drop any old lookup tables in ndbinfo
-SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`blocks`','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$blocks`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`dict_obj_types`','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$dict_obj_types`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`config_params`','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$config_params`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3035,13 +3076,13 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-# ndbinfo.blocks
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`blocks` (block_number INT UNSIGNED PRIMARY KEY, block_name VARCHAR(512))','SET @dummy = 0');
+# ndbinfo.ndb$blocks
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$blocks`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`blocks` VALUES (254, "CMVMI"), (248, "DBACC"), (250, "DBDICT"), (246, "DBDIH"), (247, "DBLQH"), (245, "DBTC"), (249, "DBTUP"), (253, "NDBFS"), (251, "NDBCNTR"), (252, "QMGR"), (255, "TRIX"), (244, "BACKUP"), (256, "DBUTIL"), (257, "SUMA"), (258, "DBTUX"), (259, "TSMAN"), (260, "LGMAN"), (261, "PGMAN"), (262, "RESTORE"), (263, "DBINFO"), (264, "DBSPJ"), (265, "THRMAN"), (266, "TRPMAN")','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$blocks` (block_number INT UNSIGNED, block_name VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3057,46 +3098,46 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-# ndbinfo.dict_obj_types
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`dict_obj_types` (`type_id` INT UNSIGNED PRIMARY KEY,`type_name` VARCHAR(512))','SET @dummy = 0');
+# ndbinfo.ndb$dict_obj_types
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$dict_obj_types`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`dict_obj_types` VALUES (1, "System table"), (2, "User table"), (3, "Unique hash index"), (4, "Hash index"), (5, "Unique ordered index"), (6, "Ordered index"), (11, "Hash index trigger"), (16, "Subscription trigger"), (17, "Read only constraint"), (18, "Index trigger"), (19, "Reorganize trigger"), (20, "Tablespace"), (21, "Log file group"), (22, "Data file"), (23, "Undo file"), (24, "Hash map"), (25, "Foreign key definition"), (26, "Foreign key parent trigger"), (27, "Foreign key child trigger"), (30, "Schema transaction")','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dict_obj_types` (type_id INT UNSIGNED, type_name VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-# ndbinfo.config_params
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`config_params` (param_number INT UNSIGNED PRIMARY KEY, param_name VARCHAR(512))','SET @dummy = 0');
+# ndbinfo.ndb$config_params
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$config_params`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`config_params` VALUES (179, "MaxNoOfSubscriptions"), (180, "MaxNoOfSubscribers"), (181, "MaxNoOfConcurrentSubOperations"), (5, "HostName"), (3, "NodeId"), (101, "NoOfReplicas"), (103, "MaxNoOfAttributes"), (102, "MaxNoOfTables"), (149, "MaxNoOfOrderedIndexes"), (150, "MaxNoOfUniqueHashIndexes"), (110, "MaxNoOfConcurrentIndexOperations"), (105, "MaxNoOfTriggers"), (109, "MaxNoOfFiredTriggers"), (100, "MaxNoOfSavedMessages"), (177, "LockExecuteThreadToCPU"), (178, "LockMaintThreadsToCPU"), (176, "RealtimeScheduler"), (114, "LockPagesInMainMemory"), (123, "TimeBetweenWatchDogCheck"), (174, "SchedulerExecutionTimer"), (175, "SchedulerSpinTimer"), (141, "TimeBetweenWatchDogCheckInitial"), (124, "StopOnError"), (107, "MaxNoOfConcurrentOperations"), (627, "MaxDMLOperationsPerTransaction"), (151, "MaxNoOfLocalOperations"), (152, "MaxNoOfLocalScans"), (153, "BatchSizePerLocalScan"), (106, "MaxNoOfConcurrentTransactions"), (108, "MaxNoOfConcurrentScans"), (111, "TransactionBufferMemory"), (113, "IndexMemory"), (112, "DataMemory"), (154, "UndoIndexBuffer"), (155, "UndoDataBuffer"), (156, "RedoBuffer"), (157, "LongMessageBuffer"), (160, "DiskPageBufferMemory"), (198, "SharedGlobalMemory"), (115, "StartPartialTimeout"), (116, "StartPartitionedTimeout"), (117, "StartFailureTimeout"), (619, "StartNoNodegroupTimeout"), (118, "HeartbeatIntervalDbDb"), (618, "ConnectCheckIntervalDelay"), (119, "HeartbeatIntervalDbApi"), (120, "TimeBetweenLocalCheckpoints"), (121, "TimeBetweenGlobalCheckpoints"), (170, "TimeBetweenEpochs"), (171, "TimeBetweenEpochsTimeout"), (182, "MaxBufferedEpochs"), (632, "NoOfFragmentLogParts"), (126, "NoOfFragmentLogFiles"), (140, "FragmentLogFileSize"), (189, "InitFragmentLogFiles"), (190, "DiskIOThreadPool"), (159, "MaxNoOfOpenFiles"), (162, "InitialNoOfOpenFiles"), (129, "TimeBetweenInactiveTransactionAbortCheck"), (130, "TransactionInactiveTimeout"), (131, "TransactionDeadlockDetectionTimeout"), (148, "Diskless"), (122, "ArbitrationTimeout"), (142, "Arbitration"), (7, "DataDir"), (125, "FileSystemPath"), (250, "LogLevelStartup"), (251, "LogLevelShutdown"), (252, "LogLevelStatistic"), (253, "LogLevelCheckpoint"), (254, "LogLevelNodeRestart"), (255, "LogLevelConnection"), (259, "LogLevelCongestion"), (258, "LogLevelError"), (256, "LogLevelInfo"), (158, "BackupDataDir"), (163, "DiskSyncSize"), (164, "DiskCheckpointSpeed"), (165, "DiskCheckpointSpeedInRestart"), (133, "BackupMemory"), (134, "BackupDataBufferSize"), (135, "BackupLogBufferSize"), (136, "BackupWriteSize"), (139, "BackupMaxWriteSize"), (161, "StringMemory"), (169, "MaxAllocate"), (166, "MemReportFrequency"), (167, "BackupReportFrequency"), (184, "StartupStatusReportFrequency"), (168, "ODirect"), (172, "CompressedBackup"), (173, "CompressedLCP"), (203, "ExtraSendBufferMemory"), (9, "TotalSendBufferMemory"), (185, "Nodegroup"), (186, "MaxNoOfExecutionThreads"), (188, "__ndbmt_lqh_workers"), (187, "__ndbmt_lqh_threads"), (191, "__ndbmt_classic"), (628, "ThreadConfig"), (193, "FileSystemPathDD"), (194, "FileSystemPathDataFiles"), (195, "FileSystemPathUndoFiles"), (196, "InitialLogfileGroup"), (197, "InitialTablespace"), (605, "MaxLCPStartDelay"), (606, "BuildIndexThreads"), (607, "HeartbeatOrder"), (608, "DictTrace"), (609, "MaxStartFailRetries"), (610, "StartFailRetryDelay"), (613, "EventLogBufferSize"), (614, "Numa"), (611, "RedoOverCommitLimit"), (612, "RedoOverCommitCounter"), (615, "LateAlloc"), (616, "TwoPassInitialNodeRestartCopy"), (617, "MaxParallelScansPerFragment"), (620, "IndexStatAutoCreate"), (621, "IndexStatAutoUpdate"), (622, "IndexStatSaveSize"), (623, "IndexStatSaveScale"), (624, "IndexStatTriggerPct"), (625, "IndexStatTriggerScale"), (626, "IndexStatUpdateDelay"), (629, "CrashOnCorruptedTuple"), (630, "MinFreePct")','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_params` (param_number INT UNSIGNED, param_name VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.ndb$dbtc_apiconnect_state
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dbtc_apiconnect_state` (state_int_value  INT UNSIGNED PRIMARY KEY, state_name VARCHAR(256), state_friendly_name VARCHAR(256), state_description VARCHAR(256))','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$dbtc_apiconnect_state`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`ndb$dbtc_apiconnect_state` VALUES (0, "CS_CONNECTED", "Connected", "An allocated idle transaction object"), (1, "CS_DISCONNECTED", "Disconnected", "An unallocated connection object"), (2, "CS_STARTED", "Started", "A started transaction"), (3, "CS_RECEIVING", "Receiving", "A transaction receiving operations"), (7, "CS_RESTART", "", ""), (8, "CS_ABORTING", "Aborting", "A transaction aborting"), (9, "CS_COMPLETING", "Completing", "A transaction completing"), (10, "CS_COMPLETE_SENT", "Completing", "A transaction completing"), (11, "CS_PREPARE_TO_COMMIT", "", ""), (12, "CS_COMMIT_SENT", "Committing", "A transaction committing"), (13, "CS_START_COMMITTING", "", ""), (14, "CS_COMMITTING", "Committing", "A transaction committing"), (15, "CS_REC_COMMITTING", "", ""), (16, "CS_WAIT_ABORT_CONF", "Aborting", ""), (17, "CS_WAIT_COMPLETE_CONF", "Completing", ""), (18, "CS_WAIT_COMMIT_CONF", "Committing", ""), (19, "CS_FAIL_ABORTING", "TakeOverAborting", ""), (20, "CS_FAIL_ABORTED", "TakeOverAborting", ""), (21, "CS_FAIL_PREPARED", "", ""), (22, "CS_FAIL_COMMITTING", "TakeOverCommitting", ""), (23, "CS_FAIL_COMMITTED", "TakeOverCommitting", ""), (24, "CS_FAIL_COMPLETED", "TakeOverCompleting", ""), (25, "CS_START_SCAN", "Scanning", ""), (26, "CS_SEND_FIRE_TRIG_REQ", "Precomitting", ""), (27, "CS_WAIT_FIRE_TRIG_REQ", "Precomitting", "")','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dbtc_apiconnect_state` (state_int_value INT UNSIGNED, state_name VARCHAR(256), state_friendly_name VARCHAR(256), state_description VARCHAR(256)) ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.ndb$dblqh_tcconnect_state
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dblqh_tcconnect_state` (state_int_value  INT UNSIGNED PRIMARY KEY, state_name VARCHAR(256), state_friendly_name VARCHAR(256), state_description VARCHAR(256))','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$dblqh_tcconnect_state`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`ndb$dblqh_tcconnect_state` VALUES (0, "IDLE", "Idle", ""), (1, "WAIT_ACC", "WaitLock", ""), (2, "WAIT_TUPKEYINFO", "", ""), (3, "WAIT_ATTR", "WaitData", ""), (4, "WAIT_TUP", "WaitTup", ""), (5, "STOPPED", "Stopped", ""), (6, "LOG_QUEUED", "LogPrepare", ""), (7, "PREPARED", "Prepared", ""), (8, "LOG_COMMIT_WRITTEN_WAIT_SIGNAL", "", ""), (9, "LOG_COMMIT_QUEUED_WAIT_SIGNAL", "", ""), (10, "COMMIT_STOPPED", "CommittingStopped", ""), (11, "LOG_COMMIT_QUEUED", "Committing", ""), (12, "COMMIT_QUEUED", "Committing", ""), (13, "COMMITTED", "Committed", ""), (35, "WAIT_TUP_COMMIT", "Committing", ""), (14, "WAIT_ACC_ABORT", "Aborting", ""), (15, "ABORT_QUEUED", "Aborting", ""), (16, "ABORT_STOPPED", "AbortingStopped", ""), (17, "WAIT_AI_AFTER_ABORT", "Aborting", ""), (18, "LOG_ABORT_QUEUED", "Aborting", ""), (19, "WAIT_TUP_TO_ABORT", "Aborting", ""), (20, "WAIT_SCAN_AI", "Scanning", ""), (21, "SCAN_STATE_USED", "Scanning", ""), (22, "SCAN_FIRST_STOPPED", "Scanning", ""), (23, "SCAN_CHECK_STOPPED", "Scanning", ""), (24, "SCAN_STOPPED", "ScanningStopped", ""), (25, "SCAN_RELEASE_STOPPED", "ScanningStopped", ""), (26, "SCAN_CLOSE_STOPPED", "ScanningStopped", ""), (27, "COPY_CLOSE_STOPPED", "ScanningStopped", ""), (28, "COPY_FIRST_STOPPED", "ScanningStopped", ""), (29, "COPY_STOPPED", "ScanningStopped", ""), (30, "SCAN_TUPKEY", "Scanning", ""), (31, "COPY_TUPKEY", "NodeRecoveryScanning", ""), (32, "TC_NOT_CONNECTED", "Idle", ""), (33, "PREPARED_RECEIVED_COMMIT", "Committing", ""), (34, "LOG_COMMIT_WRITTEN", "Committing", "")','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$dblqh_tcconnect_state` (state_int_value INT UNSIGNED, state_name VARCHAR(256), state_friendly_name VARCHAR(256), state_description VARCHAR(256)) ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3126,7 +3167,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.counters
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`counters` AS SELECT node_id, b.block_name, block_instance, counter_id, CASE counter_id  WHEN 1 THEN "ATTRINFO"  WHEN 2 THEN "TRANSACTIONS"  WHEN 3 THEN "COMMITS"  WHEN 4 THEN "READS"  WHEN 5 THEN "SIMPLE_READS"  WHEN 6 THEN "WRITES"  WHEN 7 THEN "ABORTS"  WHEN 8 THEN "TABLE_SCANS"  WHEN 9 THEN "RANGE_SCANS"  WHEN 10 THEN "OPERATIONS"  WHEN 11 THEN "READS_RECEIVED"  WHEN 12 THEN "LOCAL_READS_SENT"  WHEN 13 THEN "REMOTE_READS_SENT"  WHEN 14 THEN "READS_NOT_FOUND"  WHEN 15 THEN "TABLE_SCANS_RECEIVED"  WHEN 16 THEN "LOCAL_TABLE_SCANS_SENT"  WHEN 17 THEN "RANGE_SCANS_RECEIVED"  WHEN 18 THEN "LOCAL_RANGE_SCANS_SENT"  WHEN 19 THEN "REMOTE_RANGE_SCANS_SENT"  WHEN 20 THEN "SCAN_BATCHES_RETURNED"  WHEN 21 THEN "SCAN_ROWS_RETURNED"  WHEN 22 THEN "PRUNED_RANGE_SCANS_RECEIVED"  WHEN 23 THEN "CONST_PRUNED_RANGE_SCANS_RECEIVED"  WHEN 24 THEN "LOCAL_READS"  WHEN 25 THEN "LOCAL_WRITES"  WHEN 26 THEN "LQHKEY_OVERLOAD"  WHEN 27 THEN "LQHKEY_OVERLOAD_TC"  WHEN 28 THEN "LQHKEY_OVERLOAD_READER"  WHEN 29 THEN "LQHKEY_OVERLOAD_NODE_PEER"  WHEN 30 THEN "LQHKEY_OVERLOAD_SUBSCRIBER"  WHEN 31 THEN "LQHSCAN_SLOWDOWNS"  ELSE "<unknown>"  END AS counter_name, val FROM `ndbinfo`.`ndb$counters` c LEFT JOIN `ndbinfo`.blocks b ON c.block_number = b.block_number','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`counters` AS SELECT node_id, b.block_name, block_instance, counter_id, CASE counter_id  WHEN 1 THEN "ATTRINFO"  WHEN 2 THEN "TRANSACTIONS"  WHEN 3 THEN "COMMITS"  WHEN 4 THEN "READS"  WHEN 5 THEN "SIMPLE_READS"  WHEN 6 THEN "WRITES"  WHEN 7 THEN "ABORTS"  WHEN 8 THEN "TABLE_SCANS"  WHEN 9 THEN "RANGE_SCANS"  WHEN 10 THEN "OPERATIONS"  WHEN 11 THEN "READS_RECEIVED"  WHEN 12 THEN "LOCAL_READS_SENT"  WHEN 13 THEN "REMOTE_READS_SENT"  WHEN 14 THEN "READS_NOT_FOUND"  WHEN 15 THEN "TABLE_SCANS_RECEIVED"  WHEN 16 THEN "LOCAL_TABLE_SCANS_SENT"  WHEN 17 THEN "RANGE_SCANS_RECEIVED"  WHEN 18 THEN "LOCAL_RANGE_SCANS_SENT"  WHEN 19 THEN "REMOTE_RANGE_SCANS_SENT"  WHEN 20 THEN "SCAN_BATCHES_RETURNED"  WHEN 21 THEN "SCAN_ROWS_RETURNED"  WHEN 22 THEN "PRUNED_RANGE_SCANS_RECEIVED"  WHEN 23 THEN "CONST_PRUNED_RANGE_SCANS_RECEIVED"  WHEN 24 THEN "LOCAL_READS"  WHEN 25 THEN "LOCAL_WRITES"  WHEN 26 THEN "LQHKEY_OVERLOAD"  WHEN 27 THEN "LQHKEY_OVERLOAD_TC"  WHEN 28 THEN "LQHKEY_OVERLOAD_READER"  WHEN 29 THEN "LQHKEY_OVERLOAD_NODE_PEER"  WHEN 30 THEN "LQHKEY_OVERLOAD_SUBSCRIBER"  WHEN 31 THEN "LQHSCAN_SLOWDOWNS"  ELSE "<unknown>"  END AS counter_name, val FROM `ndbinfo`.`ndb$counters` c LEFT JOIN `ndbinfo`.`ndb$blocks` b ON c.block_number = b.block_number','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3156,7 +3197,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.threadblocks
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`threadblocks` AS SELECT t.node_id, t.thr_no, b.block_name, t.block_instance FROM `ndbinfo`.`ndb$threadblocks` t LEFT JOIN `ndbinfo`.blocks b ON t.block_number = b.block_number','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`threadblocks` AS SELECT t.node_id, t.thr_no, b.block_name, t.block_instance FROM `ndbinfo`.`ndb$threadblocks` t LEFT JOIN `ndbinfo`.`ndb$blocks` b ON t.block_number = b.block_number','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3237,7 +3278,7 @@ DROP PREPARE stmt;
 # ndbinfo.memory_per_fragment
 # The test for name.type<=6 is there to elimiate matching non-table objects 
 # (triggers, files etc.), since the 'id' of these may collide with table ids.
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`memory_per_fragment` AS SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, types.type_name AS type, table_id, node_id, block_instance, fragment_num, fixed_elem_alloc_bytes, fixed_elem_free_bytes, fixed_elem_size_bytes, fixed_elem_count, FLOOR(fixed_elem_free_bytes/fixed_elem_size_bytes) AS fixed_elem_free_count, var_elem_alloc_bytes, var_elem_free_bytes, var_elem_count, hash_index_alloc_bytes FROM ndbinfo.ndb$frag_mem_use AS space JOIN ndbinfo.ndb$dict_obj_info AS name ON name.id=space.table_id AND name.type<=6 JOIN ndbinfo.dict_obj_types AS types ON name.type=types.type_id LEFT JOIN ndbinfo.ndb$dict_obj_info AS parent_name ON name.parent_obj_id=parent_name.id AND name.parent_obj_type=parent_name.type','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`memory_per_fragment` AS SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, types.type_name AS type, table_id, node_id, block_instance, fragment_num, fixed_elem_alloc_bytes, fixed_elem_free_bytes, fixed_elem_size_bytes, fixed_elem_count, FLOOR(fixed_elem_free_bytes/fixed_elem_size_bytes) AS fixed_elem_free_count, var_elem_alloc_bytes, var_elem_free_bytes, var_elem_count, hash_index_alloc_bytes FROM ndbinfo.ndb$frag_mem_use AS space JOIN ndbinfo.ndb$dict_obj_info AS name ON name.id=space.table_id AND name.type<=6 JOIN ndbinfo.ndb$dict_obj_types AS types ON name.type=types.type_id LEFT JOIN ndbinfo.ndb$dict_obj_info AS parent_name ON name.parent_obj_id=parent_name.id AND name.parent_obj_type=parent_name.type','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3271,7 +3312,7 @@ SET @cmd='CREATE OR REPLACE DEFINER=`root`@`localhost`
     FROM ndbinfo.ndb$frag_operations AS ops 
     JOIN ndbinfo.ndb$dict_obj_info AS name 
       ON name.id=ops.table_id AND name.type<=6 
-    JOIN ndbinfo.dict_obj_types AS types ON name.type=types.type_id 
+    JOIN ndbinfo.ndb$dict_obj_types AS types ON name.type=types.type_id
     LEFT JOIN ndbinfo.ndb$dict_obj_info AS parent_name 
       ON name.parent_obj_id=parent_name.id AND 
          name.parent_obj_type=parent_name.type';
@@ -3280,6 +3321,23 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.blocks
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`blocks` AS SELECT block_number, block_name FROM `ndbinfo`.`ndb$blocks`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.dict_obj_types
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`dict_obj_types` AS SELECT type_id, type_name FROM `ndbinfo`.`ndb$dict_obj_types`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.config_params
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`config_params` AS SELECT param_number, param_name FROM `ndbinfo`.`ndb$config_params`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 # Finally turn off offline mode
 SET @str=IF(@have_ndbinfo,'SET @@global.ndbinfo_offline=FALSE','SET @dummy = 0');
