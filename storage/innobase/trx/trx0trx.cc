@@ -76,6 +76,17 @@ TrxVersion::TrxVersion(trx_t* trx)
 	/* No op */
 }
 
+/** Set flush observer for the transaction
+@param[in/out]	trx		transaction struct
+@param[in]	observer	flush observer */
+void
+trx_set_flush_observer(
+	trx_t*		trx,
+	FlushObserver*	observer)
+{
+	trx->flush_observer = observer;
+}
+
 /*************************************************************//**
 Set detailed error message for the transaction. */
 void
@@ -190,6 +201,8 @@ trx_init(
 	it got a chance to roll them back asynchronously. */
 
 	trx->hit_list.clear();
+
+	trx->flush_observer = NULL;
 
 	++trx->version;
 }

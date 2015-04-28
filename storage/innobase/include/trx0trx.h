@@ -52,6 +52,9 @@ struct mtr_t;
 // Forward declaration
 class ReadView;
 
+// Forward declaration
+class FlushObserver;
+
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
 
@@ -75,6 +78,14 @@ Releases the search latch if the transaction has been hogging it for too long.
 UNIV_INLINE
 void
 trx_search_latch_timeout(trx_t* trx);
+
+/** Set flush observer for the transaction
+@param[in/out]	trx		transaction struct
+@param[in]	observer	flush observer */
+void
+trx_set_flush_observer(
+	trx_t*		trx,
+	FlushObserver*	observer);
 
 /******************************************************************//**
 Set detailed error message for the transaction. */
@@ -1273,6 +1284,8 @@ struct trx_t {
 	/*------------------------------*/
 	char*		detailed_error;	/*!< detailed error message for last
 					error, or empty. */
+	FlushObserver*	flush_observer;	/*!< flush observer */
+
 #ifdef UNIV_DEBUG
 	bool		is_dd_trx;	/*!< True if the transaction is used for
 					doing Non-locking Read-only Read

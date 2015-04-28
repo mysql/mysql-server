@@ -1485,6 +1485,9 @@ public:
 					should hold: in_free_list
 					== (state == BUF_BLOCK_NOT_USED) */
 #endif /* UNIV_DEBUG */
+
+	FlushObserver*	flush_observer;	/*!< flush observer */
+
 	lsn_t		newest_modification;
 					/*!< log sequence number of
 					the youngest modification to
