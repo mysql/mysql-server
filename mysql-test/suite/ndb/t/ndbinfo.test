@@ -686,7 +686,7 @@ drop table t2;
 # - three new views was added to preserve backwards compatibility
 #   for those tabes which was changed to prefix ndb$
 
-## Check the new tables return data and exists.
+## Check that the new tables return data and exists.
 select count(*) > 10 from ndb$blocks;
 select param_number, param_name from ndb$config_params
   where param_name = "DataMemory";
@@ -696,7 +696,7 @@ select * from ndb$dbtc_apiconnect_state;
 select * from ndb$dblqh_tcconnect_state;
 --enable_result_log
 
-## Check the new views return data and exists.
+## Check that the new views return data and exists.
 select block_number from blocks where block_name = "DBTC";
 select param_name from config_params where param_number = 101;
 select type_name from ndb$dict_obj_types where type_id = 3;
