@@ -16,8 +16,6 @@ CREATE TEMPORARY TABLE `t1` (
   `dummy` INT UNSIGNED
 ) ENGINE=NDBINFO;
 
---source ndbinfo_create.inc
-
 USE ndbinfo;
 
 # Current usage may vary. Therefor the test only checks that if falls in the 
@@ -739,4 +737,3 @@ UPDATE ndb$config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
 --error ER_OPEN_AS_READONLY
 UPDATE config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
 
---source ndbinfo_drop.inc
