@@ -166,7 +166,7 @@ extern "C" void handle_abort(int sig)
 {
   aborted= sig;
   print_message("Child process: %d, aborted by signal: %d",
-                child_pid, aborted);
+                child_pid, sig);
 }
 
 
@@ -326,7 +326,8 @@ int main(int argc, char* const argv[] )
     }
     if(aborted)
     {
-      message("Got signal: %d, child_pid: %d", terminated, child_pid);
+      message("Got signal: %d, child_pid: %d",
+              static_cast<int>(terminated), child_pid);
       abort_child();
     }
     sleep(1);
