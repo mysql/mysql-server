@@ -51,16 +51,16 @@ NdbInfoScanNodes::NdbInfoScanNodes(const NdbInfo& info,
 {
 }
 
-bool
+int
 NdbInfoScanNodes::init(Uint32 id)
 {
   DBUG_ENTER("NdbInfoScanNodes::init");
   if (m_state != Undefined)
-    DBUG_RETURN(false);
+    DBUG_RETURN(NdbInfo::ERR_WrongState);
 
   m_signal_sender = new SignalSender(m_connection);
   if (!m_signal_sender)
-    DBUG_RETURN(false);
+    DBUG_RETURN(NdbInfo::ERR_OutOfMemory);
 
   m_transid0 = id;
   m_transid1 = m_table->getTableId();
@@ -79,7 +79,7 @@ NdbInfoScanNodes::init(Uint32 id)
   m_impl.m_nodes_to_scan.clear(refToNode(m_result_ref));
 
   m_state = Initial;
-  DBUG_RETURN(true);
+  DBUG_RETURN(NdbInfo::ERR_NoError);
 
 }
 

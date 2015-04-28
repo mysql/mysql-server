@@ -318,13 +318,13 @@ NdbInfoScanVirtual::NdbInfoScanVirtual(const NdbInfo::Table* table,
 }
 
 
-bool NdbInfoScanVirtual::init()
+int NdbInfoScanVirtual::init()
 {
   if (m_state != Undefined)
-    return false;
+    return NdbInfo::ERR_WrongState;
 
   m_state = Initial;
-  return true;
+  return NdbInfo::ERR_NoError;
 }
 
 

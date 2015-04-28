@@ -335,10 +335,11 @@ int NdbInfo::createScanOperation(const Table* table,
     if (!virtual_scan)
       return ERR_OutOfMemory;
 
-    if (!virtual_scan->init())
+    const int ret = virtual_scan->init();
+    if (ret != ERR_NoError)
     {
       delete virtual_scan;
-      return ERR_OutOfMemory;
+      return ret;
     }
 
     *ret_scan_op = virtual_scan;
@@ -361,10 +362,11 @@ int NdbInfo::createScanOperation(const Table* table,
     return ERR_OutOfMemory;
   // Global id counter, not critical if you get same id on two instances
   // since reference is also part of the unique identifier.
-  if (!scan_op->init(m_id_counter++))
+  const int ret = scan_op->init(m_id_counter++);
+  if (ret != ERR_NoError)
   {
     delete scan_op;
-    return ERR_ClusterFailure;
+    return ret;
   }
 
   *ret_scan_op = scan_op;
