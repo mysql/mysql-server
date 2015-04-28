@@ -1,8 +1,9 @@
 #
 # Bug#55672 mysql_upgrade dies with internal error 
 #
-Phase 1/3: Fixing table and database names
-Phase 2/3: Checking and upgrading tables
+Phase 1/4: Fixing views
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
 Processing databases
 information_schema
 mtr
@@ -33,5 +34,5 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 3/3: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK

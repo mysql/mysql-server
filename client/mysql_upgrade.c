@@ -741,6 +741,12 @@ static void print_conn_args(const char *tool_name)
 static int run_mysqlcheck_upgrade(void)
 {
   int retch;
+  if (opt_systables_only)
+  {
+    verbose("Phase %d/%d: Checking and upgrading tables... Skipped",
+            phase++, phases_total);
+    return 0;
+  }
   verbose("Phase %d/%d: Checking and upgrading tables", phase++, phases_total);
   print_conn_args("mysqlcheck");
   retch= run_tool(mysqlcheck_path,
@@ -755,8 +761,6 @@ static int run_mysqlcheck_upgrade(void)
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   "2>&1",
                   NULL);
-  if (retch || opt_systables_only)
-    verbose("Phase %d/%d: Skipping 'mysql_fix_privilege_tables'... not needed", phase++, phases_total);
   return retch;
 }
 
@@ -784,15 +788,15 @@ static my_bool is_mysql()
 
 static int run_mysqlcheck_views(void)
 {
-  const char *upgrade_views="--upgrade-views=YES";
+  const char *upgrade_views="--process-views=YES";
   if (is_mysql())
   {
-    upgrade_views="--upgrade-views=FROM_MYSQL";
+    upgrade_views="--process-views=UPGRADE_FROM_MYSQL";
     verbose("Phase %d/%d: Fixing views from mysql", phase++, phases_total);
   }
   else if (opt_systables_only)
   {
-    verbose("Phase %d/%d: Fixing views - skipped - not required", phase++, phases_total);
+    verbose("Phase %d/%d: Fixing views... Skipped", phase++, phases_total);
     return 0;
   }
   else
@@ -803,9 +807,9 @@ static int run_mysqlcheck_views(void)
                   NULL, /* Send output from mysqlcheck directly to screen */
                   "--no-defaults",
                   ds_args.str,
-                  "--all-databases",
+                  "--all-databases", "--repair",
                   upgrade_views,
-                  "--skip-fix-tables",
+                  "--skip-process-tables",
                   opt_verbose ? "--verbose": "",
                   opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
@@ -815,7 +819,14 @@ static int run_mysqlcheck_views(void)
 
 static int run_mysqlcheck_fixnames(void)
 {
-  verbose("Phase %d/%d: Fixing table and database names", phase++, phases_total);
+  if (opt_systables_only)
+  {
+    verbose("Phase %d/%d: Fixing table and database names ... Skipped",
+            phase++, phases_total);
+    return 0;
+  }
+  verbose("Phase %d/%d: Fixing table and database names",
+          phase++, phases_total);
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
@@ -896,7 +907,8 @@ static int run_sql_fix_privilege_tables(void)
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
-  verbose("Phase %d/%d: Running 'mysql_fix_privilege_tables'...", phase++, phases_total);
+  verbose("Phase %d/%d: Running 'mysql_fix_privilege_tables'",
+          phase++, phases_total);
   run_query(mysql_fix_privilege_tables,
             &ds_result, /* Collect result */
             TRUE);
@@ -1058,10 +1070,8 @@ int main(int argc, char **argv)
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
-  if ((!opt_systables_only &&
-       (run_mysqlcheck_views() ||
-        run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
-      run_sql_fix_privilege_tables())
+  if (run_mysqlcheck_views() || run_mysqlcheck_fixnames() ||
+      run_mysqlcheck_upgrade() || run_sql_fix_privilege_tables())
   {
     /*
       The upgrade failed to complete in some way or another,

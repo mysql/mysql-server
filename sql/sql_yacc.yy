@@ -13806,19 +13806,13 @@ lock:
         ;
 
 table_or_tables:
-          TABLE_SYM
-         { Lex->only_view= FALSE; }
-        | TABLES
-         { Lex->only_view= FALSE; }
+          TABLE_SYM        { Lex->only_view= FALSE; }
+        | TABLES           { Lex->only_view= FALSE; }
         ;
 
 table_or_view:
-          TABLE_SYM
-         { Lex->only_view= FALSE; }
-        | TABLES
-         { Lex->only_view= FALSE; }
-        | VIEW_SYM
-         { Lex->only_view= TRUE; }
+          table_or_tables
+        | VIEW_SYM         { Lex->only_view= TRUE;  }
         ;
 
 table_lock_list:

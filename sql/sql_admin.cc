@@ -869,7 +869,16 @@ send_result_message:
       size_t length;
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
+#if MYSQL_VERSION_ID > 100104
+#error fix the error message to take TABLE or VIEW as an argument
+#else
+      if (table->view)
+        length= my_snprintf(buf, sizeof(buf),
+                            "Upgrade required. Please do \"REPAIR VIEW %`s\" or dump/reload to fix it!",
+                            table->table_name);
+      else
+#endif
+      if (table->table->file->ha_table_flags() & HA_CAN_REPAIR || table->view)
         length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
                             table->table_name);
       else

@@ -32,7 +32,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 Run it again - should say already completed
 This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
@@ -70,7 +70,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
 GRANT ALL ON *.* TO mysqltest1@'%';
@@ -108,7 +108,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 DROP USER mysqltest1@'%';
 Version check failed. Got the following error when calling the 'mysql' command line client
@@ -151,7 +151,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 set GLOBAL sql_mode=default;
 #
@@ -195,7 +195,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 CALL testproc();
 DROP PROCEDURE testproc;
@@ -242,7 +242,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 SHOW GRANTS FOR 'user3'@'%';
 Grants for user3@%
@@ -251,7 +251,10 @@ GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%'
 DROP USER 'user3'@'%';
 End of 5.1 tests
 The --upgrade-system-tables option was used, databases won't be touched.
-Phase 1/4: Running 'mysql_fix_privilege_tables'...
+Phase 1/4: Fixing views... Skipped
+Phase 2/4: Fixing table and database names ... Skipped
+Phase 3/4: Checking and upgrading tables... Skipped
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 #
 # Bug#11827359 60223: MYSQL_UPGRADE PROBLEM WITH OPTION
@@ -292,7 +295,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 #
 # MDEV-4332 Increase username length from 16 characters
@@ -353,7 +356,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 performance_schema
 test
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 SELECT definer FROM mysql.proc WHERE db = 'test' AND name = 'pr';
 definer

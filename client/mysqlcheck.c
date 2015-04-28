@@ -43,7 +43,7 @@ static my_bool opt_alldbs = 0, opt_check_only_changed = 0, opt_extended = 0,
                opt_silent = 0, opt_auto_repair = 0, ignore_errors = 0,
                tty_password= 0, opt_frm= 0, debug_info_flag= 0, debug_check_flag= 0,
                opt_fix_table_names= 0, opt_fix_db_names= 0, opt_upgrade= 0,
-               opt_fix_tables= 1;
+               opt_do_tables= 1;
 static my_bool opt_write_binlog= 1, opt_flush_tables= 0;
 static uint verbose = 0, opt_mysql_port=0;
 static int my_end_arg;
@@ -56,21 +56,17 @@ DYNAMIC_ARRAY tables4repair, tables4rebuild, alter_table_cmds;
 static char *shared_memory_base_name=0;
 static uint opt_protocol=0;
 
-enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
+enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_FIX_NAMES };
+const char *operation_name[]=
+{
+  "???", "check", "repair", "analyze", "optimize", "fix names"
+};
 
-typedef enum {
-  UPGRADE_VIEWS_NO=0,
-  UPGRADE_VIEWS_YES=1,
-  UPGRADE_VIEWS_FROM_MYSQL=2,
-  UPGRADE_VIEWS_COUNT
-} enum_upgrade_views;
-const char *upgrade_views_opts[]=
-{"NO", "YES", "FROM_MYSQL", NullS};
-TYPELIB upgrade_views_typelib=
-  { array_elements(upgrade_views_opts) - 1, "",
-    upgrade_views_opts, NULL };
-static enum_upgrade_views opt_upgrade_views= UPGRADE_VIEWS_NO;
-static char *opt_upgrade_views_str= NullS;
+typedef enum { DO_VIEWS_NO, DO_VIEWS_YES, DO_VIEWS_FROM_MYSQL } enum_do_views;
+const char *do_views_opts[]= {"NO", "YES", "UPGRADE_FROM_MYSQL", NullS};
+TYPELIB do_views_typelib= { array_elements(do_views_opts) - 1, "",
+    do_views_opts, NULL };
+static ulong opt_do_views= DO_VIEWS_NO;
 
 static struct my_option my_long_options[] =
 {
@@ -211,15 +207,14 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"upgrade-views", OPT_UPGRADE_VIEWS,
-   "Repairs/Upgrades views. 'No' (default) doesn't do anything to views. "
-   "'Yes' repairs the checksum and adds a MariaDB version to the frm table defination (if missing)."
-   "Using 'from_mysql' will, when upgrading from MySQL, and ensure the view algorithms are the"
-   "same as what they where previously.",
-   &opt_upgrade_views_str, &opt_upgrade_views_str, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"fix-tables", 'Y',
-   "Fix tables. Usually the default however mysql_upgrade will run with --skip-fix-tables.",
-   &opt_fix_tables, &opt_fix_tables, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"process-views", 0,
+   "Perform the requested operation (check or repair) on views. "
+   "One of: NO, YES (correct the checksum, if necessary, add the "
+   "mariadb-version field), UPGRADE_FROM_MYSQL (same as YES and toggle "
+   "the algorithm MERGE<->TEMPTABLE.", &opt_do_views, &opt_do_views,
+   &do_views_typelib, GET_ENUM, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"process-tables", 0, "Perform the requested operation on tables.",
+   &opt_do_tables, &opt_do_tables, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -236,7 +231,7 @@ static int process_selected_tables(char *db, char **table_names, int tables);
 static int process_all_tables_in_db(char *database);
 static int process_one_db(char *database);
 static int use_db(char *database);
-static int handle_request_for_tables(char *tables, uint length, my_bool view);
+static int handle_request_for_tables(char *tables, size_t length, my_bool view);
 static int dbConnect(char *host, char *user,char *passwd);
 static void dbDisconnect(char *host);
 static void DBerror(MYSQL *mysql, const char *when);
@@ -311,11 +306,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     what_to_do = DO_OPTIMIZE;
     break;
   case OPT_FIX_DB_NAMES:
-    what_to_do= DO_UPGRADE;
+    what_to_do= DO_FIX_NAMES;
     opt_databases= 1;
     break;
   case OPT_FIX_TABLE_NAMES:
-    what_to_do= DO_UPGRADE;
+    what_to_do= DO_FIX_NAMES;
     break;
   case 'p':
     if (argument == disabled_my_option)
@@ -359,15 +354,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version(); exit(0);
     break;
-  case OPT_UPGRADE_VIEWS:
-    if (argument == NULL)
-      opt_upgrade_views= UPGRADE_VIEWS_NO;
-    else
-    {
-      opt_upgrade_views= (enum_upgrade_views)
-        (find_type_or_exit(argument, &upgrade_views_typelib, opt->name)-1);
-    }
-    break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
@@ -376,7 +362,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
   if (orig_what_to_do && (what_to_do != orig_what_to_do))
   {
-    fprintf(stderr, "Error:  %s doesn't support multiple contradicting commands.\n",
+    fprintf(stderr, "Error: %s doesn't support multiple contradicting commands.\n",
             my_progname);
     DBUG_RETURN(1);
   }
@@ -398,22 +384,11 @@ static int get_options(int *argc, char ***argv)
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
-  if (what_to_do==DO_REPAIR && !(opt_upgrade_views || opt_fix_tables))
+  if (what_to_do == DO_REPAIR && !opt_do_views && !opt_do_tables)
   {
-    fprintf(stderr, "Error:  %s doesn't support repair command without either upgrade-views or fix-tables specified.\n",
-            my_progname);
+    fprintf(stderr, "Error: Nothing to repair when both "
+            "--process-tables=NO and --process-views=NO\n");
     exit(1);
-  }
-  if (opt_upgrade_views && what_to_do!=DO_REPAIR)
-  {
-    if (!what_to_do)
-      what_to_do= DO_REPAIR;
-    else
-    {
-      fprintf(stderr, "Error:  %s doesn't support non-repair command with option upgrade-views.\n",
-              my_progname);
-      exit(1);
-    }
   }
   if (!what_to_do)
   {
@@ -429,6 +404,13 @@ static int get_options(int *argc, char ***argv)
       what_to_do = DO_OPTIMIZE;
     else
       what_to_do = DO_CHECK;
+  }
+
+  if (opt_do_views && what_to_do != DO_REPAIR && what_to_do != DO_CHECK)
+  {
+    fprintf(stderr, "Error: %s doesn't support %s for views.\n",
+            my_progname, operation_name[what_to_do]);
+    exit(1);
   }
 
   /*
@@ -516,19 +498,15 @@ static int process_databases(char **db_names)
 
 
 /* returns: -1 for error, 1 for view, 0 for table */
-static int is_view(const char *table, uint length)
+static int is_view(const char *table)
 {
-  char *query, *ptr;
+  char query[1024];
   MYSQL_RES *res;
   MYSQL_FIELD *field;
   int view;
   DBUG_ENTER("is_view");
 
-  if (!(query =(char *) my_malloc((sizeof(char)*(length+110)), MYF(MY_WME))))
-    DBUG_RETURN(-1);
-  ptr= strmov(query, "SHOW CREATE TABLE `");
-  ptr= strxmov(ptr, table, NullS);
-  ptr= strxmov(ptr, "`", NullS);
+  my_snprintf(query, sizeof(query), "SHOW CREATE TABLE %`s", table);
   if (mysql_query(sock, query))
   {
     fprintf(stderr, "Failed to %s\n", query);
@@ -538,9 +516,8 @@ static int is_view(const char *table, uint length)
   }
   res= mysql_store_result(sock);
   field= mysql_fetch_field(res);
-  view= (strcmp(field->name,"View")==0) ? 1 : 0;
+  view= (strcmp(field->name,"View") == 0) ? 1 : 0;
   mysql_free_result(res);
-  my_free(query);
 
   DBUG_RETURN(view);
 }
@@ -554,7 +531,7 @@ static int process_selected_tables(char *db, char **table_names, int tables)
 
   if (use_db(db))
     DBUG_RETURN(1);
-  if (opt_all_in_1 && what_to_do != DO_UPGRADE)
+  if (opt_all_in_1 && what_to_do != DO_FIX_NAMES)
   {
     /* 
       We need table list in form `a`, `b`, `c`
@@ -564,6 +541,15 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     char *table_names_comma_sep, *end;
     size_t tot_length= 0;
     int             i= 0;
+
+    if (opt_do_tables && opt_do_views)
+    {
+      fprintf(stderr, "Error: %s cannot process both tables and views "
+                      "in one command (--process-tables=YES "
+                      "--process-views=YES --all-in-1).\n",
+              my_progname);
+      DBUG_RETURN(1);
+    }
 
     for (i = 0; i < tables; i++)
       tot_length+= fixed_name_length(*(table_names + i)) + 2;
@@ -579,12 +565,8 @@ static int process_selected_tables(char *db, char **table_names, int tables)
       *end++= ',';
     }
     *--end = 0;
-    table= table_names_comma_sep + 1;
-    table_len= tot_length - 1;
-    view= is_view(table, table_len);
-    if (view < 0)
-      DBUG_RETURN(1);
-    handle_request_for_tables(table, table_len, (view==1));
+    handle_request_for_tables(table_names_comma_sep + 1, tot_length - 1,
+                              opt_do_views != 0);
     my_free(table_names_comma_sep);
   }
   else
@@ -592,10 +574,10 @@ static int process_selected_tables(char *db, char **table_names, int tables)
     {
       table= *table_names;
       table_len= fixed_name_length(*table_names);
-      view= is_view(table, table_len);
+      view= is_view(table);
       if (view < 0)
         continue;
-      handle_request_for_tables(table, table_len, (view==1));
+      handle_request_for_tables(table, table_len, (view == 1));
     }
   DBUG_RETURN(0);
 } /* process_selected_tables */
@@ -662,7 +644,7 @@ static int process_all_tables_in_db(char *database)
 
   num_columns= mysql_num_fields(res);
 
-  if (opt_all_in_1 && what_to_do != DO_UPGRADE)
+  if (opt_all_in_1 && what_to_do != DO_FIX_NAMES)
   {
     /*
       We need table list in form `a`, `b`, `c`
@@ -679,9 +661,9 @@ static int process_all_tables_in_db(char *database)
     while ((row = mysql_fetch_row(res)))
     {
       if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0) &&
-          opt_upgrade_views)
+          opt_do_views)
         tot_views_length+= fixed_name_length(row[0]) + 2;
-      else if (opt_fix_tables)
+      else if (opt_do_tables)
         tot_length+= fixed_name_length(row[0]) + 2;
     }
     mysql_data_seek(res, 0);
@@ -702,14 +684,14 @@ static int process_all_tables_in_db(char *database)
     {
       if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
       {
-        if (!opt_upgrade_views)
+        if (!opt_do_views)
           continue;
         views_end= fix_table_name(views_end, row[0]);
         *views_end++= ',';
       }
       else
       {
-        if (!opt_fix_tables)
+        if (!opt_do_tables)
           continue;
         end= fix_table_name(end, row[0]);
         *end++= ',';
@@ -729,15 +711,15 @@ static int process_all_tables_in_db(char *database)
     while ((row = mysql_fetch_row(res)))
     {
       /* Skip views if we don't perform renaming. */
-      if ((what_to_do != DO_UPGRADE) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
+      if ((what_to_do != DO_FIX_NAMES) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
       {
-        if (!opt_upgrade_views)
+        if (!opt_do_views)
           continue;
         view= TRUE;
       }
       else
       {
-        if (!opt_fix_tables)
+        if (!opt_do_tables)
           continue;
         view= FALSE;
       }
@@ -825,7 +807,7 @@ static int process_one_db(char *database)
 
   if (verbose)
     puts(database);
-  if (what_to_do == DO_UPGRADE)
+  if (what_to_do == DO_FIX_NAMES)
   {
     int rc= 0;
     if (opt_fix_db_names && !strncmp(database,"#mysql50#", 9))
@@ -864,7 +846,7 @@ static int disable_binlog()
   return run_query(stmt);
 }
 
-static int handle_request_for_tables(char *tables, uint length, my_bool view)
+static int handle_request_for_tables(char *tables, size_t length, my_bool view)
 {
   char *query, *end, options[100], message[100];
   char table_name_buff[NAME_CHAR_LEN*2*2+1], *table_name;
@@ -887,21 +869,28 @@ static int handle_request_for_tables(char *tables, uint length, my_bool view)
     if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
-    op= (opt_write_binlog) ?
-         "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG";
-    if (opt_quick)              end = strmov(end, " QUICK");
-    if (opt_extended)           end = strmov(end, " EXTENDED");
-    if (opt_frm)                end = strmov(end, " USE_FRM");
-    if (opt_upgrade_views==UPGRADE_VIEWS_FROM_MYSQL && view)
-                                end = strmov(end, " FROM MYSQL");
+    op= opt_write_binlog ?  "REPAIR" : "REPAIR NO_WRITE_TO_BINLOG";
+    if (view)
+    {
+      if (opt_do_views == DO_VIEWS_FROM_MYSQL) end = strmov(end, " FROM MYSQL");
+    }
+    else
+    {
+      if (opt_quick)    end = strmov(end, " QUICK");
+      if (opt_extended) end = strmov(end, " EXTENDED");
+      if (opt_frm)      end = strmov(end, " USE_FRM");
+    }
     break;
   case DO_ANALYZE:
+    DBUG_ASSERT(!view);
     op= (opt_write_binlog) ? "ANALYZE" : "ANALYZE NO_WRITE_TO_BINLOG";
     break;
   case DO_OPTIMIZE:
+    DBUG_ASSERT(!view);
     op= (opt_write_binlog) ? "OPTIMIZE" : "OPTIMIZE NO_WRITE_TO_BINLOG";
     break;
-  case DO_UPGRADE:
+  case DO_FIX_NAMES:
+    DBUG_ASSERT(!view);
     DBUG_RETURN(fix_table_storage_name(tables));
   }
 
@@ -929,7 +918,6 @@ static int handle_request_for_tables(char *tables, uint length, my_bool view)
   if (mysql_real_query(sock, query, query_length))
   {
     sprintf(message, "when executing '%s%s... %s'", op, tab_view, options);
-    /* sprintf(message, "when executing '%s'", query); */
     DBerror(sock, message);
     my_free(query);
     DBUG_RETURN(1);

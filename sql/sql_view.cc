@@ -828,25 +828,6 @@ int mariadb_fix_view(THD *thd, TABLE_LIST *view, bool wrong_checksum,
   if (!view->timestamp.str)
     view->timestamp.str= view->timestamp_buffer;
 
-  /* check old .frm */
-  {
-    char path_buff[FN_REFLEN];
-    LEX_STRING path;
-    File_parser *parser;
-
-    path.str= path_buff;
-    fn_format(path_buff, file.str, dir.str, "", MY_UNPACK_FILENAME);
-    path.length= strlen(path_buff);
-    if (access(path.str, F_OK))
-      DBUG_RETURN(HA_ADMIN_INVALID);
-
-    if (!(parser= sql_parse_prepare(&path, thd->mem_root, 0)))
-      DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
-
-    if (!parser->ok() || !is_equal(&view_type, parser->type()))
-      DBUG_RETURN(HA_ADMIN_INVALID);
-  }
-
   if (swap_alg && view->algorithm != VIEW_ALGORITHM_UNDEFINED)
   {
     DBUG_ASSERT(view->algorithm == VIEW_ALGORITHM_MERGE ||
@@ -877,13 +858,13 @@ int mariadb_fix_view(THD *thd, TABLE_LIST *view, bool wrong_checksum,
                     view->db, view->table_name);
     DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
   }
-  sql_print_information("View '%-.192s'.'%-.192s': versioned to %llu%s%s",
+  sql_print_information("View %`s.%`s: the version is set to %llu%s%s",
                         view->db, view->table_name, view->mariadb_version,
-                        (wrong_checksum ? ", and checksum corrected" : ""),
+                        (wrong_checksum ? ", checksum corrected" : ""),
                         (swap_alg ?
                           ((view->algorithm == VIEW_ALGORITHM_MERGE) ?
-                            ", and algorithm swapped to 'MERGE'"
-                           : ", and algorithm swapped to 'TEMPTABLE'")
+                            ", algorithm restored to be MERGE"
+                           : ", algorithm restored to be TEMPTABLE")
                          : ""));
 
 
@@ -2046,20 +2027,15 @@ int view_checksum(THD *thd, TABLE_LIST *view)
 */
 int view_check(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt)
 {
-  int res;
   DBUG_ENTER("view_check");
-  if ((res= view_checksum(thd, view)) != HA_ADMIN_OK)
+
+  int res= view_checksum(thd, view);
+  if (res != HA_ADMIN_OK)
     DBUG_RETURN(res);
-  if (((check_opt->sql_flags & TT_FOR_UPGRADE) &&
-       !view->mariadb_version))
-  {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                            ER_TABLE_NEEDS_UPGRADE,
-                            ER(ER_TABLE_NEEDS_UPGRADE),
-                            view->db,
-                            view->table_name);
+
+  if (((check_opt->sql_flags & TT_FOR_UPGRADE) && !view->mariadb_version))
     DBUG_RETURN(HA_ADMIN_NEEDS_UPGRADE);
-  }
+
   DBUG_RETURN(HA_ADMIN_OK);
 }
 
@@ -2080,7 +2056,7 @@ int view_repair(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt)
 {
   DBUG_ENTER("view_repair");
   bool swap_alg= (check_opt->sql_flags & TT_FROM_MYSQL);
-  bool wrong_checksum= view_checksum(thd, view);
+  bool wrong_checksum= view_checksum(thd, view) != HA_ADMIN_OK;
   int ret;
   if (wrong_checksum || swap_alg || (!view->mariadb_version))
   {

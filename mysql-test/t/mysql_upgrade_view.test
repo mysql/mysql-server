@@ -18,6 +18,16 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 flush tables;
 
+check view v1;
+check view v1badcheck;
+check view v2;
+check view v3;
+
+check view v1 for upgrade;
+check view v1badcheck for upgrade;
+check view v2 for upgrade;
+check view v3 for upgrade;
+
 --replace_result $MYSQLTEST_VARDIR var
 --exec $MYSQL_UPGRADE --force 2>&1
 
@@ -67,12 +77,7 @@ drop view if exists v1,v2,v3,v1badcheck;
 
 # Make it look like a MySQL directory now
 
---copy_file $MYSQLD_DATADIR/mysql/event.MYI $MYSQLD_DATADIR/mysql/ev_bk.MYI
---copy_file $MYSQLD_DATADIR/mysql/event.MYD $MYSQLD_DATADIR/mysql/ev_bk.MYD
---copy_file $MYSQLD_DATADIR/mysql/event.frm $MYSQLD_DATADIR/mysql/ev_bk.frm
---remove_file $MYSQLD_DATADIR/mysql/event.MYI
---remove_file $MYSQLD_DATADIR/mysql/event.MYD
---remove_file $MYSQLD_DATADIR/mysql/event.frm
+rename table mysql.event to mysql.ev_bk;
 --copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYI $MYSQLD_DATADIR/mysql/event.MYI
 --copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYD $MYSQLD_DATADIR/mysql/event.MYD
 --copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.frm $MYSQLD_DATADIR/mysql/event.frm
@@ -108,37 +113,18 @@ truncate table kv;
 drop view if exists v1,v2,v3;
 --enable_warnings
 
-
---remove_file $MYSQLD_DATADIR/mysql/event.MYI
---remove_file $MYSQLD_DATADIR/mysql/event.MYD
---remove_file $MYSQLD_DATADIR/mysql/event.frm
-
---copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYI $MYSQLD_DATADIR/mysql/event.MYI
---copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.MYD $MYSQLD_DATADIR/mysql/event.MYD
---copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/event.frm $MYSQLD_DATADIR/mysql/event.frm
+# back to mariadb default
+drop table mysql.event;
+rename table mysql.ev_bk to mysql.event;
 
 --copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v1.frm $MYSQLD_DATADIR/test/v1.frm
 --copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v2.frm $MYSQLD_DATADIR/test/v2.frm
 --copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v3.frm $MYSQLD_DATADIR/test/v3.frm
-flush tables;
 
-# check of binlog
---exec $MYSQL_CHECK --write-binlog --upgrade-views=FROM_MYSQL --skip-fix-tables --all-databases 2>&1
+# check of binlog and mixing tables (with table specific options) and views
+--exec $MYSQL_CHECK --repair --write-binlog --process-tables --use-frm --process-views=UPGRADE_FROM_MYSQL test 2>&1
 
 --source include/show_binlog_events.inc
-
-# back to mariadb default
-
---remove_file $MYSQLD_DATADIR/mysql/event.MYI
---remove_file $MYSQLD_DATADIR/mysql/event.MYD
---remove_file $MYSQLD_DATADIR/mysql/event.frm
---copy_file $MYSQLD_DATADIR/mysql/ev_bk.MYI $MYSQLD_DATADIR/mysql/event.MYI
---copy_file $MYSQLD_DATADIR/mysql/ev_bk.MYD $MYSQLD_DATADIR/mysql/event.MYD
---copy_file $MYSQLD_DATADIR/mysql/ev_bk.frm $MYSQLD_DATADIR/mysql/event.frm
---remove_file $MYSQLD_DATADIR/mysql/ev_bk.MYI
---remove_file $MYSQLD_DATADIR/mysql/ev_bk.MYD
---remove_file $MYSQLD_DATADIR/mysql/ev_bk.frm
-flush tables;
 
 drop table if exists kv;
 drop view v1,v2,v3,v4;

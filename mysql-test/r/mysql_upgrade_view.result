@@ -4,6 +4,30 @@ drop view if exists t1,v1,v2,v3,v4,v1badcheck;
 create table t1(a int);
 create table kv(k varchar(30) NOT NULL PRIMARY KEY,v  varchar(50));
 flush tables;
+check view v1;
+Table	Op	Msg_type	Msg_text
+test.v1	check	status	OK
+check view v1badcheck;
+Table	Op	Msg_type	Msg_text
+test.v1badcheck	check	note	View text checksum failed
+check view v2;
+Table	Op	Msg_type	Msg_text
+test.v2	check	status	OK
+check view v3;
+Table	Op	Msg_type	Msg_text
+test.v3	check	status	OK
+check view v1 for upgrade;
+Table	Op	Msg_type	Msg_text
+test.v1	check	error	Upgrade required. Please do "REPAIR VIEW `v1`" or dump/reload to fix it!
+check view v1badcheck for upgrade;
+Table	Op	Msg_type	Msg_text
+test.v1badcheck	check	note	View text checksum failed
+check view v2 for upgrade;
+Table	Op	Msg_type	Msg_text
+test.v2	check	error	Upgrade required. Please do "REPAIR VIEW `v2`" or dump/reload to fix it!
+check view v3 for upgrade;
+Table	Op	Msg_type	Msg_text
+test.v3	check	error	Upgrade required. Please do "REPAIR VIEW `v3`" or dump/reload to fix it!
 Phase 1/4: Fixing views
 test.v1                                            OK
 test.v1badcheck                                    OK
@@ -43,7 +67,7 @@ performance_schema
 test
 test.kv                                            OK
 test.t1                                            OK
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 show create view v1;
 View	Create View	character_set_client	collation_connection
@@ -107,6 +131,7 @@ k
 mariadb-version
 truncate table kv;
 drop view if exists v1,v2,v3,v1badcheck;
+rename table mysql.event to mysql.ev_bk;
 flush tables;
 create algorithm=temptable view v4 as select a from t1;
 show create view v1;
@@ -162,7 +187,7 @@ performance_schema
 test
 test.kv                                            OK
 test.t1                                            OK
-Phase 4/4: Running 'mysql_fix_privilege_tables'...
+Phase 4/4: Running 'mysql_fix_privilege_tables'
 OK
 show create view v1;
 View	Create View	character_set_client	collation_connection
@@ -186,7 +211,10 @@ k
 mariadb-version
 truncate table kv;
 drop view if exists v1,v2,v3;
-flush tables;
+drop table mysql.event;
+rename table mysql.ev_bk to mysql.event;
+test.kv                                            OK
+test.t1                                            OK
 test.v1                                            OK
 test.v2                                            OK
 test.v3                                            OK
@@ -195,11 +223,12 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW v1,v2
 master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW v1badcheck
+master-bin.000001	#	Query	#	#	use `test`; REPAIR TABLE `kv`  USE_FRM
+master-bin.000001	#	Query	#	#	use `test`; REPAIR TABLE `t1`  USE_FRM
 master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v1`  FROM MYSQL
 master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v2`  FROM MYSQL
 master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v3`  FROM MYSQL
 master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v4`  FROM MYSQL
-flush tables;
 drop table if exists kv;
 drop view v1,v2,v3,v4;
 drop table t1;
