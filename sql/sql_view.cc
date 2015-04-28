@@ -729,6 +729,26 @@ err:
 }
 
 
+static void make_view_filename(LEX_STRING *dir, char *dir_buff,
+                               size_t dir_buff_len,
+                               LEX_STRING *path, char *path_buff,
+                               size_t path_buff_len,
+                               LEX_STRING *file,
+                               TABLE_LIST *view)
+{
+  /* print file name */
+  dir->length= build_table_filename(dir_buff, dir_buff_len - 1,
+                                   view->db, "", "", 0);
+  dir->str= dir_buff;
+
+  path->length= build_table_filename(path_buff, path_buff_len - 1,
+                                     view->db, view->table_name, reg_ext, 0);
+  path->str= path_buff;
+
+  file->str= path->str + dir->length;
+  file->length= path->length - dir->length;
+}
+
 /* number of required parameters for making view */
 static const int required_view_parameters= 15;
 
@@ -789,6 +809,86 @@ static File_option view_parameters[]=
 };
 
 static LEX_STRING view_file_type[]= {{(char*) STRING_WITH_LEN("VIEW") }};
+
+
+int mariadb_fix_view(THD *thd, TABLE_LIST *view, bool wrong_checksum,
+                     bool swap_alg)
+{
+  char dir_buff[FN_REFLEN + 1], path_buff[FN_REFLEN + 1];
+  LEX_STRING dir, file, path;
+  DBUG_ENTER("mariadb_fix_view");
+
+  if (!wrong_checksum && view->mariadb_version)
+    DBUG_RETURN(HA_ADMIN_OK);
+
+  make_view_filename(&dir, dir_buff, sizeof(dir_buff),
+                     &path, path_buff, sizeof(path_buff),
+                     &file, view);
+  /* init timestamp */
+  if (!view->timestamp.str)
+    view->timestamp.str= view->timestamp_buffer;
+
+  /* check old .frm */
+  {
+    char path_buff[FN_REFLEN];
+    LEX_STRING path;
+    File_parser *parser;
+
+    path.str= path_buff;
+    fn_format(path_buff, file.str, dir.str, "", MY_UNPACK_FILENAME);
+    path.length= strlen(path_buff);
+    if (access(path.str, F_OK))
+      DBUG_RETURN(HA_ADMIN_INVALID);
+
+    if (!(parser= sql_parse_prepare(&path, thd->mem_root, 0)))
+      DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
+
+    if (!parser->ok() || !is_equal(&view_type, parser->type()))
+      DBUG_RETURN(HA_ADMIN_INVALID);
+  }
+
+  if (swap_alg && view->algorithm != VIEW_ALGORITHM_UNDEFINED)
+  {
+    DBUG_ASSERT(view->algorithm == VIEW_ALGORITHM_MERGE ||
+                view->algorithm == VIEW_ALGORITHM_TMPTABLE);
+    if (view->algorithm == VIEW_ALGORITHM_MERGE)
+      view->algorithm= VIEW_ALGORITHM_TMPTABLE;
+    else
+      view->algorithm= VIEW_ALGORITHM_MERGE;
+  }
+  else
+    swap_alg= 0;
+  if (wrong_checksum)
+  {
+    if (view->md5.length != 32)
+    {
+       if ((view->md5.str= (char *)thd->alloc(32 + 1)) == NULL)
+         DBUG_RETURN(HA_ADMIN_FAILED);
+    }
+    view->calc_md5(view->md5.str);
+    view->md5.length= 32;
+  }
+  view->mariadb_version= MYSQL_VERSION_ID;
+
+  if (sql_create_definition_file(&dir, &file, view_file_type,
+                                (uchar*)view, view_parameters))
+  {
+    sql_print_error("View '%-.192s'.'%-.192s': algorithm swap error.",
+                    view->db, view->table_name);
+    DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
+  }
+  sql_print_information("View '%-.192s'.'%-.192s': versioned to %llu%s%s",
+                        view->db, view->table_name, view->mariadb_version,
+                        (wrong_checksum ? ", and checksum corrected" : ""),
+                        (swap_alg ?
+                          ((view->algorithm == VIEW_ALGORITHM_MERGE) ?
+                            ", and algorithm swapped to 'MERGE'"
+                           : ", and algorithm swapped to 'TEMPTABLE'")
+                         : ""));
+
+
+  DBUG_RETURN(HA_ADMIN_OK);
+}
 
 
 /*
@@ -927,17 +1027,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   }
 loop_out:
   /* print file name */
-  dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
-                                   view->db, "", "", 0);
-  dir.str= dir_buff;
-
-  path.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
-                                    view->db, view->table_name, reg_ext, 0);
-  path.str= path_buff;
-
-  file.str= path.str + dir.length;
-  file.length= path.length - dir.length;
-
+  make_view_filename(&dir, dir_buff, sizeof(dir_buff),
+                     &path, path_buff, sizeof(path_buff),
+                     &file, view);
   /* init timestamp */
   if (!view->timestamp.str)
     view->timestamp.str= view->timestamp_buffer;
@@ -1063,7 +1155,7 @@ err:
 
   SYNOPSIS
     mysql_make_view()
-    thd			Thread handler
+    thd			Thread handle
     parser		parser object
     table		TABLE_LIST structure for filling
     flags               flags
@@ -1634,7 +1726,7 @@ err:
 
   SYNOPSIS
     mysql_drop_view()
-    thd		- thread handler
+    thd		- thread handle
     views	- views to delete
     drop_mode	- cascade/check
 
@@ -1755,7 +1847,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 
   SYNOPSIS
     check_key_in_view()
-    thd     thread handler
+    thd     thread handle
     view    view for check with opened table
 
   DESCRIPTION
@@ -1939,6 +2031,63 @@ int view_checksum(THD *thd, TABLE_LIST *view)
   return (strncmp(md5, view->md5.str, 32) ?
           HA_ADMIN_WRONG_CHECKSUM :
           HA_ADMIN_OK);
+}
+
+/**
+  Check view
+
+  @param thd             thread handle
+  @param view            view for check
+  @param check_opt       check options
+
+  @retval HA_ADMIN_OK               OK
+  @retval HA_ADMIN_NOT_IMPLEMENTED  it is not VIEW
+  @retval HA_ADMIN_WRONG_CHECKSUM   check sum is wrong
+*/
+int view_check(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt)
+{
+  int res;
+  DBUG_ENTER("view_check");
+  if ((res= view_checksum(thd, view)) != HA_ADMIN_OK)
+    DBUG_RETURN(res);
+  if (((check_opt->sql_flags & TT_FOR_UPGRADE) &&
+       !view->mariadb_version))
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                            ER_TABLE_NEEDS_UPGRADE,
+                            ER(ER_TABLE_NEEDS_UPGRADE),
+                            view->db,
+                            view->table_name);
+    DBUG_RETURN(HA_ADMIN_NEEDS_UPGRADE);
+  }
+  DBUG_RETURN(HA_ADMIN_OK);
+}
+
+
+/**
+  Repair view
+
+  @param thd             thread handle
+  @param view            view for check
+  @param check_opt       check options
+
+  @retval HA_ADMIN_OK               OK
+  @retval HA_ADMIN_NOT_IMPLEMENTED  it is not VIEW
+  @retval HA_ADMIN_WRONG_CHECKSUM   check sum is wrong
+*/
+
+int view_repair(THD *thd, TABLE_LIST *view, HA_CHECK_OPT *check_opt)
+{
+  DBUG_ENTER("view_repair");
+  bool swap_alg= (check_opt->sql_flags & TT_FROM_MYSQL);
+  bool wrong_checksum= view_checksum(thd, view);
+  int ret;
+  if (wrong_checksum || swap_alg || (!view->mariadb_version))
+  {
+    ret= mariadb_fix_view(thd, view, wrong_checksum, swap_alg);
+    DBUG_RETURN(ret);
+  }
+  DBUG_RETURN(HA_ADMIN_OK);
 }
 
 /*

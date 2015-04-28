@@ -36,6 +36,8 @@
 # endif
 #endif
 
+static int phase = 1;
+static int phases_total = 4;
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
@@ -738,9 +740,10 @@ static void print_conn_args(const char *tool_name)
 
 static int run_mysqlcheck_upgrade(void)
 {
-  verbose("Phase 2/3: Checking and upgrading tables");
+  int retch;
+  verbose("Phase %d/%d: Checking and upgrading tables", phase++, phases_total);
   print_conn_args("mysqlcheck");
-  return run_tool(mysqlcheck_path,
+  retch= run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
                   "--no-defaults",
                   ds_args.str,
@@ -752,12 +755,67 @@ static int run_mysqlcheck_upgrade(void)
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   "2>&1",
                   NULL);
+  if (retch || opt_systables_only)
+    verbose("Phase %d/%d: Skipping 'mysql_fix_privilege_tables'... not needed", phase++, phases_total);
+  return retch;
 }
 
+#define EVENTS_STRUCT_LEN 7000
+
+static my_bool is_mysql()
+{
+  my_bool ret= TRUE;
+  DYNAMIC_STRING ds_events_struct;
+
+  if (init_dynamic_string(&ds_events_struct, NULL,
+                          EVENTS_STRUCT_LEN, EVENTS_STRUCT_LEN))
+    die("Out of memory");
+
+  if (run_query("show create table mysql.event",
+                &ds_events_struct, FALSE) ||
+      strstr(ds_events_struct.str, "IGNORE_BAD_TABLE_OPTIONS") != NULL)
+    ret= FALSE;
+  else
+    verbose("MySQL upgrade detected");
+
+  dynstr_free(&ds_events_struct);
+  return(ret);
+}
+
+static int run_mysqlcheck_views(void)
+{
+  const char *upgrade_views="--upgrade-views=YES";
+  if (is_mysql())
+  {
+    upgrade_views="--upgrade-views=FROM_MYSQL";
+    verbose("Phase %d/%d: Fixing views from mysql", phase++, phases_total);
+  }
+  else if (opt_systables_only)
+  {
+    verbose("Phase %d/%d: Fixing views - skipped - not required", phase++, phases_total);
+    return 0;
+  }
+  else
+    verbose("Phase %d/%d: Fixing views", phase++, phases_total);
+
+  print_conn_args("mysqlcheck");
+  return run_tool(mysqlcheck_path,
+                  NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
+                  ds_args.str,
+                  "--all-databases",
+                  upgrade_views,
+                  "--skip-fix-tables",
+                  opt_verbose ? "--verbose": "",
+                  opt_silent ? "--silent": "",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "2>&1",
+                  NULL);
+}
 
 static int run_mysqlcheck_fixnames(void)
 {
-  verbose("Phase 1/3: Fixing table and database names");
+  verbose("Phase %d/%d: Fixing table and database names", phase++, phases_total);
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
@@ -838,7 +896,7 @@ static int run_sql_fix_privilege_tables(void)
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
-  verbose("Phase 3/3: Running 'mysql_fix_privilege_tables'...");
+  verbose("Phase %d/%d: Running 'mysql_fix_privilege_tables'...", phase++, phases_total);
   run_query(mysql_fix_privilege_tables,
             &ds_result, /* Collect result */
             TRUE);
@@ -1001,7 +1059,8 @@ int main(int argc, char **argv)
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
   */
   if ((!opt_systables_only &&
-       (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
+       (run_mysqlcheck_views() ||
+        run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
       run_sql_fix_privilege_tables())
   {
     /*

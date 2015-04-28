@@ -643,7 +643,8 @@ found:
     open_table_error(share, share->error, share->open_errno, share->errarg);
     DBUG_RETURN(0);
   }
-  if (share->is_view && !(db_flags & OPEN_VIEW))
+  if ((share->is_view && !(db_flags & OPEN_VIEW)) ||
+      (!share->is_view && (db_flags & OPEN_VIEW_ONLY)))
   {
     open_table_error(share, 1, ENOENT, 0);
     DBUG_RETURN(0);
@@ -3027,7 +3028,11 @@ retry_share:
   mysql_mutex_lock(&LOCK_open);
 
   if (!(share= get_table_share_with_discover(thd, table_list, key,
-                                             key_length, OPEN_VIEW,
+                                             key_length,
+                                             (OPEN_VIEW |
+                                              ((table_list->required_type ==
+                                                FRMTYPE_VIEW) ?
+                                               OPEN_VIEW_ONLY : 0)),
                                              &error,
                                              hash_value)))
   {

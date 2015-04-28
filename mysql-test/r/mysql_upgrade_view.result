@@ -1,0 +1,205 @@
+set sql_log_bin=0;
+drop table if exists t1,v1,v2,v3,v4,v1badcheck;
+drop view if exists t1,v1,v2,v3,v4,v1badcheck;
+create table t1(a int);
+create table kv(k varchar(30) NOT NULL PRIMARY KEY,v  varchar(50));
+flush tables;
+Phase 1/4: Fixing views
+test.v1                                            OK
+test.v1badcheck                                    OK
+test.v2                                            OK
+test.v3                                            OK
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+mysql
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.servers                                      OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+performance_schema
+test
+test.kv                                            OK
+test.t1                                            OK
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
+OK
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+set sql_log_bin=1;
+REPAIR VIEW v1,v2;
+Table	Op	Msg_type	Msg_text
+test.v1	repair	status	OK
+test.v2	repair	status	OK
+REPAIR VIEW v1badcheck;
+Table	Op	Msg_type	Msg_text
+test.v1badcheck	repair	status	OK
+REPAIR NO_WRITE_TO_BINLOG VIEW v3;
+Table	Op	Msg_type	Msg_text
+test.v3	repair	status	OK
+set sql_log_bin=0;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW v1,v2
+master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW v1badcheck
+LOAD DATA INFILE 'MYSQLD_DATADIR/test/v1.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+k	v
+algorithm	1
+md5	5e6eaf216e7b016fcedfd4e1113517af
+SELECT k from kv where k ='mariadb-version';
+k
+mariadb-version
+truncate table kv;
+LOAD DATA INFILE 'MYSQLD_DATADIR/test/v2.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+k	v
+algorithm	2
+md5	5e6eaf216e7b016fcedfd4e1113517af
+SELECT k from kv where k ='mariadb-version';
+k
+mariadb-version
+truncate table kv;
+LOAD DATA INFILE 'MYSQLD_DATADIR/test/v3.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+k	v
+algorithm	0
+md5	5e6eaf216e7b016fcedfd4e1113517af
+SELECT k from kv where k ='mariadb-version';
+k
+mariadb-version
+truncate table kv;
+LOAD DATA INFILE 'MYSQLD_DATADIR/test/v1badcheck.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+k	v
+algorithm	1
+md5	5e6eaf216e7b016fcedfd4e1113517af
+SELECT k from kv where k ='mariadb-version';
+k
+mariadb-version
+truncate table kv;
+drop view if exists v1,v2,v3,v1badcheck;
+flush tables;
+create algorithm=temptable view v4 as select a from t1;
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v4;
+View	Create View	character_set_client	collation_connection
+v4	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+MySQL upgrade detected
+Phase 1/4: Fixing views from mysql
+test.v1                                            OK
+test.v2                                            OK
+test.v3                                            OK
+test.v4                                            OK
+Phase 2/4: Fixing table and database names
+Phase 3/4: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+mysql
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.ev_bk                                        OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.servers                                      OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+performance_schema
+test
+test.kv                                            OK
+test.t1                                            OK
+Phase 4/4: Running 'mysql_fix_privilege_tables'...
+OK
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t1`.`a` AS `a` from `t1`	utf8	utf8_general_ci
+show create view v4;
+View	Create View	character_set_client	collation_connection
+v4	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+LOAD DATA INFILE 'MYSQLD_DATADIR/test/v1.frm' REPLACE INTO TABLE kv FIELDS TERMINATED BY '=';
+SELECT k,v from kv where k in ('md5','algorithm');
+k	v
+algorithm	2
+md5	5e6eaf216e7b016fcedfd4e1113517af
+SELECT k from kv where k ='mariadb-version';
+k
+mariadb-version
+truncate table kv;
+drop view if exists v1,v2,v3;
+flush tables;
+test.v1                                            OK
+test.v2                                            OK
+test.v3                                            OK
+test.v4                                            OK
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW v1,v2
+master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW v1badcheck
+master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v1`  FROM MYSQL
+master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v2`  FROM MYSQL
+master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v3`  FROM MYSQL
+master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v4`  FROM MYSQL
+flush tables;
+drop table if exists kv;
+drop view v1,v2,v3,v4;
+drop table t1;
