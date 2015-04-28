@@ -45,11 +45,7 @@ private:
   const class VirtualTable* const m_virt;
 
   friend class VirtualTable;
-  Vector<NdbInfoRecAttr*> m_recAttrs;
-  NdbInfoRecAttr* get_recattr(Uint32 col_number) const;
-  void set_recattr(NdbInfoRecAttr* attr,
-                   const char* data, Uint32 len) const;
-  void reset_recattrs() const;
+  NdbInfoRecAttrCollection m_recAttrs;
 
   char* m_buffer;
   size_t m_buffer_size;
