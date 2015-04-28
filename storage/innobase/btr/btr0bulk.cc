@@ -52,6 +52,7 @@ PageBulk::init()
 	mtr_start(mtr);
 	mtr_x_lock(dict_index_get_lock(m_index), mtr);
 	mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
+	mtr_set_flush_observer(mtr, m_flush_observer);
 
 	if (m_page_no == FIL_NULL) {
 		mtr_t	alloc_mtr;
@@ -592,6 +593,7 @@ PageBulk::latch()
 	mtr_start(m_mtr);
 	mtr_x_lock(dict_index_get_lock(m_index), m_mtr);
 	mtr_set_log_mode(m_mtr, MTR_LOG_NO_REDO);
+	mtr_set_flush_observer(m_mtr, m_flush_observer);
 
 	/* TODO: need a simple and wait version of buf_page_optimistic_get. */
 	ret = buf_page_optimistic_get(RW_X_LATCH, m_block, m_modify_clock,
@@ -630,7 +632,7 @@ BtrBulk::pageSplit(
 
 	/* 2. create a new page. */
 	PageBulk new_page_bulk(m_index, m_trx_id, FIL_NULL,
-			       page_bulk->getLevel());
+			       page_bulk->getLevel(), m_flush_observer);
 	dberr_t	err = new_page_bulk.init();
 	if (err != DB_SUCCESS) {
 		return(err);
@@ -762,7 +764,7 @@ BtrBulk::insert(
 	if (level + 1 > m_page_bulks->size()) {
 		PageBulk*	new_page_bulk
 			= UT_NEW_NOKEY(PageBulk(m_index, m_trx_id, FIL_NULL,
-						level));
+						level, m_flush_observer));
 		dberr_t	err = new_page_bulk->init();
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -807,7 +809,8 @@ BtrBulk::insert(
 		/* Create a sibling page_bulk. */
 		PageBulk*	sibling_page_bulk;
 		sibling_page_bulk = UT_NEW_NOKEY(PageBulk(m_index, m_trx_id,
-							  FIL_NULL, level));
+							  FIL_NULL, level,
+							  m_flush_observer));
 		dberr_t	err = sibling_page_bulk->init();
 		if (err != DB_SUCCESS) {
 			UT_DELETE(sibling_page_bulk);
@@ -831,12 +834,18 @@ BtrBulk::insert(
 
 		/* Important: log_free_check whether we need a checkpoint. */
 		if (page_is_leaf(sibling_page_bulk->getPage())) {
+			/* Check whether trx is interrupted */
+			if (m_flush_observer->check_interrupted()) {
+				return(DB_INTERRUPTED);
+			}
+
 			/* Wake up page cleaner to flush dirty pages. */
 			srv_inc_activity_count();
 			os_event_set(buf_flush_event);
 
 			logFreeCheck();
 		}
+
 	}
 
 	rec_t*		rec;
@@ -923,7 +932,8 @@ BtrBulk::finish(
 		page_size_t	page_size(dict_table_page_size(m_index->table));
 		ulint		root_page_no = dict_index_get_page(m_index);
 		PageBulk	root_page_bulk(m_index, m_trx_id,
-					       root_page_no, m_root_level);
+					       root_page_no, m_root_level,
+					       m_flush_observer);
 
 		mtr_start(&mtr);
 		mtr.set_named_space(dict_index_get_space(m_index));
@@ -946,6 +956,9 @@ BtrBulk::finish(
 
 		/* Remove last page. */
 		btr_page_free_low(m_index, last_block, m_root_level, &mtr);
+
+		/* Do not flush the last page. */
+		last_block->page.flush_observer = NULL;
 
 		mtr_commit(&mtr);
 
