@@ -128,7 +128,6 @@ public:
     friend class NdbInfoScanVirtual;
     Row(class NdbInfoScanVirtual* owner,
         const NdbInfo::Table* table,
-        Vector<class NdbInfoRecAttr*> attrs,
         char* buffer, size_t buf_size);
 
     Row(); // Prevent
@@ -261,7 +260,6 @@ void VirtualTable::Row::write_number64(Uint64 val) {
 
 VirtualTable::Row::Row(NdbInfoScanVirtual* owner,
                                   const NdbInfo::Table* table,
-                                  Vector<class NdbInfoRecAttr*> attrs,
                                   char* buffer, size_t buf_size) :
   m_owner(owner),
   m_table(table),
@@ -288,8 +286,8 @@ int NdbInfoScanVirtual::nextResult()
 
   assert(m_buffer);
 
-  VirtualTable::Row row(this, m_table, m_recAttrs,
-                                   m_buffer, m_buffer_size);
+  VirtualTable::Row row(this, m_table,
+                        m_buffer, m_buffer_size);
   if (!m_virt->read_row(row, m_row_counter))
   {
     // No more rows
