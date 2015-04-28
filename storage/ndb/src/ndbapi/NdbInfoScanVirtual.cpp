@@ -141,6 +141,11 @@ public:
   };
 
   /*
+    Return the NdbInfo::Table corresponding to this virtual table
+  */
+  virtual NdbInfo::Table* get_instance() const = 0;
+
+  /*
     Read one row from the virtual table
 
     Data for the row specified by row_number should be filled in
@@ -322,28 +327,6 @@ NdbInfoScanVirtual::~NdbInfoScanVirtual()
 }
 
 
-bool NdbInfo::load_virtual_tables(void)
-{
-  // The virtual tables should already have been created
-  assert(m_virtual_tables.size() > 0);
-
-  // Append the virtual tables to the list of tables
-  for (size_t i = 0; i < m_virtual_tables.size(); i++)
-  {
-    Table* tab = m_virtual_tables[i];
-    assert(tab->m_virt);
-    assert(tab->m_table_id == Table::InvalidTableId);
-
-    BaseString hash_key = mysql_table_name(tab->getName());
-    tab->m_table_id = m_tables.entries(); // Set increasing table id
-    if (!m_tables.insert(hash_key.c_str(), *tab))
-      return false;
-  }
-
-  return true;
-}
-
-
 #include "../src/common/debugger/BlockNames.cpp"
 class BlocksTable : public VirtualTable
 {
@@ -362,6 +345,21 @@ public:
     w.write_string(bn.name);
     return true;
   }
+
+  NdbInfo::Table* get_instance() const
+  {
+    NdbInfo::Table* tab = new NdbInfo::Table("blocks",
+                                             NdbInfo::Table::InvalidTableId,
+                                             this);
+    if (!tab)
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("block_number", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("block_name", 1,
+                                        NdbInfo::Column::String)))
+      return NULL;
+    return tab;
+  }
 };
 
 
@@ -377,7 +375,7 @@ public:
      const char* name;
     };
 
-    Entry entries[] =
+    static const Entry entries[] =
      {
        {DictTabInfo::SystemTable, "System table"},
        {DictTabInfo::UserTable, "User table"},
@@ -411,6 +409,21 @@ public:
     w.write_number(e.type);
     w.write_string(e.name);
     return true;
+  }
+
+  NdbInfo::Table* get_instance() const
+  {
+    NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types",
+                                             NdbInfo::Table::InvalidTableId,
+                                             this);
+    if (!tab)
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("type_id", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("type_name", 1,
+                                        NdbInfo::Column::String)))
+      return NULL;
+    return tab;
   }
 };
 
@@ -457,6 +470,22 @@ public:
     w.write_string(param->_fname);
     return true;
   }
+
+
+  NdbInfo::Table* get_instance() const
+  {
+    NdbInfo::Table* tab = new NdbInfo::Table("config_params",
+                                             NdbInfo::Table::InvalidTableId,
+                                             this);
+    if (!tab)
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("param_number", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("param_name", 1,
+                                        NdbInfo::Column::String)))
+      return NULL;
+    return tab;
+  }
 };
 
 
@@ -468,11 +497,14 @@ class NdbkernelStateDescTable : public VirtualTable
   const ndbkernel_state_desc* m_array;
   // Number of elements in the the array
   size_t m_array_count;
+  const char* m_table_name;
 public:
 
-  NdbkernelStateDescTable(const ndbkernel_state_desc* null_terminated_array) :
+  NdbkernelStateDescTable(const char* table_name,
+                          const ndbkernel_state_desc* null_terminated_array) :
     m_array(null_terminated_array),
-    m_array_count(0)
+    m_array_count(0),
+    m_table_name(table_name)
   {
     while(m_array[m_array_count].name != 0)
       m_array_count++;
@@ -495,6 +527,25 @@ public:
 
     return true;
   }
+
+  NdbInfo::Table* get_instance() const
+  {
+    NdbInfo::Table* tab = new NdbInfo::Table(m_table_name,
+                                             NdbInfo::Table::InvalidTableId,
+                                             this);
+    if (!tab)
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("state_int_value", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("state_name", 1,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("state_friendly_name", 2,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("state_description", 3,
+                                        NdbInfo::Column::String)))
+      return NULL;
+    return tab;
+  }
 };
 
 
@@ -505,25 +556,19 @@ public:
   is copied between instances of Table so that all Table instances
   use the same Virtual.
 
-  The Virtual tables are created during in NdbInfo::init() and destroyed
+  The Virtual tables are created in NdbInfo::init() and destroyed
   by ~NdbInfo(). NdbInfo keeps them in a list which is passed to both
   the create and destroy functions.
 */
-bool NdbInfo::create_virtual_tables(Vector<Table*>& list)
+bool
+NdbInfoScanVirtual::create_virtual_tables(Vector<NdbInfo::Table*>& list)
 {
   {
     BlocksTable* blocksTable = new BlocksTable;
     if (!blocksTable)
       return false;
 
-    Table* tab = new Table("blocks", Table::InvalidTableId, blocksTable);
-    if (!tab)
-      return false;
-    if (!tab->addColumn(Column("block_number", 0, Column::Number)) ||
-        !tab->addColumn(Column("block_name", 1, Column::String)))
-      return false;
-
-    if (list.push_back(tab) != 0)
+    if (list.push_back(blocksTable->get_instance()) != 0)
       return false;
   }
 
@@ -532,15 +577,7 @@ bool NdbInfo::create_virtual_tables(Vector<Table*>& list)
     if (!dictObjTypesTable)
       return false;
 
-    Table* tab = new Table("dict_obj_types", Table::InvalidTableId,
-                           dictObjTypesTable);
-    if (!tab)
-      return false;
-    if (!tab->addColumn(Column("type_id", 0, Column::Number)) ||
-        !tab->addColumn(Column("type_name", 1, Column::String)))
-      return false;
-
-    if (list.push_back(tab) != 0)
+    if (list.push_back(dictObjTypesTable->get_instance()) != 0)
       return false;
   }
 
@@ -551,55 +588,29 @@ bool NdbInfo::create_virtual_tables(Vector<Table*>& list)
     if (!configParamsTable->init())
       return false;
 
-    Table* tab = new Table("config_params", Table::InvalidTableId,
-                           configParamsTable);
-    if (!tab)
-      return false;
-    if (!tab->addColumn(Column("param_number", 0, Column::Number)) ||
-        !tab->addColumn(Column("param_name", 1, Column::String)))
-      return false;
-
-    if (list.push_back(tab) != 0)
+    if (list.push_back(configParamsTable->get_instance()) != 0)
       return false;
   }
 
   {
     NdbkernelStateDescTable* dbtcApiConnectStateTable =
-        new NdbkernelStateDescTable(g_dbtc_apiconnect_state_desc);
+        new NdbkernelStateDescTable("dbtc_apiconnect_state",
+                                    g_dbtc_apiconnect_state_desc);
     if (!dbtcApiConnectStateTable)
       return false;
 
-    Table* tab = new Table("dbtc_apiconnect_state", Table::InvalidTableId,
-                           dbtcApiConnectStateTable);
-    if (!tab)
-      return false;
-    if (!tab->addColumn(Column("state_int_value", 0, Column::Number)) ||
-        !tab->addColumn(Column("state_name", 1, Column::String)) ||
-        !tab->addColumn(Column("state_friendly_name", 2, Column::String)) ||
-        !tab->addColumn(Column("state_description", 3, Column::String)))
-      return false;
-
-    if (list.push_back(tab) != 0)
+    if (list.push_back(dbtcApiConnectStateTable->get_instance()) != 0)
       return false;
   }
 
   {
     NdbkernelStateDescTable* dblqhTcConnectStateTable =
-        new NdbkernelStateDescTable(g_dblqh_tcconnect_state_desc);
+        new NdbkernelStateDescTable("dblqh_tcconnect_state",
+                                    g_dblqh_tcconnect_state_desc);
     if (!dblqhTcConnectStateTable)
       return false;
 
-    Table* tab = new Table("dblqh_tcconnect_state", Table::InvalidTableId,
-                           dblqhTcConnectStateTable);
-    if (!tab)
-      return false;
-    if (!tab->addColumn(Column("state_int_value", 0, Column::Number)) ||
-        !tab->addColumn(Column("state_name", 1, Column::String)) ||
-        !tab->addColumn(Column("state_friendly_name", 2, Column::String)) ||
-        !tab->addColumn(Column("state_description", 3, Column::String)))
-      return false;
-
-    if (list.push_back(tab) != 0)
+    if (list.push_back(dblqhTcConnectStateTable->get_instance()) != 0)
       return false;
   }
   return true;
@@ -608,12 +619,13 @@ bool NdbInfo::create_virtual_tables(Vector<Table*>& list)
 /*
   Delete the virtual part of the tables in list
 */
-void NdbInfo::delete_virtual_tables(Vector<Table*>& list)
+void NdbInfoScanVirtual::delete_virtual_tables(Vector<NdbInfo::Table*>& list)
 {
   for (unsigned i = 0; i < list.size(); i++)
   {
-    Table* tab = list[i];
-    delete tab->m_virt;
+    NdbInfo::Table* tab = list[i];
+    const VirtualTable* virt = tab->getVirtualTable();
+    delete virt;
     delete tab;
   }
   list.clear();

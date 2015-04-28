@@ -41,14 +41,14 @@ bool NdbInfo::init(void)
     return false;
   if (!load_hardcoded_tables())
     return false;
-  if (!create_virtual_tables(m_virtual_tables))
+  if (!NdbInfoScanVirtual::create_virtual_tables(m_virtual_tables))
     return false;
   return true;
 }
 
 NdbInfo::~NdbInfo(void)
 {
-  delete_virtual_tables(m_virtual_tables);
+  NdbInfoScanVirtual::delete_virtual_tables(m_virtual_tables);
   native_mutex_destroy(&m_mutex);
 }
 
@@ -610,6 +610,33 @@ const NdbInfo::Column* NdbInfo::Table::getColumn(const char * name) const
   DBUG_RETURN(column);
 }
 
+
+const VirtualTable* NdbInfo::Table::getVirtualTable() const
+{
+  return m_virt;
+}
+
+
+bool NdbInfo::load_virtual_tables(void)
+{
+  // The virtual tables should already have been created
+  assert(m_virtual_tables.size() > 0);
+
+  // Append the virtual tables to the list of tables
+  for (size_t i = 0; i < m_virtual_tables.size(); i++)
+  {
+    Table* tab = m_virtual_tables[i];
+    assert(tab->m_virt);
+    assert(tab->m_table_id == Table::InvalidTableId);
+
+    BaseString hash_key = mysql_table_name(tab->getName());
+    tab->m_table_id = m_tables.entries(); // Set increasing table id
+    if (!m_tables.insert(hash_key.c_str(), *tab))
+      return false;
+  }
+
+  return true;
+}
 
 template class Vector<NdbInfo::Column*>;
 
