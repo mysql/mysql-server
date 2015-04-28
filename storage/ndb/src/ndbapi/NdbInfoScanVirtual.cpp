@@ -51,12 +51,10 @@ const NdbInfoRecAttr* NdbInfoScanVirtual::getValue(Uint32 anAttrId)
   if (m_state != Prepared)
     DBUG_RETURN(NULL);
 
-  if (anAttrId >= m_recAttrs.size())
+  if (anAttrId >= m_table->columns())
     DBUG_RETURN(NULL);
 
-  NdbInfoRecAttr *recAttr = new NdbInfoRecAttr;
-  m_recAttrs[anAttrId] = recAttr;
-  DBUG_RETURN(recAttr);
+  DBUG_RETURN(m_recAttrs.get_value(anAttrId));
 }
 
 
@@ -73,8 +71,7 @@ int NdbInfoScanVirtual::execute()
     for (unsigned i = 0; i < m_table->columns(); i++)
     {
 
-      NdbInfoRecAttr* attr = m_recAttrs[i];
-      if (!attr)
+      if (!m_recAttrs.is_requested(i))
         continue;
 
       const NdbInfo::Column* col = m_table->getColumn(i);
@@ -189,8 +186,8 @@ void VirtualTable::Row::write_string(const char* str)
 
   check_data_type(NdbInfo::Column::String);
 
-  NdbInfoRecAttr* attr = m_owner->get_recattr(m_col_counter++);
-  if (!attr)
+  const unsigned col_idx = m_col_counter++;
+  if (!m_owner->m_recAttrs.is_requested(col_idx))
     DBUG_VOID_RETURN;
 
   const size_t clen = strlen(str) + 1; // length including terminator
@@ -198,7 +195,7 @@ void VirtualTable::Row::write_string(const char* str)
     return;
 
   // setup RecAttr
-  m_owner->set_recattr(attr, m_curr, clen);
+  m_owner->m_recAttrs.set_recattr(col_idx, m_curr, clen);
 
   // copy string to buffer
   memcpy(m_curr, str, clen);
@@ -214,8 +211,8 @@ void VirtualTable::Row::write_number(Uint32 val) {
 
   check_data_type(NdbInfo::Column::Number);
 
-  NdbInfoRecAttr* attr = m_owner->get_recattr(m_col_counter++);
-  if (!attr)
+  const unsigned col_idx = m_col_counter++;
+  if (!m_owner->m_recAttrs.is_requested(col_idx))
     DBUG_VOID_RETURN;
 
   const size_t clen = sizeof(Uint32);
@@ -223,7 +220,7 @@ void VirtualTable::Row::write_number(Uint32 val) {
     return;
 
   // setup RecAttr
-  m_owner->set_recattr(attr, m_curr, clen);
+  m_owner->m_recAttrs.set_recattr(col_idx, m_curr, clen);
 
   // copy value to buffer
   memcpy(m_curr, &val, clen);
@@ -239,8 +236,8 @@ void VirtualTable::Row::write_number64(Uint64 val) {
 
   check_data_type(NdbInfo::Column::Number64);
 
-  NdbInfoRecAttr* attr = m_owner->get_recattr(m_col_counter++);
-  if (!attr)
+  const unsigned col_idx = m_col_counter++;
+  if (!m_owner->m_recAttrs.is_requested(col_idx))
     DBUG_VOID_RETURN;
 
   const size_t clen = sizeof(Uint64);
@@ -248,7 +245,7 @@ void VirtualTable::Row::write_number64(Uint64 val) {
     return;
 
   // setup recAttr
-  m_owner->set_recattr(attr, m_curr, clen);
+  m_owner->m_recAttrs.set_recattr(col_idx, m_curr, clen);
 
   // copy value to buffer
   memcpy(m_curr, &val, clen);
@@ -269,7 +266,7 @@ VirtualTable::Row::Row(NdbInfoScanVirtual* owner,
   m_col_counter(0)
 {
   // Reset all recattr values before reading the new row
-  m_owner->reset_recattrs();
+  m_owner->m_recAttrs.reset_recattrs();
 }
 
 
@@ -307,12 +304,11 @@ NdbInfoScanVirtual::NdbInfoScanVirtual(const NdbInfo::Table* table,
   m_state(Undefined),
   m_table(table),
   m_virt(virt),
+  m_recAttrs(table->columns()),
   m_buffer(NULL),
   m_buffer_size(0),
   m_row_counter(0)
 {
-  for (unsigned i = 0; i < m_table->columns(); i++)
-    m_recAttrs.push_back(NULL);
 }
 
 
@@ -326,60 +322,9 @@ int NdbInfoScanVirtual::init()
 }
 
 
-void NdbInfoScanVirtual::set_recattr(NdbInfoRecAttr* attr,
-                                     const char* data,
-                                     Uint32 len) const
-{
-#ifndef DBUG_OFF
-  // Make sure the given "attr" is in the list
-  // of rec attrs this class owns.
-  bool found = false;
-  for (unsigned i = 0; i < m_recAttrs.size(); i++)
-  {
-    const NdbInfoRecAttr* a = m_recAttrs[i];
-    if (a && attr == a)
-    {
-      found = true;
-      break;
-    }
-  }
-  assert(found);
-#endif
-
-  attr->m_data = data;
-  attr->m_len = len;
-  attr->m_defined = true;
-}
-
-
-NdbInfoRecAttr* NdbInfoScanVirtual::get_recattr(Uint32 col_number) const
-{
-  assert(col_number < m_recAttrs.size());
-  return m_recAttrs[col_number];
-}
-
-
-void NdbInfoScanVirtual::reset_recattrs(void) const
-{
-  for (unsigned i = 0; i < m_recAttrs.size(); i++)
-  {
-    if (m_recAttrs[i])
-      m_recAttrs[i]->m_defined = false;
-  }
-}
-
 
 NdbInfoScanVirtual::~NdbInfoScanVirtual()
 {
-  for (unsigned i = 0; i < m_recAttrs.size(); i++)
-  {
-    if (m_recAttrs[i])
-    {
-      delete m_recAttrs[i];
-      m_recAttrs[i] = NULL;
-    }
-  }
-
   delete[] m_buffer;
 }
 

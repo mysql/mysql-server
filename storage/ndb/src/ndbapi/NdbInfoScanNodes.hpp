@@ -42,7 +42,6 @@ public:
   int init(Uint32 id);
 
   virtual ~NdbInfoScanNodes();
-  void close();
 private:
   bool execDBINFO_TRANSID_AI(const struct SimpleSignal * signal);
   bool execDBINFO_SCANCONF(const struct SimpleSignal * signal);
@@ -58,7 +57,7 @@ private:
   class Ndb_cluster_connection* m_connection;
   class SignalSender*           m_signal_sender;
   const NdbInfo::Table*     m_table;
-  Vector<NdbInfoRecAttr*>       m_recAttrs;
+  NdbInfoRecAttrCollection m_recAttrs;
   Vector<Uint32>                m_cursor;
   Uint32 m_node_id;
   Uint32 m_transid0;

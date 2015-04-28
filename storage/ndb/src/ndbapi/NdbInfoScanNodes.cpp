@@ -34,6 +34,7 @@ NdbInfoScanNodes::NdbInfoScanNodes(const NdbInfo& info,
   m_connection(connection),
   m_signal_sender(NULL),
   m_table(table),
+  m_recAttrs(table->columns()),
   m_node_id(0),
   m_max_rows(max_rows),
   m_max_bytes(max_bytes),
@@ -60,9 +61,6 @@ NdbInfoScanNodes::init(Uint32 id)
   m_transid1 = m_table->getTableId();
   m_result_ref = m_signal_sender->getOwnRef();
 
-  for (unsigned i = 0; i < m_table->columns(); i++)
-    m_recAttrs.push_back(NULL);
-
   /*
     Build a bitmask of nodes that will be scanned if
     connected and have been API_REGCONFed. Don't include
@@ -79,7 +77,6 @@ NdbInfoScanNodes::init(Uint32 id)
 
 NdbInfoScanNodes::~NdbInfoScanNodes()
 {
-  close();
   delete m_signal_sender;
 }
 
@@ -111,12 +108,10 @@ NdbInfoScanNodes::getValue(Uint32 anAttrId)
   if (m_state != Prepared)
     return NULL;
 
-  if (anAttrId >= m_recAttrs.size())
+  if (anAttrId >= m_table->columns())
     return NULL;
 
-  NdbInfoRecAttr *recAttr = new NdbInfoRecAttr;
-  m_recAttrs[anAttrId] = recAttr;
-  return recAttr;
+  return m_recAttrs.get_value(anAttrId);
 }
 
 
@@ -380,22 +375,6 @@ NdbInfoScanNodes::nextResult()
   DBUG_RETURN(-1);
 }
 
-void
-NdbInfoScanNodes::close()
-{
-  DBUG_ENTER("NdbInfoScanNodes::close");
-
-  for (unsigned i = 0; i < m_recAttrs.size(); i++)
-  {
-    if (m_recAttrs[i])
-    {
-      delete m_recAttrs[i];
-      m_recAttrs[i] = NULL;
-    }
-  }
-
-  DBUG_VOID_RETURN;
-}
 
 bool
 NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
@@ -415,11 +394,7 @@ NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
   DBUG_PRINT("info", ("rows received: %d", m_rows_received));
 
   // Reset all recattr values before reading the new row
-  for (unsigned i = 0; i < m_recAttrs.size(); i++)
-  {
-    if (m_recAttrs[i])
-      m_recAttrs[i]->m_defined = false;
-  }
+  m_recAttrs.reset_recattrs();
 
   // Read attributes from long signal section
   AttributeHeader* attr = (AttributeHeader*)signal->ptr[0].p;
@@ -430,15 +405,14 @@ NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
     const Uint32 col = attr->getAttributeId();
     const Uint32 len = attr->getByteSize();
     DBUG_PRINT("info", ("col: %u, len: %u", col, len));
-    if (col < m_recAttrs.size())
+    if (col < m_table->columns())
     {
-      NdbInfoRecAttr* rec_attr = m_recAttrs[col];
-      if (rec_attr)
+      if (m_recAttrs.is_requested(col))
       {
         // Update NdbInfoRecAttr pointer, length and defined flag
-        rec_attr->m_data = (const char*)attr->getDataPtr();
-        rec_attr->m_len = len;
-        rec_attr->m_defined = true;
+        m_recAttrs.set_recattr(col,
+                               (const char*)attr->getDataPtr(),
+                               len);
       }
     }
 
@@ -517,6 +491,3 @@ NdbInfoScanNodes::execDBINFO_SCANREF(const SimpleSignal * signal,
   m_state = Error;
   DBUG_RETURN(false);
 }
-
-
-template class Vector<NdbInfoRecAttr*>;

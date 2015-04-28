@@ -17,16 +17,17 @@
 #ifndef NDBINFO_SCAN_OPERATION_HPP
 #define NDBINFO_SCAN_OPERATION_HPP
 
-#include <ndb_types.h>
+#include "NdbInfoRecAttr.hpp"
 
 class NdbInfoScanOperation {
 public:
   virtual int readTuples() = 0;
-  virtual const class NdbInfoRecAttr* getValue(const char * anAttrName) = 0;
-  virtual const class NdbInfoRecAttr* getValue(Uint32 anAttrId) = 0;
+  virtual const NdbInfoRecAttr* getValue(const char * anAttrName) = 0;
+  virtual const NdbInfoRecAttr* getValue(Uint32 anAttrId) = 0;
   virtual int execute() = 0;
   virtual int nextResult() = 0;
   virtual ~NdbInfoScanOperation() {}
 };
+
 
 #endif
