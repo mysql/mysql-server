@@ -24,17 +24,11 @@
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/NodeFailRep.hpp>
 
-struct NdbInfoScanOperationImpl
-{
-  NodeBitmask m_nodes_to_scan;
-};
-
 NdbInfoScanNodes::NdbInfoScanNodes(const NdbInfo& info,
                                    Ndb_cluster_connection* connection,
                                    const NdbInfo::Table* table,
                                    Uint32 max_rows, Uint32 max_bytes,
                                    Uint32 max_nodes) :
-  m_impl(*new NdbInfoScanOperationImpl),
   m_info(info),
   m_state(Undefined),
   m_connection(connection),
@@ -75,8 +69,8 @@ NdbInfoScanNodes::init(Uint32 id)
     own node since it will always be "connected"
   */
   for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
-    m_impl.m_nodes_to_scan.set(i);
-  m_impl.m_nodes_to_scan.clear(refToNode(m_result_ref));
+    m_nodes_to_scan.set(i);
+  m_nodes_to_scan.clear(refToNode(m_result_ref));
 
   m_state = Initial;
   DBUG_RETURN(NdbInfo::ERR_NoError);
@@ -87,7 +81,6 @@ NdbInfoScanNodes::~NdbInfoScanNodes()
 {
   close();
   delete m_signal_sender;
-  delete &m_impl;
 }
 
 int
@@ -133,14 +126,14 @@ NdbInfoScanNodes::find_next_node()
   DBUG_ENTER("NdbInfoScanNodes::find_next_node");
 
   const NodeId next =
-    m_signal_sender->find_confirmed_node(m_impl.m_nodes_to_scan);
+    m_signal_sender->find_confirmed_node(m_nodes_to_scan);
   if (next == 0)
   {
     DBUG_PRINT("info", ("no more alive nodes"));
     DBUG_RETURN(false);
   }
   assert(m_node_id != next);
-  m_impl.m_nodes_to_scan.clear(next);
+  m_nodes_to_scan.clear(next);
   m_node_id = next;
   m_nodes++;
 

@@ -20,6 +20,8 @@
 
 #include "NdbInfoScanOperation.hpp"
 
+#include "kernel/NodeBitmask.hpp"
+
 /*
   Scan implementation for retrieving rows from the NDB
   data nodes.
@@ -50,7 +52,6 @@ private:
   int receive(void);
   bool find_next_node();
 
-  struct NdbInfoScanOperationImpl& m_impl;
   const NdbInfo& m_info;
   enum State { Undefined, Initial, Prepared,
                MoreData, End, Error } m_state;
@@ -70,6 +71,7 @@ private:
   Uint32 m_rows_confirmed;
   Uint32 m_nodes; // Number of nodes scanned
   const Uint32 m_max_nodes; // Max number of nodes to scan
+  NodeBitmask m_nodes_to_scan;
 };
 
 
