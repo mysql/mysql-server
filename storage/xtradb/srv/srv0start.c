@@ -123,9 +123,16 @@ UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 static os_file_t	files[1000];
 
 /** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 8];
-/** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 8];
+static ulint		n[SRV_MAX_N_IO_THREADS];
+/** io_handler_thread identifiers. The extra elements at the end are allocated
+as follows:
+SRV_MAX_N_IO_THREADS + 1: srv_master_thread
+SRV_MAX_N_IO_THREADS + 2: srv_lock_timeout_thread
+SRV_MAX_N_IO_THREADS + 3: srv_error_monitor_thread
+SRV_MAX_N_IO_THREADS + 4: srv_monitor_thread
+SRV_MAX_N_IO_THREADS + 5: srv_LRU_dump_restore_thread
+SRV_MAX_N_IO_THREADS + 6: srv_redo_log_follow_thread */
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1194,7 +1201,7 @@ init_log_online(void)
 		/* Create the thread that follows the redo log to output the
 		   changed page bitmap */
 		os_thread_create(&srv_redo_log_follow_thread, NULL,
-				 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+				 thread_ids + 6 + SRV_MAX_N_IO_THREADS);
 	}
 }
 
