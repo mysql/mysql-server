@@ -78,6 +78,8 @@ public:
     const Column* getColumn(const unsigned attributeId) const;
     const Column* getColumn(const char * name) const;
 
+    const class VirtualTable* getVirtualTable() const;
+
   private:
     friend class NdbInfo;
     BaseString m_name;
@@ -127,8 +129,6 @@ private:
   BaseString mysql_table_name(const char* table_name) const;
 
   Vector<Table*> m_virtual_tables;
-  static bool create_virtual_tables(Vector<Table*>& list);
-  static void delete_virtual_tables(Vector<Table*>& list);
 
 };
 

@@ -37,6 +37,9 @@ public:
   NdbInfoScanVirtual(const NdbInfo::Table* table,
                      const class VirtualTable* virt);
   int init();
+
+  static bool create_virtual_tables(Vector<NdbInfo::Table*>& list);
+  static void delete_virtual_tables(Vector<NdbInfo::Table*>& list);
 private:
   enum State { Undefined, Initial, Prepared,
                MoreData, End } m_state;
