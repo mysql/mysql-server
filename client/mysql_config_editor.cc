@@ -71,7 +71,7 @@ static my_bool check_and_create_login_file(void);
 static void mask_password_and_print(char *buf);
 static int reset_login_file(bool gen_key);
 
-static int encrypt_buffer(const char *plain, int plain_len, char cipher[]);
+static int encrypt_buffer(const char *plain, int plain_len, char cipher[], const int aes_len);
 static int decrypt_buffer(const char *cipher, int cipher_len, char plain[]);
 static int encrypt_and_write_file(DYNAMIC_STRING *file_buf);
 static int read_and_decrypt_file(DYNAMIC_STRING *file_buf);
@@ -1210,14 +1210,20 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
     if (done)
       break;
 
-    if ((enc_len= encrypt_buffer(&file_buf->str[bytes_read],
-                                 ++ len, cipher + MAX_CIPHER_STORE_LEN)) < 0)
+    if ((enc_len= my_aes_get_size(len + 1, my_aes_128_ecb)) >
+        (MY_LINE_MAX - (int)MAX_CIPHER_STORE_LEN))
+    {
+      my_perror("A parameter to mysql_config_editor exceeds the maximum "
+                "accepted length. Please review the data you've supplied "
+                "and try to shorten them permissible length.\n");
+      goto error;
+    }
+
+    if (encrypt_buffer(&file_buf->str[bytes_read], ++len,
+                       cipher + MAX_CIPHER_STORE_LEN, enc_len) < 0)
       goto error;
 
     bytes_read += len;
-
-    if (enc_len > MY_LINE_MAX)
-      goto error;
 
     /* Store cipher length first. */
     int4store(cipher, enc_len);
@@ -1304,12 +1310,9 @@ error:
                           length encrypted, otherwise.
 */
 
-static int encrypt_buffer(const char *plain, int plain_len, char cipher[])
+static int encrypt_buffer(const char *plain, int plain_len, char cipher[], const int aes_len)
 {
   DBUG_ENTER("encrypt_buffer");
-  int aes_len;
-
-  aes_len= my_aes_get_size(plain_len, my_aes_128_ecb);
 
   if (my_aes_encrypt((const unsigned char *) plain, plain_len,
                      (unsigned char *) cipher,
