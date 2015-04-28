@@ -1,8 +1,6 @@
 --source include/not_embedded.inc
 --source include/have_ndb.inc
 
---source ndbinfo_create.inc
-
 USE ndbinfo;
 
 #
@@ -36,6 +34,3 @@ let $log_file = $MYSQLTEST_VARDIR/tmp/ndbinfo_upgrade_check.log;
 
 # The underlying table should have been created and nodes view be readable
 SELECT COUNT(*) FROM nodes;
-
-
---source ndbinfo_drop.inc
