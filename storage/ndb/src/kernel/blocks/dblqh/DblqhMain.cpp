@@ -6940,7 +6940,16 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
   const bool problem = out_of_log_buffer || regLogPartPtr->m_log_problems != 0;
   if (unlikely(problem || ERROR_INSERTED(5083)))
   {
-    if (abort_on_redo_problems)
+    /* -----------------------------------------------------------------*/
+    /* P_TAIL_PROBLEM indicates that the redo log is full. If redo      */
+    /* log writes are queued in this situation, they will have to wait  */
+    /* until redo space is freed. Redo space will not be freed          */
+    /* until the next LCP completes, which can take a long time. To     */
+    /* avoid long waits and timeouts, redo log writes are aborted       */
+    /* in case of a P_TAIL_PROBLEM.                                     */
+    /* -----------------------------------------------------------------*/
+    if (abort_on_redo_problems || 
+        regLogPartPtr->m_log_problems & LogPartRecord::P_TAIL_PROBLEM)
     {
       jam();
       logLqhkeyreqLab_problems(signal);
