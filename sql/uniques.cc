@@ -97,7 +97,7 @@ Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
   max_elements= (ulong) (max_in_memory_size /
                          ALIGN_SIZE(sizeof(TREE_ELEMENT)+size));
   (void) open_cached_file(&file, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE,
-		   MYF(MY_WME));
+                          MYF(MY_WME));
 }
 
 
@@ -607,8 +607,8 @@ bool Unique::walk(TABLE *table, tree_walk_action action, void *walk_action_arg)
     return 1;
   if (flush_io_cache(&file) || reinit_io_cache(&file, READ_CACHE, 0L, 0, 0))
     return 1;
-  ulong buff_sz= (max_in_memory_size / full_size + 1) * full_size;
-  if (!(merge_buffer= (uchar *) my_malloc((ulong) buff_sz, MYF(0))))
+  size_t buff_sz= (max_in_memory_size / full_size + 1) * full_size;
+  if (!(merge_buffer = (uchar *)my_malloc(buff_sz, MYF(MY_WME))))
     return 1;
   if (buff_sz < (ulong) (full_size * (file_ptrs.elements + 1)))
     res= merge(table, merge_buffer, buff_sz >= full_size * MERGEBUFF2) ;
@@ -737,9 +737,8 @@ bool Unique::get(TABLE *table)
   /* Not enough memory; Save the result to file && free memory used by tree */
   if (flush())
     return 1;
-  
-  ulong buff_sz= (max_in_memory_size / full_size + 1) * full_size;
-  if (!(sort_buffer= (uchar*) my_malloc(buff_sz, MYF(0))))
+  size_t buff_sz= (max_in_memory_size / full_size + 1) * full_size;
+  if (!(sort_buffer= (uchar*) my_malloc(buff_sz, MYF(MY_WME))))
     return 1;
 
   if (merge(table, sort_buffer, FALSE))

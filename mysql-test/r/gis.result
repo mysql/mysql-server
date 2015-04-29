@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
+DROP VIEW IF EXISTS v1;
 CREATE TABLE gis_point  (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
 CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
 CREATE TABLE gis_polygon   (fid INTEGER NOT NULL PRIMARY KEY, g POLYGON);
@@ -489,7 +490,7 @@ explain extended select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimpl
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select st_issimple(st_multipoint(st_point(3,6),st_point(4,10))) AS `issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(st_point(3,6)) AS `issimple(Point(3, 6))`
+Note	1003	select st_issimple(st_multipoint(point(3,6),point(4,10))) AS `issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(point(3,6)) AS `issimple(Point(3, 6))`
 create table t1 (a geometry not null);
 insert into t1 values (GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
@@ -1610,4 +1611,11 @@ drop table t1;
 SELECT st_astext(ST_Buffer(ST_PolygonFromText('POLYGON((3 5, 2 4, 2 5, 3 5))'), -100));
 st_astext(ST_Buffer(ST_PolygonFromText('POLYGON((3 5, 2 4, 2 5, 3 5))'), -100))
 GEOMETRYCOLLECTION EMPTY
-End of 5.5 tests
+CREATE VIEW v1 AS SELECT POINT(1,1) AS p;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select point(1,1) AS `p`	latin1	latin1_swedish_ci
+SELECT ASTEXT(p) FROM v1;
+ASTEXT(p)
+POINT(1 1)
+DROP VIEW v1;

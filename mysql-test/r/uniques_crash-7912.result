@@ -1,0 +1,11 @@
+call mtr.add_suppression("Out of memory");
+set sql_mode="";
+drop table if exists t1,t2;
+create table `t1` (`a` datetime not null) engine=InnoDB;
+create table `t2` (`a` int not null) engine=innodb;
+replace into t1 values (),();
+insert into t2 values(0);
+set session sort_buffer_size = 1024*1024*1024*1024;
+delete d2 from t2 as d1, t1 as d2 where d1.a <=> d2.a;
+drop table t2;
+drop table t1;
