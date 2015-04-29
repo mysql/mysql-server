@@ -671,7 +671,7 @@ END;
 |
 CREATE TABLE t1 (t INT, u INT, KEY(t));
 INSERT INTO t1 VALUES(10, 10), (11, 11), (12, 12), (12, 13),(14, 15), (15, 16),
-(16, 17), (17, 17);
+(16, 17), (17, 18);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -727,7 +727,7 @@ r	MIN(u)
 0	15
 0	16
 0	17
-0	17
+0	18
 DROP TABLE t1;
 DROP FUNCTION next_seq_value;
 DROP TABLE series;
