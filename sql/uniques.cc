@@ -608,8 +608,6 @@ bool Unique::walk(TABLE *table, tree_walk_action action, void *walk_action_arg)
   if (flush_io_cache(&file) || reinit_io_cache(&file, READ_CACHE, 0L, 0, 0))
     return 1;
   size_t buff_sz= (max_in_memory_size / full_size + 1) * full_size;
-  DBUG_EXECUTE_IF("make_merge_buff_alloc_fail",
-                  DBUG_SET("+d,simulate_out_of_memory"););
   if (!(merge_buffer = (uchar *)my_malloc(buff_sz, MYF(MY_WME))))
     return 1;
   if (buff_sz < (ulong) (full_size * (file_ptrs.elements + 1)))
@@ -739,8 +737,6 @@ bool Unique::get(TABLE *table)
   /* Not enough memory; Save the result to file && free memory used by tree */
   if (flush())
     return 1;
-  DBUG_EXECUTE_IF("make_merge_buff_alloc_fail",
-                  DBUG_SET("+d,simulate_out_of_memory"););
   size_t buff_sz= (max_in_memory_size / full_size + 1) * full_size;
   if (!(sort_buffer= (uchar*) my_malloc(buff_sz, MYF(MY_WME))))
     return 1;
