@@ -295,11 +295,10 @@ bool NdbInfo::load_tables()
 
       for (unsigned c = 0; c < tab->columns(); c++)
       {
-        const Column* col = tab->getColumn(c);
         // Column id should be consecutievly increasing
-        assert(col->m_column_id == c);
+        assert(tab->getColumn(c)->m_column_id == c);
         // Name should be set
-        assert(col->m_name.length() > 0);
+        assert(tab->getColumn(c)->m_name.length() > 0);
       }
     }
 
