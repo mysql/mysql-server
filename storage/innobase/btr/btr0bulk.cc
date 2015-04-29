@@ -136,8 +136,15 @@ PageBulk::init()
 	m_cur_rec = page_get_infimum_rec(new_page);
 	ut_ad(m_is_comp == !!page_is_comp(new_page));
 	m_free_space = page_get_free_space_of_empty(m_is_comp);
-	m_reserved_space =
-		UNIV_PAGE_SIZE * (100 - innobase_fill_factor) / 100;
+
+	if (innobase_fill_factor == 100 && dict_index_is_clust(m_index)) {
+		/* Keep default behavior compatible with 5.6 */
+		m_reserved_space = dict_index_get_space_reserve();
+	} else {
+		m_reserved_space =
+			UNIV_PAGE_SIZE * (100 - innobase_fill_factor) / 100;
+	}
+
 	m_padding_space =
 		UNIV_PAGE_SIZE - dict_index_zip_pad_optimal_page_size(m_index);
 	m_heap_top = page_header_get_ptr(new_page, PAGE_HEAP_TOP);
