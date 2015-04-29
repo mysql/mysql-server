@@ -209,6 +209,16 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
         return error_str();
       }
 
+      if (istrat != Item_func_buffer::join_miter &&
+          val > current_thd->variables.max_points_in_geometry)
+      {
+        my_error(ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED, MYF(0),
+                 "points_per_circle",
+                 current_thd->variables.max_points_in_geometry,
+                 func_name());
+        return error_str();
+      }
+
       float8store(result_buf, val);
     }
     else if (arg_count != 1)

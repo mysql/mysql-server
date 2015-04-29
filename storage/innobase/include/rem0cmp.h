@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -178,8 +178,8 @@ cmp_rec_rec_with_match(
 	const ulint*		offsets2,
 	const dict_index_t*	index,
 	bool			nulls_unequal,
-	ulint*			matched_fields)
-	__attribute__((nonnull));
+	ulint*			matched_fields);
+
 /** Compare two B-tree records.
 Only the common first fields are compared, and externally stored field
 are treated as equal.

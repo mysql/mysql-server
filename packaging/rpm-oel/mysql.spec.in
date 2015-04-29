@@ -790,6 +790,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
@@ -797,12 +798,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewrite_example.so
@@ -810,6 +813,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so

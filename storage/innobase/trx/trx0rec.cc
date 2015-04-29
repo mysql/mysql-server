@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1202,7 +1202,8 @@ trx_undo_parse_erase_page_end(
 	page_t*	page,	/*!< in: page or NULL */
 	mtr_t*	mtr)	/*!< in: mtr or NULL */
 {
-	ut_ad(ptr && end_ptr);
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr != NULL);
 
 	if (page == NULL) {
 

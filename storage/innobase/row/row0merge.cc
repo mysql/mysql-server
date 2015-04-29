@@ -1647,6 +1647,7 @@ row_merge_read_clustered_index(
 	mem_heap_t*		mtuple_heap = NULL;
 	mtuple_t		prev_mtuple;
 	mem_heap_t*		conv_heap = NULL;
+	FlushObserver*		observer = trx->flush_observer;
 	DBUG_ENTER("row_merge_read_clustered_index");
 
 	ut_ad((old_table == new_table) == !col_map);
@@ -2257,7 +2258,9 @@ write_buffers:
 					if (clust_btr_bulk == NULL) {
 						clust_btr_bulk = UT_NEW_NOKEY(
 							BtrBulk(index[i],
-								trx->id));
+								trx->id,
+								observer));
+
 						clust_btr_bulk->init();
 					} else {
 						clust_btr_bulk->latch();
@@ -2361,7 +2364,8 @@ write_buffers:
 						trx->error_key_num = i;
 						goto all_done;);
 
-					BtrBulk	btr_bulk(index[i], trx->id);
+					BtrBulk	btr_bulk(index[i], trx->id,
+							 observer);
 					btr_bulk.init();
 
 					err = row_merge_insert_index_tuples(
@@ -3274,6 +3278,9 @@ row_merge_lock_table(
 	heap = mem_heap_create(512);
 
 	trx->op_info = "setting table lock for creating or dropping index";
+	trx->ddl = true;
+	/* Trx for DDL should not be forced to rollback for now */
+	trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
 
 	node = sel_node_create(heap);
 	thr = pars_complete_graph_for_exec(node, trx, heap);
@@ -4267,6 +4274,32 @@ row_merge_build_indexes(
 
 	trx_start_if_not_started_xa(trx, true);
 
+	/* Check if we need a flush observer to flush dirty pages.
+	Since we disable redo logging in bulk load, so we should flush
+	dirty pages before online log apply, because online log apply enables
+	redo logging(we can do further optimization here).
+	1. online add index: flush dirty pages right before row_log_apply().
+	2. table rebuild: flush dirty pages before row_log_table_apply().
+
+	we use bulk load to create all types of indexes except spatial index,
+	for which redo logging is enabled. If we create only spatial indexes,
+	we don't need to flush dirty pages at all. */
+	bool	need_flush_observer = (old_table != new_table);
+
+	for (i = 0; i < n_indexes; i++) {
+		if (!dict_index_is_spatial(indexes[i])) {
+			need_flush_observer = true;
+		}
+	}
+
+	FlushObserver*	flush_observer = NULL;
+	if (need_flush_observer) {
+		flush_observer = UT_NEW_NOKEY(
+			FlushObserver(new_table->space, trx, stage));
+
+		trx_set_flush_observer(trx, flush_observer);
+	}
+
 	merge_files = static_cast<merge_file_t*>(
 		ut_malloc_nokey(n_indexes * sizeof *merge_files));
 
@@ -4277,21 +4310,6 @@ row_merge_build_indexes(
 	for (i = 0; i < n_indexes; i++) {
 		merge_files[i].fd = -1;
 	}
-
-	/* Check if we need a checkpoint at the end of this function:
-	1. fulltext index: YES, bulk load without online log apply.
-	2. spatial index: NO, no bulk load, redo logging enabled.
-	3. online add index: NO, bulk load with log apply, flush dirty
-	pages right before row_log_apply().
-	4. table rebuild with spatial index: YES, bulk load for all
-	except spatial indexes; redo logging enabled for spatial indexes
-	5. table rebuild without spatial index: YES, bulk load with
-	online log apply out of this function(row_log_table_apply).
-
-	We should flush dirty pages before online log apply, because
-	bulk load disables redo logging, and online log apply enables
-	redo logging(we can do further optimization here). */
-	bool	need_end_checkpoint = (old_table != new_table);
 
 	for (i = 0; i < n_indexes; i++) {
 		if (indexes[i]->type & DICT_FTS) {
@@ -4319,10 +4337,6 @@ row_merge_build_indexes(
 			/* We need to ensure that we free the resources
 			allocated */
 			fts_psort_initiated = true;
-
-			need_end_checkpoint = true;
-		} else if (!online && !dict_index_is_spatial(indexes[i])) {
-			need_end_checkpoint = true;
 		}
 	}
 
@@ -4431,7 +4445,8 @@ wait_again:
 				block, &tmpfd, stage);
 
 			if (error == DB_SUCCESS) {
-				BtrBulk	btr_bulk(sort_idx, trx->id);
+				BtrBulk	btr_bulk(sort_idx, trx->id,
+						 flush_observer);
 				btr_bulk.init();
 
 				error = row_merge_insert_index_tuples(
@@ -4456,7 +4471,9 @@ wait_again:
 			ut_ad(sort_idx->online_status
 			      == ONLINE_INDEX_COMPLETE);
 		} else {
-			log_make_checkpoint_at(LSN_MAX, TRUE, stage);
+			ut_ad(need_flush_observer);
+
+			flush_observer->flush();
 
 			DEBUG_SYNC_C("row_log_apply_before");
 			error = row_log_apply(trx, sort_idx, table, stage);
@@ -4541,8 +4558,24 @@ func_exit:
 
 	DBUG_EXECUTE_IF("ib_index_crash_after_bulk_load", DBUG_SUICIDE(););
 
-	if (error == DB_SUCCESS && need_end_checkpoint) {
-		log_make_checkpoint_at(LSN_MAX, TRUE, stage);
+	if (flush_observer != NULL) {
+		ut_ad(need_flush_observer);
+
+		DBUG_EXECUTE_IF("ib_index_build_fail_before_flush",
+			error = DB_FAIL;
+		);
+
+		if (error != DB_SUCCESS) {
+			flush_observer->interrupted();
+		}
+
+		flush_observer->flush();
+
+		UT_DELETE(flush_observer);
+
+		if (trx_is_interrupted(trx)) {
+			error = DB_INTERRUPTED;
+		}
 	}
 
 	DBUG_RETURN(error);

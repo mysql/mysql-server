@@ -193,7 +193,6 @@ SET(REPLACE_REGEX_OPTIONS
   "-Werror=[-A-Za-z]*"
   "-W[-A-Za-z]*"
   "--param=[-=a-z0-9]*"
-  "-DMY_PTHREAD_FASTMUTEX[=0-9]*"
   "-O[0-9]"
   "-march=[-A-Za-z0-9]*"
   "-mcpu=[-A-Za-z0-9]*"

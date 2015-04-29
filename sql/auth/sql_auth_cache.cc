@@ -59,8 +59,6 @@ HASH column_priv_hash, proc_priv_hash, func_priv_hash;
 hash_filo *acl_cache;
 HASH acl_check_hosts;
 
-mysql_rwlock_t proxy_users_rwlock;
-
 bool initialized=0;
 bool allow_all_hosts=1;
 uint grant_version=0; /* Version of priv tables */
@@ -466,7 +464,8 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
 /*
   Return a number which, if sorted 'desc', puts strings in this order:
     no wildcards
-    wildcards
+    strings containg wildcards and non-wildcard characters
+    single muilt-wildcard character('%')
     empty string
 */
 
@@ -483,7 +482,16 @@ ulong get_sort(uint count,...)
   {
     char *start, *str= va_arg(args,char*);
     uint chars= 0;
-    uint wild_pos= 0;           /* first wildcard position */
+    uint wild_pos= 0;
+
+    /*
+      wild_pos
+        0                            if string is empty
+        1                            if string is a single muilt-wildcard
+                                     character('%')
+        first wildcard position + 1  if string containg wildcards and
+                                     non-wildcard characters
+    */
 
     if ((start= str))
     {
@@ -494,6 +502,8 @@ ulong get_sort(uint count,...)
         else if (*str == wild_many || *str == wild_one)
         {
           wild_pos= (uint) (str - start) + 1;
+          if (!(wild_pos == 1 && *str == wild_many && *(++str) == '\0'))
+            wild_pos++;
           break;
         }
         chars= 128;                             // Marker that chars existed
@@ -882,7 +892,6 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
         if (strcmp(proxy->get_proxied_user() ?
           proxy->get_proxied_user() : "", ""))
         {
-          mysql_mutex_lock(&acl_cache->lock);
           if (find_acl_user(
             proxy->get_proxied_host(),
             proxy->get_proxied_user(),
@@ -900,7 +909,6 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
             DBUG_PRINT("info", ("skipping match because ACL user \
               does not exist, looking for next match to map"));
           }
-          mysql_mutex_unlock(&acl_cache->lock);
           if (*proxy_used)
           {
             DBUG_PRINT("info", ("returning matching user"));
@@ -1341,7 +1349,6 @@ my_bool acl_init(bool dont_read_acl_tables)
                            (my_hash_free_key) free,
                            &my_charset_utf8_bin);
 
-  mysql_rwlock_init(key_rwlock_proxy_users, &proxy_users_rwlock);
   LOCK_grant.init(LOCK_GRANT_PARTITIONS
 #ifdef HAVE_PSI_INTERFACE
                   , key_rwlock_LOCK_grant
@@ -1942,7 +1949,6 @@ void acl_free(bool end)
     if (rwlocks_initialized)
     {
       LOCK_grant.destroy();
-      mysql_rwlock_destroy(&proxy_users_rwlock);
       rwlocks_initialized= false;
     }
   }
@@ -2009,14 +2015,8 @@ my_bool acl_reload(THD *thd)
     DBUG_RETURN(true);
   }
 
-  Write_lock proxy_users_wlk(&proxy_users_rwlock, DEFER);
-
   if ((old_initialized=initialized))
-  {
-    /* If you need these two locks, always acquire them in this order:*/
     mysql_mutex_lock(&acl_cache->lock);
-    proxy_users_wlk.lock();
-  }
 
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= acl_users;
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= acl_dbs;
@@ -2055,10 +2055,7 @@ my_bool acl_reload(THD *thd)
     delete old_acl_proxy_users;
   }
   if (old_initialized)
-  {
     mysql_mutex_unlock(&acl_cache->lock);
-    proxy_users_wlk.unlock();
-  }
 
   close_acl_tables(thd);
   DBUG_RETURN(return_val);
@@ -2068,6 +2065,7 @@ my_bool acl_reload(THD *thd)
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 {
   DBUG_ENTER("acl_insert_proxy_user");
+  mysql_mutex_assert_owner(&acl_cache->lock);
   acl_proxy_users->push_back(*new_value);
   std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   DBUG_VOID_RETURN;
@@ -2664,6 +2662,8 @@ void acl_insert_user(const char *user, const char *host,
 
 void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke)
 {
+  mysql_mutex_assert_owner(&acl_cache->lock);
+
   DBUG_ENTER("acl_update_proxy_user");
   for (ACL_PROXY_USER *acl_user= acl_proxy_users->begin();
        acl_user != acl_proxy_users->end(); ++acl_user)

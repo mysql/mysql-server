@@ -441,7 +441,7 @@ TEST_F(ItemTest, ItemFuncExportSet)
   }
   {
     // Testing overflow caused by 'on-string'.
-    longlong max_size= 1024LL * 1024LL * 1024LL;
+    longlong max_size= 1024LL;
     thd()->variables.max_allowed_packet= static_cast<ulong>(max_size);
     Mock_error_handler error_handler(thd(), ER_WARN_ALLOWED_PACKET_OVERFLOWED);
     Item *lpad=

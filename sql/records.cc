@@ -271,7 +271,7 @@ bool init_read_record(READ_RECORD *info,THD *thd,
         info->ref_length <= MAX_REFLENGTH)
     {
       if (init_rr_cache(thd, info))
-        DBUG_RETURN(true);
+        goto skip_caching;
       DBUG_PRINT("info",("using rr_from_cache"));
       info->read_record=rr_from_cache;
     }
@@ -323,6 +323,8 @@ bool init_read_record(READ_RECORD *info,THD *thd,
       (void) table->file->extra_opt(HA_EXTRA_CACHE,
 				  thd->variables.read_buff_size);
   }
+
+skip_caching:
   /* 
     Do condition pushdown for UPDATE/DELETE.
     TODO: Remove this from here as it causes two condition pushdown calls 
@@ -669,11 +671,20 @@ static int rr_unpack_from_buffer(READ_RECORD *info)
 }
 	/* cacheing of records from a database */
 
+/**
+  Initialize caching of records from temporary file.
+  
+  @retval
+    0 OK, use caching.
+    1 Buffer is too small, or cannot be allocated.
+      Skip caching, and read records directly from temporary file.
+ */
 static int init_rr_cache(THD *thd, READ_RECORD *info)
 {
   uint rec_cache_size;
   DBUG_ENTER("init_rr_cache");
 
+  READ_RECORD info_copy= *info;
   info->struct_length= 3+MAX_REFLENGTH;
   info->reclength= ALIGN_SIZE(info->table->s->reclength+1);
   if (info->reclength < info->struct_length)
@@ -690,8 +701,10 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
                                        rec_cache_size+info->cache_records*
                                        info->struct_length,
                                        MYF(0))))
+  {
+    *info= info_copy;
     DBUG_RETURN(1);
-
+  }
   DBUG_PRINT("info",("Allocated buffert for %d records",info->cache_records));
   info->read_positions=info->cache+rec_cache_size;
   info->cache_pos=info->cache_end=info->cache;

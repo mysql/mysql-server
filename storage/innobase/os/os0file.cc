@@ -882,7 +882,7 @@ private:
 		ut_ad(slot->type.is_read());
 		ut_ad(is_compressed_page(slot));
 
-		int		version;
+		ulint		version;
 		const byte*	src = slot->buf;
 
 		version = mach_read_from_1(src + FIL_PAGE_VERSION);
@@ -911,7 +911,8 @@ private:
 		return(os_file_io_complete(
 				slot->type, slot->file, slot->buf,
 				slot->compressed_page, slot->original_len,
-				slot->offset, slot->len));
+				static_cast<ulint>(slot->offset),
+				slot->len));
 	}
 };
 
@@ -929,7 +930,7 @@ public:
 		:
 		m_fh(fh),
 		m_buf(buf),
-		m_n(n),
+		m_n(static_cast<ssize_t>(n)),
 		m_offset(offset)
 	{
 		ut_ad(m_n > 0);
@@ -965,11 +966,11 @@ public:
 	{
 		m_offset += n_bytes;
 
-		ut_ad(m_n >= (ulint) n_bytes);
+		ut_ad(m_n >= n_bytes);
 
-		m_n -=  (ulint) n_bytes;
+		m_n -=  n_bytes;
 
-		m_buf = reinterpret_cast<uchar*>(m_buf) + (ulint) n_bytes;
+		m_buf = reinterpret_cast<uchar*>(m_buf) + n_bytes;
 	}
 
 private:
@@ -979,13 +980,8 @@ private:
 	/** Buffer to read/write */
 	void*			m_buf;
 
-#ifdef _WIN32
 	/** Number of bytes to read/write */
-	DWORD			m_n;
-#else
-	/** Number of bytes to read/write */
-	ulint			m_n;
-#endif /* _WIN32 */
+	ssize_t			m_n;
 
 	/** Offset from where to read/write */
 	os_offset_t		m_offset;
@@ -1048,7 +1044,11 @@ AIOHandler::check_read(Slot* slot, ulint n_bytes)
 			ut_a(slot->offset > 0);
 
 			slot->len = slot->original_len;
-			slot->n_bytes = n_bytes;
+#ifdef _WIN32
+			slot->n_bytes = static_cast<DWORD>(n_bytes);
+#else
+			slot->n_bytes = static_cast<ulint>(n_bytes);
+#endif /* _WIN32 */
 
 			err = io_complete(slot);
 			ut_a(err == DB_SUCCESS);
@@ -1220,13 +1220,14 @@ os_file_compress_page(
 
 	case Compression::ZLIB: {
 
-		uLongf	zlen = out_len;
+		uLongf	zlen = static_cast<uLongf>(out_len);
 
 		if (compress2(
 			dst + FIL_PAGE_DATA,
 			&zlen,
-			src + FIL_PAGE_DATA, content_len,
-			compression_level) != Z_OK) {
+			src + FIL_PAGE_DATA,
+			static_cast<uLong>(content_len),
+			static_cast<int>(compression_level)) != Z_OK) {
 
 			*dst_len = src_len;
 
@@ -1243,8 +1244,8 @@ os_file_compress_page(
 		len = LZ4_compress_limitedOutput(
 			reinterpret_cast<char*>(src) + FIL_PAGE_DATA,
 			reinterpret_cast<char*>(dst) + FIL_PAGE_DATA,
-			content_len,
-			out_len);
+			static_cast<int>(content_len),
+			static_cast<int>(out_len));
 
 		ut_a(len <= src_len - FIL_PAGE_DATA);
 
@@ -1769,6 +1770,8 @@ os_file_create_subdirs_if_needed(
 	char*	subdir = os_file_dirname(path);
 
 	if (strlen(path) - strlen(subdir) == 1) {
+		ut_free(subdir);
+
 		return(DB_WRONG_FILE_NAME);
 	}
 
@@ -3744,11 +3747,13 @@ SyncFileIO::execute(const IORequest& request)
 	DWORD	n_bytes;
 
 	if (request.is_read()) {
-		ret = ReadFile(m_fh, m_buf, m_n, &n_bytes, &seek);
+		ret = ReadFile(m_fh, m_buf,
+			static_cast<DWORD>(m_n), &n_bytes, &seek);
 
 	} else {
 		ut_ad(request.is_write());
-		ret = WriteFile(m_fh, m_buf, m_n, &n_bytes, &seek);
+		ret = WriteFile(m_fh, m_buf,
+			static_cast<DWORD>(m_n), &n_bytes, &seek);
 	}
 
 	return(ret ? static_cast<ssize_t>(n_bytes) : -1);
@@ -5176,7 +5181,7 @@ os_file_io(
 					type, file,
 					reinterpret_cast<byte*>(buf),
 					compressed_page, original_n,
-					offset, n);
+					static_cast<ulint>(offset), n);
 
 				if (ptr != NULL) {
 					ut_free(ptr);
@@ -6024,7 +6029,7 @@ AIO::init_slots()
 	for (ulint i = 0; i < m_slots.size(); ++i) {
 		Slot&	slot = m_slots[i];
 
-		slot.pos = i;
+		slot.pos = static_cast<uint16_t>(i);
 
 		slot.is_reserved = false;
 
@@ -6558,14 +6563,18 @@ AIO::reserve_slot(
 	slot->m2       = m2;
 	slot->file     = file;
 	slot->name     = name;
-	slot->len      = len;
+#ifdef _WIN32
+	slot->len      = static_cast<DWORD>(len);
+#else
+	slot->len      = static_cast<ulint>(len);
+#endif /* _WIN32 */
 	slot->type     = type;
 	slot->buf      = static_cast<byte*>(buf);
 	slot->ptr      = slot->buf;
 	slot->offset   = offset;
 	slot->err      = DB_SUCCESS;
 	slot->compress_ok = false;
-	slot->original_len = len;
+	slot->original_len = static_cast<uint32>(len);
 	slot->io_already_done = false;
 
 	if (srv_use_native_aio
@@ -6599,7 +6608,11 @@ AIO::reserve_slot(
 
 		if (ptr != buf) {
 			len = compressed_len;
-			slot->len = compressed_len;
+#ifdef _WIN32
+			slot->len = static_cast<DWORD>(compressed_len);
+#else
+			slot->len = static_cast<ulint>(compressed_len);
+#endif /* _WIN32 */
 			slot->buf = slot->compressed_page;
 			slot->ptr = slot->buf;
 			slot->compress_ok = true;
@@ -8070,19 +8083,20 @@ Compression::deserialize_header(
 {
 	ut_ad(is_compressed_page(page));
 
-	control->m_version = mach_read_from_1(page+ FIL_PAGE_VERSION);
+	control->m_version = static_cast<uint8_t>(
+		mach_read_from_1(page + FIL_PAGE_VERSION));
 
-	control->m_original_type = mach_read_from_2(
-		page + FIL_PAGE_ORIGINAL_TYPE_V1);
+	control->m_original_type = static_cast<uint16_t>(
+		mach_read_from_2(page + FIL_PAGE_ORIGINAL_TYPE_V1));
 
-	control->m_compressed_size = mach_read_from_2(
-		page + FIL_PAGE_COMPRESS_SIZE_V1);
+	control->m_compressed_size = static_cast<uint16_t>(
+		mach_read_from_2(page + FIL_PAGE_COMPRESS_SIZE_V1));
 
-	control->m_original_size = mach_read_from_2(
-		page + FIL_PAGE_ORIGINAL_SIZE_V1);
+	control->m_original_size = static_cast<uint16_t>(
+		mach_read_from_2(page + FIL_PAGE_ORIGINAL_SIZE_V1));
 
 	control->m_algorithm = static_cast<Type>(
-		mach_read_from_1(page+ FIL_PAGE_ALGORITHM_V1));
+		mach_read_from_1(page + FIL_PAGE_ALGORITHM_V1));
 }
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
