@@ -1974,7 +1974,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     while ((node = get_node(instance_no, now)) != 0 && // PENDING -> ACTIVE
            globalData.theRestartFlag != perform_stop)
     {
-      this_send_thread->m_watchdog_counter = 2;
+      this_send_thread->m_watchdog_counter = 6;
 
       /**
        * Multiple send threads can not 'get' the same
