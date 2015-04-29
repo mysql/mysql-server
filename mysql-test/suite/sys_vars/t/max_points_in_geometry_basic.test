@@ -99,9 +99,11 @@ SELECT @@max_points_in_geometry;
 #     Check if the value in SESSION Table matches value in variable     #
 #########################################################################
 
+--disable_warnings
 SELECT @@max_points_in_geometry = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='max_points_in_geometry';
+--enable_warnings
 
 --echo '#---------------------FN_DYNVARS_001_08-------------------------#'
 #############################################################################
