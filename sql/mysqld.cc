@@ -4250,6 +4250,11 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   /// @todo: this looks suspicious, revisit this /sven
   enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+
+  /* TODO: remove this. */
+  if (gtid_mode != GTID_MODE_OFF && opt_bootstrap)
+    _gtid_mode= GTID_MODE_OFF;
+
   if (gtid_mode == GTID_MODE_ON &&
       _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON)
   {
