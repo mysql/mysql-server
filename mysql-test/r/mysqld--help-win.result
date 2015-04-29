@@ -631,6 +631,9 @@ The following options may be given as the first argument:
  --performance-schema-max-cond-instances=# 
  Maximum number of instrumented condition objects. Use 0
  to disable, -1 for automated sizing.
+ --performance-schema-max-digest-length=# 
+ Maximum length considered for digest text, when stored in
+ performance_schema tables.
  --performance-schema-max-file-classes=# 
  Maximum number of file instruments.
  --performance-schema-max-file-handles=# 
@@ -1223,6 +1226,7 @@ performance-schema-hosts-size -1
 performance-schema-instrument 
 performance-schema-max-cond-classes 80
 performance-schema-max-cond-instances -1
+performance-schema-max-digest-length 1024
 performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
