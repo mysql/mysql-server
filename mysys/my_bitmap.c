@@ -38,6 +38,7 @@
 #include <my_bitmap.h>
 #include <m_string.h>
 #include <my_bit.h>
+#include "mysql/service_mysql_alloc.h"
 
 void create_last_word_mask(MY_BITMAP *map)
 {

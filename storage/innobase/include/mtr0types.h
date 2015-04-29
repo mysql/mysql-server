@@ -128,7 +128,10 @@ enum mlog_id_t {
 
 	/** this means that a file page is taken into use and the prior
 	contents of the page should be ignored: in recovery we must not
-	trust the lsn values stored to the file page */
+	trust the lsn values stored to the file page.
+	Note: it's deprecated because it causes crash recovery problem
+	in bulk create index, and actually we don't need to reset page
+	lsn in recv_recover_page_func() now. */
 	MLOG_INIT_FILE_PAGE = 29,
 
 	/** write a string to a page */
@@ -223,8 +226,12 @@ enum mlog_id_t {
 	/** create a R-tree compact page */
 	MLOG_COMP_PAGE_CREATE_RTREE = 58,
 
+	/** this means that a file page is taken into use.
+	We use it to replace MLOG_INIT_FILE_PAGE. */
+	MLOG_INIT_FILE_PAGE2 = 59,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = 58
+	MLOG_BIGGEST_TYPE = 59
 };
 
 /* @} */

@@ -5749,17 +5749,16 @@ func_exit:
 	}
 }
 
-/**********************************************************************//**
-Flags an index corrupted in the data dictionary cache only. This
+/** Flags an index corrupted in the data dictionary cache only. This
 is used mostly to mark a corrupted index when index's own dictionary
-is corrupted, and we force to load such index for repair purpose */
+is corrupted, and we force to load such index for repair purpose
+@param[in,out]	index	index which is corrupted */
 void
 dict_set_corrupted_index_cache_only(
-/*================================*/
-	dict_index_t*	index,		/*!< in/out: index */
-	dict_table_t*	table)		/*!< in/out: table */
+	dict_index_t*	index)
 {
-	ut_ad(index);
+	ut_ad(index != NULL);
+	ut_ad(index->table != NULL);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
 	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
@@ -5767,14 +5766,7 @@ dict_set_corrupted_index_cache_only(
 	/* Mark the table as corrupted only if the clustered index
 	is corrupted */
 	if (dict_index_is_clust(index)) {
-		dict_table_t*	corrupt_table;
-
-		corrupt_table = table ? table : index->table;
-		ut_ad(!index->table || !table || index->table  == table);
-
-		if (corrupt_table) {
-			corrupt_table->corrupted = TRUE;
-		}
+		index->table->corrupted = TRUE;
 	}
 
 	index->type |= DICT_CORRUPT;

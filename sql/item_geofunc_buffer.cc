@@ -24,6 +24,7 @@
 #include "item_geofunc.h"
 
 #include "sql_class.h"    // THD
+#include "current_thd.h"
 
 #include <boost/variant.hpp>                    // Boost.Variant
 #define BOOST_VARAINT_MAX_MULTIVIZITOR_PARAMS 5
@@ -206,6 +207,16 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
       if (val <= 0)
       {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+        return error_str();
+      }
+
+      if (istrat != Item_func_buffer::join_miter &&
+          val > current_thd->variables.max_points_in_geometry)
+      {
+        my_error(ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED, MYF(0),
+                 "points_per_circle",
+                 current_thd->variables.max_points_in_geometry,
+                 func_name());
         return error_str();
       }
 

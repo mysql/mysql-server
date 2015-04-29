@@ -1119,7 +1119,7 @@ void clean_away_stray_files(THD *thd)
   // Populate list of databases
   List<LEX_STRING> db_names;
   if (find_files(thd, &db_names, NULL,
-                 mysql_data_home, NULL, 1) != FIND_FILES_OK)
+                 mysql_data_home, NULL, 1, NULL) != FIND_FILES_OK)
   {
     thd->clear_error();
     DBUG_PRINT("info", ("Failed to find databases"));
@@ -1147,7 +1147,7 @@ void clean_away_stray_files(THD *thd)
       Thd_ndb *thd_ndb= get_thd_ndb(thd);
       thd_ndb->set_skip_binlog_setup_in_find_files(true);
       List<LEX_STRING> tab_names;
-      if (find_files(thd, &tab_names, db_name->str, path, NullS, 0)
+      if (find_files(thd, &tab_names, db_name->str, path, NullS, 0, NULL)
           != FIND_FILES_OK)
       {
         thd->clear_error();
@@ -2923,7 +2923,8 @@ class Ndb_schema_event_handler {
     m_thd->col_access|= TABLE_ACLS;
 
     build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
-    if (find_files(m_thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
+    if (find_files(m_thd, &files, dbname, path, NullS, 0, NULL) !=
+        FIND_FILES_OK)
     {
       m_thd->clear_error();
       DBUG_PRINT("info", ("Failed to find files"));

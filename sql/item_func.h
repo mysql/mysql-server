@@ -2817,15 +2817,6 @@ public:
   }
 };
 
-/* For type casts */
-
-enum Cast_target
-{
-  ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
-  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR,
-  ITEM_CAST_DECIMAL
-};
-
 
 class Item_func_row_count :public Item_int_func
 {

@@ -99,11 +99,13 @@ PSI_memory_key key_memory_db_worker_hash_entry;
 PSI_memory_key key_memory_dboptions_hash;
 PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_errmsgs;
+PSI_memory_key key_memory_fill_schema_schemata;
 PSI_memory_key key_memory_frm;
 PSI_memory_key key_memory_frm_extra_segment_buff;
 PSI_memory_key key_memory_frm_form_pos;
 PSI_memory_key key_memory_frm_string;
 PSI_memory_key key_memory_gdl;
+PSI_memory_key key_memory_get_all_tables;
 PSI_memory_key key_memory_global_system_variables;
 PSI_memory_key key_memory_handler_errmsgs;
 PSI_memory_key key_memory_handlerton;
@@ -287,13 +289,13 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Quick_ranges, "Quick_ranges", 0},
   { &key_memory_File_query_log_name, "File_query_log::name", 0},
   { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0},
-#ifdef HAVE_MY_TIMER
   { &key_memory_thd_timer, "thd_timer", 0},
-#endif
   { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
   { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0},
   { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},
-  { &key_memory_write_set_extraction, "write_set_extraction", 0}
+  { &key_memory_write_set_extraction, "write_set_extraction", 0},
+  { &key_memory_get_all_tables, "get_all_tables", 0},
+  { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0}
 };
 
 void register_server_memory_keys()

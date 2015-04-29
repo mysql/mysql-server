@@ -883,8 +883,7 @@ get_parent:
 			is run out, the spatial index is corrupted. */
 			if (!ret) {
 				mutex_enter(&dict_sys->mutex);
-				dict_set_corrupted_index_cache_only(
-					index, index->table);
+				dict_set_corrupted_index_cache_only(index);
 				mutex_exit(&dict_sys->mutex);
 
 				ib::info() << "InnoDB: Corruption of a"

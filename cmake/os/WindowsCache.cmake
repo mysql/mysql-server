@@ -169,8 +169,6 @@ SET(HAVE_KQUEUE CACHE INTERNAL "")         # Only needed by CMake
 SET(HAVE_EVFILT_TIMER CACHE INTERNAL "")   # Only needed by CMake
 # Derived result HAVE_KQUEUE_TIMERS
 # Derived result HAVE_POSIX_TIMERS
-# Derived result HAVE_WINDOWS_TIMERS
-# Derived result HAVE_MY_TIMER
 
 # Endianess
 SET(HAVE_WORDS_BIGENDIAN TRUE CACHE  INTERNAL "")  # Only needed by CMake

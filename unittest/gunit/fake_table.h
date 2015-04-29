@@ -59,6 +59,8 @@ public:
   {
     static const char *fakepath= "fakepath";
     fields= number_of_columns;
+    db_create_options= 0;
+    primary_key= 0;
     column_bitmap_size= sizeof(int);
     tmp_table= NO_TMP_TABLE;
     db_low_byte_first= true;

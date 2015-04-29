@@ -23,6 +23,7 @@
 #include "my_sys.h"                             // my_write, my_malloc
 #include "m_string.h"                           // strlen
 #include "sql_plugin.h"                         // st_plugin_int
+#include "mysql/psi/mysql_memory.h"
 
 PSI_memory_key key_memory_mysql_heartbeat_context;
 

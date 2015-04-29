@@ -783,7 +783,7 @@ fsp_init_file_page(
 
 	ut_d(fsp_space_modify_check(block->page.id.space(), mtr));
 	mlog_write_initial_log_record(buf_block_get_frame(block),
-				      MLOG_INIT_FILE_PAGE, mtr);
+				      MLOG_INIT_FILE_PAGE2, mtr);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -797,7 +797,8 @@ fsp_parse_init_file_page(
 	byte*		end_ptr __attribute__((unused)), /*!< in: buffer end */
 	buf_block_t*	block)	/*!< in: block or NULL */
 {
-	ut_ad(ptr && end_ptr);
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr != NULL);
 
 	if (block) {
 		fsp_init_file_page_low(block);
@@ -3176,7 +3177,8 @@ fseg_free_page_low(
 	ib_id_t	seg_id;
 	ulint	i;
 
-	ut_ad(seg_inode && mtr);
+	ut_ad(seg_inode != NULL);
+	ut_ad(mtr != NULL);
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
 	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
@@ -3362,7 +3364,8 @@ fseg_free_extent(
 	ulint	descr_n_used;
 	ulint	i;
 
-	ut_ad(seg_inode && mtr);
+	ut_ad(seg_inode != NULL);
+	ut_ad(mtr != NULL);
 
 	descr = xdes_get_descriptor(space, page, page_size, mtr);
 

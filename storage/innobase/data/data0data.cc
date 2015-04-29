@@ -69,7 +69,8 @@ dtuple_coll_cmp(
 	ulint	i;
 	int	cmp;
 
-	ut_ad(tuple1 && tuple2);
+	ut_ad(tuple1 != NULL);
+	ut_ad(tuple2 != NULL);
 	ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
 	ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
 	ut_ad(dtuple_check_typed(tuple1));

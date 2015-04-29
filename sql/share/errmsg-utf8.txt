@@ -7470,6 +7470,21 @@ ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE
 ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
   eng "Command not supported by pluggable protocols"
 
+ER_LOCKING_SERVICE_WRONG_NAME 42000
+  eng "Incorrect locking service lock name '%-.192s'."
+
+# Should be different from ER_LOCK_DEADLOCK since it doesn't cause implicit
+# rollback. Should not be mapped to SQLSTATE 40001 for the same reason.
+ER_LOCKING_SERVICE_DEADLOCK
+  eng "Deadlock found when trying to get locking service lock; try releasing locks and restarting lock acquisition."
+
+ER_LOCKING_SERVICE_TIMEOUT
+  eng "Service lock wait timeout exceeded."
+
+ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
+  eng "Parameter %s exceeds the maximum number of points in a geometry (%lu) in function %s."
+
+
 #
 #  End of 5.7 error messages.
 #

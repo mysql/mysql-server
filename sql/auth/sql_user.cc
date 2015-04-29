@@ -28,7 +28,6 @@
 #include "prealloced_array.h"
 #include "tztime.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
-#include "read_write_lock.h"    // Write_lock
 #include "derror.h"                     /* ER_THD */
 
 /**
@@ -897,8 +896,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
                      struct_no, user_from->user.str, user_from->host.str));
 
   mysql_mutex_assert_owner(&acl_cache->lock);
-  /* will be locked if PROXY_USERS_ACL */
-  Write_lock proxy_users_wlk(&proxy_users_rwlock, DEFER);
 
   /* Get the number of elements in the in-memory structure. */
   switch (struct_no) {
@@ -921,7 +918,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     grant_name_hash= &func_priv_hash;
     break;
   case PROXY_USERS_ACL:
-    proxy_users_wlk.lock();
     elements= acl_proxy_users->size();
     break;
   default:
@@ -1059,8 +1055,6 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       break;
     }
   }
-
-  proxy_users_wlk.unlock();
 
   if (drop || user_to)
   {

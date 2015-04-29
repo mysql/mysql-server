@@ -6656,15 +6656,12 @@ foreign_fail:
 				kill and restart the server,
 				but the *.frm file has not
 				been replaced yet. */
-				my_error(ER_CANNOT_ADD_FOREIGN,
-					 MYF(0));
-				sql_print_error(
-					"InnoDB: dict_load_foreigns()"
-					" returned %u for %s",
-					(unsigned) error,
-					thd_query_unsafe(m_user_thd)
-					.str);
-				ut_ad(0);
+				push_warning_printf(
+					m_user_thd,
+					Sql_condition::SL_WARNING,
+					ER_ALTER_INFO,
+					"InnoDB: Could not add foreign"
+					" key constraints.");
 			} else {
 				if (!commit_cache_norebuild(
 					    ctx, table, trx)) {

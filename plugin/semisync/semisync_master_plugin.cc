@@ -19,6 +19,7 @@
 #include "sql_class.h"                          // THD
 #include "current_thd.h"
 #include "semisync_master_ack_receiver.h"
+#include "mysql/psi/mysql_memory.h"
 
 ReplSemiSyncMaster repl_semisync;
 Ack_receiver ack_receiver;

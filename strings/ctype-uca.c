@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -34,6 +34,7 @@
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
+#include "mysql/service_my_snprintf.h"
 
 #ifdef HAVE_UCA_COLLATIONS
 

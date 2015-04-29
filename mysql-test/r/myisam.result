@@ -2373,18 +2373,20 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
 INSERT INTO t1 VALUES (ST_GeomFromText("POINT(0 0)"));
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 checksum table t1;
 Table	Checksum
-test.t1	326284887
+test.t1	0
 CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
 INSERT INTO t2 VALUES (ST_GeomFromText("POINT(0 0)"));
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 checksum table t2;
 Table	Checksum
-test.t2	326284887
+test.t2	0
 CREATE TABLE t3 select * from t1;
 checksum table t3;
 Table	Checksum
-test.t3	326284887
+test.t3	0
 drop table t1,t2,t3;
 CREATE TABLE t1(a INT, b CHAR(10), KEY(a), KEY(b));
 INSERT INTO t1 VALUES(1,'0'),(2,'0'),(3,'0'),(4,'0'),(5,'0'),

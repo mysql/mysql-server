@@ -27,6 +27,7 @@
 #include "auth_common.h"                // SUPER_ACL
 #include "derror.h"                     // ER_THD
 #include "hostname.h"                   // Host_errors
+#include "item_func.h"                  // mqh_used
 #include "log.h"                        // sql_print_information
 #include "psi_memory_key.h"
 #include "mysqld.h"                     // LOCK_user_conn

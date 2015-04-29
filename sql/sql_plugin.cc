@@ -43,6 +43,8 @@
 #include "template_utils.h"    // pointer_cast
 #include "transaction.h"       // trans_rollback_stmt
 
+#include "mysql/psi/mysql_memory.h"
+
 #include <algorithm>
 
 #ifdef HAVE_DLFCN_H

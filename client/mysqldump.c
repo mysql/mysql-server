@@ -53,6 +53,8 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
@@ -4300,6 +4302,10 @@ static int dump_all_databases()
         !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
       continue;
 
+    if (mysql_get_server_version(mysql) >= FIRST_SYS_SCHEMA_VERSION &&
+        !my_strcasecmp(&my_charset_latin1, row[0], SYS_SCHEMA_DB_NAME))
+      continue;
+
     if (is_ndbinfo(mysql, row[0]))
       continue;
 
@@ -4323,6 +4329,10 @@ static int dump_all_databases()
 
       if (mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
           !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
+        continue;
+
+      if (mysql_get_server_version(mysql) >= FIRST_SYS_SCHEMA_VERSION &&
+          !my_strcasecmp(&my_charset_latin1, row[0], SYS_SCHEMA_DB_NAME))
         continue;
 
       if (is_ndbinfo(mysql, row[0]))

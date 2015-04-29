@@ -1563,18 +1563,19 @@ fil_space_is_being_truncated(
 	return(mark_for_truncate);
 }
 
-/** Open each fil_node_t of a named fil_space_t if not already open.
-@param[in]	name	Tablespace name
-@return true if all nodes are open  */
+/** Open each file of a tablespace if not already open.
+@param[in]	space_id	tablespace identifier
+@retval	true	if all file nodes were opened
+@retval	false	on failure */
 bool
 fil_space_open(
-	const char*	name)
+	ulint	space_id)
 {
 	ut_ad(fil_system != NULL);
 
 	mutex_enter(&fil_system->mutex);
 
-	fil_space_t*	space = fil_space_get_by_name(name);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
 	fil_node_t*	node;
 
 	for (node = UT_LIST_GET_FIRST(space->chain);
@@ -1593,11 +1594,11 @@ fil_space_open(
 	return(true);
 }
 
-/** Close each fil_node_t of a named fil_space_t if open.
-@param[in]	name	Tablespace name */
+/** Close each file of a tablespace if open.
+@param[in]	space_id	tablespace identifier */
 void
 fil_space_close(
-	const char*	name)
+	ulint	space_id)
 {
 	if (fil_system == NULL) {
 		return;
@@ -1605,7 +1606,7 @@ fil_space_close(
 
 	mutex_enter(&fil_system->mutex);
 
-	fil_space_t*	space = fil_space_get_by_name(name);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
 	if (space == NULL) {
 		mutex_exit(&fil_system->mutex);
 		return;
@@ -4730,7 +4731,8 @@ retry:
 	ulint		node_first_page = space->size - node->size;
 
 	/* Number of physical pages in the node/file */
-	ulint		n_node_physical_pages = node_start / page_size;
+	ulint		n_node_physical_pages
+		= static_cast<ulint>(node_start) / page_size;
 
 	/* Number of pages to extend in the node/file */
 	lint		n_node_extend;
@@ -4786,7 +4788,7 @@ retry:
 
 			err = fil_write_zeros(
 				node, page_size, node_start,
-				len, read_only_mode);
+				static_cast<ulint>(len), read_only_mode);
 
 			if (err != DB_SUCCESS) {
 
@@ -4803,7 +4805,7 @@ retry:
 
 		os_has_said_disk_full = !(success = (end == node_start + len));
 
-		pages_added = (end - node_start) / page_size;
+		pages_added = static_cast<ulint>(end - node_start) / page_size;
 
 	} else {
 		success = true;

@@ -897,7 +897,6 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
 }
 
 
-#ifdef HAVE_MY_TIMER
 /**
   Check whether max statement time is applicable to statement or not.
 
@@ -988,7 +987,6 @@ void reset_statement_timer(THD *thd)
   thd->timer_cache= thd_timer_reset(thd->timer);
   thd->timer= NULL;
 }
-#endif
 
 
 /**
@@ -2095,18 +2093,6 @@ mysql_execute_command(THD *thd)
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
-
-  if (unlikely(lex->is_broken()))
-  {
-    // Force a Reprepare, to get a fresh LEX
-    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
-    if (reprepare_observer &&
-        reprepare_observer->report_error(thd))
-    {
-      DBUG_ASSERT(thd->is_error());
-      DBUG_RETURN(1);
-    }
-  }
 
   thd->work_part_info= 0;
 
@@ -4693,9 +4679,7 @@ finish:
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 {
   LEX	*lex= thd->lex;
-#ifdef HAVE_MY_TIMER
   bool statement_timer_armed= false;
-#endif
   bool res;
 
   /* assign global limit variable if limit is not given */
@@ -4706,11 +4690,9 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         new Item_int((ulonglong) thd->variables.select_limit);
   }
 
-#ifdef HAVE_MY_TIMER
   //check if timer is applicable to statement, if applicable then set timer.
   if (is_timer_applicable_to_statement(thd))
     statement_timer_armed= set_statement_timer(thd);
-#endif
 
   if (!(res= open_tables_for_query(thd, all_tables, 0)))
   {
@@ -4749,10 +4731,8 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     MYSQL_SELECT_DONE((int) res, (ulong) thd->limit_found_rows);
   }
 
-#ifdef HAVE_MY_TIMER
   if (statement_timer_armed && thd->timer)
     reset_statement_timer(thd);
-#endif
 
   DEBUG_SYNC(thd, "after_table_open");
   return res;

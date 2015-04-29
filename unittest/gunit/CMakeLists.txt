@@ -203,6 +203,10 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
 ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedef" HAVE_NO_UNUSED_TYPEDEF)
+IF(HAVE_NO_UNUSED_TYPEDEF)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedef")
+ENDIF()
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-compare-distinct-pointer-types"
                            HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
 IF(HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
@@ -243,6 +247,8 @@ ENDIF()
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
+ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/sql/share")
+ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
@@ -324,6 +330,7 @@ SET(SERVER_TESTS
   item_timefunc
   item_like
   join_tab_sort
+  locking_service
   log_throttle
   make_sortkey
   mdl_sync
@@ -418,7 +425,7 @@ IF (MERGE_UNITTESTS)
   ADD_TEST(merge_large_tests merge_large_tests-t)
   ADD_TEST(merge_small_tests merge_small_tests-t)
 
-ELSE()
+ENDIF(MERGE_UNITTESTS)
 
   FOREACH(test ${TESTS})
     ADD_EXECUTABLE(${test}-t ${test}-t.cc)
@@ -426,7 +433,14 @@ ELSE()
     IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
       TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
     ENDIF()
-    ADD_TEST(${test} ${test}-t)
+    IF(MERGE_UNITTESTS)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+      IF(WIN32)
+        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+      ENDIF()
+    ELSE()
+      ADD_TEST(${test} ${test}-t)
+    ENDIF()
   ENDFOREACH()
   
   # See comments about __builtin_memcmp in the source file.
@@ -470,10 +484,15 @@ ELSE()
       TARGET_LINK_LIBRARIES(${test}-t perfschema)
     ENDIF()
 
-    ADD_TEST(${test} ${test}-t)
+    IF(MERGE_UNITTESTS)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+      IF(WIN32)
+        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+      ENDIF()
+    ELSE()
+      ADD_TEST(${test} ${test}-t)
+    ENDIF()
   ENDFOREACH()
-
-ENDIF()
 
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 COPY_OPENSSL_DLLS(copy_openssl_gunit)

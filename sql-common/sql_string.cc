@@ -15,13 +15,9 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <m_ctype.h>
-#include <mysql_com.h>
-
 #include "sql_string.h"
+
+#include "mysql_com.h"    // MAX_BIGINT_WIDTH
 
 #include <algorithm>
 

@@ -177,6 +177,7 @@ cmp_rec_rec_with_match(
 	const dict_index_t*	index,
 	bool			nulls_unequal,
 	ulint*			matched_fields);
+
 /** Compare two B-tree records.
 Only the common first fields are compared, and externally stored field
 are treated as equal.

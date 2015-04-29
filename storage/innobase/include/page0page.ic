@@ -256,7 +256,8 @@ page_header_reset_last_insert(
 				uncompressed part will be updated, or NULL */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ut_ad(page && mtr);
+	ut_ad(page != NULL);
+	ut_ad(mtr != NULL);
 
 	if (page_zip) {
 		mach_write_to_2(page + (PAGE_HEADER + PAGE_LAST_INSERT), 0);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -62,6 +62,13 @@ savepoint. */
 /** Change the logging mode of a mini-transaction.
 @return	old mode */
 #define mtr_set_log_mode(m, d)	(m)->set_log_mode((d))
+
+/** Get the flush observer of a mini-transaction.
+@return flush observer object */
+#define mtr_get_flush_observer(m)	(m)->get_flush_observer()
+
+/** Set the flush observer of a mini-transaction. */
+#define mtr_set_flush_observer(m, d)	(m)->set_flush_observer((d))
 
 /** Read 1 - 4 bytes from a file page buffered in the buffer pool.
 @return	value read */
@@ -210,6 +217,9 @@ struct mtr_t {
 
 		/** State of the transaction */
 		mtr_state_t	m_state;
+
+		/** Flush Observer */
+		FlushObserver*	m_flush_observer;
 
 #ifdef UNIV_DEBUG
 		/** For checking corruption. */
@@ -469,6 +479,23 @@ struct mtr_t {
 	bool is_active() const
 	{
 		return(m_impl.m_state == MTR_STATE_ACTIVE);
+	}
+
+	/** Get flush observer
+	@return flush observer */
+	FlushObserver* get_flush_observer() const
+	{
+		return(m_impl.m_flush_observer);
+	}
+
+	/** Set flush observer
+	@param[in]	observer	flush observer */
+	void set_flush_observer(FlushObserver*	observer)
+	{
+		ut_ad(observer == NULL
+		      || m_impl.m_log_mode == MTR_LOG_NO_REDO);
+
+		m_impl.m_flush_observer = observer;
 	}
 
 #ifdef UNIV_DEBUG

@@ -16,6 +16,7 @@
 /* Functions to handle typelib */
 
 #include "mysys_priv.h"
+#include "typelib.h"
 #include "my_sys.h"
 #include <m_string.h>
 #include <m_ctype.h>

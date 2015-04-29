@@ -493,6 +493,8 @@ The following options may be given as the first argument:
  max_join_size records return an error
  --max-length-for-sort-data=# 
  Max number of bytes in sorted records
+ --max-points-in-geometry[=#] 
+ Maximum number of points in a geometry
  --max-prepared-stmt-count=# 
  Maximum number of prepared statements in the server
  --max-relay-log-size=# 
@@ -1316,6 +1318,7 @@ max-error-count 64
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
 max-length-for-sort-data 1024
+max-points-in-geometry 65536
 max-prepared-stmt-count 16382
 max-relay-log-size 0
 max-seeks-for-key 18446744073709551615

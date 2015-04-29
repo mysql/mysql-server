@@ -19,6 +19,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "derror.h"                         // ER_THD
+#include "item_func.h"                      // user_var_entry
 #include "log_event.h"                      // Rows_log_event
 #include "mysqld.h"                         // sync_binlog_period ...
 #include "mysqld_thd_manager.h"             // Global_THD_manager

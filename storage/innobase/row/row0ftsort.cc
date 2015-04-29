@@ -1606,8 +1606,11 @@ row_fts_merge_insert(
 	dict_table_close(aux_table, FALSE, FALSE);
 	aux_index = dict_table_get_first_index(aux_table);
 
+	FlushObserver* observer;
+	observer = psort_info[0].psort_common->trx->flush_observer;
+
 	/* Create bulk load instance */
-	ins_ctx.btr_bulk = UT_NEW_NOKEY(BtrBulk(aux_index, trx->id));
+	ins_ctx.btr_bulk = UT_NEW_NOKEY(BtrBulk(aux_index, trx->id, observer));
 	ins_ctx.btr_bulk->init();
 
 	/* Create tuple for insert */

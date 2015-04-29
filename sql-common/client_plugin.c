@@ -36,6 +36,8 @@
 #include <sql_common.h>
 #include "errmsg.h"
 #include <mysql/client_plugin.h>
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/service_mysql_alloc.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>

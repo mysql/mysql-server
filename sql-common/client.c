@@ -35,6 +35,9 @@
 #include "mysql.h"
 #include "hash.h"
 #include "mysql/client_authentication.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/psi/mysql_memory.h"
 
 /* Remove client convenience wrappers */
 #undef max_allowed_packet

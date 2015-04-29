@@ -384,6 +384,7 @@
 #include "current_thd.h"
 #include "mysqld.h"                             // my_localhost
 #include "sql_class.h"
+#include "mysql/psi/mysql_memory.h"
 
 #include <algorithm>
 

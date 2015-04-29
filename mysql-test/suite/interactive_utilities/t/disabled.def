@@ -9,5 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-mysql_secure_installation   :Bug#19077239 2014-09-18 Sneha Fails often on daily trunk branches
-mysql_secure_installation_ssl :Bug#19077239 2014-09-18 Sneha Fails often on daily trunk branches

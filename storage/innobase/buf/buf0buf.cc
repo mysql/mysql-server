@@ -777,6 +777,7 @@ buf_block_init(
 	block->page.state = BUF_BLOCK_NOT_USED;
 	block->page.buf_fix_count = 0;
 	block->page.io_fix = BUF_IO_NONE;
+	block->page.flush_observer = NULL;
 
 	block->modify_clock = 0;
 
@@ -4668,6 +4669,7 @@ buf_page_init_for_read(
 
 		bpage->state = BUF_BLOCK_ZIP_PAGE;
 		bpage->id.copy_from(page_id);
+		bpage->flush_observer = NULL;
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;

@@ -990,6 +990,41 @@ static Item_result field_types_result_type [FIELDTYPE_NUM]=
 };
 
 
+/**
+  Convert Field::geometry_type to the corresponding Geometry::wkbType.
+
+  @param t The geometry_type to convert
+
+  @return The corresponding Geometry::wkbType, or
+          Geometry::wkb_invalid_type if there's not suitable type.
+*/
+static Geometry::wkbType geometry_type_to_wkb_type(Field::geometry_type t)
+{
+  switch(t)
+  {
+  case Field::GEOM_GEOMETRY:
+    return Geometry::wkb_invalid_type;
+  case Field::GEOM_POINT:
+    return Geometry::wkb_point;
+  case Field::GEOM_LINESTRING:
+    return Geometry::wkb_linestring;
+  case Field::GEOM_POLYGON:
+    return Geometry::wkb_polygon;
+  case Field::GEOM_MULTIPOINT:
+    return Geometry::wkb_multipoint;
+  case Field::GEOM_MULTILINESTRING:
+    return Geometry::wkb_multilinestring;
+  case Field::GEOM_MULTIPOLYGON:
+    return Geometry::wkb_multipolygon;
+  case Field::GEOM_GEOMETRYCOLLECTION:
+    return Geometry::wkb_geometrycollection;
+  default:
+    DBUG_ASSERT(0);
+    return Geometry::wkb_invalid_type;
+  }
+}
+
+
 /*
   Test if the given string contains important data:
   not spaces for character string,
@@ -8472,16 +8507,37 @@ type_conversion_status Field_geom::store_decimal(const my_decimal *)
 }
 
 
+type_conversion_status Field_geom::store(const char *from, size_t length,
+                                         const CHARSET_INFO *cs)
+{
+  if (length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32))
+  {
+    memset(ptr, 0, Field_blob::pack_length());
+    my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
+    return TYPE_ERR_BAD_VALUE;
+  }
+
+  return Field_blob::store(from, length, cs);
+}
+
+
 type_conversion_status
 Field_geom::store_internal(const char *from, size_t length,
                            const CHARSET_INFO *cs)
 {
   DBUG_ASSERT(length > 0);
 
-  // Check given WKB
-  if (from == Geometry::bad_geometry_data.ptr() ||
-      length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE * 2 ||
-      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)))
+  // Check that the given WKB
+  // 1. isn't marked as bad geometry data
+  // 2. isn't shorter than empty geometrycollection
+  // 3. is a valid geometry type
+  // 4. is well formed
+  if (from == Geometry::bad_geometry_data.ptr() ||                    // 1
+      length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32) ||        // 2
+      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)) || // 3
+      !Geometry::is_well_formed(from, length,                         // 4
+                                geometry_type_to_wkb_type(geom_type),
+                                Geometry::wkb_ndr))
   {
     memset(ptr, 0, Field_blob::pack_length());  
     my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@
 */
 
 #include "vio_priv.h"
+#include "mysql/service_my_snprintf.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>
@@ -820,6 +821,11 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 
   if (fd == INVALID_SOCKET)
     DBUG_RETURN(-1);
+
+#ifdef __APPLE__
+  if (fd >= FD_SETSIZE)
+    DBUG_RETURN(-1);
+#endif
 
   /* Convert the timeout, in milliseconds, to seconds and microseconds. */
   if (timeout >= 0)

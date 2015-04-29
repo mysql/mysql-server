@@ -52,6 +52,7 @@
 #include "debug_sync.h"                 // DEBUG_SYNC
 #include "derror.h"                     // ER_THD
 #include "item.h"                       // enum_monotoncity_info
+#include "item_func.h"                  // Item_func
 #include "key.h"                        // key_restore
 #include "lock.h"                       // mysql_lock_remove
 #include "log.h"                        // sql_print_warning

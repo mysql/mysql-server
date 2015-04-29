@@ -51,6 +51,7 @@ TODO:
 #include "field.h"
 #include "system_variables.h"
 #include "sql_class.h"
+#include "mysql/psi/mysql_memory.h"
 
 #include <algorithm>
 

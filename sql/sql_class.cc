@@ -31,6 +31,7 @@
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
 #include "lock.h"                            // mysql_lock_abort_for_thread
+#include "locking_service.h"                 // release_all_locking_service_locks
 #include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
@@ -584,13 +585,8 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
-#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
-#endif
-#ifndef DBUG_OFF
-  gis_debug= 0;
-#endif
 
   m_token_array= NULL;
   if (max_digest_length > 0)
@@ -1060,6 +1056,10 @@ void THD::cleanup(void)
     global_read_lock.unlock_global_read_lock(this);
 
   mysql_ull_cleanup(this);
+  /*
+    All locking service locks must be released on disconnect.
+  */
+  release_all_locking_service_locks(this);
 
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
@@ -1136,12 +1136,10 @@ void THD::release_resources()
   ha_close_connection(this);
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
-#ifdef HAVE_MY_TIMER
   DBUG_ASSERT(timer == NULL);
 
   if (timer_cache)
     thd_timer_destroy(timer_cache);
-#endif
 
 #ifndef EMBEDDED_LIBRARY
   if (rli_fake)

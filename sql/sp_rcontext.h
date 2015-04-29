@@ -16,20 +16,22 @@
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
+#include "my_global.h"
+#include "prealloced_array.h"             // Prealloced_array
 #include "query_result.h"                 // Query_result_interceptor
-#include "sp_pcontext.h"                  // sp_condition_value
-#include "sql_array.h"
-#include "prealloced_array.h"
+
+class sp_cursor;
+class sp_handler;
+class sp_head;
+class sp_instr_cpush;
+class sp_variable;
+class Query_arena;
+class Item_cache;
+class Server_side_cursor;
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_rcontext declaration.
 ///////////////////////////////////////////////////////////////////////////
-
-class sp_cursor;
-class sp_instr_cpush;
-class Query_arena;
-class sp_head;
-class Item_cache;
 
 /*
   This class is a runtime context of a Stored Routine. It is used in an
@@ -384,8 +386,6 @@ private:
 // sp_cursor declaration.
 ///////////////////////////////////////////////////////////////////////////
 
-class Server_side_cursor;
-typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /* A mediator between stored procedures and server side cursors */
 

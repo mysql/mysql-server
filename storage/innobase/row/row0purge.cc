@@ -57,18 +57,19 @@ check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
-/********************************************************************//**
-Creates a purge node to a query graph.
+/** Create a purge node to a query graph.
+@param[in]	parent	parent node, i.e., a thr node
+@param[in]	heap	memory heap where created
 @return own: purge node */
 purge_node_t*
 row_purge_node_create(
-/*==================*/
-	que_thr_t*	parent,		/*!< in: parent node  */
-	mem_heap_t*	heap)		/*!< in: memory heap where created */
+	que_thr_t*	parent,
+	mem_heap_t*	heap)
 {
 	purge_node_t*	node;
 
-	ut_ad(parent && heap);
+	ut_ad(parent != NULL);
+	ut_ad(heap != NULL);
 
 	node = static_cast<purge_node_t*>(
 		mem_heap_zalloc(heap, sizeof(*node)));
@@ -789,7 +790,8 @@ row_purge_parse_undo_rec(
 	ulint		info_bits;
 	ulint		type;
 
-	ut_ad(node && thr);
+	ut_ad(node != NULL);
+	ut_ad(thr != NULL);
 
 	ptr = trx_undo_rec_get_pars(
 		undo_rec, &type, &node->cmpl_info,
@@ -837,7 +839,8 @@ row_purge_parse_undo_rec(
 
 	clust_index = dict_table_get_first_index(node->table);
 
-	if (clust_index == NULL) {
+	if (clust_index == NULL
+	    || dict_index_is_corrupted(clust_index)) {
 		/* The table was corrupt in the data dictionary.
 		dict_set_corrupted() works on an index, and
 		we do not have an index to call it with. */

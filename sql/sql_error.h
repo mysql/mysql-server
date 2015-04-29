@@ -20,6 +20,7 @@
 #include "sql_string.h"                        /* String */
 #include "sql_plist.h" /* I_P_List */
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
+#include "mysql/service_my_snprintf.h"
 
 class THD;
 class my_decimal;

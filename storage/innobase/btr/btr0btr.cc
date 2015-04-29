@@ -1521,7 +1521,9 @@ btr_parse_page_reorganize(
 {
 	ulint	level;
 
-	ut_ad(ptr && end_ptr);
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr != NULL);
+	ut_ad(index != NULL);
 
 	/* If dealing with a compressed page the record has the
 	compression level used during original compression written in
@@ -2935,7 +2937,8 @@ btr_level_list_remove_func(
 	const dict_index_t*	index,
 	mtr_t*			mtr)
 {
-	ut_ad(page && mtr);
+	ut_ad(page != NULL);
+	ut_ad(mtr != NULL);
 	ut_ad(mtr_is_page_fix(mtr, page, MTR_MEMO_PAGE_X_FIX, index->table));
 	ut_ad(space == page_get_space_id(page));
 	/* Get the previous and next page numbers of page */
@@ -3237,9 +3240,9 @@ btr_lift_page_up(
 #endif /* UNIV_ZIP_DEBUG */
 	}
 
-        if (dict_index_is_spatial(index)) {
-                rtr_check_discard_page(index, NULL, block);
-        }
+	if (dict_index_is_spatial(index)) {
+		rtr_check_discard_page(index, NULL, block);
+	}
 
 	/* Free the file page */
 	btr_page_free(index, block, mtr);

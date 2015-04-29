@@ -26,6 +26,7 @@
 #include "my_sys.h"
 #include "mysys_err.h"
 #include <queues.h>
+#include "mysql/service_mysql_alloc.h"
 
 int resize_queue(QUEUE *queue, uint max_elements);
 

@@ -440,13 +440,13 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
     build_bitmap_for_nested_joins(&top_join_list, 0);
 
     /*
-      Here are reasons why we do the following check here (i.e. late).
+      Here are the reasons why we do the following check here (i.e. late).
       * setup_fields () may have done split_sum_func () on aggregate items of
       the SELECT list, so for reliable comparison of the ORDER BY list with
-      the SELECT list, we need to wait until split_sum_func() has been done on
+      the SELECT list, we need to wait until split_sum_func() is done with
       the ORDER BY list.
-      * we get "most of the time" fixed items, which is always a good
-      thing. Some outer references may not be fixed, though.
+      * we get resolved expressions "most of the time", which is always a good
+      thing. Some outer references may not be resolved, though.
       * we need nested_join::used_tables, and this member is set in
       simplify_joins()
       * simplify_joins() does outer-join-to-inner conversion, which increases
@@ -1242,22 +1242,24 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list)
     It also moves the join conditions for the converted outer joins
     and from inner joins to conds.
     The function also calculates some attributes for nested joins:
-    - used_tables    
-    - not_null_tables
-    - dep_tables.
-    - on_expr_dep_tables
+
+    -# used_tables
+    -# not_null_tables
+    -# dep_tables.
+    -# on_expr_dep_tables
+
     The first two attributes are used to test whether an outer join can
-    be substituted for an inner join. The third attribute represents the
+    be substituted by an inner join. The third attribute represents the
     relation 'to be dependent on' for tables. If table t2 is dependent
     on table t1, then in any evaluated execution plan table access to
     table t2 must precede access to table t2. This relation is used also
     to check whether the query contains  invalid cross-references.
-    The forth attribute is an auxiliary one and is used to calculate
+    The fourth attribute is an auxiliary one and is used to calculate
     dep_tables.
     As the attribute dep_tables qualifies possibles orders of tables in the
     execution plan, the dependencies required by the straight join
     modifiers are reflected in this attribute as well.
-    The function also removes all braces that can be removed from the join
+    The function also removes all parentheses that can be removed from the join
     expression without changing its meaning.
 
   @note
@@ -1302,7 +1304,7 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list)
         WHERE t3 IS NOT NULL AND t3.b=t2.b AND t2.a=t1.a
   @endcode
 
-    The function removes all unnecessary braces from the expression
+    The function removes all unnecessary parentheses from the expression
     produced by the conversions.
     E.g.
     @code
@@ -1315,14 +1317,14 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list)
     @endcode
 
 
-    It also will remove braces from the following queries:
+    It also will remove parentheses from the following queries:
     @code
       SELECT * from (t1 LEFT JOIN t2 ON t2.a=t1.a) LEFT JOIN t3 ON t3.b=t2.b
       SELECT * from (t1, (t2,t3)) WHERE t1.a=t2.a AND t2.b=t3.b.
     @endcode
 
     The benefit of this simplification procedure is that it might return 
-    a query for which the optimizer can evaluate execution plan with more
+    a query for which the optimizer can evaluate execution plans with more
     join orders. With a left join operation the optimizer does not
     consider any plan where one of the inner tables is before some of outer
     tables.
@@ -1330,7 +1332,7 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list)
   IMPLEMENTATION
     The function is implemented by a recursive procedure.  On the recursive
     ascent all attributes are calculated, all outer joins that can be
-    converted are replaced and then all unnecessary braces are removed.
+    converted are replaced and then all unnecessary parentheses are removed.
     As join list contains join tables in the reverse order sequential
     elimination of outer joins does not require extra recursive calls.
 
@@ -3038,8 +3040,9 @@ void SELECT_LEX::empty_order_list(int hidden_order_field_count)
 */
 
 static bool
-find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-                   ORDER *order, List<Item> &fields, List<Item> &all_fields,
+find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
+                   TABLE_LIST *tables, ORDER *order,
+                   List<Item> &fields, List<Item> &all_fields,
                    bool is_group_field)
 {
   Item *order_item= *order->item; /* The item from the GROUP/ORDER caluse. */
@@ -3096,6 +3099,9 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
                                        NULL, &view_ref, IGNORE_ERRORS, TRUE,
                                        FALSE);
+      if (thd->is_error())
+        return true;
+
       if (!from_field)
         from_field= (Field*) not_found_field;
     }

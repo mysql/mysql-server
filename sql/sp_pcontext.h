@@ -19,7 +19,6 @@
 
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"             // LEX_STRING
-#include "mysql_com.h"                          // enum_field_types
 #include "field.h"                              // Create_field
 #include "mem_root_array.h"                     // Mem_root_array
 

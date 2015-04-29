@@ -264,10 +264,11 @@ struct DebugCheck {
 /** Release a resource acquired by the mini-transaction. */
 struct ReleaseBlocks {
 	/** Release specific object */
-	ReleaseBlocks(lsn_t start_lsn, lsn_t end_lsn)
+	ReleaseBlocks(lsn_t start_lsn, lsn_t end_lsn, FlushObserver* observer)
 		:
 		m_end_lsn(end_lsn),
-		m_start_lsn(start_lsn)
+		m_start_lsn(start_lsn),
+		m_flush_observer(observer)
 	{
 		/* Do nothing */
 	}
@@ -282,7 +283,8 @@ struct ReleaseBlocks {
 
 		block = reinterpret_cast<buf_block_t*>(slot->object);
 
-		buf_flush_note_modification(block, m_start_lsn, m_end_lsn);
+		buf_flush_note_modification(block, m_start_lsn,
+					    m_end_lsn, m_flush_observer);
 	}
 
 	/** @return true always. */
@@ -315,6 +317,9 @@ struct ReleaseBlocks {
 
 	/** Mini-transaction REDO end LSN */
 	lsn_t		m_start_lsn;
+
+	/** Flush observer */
+	FlushObserver*	m_flush_observer;
 };
 
 class mtr_t::Command {
@@ -455,6 +460,7 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_user_space = NULL;
 	m_impl.m_undo_space = NULL;
 	m_impl.m_sys_space = NULL;
+	m_impl.m_flush_observer = NULL;
 
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
 }
@@ -882,7 +888,7 @@ mtr_t::Command::release_latches()
 void
 mtr_t::Command::release_blocks()
 {
-	ReleaseBlocks release(m_start_lsn, m_end_lsn);
+	ReleaseBlocks release(m_start_lsn, m_end_lsn, m_impl->m_flush_observer);
 	Iterate<ReleaseBlocks> iterator(release);
 
 	m_impl->m_memo.for_each_block_in_reverse(iterator);

@@ -18,12 +18,14 @@
 
 #include "base64.h"            // base64_encode
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
+#include "mysql/service_my_snprintf.h" // my_snprintf
 
 #ifndef MYSQL_CLIENT
 #include "current_thd.h"
 #include "debug_sync.h"        // debug_sync_set_action
 #include "my_dir.h"            // my_dir
 #include "mysqld.h"            // lower_case_table_names server_uuid ...
+#include "item_func.h"         // Item_func_set_user_var
 #include "log.h"               // Log_throttle
 #include "query_result.h"      // sql_exchange
 #include "rpl_mts_submode.h"   // Mts_submode

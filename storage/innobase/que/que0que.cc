@@ -164,7 +164,8 @@ que_thr_create(
 {
 	que_thr_t*	thr;
 
-	ut_ad(parent && heap);
+	ut_ad(parent != NULL);
+	ut_ad(heap != NULL);
 
 	thr = static_cast<que_thr_t*>(mem_heap_zalloc(heap, sizeof(*thr)));
 
