@@ -5001,6 +5001,8 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 
+  (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
+
 #if defined(_WIN32)
   setup_conn_event_handler_threads();
 #else
