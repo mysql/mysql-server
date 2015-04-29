@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,7 +150,7 @@ struct view {
     " END AS counter_name, "
     "val "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>counters` c "
-    "LEFT JOIN `<NDBINFO_DB>`.blocks b "
+    "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks` b "
     "ON c.block_number = b.block_number"
   },
   { "nodes",
@@ -199,7 +199,7 @@ struct view {
   { "threadblocks",
     "SELECT t.node_id, t.thr_no, b.block_name, t.block_instance "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>threadblocks` t "
-    "LEFT JOIN `<NDBINFO_DB>`.blocks b "
+    "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks` b "
     "ON t.block_number = b.block_number"
   },
   { "threadstat",
@@ -341,7 +341,7 @@ struct view {
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>frag_mem_use` AS space "
     "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` "
     "AS name ON name.id=space.table_id AND name.type<=6 JOIN "
-    "`<NDBINFO_DB>`.dict_obj_types AS types ON name.type=types.type_id "
+    " `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_types` AS types ON name.type=types.type_id "
     "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` AS parent_name "
     "ON name.parent_obj_id=parent_name.id AND "
     "name.parent_obj_type=parent_name.type"
@@ -362,156 +362,65 @@ struct view {
     "FROM ndbinfo.ndb$frag_operations AS ops "
     "JOIN ndbinfo.ndb$dict_obj_info AS name "
     "ON name.id=ops.table_id AND name.type<=6 "
-    "JOIN ndbinfo.dict_obj_types AS types ON name.type=types.type_id "
-    "LEFT JOIN ndbinfo.ndb$dict_obj_info AS parent_name "
+    "JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_types` AS types ON name.type=types.type_id "
+    "LEFT JOIN `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_info` AS parent_name "
     "ON name.parent_obj_id=parent_name.id AND "
     "name.parent_obj_type=parent_name.type"
-  }
+  },
+  // The blocks, dict_obj_types and config_params used
+  // to be stored in a different engine but have now
+  // been folded into hardcoded ndbinfo tables whose
+  // name include the special prefix.
+  // These views are defined to provide backward compatibility
+  // for code using the old names.
+  { "blocks",
+    "SELECT block_number, block_name "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>blocks`"
+  },
+  { "dict_obj_types",
+    "SELECT type_id, type_name "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_types`"
+  },
+  { "config_params",
+    "SELECT param_number, param_name "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_params`"
+  },
 };
 
 size_t num_views = sizeof(views)/sizeof(views[0]);
 
 
-#include "../src/mgmsrv/ConfigInfo.cpp"
-static ConfigInfo g_info;
-static void fill_config_params(BaseString& sql)
-{
-  const char* separator = "";
-  const ConfigInfo::ParamInfo* pinfo= NULL;
-  ConfigInfo::ParamInfoIter param_iter(g_info,
-                                       CFG_SECTION_NODE,
-                                       NODE_TYPE_DB);
-  while((pinfo= param_iter.next())) {
-    if (pinfo->_paramId == 0 || // KEY_INTERNAL
-        pinfo->_status != ConfigInfo::CI_USED)
-      continue;
-    sql.appfmt("%s(%u, \"%s\")", separator, pinfo->_paramId, pinfo->_fname);
-    separator = ", ";
-  }
-}
-
-
-#include "../src/common/debugger/BlockNames.cpp"
-static void fill_blocks(BaseString& sql)
-{
-  const char* separator = "";
-  for (BlockNumber i = 0; i < NO_OF_BLOCK_NAMES; i++)
-  {
-    const BlockName& bn = BlockNames[i];
-    sql.appfmt("%s(%u, \"%s\")", separator, bn.number, bn.name);
-    separator = ", ";
-  }
-}
-
-static void fill_dict_obj_types(BaseString& sql)
-{
-  struct Entry
-  {
-    const DictTabInfo::TableType type;
-    const char* name;
-  };
-
-  const Entry entries[] =
-  {
-    {DictTabInfo::SystemTable, "System table"},
-    {DictTabInfo::UserTable, "User table"},
-    {DictTabInfo::UniqueHashIndex, "Unique hash index"},
-    {DictTabInfo::HashIndex, "Hash index"},
-    {DictTabInfo::UniqueOrderedIndex, "Unique ordered index"},
-    {DictTabInfo::OrderedIndex, "Ordered index"},
-    {DictTabInfo::HashIndexTrigger, "Hash index trigger"},
-    {DictTabInfo::SubscriptionTrigger, "Subscription trigger"},
-    {DictTabInfo::ReadOnlyConstraint, "Read only constraint"},
-    {DictTabInfo::IndexTrigger, "Index trigger"},
-    {DictTabInfo::ReorgTrigger, "Reorganize trigger"},
-    {DictTabInfo::Tablespace, "Tablespace"},
-    {DictTabInfo::LogfileGroup,  "Log file group"},
-    {DictTabInfo::Datafile, "Data file"},
-    {DictTabInfo::Undofile, "Undo file"},
-    {DictTabInfo::HashMap, "Hash map"},
-    {DictTabInfo::ForeignKey, "Foreign key definition"},
-    {DictTabInfo::FKParentTrigger, "Foreign key parent trigger"},
-    {DictTabInfo::FKChildTrigger, "Foreign key child trigger"},
-    {DictTabInfo::SchemaTransaction, "Schema transaction"}
-  };
-
-  const char* separator = "";
-  for (unsigned i = 0; i < sizeof entries / sizeof entries[0]; i++)
-  {
-    sql.appfmt("%s(%u, \"%s\")", separator, 
-               static_cast<unsigned>(entries[i].type), entries[i].name);
-    separator = ", ";
-  }
-}
-
-#include "kernel/statedesc.hpp"
-
-static void fill_dbtc_apiconnect_state(BaseString& sql)
-{
-  const char* separator = "";
-  for (unsigned i = 0; g_dbtc_apiconnect_state_desc[i].name != 0; i++)
-  {
-    sql.appfmt("%s(%u, \"%s\", \"%s\", \"%s\")",
-               separator,
-               g_dbtc_apiconnect_state_desc[i].value,
-               g_dbtc_apiconnect_state_desc[i].name,
-               g_dbtc_apiconnect_state_desc[i].friendly_name,
-               g_dbtc_apiconnect_state_desc[i].description);
-    separator = ", ";
-  }
-}
-
-static void fill_dblqh_tcconnect_state(BaseString& sql)
-{
-  const char* separator = "";
-  for (unsigned i = 0; g_dblqh_tcconnect_state_desc[i].name != 0; i++)
-  {
-    sql.appfmt("%s(%u, \"%s\", \"%s\", \"%s\")",
-               separator,
-               g_dblqh_tcconnect_state_desc[i].value,
-               g_dblqh_tcconnect_state_desc[i].name,
-               g_dblqh_tcconnect_state_desc[i].friendly_name,
-               g_dblqh_tcconnect_state_desc[i].description);
-    separator = ", ";
-  }
-}
-
+// These tables are hardcoded(aka. virtual) in ha_ndbinfo
 struct lookup {
   const char* name;
   const char* columns;
-  void (*fill)(BaseString&);
 } lookups[] =
 {
-  { "blocks",
-    "block_number INT UNSIGNED PRIMARY KEY, "
+  { "<TABLE_PREFIX>blocks",
+    "block_number INT UNSIGNED, "
     "block_name VARCHAR(512)",
-    &fill_blocks
   },
-  { "dict_obj_types",
-    "type_id` INT UNSIGNED PRIMARY KEY, "
+  { "<TABLE_PREFIX>dict_obj_types",
+    "type_id` INT UNSIGNED, "
     "type_name VARCHAR(512)",
-    &fill_dict_obj_types
   },
-  { "config_params",
-    "param_number INT UNSIGNED PRIMARY KEY, "
+  { "<TABLE_PREFIX>config_params",
+    "param_number INT UNSIGNED, "
     "param_name VARCHAR(512)",
-    &fill_config_params
   },
   {
     "<TABLE_PREFIX>dbtc_apiconnect_state",
-    "state_int_value  INT UNSIGNED PRIMARY KEY, "
+    "state_int_value INT UNSIGNED, "
     "state_name VARCHAR(256), "
     "state_friendly_name VARCHAR(256), "
     "state_description VARCHAR(256)",
-    &fill_dbtc_apiconnect_state
   },
   {
     "<TABLE_PREFIX>dblqh_tcconnect_state",
-    "state_int_value  INT UNSIGNED PRIMARY KEY, "
+    "state_int_value INT UNSIGNED, "
     "state_name VARCHAR(256), "
     "state_friendly_name VARCHAR(256), "
     "state_description VARCHAR(256)",
-    &fill_dblqh_tcconnect_state
   }
 };
 
@@ -606,6 +515,28 @@ int main(int argc, char** argv){
   sql.assfmt("SET @@global.ndbinfo_offline=TRUE");
   print_conditional_sql(sql);
 
+  {
+    // Lookup tables which existed in other engine before
+    // they were hardcoded into ha_ndbinfo. Drop to allow
+    // the new ndbinfo tables(and in some cases views) to
+    // be created
+    const char* old_lookups[] =
+    {
+      "blocks",
+      "dict_obj_types",
+      "config_params",
+      "ndb$dbtc_apiconnect_state",
+      "ndb$dblqh_tcconnect_state"
+    };
+    printf("# Drop obsolete lookups in %s\n", opt_ndbinfo_db);
+    for (size_t i = 0; i < sizeof(old_lookups)/sizeof(old_lookups[0]); i++)
+    {
+      sql.assfmt("DROP TABLE IF EXISTS `%s`.`%s`",
+                 opt_ndbinfo_db, old_lookups[i]);
+      print_conditional_sql(sql);
+    }
+  }
+
   printf("# Drop any old views in %s\n", opt_ndbinfo_db);
   for (size_t i = 0; i < num_views; i++)
   {
@@ -684,15 +615,14 @@ int main(int argc, char** argv){
     BaseString table_name = replace_tags(l.name);
     printf("# %s.%s\n", opt_ndbinfo_db, table_name.c_str());
 
-    /* Create lookup table */
-    sql.assfmt("CREATE TABLE `%s`.`%s` (%s)",
-               opt_ndbinfo_db, table_name.c_str(), l.columns);
+    /* Drop the table if it exists */
+    sql.assfmt("DROP TABLE IF EXISTS `%s`.`%s`",
+               opt_ndbinfo_db, table_name.c_str());
     print_conditional_sql(sql);
 
-    /* Insert data */
-    sql.assfmt("INSERT INTO `%s`.`%s` VALUES ",
-               opt_ndbinfo_db, table_name.c_str());
-    l.fill(sql);
+    /* Create lookup table */
+    sql.assfmt("CREATE TABLE `%s`.`%s` (%s) ENGINE=NDBINFO",
+               opt_ndbinfo_db, table_name.c_str(), l.columns);
     print_conditional_sql(sql);
   }
 

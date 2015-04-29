@@ -475,6 +475,33 @@ int ha_ndbinfo::rnd_init(bool scan)
   }
 
   assert(is_open());
+
+  if (m_impl.m_scan_op)
+  {
+    /*
+      It should be impossible to come here with an already open
+      scan, assumption is that rnd_end() would be called to indicate
+      that the previous scan should be closed or perhaps like it says
+      in decsription of rnd_init() that it "may be called two times". Once
+      to open the cursor and once to position te cursor at first row.
+
+      Unfortunately the assumption and description of rnd_init() is not
+      correct. The rnd_init function is used on an open scan to reposition
+      it back to first row. For ha_ndbinfo this means closing
+      the scan and letting it be reopened.
+    */
+    assert(scan); // "only makes sense if scan=1" (from rnd_init() description)
+
+    DBUG_PRINT("info", ("Closing scan to position it back to first row"));
+
+    // Release the scan operation
+    g_ndbinfo->releaseScanOperation(m_impl.m_scan_op);
+    m_impl.m_scan_op = NULL;
+
+    // Release pointers to the columns
+    m_impl.m_columns.clear();
+  }
+
   assert(m_impl.m_scan_op == NULL); // No scan already ongoing
 
   if (m_impl.m_first_use)

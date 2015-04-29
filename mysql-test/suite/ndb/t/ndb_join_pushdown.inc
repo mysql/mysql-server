@@ -11,12 +11,6 @@ connection ddl;
 drop table if exists t1,t2,t3,t4;
 --enable_warnings
 
-#######################################
-# Enable ndb$info counters for SPJ block.
-
-connection ddl;
---source ndbinfo_create.inc
-
 connection spj;
 # Save old mysqld counter values.
 --disable_warnings ONCE
@@ -4837,8 +4831,6 @@ DROP TABLE ndb_order_test, ndb_user_test;
 # Verify counters for entire test:
 --source ndb_join_pushdown_counters.inc
 drop table server_counts_at_startup;
-
---source ndbinfo_drop.inc
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 

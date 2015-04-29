@@ -6,8 +6,6 @@
 --source include/not_embedded.inc
 --source include/have_ndb.inc
 
---source ndbinfo_create.inc
-
 USE ndbinfo;
 
 #
@@ -22,5 +20,3 @@ select count(*) from blocks;
 --exec $MYSQL_DUMP --no-data --databases test ndbinfo > $dump_file
 --exec $MYSQL test < $dump_file
 select count(*) from blocks;
-
---source ndbinfo_drop.inc

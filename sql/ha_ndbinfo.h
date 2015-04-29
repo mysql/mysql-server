@@ -71,6 +71,14 @@ public:
     return HA_CACHE_TBL_NOCACHE;
   }
 
+  virtual ha_rows estimate_rows_upper_bound() {
+    // Estimate "many" rows to be returned so that filesort
+    // allocates buffers properly.
+    // Default impl. for this function is otherwise 10 rows
+    // in case handler hasn't filled in stats.records
+    return HA_POS_ERROR;
+  }
+
 private:
   void unpack_record(uchar *dst_row);
 

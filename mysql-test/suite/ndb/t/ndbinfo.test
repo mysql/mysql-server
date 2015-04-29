@@ -16,8 +16,6 @@ CREATE TEMPORARY TABLE `t1` (
   `dummy` INT UNSIGNED
 ) ENGINE=NDBINFO;
 
---source ndbinfo_create.inc
-
 USE ndbinfo;
 
 # Current usage may vary. Therefor the test only checks that if falls in the 
@@ -678,4 +676,64 @@ drop view frag_ops;
 drop table t1;
 drop table t2;
 
---source ndbinfo_drop.inc
+
+#
+# WL#7575 Remove ndbinfo's usage of other engine
+# - the five lookup tables which resided in another engine
+#   was converted to virtual(aka. hardcoded) tables inside ha_ndbinfo
+# - three new views was added to preserve backwards compatibility
+#   for those tabes which was changed to prefix ndb$
+
+## Check that the new tables return data and exists.
+select count(*) > 10 from ndb$blocks;
+select param_number, param_name from ndb$config_params
+  where param_name = "DataMemory";
+select * from ndb$dict_obj_types where type_id < 3;
+--disable_result_log
+select * from ndb$dbtc_apiconnect_state;
+select * from ndb$dblqh_tcconnect_state;
+--enable_result_log
+
+## Check that the new views return data and exists.
+select block_number from blocks where block_name = "DBTC";
+select param_name from config_params where param_number = 101;
+select type_name from ndb$dict_obj_types where type_id = 3;
+
+## All tables in ndbinfo/ should now be using engine=NDBINFO
+select count(*) from information_schema.tables
+  where table_schema = 'ndbinfo' and engine != 'ndbinfo';
+
+#
+# BUG#20075747 RND_INIT() ON AN OPEN SCAN IS USED TO REPOSITION THE CURSOR
+# - rnd_init() on an open scan is used to reposition the "cursor"
+#   back to first row
+#
+set @@optimizer_switch='block_nested_loop=off';
+create temporary table old_count
+       select counter_name, sum(val) as val
+       from ndbinfo.counters
+       where block_name='DBSPJ'
+       group by counter_name;
+drop table old_count;
+set @@optimizer_switch=default;
+
+#
+# Bug#16731538 MYSQLD CRITICAL FAILURE DURING ORDERED SELECT FROM NDBINFO.CLUSTER_OPERATIONS
+#  - ha_ndbinfo::estimate_rows_upper_bound() returned 0 rows
+#
+--disable_result_log
+select * from ndbinfo.config_params order by param_number;
+--enable_result_log
+
+#
+# Bug#11762750 TABLE NDBINFO.CONFIG_PARAMS SHOULD BE READ-ONLY (FOR NOW)
+#
+#
+# Checking the table
+--error ER_OPEN_AS_READONLY
+UPDATE ndb$config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
+
+# Checking the view
+--error ER_OPEN_AS_READONLY
+UPDATE config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
+
