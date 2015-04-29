@@ -627,7 +627,6 @@ bool NdbInfo::load_virtual_tables(void)
   {
     Table* tab = m_virtual_tables[i];
     assert(tab->m_virt);
-    assert(tab->m_table_id == Table::InvalidTableId);
 
     BaseString hash_key = mysql_table_name(tab->getName());
     tab->m_table_id = m_tables.entries(); // Set increasing table id
