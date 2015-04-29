@@ -2356,7 +2356,14 @@ static Sys_var_ulong Sys_max_length_for_sort_data(
        SESSION_VAR(max_length_for_sort_data), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(4, 8192*1024L), DEFAULT(1024), BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_max_points_in_geometry(
+       "max_points_in_geometry",
+       "Maximum number of points in a geometry",
+       SESSION_VAR(max_points_in_geometry), CMD_LINE(OPT_ARG),
+       VALID_RANGE(3, 64*1024*1024L), DEFAULT(65536), BLOCK_SIZE(1));
+
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
+
 static Sys_var_ulong Sys_max_prepared_stmt_count(
        "max_prepared_stmt_count",
        "Maximum number of prepared statements in the server",

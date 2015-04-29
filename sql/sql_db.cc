@@ -985,6 +985,7 @@ update_binlog:
                                               true);
       my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0),
                path, gtid_buf, db.str);
+      error= true;
       goto exit;
     }
 
@@ -1053,14 +1054,18 @@ update_binlog:
         goto exit;
       }
     }
+  }
 
-    /*
-      We have postponed generating the error until now, since if the
-      error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID occurs we
-      should report that instead.
-    */
-    if (found_other_files)
-      my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
+  /*
+    We have postponed generating the error until now, since if the
+    error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID occurs we
+    should report that instead.
+   */
+  if (found_other_files)
+  {
+    my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
+    error= true;
+    goto exit;
   }
 
 exit:

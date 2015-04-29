@@ -899,14 +899,13 @@ public:
     Flags_t(const Flags_t &o)
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      *(reinterpret_cast<uint64 *>(this))=
-        *(reinterpret_cast<const uint64 *>(&o));
+      memcpy(this, &o, sizeof(o));
     }
 
     Flags_t()
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      *(reinterpret_cast<uint64 *>(this))= 0UL;
+      memset(this, 0, sizeof(*this));
       bo= wkb_ndr;
       dim= GEOM_DIM - 1;
       nomem= 1;
@@ -915,7 +914,7 @@ public:
     Flags_t(wkbType type, size_t len)
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      *(reinterpret_cast<uint64 *>(this))= 0UL;
+      memset(this, 0, sizeof(*this));
       geotype= type;
       nbytes= len;
       bo= wkb_ndr;
@@ -926,8 +925,7 @@ public:
     Flags_t &operator=(const Flags_t &rhs)
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      *(reinterpret_cast<uint64 *>(this))=
-        *(reinterpret_cast<const uint64 *>(&rhs));
+      memcpy(this, &rhs, sizeof(rhs));
       return *this;
     }
 
@@ -1027,6 +1025,24 @@ public:
     return ((gt >= wkb_first && gt <= wkb_geometrycollection) ||
             gt == wkb_polygon_inner_rings);
   }
+
+  /**
+    Verify that a string is a well-formed GEOMETRY string.
+   
+    This does not check if the geometry is geometrically valid.
+
+    @see Geometry_well_formed_checker
+   
+    @param from String to check
+    @param length Length of string
+    @param type Expected type of geometry, or
+           Geoemtry::wkb_invalid_type if any type is allowed
+
+    @return True if the string is a well-formed GEOMETRY string,
+            false otherwise
+   */
+  static bool is_well_formed(const char *from, size_t length,
+                             wkbType type, wkbByteOrder bo);
 
   void set_geotype(Geometry::wkbType gt)
   {

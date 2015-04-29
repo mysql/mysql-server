@@ -3480,7 +3480,7 @@ btr_cur_pessimistic_insert(
 /*************************************************************//**
 For an update, checks the locks and does the undo logging.
 @return DB_SUCCESS, DB_WAIT_LOCK, or error number */
-UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,6,7)))
+UNIV_INLINE __attribute__((warn_unused_result))
 dberr_t
 btr_cur_upd_lock_and_undo(
 /*======================*/
@@ -3499,7 +3499,7 @@ btr_cur_upd_lock_and_undo(
 	const rec_t*	rec;
 	dberr_t		err;
 
-	ut_ad(thr || (flags & BTR_NO_LOCKING_FLAG));
+	ut_ad(thr != NULL || (flags & BTR_NO_LOCKING_FLAG));
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -5569,20 +5569,40 @@ inexact:
 	return(n_rows);
 }
 
+/** If the tree gets changed too much between the two dives for the left
+and right boundary then btr_estimate_n_rows_in_range_low() will retry
+that many times before giving up and returning the value stored in
+rows_in_range_arbitrary_ret_val. */
+static const unsigned	rows_in_range_max_retries = 4;
+
+/** We pretend that a range has that many records if the tree keeps changing
+for rows_in_range_max_retries retries while we try to estimate the records
+in a given range. */
+static const int64_t	rows_in_range_arbitrary_ret_val = 10;
+
 /** Estimates the number of rows in a given index range.
-@param[in]	index	index
-@param[in]	tuple1	range start, may also be empty tuple
-@param[in]	mode1	search mode for range start
-@param[in]	tuple2	range end, may also be empty tuple
-@param[in]	mode2	search mode for range end
-@return estimated number of rows */
+@param[in]	index		index
+@param[in]	tuple1		range start, may also be empty tuple
+@param[in]	mode1		search mode for range start
+@param[in]	tuple2		range end, may also be empty tuple
+@param[in]	mode2		search mode for range end
+@param[in]	nth_attempt	if the tree gets modified too much while
+we are trying to analyze it, then we will retry (this function will call
+itself, incrementing this parameter)
+@return estimated number of rows; if after rows_in_range_max_retries
+retries the tree keeps changing, then we will just return
+rows_in_range_arbitrary_ret_val as a result (if
+nth_attempt >= rows_in_range_max_retries and the tree is modified between
+the two dives). */
+static
 int64_t
-btr_estimate_n_rows_in_range(
+btr_estimate_n_rows_in_range_low(
 	dict_index_t*	index,
 	const dtuple_t*	tuple1,
 	page_cur_mode_t	mode1,
 	const dtuple_t*	tuple2,
-	page_cur_mode_t	mode2)
+	page_cur_mode_t	mode2,
+	unsigned	nth_attempt)
 {
 	btr_path_t	path1[BTR_PATH_ARRAY_N_SLOTS];
 	btr_path_t	path2[BTR_PATH_ARRAY_N_SLOTS];
@@ -5824,9 +5844,27 @@ btr_estimate_n_rows_in_range(
 
 		if (!diverged && slot1->nth_rec != slot2->nth_rec) {
 
-			/* Ensure that both slots point to the same page. */
-			ut_ad(slot1->page_no == slot2->page_no);
-			ut_ad(slot1->page_level == slot2->page_level);
+			/* If both slots do not point to the same page,
+			this means that the tree must have changed between
+			the dive for slot1 and the dive for slot2 at the
+			beginning of this function. */
+			if (slot1->page_no != slot2->page_no
+			    || slot1->page_level != slot2->page_level) {
+
+				/* If the tree keeps changing even after a
+				few attempts, then just return some arbitrary
+				number. */
+				if (nth_attempt >= rows_in_range_max_retries) {
+					return(rows_in_range_arbitrary_ret_val);
+				}
+
+				const int64_t	ret =
+					btr_estimate_n_rows_in_range_low(
+						index, tuple1, mode1,
+						tuple2, mode2, nth_attempt + 1);
+
+				return(ret);
+			}
 
 			diverged = TRUE;
 
@@ -5884,6 +5922,27 @@ btr_estimate_n_rows_in_range(
 				&is_n_rows_exact);
 		}
 	}
+}
+
+/** Estimates the number of rows in a given index range.
+@param[in]	index	index
+@param[in]	tuple1	range start, may also be empty tuple
+@param[in]	mode1	search mode for range start
+@param[in]	tuple2	range end, may also be empty tuple
+@param[in]	mode2	search mode for range end
+@return estimated number of rows */
+int64_t
+btr_estimate_n_rows_in_range(
+	dict_index_t*	index,
+	const dtuple_t*	tuple1,
+	page_cur_mode_t	mode1,
+	const dtuple_t*	tuple2,
+	page_cur_mode_t	mode2)
+{
+	const int64_t	ret = btr_estimate_n_rows_in_range_low(
+		index, tuple1, mode1, tuple2, mode2, 1 /* first attempt */);
+
+	return(ret);
 }
 
 /*******************************************************************//**
@@ -6546,6 +6605,7 @@ struct btr_blob_log_check_t {
 		dict_index_t*	index = m_pcur->index();
 		ulint		offs = 0;
 		ulint		page_no = ULINT_UNDEFINED;
+		FlushObserver*	observer = m_mtr->get_flush_observer();
 
 		if (m_op == BTR_STORE_INSERT_BULK) {
 			offs = page_offset(*m_rec);
@@ -6566,6 +6626,7 @@ struct btr_blob_log_check_t {
 		m_mtr->start();
 		m_mtr->set_log_mode(log_mode);
 		m_mtr->set_named_space(index->space);
+		m_mtr->set_flush_observer(observer);
 
 		if (m_op == BTR_STORE_INSERT_BULK) {
 			page_id_t       page_id(dict_index_get_space(index),
@@ -6752,10 +6813,26 @@ btr_store_big_rec_extern_fields(
 	ulint	n_used = 0;	/* number of pages used */
 #endif /* UNIV_DEBUG */
 
-	if (!fsp_reserve_free_extents(&n_reserved, space_id, n_extents,
-				      FSP_BLOB, btr_mtr)) {
-		error = DB_OUT_OF_FILE_SPACE;
-		goto func_exit;
+	if (op == BTR_STORE_INSERT_BULK) {
+		mtr_t	alloc_mtr;
+
+		mtr_start(&alloc_mtr);
+		alloc_mtr.set_named_space(index->space);
+
+		if (!fsp_reserve_free_extents(&n_reserved, space_id, n_extents,
+					      FSP_BLOB, &alloc_mtr)) {
+			mtr_commit(&alloc_mtr);
+			error = DB_OUT_OF_FILE_SPACE;
+			goto func_exit;
+		}
+
+		mtr_commit(&alloc_mtr);
+	} else {
+		if (!fsp_reserve_free_extents(&n_reserved, space_id, n_extents,
+					      FSP_BLOB, btr_mtr)) {
+			error = DB_OUT_OF_FILE_SPACE;
+			goto func_exit;
+		}
 	}
 
 	ut_ad(n_reserved > 0);
@@ -6811,10 +6888,8 @@ btr_store_big_rec_extern_fields(
 			mtr_start(&mtr);
 			mtr.set_named_space(index->space);
 			mtr.set_log_mode(btr_mtr->get_log_mode());
+			mtr.set_flush_observer(btr_mtr->get_flush_observer());
 
-			/* Take sx-latch on the root page so that we can do
-			page allocations */
-			btr_root_get(index, &mtr);
 			buf_page_get(rec_block->page.id,
 				     rec_block->page.size, RW_X_LATCH, &mtr);
 

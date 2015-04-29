@@ -107,11 +107,6 @@ ADD_COMPILE_FLAGS(
   ../sql/item_geofunc_relchecks.cc
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
-  ../sql/auth/sql_authorization.cc
-  ../sql/auth/sql_authentication.cc
-  ../sql/auth/sql_user_table.cc
-  ../sql/auth/sql_user.cc
-  ../sql/auth/sql_auth_cache.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -127,9 +122,17 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
-
-IF(HAVE_MY_TIMER)
-  SET(SQL_EMBEDDED_SOURCES ${SQL_EMBEDDED_SOURCES} ../sql/sql_timer.cc)
+# In Clang 3.6, the flag is named slightly different.
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedef" HAVE_NO_UNUSED_TYPEDEF)
+IF(HAVE_NO_UNUSED_TYPEDEF)
+  ADD_COMPILE_FLAGS(
+    ../sql/item_geofunc.cc
+    ../sql/item_geofunc_buffer.cc
+    ../sql/item_geofunc_relchecks.cc
+    ../sql/item_geofunc_relchecks_bgwrap.cc
+    ../sql/item_geofunc_setops.cc
+    COMPILE_FLAGS "-Wno-unused-local-typedef"
+  )
 ENDIF()
 
 

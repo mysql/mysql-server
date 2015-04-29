@@ -2643,8 +2643,7 @@ row_delete_all_rows(
 	return (err);
 }
 
-/*********************************************************************//**
-This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
+/** This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
 session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
 Before calling this function row_search_for_mysql() must have
 initialized prebuilt->new_rec_locks to store the information which new
@@ -2652,23 +2651,22 @@ record locks really were set. This function removes a newly set
 clustered index record lock under prebuilt->pcur or
 prebuilt->clust_pcur.  Thus, this implements a 'mini-rollback' that
 releases the latest clustered index record lock we set.
-@return error code or DB_SUCCESS */
+@param[in,out]	prebuilt		prebuilt struct in MySQL handle
+@param[in]	has_latches_on_recs	TRUE if called so that we have the
+					latches on the records under pcur
+					and clust_pcur, and we do not need
+					to reposition the cursors. */
 void
 row_unlock_for_mysql(
-/*=================*/
-	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt struct in MySQL
-					handle */
-	ibool		has_latches_on_recs)/*!< in: TRUE if called so
-					that we have the latches on
-					the records under pcur and
-					clust_pcur, and we do not need
-					to reposition the cursors. */
+	row_prebuilt_t*	prebuilt,
+	ibool		has_latches_on_recs)
 {
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
 
-	ut_ad(prebuilt && trx);
+	ut_ad(prebuilt != NULL);
+	ut_ad(trx != NULL);
 
 	if (UNIV_UNLIKELY
 	    (!srv_locks_unsafe_for_binlog
@@ -4828,21 +4826,25 @@ drop_all_foreign_keys_in_db(
 	return(err);
 }
 
-/*********************************************************************//**
-Drops a database for MySQL.
+/** Drop a database for MySQL.
+@param[in]	name	database name which ends at '/'
+@param[in]	trx	transaction handle
+@param[out]	found	number of dropped tables/partitions
 @return error code or DB_SUCCESS */
 dberr_t
 row_drop_database_for_mysql(
-/*========================*/
-	const char*	name,	/*!< in: database name which ends to '/' */
-	trx_t*		trx,	/*!< in: transaction handle */
-	ulint*		found)	/*!< out: Number of dropped tables/partitions */
+	const char*	name,
+	trx_t*		trx,
+	ulint*		found)
 {
 	dict_table_t*	table;
 	char*		table_name;
 	dberr_t		err	= DB_SUCCESS;
 	ulint		namelen	= strlen(name);
 	bool		is_partition = false;
+
+	ut_ad(found != NULL);
+
 	DBUG_ENTER("row_drop_database_for_mysql");
 
 	DBUG_PRINT("row_drop_database_for_mysql", ("db: '%s'", name));
@@ -4858,9 +4860,7 @@ row_drop_database_for_mysql(
 		trx->op_info = "dropping database";
 	}
 
-	if (found) {
-		*found = 0;
-	}
+	*found = 0;
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
@@ -4953,9 +4953,7 @@ loop:
 		}
 
 		ut_free(table_name);
-		if (found) {
-			(*found)++;
-		}
+		(*found)++;
 	}
 
 	/* Partitioning does not yet support foreign keys. */

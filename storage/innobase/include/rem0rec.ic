@@ -1564,21 +1564,23 @@ rec_get_start(
 }
 #endif /* UNIV_DEBUG */
 
-/***************************************************************//**
-Copies a physical record to a buffer.
+/** Copy a physical record to a buffer.
+@param[in]	buf	buffer
+@param[in]	rec	physical record
+@param[in]	offsets	array returned by rec_get_offsets()
 @return pointer to the origin of the copy */
 UNIV_INLINE
 rec_t*
 rec_copy(
-/*=====*/
-	void*		buf,	/*!< in: buffer */
-	const rec_t*	rec,	/*!< in: physical record */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+	void*		buf,
+	const rec_t*	rec,
+	const ulint*	offsets)
 {
 	ulint	extra_len;
 	ulint	data_len;
 
-	ut_ad(rec && buf);
+	ut_ad(rec != NULL);
+	ut_ad(buf != NULL);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(rec_validate(rec, offsets));
 

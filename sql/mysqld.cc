@@ -1505,12 +1505,10 @@ void clean_up(bool print_message)
     (void) my_delete_thread_local_key(THR_MALLOC);
   }
 
-#ifdef HAVE_MY_TIMER
   if (have_statement_timeout == SHOW_OPTION_YES)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
-#endif
 
   /*
     The following lines may never be executed as the main thread may have
@@ -2199,7 +2197,7 @@ static void start_signal_handler()
 }
 
 
-/** This threads handles all signals and alarms. */
+/** This thread handles SIGTERM, SIGQUIT and SIGHUP signals. */
 /* ARGSUSED */
 extern "C" void *signal_hand(void *arg __attribute__((unused)))
 {
@@ -2276,10 +2274,10 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
         mysql_mutex_unlock(&LOCK_socket_listener_active);
 
         close_connections();
-        my_thread_end();
-        my_thread_exit(0);
-        return NULL;  // Avoid compiler warnings
       }
+      my_thread_end();
+      my_thread_exit(0);
+      return NULL;  // Avoid compiler warnings
       break;
     case SIGHUP:
       if (!abort_loop)
@@ -3855,15 +3853,10 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-#ifdef HAVE_MY_TIMER
   if (my_timer_initialize())
     sql_print_error("Failed to initialize timer component (errno %d).", errno);
   else
     have_statement_timeout= SHOW_OPTION_YES;
-#else
-  have_statement_timeout= SHOW_OPTION_NO;
-#endif
-
 
   init_server_query_cache();
 
@@ -4257,13 +4250,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   /// @todo: this looks suspicious, revisit this /sven
   enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
-  if (gtid_mode != GTID_MODE_OFF && opt_bootstrap)
-  {
-    sql_print_warning("Bootstrap mode disables GTIDs. Bootstrap mode "
-    "should only be used by mysql_install_db which initializes the MySQL "
-    "data directory and creates system tables.");
-    _gtid_mode= GTID_MODE_OFF;
-  }
   if (gtid_mode == GTID_MODE_ON &&
       _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON)
   {
@@ -4878,15 +4864,7 @@ int mysqld_main(int argc, char **argv)
   my_str_free= &my_str_free_mysqld;
   my_str_realloc= &my_str_realloc_mysqld;
 
-  /*
-    init signals & alarm
-    After this we can't quit by a simple unireg_abort
-  */
   error_handler_hook= my_message_sql;
-
-#ifndef _WIN32
-  start_signal_handler();
-#endif
 
   /* Save pid of this process in a file */
   if (!opt_bootstrap)
@@ -4902,10 +4880,6 @@ int mysqld_main(int argc, char **argv)
   {
     abort_loop= true;
 
-#ifndef _WIN32
-    (void) pthread_kill(signal_thread_id.thread, SIGTERM);
-#endif
-
     delete_pid_file(MYF(MY_WME));
 
     if (mysqld_socket_acceptor != NULL)
@@ -4913,7 +4887,8 @@ int mysqld_main(int argc, char **argv)
       delete mysqld_socket_acceptor;
       mysqld_socket_acceptor= NULL;
     }
-    exit(MYSQLD_ABORT_EXIT);
+
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   if (!opt_noacl)
@@ -4972,6 +4947,11 @@ int mysqld_main(int argc, char **argv)
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
+#ifndef _WIN32
+  //  Start signal handler thread.
+  start_signal_handler();
+#endif
+
   if (opt_bootstrap)
   {
     start_processing_signals();
@@ -5020,6 +5000,8 @@ int mysqld_main(int argc, char **argv)
   (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
+
+  (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
 
 #if defined(_WIN32)
   setup_conn_event_handler_threads();
@@ -8458,9 +8440,7 @@ PSI_mutex_key key_mts_temp_table_LOCK;
 PSI_mutex_key key_LOCK_reset_gtid_table;
 PSI_mutex_key key_LOCK_compress_gtid_table;
 PSI_mutex_key key_mts_gaq_LOCK;
-#ifdef HAVE_MY_TIMER
 PSI_mutex_key key_thd_timer_mutex;
-#endif
 PSI_mutex_key key_LOCK_offline_mode;
 PSI_mutex_key key_LOCK_default_password_lifetime;
 
@@ -8551,9 +8531,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_reset_gtid_table, "LOCK_reset_gtid_table", PSI_FLAG_GLOBAL},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0},
-#ifdef HAVE_MY_TIMER
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
-#endif
 #ifdef HAVE_REPLICATION
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0},
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0},
@@ -8565,8 +8543,7 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock,
-  key_rwlock_proxy_users;
+  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -8595,8 +8572,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_proxy_users, "prox_users_rwlock", PSI_FLAG_GLOBAL}
+  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };
 
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
@@ -8672,10 +8648,7 @@ static PSI_cond_info all_server_conds[]=
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
-
-#ifdef HAVE_MY_TIMER
 PSI_thread_key key_thread_timer_notifier;
-#endif
 
 static PSI_thread_info all_server_threads[]=
 {
@@ -8685,9 +8658,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
-#ifdef HAVE_MY_TIMER
   { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_GLOBAL},
-#endif
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
@@ -9080,11 +9051,11 @@ PSI_memory_key key_memory_File_query_log_name;
 PSI_memory_key key_memory_Table_trigger_dispatcher;
 PSI_memory_key key_memory_show_slave_status_io_gtid_set;
 PSI_memory_key key_memory_write_set_extraction;
-#ifdef HAVE_MY_TIMER
 PSI_memory_key key_memory_thd_timer;
-#endif
 PSI_memory_key key_memory_THD_Session_tracker;
 PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
+PSI_memory_key key_memory_get_all_tables;
+PSI_memory_key key_memory_fill_schema_schemata;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_server_memory[]=
@@ -9219,13 +9190,13 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Quick_ranges, "Quick_ranges", 0},
   { &key_memory_File_query_log_name, "File_query_log::name", 0},
   { &key_memory_Table_trigger_dispatcher, "Table_trigger_dispatcher::m_mem_root", 0},
-#ifdef HAVE_MY_TIMER
   { &key_memory_thd_timer, "thd_timer", 0},
-#endif
   { &key_memory_THD_Session_tracker, "THD::Session_tracker", 0},
   { &key_memory_THD_Session_sysvar_resource_manager, "THD::Session_sysvar_resource_manager", 0},
   { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},
-  { &key_memory_write_set_extraction, "write_set_extraction", 0}
+  { &key_memory_write_set_extraction, "write_set_extraction", 0},
+  { &key_memory_get_all_tables, "get_all_tables", 0},
+  { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0}
 };
 
 /* TODO: find a good header */

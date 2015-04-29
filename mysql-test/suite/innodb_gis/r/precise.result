@@ -154,21 +154,17 @@ ST_astext(ST_buffer(ST_geometryfromtext('point(1 1)'), 1))
 POLYGON((2 1,1.9807 1.1950,1.9238 1.3826,1.8314 1.5555,1.7071 1.7071,1.5555 1.8314,1.3826 1.9238,1.1950 1.9807,1.0000 2,0.8049 1.9807,0.6173 1.9238,0.4444 1.8314,0.2928 1.7071,0.1685 1.5555,0.0761 1.3826,0.0192 1.1950,0 1.0000,0.0192 0.8049,0.0761 0.6173,0.1685 0.4444,0.2928 0.2928,0.4444 0.1685,0.6173 0.0761,0.8049 0.0192,1 0,1.1950 0.0192,1.3826 0.0761,1.5555 0.1685,1.7071 0.2928,1.8314 0.4444,1.9238 0.6173,1.9807 0.8049,2 1))
 create table t1(geom geometrycollection)engine=innodb;
 insert into t1 values (ST_geomfromtext('POLYGON((0 0, 10 10, 0 8, 0 0))'));
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 values (ST_geomfromtext('POLYGON((1 1, 10 10, 0 8, 1 1))'));
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 select ST_astext(geom), ST_area(geom),ST_area(ST_buffer(geom,2)) from t1;
 ST_astext(geom)	ST_area(geom)	ST_area(ST_buffer(geom,2))
-POLYGON((0 0,10 10,0 8,0 0))	40	117.1597
-POLYGON((1 1,10 10,0 8,1 1))	36	108.4741
 select ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2))) from t1;
 ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2)))
-35
-35
 set @geom=ST_geomfromtext('LINESTRING(2 1, 4 2, 2 3, 2 5)');
 set @buff=ST_buffer(@geom,1);
 select ST_NUMPOINTS(ST_EXTERIORRING(@buff)) from t1;
 ST_NUMPOINTS(ST_EXTERIORRING(@buff))
-55
-55
 DROP TABLE t1;
 select st_touches(ST_geomfromtext('point(0 0)'), ST_geomfromtext('point(1 1)'));
 st_touches(ST_geomfromtext('point(0 0)'), ST_geomfromtext('point(1 1)'))

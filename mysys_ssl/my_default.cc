@@ -738,7 +738,12 @@ int my_load_defaults(const char *conf_file, const char **groups,
 	   **argv);
     for (i=1 ; i < *argc ; i++)
       if (!my_getopt_is_args_separator((*argv)[i])) /* skip arguments separator */
-        printf("%s ", (*argv)[i]);
+      {
+        if(strncmp((*argv)[i], "--password", 10) == 0)
+          printf("%s ", "--password=*****");
+        else
+          printf("%s ", (*argv)[i]);
+      }
     puts("");
     exit(0);
   }

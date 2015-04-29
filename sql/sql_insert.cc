@@ -2647,6 +2647,19 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
   /* First field to copy */
   field= table->field+table->s->fields - values.elements;
+  for (Field **f= field ; *f ; f++)
+  {
+    if ((*f)->gcol_info)
+    {
+      /*
+        Generated columns are not allowed to be given a value for CREATE TABLE ..
+        SELECT statment.
+      */
+      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
+               (*f)->field_name, (*f)->table->s->table_name.str);
+      DBUG_RETURN(true);
+    }
+  }
 
   // Turn off function defaults for columns filled from SELECT list:
   const bool retval= info.ignore_last_columns(table, values.elements);

@@ -87,6 +87,7 @@ static struct mysql_parser_service_st parser_handler=
   mysql_parser_join_thread,
   mysql_parser_set_current_database,
   mysql_parser_parse,
+  mysql_parser_get_statement_type,
   mysql_parser_get_statement_digest,
   mysql_parser_get_number_params,
   mysql_parser_extract_prepared_params,
@@ -105,6 +106,12 @@ static struct transaction_write_set_service_st transaction_write_set_handler= {
   get_transaction_write_set,
 };
 
+static struct mysql_locking_service_st locking_service_handler=
+{
+  mysql_acquire_locking_service_locks,
+  mysql_release_locking_service_locks
+};
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
@@ -121,6 +128,7 @@ static struct st_service_ref list_of_services[]=
   { "rpl_transaction_ctx_service",
     VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },
   { "transaction_write_set_service",
-    VERSION_transaction_write_set_service, &transaction_write_set_handler }
+    VERSION_transaction_write_set_service, &transaction_write_set_handler },
+  { "mysql_locking_service", VERSION_locking_service, &locking_service_handler }
 };
 

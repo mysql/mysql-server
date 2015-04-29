@@ -7288,8 +7288,36 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       type != Item_func::EQUAL_FUNC)
     goto end;                                   // Can't optimize this
 
-  if (save_value_and_handle_conversion(&tree, value, type, field,
-                                       &impossible_cond_cause, alloc))
+  /*
+    Geometry operations may mix geometry types, e.g., we may be
+    checking ST_Contains(<polygon field>, <point>). In such cases,
+    field->geom_type will be a different type than the value we're
+    trying to store in it, and the conversion will fail. Therefore,
+    set the most general geometry type while saving, and revert to the
+    original geometry type afterwards.
+  */
+  Field::geometry_type save_geom_type;
+  save_geom_type= Field::GEOM_GEOMETRY;
+  if (key_part->image_type == Field::itMBR &&
+      field->type() == MYSQL_TYPE_GEOMETRY)
+  {
+    save_geom_type= field->get_geometry_type();
+    down_cast<Field_geom*, Field*>(field)->geom_type= Field::GEOM_GEOMETRY;
+  }
+
+  bool always_true_or_false;
+  always_true_or_false=
+    save_value_and_handle_conversion(&tree, value, type, field,
+                                     &impossible_cond_cause, alloc);
+
+  if (key_part->image_type == Field::itMBR &&
+      field->type() == MYSQL_TYPE_GEOMETRY &&
+      save_geom_type != Field::GEOM_GEOMETRY)
+  {
+    down_cast<Field_geom*, Field*>(field)->geom_type= save_geom_type;
+  }
+  
+  if (always_true_or_false)
     goto end;
 
   /*

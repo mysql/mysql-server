@@ -451,6 +451,7 @@ typedef struct system_variables
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_length_for_sort_data;
+  ulong max_points_in_geometry;
   ulong max_sort_length;
   ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
@@ -1343,6 +1344,16 @@ public:
 
   bool lock_global_read_lock(THD *thd);
   void unlock_global_read_lock(THD *thd);
+
+  /**
+    Used by innodb memcached server to check if any connections
+    have global read lock
+  */
+  static bool global_read_lock_active()
+  {
+    return my_atomic_load32(&m_active_requests) ? true : false;
+  }
+
   /**
     Check if this connection can acquire protection against GRL and
     emit error if otherwise.
@@ -1360,6 +1371,7 @@ public:
   bool is_acquired() const { return m_state != GRL_NONE; }
   void set_explicit_lock_duration(THD *thd);
 private:
+  volatile static int32 m_active_requests;
   enum_grl_state m_state;
   /**
     In order to acquire the global read lock, the connection must
@@ -1952,7 +1964,6 @@ public:
     return m_binlog_filter_state;
   }
 
-#ifdef HAVE_MY_TIMER
   /** Holds active timer object */
   struct st_thd_timer_info *timer;
   /**
@@ -1960,7 +1971,6 @@ public:
     with timer_cache timer to reuse.
   */
   struct st_thd_timer_info *timer_cache;
-#endif
 
 private:
   /**
@@ -4124,14 +4134,6 @@ public:
   bool has_invoker() { return m_invoker_user.str != NULL; }
 
   void mark_transaction_to_rollback(bool all);
-
-#ifndef DBUG_OFF
-private:
-  int gis_debug; // Storage for "SELECT ST_GIS_DEBUG(param);"
-public:
-  int get_gis_debug() { return gis_debug; }
-  void set_gis_debug(int arg) { gis_debug= arg; }
-#endif
 
 private:
 

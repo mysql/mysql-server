@@ -5642,7 +5642,6 @@ restart:
       thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
     DBUG_RETURN(true);
 
-#ifdef HAVE_MY_TIMER
   /*
    If some routine is modifying the table then the statement is not read only.
    If timer is enabled then resetting the timer in this case.
@@ -5653,7 +5652,6 @@ restart:
     push_warning(thd, Sql_condition::SL_NOTE, ER_NON_RO_SELECT_DISABLE_TIMER,
                  ER(ER_NON_RO_SELECT_DISABLE_TIMER));
   }
-#endif
 
   /*
     After successful open of all tables, including MERGE parents and

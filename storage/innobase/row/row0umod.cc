@@ -786,7 +786,7 @@ row_undo_mod_sec_flag_corrupted(
 		we can only mark the index corrupted in the
 		data dictionary cache. TODO: fix this somehow.*/
 		mutex_enter(&dict_sys->mutex);
-		dict_set_corrupted_index_cache_only(index, index->table);
+		dict_set_corrupted_index_cache_only(index);
 		mutex_exit(&dict_sys->mutex);
 		break;
 	default:
@@ -1137,7 +1137,8 @@ row_undo_mod(
 	dberr_t	err;
 	ibool	dict_locked;
 
-	ut_ad(node && thr);
+	ut_ad(node != NULL);
+	ut_ad(thr != NULL);
 	ut_ad(node->state == UNDO_NODE_MODIFY);
 	ut_ad(node->trx->in_rollback);
 	ut_ad(!trx_undo_roll_ptr_is_insert(node->roll_ptr));

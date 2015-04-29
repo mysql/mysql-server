@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -57,7 +57,8 @@ dfield_set_type(
 	dfield_t*	field,	/*!< in: SQL data field */
 	const dtype_t*	type)	/*!< in: pointer to data type struct */
 {
-	ut_ad(field && type);
+	ut_ad(field != NULL);
+	ut_ad(type != NULL);
 
 	field->type = *type;
 }
@@ -220,7 +221,8 @@ dfield_copy_data(
 	dfield_t*	field1,	/*!< out: field to copy to */
 	const dfield_t*	field2)	/*!< in: field to copy from */
 {
-	ut_ad(field1 && field2);
+	ut_ad(field1 != NULL);
+	ut_ad(field2 != NULL);
 
 	field1->data = field2->data;
 	field1->len = field2->len;

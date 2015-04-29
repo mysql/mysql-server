@@ -1,0 +1,74 @@
+#
+# Test flush on error in bulk load to make sure we do a proper cleanup.
+# Note: We flush all dirty pages before applying any online log in bulk load.
+#
+
+-- source include/have_innodb.inc
+-- source include/have_debug.inc
+
+# Create Insert Procedure
+DELIMITER |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+	DECLARE i int DEFAULT 1;
+
+	START TRANSACTION;
+	WHILE (i <= 10000) DO
+		INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+		SET i = i + 1;
+	END WHILE;
+	COMMIT;
+END|
+DELIMITER ;|
+
+CREATE TABLE t1(
+	class	INT,
+	id	INT,
+	title	VARCHAR(100)
+) ENGINE=InnoDB;
+
+-- disable_query_log
+CALL populate_t1();
+-- enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+SET SESSION debug="+d,ib_index_build_fail_before_flush";
+
+-- error ER_GET_ERRNO
+CREATE INDEX idx_id ON t1(id);
+
+CHECK TABLE t1;
+
+-- error ER_GET_ERRNO
+CREATE INDEX idx_title ON t1(title);
+
+CHECK TABLE t1;
+
+-- error ER_GET_ERRNO
+CREATE FULLTEXT INDEX fidx_title ON t1(title);
+
+CHECK TABLE t1;
+
+-- error ER_GET_ERRNO
+ALTER TABLE t1 ADD COLUMN content TEXT;
+
+CHECK TABLE t1;
+
+SET SESSION debug="-d,ib_index_build_fail_before_flush";
+
+INSERT INTO t1 VALUES(10001, 10001, 'a10000');
+
+-- error ER_DUP_ENTRY
+ALTER TABLE t1 ADD UNIQUE INDEX idx_title(title);
+
+CHECK TABLE t1;
+
+-- error ER_DUP_ENTRY
+ALTER TABLE t1 ADD UNIQUE INDEX idx_id(id), ADD UNIQUE INDEX idx_title(title);
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+DROP PROCEDURE populate_t1;

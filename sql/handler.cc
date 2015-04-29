@@ -1485,6 +1485,20 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 {
   int error= 0;
+  bool need_clear_owned_gtid= false;
+  /*
+    Save transaction owned gtid into table before transaction prepare
+    if binlog is disabled, or binlog is enabled and log_slave_updates
+    is disabled with slave SQL thread or slave worker thread.
+  */
+  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
+      (all || !thd->in_multi_stmt_transaction_mode()) &&
+      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table_implicitly)
+  {
+    error= gtid_state->save(thd);
+    need_clear_owned_gtid= true;
+  }
+
   /*
     'all' means that this is either an explicit commit issued by
     user, or an implicit commit issued by a DDL.
@@ -1540,20 +1554,6 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
   MDL_request mdl_request;
   bool release_mdl= false;
-  bool need_clear_owned_gtid= false;
-  /*
-    Save transaction owned gtid into table before transaction prepare
-    if binlog is disabled, or binlog is enabled and log_slave_updates
-    is disabled with slave SQL thread or slave worker thread.
-  */
-  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
-      (all || !thd->in_multi_stmt_transaction_mode()) &&
-      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table_implicitly)
-  {
-    error= gtid_state->save(thd);
-    need_clear_owned_gtid= true;
-  }
-
   if (ha_info)
   {
     uint rw_ha_count;

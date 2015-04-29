@@ -1,6 +1,6 @@
 -- source include/not_embedded.inc
 -- source include/have_validate_password_plugin.inc
--- source suite/perfschema/include/no_protocol.inc
+-- source include/no_protocol.inc
 
 --echo #
 --echo # WL#4797  Extending protocol's OK packet

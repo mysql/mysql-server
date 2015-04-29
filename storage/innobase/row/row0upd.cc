@@ -2508,7 +2508,8 @@ row_upd(
 	dberr_t		err	= DB_SUCCESS;
 	DBUG_ENTER("row_upd");
 
-	ut_ad(node && thr);
+	ut_ad(node != NULL);
+	ut_ad(thr != NULL);
 	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	DBUG_PRINT("row_upd", ("table: %s", node->table->name.m_name));
