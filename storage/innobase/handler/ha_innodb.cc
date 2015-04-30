@@ -17831,7 +17831,7 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   NULL, NULL,
   0L,			/* Default seting */
   0L,			/* Minimum value */
-  126L, 0);		/* Maximum value */
+  95L, 0);		/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
