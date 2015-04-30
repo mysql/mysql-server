@@ -30,6 +30,7 @@
 #include "sql_plugin.h"         // my_plugin_lock_by_name
 #include "sql_time.h"           // str_to_time_with_warn
 #include "table.h"              // TABLE
+#include "derror.h"             // ER_THD
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -2016,7 +2017,6 @@ my_bool acl_reload(THD *thd)
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message_text());
     }
-    acl_free();
     close_acl_tables(thd);
     DBUG_RETURN(true);
   }
@@ -2357,6 +2357,7 @@ end_index_init:
     exists.
 
   @param thd A pointer to the thread handler object.
+  @param table A pointer to the table list.
 
   @see grant_reload
 
@@ -2434,7 +2435,27 @@ my_bool grant_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
-  tables[2].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+
+  /*
+    Reload will work in the following manner:-
+
+                             proc_priv_hash structure
+                              /                     \
+                    not initialized                 initialized
+                   /               \                     |
+    mysql.procs_priv table        Server Startup         |
+        is missing                      \                |
+             |                         open_and_lock_tables()
+    Assume we are working on           /success             \failure
+    pre 4.1 system tables.        Normal Scenario.          An error is thrown.
+    A warning is printed          Reload column privilege.  Retain the old hash.
+    and continue with             Reload function and
+    reloading the column          procedure privileges,
+    privileges.                   if available.
+  */
+
+  if (!(my_hash_inited(&proc_priv_hash)))
+    tables[2].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   /*
     To avoid deadlocks we should obtain table locks before
@@ -2442,14 +2463,21 @@ my_bool grant_reload(THD *thd)
   */
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
-    grant_free();
+    if (thd->get_stmt_da()->is_error())
+    {
+      sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
+                      thd->get_stmt_da()->message_text());
+    }
     goto end;
   }
 
   if (tables[2].table == NULL)
   {
-    my_hash_free(&proc_priv_hash);
-    my_hash_free(&func_priv_hash);
+    sql_print_warning("Table 'mysql.procs_priv' does not exist. "
+                      "Please run mysql_upgrade.");
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NO_SUCH_TABLE,
+                        ER_THD(thd, ER_NO_SUCH_TABLE), tables[2].db,
+                        tables[2].table_name);
   }
 
   LOCK_grant.wrlock();
@@ -2466,11 +2494,11 @@ my_bool grant_reload(THD *thd)
   /*
     tables[2].table i.e. procs_priv can be null if we are working with
     pre 4.1 privilage tables
-*/
-  if ((return_val= grant_load(thd, tables) ||
+  */
+  if ((return_val= grant_load(thd, tables)) ||
                    (tables[2].table != NULL &&
-                    grant_reload_procs_priv(thd, &(tables[2])))
-     ))
+                    grant_reload_procs_priv(thd, &tables[2]))
+     )
   {                                             // Error. Revert to old hash
     DBUG_PRINT("error",("Reverting to old privileges"));
     my_hash_free(&column_priv_hash);
