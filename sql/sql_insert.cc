@@ -60,10 +60,10 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables);
   @return false if success, true if an error was raised.
 */
 
-static bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
-                                     TABLE_LIST **insert_table_ref)
+static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
+                                      TABLE_LIST **insert_table_ref)
 {
-  /* it is join view => we need to find the table for update */
+  // It is join view => we need to find the table for insert
   List_iterator_fast<Item> it(fields);
   Item *item;
   *insert_table_ref= NULL;          // reset for call to check_single_table()
@@ -72,13 +72,14 @@ static bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
   while ((item= it++))
     tables|= item->used_tables();
 
-  if (view->check_single_table(insert_table_ref, tables) ||
-      *insert_table_ref == NULL)
+  if (view->check_single_table(insert_table_ref, tables))
   {
     my_error(ER_VIEW_MULTIUPDATE, MYF(0),
              view->view_db.str, view->view_name.str);
     return true;
   }
+  DBUG_ASSERT(*insert_table_ref && (*insert_table_ref)->is_insertable());
+
   return false;
 }
 
@@ -117,7 +118,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
   TABLE *table= table_list->table;
 
-  DBUG_ASSERT(table_list->is_updatable());
+  DBUG_ASSERT(table_list->is_insertable());
 
   if (fields.elements == 0 && value_count_known && value_count > 0)
   {
@@ -182,7 +183,8 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     if (table_list->is_merged())
     {
-      if (check_view_single_update(fields, table_list, &lex->insert_table_leaf))
+      if (check_single_table_insert(fields, table_list,
+                                    &lex->insert_table_leaf))
         return true;
       table= lex->insert_table_leaf->table;
     }
@@ -1030,7 +1032,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
       DBUG_RETURN(true);           /* purecov: inspected */
   }
 
-  if (!table_list->is_updatable())
+  if (!table_list->is_insertable())
   {
     my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     DBUG_RETURN(true);

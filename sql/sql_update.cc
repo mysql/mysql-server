@@ -1328,11 +1328,11 @@ static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
                                             table_map tables_for_update,
                                             bool updatable, bool *updated)
 {
+  // Adjust updatability based on table/view's properties:
+  updatable&= table->is_updatable();
+
   if (table->is_view_or_derived())
   {
-    // Derived tables are not updatable:
-    updatable&= !table->is_derived();
-
     // Determine if this view/derived table is updated:
     bool view_updated= false;
     /*
