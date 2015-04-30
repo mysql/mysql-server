@@ -11434,7 +11434,6 @@ retry_temporary_error1:
 int ha_ndbcluster::delete_table(const char *name)
 {
   THD *thd= current_thd;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
 
   DBUG_ENTER("ha_ndbcluster::delete_table");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -11465,6 +11464,7 @@ int ha_ndbcluster::delete_table(const char *name)
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::delete_table"))
   {
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
