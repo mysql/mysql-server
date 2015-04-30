@@ -1788,9 +1788,11 @@ revoke create, insert on mysqltest.t6 from mysqltest@localhost;
 drop user mysqltest@localhost;
 drop database mysqltest;
 use test;
+call mtr.add_suppression("Can't open and lock privilege tables");
 FLUSH PRIVILEGES without procs_priv table.
 RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
 FLUSH PRIVILEGES;
+ERROR 42S02: Table 'mysql.procs_priv' doesn't exist
 Assigning privileges without procs_priv table.
 CREATE DATABASE mysqltest1;
 CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
