@@ -1185,7 +1185,7 @@ public:
   uint fill_variables_recursion_level;
 
   /* container for handler's private per-connection data */
-  Ha_data ha_data[MAX_HA];
+  Prealloced_array<Ha_data, PREALLOC_NUM_HA> ha_data;
 
   /*
     Position of first event in Binlog

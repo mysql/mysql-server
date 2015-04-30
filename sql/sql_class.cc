@@ -90,6 +90,10 @@ const char * const THD::DEFAULT_WHERE= "field list";
 
 struct Transaction_state
 {
+  Transaction_state()
+    : m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity)
+  {}
+
   void backup(THD *thd);
   void restore(THD *thd);
 
@@ -108,7 +112,7 @@ struct Transaction_state
   enum_tx_isolation m_tx_isolation;
 
   /// Ha_data array.
-  Ha_data m_ha_data[MAX_HA];
+  Prealloced_array<Ha_data, PREALLOC_NUM_HA> m_ha_data;
 
   /// Transaction_ctx instance.
   Transaction_ctx *m_trx;
@@ -132,8 +136,7 @@ void Transaction_state::backup(THD *thd)
   this->m_sql_command= thd->lex->sql_command;
   this->m_trx= thd->get_transaction();
 
-  for (int i= 0; i < MAX_HA; ++i)
-    this->m_ha_data[i]= thd->ha_data[i];
+  this->m_ha_data= thd->ha_data;
 
   this->m_tx_isolation= thd->tx_isolation;
   this->m_tx_read_only= thd->tx_read_only;
@@ -148,8 +151,7 @@ void Transaction_state::restore(THD *thd)
 {
   thd->set_transaction(this->m_trx);
 
-  for (int i= 0; i < MAX_HA; ++i)
-    thd->ha_data[i]= this->m_ha_data[i];
+  thd->ha_data= this->m_ha_data;
 
   thd->tx_isolation= this->m_tx_isolation;
   thd->variables.sql_mode= this->m_sql_mode;
@@ -220,8 +222,8 @@ THD::Attachable_trx::Attachable_trx(THD *thd)
 
   // Prepare for a new attachable transaction for read-only DD-transaction.
 
-  for (int i= 0; i < MAX_HA; ++i)
-    m_thd->ha_data[i]= Ha_data();
+  m_thd->ha_data.clear();
+  m_thd->ha_data.resize(m_thd->ha_data.capacity());
 
   // The attachable transaction must used READ COMMITTED isolation level.
 
@@ -441,6 +443,7 @@ THD::THD(bool enable_plugins)
    in_sub_stmt(0),
    fill_status_recursion_level(0),
    fill_variables_recursion_level(0),
+   ha_data(PSI_NOT_INSTRUMENTED, ha_data.initial_capacity),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
@@ -533,7 +536,6 @@ THD::THD(bool enable_plugins)
   query_id= 0;
   query_name_consts= 0;
   db_charset= global_system_variables.collation_database;
-  memset(ha_data, 0, sizeof(ha_data));
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;

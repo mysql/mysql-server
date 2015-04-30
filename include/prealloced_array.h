@@ -67,6 +67,9 @@ class Prealloced_array
   }
 public:
 
+  /// Initial capacity of the array.
+  static const size_t initial_capacity= Prealloc;
+
   /// Standard typedefs.
   typedef Element_type value_type;
   typedef size_t       size_type;
@@ -81,6 +84,34 @@ public:
   {
     // We do not want a zero-size array.
     compile_time_assert(Prealloc != 0);
+  }
+
+  /**
+    Initializes (parts of) the array with default values.
+    Using 'Prealloc' for initial_size makes this similar to a raw C array.
+  */
+  Prealloced_array(PSI_memory_key psi_key, size_t initial_size)
+    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
+      m_psi_key(psi_key)
+  {
+    // We do not want a zero-size array.
+    compile_time_assert(Prealloc != 0);
+
+    if (initial_size > Prealloc)
+    {
+      // We avoid using reserve() since it requires Element_type to be copyable.
+      void *mem=
+        my_malloc(m_psi_key, initial_size * element_size(), MYF(MY_WME));
+      if (!mem)
+        return;
+      m_array_ptr= static_cast<Element_type*>(mem);
+      m_capacity= initial_size;
+    }
+    for (size_t ix= 0; ix < initial_size; ++ix)
+    {
+      Element_type *p= &m_array_ptr[m_size++];
+      ::new (p) Element_type();
+    }
   }
 
   /**
@@ -176,6 +207,24 @@ public:
   iterator end()   { return m_array_ptr + size(); }
   const_iterator begin() const { return m_array_ptr; }
   const_iterator end()   const { return m_array_ptr + size(); }
+
+  /**
+    Assigns a value to an arbitrary element, even where n >= size().
+    The array is extended with default values if necessary.
+    @retval true if out-of-memory, false otherwise.
+  */
+  bool assign_at(size_t n, const value_type &val)
+  {
+    if (n < size())
+    {
+      at(n)= val;
+      return false;
+    }
+    if (reserve(n + 1))
+      return true;
+    resize(n);
+    return push_back(val);
+  }
 
   /**
     Reserves space for array elements.

@@ -235,20 +235,21 @@ Cost_model_se_info::~Cost_model_se_info()
 
 
 Cost_model_constants::Cost_model_constants()
-  : m_ref_counter(0)
+  : m_engines(PSI_NOT_INSTRUMENTED, num_hton2plugins()),
+    m_ref_counter(0)
 {
   /**
     Create default cost constants for each storage engine.
   */
-  for (uint engine= 0; engine < MAX_HA; ++engine)
+  for (size_t engine= 0; engine < m_engines.size(); ++engine)
   {
     const handlerton *ht= NULL;
 
     // Check if the storage engine has been installed
-    if (hton2plugin[engine])
+    if (hton2plugin(engine))
     {
       // Find the handlerton for the storage engine
-      ht= static_cast<handlerton*>(hton2plugin[engine]->data);
+      ht= static_cast<handlerton*>(hton2plugin(engine)->data);
     }
 
     for (uint storage= 0; storage < MAX_STORAGE_CLASSES; ++storage)
@@ -288,8 +289,16 @@ const SE_cost_constants
   DBUG_ASSERT(table->file != NULL);
   DBUG_ASSERT(table->file->ht != NULL);
 
+  static SE_cost_constants default_cost;
+
+  /*
+    We do not see data for new htons loaded by the current session,
+    use default statistics.
+  */
+  const uint slot= table->file->ht->slot;
   const SE_cost_constants *se_cc=
-    m_engines[table->file->ht->slot].get_cost_constants(DEFAULT_STORAGE_CLASS);
+    slot < m_engines.size() ?
+    m_engines[slot].get_cost_constants(DEFAULT_STORAGE_CLASS) : &default_cost;
   DBUG_ASSERT(se_cc != NULL);
 
   return se_cc;
@@ -382,7 +391,7 @@ Cost_model_constants::update_engine_default_cost(const LEX_CSTRING &name,
   /*
     Update all constants for engines that have their own cost constants
   */
-  for (size_t i= 0; i < MAX_HA; ++i)
+  for (size_t i= 0; i < m_engines.size(); ++i)
   {
     SE_cost_constants *se_cc= m_engines[i].get_cost_constants(storage_category);
     if (se_cc)

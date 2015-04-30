@@ -183,22 +183,51 @@ inline double log2(double x)
 }
 #endif
 
-/*
+/**
   While we have legacy_db_type, we have this array to
   check for dups and to find handlerton from legacy_db_type.
   Remove when legacy_db_type is finally gone
 */
-st_plugin_int *hton2plugin[MAX_HA];
+static
+Prealloced_array<st_plugin_int*, PREALLOC_NUM_HA, true>
+se_plugin_array(PSI_NOT_INSTRUMENTED);
 
 /**
   Array allowing to check if handlerton is builtin without
   acquiring LOCK_plugin.
 */
-static bool builtin_htons[MAX_HA];
+static
+Prealloced_array<bool, PREALLOC_NUM_HA, true>
+builtin_htons(PSI_NOT_INSTRUMENTED);
+
+st_plugin_int *hton2plugin(uint slot)
+{
+  return se_plugin_array[slot];
+}
+
+size_t num_hton2plugins()
+{
+  return se_plugin_array.size();
+}
+
+st_plugin_int *insert_hton2plugin(uint slot, st_plugin_int* plugin)
+{
+  if (se_plugin_array.assign_at(slot, plugin))
+    return NULL;
+  return se_plugin_array[slot];
+}
+
+st_plugin_int *remove_hton2plugin(uint slot)
+{
+  st_plugin_int *retval= se_plugin_array[slot];
+  se_plugin_array[slot]= NULL;
+  return retval;
+}
+
 
 const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
-  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
+  return db_type == NULL ? "UNKNOWN" : hton2plugin(db_type->slot)->name.str;
 }
 
 static handlerton *installed_htons[128];
@@ -206,8 +235,6 @@ static handlerton *installed_htons[128];
 KEY_CREATE_INFO default_key_create_info=
   { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0}, true };
 
-/* number of entries in installed_htons[] */
-static ulong total_ha= 0;
 /* number of storage engines (from installed_htons[]) that support 2pc */
 ulong total_ha_2pc= 0;
 /* size of savepoint storage area (see ha_init) */
@@ -496,7 +523,7 @@ plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
 {
   if (hton)
   {
-    st_plugin_int **plugin= hton2plugin + hton->slot;
+    st_plugin_int **plugin= &se_plugin_array[hton->slot];
 
 #ifdef DBUG_OFF
     /*
@@ -737,9 +764,9 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   if (hton->slot != HA_SLOT_UNDEF)
   {
     /* Make sure we are not unpluging another plugin */
-    DBUG_ASSERT(hton2plugin[hton->slot] == plugin);
-    DBUG_ASSERT(hton->slot < MAX_HA);
-    hton2plugin[hton->slot]= NULL;
+    DBUG_ASSERT(se_plugin_array[hton->slot] == plugin);
+    DBUG_ASSERT(hton->slot < se_plugin_array.size());
+    se_plugin_array[hton->slot]= NULL;
     builtin_htons[hton->slot]= false; /* Extra correctness. */
   }
 
@@ -815,30 +842,27 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
         reuse an array slot. Otherwise the number of uninstall/install
         cycles would be limited. So look for a free slot.
       */
-      DBUG_PRINT("plugin", ("total_ha: %lu", total_ha));
-      for (fslot= 0; fslot < total_ha; fslot++)
+      DBUG_PRINT("plugin", ("total_ha: %lu",
+                            static_cast<ulong>(se_plugin_array.size())));
+      for (fslot= 0; fslot < se_plugin_array.size(); fslot++)
       {
-        if (!hton2plugin[fslot])
+        if (!se_plugin_array[fslot])
           break;
       }
-      if (fslot < total_ha)
+      if (fslot < se_plugin_array.size())
         hton->slot= fslot;
       else
       {
-        if (total_ha >= MAX_HA)
-        {
-          sql_print_error("Too many plugins loaded. Limit is %lu. "
-                          "Failed on '%s'", (ulong) MAX_HA, plugin->name.str);
-          goto err_deinit;
-        }
-        hton->slot= total_ha++;
+        hton->slot= se_plugin_array.size();
       }
+      if (se_plugin_array.assign_at(hton->slot, plugin) ||
+          builtin_htons.assign_at(hton->slot, (plugin->plugin_dl == NULL)))
+        goto err_deinit;
+
       installed_htons[hton->db_type]= hton;
       tmp= hton->savepoint_offset;
       hton->savepoint_offset= savepoint_alloc_size;
       savepoint_alloc_size+= tmp;
-      hton2plugin[hton->slot]=plugin;
-      builtin_htons[hton->slot]= (plugin->plugin_dl == NULL);
       if (hton->prepare)
         total_ha_2pc++;
       break;
@@ -896,13 +920,12 @@ int ha_init()
   int error= 0;
   DBUG_ENTER("ha_init");
 
-  DBUG_ASSERT(total_ha < MAX_HA);
   /*
     Check if there is a transaction-capable storage engine besides the
-    binary log (which is considered a transaction-capable storage engine in
-    counting total_ha)
+    binary log.
   */
-  opt_using_transactions= total_ha>(ulong)opt_bin_log;
+  opt_using_transactions=
+    se_plugin_array.size() > static_cast<ulong>(opt_bin_log);
   savepoint_alloc_size+= sizeof(SAVEPOINT);
 
   /*
@@ -7271,7 +7294,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   {
     if (db_type->state != SHOW_OPTION_YES)
     {
-      const LEX_STRING *name=&hton2plugin[db_type->slot]->name;
+      const LEX_STRING *name= &se_plugin_array[db_type->slot]->name;
       result= stat_print(thd, name->str, name->length,
                          "", 0, "DISABLED", 8) ? 1 : 0;
     }

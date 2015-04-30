@@ -73,14 +73,25 @@ extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
 extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
 
 /*
-  Note: the following includes binlog and closing 0.
+  We preallocate data for several storage engine plugins.
   so: innodb + bdb + ndb + binlog + myisam + myisammrg + archive +
       example + csv + heap + blackhole + federated + 0
   (yes, the sum is deliberately inaccurate)
-  TODO remove the limit, use dynarrays
 */
-#define MAX_HA 15
-extern st_plugin_int *hton2plugin[MAX_HA];
+#define PREALLOC_NUM_HA 15
+
+/// Maps from slot to plugin. May return NULL if plugin has been unloaded.
+st_plugin_int *hton2plugin(uint slot);
+/// Returns the size of the array holding pointers to plugins.
+size_t num_hton2plugins();
+
+/**
+  For unit testing.
+  Insert plugin into arbitrary slot in array.
+  Remove plugin from arbitrary slot in array.
+*/
+st_plugin_int *insert_hton2plugin(uint slot, st_plugin_int* plugin);
+st_plugin_int *remove_hton2plugin(uint slot);
 
 extern const char *ha_row_type[];
 extern const char *tx_isolation_names[];

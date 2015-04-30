@@ -18,8 +18,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
-#include "handler.h"                            // MAX_HA
 #include "m_string.h"                           // LEX_CSTRING
+#include "prealloced_array.h"
 
 class THD;
 struct TABLE;
@@ -550,8 +550,11 @@ private:
   /// Cost constants for server operations
   Server_cost_constants m_server_constants;
 
-  /// Cost constants for storage engines
-  Cost_model_se_info m_engines[MAX_HA];
+  /**
+    Cost constants for storage engines
+    15 should be enough for most use cases, see PREALLOC_NUM_HA.
+  */
+  Prealloced_array<Cost_model_se_info, 15, false> m_engines;
 
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;

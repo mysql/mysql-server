@@ -65,17 +65,28 @@ protected:
   {
     initializer.SetUp();
 
-    // Initilize one storage engine
-    LEX_STRING engine_name= {C_STRING_WITH_LEN("InnoDB")};
-    hton2plugin[0]= new st_plugin_int();
-    hton2plugin[0]->name= engine_name;
+    // Initilize some storage engines
+    LEX_STRING engine_name0= { C_STRING_WITH_LEN("InnoDB0") };
+    LEX_STRING engine_name1= { C_STRING_WITH_LEN("InnoDB1") };
+    LEX_STRING engine_name2= { C_STRING_WITH_LEN("InnoDB2") };
+    LEX_STRING engine_name4= { C_STRING_WITH_LEN("InnoDB4") };
+    LEX_STRING engine_name7= { C_STRING_WITH_LEN("InnoDB7") };
+
+    insert_hton2plugin(0, new st_plugin_int())->name= engine_name0;
+    insert_hton2plugin(1, new st_plugin_int())->name= engine_name1;
+    insert_hton2plugin(2, new st_plugin_int())->name= engine_name2;
+    insert_hton2plugin(4, new st_plugin_int())->name= engine_name4;
+    insert_hton2plugin(7, new st_plugin_int())->name= engine_name7;
   }
 
   virtual void TearDown()
   {
     initializer.TearDown();
-    delete hton2plugin[0];
-    hton2plugin[0]= NULL;
+    delete remove_hton2plugin(0);
+    delete remove_hton2plugin(1);
+    delete remove_hton2plugin(2);
+    delete remove_hton2plugin(4);
+    delete remove_hton2plugin(7);
   }
 
   THD *thd() { return initializer.thd(); }
