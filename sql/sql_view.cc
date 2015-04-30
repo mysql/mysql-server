@@ -1515,8 +1515,15 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
     NOTE: It is important for UPDATE/INSERT/DELETE checks to have these
     tables just after view instead of at tail of list, to be able to check that
     table is unique. Also we store old next table for the same purpose.
+
+    If prelocking a view which has lock_type==TL_IGNORE we cannot add
+    the tables, as that would result in tables with
+    lock_type==TL_IGNORE being added to the prelocking set. That, in
+    turn, would lead to lock_external() being called on those tables,
+    which is not permitted (causes assert).
   */
-  if (view_tables)
+  if (view_tables && !(view_ref->prelocking_placeholder &&
+                       view_ref->lock_type == TL_IGNORE))
   {
     if (view_ref->next_global)
     {
