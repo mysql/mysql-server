@@ -3510,6 +3510,8 @@ table_found:
   */
   DBUG_ASSERT(table->file->pushed_cond == NULL);
   table_list->set_updatable(); // It is not derived table nor non-updatable VIEW
+  table_list->set_insertable();
+
   table_list->table= table;
 
   if (table->part_info)
@@ -6872,6 +6874,8 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
   thd->thread_specific_used= TRUE;
 
   tl->set_updatable(); // It is not derived table nor non-updatable VIEW.
+  tl->set_insertable();
+
   tl->table= table;
 
   table->init(thd, tl);
