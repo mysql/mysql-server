@@ -5209,22 +5209,22 @@ CREATE VIEW v4 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
                   (SELECT '' AS col2 FROM DUAL) UNION ALL
                   (SELECT '' FROM DUAL);
 
---echo # Name for the column in select1 is set properly with or 
+--echo # Name for the column in select1 is set properly with or
 --echo # without this fix.
 SHOW CREATE VIEW v1;
 
 --echo # Name for the column in select2 is set with this fix.
---echo # Without this fix, name would not have set for the 
+--echo # Without this fix, name would not have set for the
 --echo # columns in select2.
 SHOW CREATE VIEW v2;
 
 --echo # Name for the field item in select2 & select3 is set with this fix.
---echo # Without this fix, name would not have set for the 
+--echo # Without this fix, name would not have set for the
 --echo # columns in select2 & select3.
 SHOW CREATE VIEW v3;
 
 --echo # Name for the field item in select3 is set with this fix.
---echo # Without this fix, name would not have set for the 
+--echo # Without this fix, name would not have set for the
 --echo # columns in select3.
 SHOW CREATE VIEW v4;
 
@@ -5326,12 +5326,14 @@ INSERT INTO vtt(a2,b2) VALUES (1,100);
 --error ER_NON_INSERTABLE_TABLE
 INSERT INTO vtr(a1,b1) VALUES (2,100);
 
-#INSERT INTO vtrd(a1,b1) VALUES (3,100);
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtrd(a1,b1) VALUES (3,100);
 
 --error ER_NON_INSERTABLE_TABLE
 INSERT INTO vtr(a2,b2) VALUES (2,100);
 
-#INSERT INTO vtrd(a2,b2) VALUES (3,100);
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtrd(a2,b2) VALUES (3,100);
 
 --error ER_NON_INSERTABLE_TABLE
 INSERT INTO vrt(a1,b1) VALUES (4,100);
@@ -5369,12 +5371,14 @@ INSERT INTO vtt(a2,b2) SELECT 1,100;
 --error ER_NON_INSERTABLE_TABLE
 INSERT INTO vtr(a1,b1) SELECT 2,100;
 
-#INSERT INTO vtrd(a1,b1) SELECT 3,100;
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtrd(a1,b1) SELECT 3,100;
 
 --error ER_NON_INSERTABLE_TABLE
 INSERT INTO vtr(a2,b2) SELECT 2,100;
 
-#INSERT INTO vtrd(a2,b2) SELECT 3,100;
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtrd(a2,b2) SELECT 3,100;
 
 --error ER_NON_INSERTABLE_TABLE
 INSERT INTO vrt(a1,b1) SELECT 4,100;
@@ -5418,15 +5422,16 @@ INSERT INTO t2 VALUES
 --error ER_VIEW_DELETE_MERGE_VIEW
 DELETE FROM vtt WHERE a1=1;
 
---error ER_NON_UPDATABLE_TABLE
+--error ER_VIEW_DELETE_MERGE_VIEW
 DELETE FROM vtr WHERE a1=2;
 
-#DELETE FROM vtrd WHERE a1=3;
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE FROM vtrd WHERE a1=3;
 
---error ER_NON_UPDATABLE_TABLE
+--error ER_VIEW_DELETE_MERGE_VIEW
 DELETE FROM vrt WHERE a1=4;
 
---error ER_NON_UPDATABLE_TABLE
+--error ER_VIEW_DELETE_MERGE_VIEW
 DELETE FROM vrtd WHERE a1=5;
 
 --error ER_NON_UPDATABLE_TABLE
@@ -5438,15 +5443,16 @@ DELETE FROM vrrd WHERE a1=7;
 --error ER_VIEW_DELETE_MERGE_VIEW
 DELETE vtt FROM vtt WHERE a1=8;
 
---error ER_NON_UPDATABLE_TABLE
+--error ER_VIEW_DELETE_MERGE_VIEW
 DELETE vtr FROM vtr WHERE a1=9;
 
-#DELETE vtrd FROM vtrd WHERE a1=10;
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE vtrd FROM vtrd WHERE a1=10;
 
---error ER_NON_UPDATABLE_TABLE
+--error ER_VIEW_DELETE_MERGE_VIEW
 DELETE vrt FROM vrt WHERE a1=11;
 
---error ER_NON_UPDATABLE_TABLE
+--error ER_VIEW_DELETE_MERGE_VIEW
 DELETE vrtd FROM vrtd WHERE a1=12;
 
 --error ER_NON_UPDATABLE_TABLE
@@ -5468,15 +5474,15 @@ UPDATE vtt SET b1=b1+1 WHERE a1=1;
 
 UPDATE vtt SET b2=b2+1 WHERE a2=1;
 
---error ER_NON_UPDATABLE_TABLE
 UPDATE vtr SET b1=b1+1 WHERE a1=1;
 
-#UPDATE vtrd SET b1=b1+1 WHERE a1=1;
+UPDATE vtrd SET b1=b1+1 WHERE a1=1;
 
 --error ER_NON_UPDATABLE_TABLE
 UPDATE vtr SET b2=b2+1 WHERE a2=1;
 
-#UPDATE vtrd SET b2=b2+1 WHERE a2=1;
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vtrd SET b2=b2+1 WHERE a2=1;
 
 --error ER_NON_UPDATABLE_TABLE
 UPDATE vrt SET b1=b1+1 WHERE a1=1;
@@ -5484,10 +5490,8 @@ UPDATE vrt SET b1=b1+1 WHERE a1=1;
 --error ER_NON_UPDATABLE_TABLE
 UPDATE vrtd SET b1=b1+1 WHERE a1=1;
 
---error ER_NON_UPDATABLE_TABLE
 UPDATE vrt SET b2=b2+1 WHERE a2=1;
 
---error ER_NON_UPDATABLE_TABLE
 UPDATE vrtd SET b2=b2+1 WHERE a2=1;
 
 --error ER_NON_UPDATABLE_TABLE
@@ -5506,9 +5510,9 @@ UPDATE vtt, v0 AS dt SET b1=b1+1 WHERE a1=1;
 
 UPDATE vtt, v0 SET b2=b2+1 WHERE a2=1;
 
-#UPDATE vtr, v0 SET b1=b1+1 WHERE a1=1;
+UPDATE vtr, v0 SET b1=b1+1 WHERE a1=1;
 
-#UPDATE vtrd, v0 SET b1=b1+1 WHERE a1=1;
+UPDATE vtrd, v0 SET b1=b1+1 WHERE a1=1;
 
 --error ER_NON_UPDATABLE_TABLE
 UPDATE vtr, v0 SET b2=b2+1 WHERE a2=1;
@@ -5522,9 +5526,9 @@ UPDATE vrt, v0 SET b1=b1+1 WHERE a1=1;
 --error ER_NON_UPDATABLE_TABLE
 UPDATE vrtd, v0 SET b1=b1+1 WHERE a1=1;
 
-#UPDATE vrt, v0 SET b2=b2+1 WHERE a2=1;
+UPDATE vrt, v0 SET b2=b2+1 WHERE a2=1;
 
-#UPDATE vrtd, v0 SET b2=b2+1 WHERE a2=1;
+UPDATE vrtd, v0 SET b2=b2+1 WHERE a2=1;
 
 --error ER_NON_UPDATABLE_TABLE
 UPDATE vrr, v0 SET b1=b1+1 WHERE a1=1;

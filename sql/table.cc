@@ -4863,20 +4863,16 @@ int TABLE_LIST::view_check_option(THD *thd) const
 		        (must be set to NULL by caller)
   @param      map       bit mask of tables
 
-  @retval false table not found or found only one
+  @retval false table not found or found only one (table_ref is non-NULL)
   @retval true  found several tables
-
-  @note This function should be called for tables to be updated, meaning
-        that any view references must be merged.
 */
 
 bool TABLE_LIST::check_single_table(TABLE_LIST **table_ref, table_map map)
 {
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
-    if (tbl->is_view_or_derived())
+    if (tbl->is_view_or_derived() && tbl->is_merged())
     {
-      DBUG_ASSERT(tbl->is_merged());
       if (tbl->check_single_table(table_ref, map))
         return true;
     }
@@ -6782,18 +6778,14 @@ bool TABLE_LIST::materializable_is_const() const
 
 uint TABLE_LIST::leaf_tables_count() const
 {
-  DBUG_ASSERT(is_view_or_derived() && is_merged());
+  // Join nests are not permissible, except as merged views
+  DBUG_ASSERT(nested_join == NULL || is_merged());
+  if (!is_merged())  // Base table or materialized view
+    return 1;
+
   uint count= 0;
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-  {
-    if (tbl->is_view_or_derived())
-      count+= tbl->leaf_tables_count();
-    else
-    {
-      DBUG_ASSERT(tbl->nested_join == NULL);
-      count++;
-    }
-  }
+    count+= tbl->leaf_tables_count();
 
   return count;
 }

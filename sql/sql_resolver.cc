@@ -845,8 +845,6 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
 
   DBUG_ASSERT(derived_table_count);
 
-  materialized_derived_table_count= 0;
-
   // Prepare derived tables and views that belong to this query block.
   for (TABLE_LIST *tl= get_table_list(); tl; tl= tl->next_local)
   {
@@ -906,7 +904,10 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
         DBUG_RETURN(true);        /* purecov: inspected */
       if (tl->setup_materialized_derived(thd))
         DBUG_RETURN(true);        /* purecov: inspected */
-      materialized_derived_table_count++;
+      /*
+        materialized_derived_table_count was incremented during preparation,
+        so do not do it once more.
+      */
     }
   }
 
@@ -2280,11 +2281,32 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Set up permanent list of underlying tables of a merged view
   derived_table->merge_underlying_list= derived_select->get_table_list();
 
-  if (derived_table->updatable_view &&
-      (derived_table->merge_underlying_list == NULL ||
-       derived_table->merge_underlying_list->is_updatable()))
-    derived_table->set_updatable();
-
+  /**
+    A view is updatable if any underlying table is updatable.
+    A view is insertable-into if all underlying tables are insertable.
+    A view is not updatable nor insertable if it contains an outer join
+    @see mysql_register_view()
+  */
+  if (derived_table->is_view())
+  {
+    bool updatable= false;
+    bool insertable= true;
+    bool outer_joined= false;
+    for (TABLE_LIST *tr= derived_table->merge_underlying_list;
+         tr;
+         tr= tr->next_local)
+    {
+      updatable|= tr->is_updatable();
+      insertable&= tr->is_insertable();
+      outer_joined|= tr->is_inner_table_of_outer_join();
+    }
+    updatable&= !outer_joined;
+    insertable&= !outer_joined;
+    if (updatable)
+      derived_table->set_updatable();
+    if (insertable)
+      derived_table->set_insertable();
+  }
   // Add a nested join object to the derived table object
   if (!(derived_table->nested_join=
        (NESTED_JOIN *) thd->mem_calloc(sizeof(NESTED_JOIN))))
