@@ -1,0 +1,15 @@
+SET @debug_save= @@GLOBAL.DEBUG;
+SET GLOBAL debug='+d,error_unique_log_filename';
+FLUSH LOGS;
+ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
+
+RESET MASTER;
+ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
+
+SET GLOBAL debug='-d,error_unique_log_filename';
+SET @@GLOBAL.DEBUG= @debug_save;
+RESET MASTER;
+ERROR HY000: Target log not found in binlog index
+FLUSH LOGS;
+Got one of the listed errors
+RESET MASTER;
