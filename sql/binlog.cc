@@ -6250,7 +6250,13 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     }
     bytes_written += r.common_header->data_written;
   }
-  flush_io_cache(&log_file);
+
+  if ((error= flush_io_cache(&log_file)))
+  {
+    close_on_error= true;
+    goto end;
+  }
+
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
   if (!is_relay_log)
@@ -6313,7 +6319,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 
 end:
 
-  if (error && close_on_error /* rotate or reopen failed */)
+  if (error && close_on_error /* rotate, flush or reopen failed */)
   {
     /* 
       Close whatever was left opened.
