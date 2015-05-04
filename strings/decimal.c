@@ -1025,7 +1025,11 @@ int ulonglong2decimal(ulonglong from, decimal_t *to)
 int longlong2decimal(longlong from, decimal_t *to)
 {
   if ((to->sign= from < 0))
+  {
+    if (from == LONGLONG_MIN) // avoid undefined behavior
+      return ull2dec((ulonglong)LONGLONG_MIN, to);
     return ull2dec(-from, to);
+  }
   return ull2dec(from, to);
 }
 
