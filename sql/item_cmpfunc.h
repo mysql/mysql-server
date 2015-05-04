@@ -947,12 +947,6 @@ class Item_func_interval :public Item_int_func
   my_bool use_decimal_comparison;
   interval_range *intervals;
 public:
-  Item_func_interval(Item_row *a)
-    :Item_int_func(a),row(a),intervals(0)
-  {
-    allowed_arg_cols= 0;    // Fetch this value from first argument
-  }
-
   Item_func_interval(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
                      Item *expr2, class PT_item_list *opt_expr_list= NULL)
     :super(pos, alloc_row(pos, mem_root, expr1, expr2, opt_expr_list)),
