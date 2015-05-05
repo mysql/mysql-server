@@ -409,3 +409,16 @@ SELECT ST_ASTEXT(ST_CENTROID(0x010400000002000000010100000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
 # Clean up
 DROP TABLE gis_geometrycollection;
+#
+# Bug #20918881 CRASH WITH CENTROID - INVALID FREE
+#
+DO ST_Centroid(
+GeometryCollection(
+Polygon(
+LineString(Point(1, 1), Point(2, 2), Point(14, 7)),
+LineString(Point(1, 1), Point(2, 2), Point(3, 3))
+)
+)
+);
+Warnings:
+Error	3037	Invalid GIS data provided to function st_centroid.
