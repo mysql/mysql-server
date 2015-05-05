@@ -1984,8 +1984,8 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
     respt.set_srid(geom->get_srid());
     if (!null_value)
       null_value= post_fix_result(&bg_resbuf_mgr, respt, ptwkb);
-
-    bg_resbuf_mgr.set_result_buffer(const_cast<char *>(ptwkb->ptr()));
+    if (!null_value)
+      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(ptwkb->ptr()));
   }
   CATCH_ALL("st_centroid", null_value= true)
 
@@ -2024,8 +2024,7 @@ String *Item_func_convex_hull::val_str(String *str)
     return error_str();
   }
 
-  null_value= bg_convex_hull<bgcs::cartesian>(geom, str);
-  if (null_value)
+  if (bg_convex_hull<bgcs::cartesian>(geom, str))
     return error_str();
 
   // By taking over, str owns swkt->ptr and the memory will be released when
@@ -2091,8 +2090,9 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
 
       if (isdone)
       {
-        bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
-        return false;
+        if (!null_value)
+          bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+        return null_value;
       }
     }
 
@@ -2171,7 +2171,8 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
 
     hull.set_srid(geom->get_srid());
     null_value= post_fix_result(&bg_resbuf_mgr, hull, res_hull);
-    bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+    if (!null_value)
+      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
   }
   CATCH_ALL("st_convexhull", null_value= true)
 
