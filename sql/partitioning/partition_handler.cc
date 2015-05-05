@@ -1888,9 +1888,8 @@ int Partition_helper::ph_rnd_init(bool scan)
     /* A scan can be restarted without rnd_end() in between! */
     if (m_scan_value == 1 && m_part_spec.start_part != NOT_A_PARTITION_ID)
     {
-      DBUG_ASSERT(m_part_spec.start_part == part_id);
-      DBUG_ASSERT(0);
-      if ((error= rnd_end_in_part(part_id, scan)))
+      /* End previous scan on partition before restart. */
+      if ((error= rnd_end_in_part(m_part_spec.start_part, scan)))
       {
         DBUG_RETURN(error);
       }
