@@ -10913,34 +10913,222 @@ extern void ndb_fk_util_resolve_mock_tables(THD* thd,
                                             const char* new_parent_db,
                                             const char* new_parent_name);
 
+
+int
+ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
+                                 const NdbDictionary::Table* orig_tab,
+                                 const char* from, const char* to,
+                                 const char* old_dbname,
+                                 const char* old_tabname,
+                                 const char* new_dbname,
+                                 const char* new_tabname,
+                                 bool real_rename,
+                                 const char* real_rename_db,
+                                 const char* real_rename_name,
+                                 bool real_rename_log_on_participant,
+                                 bool drop_events,
+                                 bool create_events,
+                                 bool commit_alter)
+{
+  DBUG_ENTER("ha_ndbcluster::rename_table_impl");
+  DBUG_PRINT("info", ("real_rename: %d", real_rename));
+  DBUG_PRINT("info", ("real_rename_db: '%s'", real_rename_db));
+  DBUG_PRINT("info", ("real_rename_name: '%s'", real_rename_name));
+  DBUG_PRINT("info", ("real_rename_log_on_participant: %d",
+                      real_rename_log_on_participant));
+  // Verify default values of real_rename related parameters
+  DBUG_ASSERT(real_rename ||
+              (real_rename_db == NULL &&
+               real_rename_name == NULL &&
+               real_rename_log_on_participant == false));
+
+  DBUG_PRINT("info", ("drop_events: %d", drop_events));
+  DBUG_PRINT("info", ("create_events: %d", create_events));
+  DBUG_PRINT("info", ("commit_alter: %d", commit_alter));
+
+  NDBDICT* dict = ndb->getDictionary();
+  NDBDICT::List index_list;
+  if (my_strcasecmp(system_charset_info, new_dbname, old_dbname))
+  {
+    // When moving tables between databases the indexes need to be
+    // recreated, save list of indexes before rename to allow
+    // them to be recreated afterwards
+    dict->listIndexes(index_list, *orig_tab);
+  }
+
+  // Change current database to that of target table
+  if (ndb->setDatabaseName(new_dbname))
+  {
+    ERR_RETURN(ndb->getNdbError());
+  }
+
+  const int ndb_table_id= orig_tab->getObjectId();
+  const int ndb_table_version= orig_tab->getObjectVersion();
+
+  Ndb_share_temp_ref share(from);
+  if (real_rename)
+  {
+    /*
+      Prepare the rename on the participant, i.e make the participant
+      save the final table name in the NDB_SHARE of the table to be renamed.
+
+      NOTE! The tricky thing here is that the NDB_SHARE haven't yet been
+      renamed on the participant and thus you have to use the original
+      table name when communicating with the participant, otherwise it
+      will not find the share where to stash the final table name.
+
+      Also note that the main reason for doing this prepare phase
+      (which the participant can't refuse) is due to lack of placeholders
+      available in the schema dist protocol. There are simply not
+      enough placeholders available to transfer all required parameters
+      at once.
+   */
+    ndbcluster_log_schema_op(thd, to, (int)strlen(to),
+                             real_rename_db, real_rename_name,
+                             ndb_table_id, ndb_table_version,
+                             SOT_RENAME_TABLE_PREPARE,
+                             new_dbname /* unused */,
+                             new_tabname /* unused */);
+  }
+
+  ndbcluster_prepare_rename_share(share, to);
+  (void)ndbcluster_rename_share(thd, share);
+
+  NdbDictionary::Table new_tab= *orig_tab;
+  new_tab.setName(new_tabname);
+  if (dict->alterTableGlobal(*orig_tab, new_tab) != 0)
+  {
+    NdbError ndb_error= dict->getNdbError();
+    (void)ndbcluster_undo_rename_share(thd, share);
+    ERR_RETURN(ndb_error);
+  }
+
+  ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(),
+                                  new_dbname, new_tabname);
+
+  {
+    // Rename .ndb file
+    int result;
+    if ((result= handler::rename_table(from, to)))
+    {
+      // ToDo in 4.1 should rollback alter table...
+
+      DBUG_RETURN(result);
+    }
+  }
+
+  /* handle old table */
+  if (drop_events)
+  {
+    ndbcluster_drop_event(thd, ndb, share,
+                          old_dbname, old_tabname);
+  }
+
+  if (create_events)
+  {
+    Ndb_table_guard ndbtab_g2(dict, new_tabname);
+    const NDBTAB *ndbtab= ndbtab_g2.get_table();
+#ifdef HAVE_NDB_BINLOG
+    ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
+                                       ::server_id, TRUE);
+#endif
+    /* always create an event for the table */
+    String event_name(INJECTOR_EVENT_LEN);
+    ndb_rep_event_name(&event_name, new_dbname, new_tabname,
+                       get_binlog_full(share));
+
+    if (!Ndb_dist_priv_util::is_distributed_priv_table(new_dbname,
+                                                       new_tabname) &&
+        !ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share,
+                                 ndb_binlog_running ? 2 : 1/* push warning */))
+    {
+      if (opt_ndb_extra_logging)
+        sql_print_information("NDB Binlog: RENAME Event: %s",
+                              event_name.c_ptr());
+      if (share->op == 0 &&
+          ndbcluster_create_event_ops(thd, share, ndbtab, event_name.c_ptr()))
+      {
+        sql_print_error("NDB Binlog: FAILED create event operations "
+                        "during RENAME. Event %s", event_name.c_ptr());
+        /* a warning has been issued to the client */
+      }
+    }
+    /*
+      warning has been issued if ndbcluster_create_event failed
+      and ndb_binlog_running
+    */
+  }
+
+  if (real_rename)
+  {
+    /*
+      Commit of "real" rename table on participant i.e make the participant
+      extract the original table name which it got in prepare.
+
+      NOTE! The tricky thing also here is that the NDB_SHARE haven't yet been
+      renamed on the participant and thus you have to use the original
+      table name when communicating with the participant, otherwise it
+      will not find the share where the final table name has been stashed.
+
+      Also note the special flag which control wheter or not this
+      query is written to binlog or not on the participants.
+    */
+    ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
+                             real_rename_db, real_rename_name,
+                             ndb_table_id, ndb_table_version,
+                             SOT_RENAME_TABLE,
+                             new_dbname, new_tabname,
+                             real_rename_log_on_participant);
+  }
+
+  if (commit_alter)
+  {
+    /* final phase of offline alter table */
+    ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
+                             new_dbname, new_tabname,
+                             ndb_table_id, ndb_table_version,
+                             SOT_ALTER_TABLE_COMMIT,
+                             NULL, NULL);
+  }
+
+  for (unsigned i = 0; i < index_list.count; i++)
+  {
+    NDBDICT::List::Element& index_el = index_list.elements[i];
+    // Recreate any indexes not stored in the system database
+    if (my_strcasecmp(system_charset_info,
+                      index_el.database, NDB_SYSTEM_DATABASE))
+    {
+      // Get old index
+      ndb->setDatabaseName(old_dbname);
+      const NDBINDEX * index= dict->getIndexGlobal(index_el.name,  new_tab);
+      DBUG_PRINT("info", ("Creating index %s/%s",
+                          index_el.database, index->getName()));
+      // Create the same "old" index on new tab
+      dict->createIndex(*index, new_tab);
+      DBUG_PRINT("info", ("Dropping index %s/%s",
+                          index_el.database, index->getName()));
+      // Drop old index
+      ndb->setDatabaseName(old_dbname);
+      dict->dropIndexGlobal(*index);
+    }
+  }
+  DBUG_RETURN(0);
+}
+
+
 /**
-  Rename a table in NDB Cluster.
+  Rename a table in NDB and on the participating mysqld(s)
 */
 
 int ha_ndbcluster::rename_table(const char *from, const char *to)
 {
   THD *thd= current_thd;
-  NDBDICT *dict;
   char old_dbname[FN_HEADLEN];
   char new_dbname[FN_HEADLEN];
   char new_tabname[FN_HEADLEN];
-  const NDBTAB *orig_tab;
-  int result;
-  bool recreate_indexes= FALSE;
-  NDBDICT::List index_list;
 
   DBUG_ENTER("ha_ndbcluster::rename_table");
   DBUG_PRINT("info", ("Renaming %s to %s", from, to));
-
-  if (thd == injector_thd)
-  {
-    /*
-      Table was renamed remotely is already
-      renamed inside ndb.
-      Just rename .ndb file.
-     */
-    DBUG_RETURN(handler::rename_table(from, to));
-  }
 
   /*
     ALTER RENAME with some more change is currently not supported
@@ -10958,7 +11146,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     if (flags & Alter_info::ALTER_RENAME && flags & ~Alter_info::ALTER_RENAME)
     {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query().str);
-      DBUG_RETURN(my_errno= ER_NOT_SUPPORTED_YET);
+      DBUG_RETURN(ER_NOT_SUPPORTED_YET);
     }
   }
 
@@ -10967,203 +11155,208 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   set_tabname(from);
   set_tabname(to, new_tabname);
 
-  /* now check if the new table name or new database name exceeds max limits */
+  DBUG_PRINT("info", ("old_tabname: '%s'", m_tabname));
+  DBUG_PRINT("info", ("new_tabname: '%s'", new_tabname));
+
+  /* Check that the new table or database name does not exceed max limit */
   if (strlen(new_dbname) > NDB_MAX_DDL_NAME_BYTESIZE ||
        strlen(new_tabname) > NDB_MAX_DDL_NAME_BYTESIZE)
   {
     char *invalid_identifier=
-        (strlen(new_dbname) > NDB_MAX_DDL_NAME_BYTESIZE)?new_dbname:new_tabname;
+        (strlen(new_dbname) > NDB_MAX_DDL_NAME_BYTESIZE) ?
+          new_dbname : new_tabname;
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_TOO_LONG_IDENT,
-                        "Ndb has an internal limit of %u bytes on the size of schema identifiers",
+                        "Ndb has an internal limit of %u bytes on the "\
+                        "size of schema identifiers",
                         NDB_MAX_DDL_NAME_BYTESIZE);
     my_error(ER_TOO_LONG_IDENT, MYF(0), invalid_identifier);
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
   if (check_ndb_connection(thd))
-    DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   Thd_ndb *thd_ndb= thd_get_thd_ndb(thd);
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::rename_table"))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
+  // Open the table which is to be renamed(aka. the old)
   Ndb *ndb= get_ndb(thd);
   ndb->setDatabaseName(old_dbname);
-  dict= ndb->getDictionary();
+  NDBDICT *dict= ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict, m_tabname);
+  const NDBTAB *orig_tab;
   if (!(orig_tab= ndbtab_g.get_table()))
     ERR_RETURN(dict->getNdbError());
+  DBUG_PRINT("info", ("NDB table name: '%s'", orig_tab->getName()));
 
-  if (my_strcasecmp(system_charset_info, new_dbname, old_dbname))
+  // Magically detect if this is a rename or some form of alter
+  // and decide which actions need to be performed
+  const bool old_is_temp = IS_TMP_PREFIX(m_tabname);
+  const bool new_is_temp = IS_TMP_PREFIX(new_tabname);
+  switch (thd_sql_command(thd))
   {
-    dict->listIndexes(index_list, *orig_tab);    
-    recreate_indexes= TRUE;
-  }
-  // Change current database to that of target table
-  set_dbname(to);
-  if (ndb->setDatabaseName(m_dbname))
-  {
-    ERR_RETURN(ndb->getNdbError());
-  }
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_CREATE_INDEX:
+    DBUG_PRINT("info", ("CREATE or DROP INDEX as copying ALTER"));
+    // fallthrough
+  case SQLCOM_ALTER_TABLE:
+    DBUG_PRINT("info", ("SQLCOM_ALTER_TABLE"));
 
-  int ndb_table_id= orig_tab->getObjectId();
-  int ndb_table_version= orig_tab->getObjectVersion();
-  /* ndb_share reference temporary */
-  NDB_SHARE *share= get_share(from, 0, FALSE);
-  int is_old_table_tmpfile= IS_TMP_PREFIX(m_tabname);
-  int is_new_table_tmpfile= IS_TMP_PREFIX(new_tabname);
-  if (!is_new_table_tmpfile && !is_old_table_tmpfile)
-  {
+    if (!new_is_temp && !old_is_temp)
+    {
+      /*
+        This is a rename directly from real to real which occurs:
+        1) when the ALTER is "simple" RENAME i.e only consists of RENAME
+           and/or enable/disable indexes
+        2) as part of inplace ALTER .. RENAME
+       */
+      DBUG_PRINT("info", ("simple rename detected"));
+      DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, from, to,
+                                    old_dbname, m_tabname,
+                                    new_dbname, new_tabname,
+                                    true, // real_rename
+                                    old_dbname, // real_rename_db
+                                    m_tabname, // real_rename_name
+                                    true, // real_rename_log_on_participants
+                                    true, // drop_events
+                                    true, // create events
+                                    false)); // commit_alter
+    }
+
+    // Make sure that inplace was not requested
+    DBUG_ASSERT(thd->lex->alter_info.requested_algorithm !=
+                  Alter_info::ALTER_TABLE_ALGORITHM_INPLACE);
+
     /*
-      this is a "real" rename table, i.e. not tied to an offline alter table
-      - send new name == "to" in query field
+      This is a copying alter table which is implemented as
+      1) Create destination table with temporary name
+          -> ha_ndbcluster::create_table('#sql_75636-87')
+          There are now the source table and one with temporary name:
+             [t1] + [#sql_75636-87]
+      2) Copy data from source table to destination table.
+      3) Backup the source table by renaming it to another temporary name.
+          -> ha_ndbcluster::rename_table('t1', '#sql_86545-98')
+          There are now two temporary named tables:
+            [#sql_86545-98] + [#sql_75636-87]
+      4) Rename the destination table to it's real name.
+          ->  ha_ndbcluster::rename_table('#sql_75636-87', 't1')
+      5) Drop the source table
+
+
     */
-    ndbcluster_log_schema_op(thd, to, (int)strlen(to),
-                             old_dbname, m_tabname,
-                             ndb_table_id, ndb_table_version,
-                             SOT_RENAME_TABLE_PREPARE,
-                             m_dbname, new_tabname);
-  }
-  if (share)
-  {
-    DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                             share->key, share->use_count));
-    ndbcluster_prepare_rename_share(share, to);
-    int ret = ndbcluster_rename_share(thd, share);
-    assert(ret == 0); NDB_IGNORE_VALUE(ret);
-  }
 
-  NdbDictionary::Table new_tab= *orig_tab;
-  new_tab.setName(new_tabname);
-  if (dict->alterTableGlobal(*orig_tab, new_tab) != 0)
-  {
-    NdbError ndb_error= dict->getNdbError();
-    if (share)
+    if (new_is_temp)
     {
-      int ret = ndbcluster_undo_rename_share(thd, share);
-      assert(ret == 0); NDB_IGNORE_VALUE(ret);
-      /* ndb_share reference temporary free */
-      DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                               share->key, share->use_count));
-      free_share(&share);
+      /*
+        This is an alter table which renames real name to temp name.
+        ie. step 3) per above and is the first of
+        two rename_table() calls. Drop events from the table.
+      */
+      DBUG_PRINT("info", ("real -> temp"));
+      DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, from, to,
+                                    old_dbname, m_tabname,
+                                    new_dbname, new_tabname,
+                                    false, // real_rename
+                                    NULL, // real_rename_db
+                                    NULL, // real_rename_name
+                                    false, // real_rename_log_on_participants
+                                    true, // drop_events
+                                    false, // create events
+                                    false)); // commit_alter
     }
-    ERR_RETURN(ndb_error);
-  }
 
-  ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(),
-                                  new_dbname, new_tabname);
-
-  // Rename .ndb file
-  if ((result= handler::rename_table(from, to)))
-  {
-    // ToDo in 4.1 should rollback alter table...
-    if (share)
+    if (old_is_temp)
     {
-      /* ndb_share reference temporary free */
-      DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                               share->key, share->use_count));
-      free_share(&share);
-    }
-    DBUG_RETURN(result);
-  }
+      /*
+        This is an alter table which renames temp name to real name.
+        ie. step 5) per above and is the second call to rename_table().
+        Create new events and commit the alter so that participant are
+        made aware that the table changed and can reopen the table.
+      */
+      DBUG_PRINT("info", ("temp -> real"));
 
-  /* handle old table */
-  if (!is_old_table_tmpfile)
-  {
-    ndbcluster_drop_event(thd, ndb, share,
-                          old_dbname, m_tabname);
-  }
+      /*
+        Detect if this is the special case which occurs when
+        the table is both altered and renamed.
 
-  if (!result && !is_new_table_tmpfile)
-  {
-    Ndb_table_guard ndbtab_g2(dict, new_tabname);
-    const NDBTAB *ndbtab= ndbtab_g2.get_table();
-#ifdef HAVE_NDB_BINLOG
-    if (share)
-      ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
-                                         ::server_id, TRUE);
-#endif
-    /* always create an event for the table */
-    String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, new_dbname, new_tabname, 
-                       get_binlog_full(share));
-
-    if (!Ndb_dist_priv_util::is_distributed_priv_table(new_dbname,
-                                                       new_tabname) &&
-        !ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share,
-                                 share && ndb_binlog_running ? 2 : 1/* push warning */))
-    {
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: RENAME Event: %s",
-                              event_name.c_ptr());
-      if (share && (share->op == 0) &&
-          ndbcluster_create_event_ops(thd, share, ndbtab, event_name.c_ptr()))
+        Important here is to remeber to rename the table also
+        on all partiticipants so they will find the table when
+        the alter is completed. This is slightly problematic since
+        their table is renamed directly from real to real name, while
+        the mysqld who performs the alter renames from temp to real
+        name. Fortunately it's possible to lookup the original table
+        name via THD.
+      */
+      const char* orig_name = thd->lex->select_lex->table_list.first->table_name;
+      const char* orig_db = thd->lex->select_lex->table_list.first->db;
+      if (thd->lex->alter_info.flags & Alter_info::ALTER_RENAME &&
+          (my_strcasecmp(system_charset_info, orig_db, new_dbname) ||
+           my_strcasecmp(system_charset_info, orig_name, new_tabname)))
       {
-        sql_print_error("NDB Binlog: FAILED create event operations "
-                        "during RENAME. Event %s", event_name.c_ptr());
-        /* a warning has been issued to the client */
+        DBUG_PRINT("info", ("ALTER with RENAME detected"));
+        /*
+          Use the original table name when communicating with participant
+        */
+        const char* real_rename_db = orig_db;
+        const char* real_rename_name = orig_name;
+
+        /*
+          Don't log the rename query on participant since that would
+          cause both an ALTER TABLE RENAME and RENAME TABLE to appear in
+          the binlog
+        */
+        const bool real_rename_log_on_participant = false;
+        DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab,from,to,
+                                      old_dbname, m_tabname,
+                                      new_dbname, new_tabname,
+                                      true, // real_rename
+                                      real_rename_db,
+                                      real_rename_name,
+                                      real_rename_log_on_participant,
+                                      false, // drop_events
+                                      true, // create events
+                                      true)); // commit_alter
       }
-    }
-    /*
-      warning has been issued if ndbcluster_create_event failed
-      and (share && ndb_binlog_running)
-    */
-    if (!is_old_table_tmpfile)
-    {
-      /* "real" rename table */
-      ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
-                               old_dbname, m_tabname,
-                               ndb_table_id, ndb_table_version,
-                               SOT_RENAME_TABLE,
-                               m_dbname, new_tabname);
-    }
-    else
-    {
-      /* final phase of offline alter table */
-      ndbcluster_log_schema_op(thd, thd->query().str, thd->query().length,
-                               m_dbname, new_tabname,
-                               ndb_table_id, ndb_table_version,
-                               SOT_ALTER_TABLE_COMMIT,
-                               NULL, NULL);
 
+      DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab,from,to,
+                                    old_dbname, m_tabname,
+                                    new_dbname, new_tabname,
+                                    false, // real_rename
+                                    NULL, // real_rename_db
+                                    NULL, // real_rename_name
+                                    false, // real_rename_log_on_participants
+                                    false, // drop_events
+                                    true, // create events
+                                    true)); // commit_alter
     }
+    break;
+
+  case SQLCOM_RENAME_TABLE:
+    DBUG_PRINT("info", ("SQLCOM_RENAME_TABLE"));
+
+    DBUG_RETURN(rename_table_impl(thd, ndb, orig_tab, from, to,
+                                  old_dbname, m_tabname,
+                                  new_dbname, new_tabname,
+                                  true, // real_rename
+                                  old_dbname, // real_rename_db
+                                  m_tabname, // real_rename_name
+                                  true, // real_rename_log_on_participants
+                                  true, // drop_events
+                                  true, // create events
+                                  false)); // commit_alter
+    break;
+
+  default:
+    sql_print_error("Unexpected rename case detected, sql_command: %d",
+                    thd_sql_command(thd));
+    abort();
+    break;
   }
 
-  // If we are moving tables between databases, we need to recreate
-  // indexes
-  if (recreate_indexes)
-  {
-    for (unsigned i = 0; i < index_list.count; i++) 
-    {
-        NDBDICT::List::Element& index_el = index_list.elements[i];
-	// Recreate any indexes not stored in the system database
-	if (my_strcasecmp(system_charset_info, 
-			  index_el.database, NDB_SYSTEM_DATABASE))
-	{
-	  set_dbname(from);
-	  ndb->setDatabaseName(m_dbname);
-	  const NDBINDEX * index= dict->getIndexGlobal(index_el.name,  new_tab);
-	  DBUG_PRINT("info", ("Creating index %s/%s",
-			      index_el.database, index->getName()));
-	  dict->createIndex(*index, new_tab);
-	  DBUG_PRINT("info", ("Dropping index %s/%s",
-			      index_el.database, index->getName()));
-	  set_dbname(from);
-	  ndb->setDatabaseName(m_dbname);
-	  dict->dropIndexGlobal(*index);
-	}
-    }
-  }
-  if (share)
-  {
-    /* ndb_share reference temporary free */
-    DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             share->key, share->use_count));
-    free_share(&share);
-  }
-
-  DBUG_RETURN(result);
+  // Never reached
+  DBUG_RETURN(HA_ERR_UNSUPPORTED);
 }
 
 
@@ -14015,6 +14208,8 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
     // ToDo free the allocated stuff above?
     DBUG_PRINT("error", ("ndbcluster_rename_share: my_hash_insert %s failed",
                          share->key));
+    // Catch this unlikely error in debug
+    DBUG_ASSERT(false);
     share->key= old_key;
     share->key_length= old_length;
     if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))

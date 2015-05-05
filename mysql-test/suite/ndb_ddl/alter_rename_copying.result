@@ -1,0 +1,22 @@
+ALTER TABLE t1
+algorithm=copy,
+RENAME TO t1_new_name;
+ALTER TABLE t2
+algorithm=copy,
+RENAME TO t2;
+ALTER TABLE t3
+algorithm=copy,
+RENAME TO ndb_ddl_test2.t3;
+ALTER TABLE t4
+algorithm=copy,
+RENAME TO ndb_ddl_test2.t4_new_name;
+ALTER TABLE t5
+algorithm=copy,
+RENAME TO t5_new_name;
+ALTER TABLE t6
+algorithm=copy,
+RENAME TO t6_new_name;
+ALTER TABLE t7
+algorithm=copy,
+RENAME TO t7_new_name;
+== verify_mysql_dd.inc ==

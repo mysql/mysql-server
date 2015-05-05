@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -198,5 +198,60 @@ inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
 {
   ndbcluster_free_share(share, have_lock);
 }
+
+/**
+   @brief Utility class for working with a temporary
+          NDB_SHARE* references RAII style
+
+          The class will automatically "get" a NDB_SHARE*
+          reference and release it when going out of scope.
+ */
+class Ndb_share_temp_ref {
+  NDB_SHARE* m_share;
+
+  Ndb_share_temp_ref(const Ndb_share_temp_ref&); // prevent
+  Ndb_share_temp_ref& operator=(const Ndb_share_temp_ref&); // prevent
+public:
+  Ndb_share_temp_ref(const char* key)
+  {
+    m_share= get_share(key, NULL, FALSE);
+     // Should always exist
+    assert(m_share);
+     // already existed + this temp ref
+    assert(m_share->use_count >= 2);
+
+    DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
+                             m_share->key, m_share->use_count));
+  }
+
+  ~Ndb_share_temp_ref()
+  {
+    /* release the temporary reference */
+    assert(m_share);
+    // at least  this temp ref
+    assert(m_share->use_count > 0);
+
+    /* ndb_share reference temporary free */
+    DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
+                             m_share->key, m_share->use_count));
+
+    free_share(&m_share);
+  }
+
+  // Return the NDB_SHARE* by type conversion operator
+  operator NDB_SHARE*() const
+  {
+    assert(m_share);
+    return m_share;
+  }
+
+  // Return the NDB_SHARE* when using pointer operator
+  const NDB_SHARE* operator->() const
+  {
+    assert(m_share);
+    return m_share;
+  }
+};
+
 
 #endif

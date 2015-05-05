@@ -1,0 +1,19 @@
+--source setup.inc
+
+
+# Check behviour of RENAME to same name
+--error ER_TABLE_EXISTS_ERROR
+RENAME TABLE t2 to t2;
+# Skip test to same name(since it returns a proper error)
+let $skip_test_same_name = 1;
+
+# Test RENAME TABLE with one(single) table
+# - mysqld will rename the table
+# - run the same tests as is done for the different ALTER TABLE .. RENAME
+#   combinations
+#
+let $query =
+RENAME TABLE tx TO ty;
+--source alter_rename.inc
+
+--source cleanup.inc

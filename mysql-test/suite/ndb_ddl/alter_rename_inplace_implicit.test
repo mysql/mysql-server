@@ -1,0 +1,19 @@
+--source setup.inc
+
+# Test ALTER TABLE with implicit inplace rename
+# - will try to perform the rename using inplace API
+# - NOTE! caveat is that inplace API will only be used if there are
+#   other changes to the table - else "simple rename" will be used
+#   thus the test will add a column and rename table at same time
+#
+# Query fails since ndbcluster does not yet support ALTER RENAME
+# in combination with another change
+
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1
+  ADD COLUMN c INT,
+  RENAME TO t1_renamed;
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc

@@ -1,0 +1,10 @@
+RENAME TABLE t2 to t2;
+ERROR 42S01: Table 't2' already exists
+RENAME TABLE t1 TO t1_new_name;
+RENAME TABLE t2 TO t2_new_name;
+RENAME TABLE t3 TO ndb_ddl_test2.t3;
+RENAME TABLE t4 TO ndb_ddl_test2.t4_new_name;
+RENAME TABLE t5 TO t5_new_name;
+RENAME TABLE t6 TO t6_new_name;
+RENAME TABLE t7 TO t7_new_name;
+== verify_mysql_dd.inc ==
