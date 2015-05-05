@@ -1,3 +1,5 @@
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
 
 #
 # Only global
