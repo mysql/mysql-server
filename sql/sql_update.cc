@@ -1657,7 +1657,7 @@ bool mysql_multi_update(THD *thd,
   res= handle_query(thd, thd->lex, *result,
                     SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                     OPTION_SETUP_TABLES_DONE,
-                    0);
+                    OPTION_BUFFER_RESULT);
 
   DBUG_PRINT("info",("res: %d  report_error: %d",res, (int) thd->is_error()));
   res|= thd->is_error();

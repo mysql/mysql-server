@@ -9336,8 +9336,6 @@ x
 x
 DROP TABLE t1, t2, t3;
 # End of test for bug#13545215.
-set @tmp_opt_switch=@@optimizer_switch;
-set optimizer_switch='loosescan=off';
 #
 # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
 # MATERIALIZATION + SEMIJOIN ON
@@ -9370,12 +9368,12 @@ t1 AS sq2_alias1, t1 AS sq2_alias2
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Start temporary
-1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
-1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-1	SIMPLE	sq2_alias1	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias2.col_varchar_nokey	2	100.00	Using index; End temporary
+1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	sq2_alias1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	4	100.00	Using index; LooseScan
+1	SIMPLE	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(sq2_alias1)
+1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`alias1`.`col_varchar_nokey` AS `a1_nokey`,`test`.`alias1`.`col_varchar_key` AS `a1_key`,`test`.`alias2`.`col_varchar_nokey` AS `a2_nokey` from `test`.`t1` `alias1` semi join (`test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias2` where ((`test`.`sq2_alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_nokey`) and (`test`.`alias1`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_nokey`))
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_varchar_nokey` AS `a1_nokey`,`test`.`alias1`.`col_varchar_key` AS `a1_key`,`test`.`alias2`.`col_varchar_nokey` AS `a2_nokey` from `test`.`t1` `alias1` semi join (`test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias2` where ((`test`.`alias2`.`col_varchar_nokey` = `test`.`sq2_alias1`.`col_varchar_key`) and (`test`.`sq2_alias2`.`col_varchar_nokey` = `test`.`alias1`.`col_varchar_nokey`))
 SELECT
 alias1.col_varchar_nokey AS a1_nokey,
 alias1.col_varchar_key AS a1_key,
@@ -9403,7 +9401,6 @@ v	v	v
 v	v	v
 v	v	v
 DROP TABLE t1;
-set @@optimizer_switch=@tmp_opt_switch;
 #
 # Bug#13541406: Wrong result with loosescan on select .. where .. in
 #

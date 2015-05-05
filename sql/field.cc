@@ -7693,7 +7693,12 @@ uint Field_varstring::packed_col_length(const uchar *data_ptr, uint length)
 
 size_t Field_varstring::get_key_image(uchar *buff, size_t length, imagetype type)
 {
-  uint f_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
+  /*
+    If NULL, data bytes may have been left random by the storage engine, so
+    don't try to read them.
+  */
+  uint f_length= is_null() ? 0 :
+    (length_bytes == 1 ? (uint) *ptr : uint2korr(ptr));
   uint local_char_length= length / field_charset->mbmaxlen;
   uchar *pos= ptr+length_bytes;
   local_char_length= my_charpos(field_charset, pos, pos + f_length,
