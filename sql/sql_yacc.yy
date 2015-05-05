@@ -1506,7 +1506,7 @@ END_OF_INPUT
 
 %type <select_options_and_item_list> select_options_and_item_list
 
-%type <select_part2> select_part2
+%type <select_part2> select_part2 select_statement_single_row
 
 %type <query_primary> query_primary
 
@@ -8894,6 +8894,74 @@ select:
           {
             $$= NEW_PTN PT_select($1);
           }
+        | select_statement_single_row
+          {
+            $$= NEW_PTN PT_select
+              (NEW_PTN PT_query_expression_single
+               (NEW_PTN PT_query_term_primary
+                (NEW_PTN PT_query_primary($1))));
+          }
+        ;
+
+select_statement_single_row:
+          SELECT_SYM
+          select_options_and_item_list
+          into
+          opt_from_clause
+          opt_where_clause
+          opt_group_clause
+          opt_having_clause
+          opt_order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_select_lock_type
+          {
+            if ($10)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+            $$= NEW_PTN PT_select_part2($2, // select_options_and_item_list
+                                        $3, // into
+                                        $4, // opt_from_clause
+                                        $5, // opt_where_clause
+                                        $6, // opt_group_clause
+                                        $7, // opt_having_clause
+                                        $8, // opt_order_clause
+                                        $9, // opt_limit_clause
+                                        $10, // opt_procedure_analyse_clause
+                                        NULL, // second into
+                                        $11); // opt_select_lock_type
+          }
+        | SELECT_SYM
+          select_options_and_item_list
+          from_clause
+          opt_where_clause
+          opt_group_clause
+          opt_having_clause
+          opt_order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          into
+          opt_select_lock_type
+          {
+            if ($9 != NULL)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+            $$= NEW_PTN PT_select_part2($2, // select_options_and_item_list
+                                        NULL, // first into
+                                        $3, // opt_from_clause
+                                        $4, // opt_where_clause
+                                        $5, // opt_group_clause
+                                        $6, // opt_having_clause
+                                        $7, // opt_order_clause
+                                        $8, // opt_limit_clause
+                                        $9, // opt_procedure_analyse_clause
+                                        $10, // second into
+                                        $11); // opt_select_lock_type
+          }
         ;
 
 /*
@@ -8916,7 +8984,7 @@ query_expression:
           {
             $$= NEW_PTN PT_query_expression_single($1);
           }
-        | query_expression UNION_SYM union_option query_term
+        | query_expression UNION_SYM union_option query_term opt_into
           {
             // This is for compatibility with legacy syntax.  (SELECT UNION
             // SELECT) UNION SELECT really means the same thing with or
@@ -8925,12 +8993,20 @@ query_expression:
               YYTHD->parse_error_at(@2, ER_DEFAULT(ER_SYNTAX_ERROR));
             if ($4->is_union())
               YYTHD->parse_error_at(@2, ER_DEFAULT(ER_SYNTAX_ERROR));
-            PT_union *pt_union= NEW_PTN PT_union($1, $3, $4);
+            PT_union *pt_union= NEW_PTN PT_union($1, $3, $4, $5);
             $1->ban_order_and_limit();
             $$= pt_union;
           }
         ;
 
+/*
+  We have to produce the order and limit clauses here, because normally they
+  belong to the <query primary>, which in our case is implemented in
+  select_part2. This rule can't be changed without breaking the currently
+  allowed syntax. But since they syntactically belong to the <query
+  expression>, we have to explicitly add them here as well in order to be able
+  to parse proper syntax.
+*/
 query_term:
           query_primary
           {
@@ -8982,13 +9058,7 @@ select_part2:
             $$= NEW_PTN PT_select_part2($1, NULL, NULL, NULL, NULL, NULL,
                                         $2, $3, NULL, NULL, $4);
           }
-        | select_options_and_item_list into opt_select_lock_type
-          {
-            $$= NEW_PTN PT_select_part2($1, $2, NULL, NULL, NULL, NULL, NULL,
-                                        NULL, NULL, NULL, $3);
-          }
         | select_options_and_item_list  /* #1 */
-          opt_into                      /* #2 */
           from_clause                   /* #3 */
           opt_where_clause              /* #4 */
           opt_group_clause              /* #5 */
@@ -8996,23 +9066,9 @@ select_part2:
           opt_order_clause              /* #7 */
           opt_limit_clause              /* #8 */
           opt_procedure_analyse_clause  /* #9 */
-          opt_into                      /* #10 */
           opt_select_lock_type          /* #11 */
           {
-            if ($2 && $10)
-            {
-              /* double "INTO" clause */
-              YYTHD->parse_error_at(@10, ER_THD(YYTHD, ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            if ($9 && ($2 || $10))
-            {
-              /* "INTO" with "PROCEDURE ANALYSE" */
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-            $$= NEW_PTN PT_select_part2($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                                        $11);
+            $$= NEW_PTN PT_select_part2($1, NULL, $2, $3, $4, $5, $6, $7, $8, NULL, $9);
           }
         ;
 

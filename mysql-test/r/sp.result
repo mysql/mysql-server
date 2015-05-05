@@ -314,7 +314,8 @@ delete from t1|
 drop procedure b|
 drop procedure if exists b2|
 create procedure b2(x int)
-repeat(select 1 into outfile 'b2');
+repeat
+select 1 into outfile 'b2';
 insert into test.t1 values (repeat("b2",3), x);
 set x = x-1;
 until x = 0 end repeat|

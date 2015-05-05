@@ -1223,11 +1223,11 @@ END' at line 1
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (i INT);
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO @a;
-ERROR HY000: View's SELECT contains a 'INTO' clause
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a' at line 1
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO DUMPFILE "file";
-ERROR HY000: View's SELECT contains a 'INTO' clause
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE "file"' at line 1
 CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO OUTFILE "file";
-ERROR HY000: View's SELECT contains a 'INTO' clause
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE "file"' at line 1
 CREATE PROCEDURE bug20953()
 CREATE VIEW v AS SELECT i FROM t1 PROCEDURE ANALYSE();
 ERROR HY000: View's SELECT contains a 'PROCEDURE' clause

@@ -2078,6 +2078,9 @@ class PT_select_part2 : public Parse_tree_node
   PT_order *opt_order_clause;
   PT_limit_clause *opt_limit_clause;
   PT_procedure_analyse *opt_procedure_analyse_clause;
+
+  /// @todo: remove this one. There can only be one INTO and they mean the
+  /// same thing.
   PT_into_destination *opt_into2;
   Select_lock_type opt_select_lock_type;
 
@@ -2222,12 +2225,14 @@ private:
 class PT_union : public PT_query_expression
 {
 public:
-  PT_union(PT_query_expression *lhs, bool is_distinct, PT_query_term *rhs) :
+  PT_union(PT_query_expression *lhs, bool is_distinct, PT_query_term *rhs,
+           PT_into_destination *into) :
     PT_query_expression(rhs->remove_order_clause(),
                         rhs->remove_limit_clause()),
     m_lhs(lhs),
     m_is_distinct(is_distinct),
-    m_rhs(rhs)
+    m_rhs(rhs),
+    m_into(into)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -2261,7 +2266,8 @@ public:
     pc->select= select_lex;
 
     pc->thd->lex->pop_context();
-    return false;
+
+    return ::contextualize(m_into, pc);
   }
 
   virtual bool is_union() const { return true; }
@@ -2272,6 +2278,7 @@ private:
   PT_query_expression *m_lhs;
   bool m_is_distinct;
   PT_query_term *m_rhs;
+  PT_into_destination *m_into;
 };
 
 

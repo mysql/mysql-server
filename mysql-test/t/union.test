@@ -59,7 +59,7 @@ explain select 1 union select a,b from t1 union select 1;
 --error 1222
 explain select a,b from t1 union select 1 limit 0;
 
---error 1221
+--error ER_PARSE_ERROR
 select a,b from t1 into outfile 'skr' union select a,b from t2;
 
 --error 1221
@@ -974,11 +974,12 @@ DROP TABLE t1;
 #
 # Bug#23345: Wrongly allowed INTO in a non-last select of a UNION.
 #
---error 1221
+--error ER_PARSE_ERROR
 (select 1 into @var) union (select 1);
+--error ER_PARSE_ERROR
 (select 1) union (select 1 into @var);
 select @var;
---error 1172
+--error ER_PARSE_ERROR
 (select 2) union (select 1 into @var);
 
 #
@@ -1100,14 +1101,17 @@ SELECT a INTO DUMPFILE 'union.out.file2' FROM (
   SELECT a FROM t1 WHERE 0
 ) alias;
 
+--error ER_PARSE_ERROR
 SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
+--error ER_PARSE_ERROR
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file5' FROM t1;
+--error ER_PARSE_ERROR
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file6' FROM t1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT a INTO OUTFILE 'union.out.file7' FROM t1 UNION SELECT a FROM t1;
---error ER_WRONG_USAGE
+--error ER_PARSE_ERROR
 SELECT a INTO DUMPFILE 'union.out.file8' FROM t1 UNION SELECT a FROM t1;
 
 -- echo # Tests fix in parser rule query_expression_body.

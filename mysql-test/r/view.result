@@ -927,9 +927,9 @@ select * from v4;
 ERROR 21000: Subquery returns more than 1 row
 drop view v4, v3, v2, v1;
 create view v1 as select 5 into @w;
-ERROR HY000: View's SELECT contains a 'INTO' clause
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'into @w' at line 1
 create view v1 as select 5 into outfile 'ttt';
-ERROR HY000: View's SELECT contains a 'INTO' clause
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'into outfile 'ttt'' at line 1
 create table t1 (a int);
 create view v1 as select a from t1 procedure analyse();
 ERROR HY000: View's SELECT contains a 'PROCEDURE' clause

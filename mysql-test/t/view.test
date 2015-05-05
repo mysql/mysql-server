@@ -840,9 +840,9 @@ drop view v4, v3, v2, v1;
 #
 # VIEW over SELECT with prohibited clauses
 #
--- error ER_VIEW_SELECT_CLAUSE
+-- error ER_PARSE_ERROR
 create view v1 as select 5 into @w;
--- error ER_VIEW_SELECT_CLAUSE
+-- error ER_PARSE_ERROR
 create view v1 as select 5 into outfile 'ttt';
 create table t1 (a int);
 -- error ER_VIEW_SELECT_CLAUSE

@@ -3495,7 +3495,7 @@ DROP VIEW  IF EXISTS v2 ;
 CREATE TABLE t1 (f1 BIGINT) ;
 SET @x=0;
 CREATE or REPLACE VIEW v1 AS Select 1 INTO @x;
-ERROR HY000: View's SELECT contains a 'INTO' clause
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @x' at line 1
 Select @x;
 @x
 0

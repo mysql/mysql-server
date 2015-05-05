@@ -144,7 +144,7 @@ ERROR 21000: The used SELECT statements have a different number of columns
 explain select a,b from t1 union select 1 limit 0;
 ERROR 21000: The used SELECT statements have a different number of columns
 select a,b from t1 into outfile 'skr' union select a,b from t2;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union select a,b from t2' at line 1
 select a,b from t1 order by a union select a,b from t2;
 ERROR HY000: Incorrect usage of UNION and ORDER BY
 insert into t3 select a from t1 order by a union select a from t2;
@@ -1551,13 +1551,14 @@ SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY c) AS test;
 ERROR 42S22: Unknown column 'c' in 'order clause'
 DROP TABLE t1;
 (select 1 into @var) union (select 1);
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'into @var) union (select 1)' at line 1
 (select 1) union (select 1 into @var);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'into @var)' at line 1
 select @var;
 @var
-1
+NULL
 (select 2) union (select 1 into @var);
-ERROR 42000: Result consisted of more than one row
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'into @var)' at line 1
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (10), (20);
 CREATE TABLE t2 (b int);
@@ -1683,14 +1684,17 @@ UNION
 SELECT a FROM t1 WHERE 0
 ) alias;
 SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FROM t1' at line 1
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file5' FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FROM t1' at line 1
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file6' FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FROM t1' at line 1
 SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT a FROM t1' at line 1
 SELECT a INTO OUTFILE 'union.out.file7' FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT a FROM t1' at line 1
 SELECT a INTO DUMPFILE 'union.out.file8' FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT a FROM t1' at line 1
 # Tests fix in parser rule query_expression_body.
 SELECT ( SELECT a UNION SELECT a ) INTO @v FROM t1;
 SELECT ( SELECT a UNION SELECT a ) INTO OUTFILE  'union.out.file3' FROM t1;

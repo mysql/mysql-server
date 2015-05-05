@@ -269,7 +269,7 @@ CREATE TABLE t1 (f1 BIGINT) ;
 
 # SELECT INTO is illegal
 SET @x=0;
---error ER_VIEW_SELECT_CLAUSE
+--error ER_PARSE_ERROR
 CREATE or REPLACE VIEW v1 AS Select 1 INTO @x;
 Select @x;
 

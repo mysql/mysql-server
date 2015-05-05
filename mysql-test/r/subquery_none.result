@@ -5667,33 +5667,33 @@ INSERT INTO t1 VALUES (1),(2);
 CREATE TABLE t2( a INT, b INT );
 SELECT * 
 FROM (SELECT a INTO @var FROM t1 WHERE a = 2) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@var FROM t1 WHERE a = 2) t1a' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var FROM t1 WHERE a = 2) t1a' at line 2
 SELECT * 
 FROM (SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OUTFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
 SELECT * 
 FROM (SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DUMPFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
 SELECT * FROM ( 
 SELECT 1 a 
 UNION 
 SELECT a INTO @var FROM t1 WHERE a = 2 
 ) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@var FROM t1 WHERE a = 2 
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FROM t1 WHERE a = 2 
 ) t1a' at line 4
 SELECT * FROM ( 
 SELECT 1 a 
 UNION 
 SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2 
 ) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OUTFILE 'file' FROM t1 WHERE a = 2 
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FROM t1 WHERE a = 2 
 ) t1a' at line 4
 SELECT * FROM ( 
 SELECT 1 a 
 UNION 
 SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2 
 ) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DUMPFILE 'file' FROM t1 WHERE a = 2 
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FROM t1 WHERE a = 2 
 ) t1a' at line 4
 SELECT * FROM (SELECT a FROM t1 WHERE a = 2) t1a;
 a
@@ -5724,23 +5724,23 @@ SELECT * FROM (SELECT 1 UNION SELECT 1) t1a;
 1
 1
 SELECT * FROM ((SELECT 1 a INTO @a)) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@a)) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a)) t1a' at line 1
 SELECT * FROM ((SELECT 1 a INTO OUTFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OUTFILE 'file' )) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' )) t1a' at line 1
 SELECT * FROM ((SELECT 1 a INTO DUMPFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DUMPFILE 'file' )) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' )) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO @a)) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@a)) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a)) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO DUMPFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DUMPFILE 'file' )) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' )) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO OUTFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OUTFILE 'file' )) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' )) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO @a))) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@a))) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @a))) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO DUMPFILE 'file' ))) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DUMPFILE 'file' ))) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO DUMPFILE 'file' ))) t1a' at line 1
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO OUTFILE 'file' ))) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OUTFILE 'file' ))) t1a' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO OUTFILE 'file' ))) t1a' at line 1
 SELECT * FROM (SELECT 1 a ORDER BY a) t1a;
 a
 1
