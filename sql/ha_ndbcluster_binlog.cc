@@ -68,6 +68,7 @@ void ndb_index_stat_restart();
 #include "ndb_schema_dist.h"
 #include "ndb_repl_tab.h"
 #include "ndb_binlog_thread.h"
+#include "ndb_find_files_list.h"
 
 /*
   Timeout for syncing schema events between
@@ -1116,10 +1117,10 @@ static
 void clean_away_stray_files(THD *thd)
 {
   DBUG_ENTER("clean_away_stray_files");
+
   // Populate list of databases
-  List<LEX_STRING> db_names;
-  if (find_files(thd, &db_names, NULL,
-                 mysql_data_home, NULL, 1, NULL) != FIND_FILES_OK)
+  Ndb_find_files_list db_names(thd);
+  if (!db_names.find_databases(mysql_data_home))
   {
     thd->clear_error();
     DBUG_PRINT("info", ("Failed to find databases"));
@@ -1127,8 +1128,7 @@ void clean_away_stray_files(THD *thd)
   }
 
   LEX_STRING *db_name;
-  List_iterator_fast<LEX_STRING> it(db_names);
-  while ((db_name= it++))
+  while ((db_name= db_names.next()))
   {
     DBUG_PRINT("info", ("Found database %s", db_name->str));
     if (strcmp(NDB_REP_DB, db_name->str)) /* Skip system database */
@@ -1146,9 +1146,8 @@ void clean_away_stray_files(THD *thd)
 
       Thd_ndb *thd_ndb= get_thd_ndb(thd);
       thd_ndb->set_skip_binlog_setup_in_find_files(true);
-      List<LEX_STRING> tab_names;
-      if (find_files(thd, &tab_names, db_name->str, path, NullS, 0, NULL)
-          != FIND_FILES_OK)
+      Ndb_find_files_list tab_names(thd);
+      if (!tab_names.find_tables(db_name->str, path))
       {
         thd->clear_error();
         DBUG_PRINT("info", ("Failed to find tables"));
@@ -2898,46 +2897,19 @@ class Ndb_schema_event_handler {
   {
     DBUG_ENTER("check_if_local_tables_in_db");
     DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
-    List<LEX_STRING> files;
+    Ndb_find_files_list files(m_thd);
     char path[FN_REFLEN + 1];
-
-    /*
-      The schema distribution participant has full permissions
-      to drop or create any database. When determining if a database
-      should be dropped on participating mysqld it will thus need
-      full permissions also when listing the tables in the database.
-      Such permission is controlled by the "magic" THD::col_access variable
-      and need to be set high enough so that find_files() returns all
-      files in the database(without checking any grants).
-
-      Without full permission no tables would  be returned for databases
-      which have special access rights(like performance_schema and
-      information_schema). Those would thus appear empty and a faulty
-      decision to drop them would be taken.
-
-      Fix by setting the "magic" THD::col_access member in order to skip
-      the access control check in find_files().
-    */
-    const ulong saved_col_access= m_thd->col_access;
-    assert(sizeof(saved_col_access) == sizeof(m_thd->col_access));
-    m_thd->col_access|= TABLE_ACLS;
-
     build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
-    if (find_files(m_thd, &files, dbname, path, NullS, 0, NULL) !=
-        FIND_FILES_OK)
+    if (!files.find_tables(dbname, path))
     {
       m_thd->clear_error();
       DBUG_PRINT("info", ("Failed to find files"));
-      // Restore column access rights
-      m_thd->col_access= saved_col_access;
       DBUG_RETURN(true);
     }
-    // Restore column access rights
-    m_thd->col_access= saved_col_access;
-    DBUG_PRINT("info",("found: %d files", files.elements));
+    DBUG_PRINT("info",("found: %d files", files.found_files()));
 
     LEX_STRING *tabname;
-    while ((tabname= files.pop()))
+    while ((tabname= files.next()))
     {
       DBUG_PRINT("info", ("Found table %s", tabname->str));
       if (ndbcluster_check_if_local_table(dbname, tabname->str))
