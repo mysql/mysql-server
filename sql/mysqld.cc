@@ -4504,8 +4504,6 @@ int mysqld_main(int argc, char **argv)
       pfs_param.m_hints.m_max_connections= max_connections;
       pfs_param.m_hints.m_open_files_limit= requested_open_files;
       pfs_param.m_hints.m_max_prepared_stmt_count= max_prepared_stmt_count;
-      /* the performance schema digest size is the same as the SQL layer */
-      pfs_param.m_max_digest_length= max_digest_length;
       PSI_hook= initialize_performance_schema(&pfs_param);
       if (PSI_hook == NULL)
       {
