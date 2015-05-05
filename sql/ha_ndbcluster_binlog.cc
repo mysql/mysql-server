@@ -1635,7 +1635,8 @@ int ndbcluster_log_schema_op(THD *thd,
                              uint32 ndb_table_id,
                              uint32 ndb_table_version,
                              enum SCHEMA_OP_TYPE type,
-                             const char *new_db, const char *new_table_name)
+                             const char *new_db, const char *new_table_name,
+                             bool log_query_on_participant)
 {
   DBUG_ENTER("ndbcluster_log_schema_op");
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -1905,6 +1906,12 @@ int ndbcluster_log_schema_op(THD *thd,
         else
         {
           DBUG_PRINT("info", ("Schema event not for binlogging")); 
+          ndbcluster_anyvalue_set_nologging(anyValue);
+        }
+
+        if(!log_query_on_participant)
+        {
+          DBUG_PRINT("info", ("Forcing query not to be binlogged on participant"));
           ndbcluster_anyvalue_set_nologging(anyValue);
         }
       }
