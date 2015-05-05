@@ -31,7 +31,5 @@ disconnect con1;
 show tables;
 alter table parent row_format=dynamic;
 
---error ER_ROW_IS_REFERENCED
 drop table parent;
-
 drop database bug;

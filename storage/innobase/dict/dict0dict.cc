@@ -3714,13 +3714,6 @@ dict_foreign_add_to_cache(
 	}
 
 	ut_ad(dict_lru_validate());
-
-/*
-	if (for_in_cache->foreign_table == NULL) {
-		dict_foreign_remove_from_cache(for_in_cache);
-	}
-*/
-
 	DBUG_RETURN(DB_SUCCESS);
 }
 
