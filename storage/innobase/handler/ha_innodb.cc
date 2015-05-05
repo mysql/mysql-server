@@ -3302,6 +3302,11 @@ innobase_init(
 		DBUG_RETURN(innobase_init_abort());
 	}
 
+	/* ------------ UNDO tablespaces files ---------------------*/
+	if (!srv_undo_dir) {
+		srv_undo_dir = default_path;
+	}
+
 	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
@@ -17823,7 +17828,7 @@ static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
 static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Directory where undo tablespace files live, this path can be absolute.",
-  NULL, NULL, ".");
+  NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
