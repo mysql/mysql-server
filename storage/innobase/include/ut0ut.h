@@ -45,6 +45,7 @@ Created 1/20/1994 Heikki Tuuri
 #endif /* MYSQL_SERVER */
 
 #include <stdarg.h>
+#include "ut/ut.h"
 
 /** Index name prefix in fast index creation, as a string constant */
 #define TEMP_INDEX_PREFIX_STR	"\377"
@@ -280,20 +281,6 @@ struct ut_strcmp_functor
 	}
 };
 
-/**********************************************************//**
-Prints a timestamp to a file. */
-void
-ut_print_timestamp(
-/*===============*/
-	FILE*	file)	/*!< in: file where to print */
-	UNIV_COLD;
-
-/**********************************************************//**
-Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
-void
-ut_sprintf_timestamp(
-/*=================*/
-	char*	buf); /*!< in: buffer where to sprintf */
 #ifdef UNIV_HOTBACKUP
 /**********************************************************//**
 Sprintfs a timestamp to a buffer with no spaces and with ':' characters
@@ -319,34 +306,7 @@ ulint
 ut_delay(
 /*=====*/
 	ulint	delay);	/*!< in: delay in microseconds on 100 MHz Pentium */
-#endif /* UNIV_HOTBACKUP */
-/*************************************************************//**
-Prints the contents of a memory buffer in hex and ascii. */
-void
-ut_print_buf(
-/*=========*/
-	FILE*		file,	/*!< in: file where to print */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len);	/*!< in: length of the buffer */
 
-/*************************************************************//**
-Prints the contents of a memory buffer in hex. */
-void
-ut_print_buf_hex(
-/*=============*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len);	/*!< in: length of the buffer */
-/*************************************************************//**
-Prints the contents of a memory buffer in hex and ascii. */
-void
-ut_print_buf(
-/*=========*/
-	std::ostream&	o,	/*!< in/out: output stream */
-	const void*	buf,	/*!< in: memory buffer */
-	ulint		len);	/*!< in: length of the buffer */
-
-#ifndef UNIV_HOTBACKUP
 /* Forward declaration of transaction handle */
 struct trx_t;
 

@@ -118,7 +118,7 @@ support cross-platform development and expose comonly used SQL names. */
 /* Following defines are to enable performance schema
 instrumentation in each of five InnoDB modules if
 HAVE_PSI_INTERFACE is defined. */
-#if defined(HAVE_PSI_INTERFACE) && !defined(UNIV_HOTBACKUP)
+#if defined(HAVE_PSI_INTERFACE) && !defined(UNIV_LIBRARY)
 # define UNIV_PFS_MUTEX
 # define UNIV_PFS_RWLOCK
 /* For I/O instrumentation, performance schema rely
@@ -134,7 +134,7 @@ resolved */
 # include "mysql/psi/psi.h" /* HAVE_PSI_MEMORY_INTERFACE */
 # ifdef HAVE_PSI_MEMORY_INTERFACE
 #  define UNIV_PFS_MEMORY
-# endif /* HAVE_PSI_MEMORY_INTERFACE */
+# endif /* HAVE_PSI_MEMORY_INTERFACE && !UNIV_LIBRARY */
 
 /* There are mutexes/rwlocks that we want to exclude from
 instrumentation even if their corresponding performance schema

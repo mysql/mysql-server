@@ -18,7 +18,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /***************************************************************//**
-@file ut/ut0crc32.cc
+@file ut/crc32.cc
 CRC32 implementation from Facebook, based on the zlib implementation.
 
 Created Aug 8, 2011, Vasil Dimov, based on mysys/my_crc32.c and
@@ -77,6 +77,10 @@ mysys/my_perf.c, contributed by Facebook under the following license.
  * instead of four steps with four exclusive-ors.  This results in about a
  * factor of two increase in speed on a Power PC G4 (PPC7455) using gcc -O3.
  */
+
+/** NOTE: The functions in this file should only use functions from
+other files in library. The code in this file is used to make a library for
+external tools. */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"

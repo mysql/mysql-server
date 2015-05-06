@@ -173,6 +173,8 @@ my_bool	srv_numa_interleave = FALSE;
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong	srv_debug_compress;
+/** Set when InnoDB has invoked exit(). */
+bool	innodb_calling_exit;
 #endif /* UNIV_DEBUG */
 
 /*------------------------- LOG FILES ------------------------ */

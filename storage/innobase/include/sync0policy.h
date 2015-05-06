@@ -32,6 +32,7 @@ Created 2012-08-21 Sunny Bains.
 #include "sync0types.h"
 #include "srv0mon.h"
 
+#ifndef UNIV_LIBRARY
 #ifdef UNIV_DEBUG
 
 # define MUTEX_MAGIC_N 979585UL
@@ -547,4 +548,5 @@ private:
 #include "sync0policy.ic"
 #endif /* UNIV_NOINL */
 
+#endif /* !UNIV_LIBRARY */
 #endif /* sync0policy_h */

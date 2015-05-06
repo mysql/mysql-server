@@ -18,6 +18,18 @@
 INCLUDE(innodb.cmake)
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
+SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
+	buf/checksum.cc
+	dict/dict.cc
+	dict/mem.cc
+	mem/memory.cc
+	os/file.cc
+	os/thread.cc
+	page/zipdecompress.cc
+	rem/rec.cc
+	ut/crc32.cc
+	ut/ut.cc)
+
 SET(INNOBASE_SOURCES
 	api/api0api.cc
 	api/api0misc.cc
@@ -29,7 +41,6 @@ SET(INNOBASE_SOURCES
 	buf/buf0buddy.cc
 	buf/buf0buf.cc
 	buf/buf0dblwr.cc
-	buf/buf0checksum.cc
 	buf/buf0dump.cc
 	buf/buf0flu.cc
 	buf/buf0lru.cc
@@ -80,7 +91,6 @@ SET(INNOBASE_SOURCES
 	log/log0log.cc
 	log/log0recv.cc
 	mach/mach0data.cc
-	mem/mem0mem.cc
 	mtr/mtr0log.cc
 	mtr/mtr0mtr.cc
 	os/os0file.cc
@@ -134,7 +144,6 @@ SET(INNOBASE_SOURCES
 	trx/trx0undo.cc
 	usr/usr0sess.cc
 	ut/ut0byte.cc
-	ut/ut0crc32.cc
 	ut/ut0dbg.cc
 	ut/ut0list.cc
 	ut/ut0mem.cc
@@ -150,7 +159,13 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
-MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
+ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
+SET_TARGET_PROPERTIES(innodb_zipdecompress PROPERTIES
+  COMPILE_DEFINITIONS "UNIV_LIBRARY")
+ADD_DEPENDENCIES(innodb_zipdecompress GenError)
+
+MYSQL_ADD_PLUGIN(innobase
+  ${INNOBASE_SOURCES} ${INNOBASE_ZIP_DECOMPRESS_SOURCES} STORAGE_ENGINE
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES ${ZLIB_LIBRARY} ${LZ4_LIBRARY})
@@ -165,7 +180,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
   MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
   IF(HAVE_WA_NH)
     ADD_COMPILE_FLAGS(
-      ut/ut0crc32.cc
+      ut/crc32.cc
       COMPILE_FLAGS "-Wa,-nH"
     )
   ENDIF()

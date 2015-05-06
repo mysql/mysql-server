@@ -43,10 +43,15 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0mem.h"
 #include "ut0new.h"
 #include "ut0rnd.h"
+#include "dict/dict.h"
 #include <deque>
 
 #ifndef UNIV_HOTBACKUP
 # include "sync0rw.h"
+
+#define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
+					creating a table or index object */
+
 /********************************************************************//**
 Get the database name length in a table name.
 @return database name length */
@@ -543,16 +548,6 @@ dict_foreign_find_index(
 					/*!< in: nonzero if none of
 					the columns must be declared
 					NOT NULL */
-	__attribute__((warn_unused_result));
-/**********************************************************************//**
-Returns a column's name.
-@return column name. NOTE: not guaranteed to stay valid if table is
-modified in any way (columns added, etc.). */
-const char*
-dict_table_get_col_name(
-/*====================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			col_nr)	/*!< in: column number */
 	__attribute__((warn_unused_result));
 
 /** Returns a virtual column's name.
@@ -1288,15 +1283,6 @@ dict_index_get_sys_col_pos(
 	const dict_index_t*	index,	/*!< in: index */
 	ulint			type)	/*!< in: DATA_ROW_ID, ... */
 	__attribute__((warn_unused_result));
-/*******************************************************************//**
-Adds a column to index. */
-void
-dict_index_add_col(
-/*===============*/
-	dict_index_t*		index,		/*!< in/out: index */
-	const dict_table_t*	table,		/*!< in: table */
-	dict_col_t*		col,		/*!< in: column */
-	ulint			prefix_len);	/*!< in: column prefix length */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Copies types of fields contained in index to tuple. */
@@ -2163,6 +2149,16 @@ UNIV_INLINE
 void
 dict_free_vc_templ(
 	dict_vcol_templ_t*	vc_templ);
+
+/** Returns a virtual column's name according to its original
+MySQL table position.
+@param[in]	table	target table
+@param[in]	col_nr	column number (nth column in the table)
+@return column name. */
+const char*
+dict_table_get_v_col_name_mysql(
+	const dict_table_t*	table,
+	ulint			col_nr);
 
 #endif /* !UNIV_HOTBACKUP */
 

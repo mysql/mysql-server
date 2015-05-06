@@ -32,6 +32,7 @@ Created 2012-08-21 Sunny Bains
 #ifndef sync0debug_h
 #define sync0debug_h
 
+#ifndef UNIV_LIBRARY
 #include "univ.i"
 #include "sync0types.h"
 
@@ -102,4 +103,5 @@ rw_lock_debug_mutex_exit();
 
 #endif /* UNIV_DEBUG */
 
+#endif /* !UNIV_LIBRARY */
 #endif /* !sync0debug_h */

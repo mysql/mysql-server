@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file buf/buf0checksum.cc
+@file buf/checksum.cc
 Buffer pool checksum functions, also linked from /extra/innochecksum.cc
 
 Created Aug 11, 2011 Vasil Dimov
@@ -166,7 +166,7 @@ buf_page_lsn_check(
 	bool		check_lsn,
 	const byte*	read_buf)
 {
-#if !defined(UNIV_HOTBACKUP) && !defined(UNIV_INNOCHECKSUM)
+#if !defined(UNIV_HOTBACKUP) && !defined(UNIV_LIBRARY)
 	if (check_lsn && recv_lsn_checks_on) {
 		lsn_t		current_lsn;
 		const lsn_t	page_lsn
@@ -195,7 +195,7 @@ buf_page_lsn_check(
 				<< FORCE_RECOVERY_MSG;
 		}
 	}
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
+#endif /* !UNIV_HOTBACKUP && !UNIV_LIBRARY */
 }
 
 /** Checks if the page is in innodb checksum format.

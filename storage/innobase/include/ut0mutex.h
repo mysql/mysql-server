@@ -30,6 +30,24 @@ extern ulong	srv_spin_wait_delay;
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_force_recovery_crash;
 
+#ifdef UNIV_LIBRARY
+#define mutex_create(I, M)		(void)M
+#define mutex_enter(M)			(void)M
+#define mutex_enter_nospin(M)		(void)M
+#define mutex_enter_nowait(M)		(void)M
+#define mutex_exit(M)			(void)M
+#define mutex_free(M)			(void)M
+
+#ifdef UNIV_DEBUG
+#define mutex_validate(M)		(M)
+#define mutex_own(M)			(M)
+#endif /* UNIV_DEBUG */
+typedef OSMutex	SysMutex;
+typedef OSMutex ib_mutex_t;
+typedef OSMutex ib_bpmutex_t;
+
+#else /* UNIV_LIBRARY */
+
 #include "os0atomic.h"
 #include "sync0policy.h"
 #include "ib0mutex.h"
@@ -217,5 +235,6 @@ void mutex_destroy(
 {
 	mutex->destroy();
 }
+#endif /* UNIV_LIBRARY */
 
 #endif /* ut0mutex_h */

@@ -143,6 +143,7 @@ ut_new_boot()
 		"log0log",
 		"log0recv",
 		"mem0mem",
+		"memory",
 		"os0event",
 		"os0file",
 		"page0cur",

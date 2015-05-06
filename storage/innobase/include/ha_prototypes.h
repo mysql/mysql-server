@@ -520,5 +520,5 @@ buffer pool size.
 void
 innodb_set_buf_pool_size(ulonglong buf_pool_size);
 
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
+#endif /* !UNIV_HOTBACKUP */
 #endif /* HA_INNODB_PROTOTYPES_H */

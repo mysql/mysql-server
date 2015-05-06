@@ -128,32 +128,18 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
 
   # Add path to the InnoDB headers
   INCLUDE_DIRECTORIES(
+    ${CMAKE_SOURCE_DIR}/storage/innobase/
     ${CMAKE_SOURCE_DIR}/storage/innobase/include
     ${CMAKE_SOURCE_DIR}/sql
   )
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG")
+
   # We use the InnoDB code directly in case the code changes.
-  ADD_DEFINITIONS("-DUNIV_INNOCHECKSUM")
-  SET(INNOBASE_SOURCES
-      ../storage/innobase/buf/buf0checksum.cc
-      ../storage/innobase/ut/ut0crc32.cc
-      ../storage/innobase/os/os0file.cc
-     )
-
-  # Avoid generating Hardware Capabilities due to crc32 instructions
-  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
-     CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-    MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
-    IF(HAVE_WA_NH)
-      ADD_COMPILE_FLAGS(
-        ../storage/innobase/ut/ut0crc32.cc
-        COMPILE_FLAGS "-Wa,-nH"
-      )
-    ENDIF()
-  ENDIF()
-
-  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
-  TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl ${LZ4_LIBRARY})
+  MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc)
+  SET_TARGET_PROPERTIES(innochecksum
+    PROPERTIES COMPILE_DEFINITIONS "UNIV_LIBRARY")
+  TARGET_LINK_LIBRARIES(innochecksum
+    mysys_ssl innodb_zipdecompress ${LZ4_LIBRARY})
   ADD_DEPENDENCIES(innochecksum GenError)
 ENDIF()
 

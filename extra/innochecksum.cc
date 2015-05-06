@@ -32,6 +32,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <iostream>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
@@ -73,6 +74,7 @@ static bool			use_end_page;
 static bool			do_one_page;
 /* replaces declaration in srv0srv.c */
 ulong				srv_page_size;
+ulong				srv_page_size_shift;
 page_size_t			univ_page_size(0, 0, false);
 extern ulong			srv_checksum_algorithm;
 
@@ -154,12 +156,55 @@ static TYPELIB innochecksum_algorithms_typelib = {
 	innochecksum_algorithms, NULL
 };
 
+/** Error logging classes. */
 namespace ib {
+	info::~info()
+	{
+		std::cerr << "[INFO] innochecksum: " << m_oss.str()
+			<< std::endl;
+	}
 
 	warn::~warn()
 	{
-		fprintf(stderr, "innochecksum: %s\n", m_oss.str().c_str());
+		std::cerr << "[WARNING] innochecksum: " <<  m_oss.str()
+			<< std::endl;
 	}
+
+	error::~error()
+	{
+		std::cerr << "[ERROR] innochecksum: " << m_oss.str()
+			<< std::endl;
+	}
+
+	fatal::~fatal()
+	{
+		std::cerr << "[FATAL] innochecksum: " << m_oss.str()
+			<< std::endl;
+		ut_error;
+	}
+}
+
+/** Check that a page_size is correct for InnoDB. If correct, set the
+associated page_size_shift which is the power of 2 for this page size.
+@param[in]	page_isze	page size to evaluate
+@return an associated page_size_shift if valid, 0 if invalid. */
+static
+int
+innodb_page_size_validate(
+	ulong	page_size)
+{
+	ulong	n;
+
+	DBUG_ENTER("innodb_page_size_validate");
+
+	for (n = UNIV_PAGE_SIZE_SHIFT_MIN; n <= UNIV_PAGE_SIZE_SHIFT_MAX;
+	     n++) {
+		if (page_size == (ulong) (1 << n)) {
+			DBUG_RETURN(n);
+		}
+	}
+
+	DBUG_RETURN(0);
 }
 
 /** Get the page size of the filespace from the filespace header.
@@ -180,6 +225,10 @@ get_page_size(
 	} else {
 		srv_page_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 	}
+
+	srv_page_size_shift = innodb_page_size_validate(srv_page_size);
+
+	ut_ad(srv_page_size_shift != 0);
 
 	univ_page_size.copy_from(
 		page_size_t(srv_page_size, srv_page_size, false));
@@ -304,25 +353,26 @@ open_file(
 	return (fil_in);
 }
 
-/************************************************************//*
- Read the content of file
-
- @param  [in,out]	buf			read the file in buffer
- @param  [in]		partial_page_read	enable when to read the
-						remaining buffer for first page.
- @param  [in]		physical_page_size	Physical/Commpressed page size.
- @param  [in,out]	fil_in			file pointer created for the
-						tablespace.
- @retval no. of bytes read.
+ /** Read the contents of file. If a page is compressed, the page
+is decompressed.
+@param[in,out]	buf			read the file in buffer
+@param[in]	partial_page_read	enable when to read the
+					remaining buffer for first page
+@param[in]	page_size		page size
+@param[in,out]	fil_in			file pointer created for the
+					tablespace
+@retval number of bytes read
 */
 static
 ulong read_file(
-	byte*	buf,
-	bool	partial_page_read,
-	ulong	physical_page_size,
-	FILE*	fil_in)
+	byte*			buf,
+	bool			partial_page_read,
+	const page_size_t&	page_size,
+	FILE*			fil_in)
 {
 	ulong bytes = 0;
+
+	ulong physical_page_size = page_size.physical();
 
 	DBUG_ASSERT(physical_page_size >= UNIV_ZIP_SIZE_MIN);
 
@@ -334,7 +384,29 @@ ulong read_file(
 
 	bytes += ulong(fread(buf, 1, physical_page_size, fil_in));
 
-	return bytes;
+	if (!page_size.is_compressed() || mach_read_from_4(buf + FIL_PAGE_OFFSET) < 3) {
+		return(bytes);
+	}
+
+	/* Decompress a compressed page */
+
+	byte*	uncomp_buf = static_cast<byte*>(
+               ut_malloc_nokey(2 * page_size.logical()));
+	byte*	uncomp_page = static_cast<byte*>(
+                ut_align(uncomp_buf, page_size.logical()));
+	memset(uncomp_page, 0, page_size.logical());
+
+	page_zip_des_t*	page_zip = static_cast<page_zip_des_t*>(
+                        malloc(sizeof(page_zip_des_t)));
+	page_zip_des_init(page_zip);
+	page_zip->data = buf;
+	page_zip->ssize = page_size_to_ssize(
+                page_size.physical());
+	page_zip_decompress_low(page_zip, uncomp_page, true);
+	free(uncomp_buf);
+	free(page_zip);
+
+	return(bytes);
 }
 
 /** Class to check if a page is corrupted and print calculated
@@ -1619,8 +1691,7 @@ int main(
 					if partial_page_read is enable. */
 					bytes = read_file(buf,
 							  partial_page_read,
-							  static_cast<ulong>(
-							  page_size.physical()),
+							  page_size,
 							  fil_in);
 
 					partial_page_read = false;
@@ -1658,8 +1729,7 @@ int main(
 		while (!feof(fil_in)) {
 
 			bytes = read_file(buf, partial_page_read,
-					  static_cast<ulong>(
-					  page_size.physical()), fil_in);
+					  page_size, fil_in);
 			partial_page_read = false;
 
 			if (!bytes && feof(fil_in)) {

@@ -41,6 +41,30 @@ Created 9/11/1995 Heikki Tuuri
 
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_LIBRARY
+
+#ifdef UNIV_DEBUG
+#define rw_lock_own(A, B)			(A)
+#define sync_check_iterate(A)			true
+#endif /* UNIV_DEBUG */
+
+#define rw_lock_s_lock(L)			((void)0)
+#define rw_lock_s_unlock(L)			((void)0)
+#define rw_lock_x_lock(L)			((void)0)
+#define rw_lock_x_unlock(L)			((void)0)
+#define rw_lock_sx_lock(L)			((void)0)
+#define rw_lock_sx_unlock(L)			((void)0)
+#define rw_lock_s_lock_inline(M, P, F, L)	((void)0)
+#define rw_lock_s_unlock_inline(M, P, F, L)	((void)0)
+#define rw_lock_x_lock_inline(M, P, F, L)	((void)0)
+#define rw_lock_x_unlock_inline(M, P, F, L)	((void)0)
+#define rw_lock_sx_lock_inline(M, P, F, L)	((void)0)
+#define rw_lock_sx_unlock_inline(M, P, F, L)	((void)0)
+#define sync_check_lock(A,B)			((void)0)
+#define rw_lock_s_lock_nowait(M, F, L)		true
+#define rw_lock_own_flagged(A,B)		true
+#endif /* UNIV_LIBRARY */
+
 /** Counters for RW locks. */
 struct rw_lock_stats_t {
 	typedef ib_counter_t<int64_t, IB_N_SLOTS> int64_counter_t;
@@ -115,6 +139,7 @@ extern ib_mutex_t			rw_lock_list_mutex;
 /** Counters for RW locks. */
 extern rw_lock_stats_t	rw_lock_stats;
 
+#ifndef UNIV_LIBRARY
 #ifndef UNIV_PFS_RWLOCK
 /******************************************************************//**
 Creates, or rather, initializes an rw-lock object in a specified memory
@@ -576,6 +601,8 @@ rw_lock_debug_print(
 	const rw_lock_debug_t*	info);	/*!< in: debug struct */
 #endif /* UNIV_DEBUG */
 
+#endif /* !UNIV_LIBRARY */
+
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! */
 
@@ -716,6 +743,7 @@ struct	rw_lock_debug_t {
 };
 #endif /* UNIV_DEBUG */
 
+#ifndef UNIV_LIBRARY
 /* For performance schema instrumentation, a new set of rwlock
 wrap functions are created if "UNIV_PFS_RWLOCK" is defined.
 The instrumentations are not planted directly into original
@@ -913,4 +941,5 @@ pfs_rw_lock_free_func(
 
 #endif /* !UNIV_HOTBACKUP */
 
+#endif /* !UNIV_LIBRARY */
 #endif /* sync0rw.h */

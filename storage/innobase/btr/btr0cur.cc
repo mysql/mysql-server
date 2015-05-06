@@ -127,17 +127,6 @@ uint	btr_cur_limit_optimistic_insert_debug = 0;
 can be released by page reorganize, then it is reorganized */
 #define BTR_CUR_PAGE_REORGANIZE_LIMIT	(UNIV_PAGE_SIZE / 32)
 
-/** The structure of a BLOB part header */
-/* @{ */
-/*--------------------------------------*/
-#define BTR_BLOB_HDR_PART_LEN		0	/*!< BLOB part len on this
-						page */
-#define BTR_BLOB_HDR_NEXT_PAGE_NO	4	/*!< next BLOB part page no,
-						FIL_NULL if none */
-/*--------------------------------------*/
-#define BTR_BLOB_HDR_SIZE		8	/*!< Size of a BLOB
-						part header, in bytes */
-
 /** Estimated table level stats from sampled value.
 @param value sampled stats
 @param index index being sampled
@@ -149,7 +138,6 @@ can be released by page reorganize, then it is reorganized */
 	(((value) * static_cast<int64_t>(index->stat_n_leaf_pages) \
 	  + (sample) - 1 + (ext_size) + (not_empty)) / ((sample) + (ext_size)))
 
-/* @} */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP

@@ -299,6 +299,8 @@ IF(HAVE_LIBNUMA)
     LINK_LIBRARIES(numa)
 ENDIF()
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
+# Include directories under innobase
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/
+		    ${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
 		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)

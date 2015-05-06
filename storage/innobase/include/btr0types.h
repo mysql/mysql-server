@@ -56,6 +56,15 @@ in the index record. */
 #define BTR_EXTERN_LOCAL_STORED_MAX_SIZE	\
 	(BTR_EXTERN_FIELD_REF_SIZE * 2)
 
+/** The structure of a BLOB part header */
+
+/** BLOB part len on this page */
+#define BTR_BLOB_HDR_PART_LEN		0
+/** next BLOB part page no, FIL_NULL if none */
+#define BTR_BLOB_HDR_NEXT_PAGE_NO	4
+/** Size of a BLOB part header, in bytes */
+#define BTR_BLOB_HDR_SIZE		8
+
 /** The information is used for creating a new index tree when
 applying TRUNCATE log record during recovery */
 struct btr_create_t {

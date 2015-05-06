@@ -29,6 +29,7 @@ Created 9/5/1995 Heikki Tuuri
 #include <vector>
 #include <iostream>
 
+#include "univ.i"
 #include "ut0new.h"
 #include "ut0counter.h"
 
@@ -498,6 +499,18 @@ struct OSMutex {
 		return(&m_mutex);
 	}
 
+#if defined(UNIV_LIBRARY) && defined(UNIV_DEBUG)
+	bool is_owned()
+	{
+		/* This should never be reached. This is
+		added to fix is_owned() compilation errors
+		for library. We will never reach here because
+		mutexes are disabled in library. */
+		ut_error;
+		return(false);
+	}
+#endif /* UNIV_LIBRARY && UNIV_DEBUG */
+
 private:
 #ifdef UNIV_DEBUG
 	/** true if the mutex has been freed/destroyed. */
@@ -507,6 +520,7 @@ private:
 	sys_mutex_t		m_mutex;
 };
 
+#ifndef UNIV_LIBRARY
 #ifdef UNIV_PFS_MUTEX
 /** Latch element
 @param[in]	id		Latch id
@@ -922,7 +936,7 @@ sync_latch_get_level(latch_id_t id)
 	return(meta.get_level());
 }
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef UNIV_PFS_MUTEX
 /** Get the latch PFS key from the latch ID
 @param[in]	id		Latch ID
 @return the PFS key */
@@ -934,7 +948,7 @@ sync_latch_get_pfs_key(latch_id_t id)
 
 	return(meta.get_pfs_key());
 }
-#endif
+#endif /* UNIV_PFS_MUTEX */
 
 /** String representation of the filename and line number where the
 latch was created
@@ -977,6 +991,8 @@ sync_file_created_deregister(const void* ptr);
 @return created information or "" if can't be found */
 std::string
 sync_file_created_get(const void* ptr);
+
+#endif /* !UNIV_LIBRARY */
 
 #ifdef UNIV_DEBUG
 
@@ -1021,7 +1037,16 @@ struct latch_t {
 	{
 		ut_a(m_id != LATCH_ID_NONE);
 
+#ifndef UNIV_LIBRARY
 		return(sync_latch_get_level(m_id));
+#else
+		/* This should never be reached. This is
+		added to fix compilation errors
+		for library. We will never reach here because
+		mutexes are disabled in library. */
+		ut_error;
+		return(SYNC_UNKNOWN);
+#endif /* !UNIV_LIBRARY */
 	}
 
 	/** @return true if the latch is for a temporary file space*/
@@ -1048,7 +1073,16 @@ struct latch_t {
 	{
 		ut_a(m_id != LATCH_ID_NONE);
 
+#ifndef UNIV_LIBRARY
 		return(sync_latch_get_name(m_id));
+#else
+		/* This should never be reached. This is
+		added to fix compilation errors
+		for library. We will never reach here because
+		mutexes are disabled in library. */
+		ut_error;
+		return(NULL);
+#endif /* !UNIV_LIBRARY */
 	}
 
 	/** Latch ID */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,6 +28,7 @@ Created 9/8/1995 Heikki Tuuri
 #define os0thread_h
 
 #include "univ.i"
+#include "os/thread.h"
 
 /* Maximum number of threads which can be created in the program;
 this is also the size of the wait slot array for MySQL threads which
@@ -42,8 +43,6 @@ can wait inside InnoDB */
 #define OS_THREAD_PRIORITY_ABOVE_NORMAL	3
 
 #ifdef _WIN32
-typedef DWORD			os_thread_id_t;	/*!< In Windows the thread id
-						is an unsigned long int */
 extern "C"  {
 typedef LPTHREAD_START_ROUTINE	os_thread_func_t;
 }
@@ -60,9 +59,6 @@ don't access the arguments and don't return any value, we should be safe. */
 
 #else
 
-typedef pthread_t		os_thread_id_t;	/*!< In Unix we use the thread
-						handle itself as the id of
-						the thread */
 extern "C"  { typedef void*	(*os_thread_func_t)(void*); }
 
 /** Macro for specifying a POSIX thread start function. */
@@ -81,23 +77,6 @@ typedef unsigned int    mysql_pfs_key_t;
 
 /** Number of threads active. */
 extern	ulint	os_thread_count;
-
-/***************************************************************//**
-Compares two thread ids for equality.
-@return TRUE if equal */
-ibool
-os_thread_eq(
-/*=========*/
-	os_thread_id_t	a,	/*!< in: OS thread or thread id */
-	os_thread_id_t	b);	/*!< in: OS thread or thread id */
-/****************************************************************//**
-Converts an OS thread id to a ulint. It is NOT guaranteed that the ulint is
-unique for the thread though!
-@return thread identifier as a number */
-ulint
-os_thread_pf(
-/*=========*/
-	os_thread_id_t	a);	/*!< in: OS thread identifier */
 /****************************************************************//**
 Creates a new thread of execution. The execution starts from
 the function given.
@@ -123,12 +102,6 @@ os_thread_exit(
 	void*	exit_value)	/*!< in: exit value; in Windows this void*
 				is cast as a DWORD */
 	UNIV_COLD __attribute__((noreturn));
-/*****************************************************************//**
-Returns the thread identifier of current thread.
-@return current thread identifier */
-os_thread_id_t
-os_thread_get_curr_id(void);
-/*========================*/
 /*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */
 void

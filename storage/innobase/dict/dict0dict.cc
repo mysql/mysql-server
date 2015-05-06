@@ -637,33 +637,6 @@ dict_table_has_column(
 	return(col_max);
 }
 
-/**********************************************************************//**
-Returns a column's name.
-@return column name. NOTE: not guaranteed to stay valid if table is
-modified in any way (columns added, etc.). */
-const char*
-dict_table_get_col_name(
-/*====================*/
-	const dict_table_t*	table,	/*!< in: table */
-	ulint			col_nr)	/*!< in: column number */
-{
-	ulint		i;
-	const char*	s;
-
-	ut_ad(table);
-	ut_ad(col_nr < table->n_def);
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	s = table->col_names;
-	if (s) {
-		for (i = 0; i < col_nr; i++) {
-			s += strlen(s) + 1;
-		}
-	}
-
-	return(s);
-}
-
 /** Returns a virtual column's name.
 @param[in]	table	target table
 @param[in]	col_nr	virtual column number (nth virtual column)
@@ -730,7 +703,6 @@ MySQL table position.
 @param[in]	table	target table
 @param[in]	col_nr	column number (nth column in the table)
 @return column name. */
-static
 const char*
 dict_table_get_v_col_name_mysql(
 	const dict_table_t*	table,
@@ -2914,90 +2886,7 @@ found:
 
 	return(TRUE);
 }
-#endif /* !UNIV_HOTBACKUP */
 
-/*******************************************************************//**
-Adds a column to index. */
-void
-dict_index_add_col(
-/*===============*/
-	dict_index_t*		index,		/*!< in/out: index */
-	const dict_table_t*	table,		/*!< in: table */
-	dict_col_t*		col,		/*!< in: column */
-	ulint			prefix_len)	/*!< in: column prefix length */
-{
-	dict_field_t*	field;
-	const char*	col_name;
-
-	if (dict_col_is_virtual(col)) {
-		dict_v_col_t*	v_col = reinterpret_cast<dict_v_col_t*>(col);
-
-		/* When v_col->v_indexes==NULL,
-		ha_innobase::commit_inplace_alter_table(commit=true)
-		will evict and reload the table definition, and
-		v_col->v_indexes will not be NULL for the new table. */
-		if (v_col->v_indexes != NULL) {
-			/* Register the index with the virtual column index
-			list */
-			struct dict_v_idx_t	new_idx
-				 = {index, index->n_def};
-
-			v_col->v_indexes->push_back(new_idx);
-
-		}
-
-		col_name = dict_table_get_v_col_name_mysql(
-			table, dict_col_get_no(col));
-	} else {
-		col_name = dict_table_get_col_name(table, dict_col_get_no(col));
-	}
-
-	dict_mem_index_add_field(index, col_name, prefix_len);
-
-	field = dict_index_get_nth_field(index, index->n_def - 1);
-
-	field->col = col;
-	/* DATA_POINT is a special type, whose fixed_len should be:
-	1) DATA_MBR_LEN, when it's indexed in R-TREE. In this case,
-	it must be the first col to be added.
-	2) DATA_POINT_LEN(be equal to fixed size of column), when it's
-	indexed in B-TREE,
-	3) DATA_POINT_LEN, if a POINT col is the PRIMARY KEY, and we are
-	adding the PK col to other B-TREE/R-TREE. */
-	/* TODO: We suppose the dimension is 2 now. */
-	if (dict_index_is_spatial(index) && DATA_POINT_MTYPE(col->mtype)
-	    && index->n_def == 1) {
-		field->fixed_len = DATA_MBR_LEN;
-	} else {
-		field->fixed_len = static_cast<unsigned int>(
-					dict_col_get_fixed_size(
-					col, dict_table_is_comp(table)));
-	}
-
-	if (prefix_len && field->fixed_len > prefix_len) {
-		field->fixed_len = (unsigned int) prefix_len;
-	}
-
-	/* Long fixed-length fields that need external storage are treated as
-	variable-length fields, so that the extern flag can be embedded in
-	the length word. */
-
-	if (field->fixed_len > DICT_MAX_FIXED_COL_LEN) {
-		field->fixed_len = 0;
-	}
-#if DICT_MAX_FIXED_COL_LEN != 768
-	/* The comparison limit above must be constant.  If it were
-	changed, the disk format of some fixed-length columns would
-	change, which would be a disaster. */
-# error "DICT_MAX_FIXED_COL_LEN != 768"
-#endif
-
-	if (!(col->prtype & DATA_NOT_NULL)) {
-		index->n_nullable++;
-	}
-}
-
-#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Copies fields contained in index2 to index1. */
 static

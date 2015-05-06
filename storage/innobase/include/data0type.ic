@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -513,7 +513,7 @@ dtype_get_fixed_size_low(
 	case DATA_POINT:
 		return(len);
 	case DATA_MYSQL:
-#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_LIBRARY
 		if (prtype & DATA_BINARY_TYPE) {
 			return(len);
 		} else if (!comp) {
@@ -534,9 +534,9 @@ dtype_get_fixed_size_low(
 				return(len);
 			}
 		}
-#else /* !UNIV_HOTBACKUP */
+#else /* !UNIV_LIBRARY */
 		return(len);
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_LIBRARY */
 		/* fall through for variable-length charsets */
 	case DATA_VARCHAR:
 	case DATA_BINARY:
