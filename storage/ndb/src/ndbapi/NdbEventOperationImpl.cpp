@@ -3554,11 +3554,33 @@ end:
   DBUG_VOID_RETURN_EVENT;
 }
 
+void
+NdbEventBuffer::clear_event_queue()
+{
+  if(!m_available_data.is_empty())
+  {
+    free_list(m_available_data);
+  }
+  else
+  {
+    // no event data found, remove any lingering gci_ops
+    // belonging to consumed epochs
+    if (m_available_data.first_gci_ops())
+      m_available_data.~EventBufData_list();
+  }
+}
+
 NdbEventOperation*
 NdbEventBuffer::createEventOperation(const char* eventName,
 				     NdbError &theError)
 {
   DBUG_ENTER("NdbEventBuffer::createEventOperation");
+
+  if (m_ndb->theImpl->m_ev_op == NULL)
+  {
+    clear_event_queue();
+  }
+
   NdbEventOperation* tOp= new NdbEventOperation(m_ndb, eventName);
   if (tOp == 0)
   {
