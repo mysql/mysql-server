@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2769,10 +2769,8 @@ setup_conflict_fn(Ndb* ndb,
       DBUG_RETURN(-1);
     }
 
-    uint resolve_col_sz= 0;
-
-    if (0 == (resolve_col_sz =
-              slave_check_resolve_col_type(ndbtab, colNum)))
+    const uint resolve_col_sz= slave_check_resolve_col_type(ndbtab, colNum);
+    if (resolve_col_sz == 0)
     {
       /* wrong data type */
       slave_reset_conflict_fn(*ppcfn_share);
