@@ -29,7 +29,6 @@ void test_oom()
 {
   int rc;
   PFS_global_param param;
-  PFS_table_share *pfs_table_share;
   TABLE_SHARE table_share;
   PFS_thread pfs_thread;
 
@@ -82,7 +81,7 @@ void test_oom()
   init_setup_object_hash(&param);
 
   stub_alloc_always_fails= false;
-  pfs_table_share= find_or_create_table_share(&pfs_thread, false, &table_share);
+  (void) find_or_create_table_share(&pfs_thread, false, &table_share);
   ok(global_table_share_container.m_lost == 1, "oom (table share)");
 
   cleanup_table_share();
