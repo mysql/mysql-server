@@ -519,6 +519,7 @@ void kill_zombie_dump_threads(String *slave_uuid)
                             "UUID <%s>, found a zombie dump thread with "
                             "the same UUID. Master is killing the zombie dump "
                             "thread.", slave_uuid->c_ptr());
+    tmp->duplicate_slave_uuid= true;
     tmp->awake(THD::KILL_QUERY);
     mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }
