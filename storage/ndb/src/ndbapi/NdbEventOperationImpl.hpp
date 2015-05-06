@@ -667,6 +667,7 @@ public:
   void add_op();
   void remove_op();
   void init_gci_containers();
+  void clear_event_queue();
 
   // accessed from the "receive thread"
   int insertDataL(NdbEventOperationImpl *op,
