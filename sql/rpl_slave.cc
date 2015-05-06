@@ -10825,6 +10825,14 @@ bool change_master_cmd(THD *thd)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
+  /* The slave must have been initialized to allow CHANGE MASTER statements */
+  if (!is_slave_configured())
+  {
+    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
+    res= true;
+    goto err;
+  }
+
   //If the chosen name is a group replication reserved name abort
   if (msr_map.is_group_replication_channel_name(lex->mi.channel))
   {
