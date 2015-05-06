@@ -466,7 +466,6 @@ public:
     aggregator_clear();
   }
   virtual void make_unique() { force_copy_fields= TRUE; }
-  Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool clean_up_after_removal(uchar *arg);
