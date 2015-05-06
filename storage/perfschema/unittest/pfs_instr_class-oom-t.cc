@@ -69,8 +69,13 @@ void test_oom()
 
   pfs_thread.m_table_share_hash_pins= NULL;
   pfs_thread.m_setup_object_hash_pins= NULL;
-  table_share.db= {"schema 1", strlen("schema 1")};
-  table_share.table_name= {"table 1", strlen("table 1")};
+  
+  char db_name[]= "schema 1";
+  char table_name[]= "table 1";
+  table_share.db.str= db_name;
+  table_share.db.length= strlen(db_name);
+  table_share.table_name.str= table_name;
+  table_share.table_name.length= strlen(table_name);
 
   init_table_share(param.m_table_share_sizing);
   init_table_share_hash(&param);
