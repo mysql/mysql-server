@@ -658,12 +658,20 @@ int init_recovery(Master_info* mi, const char** errmsg)
     error= mts_recovery_groups(rli);
     if (rli->mts_recovery_group_cnt)
     {
-      error= 1;
-      sql_print_error("--relay-log-recovery cannot be executed when the slave "
+      if (gtid_mode == GTID_MODE_ON)
+      {
+        rli->recovery_parallel_workers= 0;
+        rli->clear_mts_recovery_groups();
+      }
+      else
+      {
+        error= 1;
+        sql_print_error("--relay-log-recovery cannot be executed when the slave "
                         "was stopped with an error or killed in MTS mode; "
                         "consider using RESET SLAVE or restart the server "
                         "with --relay-log-recovery = 0 followed by "
                         "START SLAVE UNTIL SQL_AFTER_MTS_GAPS");
+      }
     }
   }
 
@@ -4841,6 +4849,17 @@ ignore_log_space_limit=%d",
 log space");
           goto err;
         }
+      DBUG_EXECUTE_IF("flush_after_reading_user_var_event",
+                      {
+                      if (event_buf[EVENT_TYPE_OFFSET] == USER_VAR_EVENT)
+                      {
+                      const char act[]= "now signal Reached wait_for signal.flush_complete_continue";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+
+                      }
+                      });
       DBUG_EXECUTE_IF("stop_io_after_reading_gtid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == GTID_LOG_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
@@ -5419,11 +5438,8 @@ err:
   }
 
   delete_dynamic(&above_lwm_jobs);
-  if (rli->recovery_groups_inited && rli->mts_recovery_group_cnt == 0)
-  {
-    bitmap_free(groups);
-    rli->recovery_groups_inited= false;
-  }
+  if (rli->mts_recovery_group_cnt == 0)
+    rli->clear_mts_recovery_groups();
 
   DBUG_RETURN(error ? ER_MTS_RECOVERY_FAILURE : 0);
 }
@@ -6191,12 +6207,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
  err:
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
-  if (rli->recovery_groups_inited)
-  {
-    bitmap_free(&rli->recovery_groups);
-    rli->mts_recovery_group_cnt= 0;
-    rli->recovery_groups_inited= false;
-  }
+  rli->clear_mts_recovery_groups();
 
   /*
     Some events set some playgrounds, which won't be cleared because thread

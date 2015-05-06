@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -597,6 +597,16 @@ public:
   inline bool is_mts_recovery() const
   {
     return mts_recovery_group_cnt != 0;
+  }
+
+  inline void clear_mts_recovery_groups()
+  {
+    if (recovery_groups_inited)
+    {
+      bitmap_free(&recovery_groups);
+      mts_recovery_group_cnt= 0;
+      recovery_groups_inited= false;
+    }
   }
 
   /**
