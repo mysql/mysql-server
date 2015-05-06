@@ -4360,6 +4360,204 @@ runCheckHQElatestGCI(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/**
+ * Wait until some epoch reaches the event queue and then consume nEpochs.
+ * nepochs = 0: Wait until some epoch reaches the event queue and return true
+ * nepochs > 0: Consume the given number of epochs or the queue becomes
+ *   empty. Return true.
+ * Returns false if no epoch reaches the event queue within the #pollRetries
+ * or epochs are retrieved out of order.
+ */
+
+// Remember the highest queued epoch before the cluster restart
+static Uint64 epoch_before_restart = 0;
+bool
+consumeEpochs(Ndb* ndb, uint nEpochs)
+{
+  Uint64 op_gci = 0, curr_gci = 0, consumed_gci = 0;
+  Uint32 consumed_epochs = 0;
+  Uint32 emptyEpochs = 0, errorEpochs = 0, regularOps = 0;
+
+  g_info << "Epochs to be consumed " << nEpochs << endl;
+  // Allow some time for the event data from the data nodes
+  // to reach the event buffer
+  NdbSleep_SecSleep(5);
+
+  int pollRetries = 60;
+  int res = 0;
+  Uint64 highestQueuedEpoch = 0;
+  while (pollRetries-- > 0)
+  {
+    res = ndb->pollEvents2(1000, &highestQueuedEpoch);
+
+    g_info << "consumeEpochs: " << highestQueuedEpoch  << " ("
+           << (Uint32)(highestQueuedEpoch >> 32) << "/"
+           << (Uint32)highestQueuedEpoch << ")"
+           << " pollRetries left " << pollRetries
+           << " res " << res << endl;
+
+    if (nEpochs == 0 && res > 0)
+    {
+      // Some epochs have reached the event queue,
+      // but not requested to consume
+      epoch_before_restart = highestQueuedEpoch;
+      g_info << "Ret : nEpochs == 0 && res > 0" << endl;
+      return true;
+    }
+
+    if (res == 0)
+    {
+      NdbSleep_SecSleep(1);
+      continue;
+    }
+
+    // Consume nEpochs
+    NdbEventOperation* pOp = NULL;
+    while ((pOp = ndb->nextEvent2()))
+    {
+      NdbDictionary::Event::TableEvent err_type;
+      if ((pOp->isErrorEpoch(&err_type)) ||
+          (pOp->getEventType2() == NdbDictionary::Event::TE_CLUSTER_FAILURE))
+        errorEpochs++;
+      else if (pOp->isEmptyEpoch())
+        emptyEpochs++;
+      else
+        regularOps++;
+
+      op_gci = pOp->getGCI();
+      if (op_gci < curr_gci)
+      {
+        g_err << endl << "Out of order epochs: retrieved epoch " << op_gci
+              << " (" << (Uint32)(op_gci >> 32) << "/"
+              << (Uint32)op_gci << ")" << endl;
+        g_err << " Curr gci " << curr_gci << " ("
+              << (Uint32)(curr_gci >> 32) << "/"
+              << (Uint32)curr_gci << ")" << endl;
+        g_err << " Epoch before restart " << epoch_before_restart  << " ("
+              << (Uint32)(epoch_before_restart >> 32) << "/"
+              << (Uint32)epoch_before_restart << ")" << endl;
+        g_err << " Consumed epoch " << consumed_gci << " ("
+              << (Uint32)(consumed_gci >> 32) << "/"
+              << (Uint32)consumed_gci << ")" << endl << endl;
+        return false;
+      }
+
+      if (op_gci > curr_gci)
+      {
+        // epoch boundary
+        consumed_gci = curr_gci;
+        curr_gci = op_gci;
+
+        if (++consumed_epochs > nEpochs)
+        {
+          g_info << "Consumed epochs " << consumed_epochs << endl;
+          g_info << "Empty epochs " << emptyEpochs
+                << " RegualrOps " << regularOps
+                << " Error epochs " << errorEpochs << endl;
+          return true;
+        }
+      }
+      // Note epoch boundary when event queue becomes empty
+      consumed_gci = curr_gci;
+    }
+  }
+
+  // Retries expired
+  if ((nEpochs == 0 && highestQueuedEpoch == 0) ||
+      (consumed_epochs == 0))
+  {
+    g_err << "No epochs reached the queue, nEpochs " << nEpochs << endl;
+    return false;
+  }
+
+  g_info << "Consumed epochs " << consumed_epochs << endl;
+  g_info << "Empty epochs " << emptyEpochs << " regualrOps " << regularOps
+        << " Error epochs " << errorEpochs << endl;
+  return true;
+}
+
+/*************************************************************
+ * The test generates some transaction load, waits til the
+ * event queue gets filled, restarts cluster (initially if
+ * requested), generates some transaction load and then
+ * consumes all events from the queue.
+ *
+ * The test will fail if no epoch reaches the event queue within
+ * the #pollRetries or epochs are retrieved out of order.
+ */
+
+int
+runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const NdbDictionary::Table tab(* ctx->getTab());
+
+  NdbEventOperation* evOp = createEventOperation(pNdb, tab);
+  CHK(evOp != NULL, "Event operation creation failed");
+
+  // Generate some transaction load
+  HugoTransactions hugoTrans(tab);
+  CHK(hugoTrans.loadTable(GETNDB(step), 1000, 100) == 0,
+      "Failed to generate transaction load after cluster restart");
+
+  // Poll until find some event data in the queue
+  // but don't consume (nEpochs to consume is 0)
+  CHK(consumeEpochs(pNdb, 0), "No event data found by pollEvents");
+  /*
+   * Drop the pre-created table before initial restart to avoid invalid
+   * dict cache. Also use a copy of the pre-created table struct
+   * to avoid accessing invalid memory.
+   */
+  const NdbDictionary::Table tab1(* ctx->getTab());
+  CHK(pDict->dropTable(tab.getName()) == 0, pDict->getNdbError());
+  CHK(dropEvent(pNdb, tab) == 0, pDict->getNdbError());
+
+  if (ctx->getProperty("InitialRestart"))
+    g_info << "Restarting cluster initially" << endl;
+  else
+    g_info << "Restarting cluster" << endl;
+
+  // Restart cluster with abort
+  NdbRestarter restarter;
+  if (restarter.restartAll(ctx->getProperty("InitialRestart"),
+                           true, true) != 0)
+    return NDBT_FAILED;
+
+  g_err << "wait nostart" << endl;
+  restarter.waitClusterNoStart();
+  g_err << "startAll" << endl;
+  restarter.startAll();
+  g_err << "wait started" << endl;
+  restarter.waitClusterStarted();
+
+  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
+  NdbSleep_SecSleep(1);
+
+  // Create the table
+  CHK(pDict->createTable(tab1) == 0, pDict->getNdbError());
+  const NdbDictionary::Table* pTab = pDict->getTable(tab.getName());
+  CHK(pTab != 0, pDict->getNdbError());
+  // Create the event
+  CHK(createEvent(pNdb, tab1, ctx)== 0, pDict->getNdbError());
+
+  //Create event op
+  evOp = createEventOperation(pNdb, *pTab);
+  CHK(evOp != NULL, "Event operation creation failed");
+
+  // Generate some transaction load
+  HugoTransactions hugoTrans1(*pTab);
+  CHK(hugoTrans1.loadTable(GETNDB(step), 1000, 100) == 0,
+      "Failed to generate transaction load after cluster restart");
+
+  // consume all epochs left by giving a high value to eEpochs
+  CHK(consumeEpochs(pNdb, 10000), "Consume after cluster restart failed");
+
+  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
+  CHK(dropEvent(pNdb, tab) == 0, pDict->getNdbError());
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -4671,6 +4869,23 @@ TESTCASE("Apiv2HQE-latestGCI",
   STEP(runCheckHQElatestGCI);
   STEP(runInsertDeleteUntilStopped);
   FINALIZER(runDropEvent);
+}
+TESTCASE("Apiv2-check_event_queue_cleared",
+         "Check whether subcriptions been dropped "
+         "and recreated after a cluster restart "
+         "cause any problem for event consumption.")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runInjectClusterFailure);
+}
+TESTCASE("Apiv2-check_event_queue_cleared_initial",
+         "test Bug 18411034 : Check whether the event queue is cleared "
+         "after a cluster failure causing subcriptions to be "
+         "dropped and recreated, and cluster is restarted initially.")
+{
+  TC_PROPERTY("InitialRestart", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(runInjectClusterFailure);
 }
 #if 0
 TESTCASE("BackwardCompatiblePollCOverflowEB",

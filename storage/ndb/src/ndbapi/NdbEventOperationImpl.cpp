@@ -1394,6 +1394,9 @@ NdbEventBuffer::~NdbEventBuffer()
     free_list(m_available_data);
   if(!m_used_data.is_empty())
     free_list(m_used_data);
+  // Return event queue leftovers to free list
+  clear_event_queue();
+
 
   for (j= 0; j < m_allocated_data.size(); j++)
   {
@@ -1726,11 +1729,13 @@ NdbEventBuffer::nextEvent2()
 
         if (gci_ops && (gci != gci_ops->m_gci))
 	{
-           ndbout << "nextEvent2: gci " << gci << " "
-                  << " gci_ops->m_gci " << gci_ops->m_gci
+           ndbout << "nextEvent2: gci_ops->m_gci " << gci_ops->m_gci
+                  << " (" << Uint32(gci_ops->m_gci >> 32)
+                  << "/" << Uint32(gci_ops->m_gci) << ") "
+                  << " gci " << gci
                   << " (" << Uint32(gci >> 32)
                   << "/" << Uint32(gci) << ") type "
-                  << hex << op->getEventType()
+                  << hex << op->getEventType2()
                   << " data's operation " << hex
                   <<  SubTableData::getOperation(data->sdata->requestInfo)
                   << " " << m_ndb->getNdbObjectName() << endl;
@@ -3973,11 +3978,33 @@ end:
   DBUG_VOID_RETURN_EVENT;
 }
 
+void
+NdbEventBuffer::clear_event_queue()
+{
+  if(!m_available_data.is_empty())
+  {
+    free_list(m_available_data);
+  }
+  else
+  {
+    // no event data found, remove any lingering gci_ops
+    // belonging to consumed epochs
+    if (m_available_data.first_gci_ops())
+      m_available_data.~EventBufData_list();
+  }
+}
+
 NdbEventOperation*
 NdbEventBuffer::createEventOperation(const char* eventName,
 				     NdbError &theError)
 {
   DBUG_ENTER("NdbEventBuffer::createEventOperation");
+
+  if (m_ndb->theImpl->m_ev_op == NULL)
+  {
+    clear_event_queue();
+  }
+
   NdbEventOperation* tOp= new NdbEventOperation(m_ndb, eventName);
   if (tOp == 0)
   {
