@@ -44,7 +44,7 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
-FragmentLogFileSize = 64M
+FragmentLogFileSize = 128M
 ODirect=1
 MaxNoOfAttributes=2000
 
@@ -53,7 +53,7 @@ DiskPageBufferMemory=256M
 FileSystemPath=/data0/autotest
 FileSystemPathDataFiles=/data1/autotest
 FileSystemPathUndoFiles=/data2/autotest
-InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
 
